@@ -23,12 +23,13 @@ import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { formatPrice } from "@/lib/formatPrice";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useBookingData } from "@/hooks/booking/useBookingData";
-import { useUser } from "@/contexts/UserContext";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import {
   computeTherapistEarnings,
@@ -60,7 +61,7 @@ export default function BookingDetail() {
   const navigate = useNavigate();
 
   const { t } = useTranslation('admin');
-  const { isConcierge } = useUser();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
 
   const [activeTab, setActiveTab] = useState("details");
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -197,7 +198,16 @@ export default function BookingDetail() {
   const therapistEarnings = computeTherapistEarnings(soloRates, totalDuration);
   const ratesComplete = hasCompleteRates(soloRates);
   const showEarnings = !isDuo && !!booking.therapist_id && Object.keys(therapistRatesMap).length > 0;
-  const paymentLabel = PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending;
+  const clientType = (booking as any).client_type || (booking.room_number ? "hotel" : "external");
+  const isExternal = clientType === "external";
+  const paymentInfos = booking.booking_payment_infos;
+  const hasSavedCard = !!paymentInfos
+    && paymentInfos.payment_status === "card_saved"
+    && !!paymentInfos.stripe_payment_method_id;
+  const cardSavedToCharge = isExternal && hasSavedCard && (booking.payment_status || "pending") === "pending";
+  const paymentLabel = cardSavedToCharge
+    ? "Carte enregistrée à débiter"
+    : (PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending);
 
   // Fonction pour enregistrer la signature depuis l'admin
   const handleSignatureConfirm = async (signatureData: string) => {
@@ -267,34 +277,30 @@ export default function BookingDetail() {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* BOUTON SIGNATURE */}
-          {!isConcierge && (isSigned ? (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="text-green-600 border-green-200 bg-green-50 hover:bg-green-100"
-              onClick={() => window.open(`/client/signature/${booking.signature_token}`, '_blank')}
-            >
-              <CheckCircle2 className="h-4 w-4 mr-2" /> Signé
-            </Button>
-          ) : (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="text-purple-600 border-purple-200 hover:bg-purple-50 hover:text-purple-700"
-              onClick={() => setIsSignatureOpen(true)}
-            >
-              <PenTool className="h-4 w-4 mr-2" /> Signature
-            </Button>
-          ))}
-
           <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
             <MessageSquare className="h-4 w-4 mr-2" /> Notes
           </Button>
-          {!isConcierge && !isPartnerBilled && (
-            <Button variant="outline" size="sm" onClick={() => setIsPaymentLinkOpen(true)}>
-              <Send className="h-4 w-4 mr-2" /> Paiement
-            </Button>
+          {!isConcierge && !isPartnerBilled && !cardSavedToCharge && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span tabIndex={isPaid ? 0 : -1} className={isPaid ? "cursor-not-allowed" : undefined}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsPaymentLinkOpen(true)}
+                    disabled={isPaid}
+                    className={isPaid ? "pointer-events-none" : undefined}
+                  >
+                    <Send className="h-4 w-4 mr-2" /> Paiement
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {isPaid && (
+                <TooltipContent>
+                  Paiement déjà effectué pour cette réservation
+                </TooltipContent>
+              )}
+            </Tooltip>
           )}
           <Button variant="default" size="sm" onClick={() => setIsEditOpen(true)}>
             <Pencil className="h-4 w-4 mr-2" /> Modifier
@@ -334,19 +340,52 @@ export default function BookingDetail() {
 
         {/* ALERTES DE STATUT (SIGNATURE) */}
         {isSigned ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between text-blue-800">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-blue-600" />
-              <span className="font-medium text-sm">Document de décharge signé.</span>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-3 text-blue-800">
+            <div className="flex items-center gap-3 min-w-0">
+              <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <span className="font-medium text-sm truncate">Document de décharge signé.</span>
             </div>
-            <span className="text-xs opacity-70">
-              Le {format(new Date(booking.signed_at), "d MMMM à HH:mm", { locale: fr })}
-            </span>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <span className="text-xs opacity-70 hidden sm:inline">
+                Le {format(new Date(booking.signed_at), "d MMMM à HH:mm", { locale: fr })}
+              </span>
+              {!isConcierge && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0} className="cursor-not-allowed">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        className="pointer-events-none text-green-600 border-green-200 bg-green-50"
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-2" /> Signé
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Décharge déjà signée
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
           </div>
         ) : (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 text-red-800">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <span className="font-medium text-sm">Décharge non signée : signature obligatoire avant le soin.</span>
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3 text-red-800">
+            <div className="flex items-center gap-3 min-w-0">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+              <span className="font-medium text-sm">Décharge non signée : signature obligatoire avant le soin.</span>
+            </div>
+            {!isConcierge && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-shrink-0 text-purple-600 border-purple-200 bg-white hover:bg-purple-50 hover:text-purple-700"
+                onClick={() => setIsSignatureOpen(true)}
+              >
+                <PenTool className="h-4 w-4 mr-2" /> Signature
+              </Button>
+            )}
           </div>
         )}
 

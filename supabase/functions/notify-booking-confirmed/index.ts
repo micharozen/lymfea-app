@@ -36,6 +36,30 @@ serve(async (req) => {
       throw new Error('Booking not found');
     }
 
+    // Group-mode gating: when the booking belongs to a booking_group_id,
+    // suppress per-booking emails and only fire once — when ALL siblings are
+    // confirmed AND this booking is the canonical first (smallest id-sort).
+    // This keeps the client/admin/concierge inboxes from receiving N copies.
+    if (booking.booking_group_id) {
+      const { data: siblings } = await supabase
+        .from('bookings')
+        .select('id, status, booking_date, booking_time')
+        .eq('booking_group_id', booking.booking_group_id)
+        .order('booking_date', { ascending: true })
+        .order('booking_time', { ascending: true })
+        .order('id', { ascending: true });
+
+      const allConfirmed = (siblings ?? []).every((b: any) => b.status === 'confirmed');
+      const canonicalId = siblings?.[0]?.id;
+      if (!allConfirmed || canonicalId !== bookingId) {
+        console.log('[notify-booking-confirmed] Skipping group sibling — waiting for full group confirmation');
+        return new Response(
+          JSON.stringify({ success: true, skipped: 'group_partial_or_non_canonical' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     console.log('[notify-booking-confirmed] Booking found:', booking.booking_id);
 
     const { data: bookingTreatments } = await supabase

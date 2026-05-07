@@ -3,8 +3,9 @@ import { useClientVenue } from "./context/ClientVenueContext";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import {
-  CheckCircle, Calendar, Clock, MapPin, CreditCard, Loader2,
+  CheckCircle, Calendar, MapPin, CreditCard,
   AlertCircle, Repeat, ShoppingBag, Package, Gift, Copy, Check, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import { brand, brandLogos } from "@/config/brand";
 export default function Confirmation() {
   const navigate = useNavigate();
   const { bookingId: paramBookingId } = useParams<{ bookingId?: string }>();
-  const { slug } = useClientVenue();
+  const { slug, hotelId } = useClientVenue();
   const [searchParams] = useSearchParams();
   const { t, i18n } = useTranslation('client');
   const { changeLanguage, language: currentLanguage } = i18n;
@@ -28,6 +29,7 @@ export default function Confirmation() {
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paramBookingId || '');
 
   const [booking, setBooking] = useState<Record<string, unknown> | null>(null);
+  const [groupBookings, setGroupBookings] = useState<Array<{ booking_date: string; booking_time: string; treatmentName: string }> | null>(null);
   const [bundleData, setBundleData] = useState<Record<string, unknown>[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,9 +48,7 @@ export default function Confirmation() {
       try {
         if (!sessionId) throw new Error("Identifiant de session manquant.");
 
-        const { data, error: fnError } = await supabase.functions.invoke('purchase-bundle', {
-          body: { sessionId },
-        });
+        const { data, error: fnError } = await invokeStripe<{ customerBundles?: unknown[] }>('purchase-bundle', { sessionId, hotelId });
 
         if (fnError) throw new Error("La confirmation de votre achat a échoué.");
         if (!data?.customerBundles || data.customerBundles.length === 0) {
@@ -73,9 +73,7 @@ export default function Confirmation() {
 
         if (!isUUID && sessionId) {
           console.log("[Confirmation] Appel confirm-setup-intent...");
-          const { data: confirmData, error: confirmError } = await supabase.functions.invoke('confirm-setup-intent', {
-            body: { sessionId }
-          });
+          const { data: confirmData, error: confirmError } = await invokeStripe<{ bookingId?: string }>('confirm-setup-intent', { sessionId, hotelId });
           if (confirmError) throw new Error("La validation de votre garantie bancaire a échoué.");
           if (confirmData?.bookingId) finalBookingId = confirmData.bookingId;
         }
@@ -97,6 +95,24 @@ export default function Confirmation() {
         // Apply language from payment link if the client arrived via a payment link
         if (isPaymentSuccess && bookingData.payment_link_language) {
           changeLanguage(bookingData.payment_link_language as string);
+        }
+
+        // If this booking belongs to a group, show sibling slots (included in summary via SECURITY DEFINER).
+        // Direct RLS query on bookings is not available to the anon/guest client.
+        const siblings = bookingData.group_siblings as Array<{
+          id: string;
+          booking_date: string;
+          booking_time: string;
+          treatment_name: string | null;
+        }> | null;
+        if (siblings && siblings.length > 1) {
+          setGroupBookings(
+            siblings.map((s) => ({
+              booking_date: s.booking_date,
+              booking_time: s.booking_time,
+              treatmentName: s.treatment_name || '—',
+            }))
+          );
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Une erreur est survenue lors de la récupération.";
@@ -475,22 +491,46 @@ export default function Confirmation() {
               {t('confirmation.yourRequest')}
             </div>
             <dl className="divide-y divide-[#EFE7DA]">
-              <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.date')}</dt>
-                <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right">{dateLabel}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.time')}</dt>
-                <dd className="font-serif text-[15px] sm:text-[16px] text-[#C96A43] text-right">{timeLabel}</dd>
-              </div>
+              {groupBookings ? (
+                /* Multi-time booking: show one row per slot */
+                groupBookings.map((gb, i) => {
+                  const gbDate = format(new Date(gb.booking_date), 'd MMMM yyyy', { locale: dateLocale });
+                  const gbTime = gb.booking_time.substring(0, 5);
+                  return (
+                    <div key={i} className="flex items-start justify-between gap-4 py-3">
+                      <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0 pt-0.5">
+                        {gb.treatmentName}
+                      </dt>
+                      <dd className="font-serif text-[14px] sm:text-[15px] text-[#2C2622] text-right">
+                        {gbDate}
+                        <span className="text-[#C96A43] ml-2">{gbTime}</span>
+                      </dd>
+                    </div>
+                  );
+                })
+              ) : (
+                /* Standard single booking */
+                <>
+                  <div className="flex items-center justify-between gap-4 py-3">
+                    <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.date')}</dt>
+                    <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right">{dateLabel}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 py-3">
+                    <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.time')}</dt>
+                    <dd className="font-serif text-[15px] sm:text-[16px] text-[#C96A43] text-right">{timeLabel}</dd>
+                  </div>
+                </>
+              )}
               <div className="flex items-center justify-between gap-4 py-3">
                 <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.venue')}</dt>
                 <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right break-words">{venueLine}</dd>
               </div>
-              <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.treatment')}</dt>
-                <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right break-words">{treatmentNames}</dd>
-              </div>
+              {!groupBookings && (
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.treatment')}</dt>
+                  <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right break-words">{treatmentNames}</dd>
+                </div>
+              )}
             </dl>
           </div>
         </div>

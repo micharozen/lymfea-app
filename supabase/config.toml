@@ -22,9 +22,6 @@ verify_jwt = true
 [functions.stripe-connect-webhook]
 verify_jwt = false
 
-[functions.finalize-payment]
-verify_jwt = false
-
 [functions.create-client-booking]
 verify_jwt = false
 
@@ -40,12 +37,6 @@ verify_jwt = false
 [functions.verify-otp]
 verify_jwt = false
 
-[functions.create-bundle-payment]
-verify_jwt = false
-
-[functions.purchase-bundle]
-verify_jwt = false
-
 [functions.check-availability]
 verify_jwt = false
 
@@ -53,12 +44,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.stripe-webhook]
-verify_jwt = false
-
-[functions.create-checkout-session]
-verify_jwt = false
-
-[functions.handle-checkout-success]
 verify_jwt = false
 
 [functions.send-push-notification]
@@ -127,6 +112,9 @@ verify_jwt = false
 [functions.pms-test-connection]
 verify_jwt = false
 
+[functions.payment-test-connection]
+verify_jwt = false
+
 [functions.pms-guest-lookup]
 verify_jwt = false
 
@@ -145,15 +133,6 @@ verify_jwt = false
 [functions.opera-cloud-post-charge]
 verify_jwt = false
 
-[functions.create-setup-intent]
-verify_jwt = false
-
-[functions.confirm-setup-intent]
-verify_jwt = false
-
-[functions.charge-saved-card]
-verify_jwt = false
-
 [functions.create-support-ticket]
 verify_jwt = false
 
@@ -167,13 +146,7 @@ verify_jwt = false
 verify_jwt = false
 
 
-[functions.check-expired-payment-links]
-verify_jwt = false
-
 [functions.send-payment-reminder]
-verify_jwt = false
-
-[functions.send-payment-link]
 verify_jwt = false
 
 [functions.notify-noshow]
@@ -184,3 +157,6 @@ verify_jwt = false
 
 [functions.send-slack-notification]
 verify_jwt = false
+
+[functions.create-draft-booking]
+verify_jwt= false

@@ -12,10 +12,9 @@ ADD CONSTRAINT bookings_payment_status_check
 CHECK (payment_status = ANY (ARRAY['pending'::text, 'paid'::text, 'charged_to_room'::text, 'failed'::text, 'refunded'::text]));
 
 -- Step 3: Add columns for storing payment error details
-ALTER TABLE bookings
-ADD COLUMN IF NOT EXISTS payment_error_code TEXT,
-ADD COLUMN IF NOT EXISTS payment_error_message TEXT,
-ADD COLUMN IF NOT EXISTS payment_error_details JSONB;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_error_code TEXT;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_error_message TEXT;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_error_details JSONB;
 
 -- Step 4: Create index for filtering failed payments
 CREATE INDEX IF NOT EXISTS idx_bookings_payment_failed

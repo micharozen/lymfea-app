@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -242,8 +243,9 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
     },
   });
 
-  const isAdmin = userRole === "admin";
-  const isConcierge = userRole === "concierge";
+  const { isVenueManagerView } = useEffectiveRole();
+  const isAdmin = userRole === "admin" && !isVenueManagerView;
+  const isConcierge = userRole === "concierge" || isVenueManagerView;
   const canCancelBooking = isAdmin || isConcierge;
 
   // Concierge restrictions: only the slot (date/time) and treatments can be modified.
