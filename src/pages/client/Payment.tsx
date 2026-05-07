@@ -165,7 +165,7 @@ export default function Payment() {
         if (data?.url) {
           const url = new URL(data.url);
           const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+          if (url.protocol !== 'https:' || !trustedDomains.some(domain => url.hostname.endsWith(domain))) {
             throw new Error('Invalid redirect URL');
           }
           setPendingCheckoutSession(data.sessionId);
@@ -365,7 +365,7 @@ export default function Payment() {
         if (data?.url) {
           const url = new URL(data.url);
           const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+          if (url.protocol !== 'https:' || !trustedDomains.some(domain => url.hostname.endsWith(domain))) {
             throw new Error('Invalid redirect URL');
           }
           setPendingCheckoutSession(data.sessionId);

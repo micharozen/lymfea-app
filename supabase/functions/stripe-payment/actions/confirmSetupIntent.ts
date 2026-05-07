@@ -143,6 +143,15 @@ export async function handleConfirmSetupIntent(
       const slotGuestCounts = JSON.parse(meta.guest_counts_per_slot || "[]") as number[];
       const multiGroupId = meta.groupId || crypto.randomUUID();
 
+      if (
+        !dates.length ||
+        times.length !== dates.length ||
+        slotTreatmentIds.length !== dates.length ||
+        slotDurations.length !== dates.length
+      ) {
+        throw new Error("Invalid slot metadata: arrays length mismatch");
+      }
+
       const { data: noHoldHotel } = await supabase
         .from("hotels")
         .select("name, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent")
@@ -498,11 +507,6 @@ export async function handleConfirmSetupIntent(
       "Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.",
     );
   }
-
-  await supabase
-    .from("bookings")
-    .update({ therapist_id: null })
-    .eq("id", bookingId);
 
   if (treatmentIds && treatmentIds.length > 0) {
     if (meta.draftBookingId) {

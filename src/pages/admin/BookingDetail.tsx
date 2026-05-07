@@ -265,10 +265,10 @@ export default function BookingDetail() {
             customLabel={paymentLabel}
           />
           {isDuo && (
-            <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs">
-              <Users className="w-3 h-3 mr-1" />
+            <span className="inline-flex items-center rounded-md border font-medium h-6 px-2 text-xs gap-1.5 bg-purple-100 text-purple-800 border-purple-200">
+              <Users className="w-3.5 h-3.5 shrink-0" />
               Duo
-            </Badge>
+            </span>
           )}
           {bundleInfo && (
             <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-xs">

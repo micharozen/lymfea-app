@@ -134,7 +134,7 @@ serve(async (req) => {
       }
 
       // Claim the bundle
-      await supabaseAdmin
+      const { error: claimErrorExisting } = await supabaseAdmin
         .from('customer_treatment_bundles')
         .update({
           beneficiary_customer_id: customerId,
@@ -142,6 +142,7 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', bundle.id);
+      if (claimErrorExisting) throw claimErrorExisting;
 
       return new Response(
         JSON.stringify({
@@ -210,7 +211,7 @@ serve(async (req) => {
     }
 
     // 6. Claim the bundle
-    await supabaseAdmin
+    const { error: claimError } = await supabaseAdmin
       .from('customer_treatment_bundles')
       .update({
         beneficiary_customer_id: customerId,
@@ -218,6 +219,7 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', bundle.id);
+    if (claimError) throw claimError;
 
     return new Response(
       JSON.stringify({
