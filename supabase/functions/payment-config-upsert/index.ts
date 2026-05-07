@@ -1,4 +1,5 @@
-// Admin-only edge function that upserts a venue's payment provider config.
+// Edge function that upserts a venue's payment provider config.
+// Authorized for: admins (any venue) and concierges scoped to the target hotel.
 // Sensitive credentials are written to Supabase Vault (never to a public table);
 // the table only stores the Vault secret UUID + non-sensitive metadata.
 
@@ -70,23 +71,44 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
-    const { data: roleRow, error: roleError } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    if (roleError || !roleRow) {
-      return jsonResponse({ error: "Forbidden — admin role required" }, 403);
-    }
-
     const body = (await req.json()) as RequestBody;
     const { hotelId, provider, publicFields = {}, secrets = {} } = body;
 
     if (!hotelId) return jsonResponse({ error: "hotelId is required" }, 400);
     if (!["none", "stripe", "adyen"].includes(provider)) {
       return jsonResponse({ error: `Invalid provider: ${provider}` }, 400);
+    }
+
+    const { data: roles, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+
+    if (roleError) {
+      return jsonResponse({ error: "Failed to verify role" }, 500);
+    }
+
+    const roleNames = (roles ?? []).map((r) => r.role);
+    const isAdmin = roleNames.includes("admin");
+    const isConcierge = roleNames.includes("concierge");
+
+    let allowed = isAdmin;
+    if (!allowed && isConcierge) {
+      const { data: assignedHotels } = await supabase.rpc(
+        "get_concierge_hotels",
+        { _user_id: userId },
+      );
+      const ids: string[] = Array.isArray(assignedHotels)
+        ? assignedHotels.map((row: { hotel_id: string }) => row.hotel_id)
+        : [];
+      allowed = ids.includes(hotelId);
+    }
+
+    if (!allowed) {
+      return jsonResponse(
+        { error: "Forbidden — not authorized for this venue" },
+        403,
+      );
     }
 
     // Provider = "none" → wipe config entirely (including Vault secrets)

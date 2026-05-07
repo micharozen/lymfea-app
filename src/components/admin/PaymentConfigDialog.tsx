@@ -305,9 +305,9 @@ export function PaymentConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[960px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 font-normal">
             <CreditCard className="h-5 w-5" />
             {t("payment.title")} — {hotelName}
           </DialogTitle>
@@ -353,6 +353,7 @@ export function PaymentConfigDialog({
                       {t("payment.stripeCredentials")}
                     </h4>
 
+                    <div className="grid gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="stripe_secret_key"
@@ -429,6 +430,7 @@ export function PaymentConfigDialog({
                         </FormItem>
                       )}
                     />
+                    </div>
 
                     <StripeWebhookUrlField hotelId={hotelId} />
                   </div>
@@ -443,6 +445,7 @@ export function PaymentConfigDialog({
                       {t("payment.adyenCredentials")}
                     </h4>
 
+                    <div className="grid gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="adyen_environment"
@@ -551,6 +554,7 @@ export function PaymentConfigDialog({
                         </FormItem>
                       )}
                     />
+                    </div>
                   </div>
                 </>
               )}

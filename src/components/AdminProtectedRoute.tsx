@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 
@@ -7,11 +7,25 @@ interface AdminProtectedRouteProps {
   children: React.ReactNode;
 }
 
+// Routes that only admins (or admins switched to venue_manager view) may access.
+// Concierges hitting these are redirected to /admin/my-venue.
+const ADMIN_ONLY_ROUTE_PATTERNS: RegExp[] = [
+  /^\/admin\/places(\/|$)/,
+  /^\/admin\/concierges(\/|$)/,
+  /^\/admin\/admins(\/|$)/,
+  /^\/admin\/finance(\/|$)/,
+  /^\/admin\/analytics(\/|$)/,
+  /^\/admin\/support(\/|$)/,
+  /^\/admin\/schedule-alerts(\/|$)/,
+];
+
 const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
+  const location = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasAdminRole, setHasAdminRole] = useState<boolean | null>(null);
+  const [role, setRole] = useState<"admin" | "concierge" | null>(null);
   const [mustChangePassword, setMustChangePassword] = useState(false);
 
   const checkAuthAndRole = useCallback(async () => {
@@ -55,6 +69,7 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
 
       console.log("[AdminProtectedRoute] Role data:", roleData);
       setHasAdminRole(roleData ? true : false);
+      setRole((roleData?.role as "admin" | "concierge" | undefined) ?? null);
 
       // Check if concierge must change password
       if (roleData?.role === 'concierge') {
@@ -131,6 +146,13 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
 
   if (hasAdminRole === false) {
     return <Navigate to="/pwa/login" replace />;
+  }
+
+  if (role === "concierge") {
+    const path = location.pathname;
+    if (ADMIN_ONLY_ROUTE_PATTERNS.some((re) => re.test(path))) {
+      return <Navigate to="/admin/my-venue" replace />;
+    }
   }
 
   return <>{children}</>;
