@@ -233,7 +233,7 @@ const PwaBookingDetail = () => {
         hotel_city: hotelData?.city,
         hotel_vat: hotelData?.vat || 20,
         therapist_commission: hotelData?.therapist_commission || 70,
-        global_therapist_commission: hotelData?.global_therapist_commission !== false,
+        global_therapist_commission: hotelData?.global_therapist_commission === true,
         therapist_hourly_rate: rates.hr,
         therapist_rate_45: rates.r45,
         therapist_rate_60: rates.r60,
@@ -538,7 +538,7 @@ const PwaBookingDetail = () => {
         totalDuration,
       ) ?? 0;
     }
-    const pricePerTherapist = totalPrice / Math.max(booking.guest_count || 1, 1);
+    const pricePerTherapist = grossPrice / Math.max(booking.guest_count || 1, 1);
     return Math.round(pricePerTherapist * ((booking.therapist_commission || 70) / 100) * 100) / 100;
   })();
 

@@ -37,7 +37,17 @@ serve(async (req) => {
 
     const cleanCode = code.toUpperCase().replace(/\s/g, '');
     const cleanEmail = email.trim().toLowerCase();
-    const cleanPhone = phone.trim().replace(/\s/g, '');
+
+    // Normalize phone: strip spaces, then convert French local format (0XXXXXXXXX) to E.164
+    const rawPhone = phone.trim().replace(/\s/g, '');
+    const cleanPhone = /^0[1-9]\d{8}$/.test(rawPhone)
+      ? '+33' + rawPhone.slice(1)
+      : rawPhone;
+
+    // Basic validation: at least 6 digits after stripping non-digit chars
+    if (cleanPhone.replace(/\D/g, '').length < 6) {
+      throw new Error("Invalid phone number");
+    }
 
     // 1. Validate the redemption code
     const { data: bundle, error: bundleError } = await supabaseAdmin
@@ -52,7 +62,7 @@ serve(async (req) => {
     if (new Date(bundle.expires_at) < new Date()) throw new Error("Gift card has expired");
 
     // 2. Check if auth account already exists for this email
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     const existingUser = existingUsers?.users?.find(
       (u) => u.email?.toLowerCase() === cleanEmail
     );

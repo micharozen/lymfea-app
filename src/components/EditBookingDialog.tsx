@@ -154,6 +154,7 @@ interface EditBookingDialogProps {
   onOpenChange: (open: boolean) => void;
   booking: Booking | null;
   initialMode?: "view" | "edit" | "quote";
+  onSuccess?: () => void;
 }
 
 export default function EditBookingDialog({
@@ -161,6 +162,7 @@ export default function EditBookingDialog({
   onOpenChange,
   booking,
   initialMode = "view",
+  onSuccess,
 }: EditBookingDialogProps) {
   const queryClient = useQueryClient();
   const [hotelId, setHotelId] = useState("");
@@ -588,7 +590,8 @@ export default function EditBookingDialog({
 
       if (bookingData.therapistIds) {
         const validIds: string[] = bookingData.therapistIds.filter(Boolean);
-        await supabase.from("booking_therapists").delete().eq("booking_id", booking.id);
+        const { error: btDeleteError } = await supabase.from("booking_therapists").delete().eq("booking_id", booking.id);
+        if (btDeleteError) throw btDeleteError;
         if (validIds.length > 0) {
           const { error: btError } = await supabase.from("booking_therapists").insert(
             validIds.map((tid: string) => ({
@@ -658,6 +661,7 @@ export default function EditBookingDialog({
         description,
       });
       onOpenChange(false);
+      onSuccess?.();
     },
     onError: (error) => {
       toast({

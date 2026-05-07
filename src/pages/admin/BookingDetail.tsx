@@ -76,6 +76,7 @@ export default function BookingDetail() {
   const [therapistRatesMap, setTherapistRatesMap] = useState<Record<string, TherapistRates>>({});
   const [hotelCommission, setHotelCommission] = useState<{ therapist_commission: number; global_therapist_commission: boolean } | null>(null);
   const [acceptedTherapists, setAcceptedTherapists] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
+  const [therapistRefreshKey, setTherapistRefreshKey] = useState(0);
 
   const { bookings, getHotelInfo, refetch } = useBookingData();
   const isLoading = !bookings; 
@@ -125,7 +126,7 @@ export default function BookingDetail() {
         .in("id", btData.map((bt) => bt.therapist_id));
       setAcceptedTherapists(tData || []);
     })();
-  }, [booking?.id, (booking as any)?.guest_count]);
+  }, [booking?.id, (booking as any)?.guest_count, therapistRefreshKey]);
 
   // Fetch hotel commission settings for earnings calculation
   useEffect(() => {
@@ -538,11 +539,12 @@ export default function BookingDetail() {
         </Tabs>
       </main>
 
-      <EditBookingDialog 
-        open={isEditOpen} 
-        onOpenChange={setIsEditOpen} 
-        booking={booking} 
-        initialMode="edit" 
+      <EditBookingDialog
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        booking={booking}
+        initialMode="edit"
+        onSuccess={() => setTherapistRefreshKey(k => k + 1)}
       />
       
       <SendPaymentLinkDialog 
