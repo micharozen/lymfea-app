@@ -1,0 +1,215 @@
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+type ReserveInput = {
+  hotelId: string;
+  hotelName: string;
+  clientFirstName: string;
+  clientLastName: string;
+  clientEmail: string;
+  phone: string;
+  bookingDate: string;        // 'YYYY-MM-DD'
+  bookingTime: string;        // 'HH:MM' or 'HH:MM:SS'
+  status: string;
+  totalPrice: number;
+  duration: number | null;    // minutes
+  roomNumber?: string | null;
+  customerId?: string | null;
+  paymentMethod: string;
+  paymentStatus: string;
+  language: string;
+  guestCount?: number | null;
+  therapistGender?: string | null;
+  treatmentIds?: string[] | null;
+};
+
+const ACTIVE_STATUSES_EXCLUDED = ["Annulé", "Terminé", "cancelled", "completed", "noshow"];
+const STALE_AWAITING_MIN = 4;
+
+function clean(v?: string | null): string | null {
+  if (v === undefined || v === null) return null;
+  if (v === "undefined" || v === "null" || v === "") return null;
+  return v;
+}
+
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function isStaleAwaiting(paymentStatus: string, createdAt: string): boolean {
+  if (paymentStatus !== "awaiting_payment") return false;
+  return Date.now() - new Date(createdAt).getTime() > STALE_AWAITING_MIN * 60_000;
+}
+
+function isLiveBooking(b: { status: string; payment_status: string; created_at: string }): boolean {
+  if (ACTIVE_STATUSES_EXCLUDED.includes(b.status)) return false;
+  if (isStaleAwaiting(b.payment_status, b.created_at)) return false;
+  return true;
+}
+
+export async function reserveTrunkAtomically(
+  supabase: SupabaseClient,
+  input: ReserveInput,
+): Promise<string> {
+  const therapistGender = clean(input.therapistGender);
+  const customerId = clean(input.customerId);
+  const guestCount = input.guestCount ?? 1;
+  const isDuo = guestCount > 1;
+  const duration = input.duration ?? 30;
+
+  const newStart = timeToMinutes(input.bookingTime);
+  const newEnd = newStart + duration;
+
+  // --- Anti-race serialization (advisory lock per hotel+date) ---
+  const lockKey = `${input.hotelId}:${input.bookingDate}`;
+  // simple 32-bit hash
+  let hash = 0;
+  for (let i = 0; i < lockKey.length; i++) hash = (hash * 31 + lockKey.charCodeAt(i)) | 0;
+  await supabase.rpc("pg_advisory_xact_lock", { key: hash });
+
+  // --- Hotel buffers ---
+  const { data: hotel, error: hotelErr } = await supabase
+    .from("hotels")
+    .select("inter_venue_buffer_minutes, room_turnover_buffer_minutes")
+    .eq("id", input.hotelId)
+    .single();
+  if (hotelErr) throw hotelErr;
+
+  const travelBuffer = hotel?.inter_venue_buffer_minutes ?? 0;
+  const turnoverBuffer = hotel?.room_turnover_buffer_minutes ?? 0;
+
+  const requestedDow = new Date(input.bookingDate + "T00:00:00Z").getUTCDay();
+
+  // --- Day-of-week constraint ---
+  let requiredSpecialties: string[] = [];
+  if (input.treatmentIds?.length) {
+    const { data: treatments, error: tErr } = await supabase
+      .from("treatment_menus")
+      .select("name, available_days, treatment_type")
+      .in("id", input.treatmentIds);
+    if (tErr) throw tErr;
+
+    for (const tm of treatments ?? []) {
+      if (tm.available_days?.length && !tm.available_days.includes(requestedDow)) {
+        throw new Error(`DAY_CONSTRAINT_VIOLATION: Le soin "${tm.name}" n'est pas disponible ce jour-là.`);
+      }
+    }
+
+    requiredSpecialties = [
+      ...new Set(
+        (treatments ?? [])
+          .map((t) => t.treatment_type)
+          .filter((s): s is string => !!s && s !== ""),
+      ),
+    ];
+  }
+
+  // --- Candidate rooms ---
+  const { data: rooms, error: roomsErr } = await supabase
+    .from("treatment_rooms")
+    .select("id, status")
+    .eq("hotel_id", input.hotelId)
+    .order("id");
+  if (roomsErr) throw roomsErr;
+
+  const activeRooms = (rooms ?? []).filter((r) =>
+    ["active", "actif"].includes((r.status ?? "").toLowerCase()),
+  );
+
+  // --- Therapists at this venue ---
+  const { data: therapistRows, error: thErr } = await supabase
+    .from("therapist_venues")
+    .select("therapist:therapists(id, skills, status, gender)")
+    .eq("hotel_id", input.hotelId);
+  if (thErr) throw thErr;
+
+  const candidates = (therapistRows ?? [])
+    .map((r: any) => r.therapist)
+    .filter((t: any) => t && ["active", "actif"].includes((t.status ?? "").toLowerCase()))
+    .filter((t: any) => isDuo || !therapistGender || (t.gender ?? "").toLowerCase() === therapistGender.toLowerCase())
+    .filter((t: any) => {
+      if (!requiredSpecialties.length) return true;
+      const skills: string[] = t.skills ?? [];
+      if (!skills.length) return true; // matches PL/pgSQL: only filter when therapist has skills declared
+      return requiredSpecialties.every((s) => skills.includes(s));
+    });
+
+  let chosenRoomId: string | null = null;
+  let chosenTherapistId: string | null = null;
+
+  for (const room of activeRooms) {
+    // Room conflict check
+    const { data: roomBookings, error: rbErr } = await supabase
+      .from("bookings")
+      .select("booking_time, duration, status, payment_status, created_at")
+      .eq("room_id", room.id)
+      .eq("booking_date", input.bookingDate);
+    if (rbErr) throw rbErr;
+
+    const roomConflict = (roomBookings ?? []).filter(isLiveBooking).some((b) => {
+      const start = timeToMinutes(b.booking_time);
+      const end = start + (b.duration ?? 30);
+      return newStart < end + turnoverBuffer && newEnd + turnoverBuffer > start;
+    });
+    if (roomConflict) continue;
+
+    // Find a therapist with no conflict
+    for (const t of candidates) {
+      const { data: tBookings, error: tbErr } = await supabase
+        .from("bookings")
+        .select("booking_time, duration, status, payment_status, created_at, hotel_id, hotel:hotels(inter_venue_buffer_minutes)")
+        .eq("therapist_id", t.id)
+        .eq("booking_date", input.bookingDate);
+      if (tbErr) throw tbErr;
+
+      const conflict = (tBookings ?? []).filter(isLiveBooking).some((b: any) => {
+        const start = timeToMinutes(b.booking_time);
+        const end = start + (b.duration ?? 30);
+        const crossVenue = b.hotel_id !== input.hotelId;
+        const otherVenueBuffer = b.hotel?.inter_venue_buffer_minutes ?? 0;
+        const leftBuf = crossVenue ? Math.max(travelBuffer, otherVenueBuffer) : turnoverBuffer;
+        const rightBuf = crossVenue ? Math.max(travelBuffer, otherVenueBuffer) : 0;
+        return newStart < end + leftBuf && newEnd + turnoverBuffer > start - rightBuf;
+      });
+
+      if (!conflict) {
+        chosenRoomId = room.id;
+        chosenTherapistId = t.id;
+        break;
+      }
+    }
+    if (chosenRoomId) break;
+  }
+
+  if (!chosenRoomId) throw new Error("NO_TRUNK_AVAILABLE");
+
+  const { data: inserted, error: insErr } = await supabase
+    .from("bookings")
+    .insert({
+      hotel_id: input.hotelId,
+      hotel_name: input.hotelName,
+      client_first_name: input.clientFirstName,
+      client_last_name: input.clientLastName,
+      client_email: input.clientEmail,
+      phone: input.phone,
+      booking_date: input.bookingDate,
+      booking_time: input.bookingTime,
+      status: input.status,
+      room_id: chosenRoomId,
+      therapist_id: isDuo ? null : chosenTherapistId,
+      total_price: input.totalPrice,
+      duration,
+      room_number: input.roomNumber ?? "TBD",
+      customer_id: customerId,
+      payment_method: input.paymentMethod,
+      payment_status: input.paymentStatus === "card_saved" ? "pending" : input.paymentStatus,
+      language: input.language,
+      guest_count: guestCount,
+      therapist_gender_preference: !isDuo ? therapistGender : null,
+    })
+    .select("id")
+    .single();
+
+  if (insErr) throw insErr;
+  return inserted.id;
+}

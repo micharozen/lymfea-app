@@ -86,9 +86,9 @@ const venueManagerPrimaryItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Planning", url: "/admin/bookings", icon: CalendarDays },
   { title: "Réservations", url: "/admin/all-bookings", icon: ListChecks },
-  { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
   { title: "Clients", url: "/admin/customers", icon: Contact },
-  { title: "Transactions", url: "/admin/transactions", icon: Wallet },
+  { title: "Mon lieu", url: "/admin/my-venue", icon: Building2 },
+  { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
 ];
 
 const STORAGE_KEY = "lymfea-sidebar-more-open";
@@ -232,12 +232,7 @@ export function AppSidebar() {
   const isAdmin = userRole === 'Admin';
   const inVenueManagerView = isAdmin && viewMode === 'venue_manager';
 
-  const venueManagerItems: MenuItem[] = inVenueManagerView && viewVenueId
-    ? [
-        { title: 'Mon lieu', url: `/admin/places/${viewVenueId}`, icon: Building2 },
-        ...venueManagerPrimaryItems,
-      ]
-    : venueManagerPrimaryItems;
+  const venueManagerItems: MenuItem[] = venueManagerPrimaryItems;
 
   const primaryItems = inVenueManagerView
     ? venueManagerItems
