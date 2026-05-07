@@ -107,7 +107,12 @@
     "slotTakenDesc": "This slot was just taken. Nearby available slots are highlighted below.",
     "sessionExpiredBanner": "Your session has expired",
     "sessionExpiredDesc": "Your reservation time ran out. This slot may still be available — select it again.",
-    "dayConstraintInfo": "Some treatments in your cart are only available on certain days. Only compatible dates are shown."
+    "dayConstraintInfo": "Some treatments in your cart are only available on certain days. Only compatible dates are shown.",
+    "multiTime": {
+      "toggle": "Different times per treatment",
+      "helper": "Pick a separate time slot for each treatment in your cart.",
+      "tapToChoose": "Tap to pick a time slot"
+    }
   },
   "info": {
     "title": "Your Information",

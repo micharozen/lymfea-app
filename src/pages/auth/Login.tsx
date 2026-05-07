@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { brand, brandLogos } from "@/config/brand";
+import eiaLogo from "@/assets/eia-logo-transparent.png";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 import { DevLoginPanel } from "@/components/DevLoginPanel";
 
@@ -362,7 +363,7 @@ const Auth = () => {
         <div className="w-full max-w-md mx-auto">
           {/* Logo */}
           <div className="mb-12">
-            <img src={brandLogos.primary} alt={brand.name} className="h-10 w-auto" />
+            <img src={eiaLogo} alt={brand.name} className="h-10 w-auto" />
           </div>
 
           {/* Title */}

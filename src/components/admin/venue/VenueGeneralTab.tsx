@@ -54,6 +54,7 @@ import {
   Type,
   Users,
   Plug,
+  CreditCard,
   ChevronsUpDown,
   Check,
   Palette,
@@ -65,6 +66,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { getCountryDefaults, COUNTRY_OPTIONS } from "@/lib/timezones";
 import { PmsConfigDialog } from "@/components/admin/PmsConfigDialog";
+import { PaymentConfigDialog } from "@/components/admin/PaymentConfigDialog";
 import { VenueDeploymentStep, DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { VenueBookingRulesTab } from "./VenueBookingRulesTab";
 import { VenueAmenitiesTab } from "./VenueAmenitiesTab";
@@ -101,6 +103,17 @@ function LymfeaCommissionDisplay({ control }: { control: Control<VenueWizardForm
   );
 }
 
+export type VenueSectionId =
+  | 'identity'
+  | 'location'
+  | 'finance'
+  | 'booking-settings'
+  | 'schedule'
+  | 'team'
+  | 'amenities'
+  | 'pms'
+  | 'payment';
+
 interface VenueGeneralTabProps {
   form: UseFormReturn<VenueWizardFormValues>;
   mode: 'add' | 'edit';
@@ -121,6 +134,11 @@ interface VenueGeneralTabProps {
   onDeploymentStateChange: (state: DeploymentScheduleState) => void;
   blockedSlots: BlockedSlot[];
   onBlockedSlotsChange: (slots: BlockedSlot[]) => void;
+  /**
+   * If provided, only the listed section cards are rendered.
+   * Used for the "Mon lieu" page exposed to venue managers (concierges).
+   */
+  restrictedSections?: VenueSectionId[];
 }
 
 export function VenueGeneralTab({
@@ -143,9 +161,12 @@ export function VenueGeneralTab({
   onDeploymentStateChange,
   blockedSlots,
   onBlockedSlotsChange,
+  restrictedSections,
 }: VenueGeneralTabProps) {
   const { t } = useTranslation('common');
   const uploading = uploadingHotel || uploadingCover;
+  const showSection = (id: VenueSectionId) =>
+    !restrictedSections || restrictedSections.includes(id);
 
   // Watch venue_type for label changes
   const venueTypeValue = useWatch({ control: form.control, name: "venue_type" });
@@ -182,6 +203,7 @@ export function VenueGeneralTab({
 
   // PMS dialog state
   const [pmsDialogOpen, setPmsDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch PMS data for the venue
@@ -218,6 +240,30 @@ export function VenueGeneralTab({
     queryClient.invalidateQueries({ queryKey: ["venue-pms-status", hotelId] });
   };
 
+  // Fetch payment config for the venue
+  const { data: paymentConfig } = useQuery({
+    queryKey: ["venue-payment-config", hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hotel_payment_configs" as any)
+        .select("provider, connection_status, connection_verified_at, adyen_environment")
+        .eq("hotel_id", hotelId!)
+        .maybeSingle();
+      if (error) return null;
+      return data as {
+        provider: string;
+        connection_status: string | null;
+        connection_verified_at: string | null;
+        adyen_environment: string | null;
+      } | null;
+    },
+    enabled: !!hotelId,
+  });
+
+  const handlePaymentSaved = () => {
+    queryClient.invalidateQueries({ queryKey: ["venue-payment-config", hotelId] });
+  };
+
   // Fetch venue team members
   const { data: concierges = [] } = useQuery({
     queryKey: ["venue-concierges", hotelId],
@@ -244,6 +290,7 @@ export function VenueGeneralTab({
   return (
     <div className="space-y-6">
       {/* Card A: Identity */}
+      {showSection('identity') && (
       <Card id="identity" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
@@ -570,8 +617,10 @@ export function VenueGeneralTab({
           />
         </CardContent>
       </Card>
+      )}
 
       {/* Card B: Localisation */}
+      {showSection('location') && (
       <Card id="location" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -711,8 +760,10 @@ export function VenueGeneralTab({
           />
         </CardContent>
       </Card>
+      )}
 
       {/* Card C: Finance */}
+      {showSection('finance') && (
       <Card id="finance" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -859,8 +910,10 @@ export function VenueGeneralTab({
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Card D: Booking Settings */}
+      {showSection('booking-settings') && (
       <Card id="booking-settings" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -1062,10 +1115,14 @@ export function VenueGeneralTab({
 
         </CardContent>
       </Card>
+      )}
 
-      <VenueBookingRulesTab form={form} disabled={disabled} />
+      {showSection('booking-settings') && (
+        <VenueBookingRulesTab form={form} disabled={disabled} />
+      )}
 
       {/* Card E: Horaires & Disponibilité */}
+      {showSection('schedule') && (
       <Card id="schedule" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -1085,9 +1142,10 @@ export function VenueGeneralTab({
           />
         </CardContent>
       </Card>
+      )}
 
       {/* Card F: Équipe lieu (all venue types, when venue is saved) */}
-      {hotelId && (
+      {hotelId && showSection('team') && (
         <Card id="team" className="scroll-mt-32">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
@@ -1143,7 +1201,7 @@ export function VenueGeneralTab({
       )}
 
       {/* Card G: Commodités (when venue is saved) */}
-      {hotelId && (
+      {hotelId && showSection('amenities') && (
         <Card id="amenities" className="scroll-mt-32">
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -1159,7 +1217,7 @@ export function VenueGeneralTab({
       )}
 
       {/* Card H: PMS Integration (hotel type only, when venue is saved) */}
-      {hotelId && venueTypeValue === 'hotel' && (
+      {hotelId && venueTypeValue === 'hotel' && showSection('pms') && (
         <>
           <Card id="pms" className="scroll-mt-32">
             <CardHeader className="pb-4">
@@ -1252,6 +1310,88 @@ export function VenueGeneralTab({
             hotelId={hotelId}
             hotelName={form.getValues('name')}
             onSaved={handlePmsSaved}
+          />
+        </>
+      )}
+
+      {/* Card H: Payment provider (any venue type, when venue is saved) */}
+      {hotelId && showSection('payment') && (
+        <>
+          <Card id="payment" className="scroll-mt-32">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-violet-500" />
+                  Méthode de paiement
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPaymentDialogOpen(true)}
+                >
+                  {paymentConfig?.provider && paymentConfig.provider !== 'none' ? (
+                    <>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Modifier
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Configurer
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-medium">
+                    {paymentConfig?.provider === 'stripe'
+                      ? 'Stripe'
+                      : paymentConfig?.provider === 'adyen'
+                        ? 'Adyen'
+                        : 'Non configuré'}
+                  </p>
+                  {paymentConfig?.provider === 'adyen' && paymentConfig?.adyen_environment && (
+                    <Badge variant="outline" className="text-xs">
+                      {paymentConfig.adyen_environment === 'live' ? 'Live' : 'Test'}
+                    </Badge>
+                  )}
+                  {paymentConfig?.provider && paymentConfig.provider !== 'none' && (
+                    paymentConfig.connection_status === 'connected' ? (
+                      <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200">
+                        Connecté
+                      </Badge>
+                    ) : paymentConfig.connection_status === 'failed' ? (
+                      <Badge variant="outline" className="text-xs bg-red-500/10 text-red-700 border-red-200">
+                        Échec connexion
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700 border-yellow-200">
+                        Non testé
+                      </Badge>
+                    )
+                  )}
+                </div>
+                {paymentConfig?.provider && paymentConfig.provider !== 'none' && paymentConfig.connection_status === 'connected' && paymentConfig.connection_verified_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Connecté depuis le {format(new Date(paymentConfig.connection_verified_at), "d MMMM yyyy", { locale: fr })}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Cette configuration est stockée et testable mais n'est pas encore branchée sur le flow de paiement client. La clé Stripe globale reste utilisée en attendant.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <PaymentConfigDialog
+            open={paymentDialogOpen}
+            onOpenChange={setPaymentDialogOpen}
+            hotelId={hotelId}
+            hotelName={form.getValues('name')}
+            onSaved={handlePaymentSaved}
           />
         </>
       )}

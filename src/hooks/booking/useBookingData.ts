@@ -20,6 +20,7 @@ export interface BookingWithTreatments extends BookingRow {
   treatments: Treatment[];
   // Ajout pour que TypeScript connaisse la relation des soins duo
   booking_therapists?: { status: string; therapist_id: string }[];
+  booking_payment_infos?: { payment_status: string | null; stripe_payment_method_id: string | null } | null;
 }
 
 interface BookingTreatmentJoin {
@@ -49,34 +50,33 @@ export function useBookingData() {
     refetchOnWindowFocus: true,
     staleTime: 30000,
     queryFn: async () => {
-      // CORRECTION ICI : On fetch booking_therapists en même temps !
       const { data: bookingsData, error: bookingsError } = await (supabase as any)
         .from("bookings")
-        .select("*, booking_therapists(status, therapist_id)")
+        .select(`
+          *,
+          booking_therapists(status, therapist_id),
+          booking_treatments(
+            treatment_id,
+            treatment_menus(name, duration, price)
+          ),
+          booking_payment_infos(payment_status, stripe_payment_method_id)
+        `)
         .order("booking_date", { ascending: true })
         .order("booking_time", { ascending: true });
 
       if (bookingsError) throw bookingsError;
 
-      const bookingsWithDuration = await Promise.all(
-        (bookingsData || []).map(async (booking: any) => {
-          const { data: treatments } = await supabase
-            .from("booking_treatments")
-            .select(`
-              treatment_id,
-              treatment_menus (
-                name,
-                duration,
-                price
-              )
-            `)
-            .eq("booking_id", booking.id);
+      return (bookingsData || []).map((booking: any) => {
+        const treatments: any[] = booking.booking_treatments || [];
 
-          const treatmentsTotalDuration =
-            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.duration || 0), 0) || 0;
-
-          const treatmentsTotalPrice =
-            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.price || 0), 0) || 0;
+        const treatmentsTotalDuration = treatments.reduce(
+          (sum, t) => sum + (t.treatment_menus?.duration || 0),
+          0,
+        );
+        const treatmentsTotalPrice = treatments.reduce(
+          (sum, t) => sum + (t.treatment_menus?.price || 0),
+          0,
+        );
 
           const totalDuration = booking.duration && booking.duration > 0
             ? booking.duration
@@ -93,6 +93,10 @@ export function useBookingData() {
             })
             .filter((m): m is Treatment => m !== null) || [];
 
+          const paymentInfos = Array.isArray(booking.booking_payment_infos)
+            ? booking.booking_payment_infos[0] ?? null
+            : booking.booking_payment_infos ?? null;
+
           return {
             ...booking,
             totalDuration,
@@ -100,11 +104,9 @@ export function useBookingData() {
             treatmentsTotalPrice,
             treatments: treatmentsList,
             booking_therapists: booking.booking_therapists || [], // On s'assure de bien le passer à l'UI
+            booking_payment_infos: paymentInfos,
           } as BookingWithTreatments;
-        }),
-      );
-
-      return bookingsWithDuration;
+      });
     },
   });
 

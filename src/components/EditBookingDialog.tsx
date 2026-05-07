@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -246,8 +247,9 @@ export default function EditBookingDialog({
     },
   });
 
-  const isAdmin = userRole === "admin";
-  const isConcierge = userRole === "concierge";
+  const { isVenueManagerView } = useEffectiveRole();
+  const isAdmin = userRole === "admin" && !isVenueManagerView;
+  const isConcierge = userRole === "concierge" || isVenueManagerView;
   const canCancelBooking = isAdmin || isConcierge;
   const isDuo = (booking?.guest_count ?? 1) > 1;
   const therapistCount = booking?.guest_count ?? 1;

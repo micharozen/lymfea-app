@@ -12,8 +12,24 @@ serve(async (req) => {
   }
 
   try {
-    const { hotelId, date, treatmentIds, therapistGender, requiredGuestCount: rawGuestCount, excludeBookingId } = await req.json();
+    const { hotelId, date, treatmentIds, therapistGender, requiredGuestCount: rawGuestCount, excludeBookingId, pendingHolds: rawPendingHolds, requestedDuration: rawRequestedDuration } = await req.json();
     const requiredGuestCount = Math.max(1, rawGuestCount || 1);
+    const clientRequestedDuration = typeof rawRequestedDuration === 'number' && rawRequestedDuration > 0
+      ? rawRequestedDuration
+      : null;
+
+    // pendingHolds: in-cart slots already chosen for OTHER items in the same multi-time
+    // booking flow (not yet persisted as drafts). Each hold consumes 1 generic room
+    // capacity + 1 generic therapist for slots overlapping its [time, time+duration) window
+    // on the same date. Only holds matching the queried `date` apply here.
+    const pendingHolds: Array<{ date: string; time: string; duration: number }> = Array.isArray(rawPendingHolds)
+      ? rawPendingHolds.filter((h: unknown): h is { date: string; time: string; duration: number } => {
+          if (!h || typeof h !== 'object') return false;
+          const o = h as Record<string, unknown>;
+          return typeof o.date === 'string' && typeof o.time === 'string' && typeof o.duration === 'number';
+        })
+      : [];
+    const pendingHoldsForDate = pendingHolds.filter(h => h.date === date);
 
     if (!hotelId || !date) {
       throw new Error('Missing hotelId or date');
@@ -115,19 +131,21 @@ serve(async (req) => {
 
     console.log(`[DEBUG] requestedDayOfWeek: ${requestedDayOfWeek}, blockedSlots count: ${blockedSlots?.length || 0}`);
 
-    // Get the maximum lead_time and categories from selected treatments (if provided)
+    // Get the maximum lead_time, max duration, and categories from selected treatments (if provided)
     let maxTreatmentLeadTime = 0;
+    let maxTreatmentDuration = 0;
     const requiredCategories = new Set<string>();
     if (treatmentIds && treatmentIds.length > 0) {
       const { data: treatments, error: treatmentsError } = await supabase
         .from('treatment_menus')
-        .select('lead_time, treatment_type')
+        .select('lead_time, treatment_type, duration')
         .in('id', treatmentIds);
 
       if (treatmentsError) {
         console.error('Error fetching treatments:', treatmentsError);
       } else if (treatments && treatments.length > 0) {
         maxTreatmentLeadTime = Math.max(...treatments.map(t => t.lead_time || 0));
+        maxTreatmentDuration = Math.max(...treatments.map(t => t.duration || 0));
         console.log(`Maximum lead_time from selected treatments: ${maxTreatmentLeadTime} minutes`);
         // Build set of required skills (treatment_type matches therapists.skills slugs)
         treatments.forEach((t: any) => {
@@ -329,19 +347,27 @@ serve(async (req) => {
       return hours * 60 + minutes;
     };
 
-    // Function to check if a slot is blocked by an existing booking (considering duration + turnover buffer)
+    // Effective duration of the treatment being scheduled. Used to detect overlap
+    // between the proposed slot interval [slotStart, slotStart + requestedDuration)
+    // and existing bookings / pending holds. Falls back to slot interval so legacy
+    // callers (without requestedDuration / treatmentIds) keep their previous behavior.
+    const requestedDuration = clientRequestedDuration ?? maxTreatmentDuration ?? slotInterval;
+    console.log(`[DEBUG] requestedDuration=${requestedDuration}min (clientRequested=${clientRequestedDuration}, maxTreatment=${maxTreatmentDuration}, slotInterval=${slotInterval})`);
+
+    // Function to check if a slot is blocked by an existing booking — interval-vs-interval
+    // overlap of [slotStart, slotStart + requestedDuration) vs [bookingStart, bookingEnd + turnover).
     const isSlotBlockedByBooking = (
       slotTime: string,
       bookingTime: string,
       bookingDuration: number,
       turnoverMinutes: number = 0
     ): boolean => {
-      const slotMinutes = timeToMinutes(slotTime);
+      const slotStartMinutes = timeToMinutes(slotTime);
+      const slotEndMinutes = slotStartMinutes + requestedDuration;
       const bookingStartMinutes = timeToMinutes(bookingTime);
       const bookingEndMinutes = bookingStartMinutes + (bookingDuration || 30) + turnoverMinutes;
 
-      // The slot is blocked if it falls during the booking duration (+ turnover buffer)
-      return slotMinutes >= bookingStartMinutes && slotMinutes < bookingEndMinutes;
+      return slotStartMinutes < bookingEndMinutes && slotEndMinutes > bookingStartMinutes;
     };
 
     // Function to check if a slot overlaps with any blocked time range
@@ -423,6 +449,11 @@ serve(async (req) => {
         return false;
       }
 
+      // Reject slots that would run past the venue's (possibly widened) closing time.
+      if (timeToMinutes(slot) + requestedDuration > closingMinutes) {
+        return false;
+      }
+
       // Get bookings that block this slot (considering duration overlap + room turnover buffer)
       const bookingsBlockingSlot = (allHotelBookings || []).filter((b: any) =>
         isSlotBlockedByBooking(slot, b.booking_time, b.duration || 30, roomTurnoverBuffer)
@@ -451,7 +482,19 @@ serve(async (req) => {
         (sum, id) => sum + (roomCapacityMap.get(id) || 1), 0
       ) - bookingsWithoutRoom;
 
-      if (freeRoomCapacity < requiredGuestCount) {
+      // PENDING HOLDS: count in-cart holds (other items not yet persisted) that
+      // overlap this slot. Each consumes 1 generic room + 1 generic therapist.
+      // Use requestedDuration so a long treatment starting before a hold (and
+      // running into it) is correctly blocked.
+      const slotStartMinutes = timeToMinutes(slot);
+      const slotEndMinutes = slotStartMinutes + requestedDuration;
+      const overlappingHolds = pendingHoldsForDate.filter(h => {
+        const hStart = timeToMinutes(h.time);
+        const hEnd = hStart + (h.duration || 30);
+        return slotStartMinutes < hEnd && slotEndMinutes > hStart;
+      }).length;
+
+      if (freeRoomCapacity - overlappingHolds < requiredGuestCount) {
         return false;
       }
 
@@ -494,7 +537,7 @@ serve(async (req) => {
         });
       }).length;
 
-      return availableTherapistCount >= requiredGuestCount;
+      return availableTherapistCount - overlappingHolds >= requiredGuestCount;
     });
 
     console.log(`[DEBUG] ====== RESULT: ${availableSlots.length} available out of ${timeSlots.length} ======`);

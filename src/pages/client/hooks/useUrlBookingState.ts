@@ -61,76 +61,67 @@ export function useUrlBookingState(): UrlBookingState {
     return raw && GENDER_VALUES.has(raw) ? (raw as 'female' | 'male') : null;
   }, [searchParams]);
 
+  // Read the LATEST URL each call — `setSearchParams`'s updater receives a
+  // `prev` that may be stale when several syncs run back-to-back during the
+  // same render commit (each setSearchParams closes over its render's
+  // location). Reading window.location.search avoids that race and prevents
+  // the URL from flickering between consecutive params writes.
+  const buildNext = () => new URLSearchParams(window.location.search);
+
   const setTreatmentSlugs = useCallback(
     (slugs: string[]) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          const clean = slugs.filter((s) => SLUG_RE.test(s));
-          if (clean.length > 0) {
-            next.set('t', clean.join(','));
-          } else {
-            next.delete('t');
-          }
-          return next;
-        },
-        { replace: true }
-      );
+      const next = buildNext();
+      const clean = slugs.filter((s) => SLUG_RE.test(s));
+      if (clean.length > 0) {
+        next.set('t', clean.join(','));
+      } else {
+        next.delete('t');
+      }
+      if (next.toString() === window.location.search.replace(/^\?/, '')) return;
+      setSearchParams(next, { replace: true });
     },
     [setSearchParams]
   );
 
   const setDateTime = useCallback(
     (nextDate: string, nextTime: string) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (DATE_RE.test(nextDate)) {
-            next.set('date', nextDate);
-          } else {
-            next.delete('date');
-          }
-          if (TIME_RE.test(nextTime)) {
-            next.set('time', nextTime);
-          } else {
-            next.delete('time');
-          }
-          return next;
-        },
-        { replace: true }
-      );
+      const next = buildNext();
+      if (DATE_RE.test(nextDate)) {
+        next.set('date', nextDate);
+      } else {
+        next.delete('date');
+      }
+      if (TIME_RE.test(nextTime)) {
+        next.set('time', nextTime);
+      } else {
+        next.delete('time');
+      }
+      if (next.toString() === window.location.search.replace(/^\?/, '')) return;
+      setSearchParams(next, { replace: true });
     },
     [setSearchParams]
   );
 
   const setGender = useCallback(
     (g: UrlGender) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (g && GENDER_VALUES.has(g)) {
-            next.set('gender', g);
-          } else {
-            next.delete('gender');
-          }
-          return next;
-        },
-        { replace: true }
-      );
+      const next = buildNext();
+      if (g && GENDER_VALUES.has(g)) {
+        next.set('gender', g);
+      } else {
+        next.delete('gender');
+      }
+      if (next.toString() === window.location.search.replace(/^\?/, '')) return;
+      setSearchParams(next, { replace: true });
     },
     [setSearchParams]
   );
 
   const clearDateTime = useCallback(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('date');
-        next.delete('time');
-        return next;
-      },
-      { replace: true }
-    );
+    const next = buildNext();
+    next.delete('date');
+    next.delete('time');
+    if (next.toString() === window.location.search.replace(/^\?/, '')) return;
+    setSearchParams(next, { replace: true });
   }, [setSearchParams]);
 
   return {

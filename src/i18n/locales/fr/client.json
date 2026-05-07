@@ -107,7 +107,12 @@
     "slotTakenDesc": "Ce créneau vient d'être réservé. Les créneaux proches disponibles sont mis en évidence ci-dessous.",
     "sessionExpiredBanner": "Votre session a expiré",
     "sessionExpiredDesc": "Le temps de réservation est écoulé. Ce créneau est peut-être encore disponible, sélectionnez-le à nouveau.",
-    "dayConstraintInfo": "Certains soins de votre panier ne sont disponibles que certains jours. Seules les dates compatibles sont affichées."
+    "dayConstraintInfo": "Certains soins de votre panier ne sont disponibles que certains jours. Seules les dates compatibles sont affichées.",
+    "multiTime": {
+      "toggle": "Horaires différents par soin",
+      "helper": "Choisissez un créneau distinct pour chaque soin du panier.",
+      "tapToChoose": "Toucher pour choisir un créneau"
+    }
   },
   "info": {
     "title": "Vos Informations",
