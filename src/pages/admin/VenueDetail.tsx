@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/sheet";
 import { ArrowLeft, Loader2, Save, Pencil, CalendarDays, Eye } from "lucide-react";
 import { startOfMonth, startOfYear, subDays } from "date-fns";
-import { VenueGeneralTab } from "@/components/admin/venue/VenueGeneralTab";
+import { VenueGeneralTab, type VenueSectionId } from "@/components/admin/venue/VenueGeneralTab";
 import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
 import { VenueCatalogTab } from "@/components/admin/venue/VenueCatalogTab";
@@ -97,8 +97,24 @@ const createFormSchema = (t: TFunction) => z.object({
   path: ["closing_time"],
 });
 
-export default function VenueDetail() {
-  const { id } = useParams<{ id: string }>();
+interface VenueDetailProps {
+  /** Override the hotel id from the route params (used by /admin/my-venue). */
+  hotelIdOverride?: string;
+  /** Restrict the page to the configuration tab and a subset of section cards. */
+  restricted?: boolean;
+  restrictedSections?: VenueSectionId[];
+  /** Where the back button should navigate. Defaults to /admin/places. */
+  backTo?: string;
+}
+
+export default function VenueDetail({
+  hotelIdOverride,
+  restricted = false,
+  restrictedSections,
+  backTo = "/admin/places",
+}: VenueDetailProps = {}) {
+  const params = useParams<{ id: string }>();
+  const id = hotelIdOverride ?? params.id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -619,7 +635,7 @@ export default function VenueDetail() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/admin/places')}
+              onClick={() => navigate(backTo)}
               className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
@@ -716,6 +732,7 @@ export default function VenueDetail() {
       ) : (
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           {/* Tab bar — sticky below header */}
+          {!restricted && (
           <div className="px-4 md:px-6 pt-4 bg-background sticky top-[57px] z-[9]">
             <TabsList className="w-full justify-start overflow-x-auto bg-transparent rounded-none border-b p-0 h-auto">
               <TabsTrigger value="configuration" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
@@ -735,6 +752,7 @@ export default function VenueDetail() {
               </TabsTrigger>
             </TabsList>
           </div>
+          )}
 
           {/* Tab content — flows naturally, main scrolls */}
           <div className="px-4 md:px-6 py-4">
@@ -742,9 +760,19 @@ export default function VenueDetail() {
               <form onSubmit={(e) => e.preventDefault()}>
                 <TabsContent value="configuration" className="mt-0">
                   {/* Option 2: Horizontal sticky sub-nav */}
-                  <VenueSectionNavBar sections={VENUE_CONFIG_SECTIONS} />
+                  <VenueSectionNavBar
+                    topOffset={restricted ? 57 : 105}
+                    sections={
+                      restrictedSections
+                        ? VENUE_CONFIG_SECTIONS.filter((s) =>
+                            restrictedSections.includes(s.id as VenueSectionId),
+                          )
+                        : VENUE_CONFIG_SECTIONS
+                    }
+                  />
 
                   <VenueGeneralTab
+                        restrictedSections={restrictedSections}
                         form={form}
                         mode={isNewMode ? 'add' : 'edit'}
                         disabled={!isEditing}
