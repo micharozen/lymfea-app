@@ -410,7 +410,8 @@
       "noTreatments": "Aucun soin associé à ce lieu",
       "treatmentLinkCopied": "Lien du soin copié !",
       "venueLink": "Lien du lieu",
-      "searchTreatment": "Rechercher un soin..."
+      "searchTreatment": "Rechercher un soin...",
+      "language": "Langue du lien"
     },
     "save": "Enregistrer",
     "saving": "Enregistrement...",
