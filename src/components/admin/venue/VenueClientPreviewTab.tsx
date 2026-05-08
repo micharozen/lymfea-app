@@ -13,14 +13,18 @@ interface VenueClientPreviewTabProps {
   slug?: string | null;
 }
 
+type LinkLanguage = 'fr' | 'en';
+
 export function VenueClientPreviewTab({ hotelId, slug }: VenueClientPreviewTabProps) {
   const { t } = useTranslation('admin');
   const [copied, setCopied] = useState(false);
   const [treatmentCopied, setTreatmentCopied] = useState(false);
   const [selectedTreatmentSlug, setSelectedTreatmentSlug] = useState<string>("");
+  const [language, setLanguage] = useState<LinkLanguage>('fr');
 
   const identifier = slug || hotelId;
-  const clientUrl = `${window.location.origin}/client/${identifier}`;
+  const langSuffix = `?lang=${language}`;
+  const clientUrl = `${window.location.origin}/client/${identifier}${langSuffix}`;
 
   const { data: treatments = [] } = useQuery({
     queryKey: ['venue-treatments-links', hotelId],
@@ -40,7 +44,7 @@ export function VenueClientPreviewTab({ hotelId, slug }: VenueClientPreviewTabPr
   });
 
   const treatmentUrl = selectedTreatmentSlug
-    ? `${window.location.origin}/client/${identifier}/treatment/${selectedTreatmentSlug}`
+    ? `${window.location.origin}/client/${identifier}/treatment/${selectedTreatmentSlug}${langSuffix}`
     : '';
 
   const previewUrl = selectedTreatmentSlug ? treatmentUrl : clientUrl;
@@ -78,6 +82,30 @@ export function VenueClientPreviewTab({ hotelId, slug }: VenueClientPreviewTabPr
             title="Aperçu client"
             loading="lazy"
           />
+        </div>
+      </div>
+
+      {/* Language Selector */}
+      <div className="w-full max-w-md flex items-center justify-between gap-3">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {t('venue.clientPreview.language')}
+        </label>
+        <div className="inline-flex rounded-md border bg-muted/40 p-0.5">
+          {(['fr', 'en'] as LinkLanguage[]).map((lng) => (
+            <button
+              key={lng}
+              type="button"
+              onClick={() => setLanguage(lng)}
+              className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${
+                language === lng
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              aria-pressed={language === lng}
+            >
+              {lng.toUpperCase()}
+            </button>
+          ))}
         </div>
       </div>
 
