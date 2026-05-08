@@ -292,8 +292,23 @@ export default function TreatmentLanding() {
 
       {/* Content */}
       <div className="flex-1 w-full">
+        {/* Hero image */}
+        {treatment.image && (
+          <div className="w-full max-w-md mx-auto aspect-[4/3] max-h-[360px] overflow-hidden bg-gray-100">
+            <img
+              src={treatment.image}
+              alt={localize(treatment.name, treatment.name_en)}
+              className="w-full h-full object-cover"
+              loading="eager"
+            />
+          </div>
+        )}
+
         {/* Treatment info */}
-        <div className="max-w-md mx-auto px-6 pt-8 pb-4 flex flex-col items-center text-center">
+        <div className={cn(
+          "max-w-md mx-auto px-6 pb-4 flex flex-col items-center text-center",
+          treatment.image ? "pt-6" : "pt-8"
+        )}>
           {/* Category badge */}
           <span className="text-[10px] uppercase tracking-[0.2em] text-gold-600 font-semibold">
             {treatment.category}
