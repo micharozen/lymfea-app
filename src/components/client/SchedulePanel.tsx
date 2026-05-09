@@ -232,18 +232,28 @@ export function SchedulePanel({
     maxDaysAhead,
   });
 
-  // Auto-select the first deployed day (usually today) so the slot grid is
-  // populated without an extra click. If the day ends up being fully booked,
-  // the user sees the "fully booked" state and can browse from there.
+  // Auto-select the closest day that actually has slots. The availability of
+  // each day arrives asynchronously (via `daysWithSlots`), so we re-run when
+  // `dateOptions` updates and override the current selection if it turns out
+  // to be fully booked — unless the user has already picked a date manually,
+  // or the date comes from a recovery flow (`takenDate`) or a deep link (`urlDate`).
+  const userPickedDateRef = useRef(false);
   useEffect(() => {
-    if (selectedDate) return;
-    if (takenDate) return;
-    const first = dateOptions.find(d => d.hasSlots && d.isAllowedByCart);
-    if (first) {
-      setSelectedDate(first.value);
-      setUrlDateTime(first.value, '');
+    if (takenDate || urlDate) return;
+    if (userPickedDateRef.current) return;
+    const firstAvailable = dateOptions.find(d => d.hasSlots && d.isAllowedByCart);
+    if (!firstAvailable) return;
+    if (!selectedDate) {
+      setSelectedDate(firstAvailable.value);
+      setUrlDateTime(firstAvailable.value, '');
+      return;
     }
-  }, [dateOptions, selectedDate, takenDate, setUrlDateTime]);
+    const current = dateOptions.find(d => d.value === selectedDate);
+    if (current && (!current.hasSlots || !current.isAllowedByCart) && current.value !== firstAvailable.value) {
+      setSelectedDate(firstAvailable.value);
+      setUrlDateTime(firstAvailable.value, '');
+    }
+  }, [dateOptions, selectedDate, takenDate, urlDate, setUrlDateTime]);
 
   // Generate time slots based on venue hours, filtering out past times for today
   const timeSlots = useTimeSlots({
@@ -634,6 +644,7 @@ export function SchedulePanel({
           dateOptions={dateOptions}
           selectedDate={selectedDate}
           onSelectDate={(value) => {
+            userPickedDateRef.current = true;
             setSelectedDate(value);
             setUrlDateTime(value, '');
           }}
