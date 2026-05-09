@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,22 +19,26 @@ export function ExpandableDescription({
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Reset to collapsed when the text or clamp threshold changes.
   useLayoutEffect(() => {
+    setIsExpanded(false);
+  }, [text, clampLines]);
+
+  // Only measure overflow while collapsed. While expanded the clamp class is
+  // off and the paragraph stretches to its full height — re-measuring would
+  // wrongly conclude there is no overflow and snap us back to collapsed.
+  useLayoutEffect(() => {
+    if (isExpanded) return;
     const el = paragraphRef.current;
     if (!el) return;
     const measure = () => {
-      const overflowing = el.scrollHeight - el.clientHeight > 1;
-      setIsOverflowing(overflowing);
+      setIsOverflowing(el.scrollHeight - el.clientHeight > 1);
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [text, clampLines]);
-
-  useEffect(() => {
-    if (!isOverflowing) setIsExpanded(false);
-  }, [isOverflowing]);
+  }, [text, clampLines, isExpanded]);
 
   const clampClass =
     clampLines === 1 ? 'line-clamp-1'
@@ -54,7 +58,7 @@ export function ExpandableDescription({
       >
         {text}
       </p>
-      {isOverflowing && (
+      {(isOverflowing || isExpanded) && (
         <button
           type="button"
           onClick={(e) => {
