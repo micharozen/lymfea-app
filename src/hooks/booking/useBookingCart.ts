@@ -1,12 +1,22 @@
 import { useState, useMemo } from "react";
 import { CartItem } from "@/components/booking/CreateBookingDialog.schema";
 
+interface TreatmentVariant {
+  id: string;
+  label?: string | null;
+  price?: number | null;
+  duration?: number | null;
+  is_default?: boolean;
+  guest_count?: number;
+}
+
 interface Treatment {
   id: string;
   name?: string;
   price?: number | null;
   duration?: number | null;
   price_on_request?: boolean | null;
+  treatment_variants?: TreatmentVariant[];
   [key: string]: unknown;
 }
 
@@ -19,8 +29,11 @@ export function useBookingCart(treatments: Treatment[] | undefined) {
     cart.forEach(i => {
       const t = treatments.find(x => x.id === i.treatmentId);
       if (t) {
-        p += (t.price || 0) * i.quantity;
-        d += (t.duration || 0) * i.quantity;
+        const variant = i.variantId
+          ? t.treatment_variants?.find(v => v.id === i.variantId)
+          : null;
+        p += (variant?.price ?? t.price ?? 0) * i.quantity;
+        d += (variant?.duration ?? t.duration ?? 0) * i.quantity;
       }
     });
     return { totalPrice: p, totalDuration: d };
@@ -38,21 +51,38 @@ export function useBookingCart(treatments: Treatment[] | undefined) {
     [cart, treatments]
   );
 
-  const addToCart = (id: string) => setCart(p => {
-    const e = p.find(x => x.treatmentId === id);
-    return e ? p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity + 1 } : x) : [...p, { treatmentId: id, quantity: 1 }];
-  });
+  const addToCart = (treatmentId: string) => {
+    const treatment = treatments?.find(x => x.id === treatmentId);
+    const defaultVariant = treatment?.treatment_variants?.find(v => v.is_default)
+      ?? treatment?.treatment_variants?.[0]
+      ?? null;
 
-  const incrementCart = (id: string) => setCart(p => p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity + 1 } : x));
-
-  const decrementCart = (id: string) => setCart(p => {
-    const e = p.find(x => x.treatmentId === id);
-    return e && e.quantity <= 1 ? p.filter(x => x.treatmentId !== id) : p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity - 1 } : x);
-  });
-
-  const getCartQuantity = (treatmentId: string) => {
-    return cart.find(x => x.treatmentId === treatmentId)?.quantity || 0;
+    setCart(p => {
+      const existing = p.find(x => x.treatmentId === treatmentId);
+      if (existing) return p.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity + 1 } : x);
+      return [...p, { treatmentId, quantity: 1, variantId: defaultVariant?.id ?? null }];
+    });
   };
+
+  const incrementCart = (treatmentId: string) =>
+    setCart(p => p.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity + 1 } : x));
+
+  const decrementCart = (treatmentId: string) =>
+    setCart(p => {
+      const e = p.find(x => x.treatmentId === treatmentId);
+      return e && e.quantity <= 1
+        ? p.filter(x => x.treatmentId !== treatmentId)
+        : p.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity - 1 } : x);
+    });
+
+  const setVariant = (treatmentId: string, variantId: string | null) =>
+    setCart(p => p.map(x => x.treatmentId === treatmentId ? { ...x, variantId } : x));
+
+  const getCartVariant = (treatmentId: string): string | null =>
+    cart.find(x => x.treatmentId === treatmentId)?.variantId ?? null;
+
+  const getCartQuantity = (treatmentId: string) =>
+    cart.find(x => x.treatmentId === treatmentId)?.quantity || 0;
 
   const flatIds = useMemo(() => {
     const ids: string[] = [];
@@ -68,6 +98,8 @@ export function useBookingCart(treatments: Treatment[] | undefined) {
     addToCart,
     incrementCart,
     decrementCart,
+    setVariant,
+    getCartVariant,
     getCartQuantity,
     flatIds,
     totalPrice,

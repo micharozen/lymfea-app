@@ -146,7 +146,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     queryFn: async () => {
       let q = supabase
         .from("treatment_menus")
-        .select("*, treatment_variants(id, guest_count)")
+        .select("*, treatment_variants(id, label, duration, price, is_default, guest_count)")
         .in("status", ["Actif", "active", "Active"])
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name");
@@ -158,20 +158,24 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const {
     cart, setCart, addToCart, incrementCart, decrementCart,
+    setVariant, getCartVariant,
     getCartQuantity, flatIds, totalPrice, totalDuration,
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
 
-  // Detect max guest_count across cart items to drive multi-therapist picker.
-  // A treatment with no variants defaults to 1 guest.
+  // guest_count driven by the SELECTED variant for each cart item (not the max of all variants).
+  // Falls back to 1 when no variant is selected or the treatment has no variants.
   const requiredGuestCount = useMemo(() => {
     if (!cartDetails.length) return 1;
     return Math.max(
       1,
       ...cartDetails.map((item) => {
-        const t = item.treatment as { treatment_variants?: { guest_count?: number }[] } | undefined;
-        const variants = t?.treatment_variants ?? [];
-        return variants.length > 0 ? Math.max(...variants.map(v => v.guest_count ?? 1)) : 1;
+        const variants = (item.treatment as any)?.treatment_variants ?? [];
+        if (!variants.length) return 1;
+        const selected = item.variantId
+          ? variants.find((v: any) => v.id === item.variantId)
+          : null;
+        return selected?.guest_count ?? 1;
       })
     );
   }, [cartDetails]);
@@ -360,7 +364,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       slot2Time: values.slot2Time || null,
       slot3Date: values.slot3Date ? format(values.slot3Date, "yyyy-MM-dd") : null,
       slot3Time: values.slot3Time || null,
-      treatmentIds: flatIds,
+      treatmentIds: [],
+      treatments: cart.flatMap(item =>
+        Array.from({ length: item.quantity }, () => ({
+          treatmentId: item.treatmentId,
+          variantId: item.variantId || undefined,
+        }))
+      ),
       totalPrice: finalPriceWithSurcharge,
       totalDuration: finalDuration,
       isAdmin,
@@ -479,6 +489,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   incrementCart={incrementCart}
                   decrementCart={decrementCart}
                   getCartQuantity={getCartQuantity}
+                  getCartVariant={getCartVariant}
+                  setCartVariant={setVariant}
                   totalPrice={totalPrice}
                   totalDuration={totalDuration}
                   hasOnRequestService={hasOnRequestService}

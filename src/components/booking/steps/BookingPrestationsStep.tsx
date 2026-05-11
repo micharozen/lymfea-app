@@ -24,6 +24,15 @@ interface Treatment {
   [key: string]: unknown;
 }
 
+interface TreatmentVariant {
+  id: string;
+  label?: string | null;
+  price?: number | null;
+  duration?: number | null;
+  is_default?: boolean;
+  guest_count?: number;
+}
+
 interface BookingPrestationsStepProps {
   treatments: Treatment[] | undefined;
   selectedHotel: { currency?: string | null } | undefined;
@@ -34,6 +43,8 @@ interface BookingPrestationsStepProps {
   incrementCart: (id: string) => void;
   decrementCart: (id: string) => void;
   getCartQuantity: (treatmentId: string) => number;
+  getCartVariant: (treatmentId: string) => string | null;
+  setCartVariant: (treatmentId: string, variantId: string) => void;
   totalPrice: number;
   totalDuration: number;
   hasOnRequestService: boolean;
@@ -71,6 +82,8 @@ export function BookingPrestationsStep({
   incrementCart,
   decrementCart,
   getCartQuantity,
+  getCartVariant,
+  setCartVariant,
   totalPrice,
   totalDuration,
   hasOnRequestService,
@@ -153,55 +166,93 @@ export function BookingPrestationsStep({
               <div>
                 {items.map((treatment) => {
                   const qty = getCartQuantity(treatment.id);
+                  const variants = ((treatment as any).treatment_variants ?? []) as TreatmentVariant[];
+                  const hasVariantChoice = variants.length >= 2;
+                  const selectedVariantId = qty > 0 ? getCartVariant(treatment.id) : null;
+                  const selectedVariant = selectedVariantId
+                    ? variants.find(v => v.id === selectedVariantId)
+                    : variants.find(v => v.is_default) ?? variants[0];
+
+                  const displayPrice = selectedVariant?.price ?? treatment.price;
+                  const displayDuration = selectedVariant?.duration ?? treatment.duration;
+
                   return (
                     <div
                       key={treatment.id}
-                      className="flex items-center justify-between py-1.5 border-b border-border/10 last:border-0"
+                      className="border-b border-border/10 last:border-0"
                     >
-                      <div className="flex flex-col flex-1 pr-2 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-foreground text-xs truncate">
-                            {treatment.name}
-                          </span>
-                          {treatment.price_on_request && (
-                            <span className="shrink-0 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded">
-                              Sur demande
+                      <div className="flex items-center justify-between py-1.5">
+                        <div className="flex flex-col flex-1 pr-2 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-foreground text-xs truncate">
+                              {treatment.name}
                             </span>
-                          )}
+                            {treatment.price_on_request && (
+                              <span className="shrink-0 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded">
+                                Sur demande
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">
+                            {treatment.price_on_request
+                              ? `${displayDuration} min`
+                              : `${formatPrice(displayPrice, selectedHotel?.currency || 'EUR', { decimals: 0 })} • ${displayDuration} min`}
+                          </span>
                         </div>
-                        <span className="text-[10px] text-muted-foreground">
-                          {treatment.price_on_request
-                            ? `${treatment.duration} min`
-                            : `${formatPrice(treatment.price, selectedHotel?.currency || 'EUR', { decimals: 0 })} • ${treatment.duration} min`}
-                        </span>
+
+                        {qty > 0 ? (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => decrementCart(treatment.id)}
+                              className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
+                            >
+                              <Minus className="h-2.5 w-2.5" />
+                            </button>
+                            <span className="text-xs font-bold w-4 text-center">{qty}</span>
+                            <button
+                              type="button"
+                              onClick={() => incrementCart(treatment.id)}
+                              className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
+                            >
+                              <Plus className="h-2.5 w-2.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => addToCart(treatment.id)}
+                            className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors"
+                          >
+                            Ajouter
+                          </button>
+                        )}
                       </div>
 
-                      {qty > 0 ? (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => decrementCart(treatment.id)}
-                            className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
-                          >
-                            <Minus className="h-2.5 w-2.5" />
-                          </button>
-                          <span className="text-xs font-bold w-4 text-center">{qty}</span>
-                          <button
-                            type="button"
-                            onClick={() => incrementCart(treatment.id)}
-                            className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
-                          >
-                            <Plus className="h-2.5 w-2.5" />
-                          </button>
+                      {qty > 0 && hasVariantChoice && (
+                        <div className="pb-1.5 flex gap-1 flex-wrap">
+                          {variants.map((v) => {
+                            const isSelected = selectedVariantId === v.id
+                              || (!selectedVariantId && v.is_default && variants.indexOf(v) === 0);
+                            const label = v.label
+                              || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
+                            return (
+                              <button
+                                key={v.id}
+                                type="button"
+                                onClick={() => setCartVariant(treatment.id, v.id)}
+                                className={cn(
+                                  "text-[9px] font-semibold px-2 py-0.5 rounded-full border transition-colors",
+                                  isSelected
+                                    ? "bg-foreground text-background border-foreground"
+                                    : "border-border text-muted-foreground hover:border-foreground/50"
+                                )}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
                         </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => addToCart(treatment.id)}
-                          className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors"
-                        >
-                          Ajouter
-                        </button>
                       )}
                     </div>
                   );
