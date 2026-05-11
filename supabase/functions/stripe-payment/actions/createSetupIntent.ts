@@ -193,18 +193,28 @@ export async function handleCreateSetupIntent(
     stripeCustomerId = newCustomer.id;
   }
 
-  const { error: upsertError } = await supabase.from("customers").upsert(
-    {
-      phone: clientData.phone,
-      email: clientData.email,
-      first_name: clientData.firstName,
-      last_name: clientData.lastName,
-      stripe_customer_id: stripeCustomerId,
-    },
-    { onConflict: "phone" },
-  );
-  if (upsertError) {
-    console.error("[CREATE-SETUP-INTENT] Erreur Upsert Customer:", upsertError);
+  const customerPayload = {
+    phone: clientData.phone,
+    email: clientData.email,
+    first_name: clientData.firstName,
+    last_name: clientData.lastName,
+  };
+  const { data: existingByStripe } = await supabase
+    .from("customers")
+    .select("id")
+    .eq("stripe_customer_id", stripeCustomerId)
+    .maybeSingle();
+  if (existingByStripe) {
+    const { error } = await supabase
+      .from("customers")
+      .update(customerPayload)
+      .eq("id", existingByStripe.id);
+    if (error) console.error("[CREATE-SETUP-INTENT] Erreur Update Customer:", error);
+  } else {
+    const { error } = await supabase
+      .from("customers")
+      .upsert({ ...customerPayload, stripe_customer_id: stripeCustomerId }, { onConflict: "phone" });
+    if (error) console.error("[CREATE-SETUP-INTENT] Erreur Upsert Customer:", error);
   }
 
   const origin = req.headers.get("origin") || "http://localhost:5173";

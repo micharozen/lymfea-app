@@ -204,36 +204,39 @@ serve(async (req) => {
         .select('user_id, first_name')
         .in('id', therapistIds);
 
-      for (const therapist of therapistUsers || []) {
-        if (!therapist.user_id) continue;
-        try {
-          const { error: pushError } = await supabase.functions.invoke(
-            'send-push-notification',
-            {
-              body: {
-                userId: therapist.user_id,
-                title: '🎉 Nouvelle réservation confirmée !',
-                body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${formattedDate} à ${formattedTime}`,
-                data: {
-                  bookingId: booking.id,
-                  url: `/pwa/booking/${booking.id}`,
-                },
-              },
-              headers: {
-                Authorization: `Bearer ${supabaseServiceKey}`,
-              },
+      await Promise.all(
+        (therapistUsers || [])
+          .filter((t: any) => t.user_id)
+          .map(async (therapist: any) => {
+            try {
+              const { error: pushError } = await supabase.functions.invoke(
+                'send-push-notification',
+                {
+                  body: {
+                    userId: therapist.user_id,
+                    title: '🎉 Nouvelle réservation confirmée !',
+                    body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${formattedDate} à ${formattedTime}`,
+                    data: {
+                      bookingId: booking.id,
+                      url: `/pwa/booking/${booking.id}`,
+                    },
+                  },
+                  headers: {
+                    Authorization: `Bearer ${supabaseServiceKey}`,
+                  },
+                }
+              );
+              if (pushError) {
+                errors.push(`push:${therapist.first_name}`);
+              } else {
+                emailsSent.push(`push:${therapist.first_name}`);
+              }
+            } catch (e) {
+              console.error('[notify-booking-confirmed] Push exception:', e);
+              errors.push(`push:${therapist.first_name}`);
             }
-          );
-          if (pushError) {
-            errors.push(`push:${therapist.first_name}`);
-          } else {
-            emailsSent.push(`push:${therapist.first_name}`);
-          }
-        } catch (e) {
-          console.error('[notify-booking-confirmed] Push exception:', e);
-          errors.push(`push:${therapist.first_name}`);
-        }
-      }
+          })
+      );
     }
 
     // 5. Send push + in-app notifications to admins
@@ -243,40 +246,48 @@ serve(async (req) => {
       .eq('status', 'Actif');
 
     if (adminUsers && adminUsers.length > 0) {
-      for (const admin of adminUsers) {
-        if (!admin.user_id) continue;
+      const adminsWithUserId = adminUsers.filter((a: any) => a.user_id);
 
+      // Bulk insert all in-app notifications in one query
+      if (adminsWithUserId.length > 0) {
         try {
-          await supabase.from('notifications').insert({
-            user_id: admin.user_id,
-            booking_id: booking.id,
-            type: 'booking_confirmed',
-            message: `✅ Réservation #${booking.booking_id} confirmée par ${booking.therapist_name || 'un thérapeute'} · ${formattedDate} à ${formattedTime}`,
-          });
+          await supabase.from('notifications').insert(
+            adminsWithUserId.map((admin: any) => ({
+              user_id: admin.user_id,
+              booking_id: booking.id,
+              type: 'booking_confirmed',
+              message: `✅ Réservation #${booking.booking_id} confirmée par ${booking.therapist_name || 'un thérapeute'} · ${formattedDate} à ${formattedTime}`,
+            }))
+          );
         } catch (e) {
-          console.error(`[notify-booking-confirmed] Notification insert error for admin ${admin.first_name}:`, e);
-        }
-
-        try {
-          await supabase.functions.invoke('send-push-notification', {
-            body: {
-              userId: admin.user_id,
-              title: '✅ Réservation confirmée',
-              body: `#${booking.booking_id} confirmée par ${booking.therapist_name || 'un thérapeute'} · ${formattedDate} à ${formattedTime}`,
-              data: {
-                bookingId: booking.id,
-                url: `/admin-pwa/booking/${booking.id}`,
-              },
-            },
-            headers: {
-              Authorization: `Bearer ${supabaseServiceKey}`,
-            },
-          });
-          emailsSent.push(`admin-push:${admin.first_name}`);
-        } catch (e) {
-          console.error(`[notify-booking-confirmed] Admin push error for ${admin.first_name}:`, e);
+          console.error('[notify-booking-confirmed] Bulk notification insert error:', e);
         }
       }
+
+      // Send push notifications in parallel
+      await Promise.all(
+        adminsWithUserId.map(async (admin: any) => {
+          try {
+            await supabase.functions.invoke('send-push-notification', {
+              body: {
+                userId: admin.user_id,
+                title: '✅ Réservation confirmée',
+                body: `#${booking.booking_id} confirmée par ${booking.therapist_name || 'un thérapeute'} · ${formattedDate} à ${formattedTime}`,
+                data: {
+                  bookingId: booking.id,
+                  url: `/admin-pwa/booking/${booking.id}`,
+                },
+              },
+              headers: {
+                Authorization: `Bearer ${supabaseServiceKey}`,
+              },
+            });
+            emailsSent.push(`admin-push:${admin.first_name}`);
+          } catch (e) {
+            console.error(`[notify-booking-confirmed] Admin push error for ${admin.first_name}:`, e);
+          }
+        })
+      );
     }
 
     // 6. Send Slack notification

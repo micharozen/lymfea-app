@@ -110,11 +110,10 @@ export async function handleHandleCheckoutSuccess(
 
     if (bookingError) throw bookingError;
 
-    for (const t of treatments) {
-      await supabase.from("booking_treatments").insert({
-        booking_id: booking.id,
-        treatment_id: t.id,
-      });
+    if (treatments.length > 0) {
+      await supabase.from("booking_treatments").insert(
+        treatments.map((t: { id: string }) => ({ booking_id: booking.id, treatment_id: t.id })),
+      );
     }
 
     const { data: treatmentDetails } = await supabase
