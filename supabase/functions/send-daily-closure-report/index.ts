@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 import { getBaseEmailTemplate, getEmailHeader } from "../_shared/email-template.ts";
+import { computeTherapistEarnings, type TherapistRates } from "../_shared/therapistEarnings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +15,16 @@ interface ClosureRequest {
   report_date: string; // YYYY-MM-DD
   recipients: string[];
   include_details?: boolean;
+  hide_commissions?: boolean;
 }
+
+type ClientTypeValue = "hotel" | "staycation" | "classpass" | "external";
+const CLIENT_TYPE_LABELS: Record<ClientTypeValue, string> = {
+  hotel: "Résident hôtel",
+  staycation: "Staycation",
+  classpass: "Classpass",
+  external: "Client externe",
+};
 
 interface RawBooking {
   id: string;
@@ -23,13 +33,16 @@ interface RawBooking {
   booking_time: string;
   client_first_name: string;
   client_last_name: string;
+  client_type: string;
   room_number: string | null;
+  therapist_id: string | null;
   therapist_name: string | null;
+  duration: number | null;
   total_price: number | null;
   payment_method: string | null;
   status: string;
   booking_treatments?: Array<{
-    treatment_menus: { name: string; category: string | null } | null;
+    treatment_menus: { name: string; category: string | null; duration: number | null } | null;
   }> | null;
 }
 
@@ -52,8 +65,6 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   tap_to_pay: "Tap to Pay",
   free: "Offert",
 };
-
-const COMPLETED_STATUSES = new Set(["completed", "confirmed"]);
 
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -86,6 +97,21 @@ function fmtDateLong(iso: string): string {
   });
 }
 
+function normalizeClientType(value: string | null | undefined): ClientTypeValue {
+  if (value === "hotel" || value === "staycation" || value === "classpass" || value === "external") {
+    return value;
+  }
+  return "external";
+}
+
+function bookingDuration(booking: RawBooking): number {
+  if (booking.duration && booking.duration > 0) return booking.duration;
+  return (booking.booking_treatments ?? []).reduce(
+    (sum, bt) => sum + (bt.treatment_menus?.duration ?? 0),
+    0,
+  );
+}
+
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -98,7 +124,13 @@ serve(async (req: Request): Promise<Response> => {
     );
 
     const body: ClosureRequest = await req.json();
-    const { hotel_id, report_date, recipients, include_details = false } = body;
+    const {
+      hotel_id,
+      report_date,
+      recipients,
+      include_details = false,
+      hide_commissions = false,
+    } = body;
 
     if (!hotel_id || !report_date) {
       return new Response(
@@ -120,7 +152,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const { data: venue, error: venueError } = await supabase
       .from("hotels")
-      .select("id, name, currency, hotel_commission, therapist_commission, venue_type")
+      .select("id, name, currency, hotel_commission, venue_type")
       .eq("id", hotel_id)
       .single();
 
@@ -132,231 +164,225 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const { data: rawBookings, error: bookingsError } = await supabase
-      .from("bookings")
-      .select(
-        `id, booking_id, booking_date, booking_time, client_first_name, client_last_name,
-         room_number, therapist_name, total_price, payment_method, status,
-         booking_treatments ( treatment_menus ( name, category ) )`,
-      )
-      .eq("hotel_id", hotel_id)
-      .eq("booking_date", report_date)
-      .order("booking_time", { ascending: true });
+    const [bookingsRes, ratesRes] = await Promise.all([
+      supabase
+        .from("bookings")
+        .select(
+          `id, booking_id, booking_date, booking_time, client_first_name, client_last_name,
+           client_type, room_number, therapist_id, therapist_name, duration,
+           total_price, payment_method, status,
+           booking_treatments ( treatment_menus ( name, category, duration ) )`,
+        )
+        .eq("hotel_id", hotel_id)
+        .eq("booking_date", report_date)
+        .order("booking_time", { ascending: true }),
+      supabase
+        .from("therapist_venues")
+        .select("therapist_id, therapists ( id, rate_45, rate_60, rate_90 )")
+        .eq("hotel_id", hotel_id),
+    ]);
 
-    if (bookingsError) {
-      console.error("[send-daily-closure-report] bookings query failed", bookingsError);
-      throw bookingsError;
+    if (bookingsRes.error) {
+      console.error("[send-daily-closure-report] bookings query failed", bookingsRes.error);
+      throw bookingsRes.error;
+    }
+    if (ratesRes.error) {
+      console.error("[send-daily-closure-report] rates query failed", ratesRes.error);
+      throw ratesRes.error;
     }
 
-    const bookings = (rawBookings ?? []) as RawBooking[];
+    const ratesMap: Record<string, TherapistRates | null> = {};
+    for (const row of ratesRes.data ?? []) {
+      const t = (row as { therapists: { id: string; rate_45: number | null; rate_60: number | null; rate_90: number | null } | null }).therapists;
+      if (!t) continue;
+      const rates: TherapistRates = { rate_45: t.rate_45, rate_60: t.rate_60, rate_90: t.rate_90 };
+      const empty = rates.rate_45 == null && rates.rate_60 == null && rates.rate_90 == null;
+      ratesMap[t.id] = empty ? null : rates;
+    }
+
+    const bookings = (bookingsRes.data ?? []) as RawBooking[];
     const currency = (venue.currency as string) || "EUR";
     const money = (v: number) => fmtMoney(v, currency);
-    const therapistRate = Number(venue.therapist_commission ?? 0) / 100;
     const venueRate = Number(venue.hotel_commission ?? 0) / 100;
 
     let completed = 0;
+    let confirmed = 0;
     let cancelled = 0;
     let noShow = 0;
     let pending = 0;
     let totalRevenue = 0;
     let totalVenueShare = 0;
     let totalTherapistShare = 0;
-    let totalPlatformShare = 0;
+    let bookingsWithoutTherapistRate = 0;
 
     const categoryMap = new Map<string, { count: number; revenue: number }>();
-    const therapistMap = new Map<string, { count: number; revenue: number }>();
+    const therapistMap = new Map<string, { name: string; count: number; revenue: number; earnings: number; hasRates: boolean }>();
     const paymentMap = new Map<string, { count: number; revenue: number }>();
-    const clientType = {
-      internal: { count: 0, revenue: 0 },
-      external: { count: 0, revenue: 0 },
-    };
+    const clientTypeMap = new Map<ClientTypeValue, { count: number; revenue: number }>();
 
     for (const b of bookings) {
-      const price = b.total_price ?? 0;
-
       if (b.status === "completed") completed += 1;
+      else if (b.status === "confirmed") confirmed += 1;
       else if (b.status === "cancelled") cancelled += 1;
       else if (b.status === "no_show") noShow += 1;
       else if (b.status === "pending") pending += 1;
 
-      if (!COMPLETED_STATUSES.has(b.status)) continue;
+      if (b.status !== "completed") continue;
 
+      const price = b.total_price ?? 0;
       totalRevenue += price;
       totalVenueShare += price * venueRate;
-      totalTherapistShare += price * therapistRate;
-      totalPlatformShare += price * (1 - venueRate - therapistRate);
 
-      const categoryName =
-        b.booking_treatments?.[0]?.treatment_menus?.category ?? "Autres";
+      const rates = b.therapist_id ? ratesMap[b.therapist_id] ?? null : null;
+      const duration = bookingDuration(b);
+      const earnings = b.therapist_id && duration > 0 ? computeTherapistEarnings(rates, duration) : null;
+      const therapistEarnings = earnings ?? 0;
+      const hasRates = earnings !== null;
+      if (b.therapist_id && !hasRates) bookingsWithoutTherapistRate += 1;
+      totalTherapistShare += therapistEarnings;
+
+      const categoryName = b.booking_treatments?.[0]?.treatment_menus?.category ?? "Autres";
       const cat = categoryMap.get(categoryName) ?? { count: 0, revenue: 0 };
       cat.count += 1;
       cat.revenue += price;
       categoryMap.set(categoryName, cat);
 
+      const ctKey = normalizeClientType(b.client_type);
+      const ct = clientTypeMap.get(ctKey) ?? { count: 0, revenue: 0 };
+      ct.count += 1;
+      ct.revenue += price;
+      clientTypeMap.set(ctKey, ct);
+
       const tName = b.therapist_name ?? "Non assigné";
-      const tStat = therapistMap.get(tName) ?? { count: 0, revenue: 0 };
-      tStat.count += 1;
-      tStat.revenue += price;
-      therapistMap.set(tName, tStat);
+      const tKey = b.therapist_id ?? `name:${tName}`;
+      const tStat = therapistMap.get(tKey);
+      if (tStat) {
+        tStat.count += 1;
+        tStat.revenue += price;
+        tStat.earnings += therapistEarnings;
+        tStat.hasRates = tStat.hasRates && hasRates;
+      } else {
+        therapistMap.set(tKey, { name: tName, count: 1, revenue: price, earnings: therapistEarnings, hasRates });
+      }
 
       const method = b.payment_method ?? "unknown";
       const mStat = paymentMap.get(method) ?? { count: 0, revenue: 0 };
       mStat.count += 1;
       mStat.revenue += price;
       paymentMap.set(method, mStat);
-
-      const target = b.room_number ? clientType.internal : clientType.external;
-      target.count += 1;
-      target.revenue += price;
     }
 
+    const totalPlatformShare = totalRevenue - totalVenueShare - totalTherapistShare;
     const headline = `${completed} prestation${completed > 1 ? "s" : ""} · ${money(totalRevenue)}`;
 
-    const summaryRows = [
-      ["Prestations réalisées", String(completed)],
+    const revenueCards = [
+      ["Prestations complétées", String(completed)],
       ["Chiffre d'affaires", money(totalRevenue)],
-      ["Part lieu", money(totalVenueShare)],
-      ["Part thérapeute", money(totalTherapistShare)],
+      ["Confirmées (à venir)", String(confirmed)],
       ["En attente", String(pending)],
+    ];
+
+    const commissionCards = hide_commissions
+      ? []
+      : [
+          ["Part lieu", money(totalVenueShare)],
+          ["Part thérapeute", money(totalTherapistShare)],
+          ["Part plateforme", money(totalPlatformShare)],
+        ];
+
+    const lossCards = [
       ["Annulées", String(cancelled)],
       ["No-show", String(noShow)],
       ["Total bookings", String(bookings.length)],
     ];
 
-    const summaryHtml = `
-      <tr><td style="padding:8px 30px 20px;">
+    const renderCardsRow = (cards: string[][], bg = "#ffffff") =>
+      cards.length
+        ? `<tr><td style="padding:8px 30px 0;">
         <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
           <tr>
-            ${summaryRows
-              .slice(0, 4)
+            ${cards
               .map(
                 ([label, value]) => `
-              <td style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;width:25%;text-align:center;vertical-align:top;">
-                <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">${escapeHtml(label)}</p>
-                <p style="margin:6px 0 0;font-size:18px;font-weight:600;color:#111827;">${escapeHtml(value)}</p>
-              </td>
-            `,
-              )
-              .join("")}
-          </tr>
-          <tr><td colspan="4" style="height:8px;"></td></tr>
-          <tr>
-            ${summaryRows
-              .slice(4)
-              .map(
-                ([label, value]) => `
-              <td style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;background:#ffffff;width:25%;text-align:center;vertical-align:top;">
+              <td style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;background:${bg};text-align:center;vertical-align:top;">
                 <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">${escapeHtml(label)}</p>
                 <p style="margin:6px 0 0;font-size:16px;font-weight:600;color:#111827;">${escapeHtml(value)}</p>
-              </td>
-            `,
+              </td>`,
               )
-              .join("")}
+              .join('<td width="8"></td>')}
           </tr>
         </table>
-      </td></tr>
-    `;
+      </td></tr>`
+        : "";
+
+    const warningBanner =
+      !hide_commissions && bookingsWithoutTherapistRate > 0
+        ? `<tr><td style="padding:0 30px 12px;">
+          <p style="margin:0;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:13px;color:#92400e;">
+            ⚠ ${bookingsWithoutTherapistRate} prestation${bookingsWithoutTherapistRate > 1 ? "s" : ""} sans tarif thérapeute défini — part thérapeute calculée à 0 sur ces lignes.
+          </p>
+        </td></tr>`
+        : "";
+
+    const buildTable = (title: string, headers: string[], rows: string[][]) => {
+      if (!rows.length) return "";
+      const head = headers
+        .map(
+          (h, i) =>
+            `<th style="padding:6px 10px;text-align:${i === headers.length - 1 ? "right" : "left"};font-size:11px;color:#6b7280;text-transform:uppercase;">${escapeHtml(h)}</th>`,
+        )
+        .join("");
+      const body = rows
+        .map(
+          (cells) =>
+            `<tr>${cells
+              .map(
+                (c, i) =>
+                  `<td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:${i === cells.length - 1 ? "right" : "left"};${i === cells.length - 1 ? "font-weight:500;" : ""}">${c}</td>`,
+              )
+              .join("")}</tr>`,
+        )
+        .join("");
+      return `<h3 style="margin:20px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">${escapeHtml(title)}</h3>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+          <thead><tr style="background:#f9fafb;">${head}</tr></thead>
+          <tbody>${body}</tbody>
+        </table>`;
+    };
 
     const categoryRows = Array.from(categoryMap.entries())
       .sort((a, b) => b[1].revenue - a[1].revenue)
-      .map(
-        ([name, v]) => `
-          <tr>
-            <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;">${escapeHtml(name)}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:right;">${v.count}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:right;font-weight:500;">${money(v.revenue)}</td>
-          </tr>`,
-      )
-      .join("");
+      .map(([name, v]) => [escapeHtml(name), String(v.count), money(v.revenue)]);
 
-    const therapistRows = Array.from(therapistMap.entries())
+    const clientTypeRows = Array.from(clientTypeMap.entries())
       .sort((a, b) => b[1].revenue - a[1].revenue)
-      .map(
-        ([name, v]) => `
-          <tr>
-            <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;">${escapeHtml(name)}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:right;">${v.count}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:right;font-weight:500;">${money(v.revenue)}</td>
-          </tr>`,
-      )
-      .join("");
+      .map(([k, v]) => [escapeHtml(CLIENT_TYPE_LABELS[k]), String(v.count), money(v.revenue)]);
+
+    const therapistHeaders = hide_commissions
+      ? ["Thérapeute", "Prestations", "CA"]
+      : ["Thérapeute", "Prestations", "CA", "Part thér."];
+    const therapistRows = Array.from(therapistMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .map((t) => {
+        const base = [escapeHtml(t.name), String(t.count), money(t.revenue)];
+        if (hide_commissions) return base;
+        return [...base, t.hasRates ? money(t.earnings) : `<span style="color:#dc2626">—</span>`];
+      });
 
     const paymentRows = Array.from(paymentMap.entries())
       .sort((a, b) => b[1].revenue - a[1].revenue)
-      .map(
-        ([method, v]) => `
-          <tr>
-            <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;">${escapeHtml(PAYMENT_METHOD_LABELS[method] ?? method)}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:right;">${v.count}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:right;font-weight:500;">${money(v.revenue)}</td>
-          </tr>`,
-      )
-      .join("");
-
-    const internalLabel = venue.venue_type === "hotel" ? "Résidents (avec n° chambre)" : "Clients sur place";
+      .map(([method, v]) => [
+        escapeHtml(PAYMENT_METHOD_LABELS[method] ?? method),
+        String(v.count),
+        money(v.revenue),
+      ]);
 
     const sectionsHtml = `
-      <tr><td style="padding:0 30px;">
-        <h3 style="margin:8px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">Par type de prestation</h3>
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-          <thead><tr style="background:#f9fafb;">
-            <th style="padding:6px 10px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;">Catégorie</th>
-            <th style="padding:6px 10px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase;">Préstations</th>
-            <th style="padding:6px 10px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase;">CA</th>
-          </tr></thead>
-          <tbody>${categoryRows || `<tr><td colspan="3" style="padding:8px;color:#9ca3af;font-size:13px;">Aucune prestation</td></tr>`}</tbody>
-        </table>
-
-        <h3 style="margin:20px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">Par type de client</h3>
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-          <thead><tr style="background:#f9fafb;">
-            <th style="padding:6px 10px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;">Type</th>
-            <th style="padding:6px 10px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase;">Préstations</th>
-            <th style="padding:6px 10px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase;">CA</th>
-          </tr></thead>
-          <tbody>
-            <tr>
-              <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;">${escapeHtml(internalLabel)}</td>
-              <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:right;">${clientType.internal.count}</td>
-              <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:right;font-weight:500;">${money(clientType.internal.revenue)}</td>
-            </tr>
-            <tr>
-              <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;">Clients externes</td>
-              <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:right;">${clientType.external.count}</td>
-              <td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:right;font-weight:500;">${money(clientType.external.revenue)}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        ${
-          therapistRows
-            ? `
-        <h3 style="margin:20px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">Par thérapeute</h3>
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-          <thead><tr style="background:#f9fafb;">
-            <th style="padding:6px 10px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;">Thérapeute</th>
-            <th style="padding:6px 10px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase;">Préstations</th>
-            <th style="padding:6px 10px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase;">CA</th>
-          </tr></thead>
-          <tbody>${therapistRows}</tbody>
-        </table>`
-            : ""
-        }
-
-        ${
-          paymentRows
-            ? `
-        <h3 style="margin:20px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">Par moyen de paiement</h3>
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-          <thead><tr style="background:#f9fafb;">
-            <th style="padding:6px 10px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;">Moyen</th>
-            <th style="padding:6px 10px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase;">Nombre</th>
-            <th style="padding:6px 10px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase;">Montant</th>
-          </tr></thead>
-          <tbody>${paymentRows}</tbody>
-        </table>`
-            : ""
-        }
+      <tr><td style="padding:20px 30px 0;">
+        ${buildTable("Par type de prestation", ["Catégorie", "Prestations", "CA"], categoryRows)}
+        ${buildTable("Par type de client", ["Type", "Prestations", "CA"], clientTypeRows)}
+        ${buildTable("Par thérapeute", therapistHeaders, therapistRows)}
+        ${buildTable("Par moyen de paiement", ["Moyen", "Nombre", "Montant"], paymentRows)}
       </td></tr>
     `;
 
@@ -405,7 +431,10 @@ serve(async (req: Request): Promise<Response> => {
         <p style="margin:0;font-size:16px;font-weight:600;color:#111827;">${escapeHtml(venue.name as string)}</p>
         <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(fmtDateLong(report_date))}</p>
       </td></tr>
-      ${summaryHtml}
+      ${warningBanner}
+      ${renderCardsRow(revenueCards)}
+      ${renderCardsRow(commissionCards, "#f9fafb")}
+      ${renderCardsRow(lossCards)}
       ${sectionsHtml}
       ${detailsHtml}
     `;

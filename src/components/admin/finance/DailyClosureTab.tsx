@@ -10,6 +10,8 @@ import {
   Loader2,
   ChevronRight,
   ChevronDown,
+  EyeOff,
+  AlertTriangle,
 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,14 +32,17 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import type { TherapistRates } from "@/lib/therapistEarnings";
 
 import {
   computeClosureStats,
   renderClosureReportHtml,
+  type ClientTypeValue,
   type ClosureBooking,
   type ClosureReport,
   type ClosureStats,
   type ClosureVenue,
+  type TherapistRatesMap,
 } from "@/lib/closureReport";
 
 import { ClosureReportPreviewDialog } from "./ClosureReportPreviewDialog";
@@ -48,7 +53,6 @@ interface VenueOption {
   name: string;
   currency: string | null;
   hotel_commission: number | null;
-  therapist_commission: number | null;
   venue_type: string | null;
 }
 
@@ -59,15 +63,18 @@ interface RawBookingRow {
   booking_time: string;
   client_first_name: string;
   client_last_name: string;
+  client_type: string;
   room_number: string | null;
+  therapist_id: string | null;
   therapist_name: string | null;
+  duration: number | null;
   total_price: number | null;
   payment_method: string | null;
   payment_status: string | null;
   status: string;
   hotel_id: string;
   booking_treatments?: Array<{
-    treatment_menus: { name: string; category: string | null } | null;
+    treatment_menus: { name: string; category: string | null; duration: number | null } | null;
   }> | null;
 }
 
@@ -79,22 +86,30 @@ const fmtMoney = (amount: number, currency: string) => {
   }
 };
 
+function normalizeClientType(value: string | null | undefined): ClientTypeValue {
+  if (value === "hotel" || value === "staycation" || value === "classpass" || value === "external") {
+    return value;
+  }
+  return "external";
+}
+
 export function DailyClosureTab() {
   const [venues, setVenues] = useState<VenueOption[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string>("");
   const [date, setDate] = useState<Date>(new Date());
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [bookings, setBookings] = useState<RawBookingRow[]>([]);
+  const [therapistRates, setTherapistRates] = useState<TherapistRatesMap>({});
   const [loading, setLoading] = useState(false);
-  const [includeDetails, setIncludeDetails] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+  const [hideCommissions, setHideCommissions] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
 
-  // Load venues once
   useEffect(() => {
     supabase
       .from("hotels")
-      .select("id, name, currency, hotel_commission, therapist_commission, venue_type")
+      .select("id, name, currency, hotel_commission, venue_type")
       .eq("status", "active")
       .order("name")
       .then(({ data, error }) => {
@@ -115,25 +130,48 @@ export function DailyClosureTab() {
   const dateIso = useMemo(() => format(date, "yyyy-MM-dd"), [date]);
   const selectedVenue = venues.find((v) => v.id === selectedVenueId);
 
-  const fetchBookings = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!selectedVenueId) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select(
-          `id, booking_id, booking_date, booking_time, client_first_name, client_last_name,
-           room_number, therapist_name, total_price, payment_method, payment_status, status, hotel_id,
-           booking_treatments ( treatment_menus ( name, category ) )`,
-        )
-        .eq("hotel_id", selectedVenueId)
-        .eq("booking_date", dateIso)
-        .order("booking_time", { ascending: true });
+      const [bookingsResult, ratesResult] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select(
+            `id, booking_id, booking_date, booking_time, client_first_name, client_last_name,
+             client_type, room_number, therapist_id, therapist_name, duration,
+             total_price, payment_method, payment_status, status, hotel_id,
+             booking_treatments ( treatment_menus ( name, category, duration ) )`,
+          )
+          .eq("hotel_id", selectedVenueId)
+          .eq("booking_date", dateIso)
+          .order("booking_time", { ascending: true }),
+        supabase
+          .from("therapist_venues")
+          .select("therapist_id, therapists ( id, rate_45, rate_60, rate_90 )")
+          .eq("hotel_id", selectedVenueId),
+      ]);
 
-      if (error) throw error;
-      setBookings((data ?? []) as RawBookingRow[]);
+      if (bookingsResult.error) throw bookingsResult.error;
+      if (ratesResult.error) throw ratesResult.error;
+
+      setBookings((bookingsResult.data ?? []) as RawBookingRow[]);
+
+      const ratesMap: TherapistRatesMap = {};
+      for (const row of ratesResult.data ?? []) {
+        const t = (row as { therapists: { id: string; rate_45: number | null; rate_60: number | null; rate_90: number | null } | null })
+          .therapists;
+        if (!t) continue;
+        const rates: TherapistRates = { rate_45: t.rate_45, rate_60: t.rate_60, rate_90: t.rate_90 };
+        if (rates.rate_45 == null && rates.rate_60 == null && rates.rate_90 == null) {
+          ratesMap[t.id] = null;
+        } else {
+          ratesMap[t.id] = rates;
+        }
+      }
+      setTherapistRates(ratesMap);
     } catch (err) {
-      console.error("[DailyClosureTab] fetch bookings failed", err);
+      console.error("[DailyClosureTab] fetch failed", err);
       toast.error("Impossible de charger les réservations");
       setBookings([]);
     } finally {
@@ -142,8 +180,8 @@ export function DailyClosureTab() {
   }, [selectedVenueId, dateIso]);
 
   useEffect(() => {
-    fetchBookings();
-  }, [fetchBookings]);
+    fetchData();
+  }, [fetchData]);
 
   const closureVenue: ClosureVenue | null = useMemo(() => {
     if (!selectedVenue) return null;
@@ -152,7 +190,6 @@ export function DailyClosureTab() {
       name: selectedVenue.name,
       currency: selectedVenue.currency ?? "EUR",
       hotel_commission: Number(selectedVenue.hotel_commission ?? 0),
-      therapist_commission: Number(selectedVenue.therapist_commission ?? 0),
       venue_type: selectedVenue.venue_type,
     };
   }, [selectedVenue]);
@@ -166,8 +203,11 @@ export function DailyClosureTab() {
         booking_time: b.booking_time,
         client_first_name: b.client_first_name,
         client_last_name: b.client_last_name,
+        client_type: normalizeClientType(b.client_type),
         room_number: b.room_number,
+        therapist_id: b.therapist_id,
         therapist_name: b.therapist_name,
+        duration: b.duration,
         total_price: b.total_price,
         payment_method: b.payment_method,
         payment_status: b.payment_status,
@@ -177,6 +217,7 @@ export function DailyClosureTab() {
             ?.map((bt) => ({
               name: bt.treatment_menus?.name ?? "—",
               category: bt.treatment_menus?.category ?? null,
+              duration: bt.treatment_menus?.duration ?? null,
             }))
             .filter((t) => t.name !== "—") ?? [],
       })),
@@ -185,8 +226,8 @@ export function DailyClosureTab() {
 
   const stats: ClosureStats | null = useMemo(() => {
     if (!closureVenue) return null;
-    return computeClosureStats(closureBookings, closureVenue);
-  }, [closureBookings, closureVenue]);
+    return computeClosureStats(closureBookings, closureVenue, therapistRates);
+  }, [closureBookings, closureVenue, therapistRates]);
 
   const report: ClosureReport | null = useMemo(() => {
     if (!closureVenue || !stats) return null;
@@ -194,7 +235,7 @@ export function DailyClosureTab() {
   }, [closureVenue, stats, dateIso, closureBookings]);
 
   const filename = report
-    ? `cloture-${report.venue.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${dateIso}.pdf`
+    ? `cloture-${report.venue.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${dateIso}${hideCommissions ? "-lieu" : ""}.pdf`
     : "cloture.pdf";
   const subject = report ? `Clôture ${report.venue.name} — ${format(date, "EEEE d MMMM yyyy", { locale: fr })}` : "";
 
@@ -207,11 +248,12 @@ export function DailyClosureTab() {
           report_date: report.date,
           recipients,
           include_details: includeDetailsFromDialog,
+          hide_commissions: hideCommissions,
         },
       });
       if (error) throw error;
     },
-    [report],
+    [report, hideCommissions],
   );
 
   const currency = closureVenue?.currency ?? "EUR";
@@ -267,7 +309,7 @@ export function DailyClosureTab() {
           </div>
 
           <div className="flex gap-2 md:ml-auto">
-            <Button variant="outline" onClick={fetchBookings} disabled={loading}>
+            <Button variant="outline" onClick={fetchData} disabled={loading}>
               <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
               Rafraîchir
             </Button>
@@ -291,7 +333,18 @@ export function DailyClosureTab() {
                 {format(date, "EEEE d MMMM yyyy", { locale: fr })}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col md:flex-row gap-2 md:items-center">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background/60">
+                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="closure-hide-commissions" className="text-xs cursor-pointer">
+                  Masquer commissions
+                </Label>
+                <Switch
+                  id="closure-hide-commissions"
+                  checked={hideCommissions}
+                  onCheckedChange={setHideCommissions}
+                />
+              </div>
               <Button variant="outline" onClick={() => setPreviewOpen(true)} disabled={!report}>
                 <FileDown className="h-4 w-4 mr-2" />
                 Aperçu / PDF
@@ -305,18 +358,41 @@ export function DailyClosureTab() {
         </Card>
       )}
 
+      {/* Warning banner */}
+      {report && !hideCommissions && report.stats.bookingsWithoutTherapistRate > 0 && (
+        <Card className="border-yellow-300 bg-yellow-50 dark:bg-yellow-900/10">
+          <CardContent className="py-3 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0" />
+            <p className="text-sm text-yellow-900 dark:text-yellow-200">
+              {report.stats.bookingsWithoutTherapistRate} prestation
+              {report.stats.bookingsWithoutTherapistRate > 1 ? "s" : ""} sans tarif thérapeute défini —
+              part thérapeute calculée à 0 sur ces lignes.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stat tiles */}
       {report && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatTile label="Chiffre d'affaires" value={fmtMoney(report.stats.totalRevenue, currency)} />
-          <StatTile label="Part lieu" value={fmtMoney(report.stats.totalVenueShare, currency)} />
-          <StatTile label="Part thérapeute" value={fmtMoney(report.stats.totalTherapistShare, currency)} />
-          <StatTile label="Part plateforme" value={fmtMoney(report.stats.totalPlatformShare, currency)} />
-          <StatTile label="Complétées" value={String(report.stats.completedBookings)} tone="success" />
-          <StatTile label="En attente" value={String(report.stats.pendingBookings)} tone="warning" />
-          <StatTile label="Annulées" value={String(report.stats.cancelledBookings)} tone="danger" />
-          <StatTile label="No-show" value={String(report.stats.noShowBookings)} tone="danger" />
-        </div>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatTile label="Chiffre d'affaires" value={fmtMoney(report.stats.totalRevenue, currency)} />
+            <StatTile label="Complétées" value={String(report.stats.completedBookings)} tone="success" />
+            <StatTile label="Confirmées (à venir)" value={String(report.stats.confirmedBookings)} tone="info" />
+            <StatTile label="En attente" value={String(report.stats.pendingBookings)} tone="warning" />
+            <StatTile label="Annulées" value={String(report.stats.cancelledBookings)} tone="danger" />
+            <StatTile label="No-show" value={String(report.stats.noShowBookings)} tone="danger" />
+            <StatTile label="Total bookings" value={String(report.stats.totalBookings)} />
+          </div>
+
+          {!hideCommissions && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <StatTile label="Part lieu" value={fmtMoney(report.stats.totalVenueShare, currency)} />
+              <StatTile label="Part thérapeute" value={fmtMoney(report.stats.totalTherapistShare, currency)} />
+              <StatTile label="Part plateforme" value={fmtMoney(report.stats.totalPlatformShare, currency)} />
+            </div>
+          )}
+        </>
       )}
 
       {/* Breakdown sections */}
@@ -333,22 +409,12 @@ export function DailyClosureTab() {
           />
           <BreakdownCard
             title="Par type de client"
-            empty="—"
-            rows={[
-              {
-                label:
-                  selectedVenue?.venue_type === "hotel"
-                    ? "Résidents (avec n° chambre)"
-                    : "Clients sur place",
-                count: report.stats.byClientType.internal.count,
-                value: fmtMoney(report.stats.byClientType.internal.revenue, currency),
-              },
-              {
-                label: "Clients externes",
-                count: report.stats.byClientType.external.count,
-                value: fmtMoney(report.stats.byClientType.external.revenue, currency),
-              },
-            ]}
+            empty="Aucune prestation complétée"
+            rows={report.stats.byClientType.map((b) => ({
+              label: b.label,
+              count: b.count,
+              value: fmtMoney(b.revenue, currency),
+            }))}
           />
           {report.stats.byTherapist.length > 0 && (
             <BreakdownCard
@@ -358,7 +424,14 @@ export function DailyClosureTab() {
                 label: b.label,
                 count: b.count,
                 value: fmtMoney(b.revenue, currency),
+                secondary: hideCommissions
+                  ? undefined
+                  : b.hasRates
+                    ? fmtMoney(b.earnings, currency)
+                    : "—",
+                secondaryWarn: !hideCommissions && !b.hasRates,
               }))}
+              secondaryLabel={hideCommissions ? undefined : "Part thér."}
             />
           )}
           {report.stats.byPaymentMethod.length > 0 && (
@@ -381,7 +454,7 @@ export function DailyClosureTab() {
           <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle className="text-base font-medium flex items-center gap-2">
-                {includeDetails ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                {showDetail ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                 Détail des prestations ({report.bookings.length})
               </CardTitle>
               <CardDescription>Toutes les réservations du lieu pour la journée.</CardDescription>
@@ -390,10 +463,10 @@ export function DailyClosureTab() {
               <Label htmlFor="closure-toggle-details" className="text-sm cursor-pointer">
                 Afficher
               </Label>
-              <Switch id="closure-toggle-details" checked={includeDetails} onCheckedChange={setIncludeDetails} />
+              <Switch id="closure-toggle-details" checked={showDetail} onCheckedChange={setShowDetail} />
             </div>
           </CardHeader>
-          {includeDetails && (
+          {showDetail && (
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -402,6 +475,7 @@ export function DailyClosureTab() {
                       <th className="text-left font-medium py-2 pr-3">Heure</th>
                       <th className="text-left font-medium py-2 pr-3">N°</th>
                       <th className="text-left font-medium py-2 pr-3">Client</th>
+                      <th className="text-left font-medium py-2 pr-3">Type</th>
                       <th className="text-left font-medium py-2 pr-3">Prestation</th>
                       <th className="text-left font-medium py-2 pr-3">Thérapeute</th>
                       <th className="text-right font-medium py-2 pr-3">Prix</th>
@@ -421,6 +495,7 @@ export function DailyClosureTab() {
                               <span className="text-xs text-muted-foreground ml-1">· ch. {b.room_number}</span>
                             )}
                           </td>
+                          <td className="py-2 pr-3 text-xs text-muted-foreground">{b.client_type}</td>
                           <td className="py-2 pr-3">{b.treatments.map((t) => t.name).join(", ") || "—"}</td>
                           <td className="py-2 pr-3">{b.therapist_name ?? "—"}</td>
                           <td className="py-2 pr-3 text-right tabular-nums">
@@ -462,7 +537,7 @@ export function DailyClosureTab() {
           <ClosureReportPreviewDialog
             open={previewOpen}
             onOpenChange={setPreviewOpen}
-            html={renderClosureReportHtml(report, { includeDetails: true })}
+            html={renderClosureReportHtml(report, { includeDetails: true, hideCommissions })}
             filename={filename}
             title={subject}
           />
@@ -472,7 +547,7 @@ export function DailyClosureTab() {
             venueId={report.venue.id}
             venueName={report.venue.name}
             defaultSubject={subject}
-            defaultIncludeDetails={includeDetails}
+            defaultIncludeDetails={showDetail}
             onSend={handleSendEmail}
           />
         </>
@@ -488,7 +563,7 @@ function StatTile({
 }: {
   label: string;
   value: string;
-  tone?: "success" | "warning" | "danger";
+  tone?: "success" | "warning" | "danger" | "info";
 }) {
   const toneClass =
     tone === "success"
@@ -497,7 +572,9 @@ function StatTile({
         ? "text-yellow-600"
         : tone === "danger"
           ? "text-red-600"
-          : "text-foreground";
+          : tone === "info"
+            ? "text-blue-600"
+            : "text-foreground";
   return (
     <div className="rounded-lg border bg-card p-3">
       <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
@@ -510,16 +587,25 @@ function BreakdownCard({
   title,
   rows,
   empty,
+  secondaryLabel,
 }: {
   title: string;
-  rows: Array<{ label: string; count: number; value: string }>;
+  rows: Array<{
+    label: string;
+    count: number;
+    value: string;
+    secondary?: string;
+    secondaryWarn?: boolean;
+  }>;
   empty: string;
+  secondaryLabel?: string;
 }) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-          {title}
+        <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground flex items-center justify-between">
+          <span>{title}</span>
+          {secondaryLabel && <span className="text-[10px] normal-case font-normal">{secondaryLabel}</span>}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -533,6 +619,16 @@ function BreakdownCard({
                 <div className="flex items-baseline gap-3 shrink-0 tabular-nums">
                   <span className="text-xs text-muted-foreground">{r.count}</span>
                   <span className="font-medium">{r.value}</span>
+                  {r.secondary !== undefined && (
+                    <span
+                      className={cn(
+                        "text-xs",
+                        r.secondaryWarn ? "text-red-600" : "text-muted-foreground",
+                      )}
+                    >
+                      {r.secondary}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

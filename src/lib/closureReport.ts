@@ -2,10 +2,12 @@
 // Shared by the on-screen preview, the PDF export, and the recipient email body.
 
 import { brand } from "@/config/brand";
+import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
 
 export interface ClosureBookingTreatment {
   name: string;
   category: string | null;
+  duration: number | null;
 }
 
 export interface ClosureBooking {
@@ -15,8 +17,11 @@ export interface ClosureBooking {
   booking_time: string;
   client_first_name: string;
   client_last_name: string;
+  client_type: ClientTypeValue;
   room_number: string | null;
+  therapist_id: string | null;
   therapist_name: string | null;
+  duration: number | null;
   total_price: number | null;
   payment_method: string | null;
   payment_status: string | null;
@@ -29,9 +34,19 @@ export interface ClosureVenue {
   name: string;
   currency: string;
   hotel_commission: number;
-  therapist_commission: number;
   venue_type: string | null;
 }
+
+export type ClientTypeValue = "hotel" | "staycation" | "classpass" | "external";
+
+export const CLIENT_TYPE_LABELS: Record<ClientTypeValue, string> = {
+  hotel: "Résident hôtel",
+  staycation: "Staycation",
+  classpass: "Classpass",
+  external: "Client externe",
+};
+
+export type TherapistRatesMap = Record<string, TherapistRates | null>;
 
 export interface ClosureBucket {
   key: string;
@@ -40,7 +55,14 @@ export interface ClosureBucket {
   revenue: number;
 }
 
-export interface ClosureClientTypeStats {
+export interface ClosureTherapistBucket extends ClosureBucket {
+  earnings: number;
+  hasRates: boolean;
+}
+
+export interface ClosureClientTypeBucket {
+  key: ClientTypeValue;
+  label: string;
   count: number;
   revenue: number;
 }
@@ -48,6 +70,7 @@ export interface ClosureClientTypeStats {
 export interface ClosureStats {
   totalBookings: number;
   completedBookings: number;
+  confirmedBookings: number;
   cancelledBookings: number;
   noShowBookings: number;
   pendingBookings: number;
@@ -55,9 +78,10 @@ export interface ClosureStats {
   totalTherapistShare: number;
   totalVenueShare: number;
   totalPlatformShare: number;
+  bookingsWithoutTherapistRate: number;
   byCategory: ClosureBucket[];
-  byClientType: { internal: ClosureClientTypeStats; external: ClosureClientTypeStats };
-  byTherapist: ClosureBucket[];
+  byClientType: ClosureClientTypeBucket[];
+  byTherapist: ClosureTherapistBucket[];
   byPaymentMethod: ClosureBucket[];
   byStatus: ClosureBucket[];
 }
@@ -67,18 +91,6 @@ export interface ClosureReport {
   date: string; // YYYY-MM-DD
   stats: ClosureStats;
   bookings: ClosureBooking[];
-}
-
-const COMPLETED_STATUSES = new Set(["completed", "confirmed"]);
-
-function bumpBucket(map: Map<string, ClosureBucket>, key: string, label: string, revenue: number) {
-  const existing = map.get(key);
-  if (existing) {
-    existing.count += 1;
-    existing.revenue += revenue;
-  } else {
-    map.set(key, { key, label, count: 1, revenue });
-  }
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -101,10 +113,30 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   free: "Offert",
 };
 
-export function computeClosureStats(bookings: ClosureBooking[], venue: ClosureVenue): ClosureStats {
+function bookingDuration(booking: ClosureBooking): number {
+  if (booking.duration && booking.duration > 0) return booking.duration;
+  return booking.treatments.reduce((sum, t) => sum + (t.duration ?? 0), 0);
+}
+
+function bumpBucket(map: Map<string, ClosureBucket>, key: string, label: string, revenue: number) {
+  const existing = map.get(key);
+  if (existing) {
+    existing.count += 1;
+    existing.revenue += revenue;
+  } else {
+    map.set(key, { key, label, count: 1, revenue });
+  }
+}
+
+export function computeClosureStats(
+  bookings: ClosureBooking[],
+  venue: ClosureVenue,
+  therapistRates: TherapistRatesMap = {},
+): ClosureStats {
   const stats: ClosureStats = {
     totalBookings: bookings.length,
     completedBookings: 0,
+    confirmedBookings: 0,
     cancelledBookings: 0,
     noShowBookings: 0,
     pendingBookings: 0,
@@ -112,59 +144,97 @@ export function computeClosureStats(bookings: ClosureBooking[], venue: ClosureVe
     totalTherapistShare: 0,
     totalVenueShare: 0,
     totalPlatformShare: 0,
+    bookingsWithoutTherapistRate: 0,
     byCategory: [],
-    byClientType: { internal: { count: 0, revenue: 0 }, external: { count: 0, revenue: 0 } },
+    byClientType: [],
     byTherapist: [],
     byPaymentMethod: [],
     byStatus: [],
   };
 
   const categoryMap = new Map<string, ClosureBucket>();
-  const therapistMap = new Map<string, ClosureBucket>();
+  const therapistMap = new Map<string, ClosureTherapistBucket>();
   const paymentMap = new Map<string, ClosureBucket>();
   const statusMap = new Map<string, ClosureBucket>();
+  const clientTypeMap = new Map<ClientTypeValue, ClosureClientTypeBucket>();
 
-  const therapistRate = (venue.therapist_commission ?? 0) / 100;
   const venueRate = (venue.hotel_commission ?? 0) / 100;
 
   for (const booking of bookings) {
     const price = booking.total_price ?? 0;
-    const isRevenue = COMPLETED_STATUSES.has(booking.status);
+    const isCompleted = booking.status === "completed";
 
     if (booking.status === "completed") stats.completedBookings += 1;
+    else if (booking.status === "confirmed") stats.confirmedBookings += 1;
     else if (booking.status === "cancelled") stats.cancelledBookings += 1;
     else if (booking.status === "no_show") stats.noShowBookings += 1;
     else if (booking.status === "pending") stats.pendingBookings += 1;
 
-    bumpBucket(statusMap, booking.status, STATUS_LABELS[booking.status] ?? booking.status, isRevenue ? price : 0);
+    bumpBucket(statusMap, booking.status, STATUS_LABELS[booking.status] ?? booking.status, isCompleted ? price : 0);
 
-    if (!isRevenue) continue;
+    if (!isCompleted) continue;
 
     stats.totalRevenue += price;
-    stats.totalTherapistShare += price * therapistRate;
     stats.totalVenueShare += price * venueRate;
-    stats.totalPlatformShare += price * (1 - therapistRate - venueRate);
+
+    const rates = booking.therapist_id ? therapistRates[booking.therapist_id] ?? null : null;
+    const duration = bookingDuration(booking);
+    const earnings =
+      booking.therapist_id && duration > 0 ? computeTherapistEarnings(rates, duration) : null;
+    const therapistEarnings = earnings ?? 0;
+    const hasRates = earnings !== null;
+    if (booking.therapist_id && !hasRates) stats.bookingsWithoutTherapistRate += 1;
+    stats.totalTherapistShare += therapistEarnings;
 
     const primaryCategory = booking.treatments[0]?.category ?? "Autres";
     bumpBucket(categoryMap, primaryCategory, primaryCategory, price);
 
-    const clientBucket = booking.room_number ? stats.byClientType.internal : stats.byClientType.external;
-    clientBucket.count += 1;
-    clientBucket.revenue += price;
+    const ctKey = isClientType(booking.client_type) ? booking.client_type : "external";
+    const ctBucket = clientTypeMap.get(ctKey) ?? {
+      key: ctKey,
+      label: CLIENT_TYPE_LABELS[ctKey],
+      count: 0,
+      revenue: 0,
+    };
+    ctBucket.count += 1;
+    ctBucket.revenue += price;
+    clientTypeMap.set(ctKey, ctBucket);
 
     const therapistName = booking.therapist_name ?? "Non assigné";
-    bumpBucket(therapistMap, therapistName, therapistName, price);
+    const therapistKey = booking.therapist_id ?? `name:${therapistName}`;
+    const tExisting = therapistMap.get(therapistKey);
+    if (tExisting) {
+      tExisting.count += 1;
+      tExisting.revenue += price;
+      tExisting.earnings += therapistEarnings;
+      tExisting.hasRates = tExisting.hasRates && hasRates;
+    } else {
+      therapistMap.set(therapistKey, {
+        key: therapistKey,
+        label: therapistName,
+        count: 1,
+        revenue: price,
+        earnings: therapistEarnings,
+        hasRates,
+      });
+    }
 
     const method = booking.payment_method ?? "unknown";
     bumpBucket(paymentMap, method, PAYMENT_METHOD_LABELS[method] ?? method, price);
   }
 
+  stats.totalPlatformShare = stats.totalRevenue - stats.totalVenueShare - stats.totalTherapistShare;
   stats.byCategory = Array.from(categoryMap.values()).sort((a, b) => b.revenue - a.revenue);
   stats.byTherapist = Array.from(therapistMap.values()).sort((a, b) => b.revenue - a.revenue);
   stats.byPaymentMethod = Array.from(paymentMap.values()).sort((a, b) => b.revenue - a.revenue);
   stats.byStatus = Array.from(statusMap.values()).sort((a, b) => b.count - a.count);
+  stats.byClientType = Array.from(clientTypeMap.values()).sort((a, b) => b.revenue - a.revenue);
 
   return stats;
+}
+
+function isClientType(value: string): value is ClientTypeValue {
+  return value === "hotel" || value === "staycation" || value === "classpass" || value === "external";
 }
 
 function fmtMoney(amount: number, currency: string): string {
@@ -193,29 +263,48 @@ function escapeHtml(value: string | number | null | undefined): string {
 
 export interface RenderClosureReportOptions {
   includeDetails: boolean;
+  hideCommissions?: boolean;
 }
 
 export function renderClosureReportHtml(report: ClosureReport, options: RenderClosureReportOptions): string {
   const { venue, date, stats, bookings } = report;
+  const { includeDetails, hideCommissions = false } = options;
   const currency = venue.currency || "EUR";
   const money = (v: number) => fmtMoney(v, currency);
 
   const headline = `${stats.completedBookings} prestation${stats.completedBookings > 1 ? "s" : ""} · ${money(stats.totalRevenue)}`;
 
-  const summaryCards = `
+  const revenueRow = `
     <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0;">
-      ${statCard("Prestations réalisées", String(stats.completedBookings))}
+      ${statCard("Prestations complétées", String(stats.completedBookings))}
       ${statCard("Chiffre d'affaires", money(stats.totalRevenue))}
+      ${statCard("Confirmées (à venir)", String(stats.confirmedBookings), "#0ea5e9")}
+      ${statCard("En attente", String(stats.pendingBookings), "#f59e0b")}
+    </div>
+  `;
+  const commissionsRow = hideCommissions
+    ? ""
+    : `
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 20px;">
       ${statCard("Part lieu", money(stats.totalVenueShare))}
       ${statCard("Part thérapeute", money(stats.totalTherapistShare))}
+      ${statCard("Part plateforme", money(stats.totalPlatformShare))}
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 24px;">
-      ${statCard("En attente", String(stats.pendingBookings), "#f59e0b")}
+  `;
+  const lossRow = `
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 24px;">
       ${statCard("Annulées", String(stats.cancelledBookings), "#dc2626")}
       ${statCard("No-show", String(stats.noShowBookings), "#dc2626")}
       ${statCard("Total bookings", String(stats.totalBookings), "#6b7280")}
     </div>
   `;
+
+  const warningBanner =
+    !hideCommissions && stats.bookingsWithoutTherapistRate > 0
+      ? `<div style="margin:0 0 20px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:13px;color:#92400e;">
+          ⚠ ${stats.bookingsWithoutTherapistRate} prestation${stats.bookingsWithoutTherapistRate > 1 ? "s" : ""} sans tarif thérapeute défini — part thérapeute calculée à 0 sur ces lignes.
+        </div>`
+      : "";
 
   const categorySection = sectionTable(
     "Par type de prestation",
@@ -223,26 +312,26 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
     stats.byCategory.map((b) => [escapeHtml(b.label), String(b.count), money(b.revenue)]),
   );
 
-  const internal = stats.byClientType.internal;
-  const external = stats.byClientType.external;
   const clientTypeSection = sectionTable(
     "Par type de client",
     ["Type", "Prestations", "CA"],
-    [
-      [
-        venue.venue_type === "hotel" ? "Résidents (avec n° chambre)" : "Clients sur place",
-        String(internal.count),
-        money(internal.revenue),
-      ],
-      ["Clients externes", String(external.count), money(external.revenue)],
-    ],
+    stats.byClientType.length
+      ? stats.byClientType.map((b) => [escapeHtml(b.label), String(b.count), money(b.revenue)])
+      : [],
   );
 
+  const therapistHeaders = hideCommissions
+    ? ["Thérapeute", "Prestations", "CA"]
+    : ["Thérapeute", "Prestations", "CA", "Part thérapeute"];
   const therapistSection = stats.byTherapist.length
     ? sectionTable(
         "Par thérapeute",
-        ["Thérapeute", "Prestations", "CA"],
-        stats.byTherapist.map((b) => [escapeHtml(b.label), String(b.count), money(b.revenue)]),
+        therapistHeaders,
+        stats.byTherapist.map((b) => {
+          const base = [escapeHtml(b.label), String(b.count), money(b.revenue)];
+          if (hideCommissions) return base;
+          return [...base, b.hasRates ? money(b.earnings) : `<span style="color:#dc2626">—</span>`];
+        }),
       )
     : "";
 
@@ -272,7 +361,7 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
     })
     .join("");
 
-  const detailSection = options.includeDetails && bookings.length
+  const detailSection = includeDetails && bookings.length
     ? `
         <h2 style="${sectionTitle}">Détail des prestations</h2>
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -308,7 +397,10 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
       </div>
     </div>
 
-    ${summaryCards}
+    ${warningBanner}
+    ${revenueRow}
+    ${commissionsRow}
+    ${lossRow}
     ${categorySection}
     ${clientTypeSection}
     ${therapistSection}
