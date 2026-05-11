@@ -16,6 +16,23 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+async function triggerBookingNotifications(
+  supabase: ActionContext["supabase"],
+  bookingIds: string[],
+): Promise<void> {
+  await Promise.all(
+    bookingIds.map((bookingId) =>
+      supabase.functions
+        .invoke("trigger-new-booking-notifications", {
+          body: { bookingId, notifyAll: true },
+        })
+        .catch((err: unknown) =>
+          console.error(`[CONFIRM-SETUP] Notif error for ${bookingId}:`, err),
+        ),
+    ),
+  );
+}
+
 export async function handleConfirmSetupIntent(
   ctx: ActionContext,
 ): Promise<Response> {
@@ -231,13 +248,7 @@ export async function handleConfirmSetupIntent(
         });
       }
 
-      for (const bId of slotCreatedIds) {
-        try {
-          await supabase.functions.invoke("trigger-new-booking-notifications", { body: { bookingId: bId, notifyAll: true } });
-        } catch (notifError) {
-          console.error(`[CONFIRM-SETUP] Push notif error for ${bId}:`, notifError);
-        }
-      }
+      await triggerBookingNotifications(supabase, slotCreatedIds);
 
       return jsonResponse({ success: true, bookingId: slotCreatedIds[0], bookingIds: slotCreatedIds });
     }
@@ -286,6 +297,8 @@ export async function handleConfirmSetupIntent(
         payment_status: "card_saved",
       });
     }
+
+    await triggerBookingNotifications(supabase, multiBookingIds);
 
     return jsonResponse({
       success: true,
@@ -554,6 +567,8 @@ export async function handleConfirmSetupIntent(
       payment_status: "card_saved",
     });
   }
+
+  await triggerBookingNotifications(supabase, [bookingId]);
 
   return jsonResponse({ success: true, bookingId });
 }
