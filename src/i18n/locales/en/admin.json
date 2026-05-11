@@ -410,7 +410,8 @@
       "noTreatments": "No treatments linked to this venue",
       "treatmentLinkCopied": "Treatment link copied!",
       "venueLink": "Venue link",
-      "searchTreatment": "Search a treatment..."
+      "searchTreatment": "Search a treatment...",
+      "language": "Link language"
     },
     "save": "Save",
     "saving": "Saving...",

@@ -22,6 +22,7 @@ import { CartProvider } from "./pages/client/context/CartContext";
 import { ClientFlowWrapper } from "./components/ClientFlowWrapper";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ClientErrorFallback } from "./components/client/ClientErrorFallback";
+import { AppErrorFallback } from "./components/AppErrorFallback";
 import { PhoneBookingFab } from "./components/admin/PhoneBookingFab";
 
 // Lazy load all page components for code splitting
@@ -224,6 +225,7 @@ const App = () => {
   }, [updateSafeAreaInsets]);
 
   return (
+    <ErrorBoundary fallback={(error, reset) => <AppErrorFallback error={error} reset={reset} />}>
     <QueryClientProvider client={queryClient}>
       <TimezoneProvider>
       <UserProvider>
@@ -536,6 +538,7 @@ const App = () => {
       </UserProvider>
     </TimezoneProvider>
   </QueryClientProvider>
+  </ErrorBoundary>
   );
 };
 
