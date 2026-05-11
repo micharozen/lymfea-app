@@ -8,25 +8,45 @@ import {
 } from '../_shared/whatsapp-meta.ts';
 import { brand } from "../_shared/brand.ts";
 import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
-
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-  apiVersion: "2025-08-27.basil",
-});
+import { getStripeForVenue, getGlobalStripe } from "../_shared/stripe-resolver.ts";
 
 serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
-  
+
   if (!signature) {
     return new Response("No signature", { status: 400 });
   }
 
+  // Per-venue webhook routing: each venue configures their endpoint URL with
+  // ?hotel_id=<uuid> in their Stripe Dashboard. We resolve the matching key +
+  // webhook secret from Vault. Bookings made on the platform's global Stripe
+  // account fall back to STRIPE_WEBHOOK_SECRET (legacy).
+  const url = new URL(req.url);
+  const hotelIdParam = url.searchParams.get("hotel_id");
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
+
+  let stripe: Stripe;
+  let webhookSecret: string | null;
+  if (hotelIdParam) {
+    const resolved = await getStripeForVenue(supabase, hotelIdParam);
+    stripe = resolved.client;
+    webhookSecret = resolved.webhookSecret ?? Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? null;
+  } else {
+    stripe = getGlobalStripe().client;
+    webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? null;
+  }
+
+  if (!webhookSecret) {
+    console.error(`[STRIPE-WEBHOOK] No webhook secret for hotel_id=${hotelIdParam ?? "<none>"}`);
+    return new Response("Webhook secret not configured", { status: 400 });
+  }
+
   try {
     const body = await req.text();
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-    
-    if (!webhookSecret) {
-      throw new Error("STRIPE_WEBHOOK_SECRET not set");
-    }
 
     const event = await stripe.webhooks.constructEventAsync(
       body,
@@ -34,12 +54,7 @@ serve(async (req) => {
       webhookSecret
     );
 
-    console.log(`[STRIPE-WEBHOOK] Event: ${event.type}`);
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    console.log(`[STRIPE-WEBHOOK] Event: ${event.type} (hotel=${hotelIdParam ?? "global"})`);
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;

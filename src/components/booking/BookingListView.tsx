@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, FileText, Package, Users } from "lucide-react";
+import { Clock, FileText, Layers, Package, Users } from "lucide-react";
 import { TablePagination } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -219,6 +219,11 @@ export function BookingListView({
                     <Users className="h-2.5 w-2.5" /> Duo
                   </span>
                 )}
+                {(booking as any).booking_group_id && (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap font-medium">
+                    <Layers className="h-2.5 w-2.5" /> Groupé
+                  </span>
+                )}
               </div>
 
               {/* Bottom row: client info + invoice button */}
@@ -343,6 +348,11 @@ export function BookingListView({
                     {(booking as any).guest_count > 1 && booking.status === "confirmed" && (
                       <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 whitespace-nowrap font-medium">
                         <Users className="h-2.5 w-2.5" /> Duo
+                      </span>
+                    )}
+                    {(booking as any).booking_group_id && (
+                      <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap font-medium">
+                        <Layers className="h-2.5 w-2.5" /> Groupé
                       </span>
                     )}
                   </div>

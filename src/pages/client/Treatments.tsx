@@ -24,6 +24,7 @@ import { useLocalizedField } from '@/hooks/useLocalizedField';
 import { SchedulePanel } from '@/components/client/SchedulePanel';
 import { TreatmentsBreadcrumb } from '@/components/client/TreatmentsBreadcrumb';
 import { TreatmentsSummaryPanel } from '@/components/client/TreatmentsSummaryPanel';
+import { ExpandableDescription } from '@/components/client/ExpandableDescription';
 import { useClientFlow } from './context/FlowContext';
 import { useClientVenue } from './context/ClientVenueContext';
 
@@ -221,8 +222,18 @@ export default function Treatments() {
     }));
   }, [allTreatments, treatmentCategories, t, localize]);
 
-  // Collapsed category section state — sections are open by default
+  // Collapsed category section state — all sections start collapsed so the
+  // user lands on a compact list and opens only the categories they care about.
+  // Initialised once when categorySections first arrive; subsequent user
+  // toggles are preserved.
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set());
+  const collapsedInitializedRef = useRef(false);
+  useEffect(() => {
+    if (collapsedInitializedRef.current) return;
+    if (categorySections.length === 0) return;
+    setCollapsedCategories(new Set(categorySections.map((s) => s.id)));
+    collapsedInitializedRef.current = true;
+  }, [categorySections]);
 
   const isCategoryExpanded = (sectionId: string) => !collapsedCategories.has(sectionId);
 
@@ -594,9 +605,9 @@ export default function Treatments() {
             {localize(treatment.name, treatment.name_en)}
           </h3>
           {(treatment.description || treatment.description_en) && (
-            <p className="text-xs text-gray-400 line-clamp-3 leading-relaxed font-light">
-              {localize(treatment.description, treatment.description_en)}
-            </p>
+            <ExpandableDescription
+              text={localize(treatment.description, treatment.description_en)}
+            />
           )}
         </div>
 

@@ -17,25 +17,33 @@
       "status": "migrated",
       "target": "src/lib/stripe.ts"
     },
+    "stripe-resolver": {
+      "status": "migrated",
+      "target": "src/lib/stripe-resolver.ts",
+      "note": "Per-venue Stripe key resolver (Vault-backed) with fallback to global STRIPE_SECRET_KEY."
+    },
     "send-email": {
       "status": "migrated",
       "target": "src/lib/email.ts"
     },
+    "blocked-slots": {
+      "status": "migrated",
+      "target": "src/lib/blocked-slots.ts"
+    },
     "brand": {
-      "status": "pending",
-      "target": "src/lib/brand.ts",
-      "note": "Import brand.json directly"
+      "status": "migrated",
+      "target": "src/lib/brand.ts"
     },
     "email-template": {
       "status": "pending",
       "target": "src/lib/email-template.ts"
     },
     "therapistEarnings": {
-      "status": "pending",
+      "status": "migrated",
       "target": "src/lib/therapist-earnings.ts"
     },
     "whatsapp-meta": {
-      "status": "pending",
+      "status": "migrated",
       "target": "src/lib/whatsapp.ts"
     },
     "pms-client": {
@@ -49,10 +57,6 @@
     "mews": {
       "status": "pending",
       "target": "src/lib/pms/mews.ts"
-    },
-    "blocked-slots": {
-      "status": "pending",
-      "target": "src/lib/blocked-slots.ts"
     },
     "payment-link-templates": {
       "status": "pending",
@@ -72,7 +76,7 @@
     },
     {
       "name": "stripe-webhook",
-      "status": "pending",
+      "status": "migrated",
       "route": "/webhooks/stripe",
       "target": "src/routes/webhooks.ts",
       "priority": 1,
@@ -82,7 +86,9 @@
         "therapistEarnings",
         "whatsapp-meta",
         "brand"
-      ]
+      ],
+      "migratedAt": "2026-05-06T00:00:00.000Z",
+      "note": "Per-venue routing via ?hotel_id=<uuid>. All event handlers (checkout.session.completed payment-link + standard flow, invoice.payment_succeeded with Connect payouts, payment_intent.payment_failed) ported. Inter-function calls to send-booking-confirmation / notify-admin-new-booking / trigger-new-booking-notifications / send-slack-notification still go through supabaseAdmin.functions.invoke until those are migrated."
     },
     {
       "name": "stripe-connect-webhook",
@@ -111,7 +117,7 @@
     },
     {
       "name": "create-checkout-session",
-      "status": "pending",
+      "status": "migrated",
       "route": "/payments/checkout",
       "target": "src/routes/payments.ts",
       "priority": 1,
@@ -119,7 +125,9 @@
       "auth": true,
       "deps": [
         "brand"
-      ]
+      ],
+      "migratedAt": "2026-05-06T00:00:00.000Z",
+      "note": "Ported from stripe-payment/actions/createCheckoutSession.ts. Uses per-venue Stripe resolver."
     },
     {
       "name": "charge-saved-card",
@@ -209,14 +217,15 @@
     },
     {
       "name": "handle-checkout-success",
-      "status": "failed",
+      "status": "migrated",
       "route": "/payments/checkout-success",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": false,
       "deps": [],
-      "error": "Claude Code returned non-zero exit code"
+      "migratedAt": "2026-05-06T00:00:00.000Z",
+      "note": "Re-resolves venue Stripe client via session metadata when hotelId is missing. Notification fan-out still uses supabase.functions.invoke until those are migrated."
     },
     {
       "name": "mark-tap-to-pay-paid",

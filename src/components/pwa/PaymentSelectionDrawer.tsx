@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
 
@@ -224,8 +224,9 @@ export const PaymentSelectionDrawer = ({
 
     try {
       if (hasSavedCard) {
-        const { data, error } = await invokeEdgeFunction<unknown, { success?: boolean; error?: string }>('charge-saved-card', {
-          body: { bookingId: bookingId, finalAmount: totalPrice },
+        const { data, error } = await invokeStripe<{ success?: boolean; error?: string }>('charge-saved-card', {
+          bookingId: bookingId,
+          finalAmount: totalPrice,
         });
         if (error) throw error;
         if (data?.success) {
@@ -234,8 +235,10 @@ export const PaymentSelectionDrawer = ({
           throw new Error(data?.error || t('payment.errorCreating'));
         }
       } else {
-        const { data, error } = await invokeEdgeFunction<unknown, { payment_url?: string }>('finalize-payment', {
-          body: { booking_id: bookingId, payment_method: 'card', final_amount: totalPrice },
+        const { data, error } = await invokeStripe<{ payment_url?: string }>('finalize-payment', {
+          booking_id: bookingId,
+          payment_method: 'card',
+          final_amount: totalPrice,
         });
         if (error) throw error;
         if (data?.payment_url) {

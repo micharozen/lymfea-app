@@ -11,6 +11,7 @@ export const SPECIALTY_OPTIONS: readonly SpecialtyDefinition[] = [
   { key: "aromatherapy", labelFr: "Aromathérapie", labelEn: "Aromatherapy" },
   { key: "prenatal_massage", labelFr: "Massage prénatal", labelEn: "Prenatal Massage" },
   { key: "sports_massage", labelFr: "Massage sportif", labelEn: "Sports Massage" },
+  { key: "lymphatic_drainage", labelFr: "Drainage lymphatique", labelEn: "Lymphatic Drainage" },
   { key: "facial", labelFr: "Soin du visage", labelEn: "Facial Treatment" },
   { key: "body_treatment", labelFr: "Soin du corps", labelEn: "Body Treatment" },
   { key: "body_scrub", labelFr: "Gommage corporel", labelEn: "Body Scrub" },

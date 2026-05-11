@@ -4,23 +4,10 @@ import { useSearchParams } from 'react-router-dom';
 import { brand } from '@/config/brand';
 import type { PublicHotel } from '@/pages/client/context/ClientVenueContext';
 
-const FRENCH_COUNTRIES = [
-  'france',
-  'belgium',
-  'belgique',
-  'switzerland',
-  'suisse',
-  'luxembourg',
-  'monaco',
-];
-
-function getVenueDefaultLanguage(
-  venueType: string | null,
-  country: string | null
-): 'fr' | 'en' {
-  if (!venueType || venueType === 'hotel') return 'en';
-  if (country && FRENCH_COUNTRIES.includes(country.toLowerCase().trim())) return 'fr';
-  return 'en';
+function getVenueDefaultLanguage(): 'fr' | 'en' {
+  // Client booking links default to French. The user can override per-link
+  // via the `?lang=` URL parameter, or in-session via the language switcher.
+  return 'fr';
 }
 
 /**
@@ -59,7 +46,7 @@ export function useVenueDefaultLanguage(
     const stored = sessionStorage.getItem(storageKey);
     const urlLang = searchParams.get('lang');
     const forcedLang = urlLang === 'fr' || urlLang === 'en' ? urlLang : null;
-    const defaultLang = getVenueDefaultLanguage(venue.venue_type, venue.country);
+    const defaultLang = getVenueDefaultLanguage();
     const targetLanguage =
       forcedLang || (stored === 'fr' || stored === 'en' ? stored : defaultLang);
     const currentLanguage = (i18n.resolvedLanguage || i18n.language || 'en').split('-')[0];
