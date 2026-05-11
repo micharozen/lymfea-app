@@ -112,6 +112,23 @@ async function atomicReserveSingle(
   });
 }
 
+async function triggerBookingNotifications(
+  supabase: ActionContext["supabase"],
+  bookingIds: string[],
+): Promise<void> {
+  await Promise.all(
+    bookingIds.map((bookingId) =>
+      supabase.functions
+        .invoke("trigger-new-booking-notifications", {
+          body: { bookingId, notifyAll: true },
+        })
+        .catch((err: unknown) =>
+          console.error(`[CONFIRM-SETUP] Notif error for ${bookingId}:`, err),
+        ),
+    ),
+  );
+}
+
 export async function handleConfirmSetupIntent(
   ctx: ActionContext,
 ): Promise<Response> {
@@ -302,13 +319,7 @@ export async function handleConfirmSetupIntent(
         });
       }
 
-      for (const bId of slotCreatedIds) {
-        try {
-          await supabase.functions.invoke("trigger-new-booking-notifications", { body: { bookingId: bId, notifyAll: true } });
-        } catch (notifError) {
-          console.error(`[CONFIRM-SETUP] Push notif error for ${bId}:`, notifError);
-        }
-      }
+      await triggerBookingNotifications(supabase, slotCreatedIds);
 
       return jsonResponse({ success: true, bookingId: slotCreatedIds[0], bookingIds: slotCreatedIds });
     }
@@ -356,6 +367,8 @@ export async function handleConfirmSetupIntent(
         cardLast4: paymentMethodCard?.last4,
       });
     }
+
+    await triggerBookingNotifications(supabase, multiBookingIds);
 
     return jsonResponse({
       success: true,
@@ -529,6 +542,25 @@ export async function handleConfirmSetupIntent(
     }
   }
 
+  // Apply gift card deduction if present in metadata
+  const giftAmountCents = meta.giftAmountCents ? parseInt(meta.giftAmountCents, 10) : 0;
+  const giftCustomerBundleId = meta.giftAmountCustomerBundleId || null;
+  let netPrice = verifiedPrice;
+
+  if (giftAmountCents > 0 && giftCustomerBundleId) {
+    const { error: giftError } = await supabase.rpc("use_gift_amount", {
+      _customer_bundle_id: giftCustomerBundleId,
+      _booking_id: bookingId,
+      _amount_cents: giftAmountCents,
+    });
+    if (giftError) {
+      console.error("[CONFIRM-SETUP] use_gift_amount failed (non-blocking):", giftError.message);
+    } else {
+      netPrice = Math.max(0, verifiedPrice - giftAmountCents / 100);
+      console.log("[CONFIRM-SETUP] Gift applied:", giftAmountCents, "cents. Net price:", netPrice);
+    }
+  }
+
   if (paymentMethodId && setupIntent) {
     await insertPaymentInfo(supabase, {
       bookingId,
@@ -538,9 +570,11 @@ export async function handleConfirmSetupIntent(
       sessionId,
       cardBrand: paymentMethodCard?.brand,
       cardLast4: paymentMethodCard?.last4,
-      estimatedPrice: verifiedPrice,
+      estimatedPrice: netPrice,
     });
   }
+
+  await triggerBookingNotifications(supabase, [bookingId]);
 
   return jsonResponse({ success: true, bookingId });
 }

@@ -16,6 +16,84 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+function getGiftCardEmailHtml(opts: {
+  lang: 'fr' | 'en';
+  logoUrl: string;
+  venueName: string;
+  recipientName: string;
+  bundleName: string;
+  valueDisplay: string;
+  expiryDate: string;
+  activateUrl: string;
+  senderName: string;
+  giftMessage: string;
+}): string {
+  const t = opts.lang === 'en' ? {
+    greeting: opts.recipientName ? `Hello ${opts.recipientName},` : 'Hello,',
+    intro: `${opts.senderName || 'Someone'} has sent you a gift card for ${opts.venueName}.`,
+    value: 'Value',
+    validUntil: 'Valid until',
+    messageFrom: `A message from ${opts.senderName}`,
+    cta: 'Activate my gift card',
+    footer: 'Click the button above to create your account and use your gift card.',
+  } : {
+    greeting: opts.recipientName ? `Bonjour ${opts.recipientName},` : 'Bonjour,',
+    intro: `${opts.senderName || 'Quelqu\'un'} vous offre une carte cadeau pour ${opts.venueName}.`,
+    value: 'Valeur',
+    validUntil: 'Valable jusqu\'au',
+    messageFrom: `Un message de ${opts.senderName}`,
+    cta: 'Activer ma carte cadeau',
+    footer: 'Cliquez sur le bouton ci-dessus pour créer votre espace et utiliser votre carte cadeau.',
+  };
+
+  const fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:${fontFamily};background:#f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+        <tr><td style="background:#000;padding:32px;text-align:center;">
+          ${opts.logoUrl ? `<img src="${opts.logoUrl}" alt="${opts.venueName}" style="max-height:48px;max-width:160px;object-fit:contain;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">` : ''}
+          <p style="margin:0;color:#fff;font-size:18px;font-weight:600;">${opts.venueName}</p>
+        </td></tr>
+        <tr><td style="padding:32px 32px 0;text-align:center;">
+          <span style="display:inline-block;background:#fef3c7;color:#92400e;padding:8px 20px;border-radius:24px;font-size:13px;font-weight:600;">🎁 ${opts.bundleName}</span>
+        </td></tr>
+        <tr><td style="padding:24px 32px 0;">
+          <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#111;">${t.greeting}</p>
+          <p style="margin:0;font-size:15px;color:#6b7280;">${t.intro}</p>
+        </td></tr>
+        <tr><td style="padding:24px 32px 0;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:12px;padding:20px;">
+            <tr>
+              <td style="font-size:13px;color:#6b7280;">${t.value}</td>
+              <td align="right" style="font-size:20px;font-weight:700;color:#111;">${opts.valueDisplay}</td>
+            </tr>
+            ${opts.expiryDate ? `<tr><td style="font-size:13px;color:#6b7280;padding-top:8px;">${t.validUntil}</td><td align="right" style="font-size:14px;color:#374151;padding-top:8px;">${opts.expiryDate}</td></tr>` : ''}
+          </table>
+        </td></tr>
+        ${opts.giftMessage ? `<tr><td style="padding:24px 32px 0;">
+          <div style="background:#fffbeb;border-left:3px solid #f59e0b;padding:16px;border-radius:0 8px 8px 0;">
+            <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#92400e;text-transform:uppercase;">${t.messageFrom}</p>
+            <p style="margin:0;font-size:14px;color:#374151;font-style:italic;">"${opts.giftMessage}"</p>
+          </div>
+        </td></tr>` : ''}
+        <tr><td style="padding:32px;text-align:center;">
+          <a href="${opts.activateUrl}" style="display:inline-block;background:#000;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;">${t.cta}</a>
+        </td></tr>
+        <tr><td style="padding:0 32px 32px;text-align:center;">
+          <p style="margin:0;font-size:13px;color:#9ca3af;">${t.footer}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
 export async function handlePurchaseBundle(
   ctx: ActionContext,
 ): Promise<Response> {
@@ -87,6 +165,8 @@ export async function handlePurchaseBundle(
     recipientName,
     recipientEmail,
     giftMessage,
+    language,
+    recipientLanguage,
   } = session.metadata!;
 
   const bundleItems = JSON.parse(bundleItemsJson);
@@ -254,25 +334,28 @@ export async function handlePurchaseBundle(
         giftBundle?.redemption_code ?? "",
       )}`;
 
-      const templateVars = {
-        logo_url: logoUrl,
-        recipient_name: recipientName || "",
-        recipient_email: recipientEmail,
-        venue_name: venueName,
-        bundle_title: bundleName,
-        value_display: valueDisplay,
-        expiry_date: expiryDate,
-        activate_url: activateUrl,
-        sender_name: senderName || firstName || "",
-        gift_message: giftMessage || "",
-        redemption_code: "",
-      };
+      const lang = (recipientLanguage === 'en' || language === 'en') ? 'en' : 'fr';
+      const subject = lang === 'en'
+        ? `You've received a gift card — ${venueName}`
+        : `Vous avez reçu une carte cadeau — ${venueName}`;
+
+      const htmlBody = getGiftCardEmailHtml({
+        lang,
+        logoUrl,
+        venueName,
+        recipientName: recipientName || "",
+        bundleName,
+        valueDisplay,
+        expiryDate,
+        activateUrl,
+        senderName: senderName || firstName || "",
+        giftMessage: giftMessage || "",
+      });
 
       const result = await sendEmail({
         to: recipientEmail,
-        subject: `You've received a gift card — ${venueName}`,
-        templateId: "1b1674f1-5145-4bb5-8fce-b8b9f2c405ac",
-        templateVariables: templateVars,
+        subject,
+        html: htmlBody,
       });
 
       if (result.error) {

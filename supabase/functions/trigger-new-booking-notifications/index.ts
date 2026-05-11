@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
+import { getStripeForVenue } from "../_shared/stripe-resolver.ts";
 
 const CLIENT_NEW_BOOKING_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
 const CLIENT_PENDING_BOOKING_TEMPLATE_ID = "c5378102-92c7-48de-834c-db17da702794";
@@ -307,7 +307,19 @@ serve(async (req) => {
         const isExternal = (booking as any).client_type === 'external';
         const isPending = booking.status === 'pending';
 
-        if (isExternal) {
+        // If a payment method has already been registered for this booking
+        // (e.g. client paid via SetupIntent in the client flow), skip the
+        // Stripe payment-link branch and fall through to the standard pending
+        // template. The payment-link branch is only for operator-created
+        // external bookings where no card has been collected yet.
+        const { data: existingPaymentInfo } = await supabaseClient
+          .from('booking_payment_infos')
+          .select('id')
+          .eq('booking_id', bookingId)
+          .maybeSingle();
+        const hasPaymentMethod = !!existingPaymentInfo;
+
+        if (isExternal && !hasPaymentMethod) {
           // External clients: create a Stripe payment link and send the
           // payment-required email template instead of the standard confirmation.
           const language: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';
@@ -322,9 +334,7 @@ serve(async (req) => {
 
           const totalPrice = Number(booking.total_price ?? treatmentPrice) || 0;
 
-          const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-            apiVersion: '2025-08-27.basil',
-          });
+          const { client: stripe } = await getStripeForVenue(supabaseClient, booking.hotel_id);
 
           const paymentLink = await stripe.paymentLinks.create({
             line_items: [{

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
-import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2, Package, CalendarDays, ShieldCheck, FileCheck, UserX, Hourglass, Plus, MapPin, Mail, DoorOpen, Users, CreditCard } from "lucide-react";
+import { Calendar, Clock, Timer, Euro, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2, Package, CalendarDays, ShieldCheck, FileCheck, UserX, Hourglass, Plus, MapPin, DoorOpen, Users, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +71,7 @@ interface Booking {
   duration?: number | null;
   therapist_checked_in_at?: string | null;
   guest_count?: number | null;
+  gift_amount_applied_cents?: number | null;
   venue_type?: 'hotel' | 'spa' | null;
   card_brand?: string | null;
   card_last4?: string | null;
@@ -261,7 +262,7 @@ const PwaBookingDetail = () => {
         hotel_city: hotelData?.city,
         hotel_vat: hotelData?.vat || 20,
         therapist_commission: hotelData?.therapist_commission || 70,
-        global_therapist_commission: hotelData?.global_therapist_commission !== false,
+        global_therapist_commission: hotelData?.global_therapist_commission === true,
         therapist_hourly_rate: rates.hr,
         therapist_rate_45: rates.r45,
         therapist_rate_60: rates.r60,
@@ -551,7 +552,9 @@ const PwaBookingDetail = () => {
   if (!booking) return <div className="flex h-screen items-center justify-center">RDV non trouvé</div>;
 
   const treatmentsTotalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
-  const totalPrice = Math.max(booking.total_price || 0, treatmentsTotalPrice);
+  const grossPrice = Math.max(booking.total_price || 0, treatmentsTotalPrice);
+  const giftAppliedCents = booking.gift_amount_applied_cents || 0;
+  const totalPrice = Math.max(0, grossPrice - giftAppliedCents / 100);
   const totalDuration = (booking.duration ?? 0) > 0 ? booking.duration! : (treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0) || 60);
   const totalHT = totalPrice / (1 + (booking.hotel_vat || 20) / 100);
   // Mode taux fixes (global_therapist_commission = false) : chaque thérapeute
@@ -565,7 +568,7 @@ const PwaBookingDetail = () => {
         totalDuration,
       ) ?? 0;
     }
-    const pricePerTherapist = totalPrice / Math.max(booking.guest_count || 1, 1);
+    const pricePerTherapist = grossPrice / Math.max(booking.guest_count || 1, 1);
     return Math.round(pricePerTherapist * ((booking.therapist_commission || 70) / 100) * 100) / 100;
   })();
 
@@ -676,6 +679,11 @@ const PwaBookingDetail = () => {
               <div className="min-w-0">
                 <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('bookingDetail.price')}</div>
                 <div className="text-sm font-semibold truncate">{formatPrice(totalPrice, booking.hotel_currency)}</div>
+                {giftAppliedCents > 0 && (
+                  <div className="text-[10px] text-amber-600 mt-0.5">
+                    -{formatPrice(giftAppliedCents / 100, booking.hotel_currency)} carte cadeau
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -689,18 +697,6 @@ const PwaBookingDetail = () => {
                 <ClientTypeBadge clientType={booking.client_type} size="sm" />
               )}
             </div>
-            {booking.phone && (
-              <div className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{booking.phone}</span>
-              </div>
-            )}
-            {booking.client_email && (
-              <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{booking.client_email}</span>
-              </div>
-            )}
             {booking.room_number && (
               <div className="flex items-center gap-2.5">
                 <DoorOpen className="w-4 h-4 text-muted-foreground" />
@@ -887,7 +883,6 @@ const PwaBookingDetail = () => {
       <Drawer open={showContactDrawer} onOpenChange={setShowContactDrawer}>
         <DrawerContent className="pb-safe">
           <div className="p-4 space-y-2">
-            <button onClick={() => window.open(`https://wa.me/${booking.phone.replace(/\D/g,'')}`)} className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl w-full font-medium"><Phone className="text-primary"/> WhatsApp Client</button>
             <button onClick={() => { setShowContactDrawer(false); setShowNoShowDialog(true); }} className="flex items-center gap-3 p-4 bg-amber-50 text-amber-800 rounded-xl w-full font-medium"><UserX className="w-5 h-5"/> {t('bookingDetail.noShow')}</button>
             <button onClick={() => setShowUnassignDialog(true)} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X/> Désassigner</button>
           </div>
@@ -962,21 +957,14 @@ const PwaBookingDetail = () => {
       <Drawer open={showDeclineDialog} onOpenChange={setShowDeclineDialog}>
         <DrawerContent className="pb-safe">
           <div className="p-4 space-y-3">
-            <p className="text-sm font-semibold text-center">Que souhaitez-vous faire ?</p>
-            <button
-              onClick={() => { setShowDeclineDialog(false); setShowProposeAlternativeDialog(true); }}
-              className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl w-full font-medium text-sm"
-            >
-              <CalendarDays className="w-5 h-5 text-primary shrink-0" />
-              Proposer un autre créneau
-            </button>
+            <p className="text-sm font-semibold text-center">Refuser cette réservation ?</p>
             <button
               onClick={() => { setShowDeclineDialog(false); handleDeclineBooking(); }}
               disabled={updating}
               className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium text-sm disabled:opacity-50"
             >
               <X className="w-5 h-5 shrink-0" />
-              Refuser sans proposer
+              Refuser
             </button>
           </div>
         </DrawerContent>

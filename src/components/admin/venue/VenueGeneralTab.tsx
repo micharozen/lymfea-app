@@ -103,6 +103,17 @@ function LymfeaCommissionDisplay({ control }: { control: Control<VenueWizardForm
   );
 }
 
+export type VenueSectionId =
+  | 'identity'
+  | 'location'
+  | 'finance'
+  | 'booking-settings'
+  | 'schedule'
+  | 'team'
+  | 'amenities'
+  | 'pms'
+  | 'payment';
+
 interface VenueGeneralTabProps {
   form: UseFormReturn<VenueWizardFormValues>;
   mode: 'add' | 'edit';
@@ -123,6 +134,11 @@ interface VenueGeneralTabProps {
   onDeploymentStateChange: (state: DeploymentScheduleState) => void;
   blockedSlots: BlockedSlot[];
   onBlockedSlotsChange: (slots: BlockedSlot[]) => void;
+  /**
+   * If provided, only the listed section cards are rendered.
+   * Used for the "Mon lieu" page exposed to venue managers (concierges).
+   */
+  restrictedSections?: VenueSectionId[];
 }
 
 export function VenueGeneralTab({
@@ -145,9 +161,12 @@ export function VenueGeneralTab({
   onDeploymentStateChange,
   blockedSlots,
   onBlockedSlotsChange,
+  restrictedSections,
 }: VenueGeneralTabProps) {
   const { t } = useTranslation('common');
   const uploading = uploadingHotel || uploadingCover;
+  const showSection = (id: VenueSectionId) =>
+    !restrictedSections || restrictedSections.includes(id);
 
   // Watch venue_type for label changes
   const venueTypeValue = useWatch({ control: form.control, name: "venue_type" });
@@ -271,6 +290,7 @@ export function VenueGeneralTab({
   return (
     <div className="space-y-6">
       {/* Card A: Identity */}
+      {showSection('identity') && (
       <Card id="identity" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
@@ -597,8 +617,10 @@ export function VenueGeneralTab({
           />
         </CardContent>
       </Card>
+      )}
 
       {/* Card B: Localisation */}
+      {showSection('location') && (
       <Card id="location" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -738,8 +760,10 @@ export function VenueGeneralTab({
           />
         </CardContent>
       </Card>
+      )}
 
       {/* Card C: Finance */}
+      {showSection('finance') && (
       <Card id="finance" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -886,8 +910,10 @@ export function VenueGeneralTab({
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Card D: Booking Settings */}
+      {showSection('booking-settings') && (
       <Card id="booking-settings" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -1089,10 +1115,14 @@ export function VenueGeneralTab({
 
         </CardContent>
       </Card>
+      )}
 
-      <VenueBookingRulesTab form={form} disabled={disabled} />
+      {showSection('booking-settings') && (
+        <VenueBookingRulesTab form={form} disabled={disabled} />
+      )}
 
       {/* Card E: Horaires & Disponibilité */}
+      {showSection('schedule') && (
       <Card id="schedule" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -1112,9 +1142,10 @@ export function VenueGeneralTab({
           />
         </CardContent>
       </Card>
+      )}
 
       {/* Card F: Équipe lieu (all venue types, when venue is saved) */}
-      {hotelId && (
+      {hotelId && showSection('team') && (
         <Card id="team" className="scroll-mt-32">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
@@ -1170,7 +1201,7 @@ export function VenueGeneralTab({
       )}
 
       {/* Card G: Commodités (when venue is saved) */}
-      {hotelId && (
+      {hotelId && showSection('amenities') && (
         <Card id="amenities" className="scroll-mt-32">
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -1186,7 +1217,7 @@ export function VenueGeneralTab({
       )}
 
       {/* Card H: PMS Integration (hotel type only, when venue is saved) */}
-      {hotelId && venueTypeValue === 'hotel' && (
+      {hotelId && venueTypeValue === 'hotel' && showSection('pms') && (
         <>
           <Card id="pms" className="scroll-mt-32">
             <CardHeader className="pb-4">
@@ -1284,7 +1315,7 @@ export function VenueGeneralTab({
       )}
 
       {/* Card H: Payment provider (any venue type, when venue is saved) */}
-      {hotelId && (
+      {hotelId && showSection('payment') && (
         <>
           <Card id="payment" className="scroll-mt-32">
             <CardHeader className="pb-4">

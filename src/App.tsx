@@ -22,6 +22,7 @@ import { CartProvider } from "./pages/client/context/CartContext";
 import { ClientFlowWrapper } from "./components/ClientFlowWrapper";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ClientErrorFallback } from "./components/client/ClientErrorFallback";
+import { AppErrorFallback } from "./components/AppErrorFallback";
 import { PhoneBookingFab } from "./components/admin/PhoneBookingFab";
 
 // Lazy load all page components for code splitting
@@ -36,6 +37,7 @@ const BookingsList = lazy(() => import("./pages/admin/BookingsList"));
 const Therapists = lazy(() => import("./pages/admin/Therapists"));
 const AdminHotels = lazy(() => import("./pages/admin/Hotels"));
 const VenueDetail = lazy(() => import("./pages/admin/VenueDetail"));
+const MyVenue = lazy(() => import("./pages/admin/MyVenue"));
 const TherapistDetail = lazy(() => import("./pages/admin/TherapistDetail"));
 const AdminTreatments = lazy(() => import("./pages/admin/Treatments"));
 const TreatmentDetail = lazy(() => import("./pages/admin/TreatmentDetail"));
@@ -223,6 +225,7 @@ const App = () => {
   }, [updateSafeAreaInsets]);
 
   return (
+    <ErrorBoundary fallback={(error, reset) => <AppErrorFallback error={error} reset={reset} />}>
     <QueryClientProvider client={queryClient}>
       <TimezoneProvider>
       <UserProvider>
@@ -490,6 +493,7 @@ const App = () => {
                               <Route path="/places" element={<AdminHotels />} />
                               <Route path="/places/new" element={<VenueDetail />} />
                               <Route path="/places/:id" element={<VenueDetail />} />
+                              <Route path="/my-venue" element={<MyVenue />} />
                               <Route path="/treatments" element={<AdminTreatments />} />
                               <Route path="/treatments/new" element={<TreatmentDetail />} />
                               <Route path="/treatments/:id" element={<TreatmentDetail />} />
@@ -534,6 +538,7 @@ const App = () => {
       </UserProvider>
     </TimezoneProvider>
   </QueryClientProvider>
+  </ErrorBoundary>
   );
 };
 

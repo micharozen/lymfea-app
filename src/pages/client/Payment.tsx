@@ -28,7 +28,7 @@ export default function Payment() {
   const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
-  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles, scheduleMode, perItemSchedule, groupId, bookingIds } = useClientFlow();
+  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles, giftInfo, scheduleMode, perItemSchedule, groupId, bookingIds } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function Payment() {
     }
   }, [selectedMethod, clientInfo?.isExternalGuest]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const { t } = useTranslation('client');
+  const { t, i18n } = useTranslation('client');
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 
   // Fetch the bundle template so gift cards can show tailored copy on the payment screen
@@ -146,6 +146,18 @@ export default function Payment() {
               quantity: item.quantity,
             })),
             totalPrice: total,
+            ...(giftInfo && {
+              giftData: {
+                isGift: giftInfo.isGift,
+                deliveryMode: giftInfo.deliveryMode,
+                recipientName: giftInfo.recipientName,
+                recipientEmail: giftInfo.recipientEmail,
+                senderName: giftInfo.senderName,
+                giftMessage: giftInfo.giftMessage,
+                recipientLanguage: giftInfo.recipientLanguage,
+              },
+            }),
+            language: i18n.language === 'en' ? 'en' : 'fr',
         });
 
         if (error) throw error;
@@ -153,7 +165,7 @@ export default function Payment() {
         if (data?.url) {
           const url = new URL(data.url);
           const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+          if (url.protocol !== 'https:' || !trustedDomains.some(domain => url.hostname.endsWith(domain))) {
             throw new Error('Invalid redirect URL');
           }
           setPendingCheckoutSession(data.sessionId);
@@ -353,7 +365,7 @@ export default function Payment() {
         if (data?.url) {
           const url = new URL(data.url);
           const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+          if (url.protocol !== 'https:' || !trustedDomains.some(domain => url.hostname.endsWith(domain))) {
             throw new Error('Invalid redirect URL');
           }
           setPendingCheckoutSession(data.sessionId);

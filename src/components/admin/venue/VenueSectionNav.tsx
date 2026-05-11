@@ -10,6 +10,7 @@ import {
   Users,
   Plug,
   Sparkles,
+  CreditCard,
 } from "lucide-react";
 
 export interface SectionDef {
@@ -29,6 +30,7 @@ export const VENUE_CONFIG_SECTIONS: SectionDef[] = [
   { id: "team", label: "Équipe", icon: Users },
   { id: "amenities", label: "Commodités", icon: Sparkles },
   { id: "pms", label: "PMS", icon: Plug },
+  { id: "payment", label: "Paiement", icon: CreditCard },
 ];
 
 function useActiveSection(sectionIds: string[]) {
@@ -183,7 +185,13 @@ export function PillSubTabs({ tabs, value, onValueChange, sticky = true }: PillS
 }
 
 /** Option 2: Horizontal sticky sub-nav bar */
-export function VenueSectionNavBar({ sections }: { sections: SectionDef[] }) {
+export function VenueSectionNavBar({
+  sections,
+  topOffset = 105,
+}: {
+  sections: SectionDef[];
+  topOffset?: number;
+}) {
   const visibleIds = sections.map((s) => s.id);
   const { active, handleClick } = useActiveSection(visibleIds);
 
@@ -200,8 +208,11 @@ export function VenueSectionNavBar({ sections }: { sections: SectionDef[] }) {
   if (filtered.length < 2) return null;
 
   return (
-    <nav className="sticky top-[105px] z-[8] bg-background/95 backdrop-blur-sm border-b -mx-4 md:-mx-6 px-4 md:px-6">
-      <div className="flex items-center gap-1 overflow-x-auto py-2 scrollbar-hide">
+    <nav
+      style={{ top: `${topOffset}px` }}
+      className="sticky z-[8] bg-background/95 backdrop-blur-sm border-b -mx-4 md:-mx-6 px-4 md:px-6"
+    >
+      <div className="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-hide">
         {filtered.map((s) => {
           const Icon = s.icon;
           const isActive = active === s.id;
@@ -210,7 +221,7 @@ export function VenueSectionNavBar({ sections }: { sections: SectionDef[] }) {
               key={s.id}
               onClick={() => handleClick(s.id)}
               className={cn(
-                "relative inline-flex items-center gap-1 h-7 px-2 text-[11px] leading-none whitespace-nowrap transition-colors shrink-0 border-b-2",
+                "relative inline-flex items-center gap-1 h-6 px-2 text-[11px] leading-none whitespace-nowrap transition-colors shrink-0 border-b-2",
                 isActive
                   ? (s.activeClass || "border-orange-500 text-orange-600 font-medium")
                   : "border-transparent text-muted-foreground hover:text-foreground"
