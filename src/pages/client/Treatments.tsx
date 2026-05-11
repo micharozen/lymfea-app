@@ -231,7 +231,13 @@ export default function Treatments() {
   useEffect(() => {
     if (collapsedInitializedRef.current) return;
     if (categorySections.length === 0) return;
-    setCollapsedCategories(new Set(categorySections.map((s) => s.id)));
+    const totalTreatments = categorySections.reduce((sum, s) => sum + s.treatments.length, 0);
+    const soleSectionId = totalTreatments === 1
+      ? categorySections.find((s) => s.treatments.length === 1)?.id
+      : undefined;
+    setCollapsedCategories(
+      new Set(categorySections.map((s) => s.id).filter((id) => id !== soleSectionId))
+    );
     collapsedInitializedRef.current = true;
   }, [categorySections]);
 
