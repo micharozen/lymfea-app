@@ -134,6 +134,7 @@
       "emailInvalid": "Format d'email invalide",
       "phoneRequired": "Le téléphone est requis",
       "phoneInvalid": "Numéro de téléphone invalide",
+      "phoneFormat": "Numéro invalide. Entrez les chiffres sans indicatif pays, ex. : {{format}}",
       "roomRequired": "Le numéro de chambre est requis",
       "recipientNameRequired": "Le nom du bénéficiaire est requis",
       "recipientEmailRequired": "L'email du bénéficiaire est requis",
@@ -150,7 +151,10 @@
     "recipientEmail": "Email du bénéficiaire",
     "senderName": "De la part de",
     "giftMessage": "Message personnalisé",
-    "giftMessagePlaceholder": "Ex : Joyeux anniversaire ! Profite bien de ce moment de détente."
+    "giftMessagePlaceholder": "Ex : Joyeux anniversaire ! Profite bien de ce moment de détente.",
+    "recipientLanguage": "Langue de l'email",
+    "recipientLanguageFr": "Français",
+    "recipientLanguageEn": "English"
   },
   "checkout": {
     "title": "Récapitulatif",
@@ -464,6 +468,9 @@
     "claimEmailPlaceholder": "email@exemple.com",
     "claimName": "Votre prénom",
     "claimNamePlaceholder": "Prénom",
+    "claimPhone": "Votre numéro de téléphone",
+    "claimPhonePlaceholder": "+33 6 12 34 56 78",
+    "claimErrorPhoneRequired": "Le numéro de téléphone est obligatoire.",
     "claimButton": "Activer ma carte",
     "claimLoading": "Activation en cours...",
     "claimSuccess": "Carte cadeau activée !",

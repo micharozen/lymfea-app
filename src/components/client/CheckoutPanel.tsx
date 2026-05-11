@@ -162,8 +162,10 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
                 recipientEmail: giftInfo.recipientEmail,
                 senderName: giftInfo.senderName,
                 giftMessage: giftInfo.giftMessage,
+                recipientLanguage: giftInfo.recipientLanguage,
               },
             }),
+            language: i18n.language === 'en' ? 'en' : 'fr',
         });
 
         if (error) throw error;

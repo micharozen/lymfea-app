@@ -22,10 +22,13 @@ serve(async (req) => {
   }
 
   try {
-    const { code, email, password, firstName } = await req.json();
+    const { code, email, password, firstName, phone } = await req.json();
 
     if (!code || !email || !password) {
       throw new Error("Missing required fields: code, email, password");
+    }
+    if (!phone || !phone.trim()) {
+      throw new Error("Phone number is required");
     }
 
     if (password.length < 6) {
@@ -34,6 +37,17 @@ serve(async (req) => {
 
     const cleanCode = code.toUpperCase().replace(/\s/g, '');
     const cleanEmail = email.trim().toLowerCase();
+
+    // Normalize phone: strip spaces, then convert French local format (0XXXXXXXXX) to E.164
+    const rawPhone = phone.trim().replace(/\s/g, '');
+    const cleanPhone = /^0[1-9]\d{8}$/.test(rawPhone)
+      ? '+33' + rawPhone.slice(1)
+      : rawPhone;
+
+    // Basic validation: at least 6 digits after stripping non-digit chars
+    if (cleanPhone.replace(/\D/g, '').length < 6) {
+      throw new Error("Invalid phone number");
+    }
 
     // 1. Validate the redemption code
     const { data: bundle, error: bundleError } = await supabaseAdmin
@@ -48,7 +62,7 @@ serve(async (req) => {
     if (new Date(bundle.expires_at) < new Date()) throw new Error("Gift card has expired");
 
     // 2. Check if auth account already exists for this email
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     const existingUser = existingUsers?.users?.find(
       (u) => u.email?.toLowerCase() === cleanEmail
     );
@@ -98,6 +112,7 @@ serve(async (req) => {
             .from('customers')
             .insert({
               email: cleanEmail,
+              phone: cleanPhone,
               first_name: firstName || null,
               auth_user_id: existingUser.id,
               profile_completed: true,
@@ -109,8 +124,17 @@ serve(async (req) => {
         }
       }
 
+      // Update phone on existing customer if missing
+      if (customerId && cleanPhone) {
+        await supabaseAdmin
+          .from('customers')
+          .update({ phone: cleanPhone })
+          .eq('id', customerId)
+          .or('phone.is.null,phone.eq.');
+      }
+
       // Claim the bundle
-      await supabaseAdmin
+      const { error: claimErrorExisting } = await supabaseAdmin
         .from('customer_treatment_bundles')
         .update({
           beneficiary_customer_id: customerId,
@@ -118,6 +142,7 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', bundle.id);
+      if (claimErrorExisting) throw claimErrorExisting;
 
       return new Response(
         JSON.stringify({
@@ -163,6 +188,7 @@ serve(async (req) => {
       await supabaseAdmin
         .from('customers')
         .update({
+          phone: cleanPhone,
           auth_user_id: authUserId,
           first_name: firstName || undefined,
           profile_completed: true,
@@ -173,6 +199,7 @@ serve(async (req) => {
         .from('customers')
         .insert({
           email: cleanEmail,
+          phone: cleanPhone,
           first_name: firstName || null,
           auth_user_id: authUserId,
           profile_completed: true,
@@ -184,7 +211,7 @@ serve(async (req) => {
     }
 
     // 6. Claim the bundle
-    await supabaseAdmin
+    const { error: claimError } = await supabaseAdmin
       .from('customer_treatment_bundles')
       .update({
         beneficiary_customer_id: customerId,
@@ -192,6 +219,7 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', bundle.id);
+    if (claimError) throw claimError;
 
     return new Response(
       JSON.stringify({

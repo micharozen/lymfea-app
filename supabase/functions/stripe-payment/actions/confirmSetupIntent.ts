@@ -160,6 +160,15 @@ export async function handleConfirmSetupIntent(
       const slotGuestCounts = JSON.parse(meta.guest_counts_per_slot || "[]") as number[];
       const multiGroupId = meta.groupId || crypto.randomUUID();
 
+      if (
+        !dates.length ||
+        times.length !== dates.length ||
+        slotTreatmentIds.length !== dates.length ||
+        slotDurations.length !== dates.length
+      ) {
+        throw new Error("Invalid slot metadata: arrays length mismatch");
+      }
+
       const { data: noHoldHotel } = await supabase
         .from("hotels")
         .select("name, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent")
@@ -512,11 +521,6 @@ export async function handleConfirmSetupIntent(
     );
   }
 
-  await supabase
-    .from("bookings")
-    .update({ therapist_id: null })
-    .eq("id", bookingId);
-
   if (treatmentIds && treatmentIds.length > 0) {
     if (meta.draftBookingId) {
       await supabase
@@ -544,6 +548,25 @@ export async function handleConfirmSetupIntent(
     }
   }
 
+  // Apply gift card deduction if present in metadata
+  const giftAmountCents = meta.giftAmountCents ? parseInt(meta.giftAmountCents, 10) : 0;
+  const giftCustomerBundleId = meta.giftAmountCustomerBundleId || null;
+  let netPrice = verifiedPrice;
+
+  if (giftAmountCents > 0 && giftCustomerBundleId) {
+    const { error: giftError } = await supabase.rpc("use_gift_amount", {
+      _customer_bundle_id: giftCustomerBundleId,
+      _booking_id: bookingId,
+      _amount_cents: giftAmountCents,
+    });
+    if (giftError) {
+      console.error("[CONFIRM-SETUP] use_gift_amount failed (non-blocking):", giftError.message);
+    } else {
+      netPrice = Math.max(0, verifiedPrice - giftAmountCents / 100);
+      console.log("[CONFIRM-SETUP] Gift applied:", giftAmountCents, "cents. Net price:", netPrice);
+    }
+  }
+
   const setupIntent = session.setup_intent as Stripe.SetupIntent;
   const paymentMethodId =
     typeof setupIntent?.payment_method === "string"
@@ -563,7 +586,7 @@ export async function handleConfirmSetupIntent(
       stripe_session_id: sessionId,
       card_brand: paymentMethodCard?.brand || null,
       card_last4: paymentMethodCard?.last4 || null,
-      estimated_price: verifiedPrice,
+      estimated_price: netPrice,
       payment_status: "card_saved",
     });
   }
