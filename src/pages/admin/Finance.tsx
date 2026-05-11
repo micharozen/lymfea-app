@@ -22,6 +22,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { brand } from "@/config/brand";
+import { DailyClosureTab } from "@/components/admin/finance/DailyClosureTab";
 
 interface LedgerEntry {
   id: string;
@@ -339,12 +340,18 @@ const Finance = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="netting" className="space-y-4">
+      <Tabs defaultValue="closure" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="netting">🏨 Netting Hôtels</TabsTrigger>
-          <TabsTrigger value="ledger">📒 Grand Livre</TabsTrigger>
-          <TabsTrigger value="payouts">💆 Payouts Thérapeutes</TabsTrigger>
+          <TabsTrigger value="closure">📋 Clôture quotidienne</TabsTrigger>
+          <TabsTrigger value="netting" disabled title="Bientôt disponible">🏨 Netting Hôtels</TabsTrigger>
+          <TabsTrigger value="ledger" disabled title="Bientôt disponible">📒 Grand Livre</TabsTrigger>
+          <TabsTrigger value="payouts" disabled title="Bientôt disponible">💆 Payouts Thérapeutes</TabsTrigger>
         </TabsList>
+
+        {/* Daily Closure Tab */}
+        <TabsContent value="closure" className="space-y-4">
+          <DailyClosureTab />
+        </TabsContent>
 
         {/* Netting Tab */}
         <TabsContent value="netting" className="space-y-4">
