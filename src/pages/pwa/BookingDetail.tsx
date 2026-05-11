@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
-import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2, Package, CalendarDays, ShieldCheck, FileCheck, UserX, Hourglass, Plus, MapPin, Mail, DoorOpen, Users, CreditCard } from "lucide-react";
+import { Calendar, Clock, Timer, Euro, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2, Package, CalendarDays, ShieldCheck, FileCheck, UserX, Hourglass, Plus, MapPin, DoorOpen, Users, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -697,18 +697,6 @@ const PwaBookingDetail = () => {
                 <ClientTypeBadge clientType={booking.client_type} size="sm" />
               )}
             </div>
-            {booking.phone && (
-              <div className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{booking.phone}</span>
-              </div>
-            )}
-            {booking.client_email && (
-              <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{booking.client_email}</span>
-              </div>
-            )}
             {booking.room_number && (
               <div className="flex items-center gap-2.5">
                 <DoorOpen className="w-4 h-4 text-muted-foreground" />
@@ -895,7 +883,6 @@ const PwaBookingDetail = () => {
       <Drawer open={showContactDrawer} onOpenChange={setShowContactDrawer}>
         <DrawerContent className="pb-safe">
           <div className="p-4 space-y-2">
-            <button onClick={() => window.open(`https://wa.me/${booking.phone.replace(/\D/g,'')}`)} className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl w-full font-medium"><Phone className="text-primary"/> WhatsApp Client</button>
             <button onClick={() => { setShowContactDrawer(false); setShowNoShowDialog(true); }} className="flex items-center gap-3 p-4 bg-amber-50 text-amber-800 rounded-xl w-full font-medium"><UserX className="w-5 h-5"/> {t('bookingDetail.noShow')}</button>
             <button onClick={() => setShowUnassignDialog(true)} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X/> Désassigner</button>
           </div>
@@ -970,21 +957,14 @@ const PwaBookingDetail = () => {
       <Drawer open={showDeclineDialog} onOpenChange={setShowDeclineDialog}>
         <DrawerContent className="pb-safe">
           <div className="p-4 space-y-3">
-            <p className="text-sm font-semibold text-center">Que souhaitez-vous faire ?</p>
-            <button
-              onClick={() => { setShowDeclineDialog(false); setShowProposeAlternativeDialog(true); }}
-              className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl w-full font-medium text-sm"
-            >
-              <CalendarDays className="w-5 h-5 text-primary shrink-0" />
-              Proposer un autre créneau
-            </button>
+            <p className="text-sm font-semibold text-center">Refuser cette réservation ?</p>
             <button
               onClick={() => { setShowDeclineDialog(false); handleDeclineBooking(); }}
               disabled={updating}
               className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium text-sm disabled:opacity-50"
             >
               <X className="w-5 h-5 shrink-0" />
-              Refuser sans proposer
+              Refuser
             </button>
           </div>
         </DrawerContent>
