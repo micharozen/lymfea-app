@@ -278,3 +278,102 @@ VALUES
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000002', 'therapist'),
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000003', 'concierge'),
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000004', 'therapist');
+
+-- 13) Fake bookings (mix of statuses, dates, venues, therapists, payment methods)
+-- Treatment IDs reference:
+--   Hôtel Hana: 21 (Massage relaxant 60min/90€), 24 (Deep tissue 75min/120€),
+--               25 (Soin éclat visage 45min/75€), 26 (Gommage corps 30min/55€),
+--               27 (Enveloppement détox 50min/85€)
+--   Spa Nara:   43 (Massage suédois 60min/95€), 44 (Pierres chaudes 90min/140€),
+--               45 (Soin hydratant 50min/80€), 46 (Modelage corps 45min/70€)
+INSERT INTO public.bookings (
+  id, hotel_id, hotel_name, client_first_name, client_last_name, phone, client_email,
+  room_number, booking_date, booking_time, status, therapist_id, therapist_name,
+  total_price, duration, payment_method, payment_status, room_id, client_note
+) VALUES
+  -- Past bookings (completed)
+  ('00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana',
+   'Sophie', 'Martin', '0612345678', 'sophie.martin@example.com',
+   '305', CURRENT_DATE - INTERVAL '7 days', '10:00', 'completed',
+   '00000000-0000-0000-0000-000000000102', 'Dev Therapist',
+   90.00, 60, 'room', 'charged_to_room', '00000000-0000-0000-0000-000000000030', 'Pression douce svp'),
+  ('00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana',
+   'Pierre', 'Dubois', '0623456789', 'pierre.dubois@example.com',
+   '412', CURRENT_DATE - INTERVAL '5 days', '14:30', 'completed',
+   '00000000-0000-0000-0000-000000000104', 'Marc Therapist',
+   120.00, 75, 'card', 'paid', '00000000-0000-0000-0000-000000000031', NULL),
+  ('00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000011', 'Spa Nara',
+   'Emma', 'Laurent', '0634567890', 'emma.laurent@example.com',
+   NULL, CURRENT_DATE - INTERVAL '3 days', '11:00', 'completed',
+   '00000000-0000-0000-0000-000000000102', 'Dev Therapist',
+   95.00, 60, 'card', 'paid', '00000000-0000-0000-0000-000000000030', NULL),
+  ('00000000-0000-0000-0000-000000000204', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana',
+   'Lucas', 'Bernard', '0645678901', 'lucas.bernard@example.com',
+   '208', CURRENT_DATE - INTERVAL '2 days', '16:00', 'cancelled',
+   '00000000-0000-0000-0000-000000000104', 'Marc Therapist',
+   75.00, 45, 'room', 'pending', '00000000-0000-0000-0000-000000000031', 'Annulé client'),
+  ('00000000-0000-0000-0000-000000000205', '00000000-0000-0000-0000-000000000011', 'Spa Nara',
+   'Camille', 'Petit', '0656789012', 'camille.petit@example.com',
+   NULL, CURRENT_DATE - INTERVAL '1 days', '15:30', 'noshow',
+   '00000000-0000-0000-0000-000000000102', 'Dev Therapist',
+   70.00, 45, 'card', 'pending', '00000000-0000-0000-0000-000000000030', NULL),
+
+  -- Today
+  ('00000000-0000-0000-0000-000000000206', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana',
+   'Julie', 'Moreau', '0667890123', 'julie.moreau@example.com',
+   '501', CURRENT_DATE, '09:30', 'completed',
+   '00000000-0000-0000-0000-000000000102', 'Dev Therapist',
+   85.00, 50, 'room', 'charged_to_room', '00000000-0000-0000-0000-000000000030', NULL),
+  ('00000000-0000-0000-0000-000000000207', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana',
+   'Thomas', 'Roux', '0678901234', 'thomas.roux@example.com',
+   '303', CURRENT_DATE, '14:00', 'ongoing',
+   '00000000-0000-0000-0000-000000000104', 'Marc Therapist',
+   120.00, 75, 'card', 'paid', '00000000-0000-0000-0000-000000000031', 'Dos tendu'),
+  ('00000000-0000-0000-0000-000000000208', '00000000-0000-0000-0000-000000000011', 'Spa Nara',
+   'Marie', 'Lefebvre', '0689012345', 'marie.lefebvre@example.com',
+   NULL, CURRENT_DATE, '17:00', 'confirmed',
+   '00000000-0000-0000-0000-000000000102', 'Dev Therapist',
+   140.00, 90, 'card', 'paid', '00000000-0000-0000-0000-000000000030', NULL),
+
+  -- Future bookings
+  ('00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana',
+   'Antoine', 'Garcia', '0690123456', 'antoine.garcia@example.com',
+   '410', CURRENT_DATE + INTERVAL '1 days', '10:30', 'confirmed',
+   '00000000-0000-0000-0000-000000000104', 'Marc Therapist',
+   90.00, 60, 'room', 'pending', '00000000-0000-0000-0000-000000000031', NULL),
+  ('00000000-0000-0000-0000-000000000210', '00000000-0000-0000-0000-000000000011', 'Spa Nara',
+   'Léa', 'Rousseau', '0601234567', 'lea.rousseau@example.com',
+   NULL, CURRENT_DATE + INTERVAL '2 days', '11:30', 'pending',
+   NULL, NULL,
+   80.00, 50, 'card', 'pending', NULL, 'Première visite'),
+  ('00000000-0000-0000-0000-000000000211', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana',
+   'Nicolas', 'Vincent', '0612340987', 'nicolas.vincent@example.com',
+   '215', CURRENT_DATE + INTERVAL '3 days', '15:00', 'confirmed',
+   '00000000-0000-0000-0000-000000000102', 'Dev Therapist',
+   55.00, 30, 'card', 'paid', '00000000-0000-0000-0000-000000000030', NULL),
+  ('00000000-0000-0000-0000-000000000212', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana',
+   'Charlotte', 'Fournier', '0623450987', 'charlotte.fournier@example.com',
+   '602', CURRENT_DATE + INTERVAL '5 days', '18:00', 'pending',
+   NULL, NULL,
+   85.00, 50, 'room', 'pending', NULL, NULL),
+  ('00000000-0000-0000-0000-000000000213', '00000000-0000-0000-0000-000000000011', 'Spa Nara',
+   'Maxime', 'Girard', '0634560987', 'maxime.girard@example.com',
+   NULL, CURRENT_DATE + INTERVAL '7 days', '13:00', 'confirmed',
+   '00000000-0000-0000-0000-000000000104', 'Marc Therapist',
+   95.00, 60, 'card', 'paid', '00000000-0000-0000-0000-000000000031', NULL);
+
+-- 14) Booking treatments (link bookings to treatment menus)
+INSERT INTO public.booking_treatments (id, booking_id, treatment_id) VALUES
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000021'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000024'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000043'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000204', '00000000-0000-0000-0000-000000000025'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000205', '00000000-0000-0000-0000-000000000046'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000206', '00000000-0000-0000-0000-000000000027'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000207', '00000000-0000-0000-0000-000000000024'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000208', '00000000-0000-0000-0000-000000000044'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000021'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000210', '00000000-0000-0000-0000-000000000045'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000211', '00000000-0000-0000-0000-000000000026'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000212', '00000000-0000-0000-0000-000000000027'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000213', '00000000-0000-0000-0000-000000000043');

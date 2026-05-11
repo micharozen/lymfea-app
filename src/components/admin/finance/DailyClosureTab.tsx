@@ -16,7 +16,7 @@ import {
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/StatusBadge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -284,7 +284,6 @@ export function DailyClosureTab() {
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Date</Label>
             <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full md:w-[220px] justify-start font-normal">
@@ -375,15 +374,25 @@ export function DailyClosureTab() {
       {/* Stat tiles */}
       {report && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <StatTile label="Chiffre d'affaires" value={fmtMoney(report.stats.totalRevenue, currency)} />
-            <StatTile label="Complétées" value={String(report.stats.completedBookings)} tone="success" />
-            <StatTile label="Confirmées (à venir)" value={String(report.stats.confirmedBookings)} tone="info" />
-            <StatTile label="En attente" value={String(report.stats.pendingBookings)} tone="warning" />
-            <StatTile label="Annulées" value={String(report.stats.cancelledBookings)} tone="danger" />
-            <StatTile label="No-show" value={String(report.stats.noShowBookings)} tone="danger" />
             <StatTile label="Total bookings" value={String(report.stats.totalBookings)} />
+            <div className="rounded-lg border bg-card p-3 md:col-span-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Statuts</p>
+              <p className="text-lg font-semibold mt-1 tabular-nums">
+                {report.stats.completedBookings + report.stats.confirmedBookings} actives
+              </p>
+            </div>
           </div>
+
+          <BookingStatusChart
+            completed={report.stats.completedBookings}
+            confirmed={report.stats.confirmedBookings}
+            pending={report.stats.pendingBookings}
+            cancelled={report.stats.cancelledBookings}
+            noShow={report.stats.noShowBookings}
+            total={report.stats.totalBookings}
+          />
 
           {!hideCommissions && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -486,7 +495,12 @@ export function DailyClosureTab() {
                     {[...report.bookings]
                       .sort((a, b) => a.booking_time.localeCompare(b.booking_time))
                       .map((b) => (
-                        <tr key={b.id} className="border-b last:border-0">
+                        <tr
+                          key={b.id}
+                          className="border-b last:border-0 cursor-pointer hover:bg-muted/40 transition-colors"
+                          onClick={() => window.open(`/admin/bookings/${b.id}`, "_blank", "noopener,noreferrer")}
+                          title="Ouvrir la réservation dans un nouvel onglet"
+                        >
                           <td className="py-2 pr-3 tabular-nums">{b.booking_time.slice(0, 5)}</td>
                           <td className="py-2 pr-3 tabular-nums text-muted-foreground">#{b.booking_id}</td>
                           <td className="py-2 pr-3">
@@ -502,9 +516,7 @@ export function DailyClosureTab() {
                             {b.total_price != null ? fmtMoney(b.total_price, currency) : "—"}
                           </td>
                           <td className="py-2">
-                            <Badge variant="outline" className="text-xs font-normal">
-                              {b.status}
-                            </Badge>
+                            <StatusBadge status={b.status} type="booking" />
                           </td>
                         </tr>
                       ))}
@@ -580,6 +592,73 @@ function StatTile({
       <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
       <p className={cn("text-lg font-semibold mt-1 tabular-nums", toneClass)}>{value}</p>
     </div>
+  );
+}
+
+function BookingStatusChart({
+  completed,
+  confirmed,
+  pending,
+  cancelled,
+  noShow,
+  total,
+}: {
+  completed: number;
+  confirmed: number;
+  pending: number;
+  cancelled: number;
+  noShow: number;
+  total: number;
+}) {
+  const segments = [
+    { key: "completed", label: "Complétées", count: completed, color: "bg-green-500", dot: "bg-green-500" },
+    { key: "confirmed", label: "Confirmées", count: confirmed, color: "bg-blue-500", dot: "bg-blue-500" },
+    { key: "pending", label: "En attente", count: pending, color: "bg-yellow-500", dot: "bg-yellow-500" },
+    { key: "cancelled", label: "Annulées", count: cancelled, color: "bg-red-500", dot: "bg-red-500" },
+    { key: "noshow", label: "No-show", count: noShow, color: "bg-zinc-400", dot: "bg-zinc-400" },
+  ];
+  const denom = total > 0 ? total : 1;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+          Statuts des réservations
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {total === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucune réservation</p>
+        ) : (
+          <>
+            <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
+              {segments
+                .filter((s) => s.count > 0)
+                .map((s) => (
+                  <div
+                    key={s.key}
+                    className={cn("h-full", s.color)}
+                    style={{ width: `${(s.count / denom) * 100}%` }}
+                    title={`${s.label}: ${s.count}`}
+                  />
+                ))}
+            </div>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              {segments.map((s) => (
+                <div key={s.key} className="flex items-center gap-2">
+                  <span className={cn("h-2.5 w-2.5 rounded-full", s.dot)} />
+                  <span className="text-muted-foreground">{s.label}</span>
+                  <span className="font-medium tabular-nums">{s.count}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    ({Math.round((s.count / denom) * 100)}%)
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
