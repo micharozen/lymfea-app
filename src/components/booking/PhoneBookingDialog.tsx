@@ -164,7 +164,7 @@ export default function PhoneBookingDialog({
     queryFn: async () => {
       let q = supabase
         .from("treatment_menus")
-        .select("*, treatment_variants(id, guest_count)")
+        .select("*, treatment_variants(id, label, duration, price, is_default, guest_count)")
         .in("status", ["Actif", "active", "Active"])
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name");
@@ -181,6 +181,8 @@ export default function PhoneBookingDialog({
     incrementCart,
     decrementCart,
     getCartQuantity,
+    getCartVariant,
+    setVariant,
     flatIds,
     totalPrice,
     totalDuration,
@@ -201,10 +203,17 @@ export default function PhoneBookingDialog({
 
   const requiredGuestCount = useMemo(() => {
     if (!cartDetails.length) return 1;
-    return Math.max(1, ...cartDetails.flatMap((item) => {
-      const variants = (item.treatment as { treatment_variants?: { guest_count?: number }[] } | undefined)?.treatment_variants ?? [];
-      return variants.length > 0 ? variants.map((v) => v.guest_count ?? 1) : [1];
-    }));
+    return Math.max(
+      1,
+      ...cartDetails.map((item) => {
+        const variants = (item.treatment as { treatment_variants?: { id: string; guest_count?: number }[] } | undefined)?.treatment_variants ?? [];
+        if (!variants.length) return 1;
+        const selected = item.variantId
+          ? variants.find((v) => v.id === item.variantId)
+          : null;
+        return selected?.guest_count ?? 1;
+      })
+    );
   }, [cartDetails]);
 
   const {
@@ -293,7 +302,13 @@ export default function PhoneBookingDialog({
       slot2Time: null,
       slot3Date: null,
       slot3Time: null,
-      treatmentIds: flatIds,
+      treatmentIds: [],
+      treatments: cart.flatMap(item =>
+        Array.from({ length: item.quantity }, () => ({
+          treatmentId: item.treatmentId,
+          variantId: item.variantId || undefined,
+        }))
+      ),
       totalPrice,
       totalDuration,
       isAdmin: true,
@@ -372,6 +387,8 @@ export default function PhoneBookingDialog({
                 incrementCart={incrementCart}
                 decrementCart={decrementCart}
                 getCartQuantity={getCartQuantity}
+                getCartVariant={getCartVariant}
+                setCartVariant={setVariant}
                 totalPrice={totalPrice}
                 totalDuration={totalDuration}
                 currency={selectedHotel?.currency || "EUR"}
@@ -644,6 +661,15 @@ export default function PhoneBookingDialog({
 
 // ---------- Step components ----------
 
+interface TreatmentVariantItem {
+  id: string;
+  label?: string | null;
+  price?: number | null;
+  duration?: number | null;
+  is_default?: boolean;
+  guest_count?: number;
+}
+
 interface VenueTreatmentStepProps {
   t: (k: string) => string;
   hotels: Array<{ id: string; name: string; currency?: string | null }>;
@@ -655,12 +681,15 @@ interface VenueTreatmentStepProps {
     name?: string;
     price?: number | null;
     duration?: number | null;
+    treatment_variants?: TreatmentVariantItem[];
   }>;
-  cart: Array<{ treatmentId: string; quantity: number }>;
+  cart: Array<{ treatmentId: string; quantity: number; variantId?: string | null }>;
   addToCart: (id: string) => void;
   incrementCart: (id: string) => void;
   decrementCart: (id: string) => void;
   getCartQuantity: (id: string) => number;
+  getCartVariant: (id: string) => string | null;
+  setCartVariant: (id: string, variantId: string) => void;
   totalPrice: number;
   totalDuration: number;
   currency: string;
@@ -677,6 +706,8 @@ function VenueTreatmentStep({
   incrementCart,
   decrementCart,
   getCartQuantity,
+  getCartVariant,
+  setCartVariant,
   totalPrice,
   totalDuration,
   currency,
@@ -731,50 +762,85 @@ function VenueTreatmentStep({
               <div className="space-y-2">
                 {filteredTreatments.map((tr) => {
                   const qty = getCartQuantity(tr.id);
+                  const variants = tr.treatment_variants ?? [];
+                  const hasVariantChoice = variants.length >= 2;
+                  const selectedVariantId = qty > 0 ? getCartVariant(tr.id) : null;
+                  const selectedVariant = selectedVariantId
+                    ? variants.find(v => v.id === selectedVariantId)
+                    : variants.find(v => v.is_default) ?? variants[0];
+                  const displayPrice = selectedVariant?.price ?? tr.price ?? 0;
+                  const displayDuration = selectedVariant?.duration ?? tr.duration ?? 0;
+
                   return (
                     <div
                       key={tr.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                      className="rounded-lg border p-3 space-y-2"
                     >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm truncate">{tr.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {tr.duration || 0} min ·{" "}
-                          {formatPrice(tr.price || 0, currency)}
-                        </p>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate">{tr.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {displayDuration} min · {formatPrice(displayPrice, currency)}
+                          </p>
+                        </div>
+                        {qty === 0 ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => addToCart(tr.id)}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8"
+                              onClick={() => decrementCart(tr.id)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-6 text-center text-sm font-medium">
+                              {qty}
+                            </span>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8"
+                              onClick={() => incrementCart(tr.id)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      {qty === 0 ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => addToCart(tr.id)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8"
-                            onClick={() => decrementCart(tr.id)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-6 text-center text-sm font-medium">
-                            {qty}
-                          </span>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8"
-                            onClick={() => incrementCart(tr.id)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
+                      {qty > 0 && hasVariantChoice && (
+                        <div className="flex gap-1.5 flex-wrap">
+                          {variants.map((v) => {
+                            const isSelected = selectedVariantId === v.id
+                              || (!selectedVariantId && v.is_default);
+                            const label = v.label
+                              || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
+                            return (
+                              <button
+                                key={v.id}
+                                type="button"
+                                onClick={() => setCartVariant(tr.id, v.id)}
+                                className={cn(
+                                  "text-xs font-medium px-2.5 py-0.5 rounded-full border transition-colors",
+                                  isSelected
+                                    ? "bg-foreground text-background border-foreground"
+                                    : "border-border text-muted-foreground hover:border-foreground/50"
+                                )}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
