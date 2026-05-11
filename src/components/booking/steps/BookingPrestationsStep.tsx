@@ -21,6 +21,7 @@ interface Treatment {
   price_on_request?: boolean | null;
   service_for?: string | null;
   category?: string | null;
+  treatment_variants?: TreatmentVariant[];
   [key: string]: unknown;
 }
 
@@ -39,12 +40,10 @@ interface BookingPrestationsStepProps {
   isAdmin: boolean;
   cart: CartItem[];
   cartDetails: Array<CartItem & { treatment: Treatment | undefined }>;
-  addToCart: (id: string) => void;
-  incrementCart: (id: string) => void;
-  decrementCart: (id: string) => void;
-  getCartQuantity: (treatmentId: string) => number;
-  getCartVariant: (treatmentId: string) => string | null;
-  setCartVariant: (treatmentId: string, variantId: string) => void;
+  addToCart: (id: string, variantId?: string | null) => void;
+  incrementCart: (id: string, variantId?: string | null) => void;
+  decrementCart: (id: string, variantId?: string | null) => void;
+  getCartQuantity: (treatmentId: string, variantId?: string | null) => number;
   totalPrice: number;
   totalDuration: number;
   hasOnRequestService: boolean;
@@ -82,8 +81,6 @@ export function BookingPrestationsStep({
   incrementCart,
   decrementCart,
   getCartQuantity,
-  getCartVariant,
-  setCartVariant,
   totalPrice,
   totalDuration,
   hasOnRequestService,
@@ -165,14 +162,68 @@ export function BookingPrestationsStep({
 
               <div>
                 {items.map((treatment) => {
-                  const qty = getCartQuantity(treatment.id);
-                  const variants = ((treatment as any).treatment_variants ?? []) as TreatmentVariant[];
+                  const totalQty = getCartQuantity(treatment.id);
+                  const variants = treatment.treatment_variants ?? [];
                   const hasVariantChoice = variants.length >= 2;
-                  const selectedVariantId = qty > 0 ? getCartVariant(treatment.id) : null;
-                  const selectedVariant = selectedVariantId
-                    ? variants.find(v => v.id === selectedVariantId)
-                    : variants.find(v => v.is_default) ?? variants[0];
 
+                  if (hasVariantChoice) {
+                    return (
+                      <div key={treatment.id} className="border-b border-border/10 last:border-0">
+                        <div className="flex items-center gap-1.5 py-1.5">
+                          <span className="font-medium text-foreground text-xs truncate flex-1">
+                            {treatment.name}
+                          </span>
+                          {treatment.price_on_request && (
+                            <span className="shrink-0 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded">
+                              Sur demande
+                            </span>
+                          )}
+                          {totalQty > 0 && (
+                            <span className="shrink-0 text-[9px] font-bold text-muted-foreground">×{totalQty}</span>
+                          )}
+                        </div>
+                        {variants.map((v, vi) => {
+                          const variantQty = getCartQuantity(treatment.id, v.id);
+                          const label = v.label || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
+                          const displayPrice = v.price ?? treatment.price;
+                          const displayDuration = v.duration ?? treatment.duration;
+                          return (
+                            <div key={v.id} className={cn("flex items-center justify-between pl-2 pb-1", vi === variants.length - 1 && "pb-2")}>
+                              <div className="flex flex-col flex-1 pr-2 min-w-0">
+                                <span className="text-[10px] font-medium text-foreground">{label}</span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {treatment.price_on_request
+                                    ? `${displayDuration} min`
+                                    : `${formatPrice(displayPrice, selectedHotel?.currency || 'EUR', { decimals: 0 })} • ${displayDuration} min`}
+                                </span>
+                              </div>
+                              {variantQty > 0 ? (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button type="button" onClick={() => decrementCart(treatment.id, v.id)}
+                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors">
+                                    <Minus className="h-2.5 w-2.5" />
+                                  </button>
+                                  <span className="text-xs font-bold w-4 text-center">{variantQty}</span>
+                                  <button type="button" onClick={() => incrementCart(treatment.id, v.id)}
+                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors">
+                                    <Plus className="h-2.5 w-2.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button type="button" onClick={() => addToCart(treatment.id, v.id)}
+                                  className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors">
+                                  Ajouter
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+
+                  const qty = totalQty;
+                  const selectedVariant = variants[0] ?? null;
                   const displayPrice = selectedVariant?.price ?? treatment.price;
                   const displayDuration = selectedVariant?.duration ?? treatment.duration;
 
@@ -228,32 +279,6 @@ export function BookingPrestationsStep({
                           </button>
                         )}
                       </div>
-
-                      {qty > 0 && hasVariantChoice && (
-                        <div className="pb-1.5 flex gap-1 flex-wrap">
-                          {variants.map((v) => {
-                            const isSelected = selectedVariantId === v.id
-                              || (!selectedVariantId && v.is_default && variants.indexOf(v) === 0);
-                            const label = v.label
-                              || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
-                            return (
-                              <button
-                                key={v.id}
-                                type="button"
-                                onClick={() => setCartVariant(treatment.id, v.id)}
-                                className={cn(
-                                  "text-[9px] font-semibold px-2 py-0.5 rounded-full border transition-colors",
-                                  isSelected
-                                    ? "bg-foreground text-background border-foreground"
-                                    : "border-border text-muted-foreground hover:border-foreground/50"
-                                )}
-                              >
-                                {label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -397,8 +422,8 @@ export function BookingPrestationsStep({
           <div className="flex-1 min-w-0 flex justify-center">
             {cart.length > 0 ? (
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {cartDetails.slice(0, 3).map(({ treatmentId, quantity, treatment }) => (
-                  <div key={treatmentId} className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 shrink-0">
+                {cartDetails.slice(0, 3).map(({ treatmentId, variantId, quantity, treatment }) => (
+                  <div key={`${treatmentId}-${variantId ?? 'base'}`} className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 shrink-0">
                     <span className="text-[9px] font-medium truncate max-w-[60px]">{treatment!.name}</span>
                     <span className="text-[9px] font-bold">×{quantity}</span>
                   </div>

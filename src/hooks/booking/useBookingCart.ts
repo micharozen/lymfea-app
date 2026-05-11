@@ -51,38 +51,60 @@ export function useBookingCart(treatments: Treatment[] | undefined) {
     [cart, treatments]
   );
 
-  const addToCart = (treatmentId: string) => {
+  // Each (treatmentId, variantId) pair is a distinct cart entry, allowing
+  // e.g. 1 Solo + 1 Duo of the same treatment simultaneously.
+  const addToCart = (treatmentId: string, variantId?: string | null) => {
     const treatment = treatments?.find(x => x.id === treatmentId);
-    const defaultVariant = treatment?.treatment_variants?.find(v => v.is_default)
-      ?? treatment?.treatment_variants?.[0]
-      ?? null;
+
+    let resolvedVariantId: string | null;
+    if (variantId !== undefined) {
+      resolvedVariantId = variantId;
+    } else {
+      const defaultVariant = treatment?.treatment_variants?.find(v => v.is_default)
+        ?? treatment?.treatment_variants?.[0]
+        ?? null;
+      resolvedVariantId = defaultVariant?.id ?? null;
+    }
 
     setCart(p => {
-      const existing = p.find(x => x.treatmentId === treatmentId);
-      if (existing) return p.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity + 1 } : x);
-      return [...p, { treatmentId, quantity: 1, variantId: defaultVariant?.id ?? null }];
+      const existing = p.find(x => x.treatmentId === treatmentId && x.variantId === resolvedVariantId);
+      if (existing) return p.map(x =>
+        x.treatmentId === treatmentId && x.variantId === resolvedVariantId
+          ? { ...x, quantity: x.quantity + 1 }
+          : x
+      );
+      return [...p, { treatmentId, quantity: 1, variantId: resolvedVariantId }];
     });
   };
 
-  const incrementCart = (treatmentId: string) =>
-    setCart(p => p.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity + 1 } : x));
-
-  const decrementCart = (treatmentId: string) =>
+  const incrementCart = (treatmentId: string, variantId?: string | null) =>
     setCart(p => {
-      const e = p.find(x => x.treatmentId === treatmentId);
-      return e && e.quantity <= 1
-        ? p.filter(x => x.treatmentId !== treatmentId)
-        : p.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity - 1 } : x);
+      const target = variantId !== undefined
+        ? p.find(x => x.treatmentId === treatmentId && x.variantId === variantId)
+        : p.find(x => x.treatmentId === treatmentId);
+      if (!target) return p;
+      return p.map(x => x === target ? { ...x, quantity: x.quantity + 1 } : x);
     });
 
-  const setVariant = (treatmentId: string, variantId: string | null) =>
-    setCart(p => p.map(x => x.treatmentId === treatmentId ? { ...x, variantId } : x));
+  const decrementCart = (treatmentId: string, variantId?: string | null) =>
+    setCart(p => {
+      const matches = (x: CartItem) =>
+        x.treatmentId === treatmentId && x.variantId === (variantId !== undefined ? variantId : x.variantId);
+      // When variantId is omitted, decrement the first matching entry only.
+      const target = p.find(matches);
+      if (!target) return p;
+      if (target.quantity <= 1) return p.filter(x => x !== target);
+      return p.map(x => x === target ? { ...x, quantity: x.quantity - 1 } : x);
+    });
 
-  const getCartVariant = (treatmentId: string): string | null =>
-    cart.find(x => x.treatmentId === treatmentId)?.variantId ?? null;
-
-  const getCartQuantity = (treatmentId: string) =>
-    cart.find(x => x.treatmentId === treatmentId)?.quantity || 0;
+  // Without variantId: returns total quantity across all variants of that treatment.
+  // With variantId: returns quantity for that specific (treatmentId, variantId) pair.
+  const getCartQuantity = (treatmentId: string, variantId?: string | null) => {
+    if (variantId !== undefined) {
+      return cart.find(x => x.treatmentId === treatmentId && x.variantId === variantId)?.quantity || 0;
+    }
+    return cart.filter(x => x.treatmentId === treatmentId).reduce((sum, x) => sum + x.quantity, 0);
+  };
 
   const flatIds = useMemo(() => {
     const ids: string[] = [];
@@ -98,8 +120,6 @@ export function useBookingCart(treatments: Treatment[] | undefined) {
     addToCart,
     incrementCart,
     decrementCart,
-    setVariant,
-    getCartVariant,
     getCartQuantity,
     flatIds,
     totalPrice,

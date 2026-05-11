@@ -181,8 +181,6 @@ export default function PhoneBookingDialog({
     incrementCart,
     decrementCart,
     getCartQuantity,
-    getCartVariant,
-    setVariant,
     flatIds,
     totalPrice,
     totalDuration,
@@ -206,10 +204,10 @@ export default function PhoneBookingDialog({
     return Math.max(
       1,
       ...cartDetails.map((item) => {
-        const variants = (item.treatment as { treatment_variants?: { id: string; guest_count?: number }[] } | undefined)?.treatment_variants ?? [];
+        const variants = item.treatment?.treatment_variants ?? [];
         if (!variants.length) return 1;
         const selected = item.variantId
-          ? variants.find((v) => v.id === item.variantId)
+          ? variants.find(v => v.id === item.variantId)
           : null;
         return selected?.guest_count ?? 1;
       })
@@ -387,8 +385,6 @@ export default function PhoneBookingDialog({
                 incrementCart={incrementCart}
                 decrementCart={decrementCart}
                 getCartQuantity={getCartQuantity}
-                getCartVariant={getCartVariant}
-                setCartVariant={setVariant}
                 totalPrice={totalPrice}
                 totalDuration={totalDuration}
                 currency={selectedHotel?.currency || "EUR"}
@@ -684,12 +680,10 @@ interface VenueTreatmentStepProps {
     treatment_variants?: TreatmentVariantItem[];
   }>;
   cart: Array<{ treatmentId: string; quantity: number; variantId?: string | null }>;
-  addToCart: (id: string) => void;
-  incrementCart: (id: string) => void;
-  decrementCart: (id: string) => void;
-  getCartQuantity: (id: string) => number;
-  getCartVariant: (id: string) => string | null;
-  setCartVariant: (id: string, variantId: string) => void;
+  addToCart: (id: string, variantId?: string | null) => void;
+  incrementCart: (id: string, variantId?: string | null) => void;
+  decrementCart: (id: string, variantId?: string | null) => void;
+  getCartQuantity: (id: string, variantId?: string | null) => number;
   totalPrice: number;
   totalDuration: number;
   currency: string;
@@ -706,8 +700,6 @@ function VenueTreatmentStep({
   incrementCart,
   decrementCart,
   getCartQuantity,
-  getCartVariant,
-  setCartVariant,
   totalPrice,
   totalDuration,
   currency,
@@ -761,21 +753,59 @@ function VenueTreatmentStep({
             <ScrollArea className="h-[280px] pr-2">
               <div className="space-y-2">
                 {filteredTreatments.map((tr) => {
-                  const qty = getCartQuantity(tr.id);
+                  const totalQty = getCartQuantity(tr.id);
                   const variants = tr.treatment_variants ?? [];
                   const hasVariantChoice = variants.length >= 2;
-                  const selectedVariantId = qty > 0 ? getCartVariant(tr.id) : null;
-                  const selectedVariant = selectedVariantId
-                    ? variants.find(v => v.id === selectedVariantId)
-                    : variants.find(v => v.is_default) ?? variants[0];
-                  const displayPrice = selectedVariant?.price ?? tr.price ?? 0;
-                  const displayDuration = selectedVariant?.duration ?? tr.duration ?? 0;
+
+                  if (hasVariantChoice) {
+                    return (
+                      <div key={tr.id} className="rounded-lg border p-3 space-y-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <p className="font-medium text-sm truncate flex-1">{tr.name}</p>
+                          {totalQty > 0 && (
+                            <span className="text-xs font-bold text-muted-foreground shrink-0">×{totalQty}</span>
+                          )}
+                        </div>
+                        {variants.map((v) => {
+                          const variantQty = getCartQuantity(tr.id, v.id);
+                          const label = v.label || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
+                          const displayPrice = v.price ?? tr.price ?? 0;
+                          const displayDuration = v.duration ?? tr.duration ?? 0;
+                          return (
+                            <div key={v.id} className="flex items-center justify-between gap-3 pl-2 border-l-2 border-border/30">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium">{label}</p>
+                                <p className="text-xs text-muted-foreground">{displayDuration} min · {formatPrice(displayPrice, currency)}</p>
+                              </div>
+                              {variantQty === 0 ? (
+                                <Button type="button" size="sm" variant="outline" onClick={() => addToCart(tr.id, v.id)}>
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <Button type="button" size="icon" variant="outline" className="h-8 w-8" onClick={() => decrementCart(tr.id, v.id)}>
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-6 text-center text-sm font-medium">{variantQty}</span>
+                                  <Button type="button" size="icon" variant="outline" className="h-8 w-8" onClick={() => incrementCart(tr.id, v.id)}>
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+
+                  const qty = totalQty;
+                  const singleVariant = variants[0] ?? null;
+                  const displayPrice = singleVariant?.price ?? tr.price ?? 0;
+                  const displayDuration = singleVariant?.duration ?? tr.duration ?? 0;
 
                   return (
-                    <div
-                      key={tr.id}
-                      className="rounded-lg border p-3 space-y-2"
-                    >
+                    <div key={tr.id} className="rounded-lg border p-3 space-y-2">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-sm truncate">{tr.name}</p>
@@ -784,65 +814,21 @@ function VenueTreatmentStep({
                           </p>
                         </div>
                         {qty === 0 ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => addToCart(tr.id)}
-                          >
+                          <Button type="button" size="sm" variant="outline" onClick={() => addToCart(tr.id)}>
                             <Plus className="h-4 w-4" />
                           </Button>
                         ) : (
                           <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8"
-                              onClick={() => decrementCart(tr.id)}
-                            >
+                            <Button type="button" size="icon" variant="outline" className="h-8 w-8" onClick={() => decrementCart(tr.id)}>
                               <Minus className="h-3 w-3" />
                             </Button>
-                            <span className="w-6 text-center text-sm font-medium">
-                              {qty}
-                            </span>
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8"
-                              onClick={() => incrementCart(tr.id)}
-                            >
+                            <span className="w-6 text-center text-sm font-medium">{qty}</span>
+                            <Button type="button" size="icon" variant="outline" className="h-8 w-8" onClick={() => incrementCart(tr.id)}>
                               <Plus className="h-3 w-3" />
                             </Button>
                           </div>
                         )}
                       </div>
-                      {qty > 0 && hasVariantChoice && (
-                        <div className="flex gap-1.5 flex-wrap">
-                          {variants.map((v) => {
-                            const isSelected = selectedVariantId === v.id
-                              || (!selectedVariantId && v.is_default);
-                            const label = v.label
-                              || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
-                            return (
-                              <button
-                                key={v.id}
-                                type="button"
-                                onClick={() => setCartVariant(tr.id, v.id)}
-                                className={cn(
-                                  "text-xs font-medium px-2.5 py-0.5 rounded-full border transition-colors",
-                                  isSelected
-                                    ? "bg-foreground text-background border-foreground"
-                                    : "border-border text-muted-foreground hover:border-foreground/50"
-                                )}
-                              >
-                                {label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -1025,7 +1011,7 @@ function TherapistStep({
         ) : (
           therapists.filter(th => !exclude.includes(th.id) || th.id === selectedId).map((th) => {
             const selected = selectedId === th.id;
-            const g = genderLabel((th as any).gender);
+            const g = genderLabel((th as { gender?: string | null }).gender);
             return (
               <button
                 key={th.id}

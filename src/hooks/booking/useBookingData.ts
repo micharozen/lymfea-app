@@ -57,7 +57,9 @@ export function useBookingData() {
           booking_therapists(status, therapist_id),
           booking_treatments(
             treatment_id,
-            treatment_menus(name, duration, price)
+            variant_id,
+            treatment_menus(name, duration, price),
+            treatment_variants(id, label, duration, price)
           ),
           booking_payment_infos(payment_status, stripe_payment_method_id)
         `)
@@ -85,10 +87,15 @@ export function useBookingData() {
           const treatmentsList = (treatments as any[] | null)
             ?.map((t): Treatment | null => {
               if (!t.treatment_menus) return null;
+              const variant = t.treatment_variants || null;
+              const variantSuffix = variant?.label ? ` · ${variant.label}` : '';
               return {
                 ...t.treatment_menus,
                 id: t.treatment_id,
-                treatment_id: t.treatment_id
+                treatment_id: t.treatment_id,
+                name: t.treatment_menus.name + variantSuffix,
+                duration: variant?.duration ?? t.treatment_menus.duration,
+                price: variant?.price ?? t.treatment_menus.price,
               } as Treatment;
             })
             .filter((m): m is Treatment => m !== null) || [];

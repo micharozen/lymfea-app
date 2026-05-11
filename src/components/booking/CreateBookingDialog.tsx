@@ -158,7 +158,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const {
     cart, setCart, addToCart, incrementCart, decrementCart,
-    setVariant, getCartVariant,
     getCartQuantity, flatIds, totalPrice, totalDuration,
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
@@ -170,10 +169,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     return Math.max(
       1,
       ...cartDetails.map((item) => {
-        const variants = (item.treatment as any)?.treatment_variants ?? [];
+        const variants = item.treatment?.treatment_variants ?? [];
         if (!variants.length) return 1;
         const selected = item.variantId
-          ? variants.find((v: any) => v.id === item.variantId)
+          ? variants.find(v => v.id === item.variantId)
           : null;
         return selected?.guest_count ?? 1;
       })
@@ -489,8 +488,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   incrementCart={incrementCart}
                   decrementCart={decrementCart}
                   getCartQuantity={getCartQuantity}
-                  getCartVariant={getCartVariant}
-                  setCartVariant={setVariant}
                   totalPrice={totalPrice}
                   totalDuration={totalDuration}
                   hasOnRequestService={hasOnRequestService}
