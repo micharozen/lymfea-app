@@ -89,6 +89,12 @@ const ManageBooking = () => {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
+  // Param can be either a UUID (legacy /booking/manage/:bookingId) or a
+  // base62 short_token (new /m/:bookingId used in SMS). UUIDs are 36 chars
+  // with dashes; short_tokens are 8 chars without dashes.
+  const isUuid = !!bookingId && bookingId.includes("-") && bookingId.length === 36;
+  const lookupColumn: "id" | "short_token" = isUuid ? "id" : "short_token";
+
   const { data: booking, isLoading, error } = useQuery<BookingRow | null>({
     queryKey: ["client-booking", bookingId],
     queryFn: async () => {
@@ -102,7 +108,7 @@ const ManageBooking = () => {
             treatment:treatment_menus(id, name, duration, price)
           )`
         )
-        .eq("id", bookingId!)
+        .eq(lookupColumn, bookingId!)
         .maybeSingle();
 
       if (error) throw error;

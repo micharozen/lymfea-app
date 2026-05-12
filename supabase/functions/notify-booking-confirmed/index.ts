@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
+import { sendSms } from "../_shared/send-sms.ts";
 
 const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
 
@@ -170,6 +171,7 @@ serve(async (req) => {
     await delay(600);
 
     // 3. Send to client
+    let clientEmailOk = false;
     if (booking.client_email) {
       const { error: emailError } = await sendEmail({
         to: booking.client_email,
@@ -182,7 +184,40 @@ serve(async (req) => {
         errors.push(`client:${booking.client_email}`);
       } else {
         emailsSent.push(`client:${booking.client_email}`);
+        clientEmailOk = true;
       }
+    }
+
+    // 3bis. Send SMS to client when booking transitions to confirmed
+    // (therapist accepted). Garde : on n'envoie le SMS de confirmation que si
+    // le client a engagé son paiement (paid/charged/charged_to_room/card_saved)
+    // ou si le partenaire facture (Staycation/ClassPass). Un booking confirmé
+    // par un thérapeute mais non payé reste muet côté client.
+    const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing'];
+    const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
+    const clientPhone: string = (booking as any).phone ?? (booking as any).client_phone ?? '';
+    if (clientPhone && clientEmailOk && isPaidEnough) {
+      try {
+        const firstName = booking.client_first_name ?? '';
+        const shortToken = (booking as any).short_token;
+        const clientManageUrl = shortToken
+          ? `${siteUrl}/m/${shortToken}`
+          : `${siteUrl}/booking/manage/${bookingId}`;
+        const smsBody = `Bonjour ${firstName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${clientManageUrl}`;
+        const smsResult = await sendSms({ to: clientPhone, body: smsBody });
+        if (smsResult.error) {
+          console.error('[notify-booking-confirmed][sms] Confirmation SMS error:', smsResult.error);
+          errors.push(`sms:${clientPhone}`);
+        } else {
+          console.log('[notify-booking-confirmed][sms] Confirmation SMS sent:', smsResult.sid);
+          emailsSent.push(`sms:${clientPhone}`);
+        }
+      } catch (smsErr) {
+        console.error('[notify-booking-confirmed][sms] Confirmation SMS exception:', smsErr);
+        errors.push(`sms:${clientPhone}`);
+      }
+    } else if (!clientPhone) {
+      console.log('[notify-booking-confirmed][sms] No client phone, skipping SMS');
     }
 
     // 4. Send push notification to all accepted therapists (primary + duo secondary)
