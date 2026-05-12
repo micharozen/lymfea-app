@@ -10,7 +10,7 @@ import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { invokeStripe } from '@/lib/supabaseEdgeFunctions';
+import { invokeEdgeFunction, invokeStripe } from '@/lib/supabaseEdgeFunctions';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { ProgressBar } from '@/components/client/ProgressBar';
@@ -158,7 +158,7 @@ export default function Payment() {
               },
             }),
             language: i18n.language === 'en' ? 'en' : 'fr',
-        });
+        }, { skipAuth: true });
 
         if (error) throw error;
 
@@ -193,7 +193,7 @@ export default function Payment() {
       if (selectedBundle && isAmountBundle && selectedBundle.amountToUseCents) {
         if (uncoveredTotal === 0) {
           // Full coverage by gift amount
-          const { data, error } = await supabase.functions.invoke('create-client-booking', {
+          const { data, error } = await invokeEdgeFunction<unknown, { bookingId: string }>('create-client-booking', {
             body: {
               hotelId,
               clientData: {
@@ -226,9 +226,11 @@ export default function Payment() {
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
             },
+            skipAuth: true,
           });
 
           if (error) throw error;
+          if (!data) throw new Error('Booking creation failed');
 
           clearBasket();
           clearFlow();
@@ -261,7 +263,7 @@ export default function Payment() {
                 amountCents: selectedBundle.amountToUseCents,
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-          });
+          }, { skipAuth: true });
 
           if (error) throw error;
 
@@ -280,7 +282,7 @@ export default function Payment() {
 
       // Session bundle — all items covered
       if (selectedBundle && bundleCoveredItems.length > 0 && uncoveredTotal === 0) {
-        const { data, error } = await supabase.functions.invoke('create-client-booking', {
+        const { data, error } = await invokeEdgeFunction<unknown, { bookingId: string }>('create-client-booking', {
           body: {
             hotelId,
             clientData: {
@@ -313,9 +315,11 @@ export default function Payment() {
             ...(draftBookingId ? { draftBookingId } : {}),
             ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
           },
+          skipAuth: true,
         });
 
         if (error) throw error;
+        if (!data) throw new Error('Booking creation failed');
 
         clearBasket();
         clearFlow();
@@ -358,7 +362,7 @@ export default function Payment() {
           ...(isMulti ? { groupId, bookingIds } : {}),
           // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
           ...(isMulti && multiItemsForCard && bookingIds.length === 0 ? { slots: multiItemsForCard } : {}),
-        });
+        }, { skipAuth: true });
 
         if (error) throw error;
 
@@ -415,13 +419,14 @@ export default function Payment() {
               ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
             };
 
-        const { data, error } = await supabase.functions.invoke('create-client-booking', { body });
+        const { data, error } = await invokeEdgeFunction<unknown, { bookingId?: string; bookingIds?: string[] }>('create-client-booking', { body, skipAuth: true });
 
         if (error) throw error;
+        if (!data) throw new Error('Booking creation failed');
 
         clearBasket();
         clearFlow();
-        const navigateBookingId = isMulti && Array.isArray(data?.bookingIds) && data.bookingIds.length
+        const navigateBookingId = isMulti && Array.isArray(data.bookingIds) && data.bookingIds.length
           ? data.bookingIds[0]
           : data.bookingId;
         navigate(`/client/${slug}/confirmation/${navigateBookingId}`);
