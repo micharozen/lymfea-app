@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,11 @@ import { brand, brandLogos } from '@/config/brand';
 
 export default function PaymentConfirmation() {
   const { bookingId } = useParams<{ bookingId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
+
+  const isPaymentSuccess = searchParams.get('payment') === 'success';
 
   // Fetch booking to get hotel_id and hotel_name for navigation and display
   const { data: booking, isLoading } = useQuery({

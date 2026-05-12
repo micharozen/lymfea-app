@@ -7,6 +7,8 @@ import { brand, brandLogos } from "@/config/brand";
 import { GlobalSearch } from "@/components/admin/GlobalSearch";
 import { OrganizationPickerDialog } from "@/components/admin/OrganizationPickerDialog";
 import { useUser } from "@/contexts/UserContext";
+import { ViewModeSwitcher } from "@/components/admin/ViewModeSwitcher";
+import { useViewMode } from "@/contexts/ViewModeContext";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -78,19 +80,20 @@ const adminPrimaryItems: MenuItem[] = [
 
 const adminSecondaryItems: MenuItem[] = [
   { title: "Salles de soin", url: "/admin/treatment-rooms", icon: DoorOpen },
-  { title: "Équipe lieu", url: "/admin/concierges", icon: UserCog },
+  { title: "Gestion du lieu", url: "/admin/concierges", icon: UserCog },
   { title: `Produits`, url: "/admin/products", icon: Package },
   { title: "Commandes", url: "/admin/orders", icon: Truck },
   { title: "Finance", url: "/admin/finance", icon: Wallet },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
 
-const conciergePrimaryItems: MenuItem[] = [
+const venueManagerPrimaryItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Planning", url: "/admin/bookings", icon: CalendarDays },
   { title: "Réservations", url: "/admin/all-bookings", icon: ListChecks },
+  { title: "Clients", url: "/admin/customers", icon: Contact },
+  { title: "Mon lieu", url: "/admin/my-venue", icon: Building2 },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
-  { title: "Transactions", url: "/admin/transactions", icon: Wallet },
 ];
 
 const STORAGE_KEY = "lymfea-sidebar-more-open";
@@ -139,7 +142,7 @@ export function AppSidebar() {
           .maybeSingle();
         
         if (roleData) {
-          const roleLabel = roleData.role === 'admin' ? 'Admin' : roleData.role === 'concierge' ? 'Équipe lieu' : roleData.role;
+          const roleLabel = roleData.role === 'admin' ? 'Admin' : roleData.role === 'concierge' ? 'Gestion du lieu' : roleData.role;
           setUserRole(roleLabel);
         }
 
@@ -244,18 +247,30 @@ export function AppSidebar() {
     navigate("/auth");
   };
 
+  const { mode: viewMode, venueId: viewVenueId } = useViewMode();
   const isAdminRole = userRole === 'Admin';
-  const primaryItems = isAdminRole ? adminPrimaryItems : conciergePrimaryItems;
-  const secondaryItems: MenuItem[] = isAdminRole ? [...adminSecondaryItems] : [];
+  const inVenueManagerView = isAdminRole && viewMode === 'venue_manager';
 
-  if (isAdminRole && isSuperAdmin) {
-    secondaryItems.push({ title: "Organisations", url: "/admin/organizations", icon: Network });
-  } else if (isAdminRole && isAdmin && !isSuperAdmin && organizationId) {
-    secondaryItems.push({
-      title: "Mon organisation",
-      url: `/admin/organizations/${organizationId}`,
-      icon: Network,
-    });
+  const venueManagerItems: MenuItem[] = venueManagerPrimaryItems;
+
+  const primaryItems = inVenueManagerView
+    ? venueManagerItems
+    : isAdminRole
+      ? adminPrimaryItems
+      : venueManagerPrimaryItems;
+  const secondaryItems: MenuItem[] =
+    isAdminRole && !inVenueManagerView ? [...adminSecondaryItems] : [];
+
+  if (isAdminRole && !inVenueManagerView) {
+    if (isSuperAdmin) {
+      secondaryItems.push({ title: "Organisations", url: "/admin/organizations", icon: Network });
+    } else if (isAdmin && !isSuperAdmin && organizationId) {
+      secondaryItems.push({
+        title: "Mon organisation",
+        url: `/admin/organizations/${organizationId}`,
+        icon: Network,
+      });
+    }
   }
 
   useEffect(() => {
@@ -339,6 +354,19 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* View mode switcher -- admin in admin mode only */}
+        {isAdmin && !inVenueManagerView && (
+          <SidebarGroup className="py-0">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <ViewModeSwitcher />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {/* Secondary navigation (collapsible "More") -- admin only */}
         {secondaryItems.length > 0 && (
           <Collapsible open={moreOpen} onOpenChange={handleMoreToggle}>
@@ -368,7 +396,7 @@ export function AppSidebar() {
             <SidebarGroup className="py-1">
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {renderNavItem({ title: "Paramètres", url: "/admin/settings", icon: Settings })}
+                  {renderNavItem({ title: "Admins", url: "/admin/admins", icon: Settings })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

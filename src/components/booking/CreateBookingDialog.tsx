@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useOrgScope } from "@/hooks/useOrgScope";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import {
   hotelKeys,
   therapistKeys,
@@ -32,7 +33,7 @@ import {
 } from "@shared/db";
 import { useBookingCart } from "@/hooks/booking/useBookingCart";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
-import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
 import { BookingWizardStepper } from "@/components/ui/BookingWizardStepper";
 import { format } from "date-fns";
 import { formatPrice } from "@/lib/formatPrice";
@@ -42,14 +43,16 @@ import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from ".
 import { BookingInfoStep } from "./steps/BookingInfoStep";
 import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
 import { BookingPrestationsStep } from "./steps/BookingPrestationsStep";
+import { BookingTherapistStep } from "./steps/BookingTherapistStep";
 import { BookingPaymentStep } from "./steps/BookingPaymentStep";
 import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities";
 import type { AmenityAccessPayload } from "@/hooks/booking/useCreateBookingMutation";
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
-  const { isConcierge, hotelIds, isAdmin } = useUserContext();
+  const { hotelIds, isAdmin } = useUserContext();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<"info" | "prestations" | "payment">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "prestations" | "therapist" | "payment">("info");
   const [visibleSlots, setVisibleSlots] = useState(1);
 
   const formSchema = useMemo(() => createFormSchema(t), [t]);
@@ -64,12 +67,16 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       slot2Time: "",
       slot3Date: undefined,
       slot3Time: "",
+      clientType: "external",
       clientFirstName: "",
       clientLastName: "",
       phone: "",
       countryCode: "+33",
       roomNumber: "",
+      roomNumberLater: false,
       clientNote: "",
+      payByVoucher: false,
+      voucherReference: "",
     },
   });
 
@@ -81,12 +88,31 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const countryCode = form.watch("countryCode");
   const clientFirstName = form.watch("clientFirstName");
   const clientLastName = form.watch("clientLastName");
+  const clientEmail = form.watch("clientEmail");
   const phone = form.watch("phone");
   const roomNumber = form.watch("roomNumber");
+  const clientType = form.watch("clientType");
+  const payByVoucher = form.watch("payByVoucher");
+  const voucherReference = form.watch("voucherReference");
+
+  // Clear roomNumber when clientType switches away from 'hotel'
+  // and reset voucher when moving to partner client types.
+  useEffect(() => {
+    if (clientType !== "hotel" && roomNumber) {
+      form.setValue("roomNumber", "");
+    }
+    if (clientType !== "hotel" && form.getValues("roomNumberLater")) {
+      form.setValue("roomNumberLater", false);
+    }
+    if (clientType !== "hotel" && clientType !== "external" && payByVoucher) {
+      form.setValue("payByVoucher", false);
+      form.setValue("voucherReference", "");
+    }
+  }, [clientType, roomNumber, payByVoucher, form]);
 
   const [createdBooking, setCreatedBooking] = useState<{ id: string; booking_id: number; hotel_name: string } | null>(null);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
-  const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
+  const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
   const [customDuration, setCustomDuration] = useState<string>("");
 
@@ -138,6 +164,51 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     getCartQuantity, flatIds, totalPrice, totalDuration,
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
+
+  // Detect max guest_count across cart items to drive multi-therapist picker.
+  // A treatment with no variants defaults to 1 guest.
+  const requiredGuestCount = useMemo(() => {
+    if (!cartDetails.length) return 1;
+    return Math.max(
+      1,
+      ...cartDetails.map((item) => {
+        const t = item.treatment as { treatment_variants?: { guest_count?: number }[] } | undefined;
+        const variants = t?.treatment_variants ?? [];
+        return variants.length > 0 ? Math.max(...variants.map(v => v.guest_count ?? 1)) : 1;
+      })
+    );
+  }, [cartDetails]);
+
+  // Additional therapist IDs for duo/trio bookings (index 0 = therapist 2, etc.)
+  const [additionalTherapistIds, setAdditionalTherapistIds] = useState<string[]>([]);
+  const [duoMode, setDuoMode] = useState<"assign" | "broadcast">("assign");
+
+  // Clear additional therapists when no longer a duo booking
+  useEffect(() => {
+    if (requiredGuestCount <= 1) {
+      setAdditionalTherapistIds([]);
+    }
+  }, [requiredGuestCount]);
+
+  const handleDuoModeChange = (mode: "assign" | "broadcast") => {
+    setDuoMode(mode);
+    if (mode === "broadcast") setAdditionalTherapistIds([]);
+  };
+
+  // Intersection of `available_days` for every cart item. A treatment with
+  // `available_days = null` is unconstrained and doesn't shrink the set.
+  // When the set is non-null, BookingInfoStep draws those weekdays as
+  // struck-through / clickable (with a warning toast).
+  const cartAvailableDays = useMemo<number[] | null>(() => {
+    if (!cartDetails.length) return null;
+    const sets = cartDetails
+      .map((i) => (i.treatment as { available_days?: number[] | null } | undefined)?.available_days)
+      .filter((days): days is number[] => Array.isArray(days) && days.length > 0);
+    if (sets.length === 0) return null;
+    return sets.reduce<number[]>((acc, days) =>
+      acc.length === 0 ? [...days] : acc.filter((d) => days.includes(d)),
+    []);
+  }, [cartDetails]);
 
   // Venue amenities for "include amenity access" option
   const { amenities: venueAmenities } = useVenueAmenities(hotelId || "");
@@ -195,7 +266,17 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           booking_id: data.booking_id,
           hotel_name: data.hotel_name || '',
         });
-        setActiveTab("payment");
+        // Partner-billed clients (hotel/staycation/classpass) and voucher
+        // payments don't need a Stripe link — open the confirmation dialog
+        // (email + SMS) instead of routing to the payment tab.
+        const ct = form.getValues("clientType");
+        const byVoucher = form.getValues("payByVoucher");
+        const skipStripe = ct !== "external" || byVoucher;
+        if (skipStripe || isConcierge) {
+          setIsNotificationDialogOpen(true);
+        } else {
+          setActiveTab("payment");
+        }
       } else {
         handleClose();
       }
@@ -204,13 +285,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const validateInfo = async () => {
     const fields: (keyof BookingFormValues)[] = [
-      "hotelId", "clientFirstName", "clientLastName", "phone", "date", "time",
+      "hotelId", "clientFirstName", "clientLastName", "phone", "date", "time", "roomNumber",
     ];
     const result = await form.trigger(fields);
-    if (isAdmin && !form.getValues("therapistId")) {
-      form.setError("therapistId", { message: "Veuillez sélectionner un thérapeute" });
-      return false;
-    }
     const now = new Date();
     const values = form.getValues();
     if (values.date && values.time) {
@@ -266,10 +343,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       return;
     }
     const values = form.getValues();
+    if (isAdmin && !values.therapistId && duoMode !== "broadcast") {
+      toast({ title: "Veuillez sélectionner un thérapeute ou diffuser", variant: "destructive" });
+      return;
+    }
     mutation.mutate({
       hotelId: values.hotelId,
       clientFirstName: values.clientFirstName,
       clientLastName: values.clientLastName,
+      clientEmail: values.clientEmail || undefined,
       phone: values.phone,
       countryCode: values.countryCode,
       roomNumber: values.roomNumber,
@@ -288,6 +370,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       isOutOfHours: isBookingOutOfHours,
       surchargeAmount,
       amenityAccess: amenityAccessPayload.length > 0 ? amenityAccessPayload : undefined,
+      clientType: values.clientType,
+      payByVoucher: values.payByVoucher,
+      voucherReference: values.voucherReference?.trim() || null,
+      guestCount: requiredGuestCount,
+      ...(requiredGuestCount > 1 && duoMode === "assign" && additionalTherapistIds.length > 0
+        ? { therapistIds: [values.therapistId, ...additionalTherapistIds].filter(Boolean) }
+        : {}),
     });
   };
 
@@ -316,17 +405,23 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       slot2Time: "",
       slot3Date: undefined,
       slot3Time: "",
+      clientType: "external",
       clientFirstName: "",
       clientLastName: "",
       phone: "",
       countryCode: "+33",
       roomNumber: "",
+      roomNumberLater: false,
       clientNote: "",
+      payByVoucher: false,
+      voucherReference: "",
     });
     setCart([]);
     setCustomPrice("");
     setCustomDuration("");
     setSelectedAmenityIds([]);
+    setAdditionalTherapistIds([]);
+    setDuoMode("broadcast");
     setCreatedBooking(null);
     onOpenChange(false);
   };
@@ -334,19 +429,24 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   return (
     <>
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleRequestClose(); }}>
-      <DialogContent className="max-h-[92vh] max-w-xl p-0 gap-0 flex flex-col overflow-hidden" onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}>
+      <DialogContent
+        className="max-h-[92vh] max-w-xl p-0 gap-0 flex flex-col overflow-hidden"
+        onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
+      >
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
-            Nouvelle réservation
+            {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
           </DialogTitle>
           <BookingWizardStepper
             currentStep={activeTab === "info" ? 1 : activeTab === "prestations" ? 2 : 3}
+            hidePayment={isConcierge}
           />
         </DialogHeader>
 
         <Form {...form}>
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations" | "payment")} className="flex-1 flex flex-col min-h-0">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations" | "therapist" | "payment")} className="flex-1 flex flex-col min-h-0">
               <TabsContent value="info" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden">
                 <BookingInfoStep
                   form={form}
@@ -354,7 +454,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   isConcierge={isConcierge}
                   hotelIds={hotelIds}
                   hotels={hotels}
-                  therapists={therapists}
                   hotelTimezone={hotelTimezone}
                   hotelId={hotelId}
                   countryCode={countryCode}
@@ -366,6 +465,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   isSlotAvailable={isSlotAvailable}
                   isAvailabilityLoading={isAvailabilityLoading}
                   slotInterval={venueSlotInterval}
+                  cartAvailableDays={cartAvailableDays}
                   onValidateAndNext={async () => { if (await validateInfo()) setActiveTab("prestations"); }}
                   onCancel={handleClose}
                 />
@@ -396,9 +496,41 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   finalPriceWithSurcharge={finalPriceWithSurcharge}
                   isPending={mutation.isPending}
                   onBack={() => setActiveTab("info")}
+                  onNext={isAdmin ? () => {
+                    if (!cart.length) {
+                      toast({ title: "Sélectionnez une prestation", variant: "destructive" });
+                      return;
+                    }
+                    setActiveTab("therapist");
+                  } : undefined}
                   venueAmenities={venueAmenities}
                   selectedAmenityIds={selectedAmenityIds}
                   onToggleAmenity={handleToggleAmenity}
+                  clientType={clientType}
+                  payByVoucher={payByVoucher}
+                  onPayByVoucherChange={(v) => form.setValue("payByVoucher", v)}
+                  voucherReference={voucherReference}
+                  onVoucherReferenceChange={(v) => form.setValue("voucherReference", v)}
+                />
+            </TabsContent>
+
+            <TabsContent value="therapist" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden">
+                <BookingTherapistStep
+                  therapists={therapists}
+                  therapistId={form.watch("therapistId")}
+                  onTherapistChange={(id) => form.setValue("therapistId", id)}
+                  requiredGuestCount={requiredGuestCount}
+                  additionalTherapistIds={additionalTherapistIds}
+                  onAdditionalTherapistIdsChange={setAdditionalTherapistIds}
+                  duoMode={duoMode}
+                  onDuoModeChange={handleDuoModeChange}
+                  isAdmin={isAdmin}
+                  isPending={mutation.isPending}
+                  onBack={() => setActiveTab("prestations")}
+                  cart={cart}
+                  cartDetails={cartDetails}
+                  finalPriceWithSurcharge={finalPriceWithSurcharge}
+                  currency={selectedHotel?.currency || 'EUR'}
                 />
             </TabsContent>
 
@@ -411,7 +543,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     clientLastName={clientLastName}
                     finalPrice={finalPriceWithSurcharge}
                     currency={selectedHotel?.currency || 'EUR'}
-                    onSendPaymentLink={() => setIsPaymentLinkDialogOpen(true)}
+                    clientType={clientType}
+                    onSendPaymentLink={() => setIsNotificationDialogOpen(true)}
                     onClose={handleClose}
                   />
                 )}
@@ -423,9 +556,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     </Dialog>
 
     {createdBooking && (
-      <SendPaymentLinkDialog
-        open={isPaymentLinkDialogOpen}
-        onOpenChange={setIsPaymentLinkDialogOpen}
+      <SendBookingNotificationDialog
+        open={isNotificationDialogOpen}
+        onOpenChange={(open) => {
+          setIsNotificationDialogOpen(open);
+          if (!open) handleClose();
+        }}
         booking={{
           id: createdBooking.id,
           booking_id: createdBooking.booking_id,
@@ -444,7 +580,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           currency: selectedHotel?.currency || 'EUR',
         }}
         onSuccess={() => {
-          setIsPaymentLinkDialogOpen(false);
+          setIsNotificationDialogOpen(false);
           handleClose();
         }}
       />

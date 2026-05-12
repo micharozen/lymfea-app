@@ -47,7 +47,7 @@ export const Navbar = () => {
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:h-20 md:px-6">
         <a href="#top" className="flex items-center gap-2">
-          <img src={brandLogos.primary} alt="Eïa" className="h-7 md:h-8" />
+          <img src={brandLogos.primary} alt="Eïa" className="h-14 md:h-16 w-auto" />
         </a>
 
         <nav className="hidden items-center gap-8 md:flex">

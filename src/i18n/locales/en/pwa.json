@@ -74,7 +74,7 @@
     "pendingWillAppear": "New booking requests will appear here",
     "paymentPaid": "Paid",
     "paymentRoom": "Room",
-    "paymentPending": "Pending",
+    "paymentPending": "Payment due",
     "paymentFailed": "Failed",
     "bookingTakenByOther": "Booking #{{id}} taken by another therapist",
     "profileNotFound": "Profile not found",
@@ -119,7 +119,7 @@
     "name": "Name",
     "add": "Add",
     "noTreatments": "No treatments added",
-    "contactConcierge": "Contact Concierge",
+    "contactConcierge": "Contact venue team",
     "contactBrand": "Contact {{brandName}}",
     "unassignBooking": "Withdraw from booking",
     "chooseApp": "Choose an app",
@@ -136,6 +136,9 @@
     "notAssigned": "This booking is not assigned to you",
     "unassigned": "Booking put back on hold",
     "accepted": "Booking accepted!",
+    "alreadyTaken": "This booking has already been accepted by another therapist",
+    "alreadyAccepted": "You have already accepted this booking",
+    "acceptError": "Unable to accept this booking",
     "declined": "Booking declined",
     "treatmentDeleted": "Treatment deleted",
     "yourEarnings": "Your earnings",
@@ -163,7 +166,12 @@
     "arrived": "I have arrived",
     "arrivedAt": "Arrived at {{time}}",
     "arrivedSuccess": "Arrival confirmed",
-    "roomNumber": "Room {{number}}"
+    "roomNumber": "Room {{number}}",
+    "duoService": "Treatment for {{count}} people",
+    "duoAccepted": "{{accepted}}/{{total}} accepted",
+    "duoTherapistsJoined": "{{accepted}}/{{total}} therapist(s) joined the treatment",
+    "duoJoin": "Join the treatment",
+    "duoWaiting": "Waiting for another therapist…"
   },
   "hotels": {
     "title": "My Hotels",
@@ -353,6 +361,8 @@
     "noData": "No completed bookings for this period"
   },
   "payment": {
+    "cancellationPolicyTitle": "Cancellation and modification policy:",
+    "cancellationPolicyText": "For any cancellation made less than 24 hours in advance, 100% of the treatment will be charged. Changes to appointments within this timeframe will be possible subject to availability.",
     "received": "Payment received!",
     "serviceFinalized": "The service is finalized",
     "linkActive": "Payment link active",

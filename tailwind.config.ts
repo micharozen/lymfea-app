@@ -110,7 +110,7 @@ export default {
           },
         },
         "page-fade-in": {
-          from: { opacity: "0" },
+          from: { opacity: "0.85" },
           to: { opacity: "1" },
         },
       },

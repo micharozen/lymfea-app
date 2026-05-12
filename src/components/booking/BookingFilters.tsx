@@ -136,18 +136,28 @@ export function BookingFilters({
 
       <div className="flex items-center gap-1.5 ml-auto">
         {view === "calendar" && (
-          <Select value={String(dayCount)} onValueChange={(v) => onDayCountChange(Number(v))}>
-            <SelectTrigger className="w-[90px] h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">1 jour</SelectItem>
-              <SelectItem value="2">2 jours</SelectItem>
-              <SelectItem value="3">3 jours</SelectItem>
-              <SelectItem value="5">5 jours</SelectItem>
-              <SelectItem value="7">Semaine</SelectItem>
-            </SelectContent>
-          </Select>
+          <ButtonGroup>
+            {[
+              { count: 1, label: "Jour" },
+              { count: 3, label: "3j" },
+              { count: 7, label: "Semaine" },
+            ].map((opt) => (
+              <Button
+                key={opt.count}
+                variant="outline"
+                size="sm"
+                onClick={() => onDayCountChange(opt.count)}
+                className={cn(
+                  "h-8 px-2.5 text-xs",
+                  dayCount === opt.count
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                    : "text-muted-foreground"
+                )}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </ButtonGroup>
         )}
 
         {onShowAvailabilityChange && view === "calendar" && (

@@ -43,6 +43,7 @@ interface Treatment {
   category: string;
   price_on_request: boolean | null;
   currency: string | null;
+  available_days?: number[] | null;
 }
 
 export default function Welcome() {
@@ -216,6 +217,7 @@ export default function Welcome() {
       image: treatment.image || undefined,
       category: treatment.category,
       isPriceOnRequest: treatment.price_on_request || false,
+      availableDays: treatment.available_days ?? null,
     });
 
     if (navigator.vibrate) {

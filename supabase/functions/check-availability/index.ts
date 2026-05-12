@@ -12,8 +12,24 @@ serve(async (req) => {
   }
 
   try {
-    const { hotelId, date, treatmentIds, therapistGender, requiredGuestCount: rawGuestCount } = await req.json();
+    const { hotelId, date, treatmentIds, therapistGender, requiredGuestCount: rawGuestCount, excludeBookingId, pendingHolds: rawPendingHolds, requestedDuration: rawRequestedDuration } = await req.json();
     const requiredGuestCount = Math.max(1, rawGuestCount || 1);
+    const clientRequestedDuration = typeof rawRequestedDuration === 'number' && rawRequestedDuration > 0
+      ? rawRequestedDuration
+      : null;
+
+    // pendingHolds: in-cart slots already chosen for OTHER items in the same multi-time
+    // booking flow (not yet persisted as drafts). Each hold consumes 1 generic room
+    // capacity + 1 generic therapist for slots overlapping its [time, time+duration) window
+    // on the same date. Only holds matching the queried `date` apply here.
+    const pendingHolds: Array<{ date: string; time: string; duration: number }> = Array.isArray(rawPendingHolds)
+      ? rawPendingHolds.filter((h: unknown): h is { date: string; time: string; duration: number } => {
+          if (!h || typeof h !== 'object') return false;
+          const o = h as Record<string, unknown>;
+          return typeof o.date === 'string' && typeof o.time === 'string' && typeof o.duration === 'number';
+        })
+      : [];
+    const pendingHoldsForDate = pendingHolds.filter(h => h.date === date);
 
     if (!hotelId || !date) {
       throw new Error('Missing hotelId or date');
@@ -61,7 +77,7 @@ serve(async (req) => {
     // Get hotel opening/closing hours and slot interval
     const { data: hotelData, error: hotelError } = await supabase
       .from('hotels')
-      .select('opening_time, closing_time, slot_interval, inter_venue_buffer_minutes, room_turnover_buffer_minutes')
+      .select('opening_time, closing_time, slot_interval, inter_venue_buffer_minutes, room_turnover_buffer_minutes, min_booking_notice_minutes, timezone, allow_out_of_hours_booking')
       .eq('id', hotelId)
       .single();
 
@@ -70,17 +86,24 @@ serve(async (req) => {
     }
 
     // Parse full opening/closing times (HH:MM), defaulting to 06:00 and 23:00 if not set
-    const openingMinutes = hotelData?.opening_time
+    const baseOpeningMinutes = hotelData?.opening_time
       ? parseInt(hotelData.opening_time.split(':')[0], 10) * 60
         + parseInt(hotelData.opening_time.split(':')[1] || '0', 10)
       : 6 * 60;
-    const closingMinutes = hotelData?.closing_time
+    const baseClosingMinutes = hotelData?.closing_time
       ? parseInt(hotelData.closing_time.split(':')[0], 10) * 60
         + parseInt(hotelData.closing_time.split(':')[1] || '0', 10)
       : 23 * 60;
 
+    // If venue allows out-of-hours bookings, widen the generation window by ±2h
+    // so the client can pick an out-of-hours slot (with surcharge applied downstream).
+    const allowOutOfHours = !!hotelData?.allow_out_of_hours_booking;
+    const openingMinutes = allowOutOfHours ? Math.max(0, baseOpeningMinutes - 120) : baseOpeningMinutes;
+    const closingMinutes = allowOutOfHours ? Math.min(24 * 60, baseClosingMinutes + 120) : baseClosingMinutes;
+
     const slotInterval = hotelData?.slot_interval || 30;
     const roomTurnoverBuffer = hotelData?.room_turnover_buffer_minutes ?? 0;
+    const minBookingNotice = hotelData?.min_booking_notice_minutes ?? 0;
 
     const openingDisplay = `${Math.floor(openingMinutes / 60)}:${(openingMinutes % 60).toString().padStart(2, '0')}`;
     const closingDisplay = `${Math.floor(closingMinutes / 60)}:${(closingMinutes % 60).toString().padStart(2, '0')}`;
@@ -108,26 +131,32 @@ serve(async (req) => {
 
     console.log(`[DEBUG] requestedDayOfWeek: ${requestedDayOfWeek}, blockedSlots count: ${blockedSlots?.length || 0}`);
 
-    // Get the maximum lead_time and categories from selected treatments (if provided)
-    let maxLeadTime = 0;
+    // Get the maximum lead_time, max duration, and categories from selected treatments (if provided)
+    let maxTreatmentLeadTime = 0;
+    let maxTreatmentDuration = 0;
     const requiredCategories = new Set<string>();
     if (treatmentIds && treatmentIds.length > 0) {
       const { data: treatments, error: treatmentsError } = await supabase
         .from('treatment_menus')
-        .select('lead_time, category')
+        .select('lead_time, treatment_type, duration')
         .in('id', treatmentIds);
 
       if (treatmentsError) {
         console.error('Error fetching treatments:', treatmentsError);
       } else if (treatments && treatments.length > 0) {
-        maxLeadTime = Math.max(...treatments.map(t => t.lead_time || 0));
-        console.log(`Maximum lead_time from selected treatments: ${maxLeadTime} minutes`);
-        // Build set of required categories from selected treatments
+        maxTreatmentLeadTime = Math.max(...treatments.map(t => t.lead_time || 0));
+        maxTreatmentDuration = Math.max(...treatments.map(t => t.duration || 0));
+        console.log(`Maximum lead_time from selected treatments: ${maxTreatmentLeadTime} minutes`);
+        // Build set of required skills (treatment_type matches therapists.skills slugs)
         treatments.forEach((t: any) => {
-          if (t.category) requiredCategories.add(t.category);
+          if (t.treatment_type) requiredCategories.add(t.treatment_type);
         });
       }
     }
+    // Effective lead time = max(venue min booking notice, max treatment lead_time)
+    // Venue min booking notice applies even without selected treatments.
+    const maxLeadTime = Math.max(maxTreatmentLeadTime, minBookingNotice);
+    console.log(`Effective lead time: ${maxLeadTime} min (treatments=${maxTreatmentLeadTime}, venueMinNotice=${minBookingNotice})`);
     console.log(`[DEBUG] requiredCategories: ${JSON.stringify([...requiredCategories])}`);
     _debug.requiredCategories = [...requiredCategories];
 
@@ -270,12 +299,18 @@ serve(async (req) => {
     // Get all bookings for this hotel on this date (for trunk capacity check)
     // Exclude cancelled/terminated bookings
     // Include duration for overlap checking
-    const { data: allHotelBookings, error: allBookingsError } = await supabase
+    let hotelBookingsQuery = supabase
       .from('bookings')
       .select('booking_time, therapist_id, status, room_id, duration')
       .eq('booking_date', date)
       .eq('hotel_id', hotelId)
       .not('status', 'in', '("Annulé","Terminé","cancelled")');
+
+    if (excludeBookingId) {
+      hotelBookingsQuery = hotelBookingsQuery.neq('id', excludeBookingId);
+    }
+
+    const { data: allHotelBookings, error: allBookingsError } = await hotelBookingsQuery;
 
     if (allBookingsError) {
       console.error('Error fetching hotel bookings:', allBookingsError);
@@ -312,19 +347,27 @@ serve(async (req) => {
       return hours * 60 + minutes;
     };
 
-    // Function to check if a slot is blocked by an existing booking (considering duration + turnover buffer)
+    // Effective duration of the treatment being scheduled. Used to detect overlap
+    // between the proposed slot interval [slotStart, slotStart + requestedDuration)
+    // and existing bookings / pending holds. Falls back to slot interval so legacy
+    // callers (without requestedDuration / treatmentIds) keep their previous behavior.
+    const requestedDuration = clientRequestedDuration ?? maxTreatmentDuration ?? slotInterval;
+    console.log(`[DEBUG] requestedDuration=${requestedDuration}min (clientRequested=${clientRequestedDuration}, maxTreatment=${maxTreatmentDuration}, slotInterval=${slotInterval})`);
+
+    // Function to check if a slot is blocked by an existing booking — interval-vs-interval
+    // overlap of [slotStart, slotStart + requestedDuration) vs [bookingStart, bookingEnd + turnover).
     const isSlotBlockedByBooking = (
       slotTime: string,
       bookingTime: string,
       bookingDuration: number,
       turnoverMinutes: number = 0
     ): boolean => {
-      const slotMinutes = timeToMinutes(slotTime);
+      const slotStartMinutes = timeToMinutes(slotTime);
+      const slotEndMinutes = slotStartMinutes + requestedDuration;
       const bookingStartMinutes = timeToMinutes(bookingTime);
       const bookingEndMinutes = bookingStartMinutes + (bookingDuration || 30) + turnoverMinutes;
 
-      // The slot is blocked if it falls during the booking duration (+ turnover buffer)
-      return slotMinutes >= bookingStartMinutes && slotMinutes < bookingEndMinutes;
+      return slotStartMinutes < bookingEndMinutes && slotEndMinutes > bookingStartMinutes;
     };
 
     // Function to check if a slot overlaps with any blocked time range
@@ -359,25 +402,36 @@ serve(async (req) => {
 
     console.log(`[DEBUG] generated ${timeSlots.length} time slots: ${openingDisplay} - ${closingDisplay} => [${timeSlots[0]} ... ${timeSlots[timeSlots.length - 1]}]`);
 
-    // Calculate the earliest bookable time based on lead_time
+    // Calculate the earliest bookable date/time based on lead_time, expressed
+    // in the VENUE timezone. The `date` parameter and slot strings are in
+    // venue-local time, so we must compare against venue-local "now + lead".
+    const venueTz = hotelData?.timezone || 'UTC';
     const now = new Date();
-    const requestedDate = new Date(date);
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const isToday = requestedDate.getTime() === today.getTime();
-    
+    const earliestBookableAt = new Date(now.getTime() + maxLeadTime * 60 * 1000);
+    const venueParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: venueTz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(earliestBookableAt).reduce<Record<string, string>>((acc, p) => {
+      if (p.type !== 'literal') acc[p.type] = p.value;
+      return acc;
+    }, {});
+    const earliestBookableDateStr = `${venueParts.year}-${venueParts.month}-${venueParts.day}`;
+    const earliestBookableHour = parseInt(venueParts.hour, 10);
+    const earliestBookableMinute = parseInt(venueParts.minute, 10);
+
+    // If the requested date is entirely before the earliest bookable day → no slots.
+    const allSlotsTooSoon = maxLeadTime > 0 && date < earliestBookableDateStr;
+
+    // If requested date is the earliest bookable day, compute the minimum time-of-day.
     let earliestBookableTime: string | null = null;
-    if (isToday && maxLeadTime > 0) {
-      // Add lead_time to current time
-      const earliestTime = new Date(now.getTime() + maxLeadTime * 60 * 1000);
-      const earliestHour = earliestTime.getHours();
-      const earliestMinute = earliestTime.getMinutes();
-      // Round up to next slot interval
-      const totalEarliestMinutes = earliestHour * 60 + earliestMinute;
+    if (maxLeadTime > 0 && date === earliestBookableDateStr) {
+      const totalEarliestMinutes = earliestBookableHour * 60 + earliestBookableMinute;
       const roundedMinutes = Math.ceil(totalEarliestMinutes / slotInterval) * slotInterval;
       const roundedHour = Math.floor(roundedMinutes / 60);
       const roundedMinute = roundedMinutes % 60;
       earliestBookableTime = `${roundedHour.toString().padStart(2, '0')}:${roundedMinute.toString().padStart(2, '0')}:00`;
-      console.log(`Lead time filter: earliest bookable slot is ${earliestBookableTime} (current time + ${maxLeadTime} min)`);
+      console.log(`Lead time filter: earliest bookable slot is ${earliestBookableTime} on ${date} (now + ${maxLeadTime} min, tz=${venueTz})`);
     }
 
     // Check which slots have availability (both therapist AND room)
@@ -387,8 +441,16 @@ serve(async (req) => {
         return false;
       }
 
-      // Filter out slots that are too soon based on lead_time (only for today)
-      if (isToday && earliestBookableTime && slot < earliestBookableTime) {
+      // Filter out slots that are too soon based on lead_time (venue min notice or treatment lead_time)
+      if (allSlotsTooSoon) {
+        return false;
+      }
+      if (earliestBookableTime && slot < earliestBookableTime) {
+        return false;
+      }
+
+      // Reject slots that would run past the venue's (possibly widened) closing time.
+      if (timeToMinutes(slot) + requestedDuration > closingMinutes) {
         return false;
       }
 
@@ -420,7 +482,19 @@ serve(async (req) => {
         (sum, id) => sum + (roomCapacityMap.get(id) || 1), 0
       ) - bookingsWithoutRoom;
 
-      if (freeRoomCapacity < requiredGuestCount) {
+      // PENDING HOLDS: count in-cart holds (other items not yet persisted) that
+      // overlap this slot. Each consumes 1 generic room + 1 generic therapist.
+      // Use requestedDuration so a long treatment starting before a hold (and
+      // running into it) is correctly blocked.
+      const slotStartMinutes = timeToMinutes(slot);
+      const slotEndMinutes = slotStartMinutes + requestedDuration;
+      const overlappingHolds = pendingHoldsForDate.filter(h => {
+        const hStart = timeToMinutes(h.time);
+        const hEnd = hStart + (h.duration || 30);
+        return slotStartMinutes < hEnd && slotEndMinutes > hStart;
+      }).length;
+
+      if (freeRoomCapacity - overlappingHolds < requiredGuestCount) {
         return false;
       }
 
@@ -463,12 +537,13 @@ serve(async (req) => {
         });
       }).length;
 
-      return availableTherapistCount >= requiredGuestCount;
+      return availableTherapistCount - overlappingHolds >= requiredGuestCount;
     });
 
     console.log(`[DEBUG] ====== RESULT: ${availableSlots.length} available out of ${timeSlots.length} ======`);
     _debug.timeSlotsGenerated = timeSlots.length;
-    _debug.isToday = isToday;
+    _debug.earliestBookableDateStr = earliestBookableDateStr;
+    _debug.allSlotsTooSoon = allSlotsTooSoon;
     _debug.earliestBookableTime = earliestBookableTime;
     _debug.now = now.toISOString();
     _debug.blockedSlotsData = blockedSlots;

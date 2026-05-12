@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useTranslation } from "react-i18next";
-import { useUser } from "@/contexts/UserContext";
-import { LYMFEA_DEFAULT_ORGANIZATION_ID } from "@/lib/organizations";
 import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -73,6 +72,8 @@ const createFormSchema = (t: TFunction) => z.object({
   allow_out_of_hours_booking: z.boolean().default(false),
   out_of_hours_surcharge_percent: z.string().default("0"),
   inter_venue_buffer_minutes: z.number().min(0).max(120).default(0),
+  booking_hold_enabled: z.boolean().default(true),
+  booking_hold_duration_minutes: z.coerce.number().int().min(1).max(15).default(5),
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
@@ -114,12 +115,7 @@ export function VenueWizardDialog({
 }: VenueWizardDialogProps) {
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
-  const { isSuperAdmin, organizationId, activeOrganizationId } = useUser();
-
-  const resolvedOrganizationId =
-    !isSuperAdmin && organizationId
-      ? organizationId
-      : activeOrganizationId ?? LYMFEA_DEFAULT_ORGANIZATION_ID;
+  const queryClient = useQueryClient();
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [savedHotelId, setSavedHotelId] = useState<string | null>(null);
@@ -427,7 +423,6 @@ export function VenueWizardDialog({
           offert: values.offert,
           company_offered: values.company_offered,
           landing_subtitle: values.landing_subtitle || null,
-          organization_id: resolvedOrganizationId,
         })
         .select('id')
         .single();
@@ -451,6 +446,7 @@ export function VenueWizardDialog({
       // Save blocked slots
       await saveBlockedSlots(newHotelId);
 
+      queryClient.invalidateQueries({ queryKey: ["hotels"] });
       toast.success("Lieu créé. Vous pouvez maintenant gérer les catégories.");
       setCurrentStep(3);
     } catch (error: any) {
@@ -468,6 +464,7 @@ export function VenueWizardDialog({
   const handleSubmit = async () => {
     // If we're in add mode and already saved the hotel (in step 3), just close
     if (mode === 'add' && savedHotelId) {
+      queryClient.invalidateQueries({ queryKey: ["hotels"] });
       toast.success("Lieu créé avec succès");
       onSuccess();
       onOpenChange(false);
@@ -516,7 +513,6 @@ export function VenueWizardDialog({
             offert: values.offert,
           company_offered: values.company_offered,
             landing_subtitle: values.landing_subtitle || null,
-            organization_id: resolvedOrganizationId,
           })
           .select('id')
           .single();
@@ -539,6 +535,7 @@ export function VenueWizardDialog({
         // Save blocked slots
         await saveBlockedSlots(newHotelId);
 
+        queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu créé avec succès");
       } else {
         // Update existing hotel
@@ -593,6 +590,7 @@ export function VenueWizardDialog({
         // Save blocked slots
         await saveBlockedSlots(hotelId!);
 
+        queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu mis à jour avec succès");
       }
 

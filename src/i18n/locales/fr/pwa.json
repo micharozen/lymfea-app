@@ -74,7 +74,7 @@
     "pendingWillAppear": "Les nouvelles demandes de réservation apparaîtront ici",
     "paymentPaid": "Payé",
     "paymentRoom": "Chambre",
-    "paymentPending": "En attente",
+    "paymentPending": "Paiement dû",
     "paymentFailed": "Échoué",
     "bookingTakenByOther": "Réservation #{{id}} prise par un autre thérapeute",
     "profileNotFound": "Profil introuvable",
@@ -119,7 +119,7 @@
     "name": "Nom",
     "add": "Ajouter",
     "noTreatments": "Aucun traitement ajouté",
-    "contactConcierge": "Contacter concierge",
+    "contactConcierge": "Contacter l'équipe lieu",
     "contactBrand": "Contacter {{brandName}}",
     "unassignBooking": "Se désister de la réservation",
     "chooseApp": "Choisir une application",
@@ -136,6 +136,9 @@
     "notAssigned": "Cette réservation ne vous est pas assignée",
     "unassigned": "Réservation remise en attente",
     "accepted": "Réservation acceptée !",
+    "alreadyTaken": "Cette réservation a déjà été acceptée par un autre thérapeute",
+    "alreadyAccepted": "Vous avez déjà accepté cette réservation",
+    "acceptError": "Impossible d'accepter cette réservation",
     "declined": "Réservation refusée",
     "treatmentDeleted": "Traitement supprimé",
     "yourEarnings": "Vos honoraires",
@@ -163,7 +166,12 @@
     "arrived": "Je suis arrivé(e)",
     "arrivedAt": "Arrivé(e) à {{time}}",
     "arrivedSuccess": "Arrivée signalée",
-    "roomNumber": "Chambre {{number}}"
+    "roomNumber": "Chambre {{number}}",
+    "duoService": "Soin pour {{count}} personnes",
+    "duoAccepted": "{{accepted}}/{{total}} acceptés",
+    "duoTherapistsJoined": "{{accepted}}/{{total}} thérapeute(s) ont rejoint le soin",
+    "duoJoin": "Rejoindre le soin",
+    "duoWaiting": "En attente d'un autre thérapeute…"
   },
   "hotels": {
     "title": "Mes Hôtels",
@@ -353,6 +361,8 @@
     "noData": "Aucune prestation terminée sur cette période"
   },
   "payment": {
+    "cancellationPolicyTitle": "Politique d'annulation et modification :",
+    "cancellationPolicyText": "Pour toute annulation effectuée moins de 24 heures avant, 100% du soin sera facturé. Les modifications de rendez-vous dans ce délai seront possibles sous réserve de disponibilité.",
     "received": "Paiement reçu !",
     "serviceFinalized": "La prestation est finalisée",
     "linkActive": "Lien de paiement actif",

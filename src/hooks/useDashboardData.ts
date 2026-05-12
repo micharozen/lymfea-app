@@ -12,6 +12,8 @@ import { getDashboardDataForOrg, type DashboardBooking } from "@shared/db";
 // ── Types ───────────────────────────────────────────────────────────
 
 type BookingRow = DashboardBooking & {
+  client_type?: string | null;
+  room_number?: string | null;
   booking_treatments: { treatment_menus: { name: string } | null }[];
 };
 
@@ -19,6 +21,8 @@ interface HotelRow {
   id: string;
   name: string;
   currency: string | null;
+  opening_time: string | null;
+  closing_time: string | null;
 }
 
 interface RoomRow {
@@ -27,7 +31,6 @@ interface RoomRow {
 }
 
 export interface AlertsData {
-  pendingConfirmation: number;
   unassigned: number;
   failedPayments: number;
 }
@@ -55,6 +58,15 @@ export interface ChartPoint {
   sales: number;
 }
 
+export interface HourlyOccupancyPoint {
+  hour: string;
+  hourIndex: number;
+  used: number;
+  total: number;
+  rate: number;
+  outOfHours: boolean;
+}
+
 export interface ForecastPoint {
   day: string;
   confirmed: number;
@@ -74,6 +86,7 @@ export interface DashboardStats {
   totalBookings: number;
   todayBookings: number;
   pendingPayment: number;
+  missingRoomNumber: number;
   cancellationRate: number;
   averageBasket: string;
   salesTrend: number;
@@ -86,6 +99,8 @@ export interface DashboardData {
   stats: DashboardStats;
   alerts: AlertsData;
   roomOccupancy: OccupancyData;
+  roomOccupancyHourly: HourlyOccupancyPoint[];
+  roomOccupancyHourlyMeta: { openingHour: number; closingHour: number };
   activeTherapists: OccupancyData;
   salesChartData: ChartPoint[];
   statusDistribution: StatusSlice[];
@@ -226,6 +241,16 @@ export function useDashboardData(
       (b) => b.payment_status === "pending"
     ).length;
 
+    // Hotel bookings (today or future, not cancelled) without a room number assigned
+    const missingRoomNumber = bookings.filter((b) => {
+      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
+      if (!matchHotel) return false;
+      if (b.client_type !== "hotel") return false;
+      if (b.status === "cancelled") return false;
+      if (b.room_number && b.room_number.trim() !== "") return false;
+      return b.booking_date >= todayStr;
+    }).length;
+
     const cancelled = filteredBookings.filter((b) => b.status === "cancelled").length;
     const cancellationRate = totalBookings > 0 ? Math.round((cancelled / totalBookings) * 100) : 0;
 
@@ -241,6 +266,7 @@ export function useDashboardData(
       totalBookings,
       todayBookings,
       pendingPayment,
+      missingRoomNumber,
       cancellationRate,
       averageBasket,
       salesTrend,
@@ -255,11 +281,8 @@ export function useDashboardData(
       : bookings.filter((b) => b.hotel_id === selectedHotel);
 
     return {
-      pendingConfirmation: relevant.filter(
-        (b) => b.status === "pending" && b.booking_date >= todayStr
-      ).length,
       unassigned: relevant.filter(
-        (b) => b.status === "awaiting_hairdresser_selection"
+        (b) => b.status === "pending" && b.booking_date >= todayStr
       ).length,
       failedPayments: relevant.filter(
         (b) => b.payment_status === "failed"
@@ -284,6 +307,82 @@ export function useDashboardData(
 
     return { used: usedRoomIds.size, total: totalRooms };
   }, [bookings, rooms, selectedHotel]);
+
+  // ── Hourly room occupancy (today) ─────────────────────────────────
+
+  const { roomOccupancyHourly, roomOccupancyHourlyMeta } = useMemo(() => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+
+    const scopedHotels =
+      selectedHotel === "all" ? hotels : hotels.filter((h) => h.id === selectedHotel);
+
+    const parseHour = (t: string | null | undefined, fallback: number): number => {
+      if (!t) return fallback;
+      const [h, m] = t.split(":").map((n) => parseInt(n, 10));
+      if (Number.isNaN(h)) return fallback;
+      return h + (Number.isNaN(m) ? 0 : m / 60);
+    };
+
+    const openings = scopedHotels
+      .map((h) => parseHour(h.opening_time, NaN))
+      .filter((n) => !Number.isNaN(n));
+    const closings = scopedHotels
+      .map((h) => parseHour(h.closing_time, NaN))
+      .filter((n) => !Number.isNaN(n));
+
+    const openingHourRaw = openings.length > 0 ? Math.min(...openings) : 9;
+    const closingHourRaw = closings.length > 0 ? Math.max(...closings) : 20;
+    const openingHour = Math.floor(openingHourRaw);
+    const closingHour = Math.ceil(closingHourRaw);
+
+    const startHour = Math.max(0, openingHour - 2);
+    const endHour = Math.min(24, closingHour + 2);
+
+    const totalRooms =
+      selectedHotel === "all"
+        ? rooms.length
+        : rooms.filter((r) => r.hotel_id === selectedHotel).length;
+
+    const todaysBookings = bookings.filter((b) => {
+      const matchDate = b.booking_date === todayStr;
+      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
+      const hasRoom = !!b.room_id;
+      const activeStatus = ["pending", "confirmed", "ongoing", "completed"].includes(b.status);
+      return matchDate && matchHotel && hasRoom && activeStatus;
+    });
+
+    const points: HourlyOccupancyPoint[] = [];
+    for (let h = startHour; h < endHour; h++) {
+      const slotStart = h;
+      const slotEnd = h + 1;
+      const usedRoomIds = new Set<string>();
+      todaysBookings.forEach((b) => {
+        const [bh, bm] = (b.booking_time || "0:0").split(":").map((n) => parseInt(n, 10));
+        const bookingStart = (Number.isNaN(bh) ? 0 : bh) + (Number.isNaN(bm) ? 0 : bm) / 60;
+        const durationHours = (b.duration ?? 60) / 60;
+        const bookingEnd = bookingStart + durationHours;
+        if (bookingStart < slotEnd && bookingEnd > slotStart && b.room_id) {
+          usedRoomIds.add(b.room_id);
+        }
+      });
+      const used = usedRoomIds.size;
+      points.push({
+        hour: `${String(h).padStart(2, "0")}h`,
+        hourIndex: h,
+        used,
+        total: totalRooms,
+        rate: totalRooms > 0 ? Math.round((used / totalRooms) * 100) : 0,
+        outOfHours: h < openingHour || h >= closingHour,
+      });
+    }
+
+    return {
+      roomOccupancyHourly: points,
+      roomOccupancyHourlyMeta: { openingHour, closingHour },
+    };
+  }, [bookings, rooms, hotels, selectedHotel]);
+
+  // ── Active therapists today ───────────────────────────────────────
 
   const activeTherapists = useMemo<OccupancyData>(() => {
     const venueTherapistIds =
@@ -447,6 +546,8 @@ export function useDashboardData(
     stats,
     alerts,
     roomOccupancy,
+    roomOccupancyHourly,
+    roomOccupancyHourlyMeta,
     activeTherapists,
     salesChartData,
     statusDistribution,

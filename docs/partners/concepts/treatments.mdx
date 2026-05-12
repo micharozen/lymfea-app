@@ -1,0 +1,158 @@
+---
+title: "Treatments"
+description: "Services offered by a venue (massages, facials, body wraps…)."
+---
+
+A **Treatment** is a service offered by a venue. Each venue has its own
+catalogue. Treatments can have **variants** (e.g. a "Swedish massage" with
+30/60/90-minute options, or single / couple variants).
+
+## The Treatment object
+
+<ResponseField name="id" type="string">
+  Stable, opaque identifier.
+</ResponseField>
+
+<ResponseField name="venue_id" type="string">
+  The venue this treatment belongs to.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Display name in French.
+</ResponseField>
+
+<ResponseField name="name_en" type="string">
+  Display name in English.
+</ResponseField>
+
+<ResponseField name="description" type="string | null">
+  Description in French.
+</ResponseField>
+
+<ResponseField name="description_en" type="string | null">
+  Description in English.
+</ResponseField>
+
+<ResponseField name="category" type="string">
+  High-level grouping (e.g. `massage`, `facial`, `body`, `ritual`).
+</ResponseField>
+
+<ResponseField name="service_for" type="string">
+  Intended audience: `women`, `men`, `all`, or `couple`.
+</ResponseField>
+
+<ResponseField name="duration" type="integer">
+  Duration in minutes for the default variant.
+</ResponseField>
+
+<ResponseField name="price" type="integer">
+  Public price for the default variant, in the venue's currency smallest unit
+  (e.g. cents for EUR). `null` if `price_on_request` is `true`.
+</ResponseField>
+
+<ResponseField name="price_on_request" type="boolean">
+  If `true`, price is not public and the customer must request a quote.
+</ResponseField>
+
+<ResponseField name="lead_time" type="integer">
+  Minimum number of minutes between "now" and the earliest bookable start.
+  Used to prevent last-minute bookings.
+</ResponseField>
+
+<ResponseField name="image" type="string | null">
+  Illustration URL.
+</ResponseField>
+
+<ResponseField name="is_bestseller" type="boolean">
+  Merchandising flag surfaced by the venue.
+</ResponseField>
+
+<ResponseField name="is_addon" type="boolean">
+  If `true`, this treatment can only be added to another booking, not booked
+  alone.
+</ResponseField>
+
+<ResponseField name="variants" type="Variant[]">
+  List of bookable variants. Always at least one.
+</ResponseField>
+
+## The Variant object
+
+<ResponseField name="id" type="string">
+  Variant identifier. Pass this as `variant_id` when creating a booking.
+</ResponseField>
+
+<ResponseField name="label" type="string">
+  Variant label in French (e.g. `60 minutes`, `Duo`).
+</ResponseField>
+
+<ResponseField name="label_en" type="string">
+  Variant label in English.
+</ResponseField>
+
+<ResponseField name="duration" type="integer">
+  Duration in minutes for this variant.
+</ResponseField>
+
+<ResponseField name="price" type="integer | null">
+  Price in the smallest currency unit, or `null` if on request.
+</ResponseField>
+
+<ResponseField name="guest_count" type="integer">
+  Number of guests this variant is designed for (typically `1` or `2`).
+</ResponseField>
+
+<ResponseField name="is_default" type="boolean">
+  Whether this is the variant shown by default.
+</ResponseField>
+
+## Example
+
+```json
+{
+  "id": "trt_swedish_60",
+  "venue_id": "hot_lutetia_paris",
+  "name": "Massage suédois",
+  "name_en": "Swedish massage",
+  "description": "Un massage relaxant aux huiles essentielles.",
+  "description_en": "A relaxing massage with essential oils.",
+  "category": "massage",
+  "service_for": "all",
+  "duration": 60,
+  "price": 12000,
+  "price_on_request": false,
+  "lead_time": 120,
+  "image": "https://cdn.lymfea.com/treatments/trt_swedish_60.jpg",
+  "is_bestseller": true,
+  "is_addon": false,
+  "variants": [
+    {
+      "id": "var_swedish_30",
+      "label": "30 minutes",
+      "label_en": "30 minutes",
+      "duration": 30,
+      "price": 7000,
+      "guest_count": 1,
+      "is_default": false
+    },
+    {
+      "id": "var_swedish_60",
+      "label": "60 minutes",
+      "label_en": "60 minutes",
+      "duration": 60,
+      "price": 12000,
+      "guest_count": 1,
+      "is_default": true
+    },
+    {
+      "id": "var_swedish_60_duo",
+      "label": "Duo 60 minutes",
+      "label_en": "Couple 60 minutes",
+      "duration": 60,
+      "price": 22000,
+      "guest_count": 2,
+      "is_default": false
+    }
+  ]
+}
+```

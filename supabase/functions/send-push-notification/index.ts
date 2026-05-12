@@ -56,7 +56,7 @@ serve(async (req) => {
 
     const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID");
     const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
-    const SITE_URL = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
+    const SITE_URL = (Deno.env.get("SITE_URL") || `https://${brand.appDomain}`).replace(/\/+$/, "");
 
     if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
       throw new Error("OneSignal credentials not configured");
@@ -80,7 +80,7 @@ serve(async (req) => {
       // Primary URL for notification click (OneSignal REST API uses 'url')
       url: clickUrl,
       // Include URL in data as backup for SDK click handler
-      data: { ...data, launchUrl: clickUrl, url: data?.url },
+      data: { ...data, launchUrl: clickUrl, url: clickUrl },
       // Target by external user ID (the Supabase user_id)
       include_aliases: {
         external_id: [userId]

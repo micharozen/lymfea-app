@@ -1,10 +1,16 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { PanelLeft, Stethoscope } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { ChevronLeft, ChevronRight, PanelLeft, Stethoscope } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
+import { CalendarLegend } from "./CalendarLegend";
+import type { Hotel } from "@/hooks/booking";
+
+const SIDEBAR_COLLAPSED_KEY = "planning-sidebar-collapsed";
 
 export interface CalendarEntry {
   id: string;
@@ -20,6 +26,8 @@ interface CalendarSidebarProps {
   onToggle: (id: string, visible: boolean) => void;
   onShowAll: () => void;
   onHideAll: () => void;
+  hotels?: Hotel[];
+  hotelFilter?: string;
 }
 
 function SidebarContent({
@@ -28,35 +36,40 @@ function SidebarContent({
   onToggle,
   onShowAll,
   onHideAll,
+  hotels,
+  hotelFilter,
 }: CalendarSidebarProps) {
+  const hasCalendarList = entries.length > 1;
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 py-2 border-b">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Calendriers
-        </span>
-        <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-[10px]"
-            onClick={onShowAll}
-          >
-            Tout
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-[10px]"
-            onClick={onHideAll}
-          >
-            Rien
-          </Button>
+      {hasCalendarList && (
+        <div className="flex items-center justify-between px-3 py-2 border-b">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Calendriers
+          </span>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[10px]"
+              onClick={onShowAll}
+            >
+              Tout
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[10px]"
+              onClick={onHideAll}
+            >
+              Rien
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 overflow-y-auto py-2">
-        {entries.map((entry) => {
+        {hasCalendarList && entries.map((entry) => {
           const isChecked = visibleCalendars[entry.id] !== false;
           const typeDef =
             entry.type === "amenity" && entry.amenityType
@@ -97,15 +110,67 @@ function SidebarContent({
             </label>
           );
         })}
+
+        <CalendarLegend
+          hotels={hotels}
+          hotelFilter={hotelFilter}
+          className={hasCalendarList ? "border-t mt-2" : ""}
+        />
       </div>
     </div>
   );
 }
 
-// Desktop: inline sidebar panel
+// Desktop: inline sidebar panel with collapse/expand
 export function CalendarSidebarDesktop(props: CalendarSidebarProps) {
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+  }, [collapsed]);
+
+  if (collapsed) {
+    return (
+      <div className="hidden md:flex flex-col w-8 flex-shrink-0 border-r bg-card items-center py-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setCollapsed(false)}
+              aria-label="Ouvrir le panneau"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Afficher la légende</TooltipContent>
+        </Tooltip>
+      </div>
+    );
+  }
+
   return (
-    <div className="hidden md:flex flex-col w-[180px] flex-shrink-0 border-r bg-card">
+    <div className="hidden md:flex flex-col w-[200px] flex-shrink-0 border-r bg-card relative">
+      <div className="absolute top-1 right-1 z-10">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setCollapsed(true)}
+              aria-label="Fermer le panneau"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Masquer la légende</TooltipContent>
+        </Tooltip>
+      </div>
       <SidebarContent {...props} />
     </div>
   );

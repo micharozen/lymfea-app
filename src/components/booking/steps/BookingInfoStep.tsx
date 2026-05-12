@@ -1,9 +1,14 @@
 import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Search } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
@@ -17,25 +22,19 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { AlertTriangle, CalendarIcon, Check, ChevronDown, ChevronsUpDown, Clock, Globe, Info, Loader2, Plus, X } from "lucide-react";
+import { AlertTriangle, CalendarIcon, Check, ChevronDown, Clock, Globe, Info, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentOffset } from "@/lib/timezones";
 import { countries, formatPhoneNumber } from "@/lib/phone";
 import { BookingFormValues } from "../CreateBookingDialog.schema";
 import { usePmsGuestLookup } from "@/hooks/usePmsGuestLookup";
 import { toast } from "sonner";
+import { BOOKING_CLIENT_TYPES, CLIENT_TYPE_META } from "@/lib/clientTypeMeta";
+import { useTranslation } from "react-i18next";
 
 interface BookingInfoStepProps {
   form: UseFormReturn<BookingFormValues>;
@@ -43,7 +42,6 @@ interface BookingInfoStepProps {
   isConcierge: boolean;
   hotelIds: string[];
   hotels: Array<{ id: string; name: string; timezone?: string | null; currency?: string | null }> | undefined;
-  therapists: Array<{ id: string; first_name: string; last_name: string; status?: string }> | undefined;
   hotelTimezone: string;
   hotelId: string;
   countryCode: string;
@@ -55,6 +53,7 @@ interface BookingInfoStepProps {
   isSlotAvailable?: (date: Date | undefined, time: string, slotInterval: number) => boolean;
   isAvailabilityLoading?: (date: Date | undefined) => boolean;
   slotInterval?: number;
+  cartAvailableDays?: number[] | null;
   onValidateAndNext: () => Promise<void>;
   onCancel: () => void;
 }
@@ -65,7 +64,6 @@ export function BookingInfoStep({
   isConcierge,
   hotelIds,
   hotels,
-  therapists,
   hotelTimezone,
   hotelId,
   countryCode,
@@ -77,10 +75,34 @@ export function BookingInfoStep({
   isSlotAvailable,
   isAvailabilityLoading,
   slotInterval = 30,
+  cartAvailableDays,
   onValidateAndNext,
   onCancel,
 }: BookingInfoStepProps) {
+  const { t } = useTranslation('admin');
   const { lookupGuest, guestData, isLoading: isLookingUpGuest } = usePmsGuestLookup(hotelId);
+  const clientType = form.watch("clientType");
+  const isHotelClient = clientType === "hotel";
+  const roomNumberLater = form.watch("roomNumberLater");
+
+  const handleRoomLaterChange = (checked: boolean) => {
+    form.setValue("roomNumberLater", checked, { shouldDirty: true });
+    if (checked) {
+      form.setValue("roomNumber", "");
+      form.clearErrors("roomNumber");
+    }
+  };
+
+  const isDayUnavailableForCart = (date: Date) => {
+    if (!cartAvailableDays || cartAvailableDays.length === 0) return false;
+    return !cartAvailableDays.includes(date.getDay());
+  };
+
+  const handleUnavailableDayWarning = (date: Date) => {
+    if (isDayUnavailableForCart(date)) {
+      toast.warning("Ce soin n'est normalement pas disponible ce jour-là.");
+    }
+  };
 
   const handleRoomNumberBlur = useCallback(async (roomNumber: string) => {
     if (!pmsLookupEnabled || !roomNumber || roomNumber.length === 0) return;
@@ -105,10 +127,54 @@ export function BookingInfoStep({
     }
   }, [pmsLookupEnabled, lookupGuest, form]);
 
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const trimmedCustomerSearch = customerSearch.trim();
+  const isPhoneSearch = /^\+?\d[\d\s]{2,}$/.test(trimmedCustomerSearch);
+
+  const { data: customerResults = [], isFetching: isSearchingCustomers } = useQuery({
+    queryKey: ["create-booking-customer-search", trimmedCustomerSearch],
+    enabled: trimmedCustomerSearch.length >= 3 && !selectedCustomerId,
+    staleTime: 30_000,
+    queryFn: async () => {
+      let q = supabase
+        .from("customers")
+        .select("id, first_name, last_name, phone, email")
+        .limit(5);
+      if (isPhoneSearch) {
+        const normalized = trimmedCustomerSearch.replace(/\s/g, "");
+        q = q.ilike("phone", `%${normalized}%`);
+      } else {
+        q = q.or(
+          `first_name.ilike.%${trimmedCustomerSearch}%,last_name.ilike.%${trimmedCustomerSearch}%`,
+        );
+      }
+      const { data } = await q;
+      return (data as Array<{ id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null }>) || [];
+    },
+  });
+
+  const handleSelectCustomer = (c: { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null }) => {
+    setSelectedCustomerId(c.id);
+    if (c.first_name) form.setValue("clientFirstName", c.first_name);
+    if (c.last_name) form.setValue("clientLastName", c.last_name);
+    if (c.email) form.setValue("clientEmail", c.email);
+    if (c.phone) {
+      const sorted = [...countries].sort((a, b) => b.code.length - a.code.length);
+      const match = sorted.find((cc) => c.phone!.startsWith(cc.code));
+      if (match) {
+        form.setValue("countryCode", match.code);
+        form.setValue("phone", formatPhoneNumber(c.phone.slice(match.code.length).trim(), match.code));
+      } else {
+        form.setValue("phone", c.phone);
+      }
+    }
+    setCustomerSearch(`${c.first_name || ""} ${c.last_name || ""}`.trim());
+  };
+
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
   const [minuteOpen, setMinuteOpen] = useState(false);
-  const [therapistOpen, setTherapistOpen] = useState(false);
   const [slot2CalendarOpen, setSlot2CalendarOpen] = useState(false);
   const [slot2HourOpen, setSlot2HourOpen] = useState(false);
   const [slot2MinuteOpen, setSlot2MinuteOpen] = useState(false);
@@ -146,99 +212,77 @@ export function BookingInfoStep({
   return (
     <div className="flex flex-col min-h-0 flex-1">
       <div className="flex-1 overflow-y-auto space-y-3 px-4 py-4">
-      <div className={cn("grid gap-2", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
-        <FormField
-          control={form.control}
-          name="hotelId"
-          render={({ field }) => (
-            <FormItem className="space-y-1">
-              <FormLabel className="text-xs">Hôtel *</FormLabel>
-              <Select value={field.value} onValueChange={field.onChange}>
-                <FormControl>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Sélectionner un hôtel" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {(isConcierge && hotelIds.length > 0
-                    ? hotels?.filter(hotel => hotelIds.includes(hotel.id))
-                    : hotels
-                  )?.map((hotel) => (
-                    <SelectItem key={hotel.id} value={hotel.id}>
-                      {hotel.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage className="text-xs" />
-            </FormItem>
-          )}
-        />
-
-        {isAdmin && (
-          <FormField
-            control={form.control}
-            name="therapistId"
-            render={({ field }) => {
-              const selected = therapists?.find((t) => t.id === field.value);
-              return (
-                <FormItem className="space-y-1">
-                  <FormLabel className="text-xs">Thérapeute / Prestataire *</FormLabel>
-                  <Popover open={therapistOpen} onOpenChange={setTherapistOpen}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={therapistOpen}
-                          className={cn(
-                            "w-full h-9 justify-between font-normal hover:bg-background hover:text-foreground",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {selected
-                            ? `${selected.first_name} ${selected.last_name}`
-                            : "Sélectionner un thérapeute"}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Rechercher un thérapeute..." />
-                        <CommandList>
-                          <CommandEmpty>Aucun thérapeute trouvé.</CommandEmpty>
-                          <CommandGroup>
-                            {therapists?.map((therapist) => (
-                              <CommandItem
-                                key={therapist.id}
-                                value={`${therapist.first_name} ${therapist.last_name}`}
-                                onSelect={() => {
-                                  field.onChange(therapist.id);
-                                  setTherapistOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    field.value === therapist.id ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {therapist.first_name} {therapist.last_name}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              );
-            }}
-          />
+      <FormField
+        control={form.control}
+        name="hotelId"
+        render={({ field }) => (
+          <FormItem className="space-y-1">
+            <FormLabel className="text-xs">Hôtel *</FormLabel>
+            <Select value={field.value} onValueChange={field.onChange}>
+              <FormControl>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Sélectionner un hôtel" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {(isConcierge && hotelIds.length > 0
+                  ? hotels?.filter(hotel => hotelIds.includes(hotel.id))
+                  : hotels
+                )?.map((hotel) => (
+                  <SelectItem key={hotel.id} value={hotel.id}>
+                    {hotel.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage className="text-xs" />
+          </FormItem>
         )}
-      </div>
+      />
+
+      {/* Client type */}
+      <FormField
+        control={form.control}
+        name="clientType"
+        render={({ field }) => (
+          <FormItem className="space-y-1">
+            <FormLabel className="text-xs">{t('bookings.clientType.label')} *</FormLabel>
+            <Select value={field.value} onValueChange={field.onChange}>
+              <FormControl>
+                <SelectTrigger className="h-9">
+                  <SelectValue>
+                    {field.value && (
+                      <span className="flex items-center gap-2">
+                        <img
+                          src={CLIENT_TYPE_META[field.value].logo}
+                          alt=""
+                          className="w-4 h-4 shrink-0"
+                        />
+                        <span>{t(CLIENT_TYPE_META[field.value].labelKey)}</span>
+                      </span>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {BOOKING_CLIENT_TYPES.map((ct) => (
+                  <SelectItem key={ct} value={ct}>
+                    <span className="flex items-center gap-2">
+                      <img
+                        src={CLIENT_TYPE_META[ct].logo}
+                        alt=""
+                        className="w-4 h-4 shrink-0"
+                      />
+                      <span>{t(CLIENT_TYPE_META[ct].labelKey)}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage className="text-xs" />
+          </FormItem>
+        )}
+      />
 
       {/* Concierge info banner */}
       {!isAdmin && (
@@ -291,9 +335,12 @@ export function BookingInfoStep({
                         selected={field.value}
                         onSelect={(selectedDate) => {
                           field.onChange(selectedDate);
+                          if (selectedDate) handleUnavailableDayWarning(selectedDate);
                           setCalendarOpen(false);
                         }}
                         disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
+                        modifiers={{ unavailable: isDayUnavailableForCart }}
+                        modifiersClassNames={{ unavailable: "line-through text-red-500" }}
                         initialFocus
                         className="pointer-events-auto"
                         locale={fr}
@@ -441,7 +488,7 @@ export function BookingInfoStep({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); setSlot2CalendarOpen(false); }} disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))} initialFocus className="pointer-events-auto" locale={fr} />
+                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); if (d) handleUnavailableDayWarning(d); setSlot2CalendarOpen(false); }} disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))} modifiers={{ unavailable: isDayUnavailableForCart }} modifiersClassNames={{ unavailable: "line-through text-red-500" }} initialFocus className="pointer-events-auto" locale={fr} />
                       </PopoverContent>
                     </Popover>
                     <FormMessage className="text-xs" />
@@ -539,7 +586,7 @@ export function BookingInfoStep({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); setSlot3CalendarOpen(false); }} disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))} initialFocus className="pointer-events-auto" locale={fr} />
+                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); if (d) handleUnavailableDayWarning(d); setSlot3CalendarOpen(false); }} disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))} modifiers={{ unavailable: isDayUnavailableForCart }} modifiersClassNames={{ unavailable: "line-through text-red-500" }} initialFocus className="pointer-events-auto" locale={fr} />
                       </PopoverContent>
                     </Popover>
                     <FormMessage className="text-xs" />
@@ -624,8 +671,8 @@ export function BookingInfoStep({
         )}
       </div>
 
-      {/* PMS hint banner + Room number FIRST when PMS enabled */}
-      {pmsLookupEnabled && (
+      {/* PMS hint banner + Room number FIRST when PMS enabled (hotel clients only) */}
+      {pmsLookupEnabled && isHotelClient && (
         <div className="flex gap-2 items-start rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 p-3">
           <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
           <p className="text-xs text-blue-800 dark:text-blue-300">
@@ -633,37 +680,94 @@ export function BookingInfoStep({
           </p>
         </div>
       )}
-      {pmsLookupEnabled && (
-        <FormField
-          control={form.control}
-          name="roomNumber"
-          render={({ field }) => (
-            <FormItem className="space-y-1">
-              <FormLabel className="text-xs">Room number</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Input
-                    {...field}
-                    className="h-9 pr-8"
-                    placeholder="1002"
-                    onBlur={(e) => {
-                      field.onBlur();
-                      handleRoomNumberBlur(e.target.value);
-                    }}
-                  />
-                  {isLookingUpGuest && (
-                    <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                  {!isLookingUpGuest && guestData?.found && (
-                    <Check className="absolute right-2.5 top-2.5 h-4 w-4 text-green-500" />
-                  )}
-                </div>
-              </FormControl>
-              <FormMessage className="text-xs" />
-            </FormItem>
-          )}
-        />
+      {pmsLookupEnabled && isHotelClient && (
+        <div className="space-y-2">
+          <FormField
+            control={form.control}
+            name="roomNumber"
+            render={({ field }) => (
+              <FormItem className="space-y-1">
+                <FormLabel className="text-xs">
+                  N° de chambre {!roomNumberLater && "*"}
+                </FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      {...field}
+                      disabled={roomNumberLater}
+                      className="h-9 pr-8"
+                      placeholder={roomNumberLater ? "À renseigner plus tard" : "1002"}
+                      onBlur={(e) => {
+                        field.onBlur();
+                        handleRoomNumberBlur(e.target.value);
+                      }}
+                    />
+                    {isLookingUpGuest && (
+                      <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                    {!isLookingUpGuest && guestData?.found && (
+                      <Check className="absolute right-2.5 top-2.5 h-4 w-4 text-green-500" />
+                    )}
+                  </div>
+                </FormControl>
+                <FormMessage className="text-xs" />
+              </FormItem>
+            )}
+          />
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Checkbox
+              checked={roomNumberLater}
+              onCheckedChange={(v) => handleRoomLaterChange(v === true)}
+            />
+            Numéro de chambre à renseigner plus tard (client pas encore arrivé)
+          </label>
+        </div>
       )}
+
+      {/* Customer search (existing clients) */}
+      <div className="relative">
+        <Label className="flex items-center gap-1.5 mb-1 text-xs">
+          <Search className="h-3.5 w-3.5" />
+          Rechercher un client existant
+        </Label>
+        <Input
+          value={customerSearch}
+          onChange={(e) => {
+            setCustomerSearch(e.target.value);
+            setSelectedCustomerId(null);
+          }}
+          placeholder="Nom, prénom ou téléphone…"
+          className="h-9"
+        />
+        {trimmedCustomerSearch.length >= 3 && !selectedCustomerId && (
+          <div className="absolute z-10 left-0 right-0 mt-1 rounded-lg border bg-popover shadow-md">
+            {isSearchingCustomers ? (
+              <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Recherche…
+              </div>
+            ) : customerResults.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-muted-foreground">Aucun client trouvé</div>
+            ) : (
+              customerResults.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => handleSelectCustomer(c)}
+                  className="w-full flex flex-col items-start px-3 py-2 text-sm text-left hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg"
+                >
+                  <span className="font-medium">
+                    {[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {[c.phone, c.email].filter(Boolean).join(" · ")}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <FormField
@@ -695,6 +799,22 @@ export function BookingInfoStep({
         />
       </div>
 
+      <FormField
+        control={form.control}
+        name="clientEmail"
+        render={({ field }) => (
+          <FormItem className="space-y-1">
+            <FormLabel className="text-xs">
+              Email <span className="text-muted-foreground font-normal">(optionnel)</span>
+            </FormLabel>
+            <FormControl>
+              <Input {...field} type="email" className="h-9" placeholder="client@email.com" />
+            </FormControl>
+            <FormMessage className="text-xs" />
+          </FormItem>
+        )}
+      />
+
       <div className={cn("grid gap-2", pmsLookupEnabled ? "grid-cols-1" : "grid-cols-2")}>
         <FormField
           control={form.control}
@@ -719,31 +839,43 @@ export function BookingInfoStep({
           )}
         />
 
-        {/* Room number AFTER phone when PMS disabled */}
-        {!pmsLookupEnabled && (
-          <FormField
-            control={form.control}
-            name="roomNumber"
-            render={({ field }) => (
-              <FormItem className="space-y-1">
-                <FormLabel className="text-xs">Room number</FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input
-                      {...field}
-                      className="h-9 pr-8"
-                      placeholder="1002"
-                      onBlur={(e) => {
-                        field.onBlur();
-                        handleRoomNumberBlur(e.target.value);
-                      }}
-                    />
-                  </div>
-                </FormControl>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
+        {/* Room number AFTER phone when PMS disabled and hotel client */}
+        {!pmsLookupEnabled && isHotelClient && (
+          <div className="space-y-2">
+            <FormField
+              control={form.control}
+              name="roomNumber"
+              render={({ field }) => (
+                <FormItem className="space-y-1">
+                  <FormLabel className="text-xs">
+                    N° de chambre {!roomNumberLater && "*"}
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        disabled={roomNumberLater}
+                        className="h-9 pr-8"
+                        placeholder={roomNumberLater ? "À renseigner plus tard" : "1002"}
+                        onBlur={(e) => {
+                          field.onBlur();
+                          handleRoomNumberBlur(e.target.value);
+                        }}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage className="text-xs" />
+                </FormItem>
+              )}
+            />
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <Checkbox
+                checked={roomNumberLater}
+                onCheckedChange={(v) => handleRoomLaterChange(v === true)}
+              />
+              Numéro de chambre à renseigner plus tard (client pas encore arrivé)
+            </label>
+          </div>
         )}
 
         <FormField

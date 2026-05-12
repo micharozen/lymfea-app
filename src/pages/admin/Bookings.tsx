@@ -7,6 +7,8 @@ import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
 import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
+import { useCurrentVenueId } from "@/hooks/useCurrentVenueId";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 
 import { useTranslation } from "react-i18next";
@@ -35,7 +37,8 @@ import { useVenueAmenities } from "@/hooks/useVenueAmenities";
 
 export default function Booking() {
   const navigate = useNavigate();
-  const { isAdmin, isConcierge } = useUserContext();
+  const { isAdmin } = useUserContext();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const { activeTimezone } = useTimezone();
   const { i18n } = useTranslation();
   
@@ -105,6 +108,14 @@ useEffect(() => {
     filteredBookings,
   } = useBookingFilters(bookings);
 
+  // In venue_manager view, force-scope the venue filter to the impersonated venue.
+  const currentVenueId = useCurrentVenueId();
+  useEffect(() => {
+    if (currentVenueId && hotelFilter !== currentVenueId) {
+      setHotelFilter(currentVenueId);
+    }
+  }, [currentVenueId, hotelFilter, setHotelFilter]);
+
   // Amenity data
   const hasVenueFilter = hotelFilter && hotelFilter !== "all";
   const { amenities: venueAmenities } = useVenueAmenities(hasVenueFilter ? hotelFilter : "");
@@ -118,7 +129,7 @@ useEffect(() => {
   const calendarEntries = hasVenueFilter
     ? buildCalendarEntries(venueAmenities, i18n.language)
     : [];
-  const showSidebar = calendarEntries.length > 1 && view === "calendar";
+  const showSidebar = view === "calendar";
 
   const handleCalendarToggle = (id: string, visible: boolean) => {
     setVisibleCalendars((prev) => ({ ...prev, [id]: visible }));
@@ -250,6 +261,8 @@ useEffect(() => {
                 onToggle={handleCalendarToggle}
                 onShowAll={handleShowAll}
                 onHideAll={handleHideAll}
+                hotels={hotels}
+                hotelFilter={hotelFilter}
               />
             )}
             <Button
@@ -297,6 +310,8 @@ useEffect(() => {
               onToggle={handleCalendarToggle}
               onShowAll={handleShowAll}
               onHideAll={handleHideAll}
+              hotels={hotels}
+              hotelFilter={hotelFilter}
             />
           )}
           <div className="flex-1 flex flex-col overflow-hidden">

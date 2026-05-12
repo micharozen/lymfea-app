@@ -18,9 +18,11 @@ export type DashboardBooking = Pick<
   | "therapist_name"
   | "room_id"
   | "duration"
+  | "client_type"
+  | "room_number"
 >;
 
-export type DashboardHotel = Pick<HotelRow, "id" | "name" | "currency">;
+export type DashboardHotel = Pick<HotelRow, "id" | "name" | "currency" | "opening_time" | "closing_time">;
 
 export type DashboardData = {
   bookings: DashboardBooking[];
@@ -50,10 +52,10 @@ export async function getDashboardDataForOrg(
   let bookingsQ = client
     .from("bookings")
     .select(
-      "id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, room_id, duration",
+      "id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, room_id, duration, client_type, room_number",
     )
     .order("booking_date", { ascending: true });
-  let hotelsQ = client.from("hotels").select("id, name, currency").order("created_at", {
+  let hotelsQ = client.from("hotels").select("id, name, currency, opening_time, closing_time").order("created_at", {
     ascending: false,
   });
   let roomsQ = client

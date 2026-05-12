@@ -21,6 +21,7 @@ interface TimeSlot {
   value: string;
   label: string;
   hour: number;
+  isOutOfHours?: boolean;
 }
 
 interface TimePeriodSelectorProps {
@@ -28,6 +29,7 @@ interface TimePeriodSelectorProps {
   selectedTime: string;
   onSelectTime: (time: string) => void;
   allTimeSlots: TimeSlot[];
+  surchargePercent?: number;
 }
 
 export default function TimePeriodSelector({
@@ -35,6 +37,7 @@ export default function TimePeriodSelector({
   selectedTime,
   onSelectTime,
   allTimeSlots,
+  surchargePercent = 0,
 }: TimePeriodSelectorProps) {
   const { t } = useTranslation('client');
 
@@ -132,13 +135,21 @@ export default function TimePeriodSelector({
                     type="button"
                     onClick={() => onSelectTime(slot.value)}
                     className={cn(
-                      "py-3 min-h-[44px] rounded-lg text-sm transition-all duration-200",
+                      "py-3 min-h-[44px] rounded-lg text-sm transition-all duration-200 relative",
                       selectedTime === slot.value
                         ? "bg-gold-400 text-black font-medium"
-                        : "bg-gray-50 text-gray-900 font-light hover:bg-gray-100"
+                        : slot.isOutOfHours
+                          ? "bg-amber-50 text-gray-900 font-light hover:bg-amber-100 ring-1 ring-amber-200"
+                          : "bg-gray-50 text-gray-900 font-light hover:bg-gray-100"
                     )}
+                    title={slot.isOutOfHours && surchargePercent > 0 ? t('datetime.outOfHoursHint', { percent: surchargePercent, defaultValue: 'Majoration hors horaires +{{percent}}%' }) : undefined}
                   >
-                    {slot.label}
+                    <span>{slot.label}</span>
+                    {slot.isOutOfHours && surchargePercent > 0 && (
+                      <span className="block text-[10px] font-medium text-amber-700 leading-none mt-0.5">
+                        +{surchargePercent}%
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>

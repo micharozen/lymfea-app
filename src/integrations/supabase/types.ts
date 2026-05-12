@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -319,6 +314,7 @@ export type Database = {
       booking_payment_infos: {
         Row: {
           booking_id: string | null
+          cancellation_reason: string | null
           card_brand: string | null
           card_last4: string | null
           created_at: string | null
@@ -327,6 +323,10 @@ export type Database = {
           id: string
           payment_at: string | null
           payment_error_message: string | null
+          payment_last_reminder_at: string | null
+          payment_link_expires_at: string | null
+          payment_link_stripe_id: string | null
+          payment_reminder_count: number | null
           payment_status: string | null
           stripe_payment_intent_id: string | null
           stripe_payment_method_id: string | null
@@ -336,6 +336,7 @@ export type Database = {
         }
         Insert: {
           booking_id?: string | null
+          cancellation_reason?: string | null
           card_brand?: string | null
           card_last4?: string | null
           created_at?: string | null
@@ -344,6 +345,10 @@ export type Database = {
           id?: string
           payment_at?: string | null
           payment_error_message?: string | null
+          payment_last_reminder_at?: string | null
+          payment_link_expires_at?: string | null
+          payment_link_stripe_id?: string | null
+          payment_reminder_count?: number | null
           payment_status?: string | null
           stripe_payment_intent_id?: string | null
           stripe_payment_method_id?: string | null
@@ -353,6 +358,7 @@ export type Database = {
         }
         Update: {
           booking_id?: string | null
+          cancellation_reason?: string | null
           card_brand?: string | null
           card_last4?: string | null
           created_at?: string | null
@@ -361,6 +367,10 @@ export type Database = {
           id?: string
           payment_at?: string | null
           payment_error_message?: string | null
+          payment_last_reminder_at?: string | null
+          payment_link_expires_at?: string | null
+          payment_link_stripe_id?: string | null
+          payment_reminder_count?: number | null
           payment_status?: string | null
           stripe_payment_intent_id?: string | null
           stripe_payment_method_id?: string | null
@@ -497,79 +507,13 @@ export type Database = {
           },
         ]
       }
-      booking_therapists: {
-        Row: {
-          id: string
-          booking_id: string
-          therapist_id: string
-          status: string
-          assigned_at: string | null
-        }
-        Insert: {
-          id?: string
-          booking_id: string
-          therapist_id: string
-          status?: string
-          assigned_at?: string | null
-        }
-        Update: {
-          id?: string
-          booking_id?: string
-          therapist_id?: string
-          status?: string
-          assigned_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "booking_therapists_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      booking_notes: {
-        Row: {
-          id: string
-          booking_id: string
-          user_id: string
-          author_name: string
-          content: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          booking_id: string
-          user_id: string
-          author_name: string
-          content: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          booking_id?: string
-          user_id?: string
-          author_name?: string
-          content?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "booking_notes_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       bookings: {
         Row: {
           assigned_at: string | null
           booking_date: string
           booking_id: number
           booking_time: string
+          bundle_usage_id: string | null
           cancellation_reason: string | null
           client_email: string | null
           client_first_name: string
@@ -613,13 +557,13 @@ export type Database = {
           therapist_name: string | null
           total_price: number | null
           updated_at: string
-          guest_count: number
         }
         Insert: {
           assigned_at?: string | null
           booking_date: string
           booking_id?: number
           booking_time: string
+          bundle_usage_id?: string | null
           cancellation_reason?: string | null
           client_email?: string | null
           client_first_name: string
@@ -663,13 +607,13 @@ export type Database = {
           therapist_name?: string | null
           total_price?: number | null
           updated_at?: string
-          guest_count?: number
         }
         Update: {
           assigned_at?: string | null
           booking_date?: string
           booking_id?: number
           booking_time?: string
+          bundle_usage_id?: string | null
           cancellation_reason?: string | null
           client_email?: string | null
           client_first_name?: string
@@ -713,9 +657,15 @@ export type Database = {
           therapist_name?: string | null
           total_price?: number | null
           updated_at?: string
-          guest_count?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_bundle_usage_id_fkey"
+            columns: ["bundle_usage_id"]
+            isOneToOne: false
+            referencedRelation: "bundle_session_usages"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_customer_id_fkey"
             columns: ["customer_id"]
@@ -742,6 +692,52 @@ export type Database = {
             columns: ["room_id"]
             isOneToOne: false
             referencedRelation: "treatment_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bundle_session_usages: {
+        Row: {
+          booking_id: string
+          customer_bundle_id: string
+          id: string
+          treatment_id: string
+          used_at: string
+        }
+        Insert: {
+          booking_id: string
+          customer_bundle_id: string
+          id?: string
+          treatment_id: string
+          used_at?: string
+        }
+        Update: {
+          booking_id?: string
+          customer_bundle_id?: string
+          id?: string
+          treatment_id?: string
+          used_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_session_usages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_session_usages_customer_bundle_id_fkey"
+            columns: ["customer_bundle_id"]
+            isOneToOne: false
+            referencedRelation: "customer_treatment_bundles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_session_usages_treatment_id_fkey"
+            columns: ["treatment_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_menus"
             referencedColumns: ["id"]
           },
         ]
@@ -882,6 +878,89 @@ export type Database = {
           venue_role?: string | null
         }
         Relationships: []
+      }
+      customer_treatment_bundles: {
+        Row: {
+          booking_id: string | null
+          bundle_id: string
+          created_at: string
+          customer_id: string
+          expires_at: string
+          hotel_id: string
+          id: string
+          notes: string | null
+          payment_reference: string | null
+          purchase_date: string
+          sold_by: string | null
+          status: string
+          total_sessions: number
+          updated_at: string
+          used_sessions: number
+        }
+        Insert: {
+          booking_id?: string | null
+          bundle_id: string
+          created_at?: string
+          customer_id: string
+          expires_at: string
+          hotel_id: string
+          id?: string
+          notes?: string | null
+          payment_reference?: string | null
+          purchase_date?: string
+          sold_by?: string | null
+          status?: string
+          total_sessions: number
+          updated_at?: string
+          used_sessions?: number
+        }
+        Update: {
+          booking_id?: string | null
+          bundle_id?: string
+          created_at?: string
+          customer_id?: string
+          expires_at?: string
+          hotel_id?: string
+          id?: string
+          notes?: string | null
+          payment_reference?: string | null
+          purchase_date?: string
+          sold_by?: string | null
+          status?: string
+          total_sessions?: number
+          updated_at?: string
+          used_sessions?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_treatment_bundles_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_treatment_bundles_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_bundles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_treatment_bundles_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_treatment_bundles_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {
@@ -1081,8 +1160,6 @@ export type Database = {
           hotel_commission: number | null
           id: string
           image: string | null
-          inter_venue_buffer_minutes: number | null
-          room_turnover_buffer_minutes: number | null
           landing_subtitle: string | null
           landing_subtitle_en: string | null
           name: string
@@ -1096,7 +1173,6 @@ export type Database = {
           pms_type: string | null
           postal_code: string | null
           slot_interval: number | null
-          slug: string
           status: string | null
           therapist_commission: number | null
           timezone: string | null
@@ -1123,8 +1199,6 @@ export type Database = {
           hotel_commission?: number | null
           id?: string
           image?: string | null
-          inter_venue_buffer_minutes?: number | null
-          room_turnover_buffer_minutes?: number | null
           landing_subtitle?: string | null
           landing_subtitle_en?: string | null
           name: string
@@ -1138,7 +1212,6 @@ export type Database = {
           pms_type?: string | null
           postal_code?: string | null
           slot_interval?: number | null
-          slug?: string
           status?: string | null
           therapist_commission?: number | null
           timezone?: string | null
@@ -1165,8 +1238,6 @@ export type Database = {
           hotel_commission?: number | null
           id?: string
           image?: string | null
-          inter_venue_buffer_minutes?: number | null
-          room_turnover_buffer_minutes?: number | null
           landing_subtitle?: string | null
           landing_subtitle_en?: string | null
           name?: string
@@ -1180,7 +1251,6 @@ export type Database = {
           pms_type?: string | null
           postal_code?: string | null
           slot_interval?: number | null
-          slug?: string
           status?: string | null
           therapist_commission?: number | null
           timezone?: string | null
@@ -1298,45 +1368,6 @@ export type Database = {
           request_type?: string
         }
         Relationships: []
-      }
-      package_treatments: {
-        Row: {
-          created_at: string
-          id: string
-          package_id: string
-          sort_order: number | null
-          treatment_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          package_id: string
-          sort_order?: number | null
-          treatment_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          package_id?: string
-          sort_order?: number | null
-          treatment_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "package_treatments_package_id_fkey"
-            columns: ["package_id"]
-            isOneToOne: false
-            referencedRelation: "treatment_packages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "package_treatments_treatment_id_fkey"
-            columns: ["treatment_id"]
-            isOneToOne: false
-            referencedRelation: "treatment_menus"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       profiles: {
         Row: {
@@ -1786,11 +1817,104 @@ export type Database = {
         }
         Relationships: []
       }
+      treatment_bundle_items: {
+        Row: {
+          bundle_id: string
+          id: string
+          treatment_id: string
+        }
+        Insert: {
+          bundle_id: string
+          id?: string
+          treatment_id: string
+        }
+        Update: {
+          bundle_id?: string
+          id?: string
+          treatment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "treatment_bundle_items_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_bundles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "treatment_bundle_items_treatment_id_fkey"
+            columns: ["treatment_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      treatment_bundles: {
+        Row: {
+          created_at: string
+          currency: string | null
+          description: string | null
+          description_en: string | null
+          hotel_id: string
+          id: string
+          name: string
+          name_en: string | null
+          price: number
+          sort_order: number | null
+          status: string
+          total_sessions: number
+          updated_at: string
+          validity_days: number | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          description_en?: string | null
+          hotel_id: string
+          id?: string
+          name: string
+          name_en?: string | null
+          price: number
+          sort_order?: number | null
+          status?: string
+          total_sessions: number
+          updated_at?: string
+          validity_days?: number | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          description_en?: string | null
+          hotel_id?: string
+          id?: string
+          name?: string
+          name_en?: string | null
+          price?: number
+          sort_order?: number | null
+          status?: string
+          total_sessions?: number
+          updated_at?: string
+          validity_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "treatment_bundles_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       treatment_categories: {
         Row: {
           created_at: string | null
           hotel_id: string
           id: string
+          is_addon: boolean
           name: string
           name_en: string | null
           sort_order: number | null
@@ -1800,6 +1924,7 @@ export type Database = {
           created_at?: string | null
           hotel_id: string
           id?: string
+          is_addon?: boolean
           name: string
           name_en?: string | null
           sort_order?: number | null
@@ -1809,6 +1934,7 @@ export type Database = {
           created_at?: string | null
           hotel_id?: string
           id?: string
+          is_addon?: boolean
           name?: string
           name_en?: string | null
           sort_order?: number | null
@@ -1826,6 +1952,7 @@ export type Database = {
       }
       treatment_menus: {
         Row: {
+          bundle_id: string | null
           category: string
           created_at: string
           currency: string | null
@@ -1836,6 +1963,7 @@ export type Database = {
           id: string
           image: string | null
           is_bestseller: boolean | null
+          is_bundle: boolean | null
           lead_time: number | null
           name: string
           name_en: string | null
@@ -1843,13 +1971,13 @@ export type Database = {
           price_on_request: boolean | null
           requires_room: boolean | null
           service_for: string
-          slug: string
           sort_order: number | null
           status: string
           treatment_type: string | null
           updated_at: string
         }
         Insert: {
+          bundle_id?: string | null
           category: string
           created_at?: string
           currency?: string | null
@@ -1860,6 +1988,7 @@ export type Database = {
           id?: string
           image?: string | null
           is_bestseller?: boolean | null
+          is_bundle?: boolean | null
           lead_time?: number | null
           name: string
           name_en?: string | null
@@ -1867,13 +1996,13 @@ export type Database = {
           price_on_request?: boolean | null
           requires_room?: boolean | null
           service_for: string
-          slug?: string
           sort_order?: number | null
           status?: string
           treatment_type?: string | null
           updated_at?: string
         }
         Update: {
+          bundle_id?: string | null
           category?: string
           created_at?: string
           currency?: string | null
@@ -1884,6 +2013,7 @@ export type Database = {
           id?: string
           image?: string | null
           is_bestseller?: boolean | null
+          is_bundle?: boolean | null
           lead_time?: number | null
           name?: string
           name_en?: string | null
@@ -1891,7 +2021,6 @@ export type Database = {
           price_on_request?: boolean | null
           requires_room?: boolean | null
           service_for?: string
-          slug?: string
           sort_order?: number | null
           status?: string
           treatment_type?: string | null
@@ -1899,57 +2028,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "treatment_menus_hotel_id_fkey"
-            columns: ["hotel_id"]
+            foreignKeyName: "treatment_menus_bundle_id_fkey"
+            columns: ["bundle_id"]
             isOneToOne: false
-            referencedRelation: "hotels"
+            referencedRelation: "treatment_bundles"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      treatment_packages: {
-        Row: {
-          created_at: string
-          currency: string | null
-          description: string | null
-          hotel_id: string
-          id: string
-          name: string
-          sort_order: number | null
-          status: string
-          total_duration: number | null
-          total_price: number | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          currency?: string | null
-          description?: string | null
-          hotel_id: string
-          id?: string
-          name: string
-          sort_order?: number | null
-          status?: string
-          total_duration?: number | null
-          total_price?: number | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          currency?: string | null
-          description?: string | null
-          hotel_id?: string
-          id?: string
-          name?: string
-          sort_order?: number | null
-          status?: string
-          total_duration?: number | null
-          total_price?: number | null
-          updated_at?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "treatment_packages_hotel_id_fkey"
+            foreignKeyName: "treatment_menus_hotel_id_fkey"
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
@@ -2027,7 +2113,6 @@ export type Database = {
           status: string | null
           treatment_id: string
           updated_at: string | null
-          guest_count: number
         }
         Insert: {
           created_at?: string | null
@@ -2042,7 +2127,6 @@ export type Database = {
           status?: string | null
           treatment_id: string
           updated_at?: string | null
-          guest_count?: number
         }
         Update: {
           created_at?: string | null
@@ -2057,7 +2141,6 @@ export type Database = {
           status?: string | null
           treatment_id?: string
           updated_at?: string | null
-          guest_count?: number
         }
         Relationships: [
           {
@@ -2312,6 +2395,15 @@ export type Database = {
         }
         Returns: string
       }
+      create_customer_bundle: {
+        Args: {
+          _booking_id?: string
+          _bundle_id: string
+          _customer_id: string
+          _hotel_id: string
+        }
+        Returns: string
+      }
       create_treatment_request: {
         Args: {
           _client_email?: string
@@ -2327,6 +2419,20 @@ export type Database = {
         }
         Returns: string
       }
+      detect_bundles_for_booking: {
+        Args: { _hotel_id: string; _phone: string; _treatment_ids?: string[] }
+        Returns: {
+          bundle_name: string
+          bundle_name_en: string
+          customer_bundle_id: string
+          eligible_treatment_ids: string[]
+          expires_at: string
+          remaining_sessions: number
+          total_sessions: number
+          used_sessions: number
+        }[]
+      }
+      expire_overdue_bundles: { Args: never; Returns: number }
       find_or_create_customer: {
         Args: {
           _email?: string
@@ -2386,41 +2492,6 @@ export type Database = {
           total_sessions: number
         }[]
       }
-      get_public_hotel: {
-        Args: { _identifier: string }
-        Returns: {
-          address: string
-          city: string
-          closing_time: string
-          company_offered: boolean
-          contact_phone: string
-          country: string
-          cover_image: string
-          currency: string
-          days_of_week: number[]
-          description: string
-          description_en: string
-          id: string
-          image: string
-          landing_subtitle: string
-          landing_subtitle_en: string
-          name: string
-          name_en: string
-          offert: boolean
-          opening_time: string
-          pms_guest_lookup_enabled: boolean
-          postal_code: string
-          recurrence_interval: number
-          recurring_end_date: string
-          recurring_start_date: string
-          schedule_type: string
-          slot_interval: number
-          slug: string
-          status: string
-          vat: number
-          venue_type: string
-        }[]
-      }
       get_public_hotel_by_id: {
         Args: { _hotel_id: string }
         Returns: {
@@ -2450,7 +2521,6 @@ export type Database = {
           recurring_start_date: string
           schedule_type: string
           slot_interval: number
-          slug: string
           status: string
           vat: number
           venue_type: string
@@ -2498,7 +2568,6 @@ export type Database = {
           price: number
           price_on_request: boolean
           service_for: string
-          slug: string
           sort_order: number
           variants: Json
         }[]
@@ -2581,6 +2650,14 @@ export type Database = {
       unassign_booking: {
         Args: { _booking_id: string; _hairdresser_id: string }
         Returns: Json
+      }
+      use_bundle_session: {
+        Args: {
+          _booking_id: string
+          _customer_bundle_id: string
+          _treatment_id: string
+        }
+        Returns: string
       }
       validate_treatment_request: {
         Args: {
@@ -2731,3 +2808,4 @@ export const Constants = {
     },
   },
 } as const
+

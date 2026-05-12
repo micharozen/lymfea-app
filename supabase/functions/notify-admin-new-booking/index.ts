@@ -11,16 +11,21 @@ const corsHeaders = {
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 // Compact email template - no scrolling
-const createAdminEmailHtml = (booking: any, treatments: any[], dashboardUrl: string) => {
+const createAdminEmailHtml = (booking: any, treatments: any[], dashboardUrl: string, groupSlots?: { date: string; time: string; treatmentsLine: string }[]) => {
   const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
     weekday: 'short',
     day: 'numeric',
     month: 'short'
   });
 
-  const treatmentsHtml = treatments.map(t => 
-    `<span style="display:inline-block;background:#f3f4f6;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
-  ).join('');
+  const treatmentsHtml = (groupSlots && groupSlots.length > 1)
+    ? groupSlots.map(s => {
+        const d = new Date(s.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+        return `<div style="margin:4px 0;font-size:12px;"><strong>${d} · ${s.time?.substring(0,5)}</strong> — ${s.treatmentsLine}</div>`;
+      }).join('')
+    : treatments.map(t =>
+      `<span style="display:inline-block;background:#f3f4f6;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
+    ).join('');
 
   const logoUrl = EMAIL_LOGO_URL;
 
@@ -121,25 +126,37 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { bookingId } = await req.json();
-    
+    const { bookingId, groupId } = await req.json();
+
     if (!bookingId) {
       throw new Error("Booking ID is required");
     }
 
-    console.log("Sending admin notification for booking:", bookingId);
+    console.log("Sending admin notification for booking:", bookingId, groupId ? `(group ${groupId})` : '');
 
     const siteUrl = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
     const dashboardUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
 
-    const { data: booking, error: bookingError } = await supabaseClient
+    // Group mode: fetch every sibling booking sharing this group_id.
+    let groupBookings: any[] | null = null;
+    if (groupId) {
+      const { data: siblings } = await supabaseClient
+        .from("bookings")
+        .select(`*, booking_treatments (treatment_menus (name, price, duration))`)
+        .eq("booking_group_id", groupId)
+        .order("booking_date", { ascending: true })
+        .order("booking_time", { ascending: true });
+      if (siblings && siblings.length > 0) groupBookings = siblings;
+    }
+
+    const booking = groupBookings ? groupBookings[0] : (await supabaseClient
       .from("bookings")
       .select(`*, booking_treatments (treatment_menus (name, price, duration))`)
       .eq("id", bookingId)
-      .single();
+      .single()).data;
 
-    if (bookingError || !booking) {
-      console.error("Booking not found:", bookingError);
+    if (!booking) {
+      console.error("Booking not found");
       throw new Error("Booking not found");
     }
 
@@ -148,6 +165,19 @@ serve(async (req) => {
       price: bt.treatment_menus?.price || 0,
       duration: bt.treatment_menus?.duration || 0
     })) || [];
+
+    const groupSlots = groupBookings && groupBookings.length > 1
+      ? groupBookings.map(b => ({
+          date: b.booking_date,
+          time: b.booking_time,
+          treatmentsLine: (b.booking_treatments ?? [])
+            .map((bt: any) => bt.treatment_menus?.name || 'Soin').join(', '),
+        }))
+      : undefined;
+    const groupTotal = groupBookings && groupBookings.length > 1
+      ? groupBookings.reduce((acc, b) => acc + (b.total_price || 0), 0)
+      : null;
+    if (groupTotal !== null) booking.total_price = groupTotal;
 
     const { data: admins, error: adminsError } = await supabaseClient
       .from("admins")
@@ -167,7 +197,10 @@ serve(async (req) => {
       );
     }
 
-    const emailHtml = createAdminEmailHtml(booking, treatments, dashboardUrl);
+    const emailHtml = createAdminEmailHtml(booking, treatments, dashboardUrl, groupSlots);
+    const subjectPrefix = groupSlots && groupSlots.length > 1
+      ? `🔔 Réservation groupée (${groupSlots.length} soins) · `
+      : `🔔 #${booking.booking_id} · `;
 
     let emailsSent = 0;
     const errors: string[] = [];
@@ -177,7 +210,7 @@ serve(async (req) => {
         const { error: emailError } = await resend.emails.send({
           from: brand.emails.from.default,
           to: [admin.email],
-          subject: `🔔 #${booking.booking_id} · ${booking.client_first_name} · ${booking.hotel_name || booking.hotel_id}`,
+          subject: `${subjectPrefix}${booking.client_first_name} · ${booking.hotel_name || booking.hotel_id}`,
           html: emailHtml,
         });
 
@@ -199,46 +232,52 @@ serve(async (req) => {
     console.log(`Admin notification emails sent: ${emailsSent}/${admins.length}`);
 
     // Send push notifications and in-app notifications to admins
-    let pushSent = 0;
-    for (const admin of admins) {
-      if (!admin.user_id) continue;
+    const adminsWithUserId = admins.filter((a: any) => a.user_id);
 
-      // Create in-app notification
+    // Bulk insert all in-app notifications in one query
+    if (adminsWithUserId.length > 0) {
       try {
-        await supabaseClient.from("notifications").insert({
-          user_id: admin.user_id,
-          booking_id: booking.id,
-          type: "new_booking",
-          message: `🔔 Nouvelle réservation #${booking.booking_id} · ${booking.client_first_name} ${booking.client_last_name} · ${booking.hotel_name || ""}`,
-        });
+        await supabaseClient.from("notifications").insert(
+          adminsWithUserId.map((admin: any) => ({
+            user_id: admin.user_id,
+            booking_id: booking.id,
+            type: "new_booking",
+            message: `🔔 Nouvelle réservation #${booking.booking_id} · ${booking.client_first_name} ${booking.client_last_name} · ${booking.hotel_name || ""}`,
+          }))
+        );
       } catch (e) {
-        console.error(`Error creating notification for admin ${admin.first_name}:`, e);
-      }
-
-      // Send push notification
-      try {
-        const { error: pushError } = await supabaseClient.functions.invoke("send-push-notification", {
-          body: {
-            userId: admin.user_id,
-            title: "🔔 Nouvelle réservation",
-            body: `#${booking.booking_id} · ${booking.client_first_name} ${booking.client_last_name} · ${booking.hotel_name || ""}`,
-            data: {
-              bookingId: booking.id,
-              url: `/admin-pwa/booking/${booking.id}`,
-            },
-          },
-        });
-
-        if (!pushError) {
-          pushSent++;
-          console.log(`✅ Push sent to admin: ${admin.first_name}`);
-        } else {
-          console.error(`Push error for admin ${admin.first_name}:`, pushError);
-        }
-      } catch (e) {
-        console.error(`Push exception for admin ${admin.first_name}:`, e);
+        console.error("Error bulk inserting admin notifications:", e);
       }
     }
+
+    // Send push notifications in parallel
+    const pushResults = await Promise.all(
+      adminsWithUserId.map(async (admin: any) => {
+        try {
+          const { error: pushError } = await supabaseClient.functions.invoke("send-push-notification", {
+            body: {
+              userId: admin.user_id,
+              title: "🔔 Nouvelle réservation",
+              body: `#${booking.booking_id} · ${booking.client_first_name} ${booking.client_last_name} · ${booking.hotel_name || ""}`,
+              data: {
+                bookingId: booking.id,
+                url: `/admin-pwa/booking/${booking.id}`,
+              },
+            },
+          });
+          if (!pushError) {
+            console.log(`✅ Push sent to admin: ${admin.first_name}`);
+            return true;
+          }
+          console.error(`Push error for admin ${admin.first_name}:`, pushError);
+          return false;
+        } catch (e) {
+          console.error(`Push exception for admin ${admin.first_name}:`, e);
+          return false;
+        }
+      })
+    );
+    const pushSent = pushResults.filter(Boolean).length;
 
     console.log(`Admin push notifications sent: ${pushSent}/${admins.length}`);
 

@@ -1,0 +1,91 @@
+---
+title: "Retrieve a venue"
+api: "GET /v1/venues/{venue_id}"
+description: "Fetch a single venue and its treatment catalogue."
+---
+
+Returns the full details of a venue, including its treatment catalogue with
+all variants.
+
+## Path parameters
+
+<ParamField path="venue_id" type="string" required>
+  The venue id or slug.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="Venue & { treatments: Treatment[] }">
+  A [Venue](/concepts/venues) object, extended with a `treatments` array of
+  [Treatment](/concepts/treatments) objects.
+</ResponseField>
+
+## Errors
+
+| Code                | HTTP | Meaning                                      |
+| ------------------- | ---- | -------------------------------------------- |
+| `VENUE_NOT_FOUND`   | 404  | Unknown id, or not in your API key's scope  |
+| `FORBIDDEN_VENUE`   | 403  | Venue exists but is not in your scope       |
+
+## Example
+
+<RequestExample>
+
+```bash curl
+curl https://api-sandbox.lymfea.com/v1/venues/hot_lutetia_paris \
+  -H "Authorization: Bearer $LYMFEA_API_KEY"
+```
+
+```javascript Node.js
+const res = await fetch(
+  "https://api-sandbox.lymfea.com/v1/venues/hot_lutetia_paris",
+  { headers: { Authorization: `Bearer ${process.env.LYMFEA_API_KEY}` } }
+);
+const { data } = await res.json();
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "data": {
+    "id": "hot_lutetia_paris",
+    "slug": "hotel-lutetia-paris",
+    "type": "hotel",
+    "name": "Spa Akasha — Hôtel Lutetia",
+    "name_en": "Akasha Spa — Hotel Lutetia",
+    "city": "Paris",
+    "country": "FR",
+    "timezone": "Europe/Paris",
+    "currency": "EUR",
+    "opening_time": "09:00",
+    "closing_time": "21:00",
+    "slot_interval": 30,
+    "treatments": [
+      {
+        "id": "trt_swedish_60",
+        "name": "Massage suédois",
+        "name_en": "Swedish massage",
+        "category": "massage",
+        "duration": 60,
+        "price": 12000,
+        "lead_time": 120,
+        "variants": [
+          {
+            "id": "var_swedish_60",
+            "label": "60 minutes",
+            "duration": 60,
+            "price": 12000,
+            "guest_count": 1,
+            "is_default": true
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+</ResponseExample>

@@ -15,6 +15,8 @@ export type BookingListItem = BookingRow & {
   treatmentsTotalDuration: number;
   treatmentsTotalPrice: number;
   treatments: BookingTreatment[];
+  booking_therapists?: { status: string; therapist_id: string }[];
+  booking_payment_infos?: { payment_status: string | null; stripe_payment_method_id: string | null } | null;
 };
 
 export type BookingListFilters = {
@@ -84,6 +86,8 @@ export async function listBookings(
         treatment_id,
         treatment_menus(name, duration, price)
       ),
+      booking_therapists(status, therapist_id),
+      booking_payment_infos(payment_status, stripe_payment_method_id),
       hotels!inner(id, organization_id)
     `,
     )

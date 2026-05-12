@@ -19,10 +19,11 @@ export default function Schedule() {
 
   const takenDate = (location.state as any)?.takenDate as string | undefined;
   const slotTaken = !!(location.state as any)?.slotTaken;
+  const sessionExpired = !!(location.state as any)?.sessionExpired;
 
   // Clear navigation state to avoid re-triggering on re-render
   useEffect(() => {
-    if ((location.state as any)?.slotTaken) {
+    if ((location.state as any)?.slotTaken || (location.state as any)?.sessionExpired) {
       window.history.replaceState({}, '');
     }
   }, []);
@@ -66,6 +67,7 @@ export default function Schedule() {
         onContinue={() => navigate(`/client/${slug}/guest-info`)}
         takenDate={takenDate}
         slotTaken={slotTaken}
+        sessionExpired={sessionExpired}
         embedded={false}
       />
 

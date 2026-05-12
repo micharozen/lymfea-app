@@ -13,9 +13,28 @@ interface Step {
 }
 
 function buildSteps(status: string, paymentStatus: string): { steps: Step[]; currentIndex: number } {
-  const isPaid = paymentStatus === "paid" || paymentStatus === "charged_to_room";
+  const isPartnerBilled = paymentStatus === "pending_partner_billing";
   const isConfirmed = status === "confirmed" || status === "completed";
+
+  // Partner-billed flow has its own path: the partner settles at month-end,
+  // so "Paiement partenaire en attente" is an extra step *after* "Terminé".
+  if (isPartnerBilled) {
+    const steps: Step[] = [
+      { key: "pending", label: "En attente", sublabel: "" },
+      { key: "confirmed", label: "Confirmé", sublabel: "" },
+      { key: "completed", label: "Terminé", sublabel: "" },
+      { key: "partner_pending", label: "Paiement partenaire", sublabel: "En attente" },
+    ];
+    let currentKey: string;
+    if (status === "completed") currentKey = "partner_pending";
+    else if (isConfirmed) currentKey = "confirmed";
+    else currentKey = "pending";
+    return { steps, currentIndex: steps.findIndex((s) => s.key === currentKey) };
+  }
+
+  const isPaid = paymentStatus === "paid" || paymentStatus === "charged_to_room";
   const isPending = status === "pending" || status === "waiting_approval" || status === "awaiting_hairdresser_selection";
+  const paidSublabel = "Payé";
 
   // Two possible paths:
   // A) Payment first:  en attente/pending → en attente/payé → confirmé/payé → terminé
@@ -31,7 +50,7 @@ function buildSteps(status: string, paymentStatus: string): { steps: Step[]; cur
 
   if (!confirmFirst) {
     // Path A: payment arrived while still pending
-    steps.push({ key: "pending_paid", label: "En attente", sublabel: "Payé" });
+    steps.push({ key: "pending_paid", label: "En attente", sublabel: paidSublabel });
   }
 
   if (!paymentFirst) {
@@ -39,7 +58,7 @@ function buildSteps(status: string, paymentStatus: string): { steps: Step[]; cur
     steps.push({ key: "confirmed_pending", label: "Confirmé", sublabel: "Paiement en attente" });
   }
 
-  steps.push({ key: "confirmed_paid", label: "Confirmé", sublabel: "Payé" });
+  steps.push({ key: "confirmed_paid", label: "Confirmé", sublabel: paidSublabel });
   steps.push({ key: "completed", label: "Terminé", sublabel: "" });
 
   // Determine current step key

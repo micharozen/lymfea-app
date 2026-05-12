@@ -28,13 +28,19 @@ export interface PaymentLinkTemplateData {
 }
 
 export const getPaymentLinkEmailSubject = (language: 'fr' | 'en', data: PaymentLinkTemplateData): string => {
-  // Pad le numéro pour qu'il ait au moins 4 chiffres (ex: 1 devient 0001)
   const formattedNumber = String(data.bookingNumber).padStart(4, '0');
+  const urgency = data.urgency || 'normal';
 
   if (language === 'fr') {
-    return `Lien de paiement - Réservation #${formattedNumber} - ${data.hotelName}`;
+    if (urgency === 'immediate') return `Confirmation requise avant expiration · ${data.hotelName}`;
+    if (urgency === 'very_urgent') return `Votre soin de ce jour — Confirmation requise · ${data.hotelName}`;
+    if (urgency === 'urgent') return `Action requise — Réservation #${formattedNumber} · ${data.hotelName}`;
+    return `Lien de paiement — Réservation #${formattedNumber} · ${data.hotelName}`;
   }
-  return `Payment Link - Booking #${formattedNumber} - ${data.hotelName}`;
+  if (urgency === 'immediate') return `Confirmation required before expiry · ${data.hotelName}`;
+  if (urgency === 'very_urgent') return `Your treatment today — Confirmation required · ${data.hotelName}`;
+  if (urgency === 'urgent') return `Action required — Booking #${formattedNumber} · ${data.hotelName}`;
+  return `Payment Link — Booking #${formattedNumber} · ${data.hotelName}`;
 };
 
 /**
@@ -43,18 +49,71 @@ export const getPaymentLinkEmailSubject = (language: 'fr' | 'en', data: PaymentL
 export const getExternalClientPaymentEmailHtml = (language: 'fr' | 'en', data: PaymentLinkTemplateData, customWelcome?: string): string => {
   const isFr = language === 'fr';
   const currency = data.currency || '€';
+  const urgency = data.urgency || 'normal';
+
+  // Copy du welcome selon l'urgence — ton hôtel de luxe dans tous les cas
+  const defaultWelcome = (() => {
+    if (isFr) {
+      if (urgency === 'immediate') return `Votre soin débute très prochainement. Pour le confirmer, nous vous invitons à procéder au règlement avant le <strong>${data.expiresAtText}</strong>.`;
+      if (urgency === 'very_urgent') return `Votre rendez-vous est prévu dans quelques heures. Afin de le maintenir, merci de finaliser votre règlement avant le <strong>${data.expiresAtText}</strong>.`;
+      if (urgency === 'urgent') return `Afin de garantir votre créneau chez ${data.hotelName}, nous vous invitons à finaliser votre règlement avant le <strong>${data.expiresAtText}</strong>.`;
+      return `Nous avons hâte de vous accueillir chez ${data.hotelName}. Afin de confirmer votre réservation, nous vous invitons à finaliser votre paiement.`;
+    } else {
+      if (urgency === 'immediate') return `Your treatment is about to begin. To confirm it, please complete your payment before <strong>${data.expiresAtText}</strong>.`;
+      if (urgency === 'very_urgent') return `Your appointment is in a few hours. To secure it, please finalize your payment before <strong>${data.expiresAtText}</strong>.`;
+      if (urgency === 'urgent') return `To secure your slot at ${data.hotelName}, please finalize your payment before <strong>${data.expiresAtText}</strong>.`;
+      return `We look forward to welcoming you at ${data.hotelName}. To confirm your booking, please finalize your payment.`;
+    }
+  })();
+
+  // Badge discret au-dessus du CTA selon l'urgence
+  const urgencyBadge = (() => {
+    if (urgency === 'normal') return '';
+    const badgeStyles: Record<string, string> = {
+      urgent:     'background-color:#FFF8EE; border:1px solid #C5B197; color:#8B6914;',
+      very_urgent:'background-color:#FFF3F3; border:1px solid #C5A0A0; color:#7A1F1F;',
+      immediate:  'background-color:#FFF0F0; border:1px solid #B07070; color:#6B1010;',
+    };
+    const badgeText: Record<string, string> = {
+      urgent:      isFr ? 'CONFIRMATION REQUISE' : 'CONFIRMATION REQUIRED',
+      very_urgent: isFr ? 'RÉPONSE URGENTE REQUISE' : 'URGENT RESPONSE REQUIRED',
+      immediate:   isFr ? 'PAIEMENT IMMÉDIAT REQUIS' : 'IMMEDIATE PAYMENT REQUIRED',
+    };
+    return `<p style="font-size:10px;letter-spacing:2px;padding:8px 16px;border-radius:2px;display:inline-block;margin-bottom:16px;${badgeStyles[urgency]}">${badgeText[urgency]}</p>`;
+  })();
+
+  // Texte sous le bouton de paiement
+  const validityText = (() => {
+    if (urgency === 'immediate') {
+      return isFr
+        ? `Ce lien expire dans moins d'une heure. Passé ce délai, votre réservation sera automatiquement annulée.`
+        : `This link expires in less than one hour. After this delay, your booking will be automatically cancelled.`;
+    }
+    if (urgency === 'very_urgent') {
+      return isFr
+        ? `Ce lien est valide jusqu'au <strong>${data.expiresAtText}</strong>. Au-delà, votre créneau sera libéré.`
+        : `This link is valid until <strong>${data.expiresAtText}</strong>. After that, your slot will be released.`;
+    }
+    if (urgency === 'urgent') {
+      return isFr
+        ? `Ce lien sécurisé est disponible jusqu'au <strong>${data.expiresAtText}</strong>.`
+        : `This secure link is available until <strong>${data.expiresAtText}</strong>.`;
+    }
+    return isFr
+      ? `Pour confirmer votre réservation, ce lien sécurisé est disponible jusqu'au <strong>${data.expiresAtText}</strong>.`
+      : `To confirm your booking, this secure link is available until <strong>${data.expiresAtText}</strong>.`;
+  })();
+
+  const validityColor = urgency === 'immediate' ? '#7A1F1F' : urgency === 'very_urgent' ? '#7A3F1F' : '#555';
 
   const labels = {
     title: isFr ? 'Confirmez votre expérience' : 'Confirm your experience',
     greeting: isFr ? `Chère ${data.clientName}` : `Dear ${data.clientName}`,
-    welcome: customWelcome ? customWelcome : (isFr 
-      ? `Nous avons hâte de vous accueillir chez ${data.hotelName}. Afin de garantir votre réservation, nous vous invitons à finaliser votre paiement.`
-      : `We look forward to welcoming you at ${data.hotelName}. To guarantee your booking, please finalize your payment.`),
+    welcome: customWelcome ?? defaultWelcome,
     detailsTitle: isFr ? 'VOTRE RÉSERVATION' : 'YOUR BOOKING',
     cta: isFr ? `CONFIRMER ET PAYER — ${data.totalPrice}${currency}` : `CONFIRM & PAY — ${data.totalPrice}${currency}`,
-    validity: isFr ? `Ce lien est valide jusqu'au ${data.expiresAtText}` : `This link is valid until ${data.expiresAtText}`,
     cancelTitle: isFr ? 'POLITIQUE D\'ANNULATION' : 'CANCELLATION POLICY',
-    cancelText: isFr 
+    cancelText: isFr
       ? 'Merci de nous faire part de toute modification ou annulation au plus tard 24h avant votre soin. En cas d\'annulation tardive ou de non-présentation, le montant total sera dû.'
       : 'Please notify us of any modification or cancellation at least 24 hours before your treatment. In case of late cancellation or no-show, the total amount will be due.',
     contact: isFr ? 'Une question ? Contactez-nous :' : 'Any question? Contact us:',
@@ -110,30 +169,11 @@ export const getExternalClientPaymentEmailHtml = (language: 'fr' | 'en', data: P
                     </table>
                   </div>
 
-                  <div style="padding: 40px 0;">
+                  <div style="padding: 40px 0; text-align: center;">
+                    ${urgencyBadge}
+                    ${urgencyBadge ? '<br/>' : ''}
                     <a href="${data.paymentUrl}" style="${styles.button}">${labels.cta}</a>
-                  ${(() => {
-                    const urgencyLevel = data.urgency || 'normal';
-                    let urgencyTextFr = "";
-                    let urgencyTextEn = "";
-
-                    if (urgencyLevel === 'immediate') {
-                      urgencyTextFr = "Pour finaliser votre réservation imminente, veuillez régler avant le";
-                      urgencyTextEn = "To finalize your upcoming booking, please complete payment before";
-                    } else if (urgencyLevel === 'very_urgent') {
-                      urgencyTextFr = "Votre rendez-vous approche. Afin de le maintenir, ce lien est valide jusqu'au";
-                      urgencyTextEn = "Your appointment is approaching. To secure it, this link is valid until";
-                    } else if (urgencyLevel === 'urgent') {
-                      urgencyTextFr = "Afin de garantir votre créneau, veuillez confirmer avant le";
-                      urgencyTextEn = "To secure your slot, please confirm before";
-                    }
-
-                    const message = urgencyLevel === 'normal' 
-                      ? (isFr ? `Pour confirmer votre réservation, ce lien sécurisé est disponible jusqu'au ${data.expiresAtText}.` : `To confirm your booking, this secure link is available until ${data.expiresAtText}.`)
-                      : (isFr ? `${urgencyTextFr} ${data.expiresAtText}.` : `${urgencyTextEn} ${data.expiresAtText}.`);
-
-                    return `<p style="font-size: 14px; margin-top: 15px; text-align: center; font-weight: bold; color: #8B0000;">${message}</p>`;
-                  })()}
+                    <p style="font-size: 13px; margin-top: 16px; line-height: 1.6; color: ${validityColor}; font-family: Georgia, serif; font-style: italic;">${validityText}</p>
                   </div>
 
                   <p style="font-size: 13px; color: #666; margin-bottom: 40px;">
@@ -166,82 +206,68 @@ export const getExternalClientPaymentEmailHtml = (language: 'fr' | 'en', data: P
  */
 export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLinkTemplateData): string => {
   const currency = data.currency || '€';
-  
+  const isFr = language === 'fr';
+  const urgency = data.urgency || 'normal';
 
-  if (language === 'fr') {
-    return getBaseEmailTemplate(`
-      ${getEmailHeader('', 'Lien de paiement', '#000000')}
+  const introText = (() => {
+    if (isFr) {
+      if (urgency === 'immediate') return `Votre soin débute très prochainement. Pour le confirmer, merci de procéder au règlement <strong>avant le ${data.expiresAtText}</strong>.`;
+      if (urgency === 'very_urgent') return `Votre rendez-vous est dans quelques heures. Afin de le maintenir, nous vous invitons à finaliser votre règlement <strong>avant le ${data.expiresAtText}</strong>.`;
+      if (urgency === 'urgent') return `Afin de garantir votre créneau, nous vous invitons à finaliser votre règlement <strong>avant le ${data.expiresAtText}</strong>.`;
+      return `Un professionnel ${brand.name} se déplacera directement dans votre chambre pour vous offrir un moment de détente. <strong>Vous n'avez rien à faire</strong>, installez-vous confortablement et profitez.`;
+    } else {
+      if (urgency === 'immediate') return `Your treatment is about to begin. To confirm it, please complete your payment <strong>before ${data.expiresAtText}</strong>.`;
+      if (urgency === 'very_urgent') return `Your appointment is in a few hours. To secure it, please finalize your payment <strong>before ${data.expiresAtText}</strong>.`;
+      if (urgency === 'urgent') return `To secure your slot, please finalize your payment <strong>before ${data.expiresAtText}</strong>.`;
+      return `A ${brand.name} professional will come directly to your hotel room to provide you with a relaxing experience. <strong>You don't have to do anything</strong>, just sit back and enjoy.`;
+    }
+  })();
 
-      <tr>
-        <td style="padding: 0 30px 30px;">
-          <p style="font-size: 16px; color: #374151; margin: 0 0 20px 0;">
-            Bonjour <strong>${data.clientName}</strong>,
-          </p>
+  const validityNote = (() => {
+    if (urgency === 'immediate') {
+      return isFr
+        ? `Ce lien expire dans moins d'une heure. Au-delà, votre réservation sera automatiquement annulée.`
+        : `This link expires in less than one hour. After this delay, your booking will be automatically cancelled.`;
+    }
+    if (urgency === 'very_urgent' || urgency === 'urgent') {
+      return isFr
+        ? `Ce lien est valide jusqu'au ${data.expiresAtText}.`
+        : `This link is valid until ${data.expiresAtText}.`;
+    }
+    return isFr
+      ? `Action requise : Ce lien est valide jusqu'au ${data.expiresAtText}.`
+      : `Action required: This link is valid until ${data.expiresAtText}.`;
+  })();
 
-          <p style="font-size: 16px; color: #374151; margin: 0 0 24px 0;">
-            Votre réservation bien-être est confirmée !
-          </p>
+  const noteColor = urgency === 'immediate' || urgency === 'very_urgent' ? '#7A1F1F' : '#b91c1c';
+  const buttonText = isFr ? 'Payer maintenant' : 'Pay Now';
+  const headerTitle = isFr ? 'Lien de paiement' : 'Payment Link';
 
-          <p style="font-size: 16px; color: #374151; margin: 0 0 24px 0;">
-            Un professionnel ${brand.name} se déplacera directement dans votre chambre pour vous offrir un moment de détente. <strong>Vous n'avez rien à faire</strong>, installez-vous confortablement et profitez.
-          </p>
-
-          <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%); border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #000;">
-            <tr>
-              <td style="padding: 20px;">
-                <table width="100%" cellpadding="0" cellspacing="0">
-                  ${getInfoRow('📍 Lieu', data.hotelName)}
-                  ${getInfoRow('📅 Date', data.bookingDate)}
-                  ${getInfoRow('🕐 Heure', data.bookingTime)}
-                  ${getInfoRow('🚪 Chambre', data.roomNumber || '-')}
-                </table>
-              </td>
-            </tr>
-          </table>
-
-          ${getTreatmentsList(data.treatments, data.totalPrice, currency)}
-
-          <p style="font-size: 14px; color: #6b7280; margin: 24px 0 0 0; text-align: center; font-weight: bold; color: #b91c1c;">
-  ${language === 'fr' 
-    ? `Action requise : Ce lien est valide jusqu'au ${data.expiresAtText}.` 
-    : `Action required: This link is valid until ${data.expiresAtText}.`
-  }
-</p>
-        </td>
-      </tr>
-    `, {
-      showButton: true,
-      buttonText: 'Payer maintenant',
-      buttonUrl: data.paymentUrl
-    });
-  }
-
-  // English version
   return getBaseEmailTemplate(`
-    ${getEmailHeader('', 'Payment Link', '#000000')}
+    ${getEmailHeader('', headerTitle, '#000000')}
 
     <tr>
       <td style="padding: 0 30px 30px;">
         <p style="font-size: 16px; color: #374151; margin: 0 0 20px 0;">
-          Hello <strong>${data.clientName}</strong>,
+          ${isFr ? 'Bonjour' : 'Hello'} <strong>${data.clientName}</strong>,
         </p>
 
         <p style="font-size: 16px; color: #374151; margin: 0 0 24px 0;">
-          Your wellness booking is confirmed!
+          ${isFr ? 'Votre réservation bien-être est confirmée.' : 'Your wellness booking is confirmed.'}
         </p>
 
         <p style="font-size: 16px; color: #374151; margin: 0 0 24px 0;">
-          A ${brand.name} professional will come directly to your hotel room to provide you with a relaxing experience. <strong>You don't have to do anything</strong>, just sit back and enjoy.
+          ${introText}
         </p>
 
         <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%); border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #000;">
           <tr>
             <td style="padding: 20px;">
               <table width="100%" cellpadding="0" cellspacing="0">
-                ${getInfoRow('📍 Location', data.hotelName)}
-                ${getInfoRow('📅 Date', data.bookingDate)}
-                ${getInfoRow('🕐 Time', data.bookingTime)}
-                ${getInfoRow('🚪 Room', data.roomNumber || '-')}
+                ${getInfoRow(isFr ? '📍 Lieu' : '📍 Location', data.hotelName)}
+                ${getInfoRow(isFr ? '📅 Date' : '📅 Date', data.bookingDate)}
+                ${getInfoRow(isFr ? '🕐 Heure' : '🕐 Time', data.bookingTime)}
+                ${getInfoRow(isFr ? '🚪 Chambre' : '🚪 Room', data.roomNumber || '-')}
               </table>
             </td>
           </tr>
@@ -249,34 +275,91 @@ export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLink
 
         ${getTreatmentsList(data.treatments, data.totalPrice, currency)}
 
-        <p style="font-size: 14px; color: #6b7280; margin: 24px 0 0 0; text-align: center; font-weight: bold; color: #b91c1c;">
-          Action required: This link is valid until ${data.expiresAtText}.
+        <p style="font-size: 13px; margin: 24px 0 0 0; text-align: center; font-weight: bold; color: ${noteColor}; font-style: italic;">
+          ${validityNote}
         </p>
       </td>
     </tr>
   `, {
     showButton: true,
-    buttonText: 'Pay Now',
-    buttonUrl: data.paymentUrl
+    buttonText,
+    buttonUrl: data.paymentUrl,
   });
 };
 export const getPaymentCancellationEmailHtml = (language: 'fr' | 'en', data: { clientName: string, bookingDate: string, bookingUrl?: string }) => {
   const isFr = language === 'fr';
-  const labels = {
-    title: isFr ? 'Réservation Annulée' : 'Booking Cancelled',
-    message: isFr
-      ? `Bonjour ${data.clientName}, nous n'avons pas reçu votre paiement dans le délai imparti pour votre séance du ${data.bookingDate}. Afin de ne pas bloquer ce créneau indéfiniment, votre réservation a été automatiquement annulée.`
-      : `Hello ${data.clientName}, we did not receive your payment within the required time for your session on ${data.bookingDate}. To avoid blocking this slot indefinitely, your booking has been automatically cancelled.`,
-    cta: isFr ? 'Réserver à nouveau' : 'Book again'
-  };
+  const ctaUrl = data.bookingUrl || brand.website;
 
-  return `
-    <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; text-align: center; padding: 40px; border: 1px solid #eee;">
-      <h1 style="color: #000; font-weight: normal;">${labels.title}</h1>
-      <p style="color: #666; line-height: 1.6; margin: 20px 0;">${labels.message}</p>
-      <a href="${data.bookingUrl || brand.website}" style="display: inline-block; padding: 15px 30px; background-color: #000351; color: #fff; text-decoration: none; margin-top: 20px;">${labels.cta}</a>
-    </div>
-  `;
+  return `<!DOCTYPE html>
+<html lang="${language}">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#ffffff;color:#000000;-webkit-font-smoothing:antialiased;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+
+        <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" width="140" style="display:block;margin-bottom:40px;">
+
+        <table width="600" border="0" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;">
+
+          <tr>
+            <td align="center" style="padding-bottom:8px;">
+              <p style="margin:0;font-size:11px;letter-spacing:3px;color:#C5B197;font-family:Helvetica,Arial,sans-serif;">${isFr ? 'RÉSERVATION ANNULÉE' : 'BOOKING CANCELLED'}</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding-bottom:10px;">
+              <h1 style="margin:0;font-weight:normal;font-size:26px;font-family:Georgia,'Times New Roman',serif;">${isFr ? `Chère ${data.clientName}` : `Dear ${data.clientName}`},</h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding-bottom:36px;">
+              <p style="margin:0;font-size:15px;line-height:1.7;color:#555;font-family:Georgia,'Times New Roman',serif;max-width:420px;">
+                ${isFr
+                  ? `Nous n'avons pas reçu votre paiement dans le délai imparti pour votre séance du <strong>${data.bookingDate}</strong>. Afin de ne pas bloquer ce créneau, votre réservation a été automatiquement annulée.`
+                  : `We did not receive your payment within the required time for your session on <strong>${data.bookingDate}</strong>. To avoid blocking this slot indefinitely, your booking has been automatically cancelled.`}
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background-color:#FEFBF7;border:1px solid #C5B197;padding:24px 32px;border-radius:4px;text-align:center;">
+              <p style="margin:0 0 6px;font-size:10px;letter-spacing:2px;color:#C5B197;font-family:Helvetica,Arial,sans-serif;text-transform:uppercase;">${isFr ? 'Votre créneau est disponible' : 'Your slot is available again'}</p>
+              <p style="margin:0;font-size:14px;font-family:Georgia,serif;color:#555;">
+                ${isFr ? 'Vous pouvez réserver à nouveau en un clic.' : 'You can book again in one click.'}
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:36px 0 12px;">
+              <a href="${ctaUrl}" style="background-color:#000351;color:#ffffff;padding:16px 36px;text-decoration:none;display:inline-block;font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:2px;border-radius:2px;">${isFr ? 'RÉSERVER À NOUVEAU' : 'BOOK AGAIN'}</a>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding-bottom:40px;">
+              <p style="margin:0;font-size:12px;color:#999;font-family:Georgia,serif;font-style:italic;">
+                ${isFr ? 'Une question ? Contactez-nous à ' : 'Any question? Contact us at '}
+                <a href="mailto:${brand.legal.contactEmail}" style="color:#999;">${brand.legal.contactEmail}</a>
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="border-top:1px solid #e5e5e5;padding-top:24px;">
+              <p style="margin:0;font-size:10px;letter-spacing:3px;color:#bbb;font-family:Helvetica,Arial,sans-serif;">${brand.name.toUpperCase()} &nbsp;·&nbsp; ${brand.tagline.toUpperCase()}</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 };
 export const getPaymentReminderEmailHtml = (language: 'fr' | 'en', data: PaymentLinkTemplateData) => {
   const isFr = language === 'fr';

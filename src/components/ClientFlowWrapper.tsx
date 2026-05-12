@@ -138,6 +138,7 @@ interface PublicTreatment {
   image: string | null;
   is_addon: boolean | null;
   is_bundle: boolean | null;
+  available_days?: number[] | null;
 }
 
 function UrlStateHydrator({ hotelId }: { hotelId: string }) {
@@ -193,6 +194,7 @@ function UrlStateHydrator({ hotelId }: { hotelId: string }) {
         category: t.category,
         isPriceOnRequest: t.price_on_request || false,
         isBundle: t.is_bundle || false,
+        availableDays: t.available_days ?? null,
       });
     }
     setHydrated(true);

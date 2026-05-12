@@ -2,8 +2,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from 'https://esm.sh/resend@4.0.0';
-import { format } from "https://esm.sh/date-fns@3.6.0";
-import { fr, enUS } from "https://esm.sh/date-fns@3.6.0/locale";
 import { brand } from "../_shared/brand.ts";
 import {
   getPaymentLinkEmailSubject,
@@ -11,10 +9,7 @@ import {
   getExternalClientPaymentEmailHtml,
   PaymentLinkTemplateData
 } from '../_shared/payment-link-templates.ts';
-import {
-  sendWhatsAppTemplate,
-  buildPaymentLinkTemplateMessage,
-} from '../_shared/whatsapp-meta.ts';
+import { sendSms } from '../_shared/send-sms.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,9 +19,25 @@ const corsHeaders = {
 interface SendPaymentLinkRequest {
   bookingId: string;
   language: 'fr' | 'en';
-  channels: ('email' | 'whatsapp')[];
+  channels?: ('email' | 'sms')[];
   clientEmail?: string;
   clientPhone?: string;
+  smsBody?: string;
+  mode?: 'generate' | 'send';
+}
+
+function buildDefaultSmsBody(
+  language: 'fr' | 'en',
+  clientFirstName: string,
+  hotelName: string,
+  bookingDate: string,
+  bookingTime: string,
+  totalText: string,
+): string {
+  if (language === 'fr') {
+    return `Bonjour ${clientFirstName}, votre réservation chez ${hotelName} le ${bookingDate} à ${bookingTime} (${totalText}). Merci de régler via le lien ci-dessous :`;
+  }
+  return `Hello ${clientFirstName}, your booking at ${hotelName} on ${bookingDate} at ${bookingTime} (${totalText}). Please pay via the link below:`;
 }
 function generateICS(bookingDate: string, bookingTime: string, hotelName: string, durationMinutes: number, timezone: string = 'Europe/Paris'): string {
   // 1. On sépare manuellement pour éviter que le serveur décale l'heure
@@ -88,10 +99,14 @@ serve(async (req: Request) => {
   try {
     console.log("[SEND-PAYMENT-LINK] Starting payment link generation");
 
-    const { bookingId, language, channels, clientEmail, clientPhone } = await req.json() as SendPaymentLinkRequest;
+    const { bookingId, language, channels, clientEmail, clientPhone, smsBody, mode = 'send' } = await req.json() as SendPaymentLinkRequest;
 
-    if (!bookingId || !language || !channels || channels.length === 0) {
-      throw new Error("Missing required fields: bookingId, language, and at least one channel required");
+    if (!bookingId || !language) {
+      throw new Error("Missing required fields: bookingId and language");
+    }
+
+    if (mode === 'send' && (!channels || channels.length === 0)) {
+      throw new Error("At least one channel required when mode='send'");
     }
 
     if (!['fr', 'en'].includes(language)) {
@@ -203,12 +218,17 @@ serve(async (req: Request) => {
     const email = clientEmail || booking.client_email;
     const phone = clientPhone || booking.phone;
 
-    if (channels.includes('email') && !email) {
+    // Persist email to booking if it wasn't already saved
+    if (email && !booking.client_email) {
+      await supabase.from('bookings').update({ client_email: email }).eq('id', bookingId);
+    }
+
+    if (mode === 'send' && channels?.includes('email') && !email) {
       throw new Error("Email address required for email channel");
     }
 
-    if (channels.includes('whatsapp') && !phone) {
-      throw new Error("Phone number required for WhatsApp channel");
+    if (mode === 'send' && channels?.includes('sms') && !phone) {
+      throw new Error("Phone number required for SMS channel");
     }
 
     // Calcul de l'expiration
@@ -224,12 +244,14 @@ serve(async (req: Request) => {
       diffInHours <= 24 ? 'urgent' :
       'normal';
 
-    // On définit le format de l'heure demandé
-    const timeFormatted = format(expiresAt, "HH:mm");
-
-    const expiresAtText = language === 'fr'
-      ? `${format(expiresAt, "d MMMM", { locale: fr })} à ${timeFormatted}`
-      : `${format(expiresAt, "MMMM do", { locale: enUS })} at ${timeFormatted}`;
+    // Formatage de l'expiration dans le fuseau horaire du spa (Deno tourne en UTC)
+    const expiresAtText = (() => {
+      const tz = hotelTimezone;
+      const locale = language === 'fr' ? 'fr-FR' : 'en-US';
+      const datePart = new Intl.DateTimeFormat(locale, { timeZone: tz, day: 'numeric', month: 'long' }).format(expiresAt);
+      const timePart = new Intl.DateTimeFormat('fr-FR', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(expiresAt);
+      return language === 'fr' ? `${datePart} à ${timePart}` : `${datePart} at ${timePart}`;
+    })();
 
     console.log("[SEND-PAYMENT-LINK] Creating Stripe Payment Link");
 
@@ -237,38 +259,71 @@ serve(async (req: Request) => {
       apiVersion: "2025-08-27.basil",
     });
 
-    const siteUrl = Deno.env.get("SITE_URL") || brand.website;
-    const treatmentNames = treatments.map((t: any) => t.name).join(', ');
+    // Réutiliser l'ancien Payment Link s'il existe, est actif, non expiré et porte le même montant
+    const { data: existingPaymentInfos } = await supabase
+      .from('booking_payment_infos')
+      .select('payment_link_stripe_id, payment_link_expires_at')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
 
-    const paymentLink = await stripe.paymentLinks.create({
-      line_items: [{
-        price_data: {
-          currency: currency,
-          product_data: {
-            name: language === 'fr' ? `Prestations bien-être ${brand.name}` : `${brand.name} Wellness Services`,
-            ...(treatmentNames.trim() ? { description: treatmentNames } : {}),
+    let paymentLink: { id: string; url: string } | null = null;
+
+    if (existingPaymentInfos?.payment_link_stripe_id) {
+      try {
+        const existing = await stripe.paymentLinks.retrieve(existingPaymentInfos.payment_link_stripe_id);
+        const expiresAtMs = existingPaymentInfos.payment_link_expires_at
+          ? new Date(existingPaymentInfos.payment_link_expires_at).getTime()
+          : 0;
+        const stillValid = existing.active && expiresAtMs > now.getTime();
+        const sameAmount = existing.line_items?.data?.[0]?.amount_total
+          ? existing.line_items.data[0].amount_total === Math.round(totalPrice * 100)
+          : true; // line_items not always expanded; assume ok
+
+        if (stillValid && sameAmount) {
+          paymentLink = { id: existing.id, url: existing.url };
+          console.log("[SEND-PAYMENT-LINK] Reusing existing payment link:", existing.id);
+        } else {
+          await stripe.paymentLinks.update(existingPaymentInfos.payment_link_stripe_id, { active: false });
+          console.log("[SEND-PAYMENT-LINK] Deactivated old payment link:", existingPaymentInfos.payment_link_stripe_id);
+        }
+      } catch (deactivateError) {
+        console.warn("[SEND-PAYMENT-LINK] Failed to retrieve/deactivate old payment link:", deactivateError);
+      }
+    }
+
+    if (!paymentLink) {
+      const siteUrl = Deno.env.get("SITE_URL") || brand.website;
+      const treatmentNames = treatments.map((t: any) => t.name).join(', ');
+
+      const created = await stripe.paymentLinks.create({
+        line_items: [{
+          price_data: {
+            currency: currency,
+            product_data: {
+              name: language === 'fr' ? `Prestations bien-être ${brand.name}` : `${brand.name} Wellness Services`,
+              ...(treatmentNames.trim() ? { description: treatmentNames } : {}),
+            },
+            unit_amount: Math.round(totalPrice * 100),
           },
-          unit_amount: Math.round(totalPrice * 100),
+          quantity: 1,
+        }],
+        metadata: {
+          booking_id: booking.id,
+          booking_number: booking.booking_id.toString(),
+          hotel_id: booking.hotel_id,
+          source: 'payment_link',
         },
-        quantity: 1,
-      }],
-      metadata: {
-        booking_id: booking.id,
-        booking_number: booking.booking_id.toString(),
-        hotel_id: booking.hotel_id,
-        source: 'payment_link',
-      },
-      after_completion: {
-        type: 'redirect',
-        redirect: {
-          url: `${siteUrl}/booking/confirmation/${booking.id}?payment=success`,
+        after_completion: {
+          type: 'redirect',
+          redirect: {
+            url: `${siteUrl}/client/${booking.hotel_id}/confirmation/${booking.id}?payment=success`,
+          },
         },
-      },
-    });
+      });
+      paymentLink = { id: created.id, url: created.url };
+      console.log("[SEND-PAYMENT-LINK] Payment link created:", created.url);
+    }
 
-    console.log("[SEND-PAYMENT-LINK] Payment link created:", paymentLink.url);
-    
-    // On récupère l'ID pour pouvoir le désactiver plus tard via le cron
     const stripePaymentLinkId = paymentLink.id;
     const bookingDate = new Date(booking.booking_date);
     const formattedDate = language === 'fr'
@@ -295,9 +350,40 @@ serve(async (req: Request) => {
       urgency: urgency,
     };
 
-    const results: { email?: boolean; whatsapp?: boolean; errors: string[] } = { errors: [] };
+    const results: { email?: boolean; sms?: boolean; errors: string[] } = { errors: [] };
 
-    if (channels.includes('email') && email) {
+    // En mode 'generate', on persiste le lien et on retourne sans envoyer
+    if (mode === 'generate') {
+      const { error: paymentInfosError } = await supabase
+        .from('booking_payment_infos')
+        .upsert({
+          booking_id: bookingId,
+          payment_link_stripe_id: stripePaymentLinkId,
+          payment_link_expires_at: expiresAt.toISOString(),
+        }, { onConflict: 'booking_id' });
+
+      if (paymentInfosError) {
+        console.error("[SEND-PAYMENT-LINK] Error saving payment infos (generate):", paymentInfosError);
+      }
+
+      await supabase
+        .from('bookings')
+        .update({ payment_link_url: paymentLink.url })
+        .eq('id', bookingId);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          paymentLinkUrl: paymentLink.url,
+          emailSent: false,
+          smsSent: false,
+          expiresAt: expiresAt.toISOString(),
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    if (channels?.includes('email') && email) {
       try {
         const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
         
@@ -338,36 +424,34 @@ serve(async (req: Request) => {
       }
     }
 
-    if (channels.includes('whatsapp') && phone) {
+    if (channels?.includes('sms') && phone) {
       try {
-        const treatmentsList = treatments.map((t: any) => t.name).join(', ');
-        const therapistName = booking.therapist_name || (language === 'fr' ? `Votre professionnel ${brand.name}` : `Your ${brand.name} professional`);
-        
-        const template = buildPaymentLinkTemplateMessage(
-          language,
-          templateData.clientName,
-          therapistName,
-          templateData.hotelName,
-          templateData.bookingDate,
-          templateData.bookingTime,
-          templateData.bookingNumber,
-          treatmentsList,
-          `${totalPrice}${currencySymbol}`,
-          paymentLink.url
-        );
-
         const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
-        const whatsappResult = await sendWhatsAppTemplate(formattedPhone, template);
+        const totalText = `${totalPrice}${currencySymbol}`;
+        const baseBody = (smsBody && smsBody.trim().length > 0)
+          ? smsBody.trim()
+          : buildDefaultSmsBody(
+              language,
+              booking.client_first_name,
+              templateData.hotelName,
+              templateData.bookingDate,
+              templateData.bookingTime,
+              totalText,
+            );
 
-        if (!whatsappResult.success) {
-          throw new Error(whatsappResult.error || 'Failed to send WhatsApp');
+        const finalBody = `${baseBody}\n${paymentLink.url}`;
+
+        const smsResult = await sendSms({ to: formattedPhone, body: finalBody });
+
+        if (smsResult.error) {
+          throw new Error(smsResult.error);
         }
 
-        console.log("[SEND-PAYMENT-LINK] WhatsApp sent via Meta:", whatsappResult.messageId);
-        results.whatsapp = true;
-      } catch (whatsappError: any) {
-        console.error("[SEND-PAYMENT-LINK] WhatsApp error:", whatsappError);
-        results.errors.push(`WhatsApp: ${whatsappError instanceof Error ? whatsappError.message : 'Unknown error'}`);
+        console.log("[SEND-PAYMENT-LINK] SMS sent via Twilio:", smsResult.sid);
+        results.sms = true;
+      } catch (smsError: any) {
+        console.error("[SEND-PAYMENT-LINK] SMS error:", smsError);
+        results.errors.push(`SMS: ${smsError instanceof Error ? smsError.message : 'Unknown error'}`);
       }
     }
 
@@ -377,8 +461,8 @@ serve(async (req: Request) => {
       .update({
         payment_link_url: paymentLink.url,
         payment_link_sent_at: new Date().toISOString(),
-        payment_link_channels: channels.filter(c =>
-          (c === 'email' && results.email) || (c === 'whatsapp' && results.whatsapp)
+        payment_link_channels: (channels ?? []).filter(c =>
+          (c === 'email' && results.email) || (c === 'sms' && results.sms)
         ),
         payment_link_language: language,
       })
@@ -403,10 +487,52 @@ serve(async (req: Request) => {
       console.error("[SEND-PAYMENT-LINK] DB Update error:", updateError || paymentInfosError);
     }
 
-    const atLeastOneSuccess = results.email || results.whatsapp;
+    const atLeastOneSuccess = results.email || results.sms;
 
     if (!atLeastOneSuccess) {
       throw new Error(`Failed to send payment link: ${results.errors.join('; ')}`);
+    }
+
+    // Historique de la réservation : log de l'envoi du lien de paiement
+    try {
+      const authHeader = req.headers.get('Authorization');
+      let actorUserId: string | null = null;
+      if (authHeader) {
+        const userClient = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+          { global: { headers: { Authorization: authHeader } } },
+        );
+        const { data: userData } = await userClient.auth.getUser();
+        actorUserId = userData?.user?.id ?? null;
+      }
+
+      const sentChannels = [
+        ...(results.email ? ['email'] : []),
+        ...(results.sms ? ['sms'] : []),
+      ];
+
+      await supabase.from('audit_log').insert({
+        table_name: 'bookings',
+        record_id: bookingId,
+        changed_by: actorUserId,
+        change_type: 'action',
+        old_values: null,
+        new_values: {
+          action: 'payment_link_sent',
+          channels: sentChannels,
+          language,
+          email: results.email ? email : undefined,
+          phone: results.sms ? phone : undefined,
+        },
+        source: 'admin',
+        metadata: {
+          booking_id: booking.booking_id,
+          payment_link_url: paymentLink.url,
+        },
+      });
+    } catch (auditError) {
+      console.warn('[SEND-PAYMENT-LINK] Failed to write audit log:', auditError);
     }
 
     console.log("[SEND-PAYMENT-LINK] Completed successfully");
@@ -416,7 +542,7 @@ serve(async (req: Request) => {
         success: true,
         paymentLinkUrl: paymentLink.url,
         emailSent: results.email || false,
-        whatsappSent: results.whatsapp || false,
+        smsSent: results.sms || false,
         expiresAt: expiresAt.toISOString(),
         errors: results.errors.length > 0 ? results.errors : undefined,
       }),

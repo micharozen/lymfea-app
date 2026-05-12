@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Toggle } from "@/components/ui/toggle";
 import { Upload, Loader2 } from "lucide-react";
 import { SPECIALTY_OPTIONS } from "@/lib/specialtyTypes";
 import type { TreatmentFormValues } from "@/pages/admin/TreatmentDetail";
@@ -404,7 +405,59 @@ export function TreatmentGeneralTab({
         />
       </div>
 
-      {/* Row 5: Bestseller checkbox */}
+      {/* Row 5: Available days */}
+      <FormField
+        control={form.control}
+        name="available_days"
+        render={({ field }) => {
+          const DAYS: { value: number; label: string; title: string }[] = [
+            { value: 1, label: "L", title: "Lundi" },
+            { value: 2, label: "M", title: "Mardi" },
+            { value: 3, label: "M", title: "Mercredi" },
+            { value: 4, label: "J", title: "Jeudi" },
+            { value: 5, label: "V", title: "Vendredi" },
+            { value: 6, label: "S", title: "Samedi" },
+            { value: 0, label: "D", title: "Dimanche" },
+          ];
+          const selected: number[] = field.value ?? [];
+          const toggle = (day: number) => {
+            const next = selected.includes(day)
+              ? selected.filter((d) => d !== day)
+              : [...selected, day];
+            field.onChange(next);
+          };
+          return (
+            <FormItem>
+              <FormLabel>Jours de disponibilité</FormLabel>
+              <FormControl>
+                <div className="flex items-center gap-1.5">
+                  {DAYS.map((day) => (
+                    <Toggle
+                      key={day.value}
+                      type="button"
+                      title={day.title}
+                      pressed={selected.includes(day.value)}
+                      onPressedChange={() => toggle(day.value)}
+                      disabled={disabled}
+                      size="sm"
+                      variant="outline"
+                      className="w-8 h-8 p-0 text-xs font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary"
+                    >
+                      {day.label}
+                    </Toggle>
+                  ))}
+                </div>
+              </FormControl>
+              <FormDescription className="text-[11px] leading-snug">
+                Laissez vide pour une disponibilité tous les jours.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          );
+        }}
+      />
+
+      {/* Row 6: Bestseller checkbox */}
       <FormField
         control={form.control}
         name="is_bestseller"

@@ -6,7 +6,7 @@ import type { BookingWithTreatments } from "./useBookingData";
 export const CALENDAR_CONSTANTS = {
   START_HOUR: 7,
   END_HOUR: 24,
-  HOUR_HEIGHT: 48,
+  HOUR_HEIGHT: 72,
 } as const;
 
 interface UseCalendarLogicOptions {
@@ -217,7 +217,7 @@ export function useCalendarLogic({ filteredBookings, activeTimezone, dayCount = 
 
   const getCalendarCardColor = useCallback((status: string, paymentStatus?: string | null) => {
     if (paymentStatus === 'pending' && status !== 'cancelled') {
-      return 'bg-yellow-50 text-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-100';
+      return 'bg-blue-50 text-blue-900 dark:bg-blue-900/20 dark:text-blue-100';
     }
     const config = getBookingStatusConfig(status);
     return config.calendarCardClass || config.cardClass;

@@ -24,6 +24,7 @@ import {
   Pencil, Timer, Send, X, Loader2, AlertTriangle, FileText, ExternalLink // <- Ajout de ExternalLink
 } from "lucide-react";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 
 interface BookingDetailDialogProps {
   open: boolean;
@@ -51,6 +52,9 @@ export function BookingDetailDialog({
       return data?.role;
     },
   });
+
+  const { isVenueManagerView } = useEffectiveRole();
+  const isConcierge = userRole === 'concierge' || isVenueManagerView;
 
   const canCancel =
     booking?.payment_status !== 'paid' && booking?.payment_status !== 'charged_to_room' &&
@@ -89,7 +93,7 @@ export function BookingDetailDialog({
               <DialogTitle className="text-xl font-semibold">Réservation #{booking.booking_id}</DialogTitle>
               <div className="flex items-center gap-2 mt-2">
                 <StatusBadge status={booking.status} type="booking" />
-                {booking.status !== "quote_pending" && booking.status !== "waiting_approval" && (
+                {!isConcierge && booking.status !== "quote_pending" && booking.status !== "waiting_approval" && (
                   <StatusBadge status={booking.payment_status || "pending"} type="payment" />
                 )}
               </div>
@@ -127,6 +131,7 @@ export function BookingDetailDialog({
           <Separator />
 
           {/* 2. TICKET S1-04 : Statut de la signature */}
+          {!isConcierge && (
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
               <FileText className="h-4 w-4" />
@@ -170,8 +175,9 @@ export function BookingDetailDialog({
               </div>
             </div>
           </div>
+          )}
 
-          <Separator />
+          {!isConcierge && <Separator />}
 
           {/* 3. Booking Details */}
           <div className="space-y-2">

@@ -1,0 +1,90 @@
+---
+title: "Cancel a booking"
+api: "POST /v1/bookings/{booking_id}/cancel"
+description: "Cancel an existing booking."
+---
+
+Cancels a booking. The venue's cancellation policy is applied server-side:
+depending on the timing, a cancellation fee may be recorded for
+reconciliation.
+
+<Note>
+  Only bookings in status `pending`, `awaiting_therapist` or `confirmed` can
+  be cancelled through this endpoint. Completed, no-show or already cancelled
+  bookings return `BOOKING_ALREADY_CANCELLED` (422).
+</Note>
+
+## Path parameters
+
+<ParamField path="booking_id" type="string" required>
+  The booking id (or `ext:` external reference).
+</ParamField>
+
+## Body parameters
+
+<ParamField body="reason" type="string" required>
+  Free-text reason for cancellation. Stored for support and analytics.
+</ParamField>
+
+<ParamField body="cancelled_by" type="'partner' | 'customer'" default="partner">
+  Who is requesting the cancellation. Used by the cancellation policy
+  (e.g. a customer-triggered cancellation may incur a different fee).
+</ParamField>
+
+## Response
+
+Returns the updated [Booking](/concepts/bookings) object with `status =
+"cancelled"`, plus a `cancellation` block describing the applied policy.
+
+<ResponseField name="cancellation.fee" type="Money">
+  Cancellation fee applied, if any. `{ amount: 0, currency: "EUR" }` if free.
+</ResponseField>
+
+<ResponseField name="cancellation.policy" type="string">
+  Human-readable summary of the policy applied.
+</ResponseField>
+
+<ResponseField name="cancellation.cancelled_at" type="string (ISO 8601 UTC)" />
+
+## Errors
+
+| Code                          | HTTP | Meaning                                         |
+| ----------------------------- | ---- | ----------------------------------------------- |
+| `BOOKING_NOT_FOUND`           | 404  | Unknown booking                                 |
+| `BOOKING_ALREADY_CANCELLED`   | 422  | Already cancelled, completed or no-show         |
+| `FORBIDDEN`                   | 403  | Not your booking                                |
+
+## Example
+
+<RequestExample>
+
+```bash curl
+curl -X POST https://api-sandbox.lymfea.com/v1/bookings/bkg_7f1a9c3b8d4e4f21/cancel \
+  -H "Authorization: Bearer $LYMFEA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reason": "Customer rescheduled through partner app",
+    "cancelled_by": "customer"
+  }'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "data": {
+    "id": "bkg_7f1a9c3b8d4e4f21",
+    "status": "cancelled",
+    "start_at": "2026-05-12T12:00:00Z",
+    "cancellation": {
+      "fee": { "amount": 0, "currency": "EUR" },
+      "policy": "Free cancellation up to 24h before the appointment.",
+      "cancelled_at": "2026-04-22T14:10:00Z"
+    }
+  }
+}
+```
+
+</ResponseExample>

@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { isInBlockedSlot } from '../_shared/blocked-slots.ts';
+import { computeOutOfHoursSurcharge } from '../_shared/surcharge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -54,6 +55,27 @@ const bundleUsageSchema = z.object({
   treatmentId: z.string().uuid('Invalid treatment ID format'),
 });
 
+const multiItemSchema = z.object({
+  treatmentId: z.string().uuid('Invalid treatment ID format'),
+  variantId: z.string().uuid('Invalid variant ID format').nullable().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Invalid time format'),
+  duration: z.number().int().min(0).max(1000).optional(),
+  quantity: z.number().int().min(1).max(10),
+  guestCount: z.number().int().min(1).max(20).optional(),
+});
+
+const multiRequestSchema = z.object({
+  hotelId: z.string().min(1),
+  clientData: clientDataSchema,
+  items: z.array(multiItemSchema).min(2, 'Multi-mode requires at least 2 items').max(10),
+  bookingIds: z.array(z.string().uuid()).min(2).max(10),
+  groupId: z.string().uuid(),
+  paymentMethod: z.enum(['room', 'card', 'cash', 'offert', 'gift_amount']).optional().default('room'),
+  totalPrice: z.number().min(0).max(100000),
+  therapistGender: z.enum(['female', 'male']).optional(),
+});
+
 const requestSchema = z.object({
   hotelId: z.string().min(1, 'Hotel ID is required'),
   clientData: clientDataSchema,
@@ -63,6 +85,8 @@ const requestSchema = z.object({
   totalPrice: z.number().min(0, 'Total price must be positive').max(100000, 'Total price exceeds maximum'),
   therapistGender: z.enum(['female', 'male']).optional(),
   bundleUsage: bundleUsageSchema.optional(),
+  draftBookingId: z.string().uuid('Invalid draft booking ID').optional(),
+  guestCount: z.number().int().min(1).max(20).optional().default(1),
   giftAmountUsage: z.object({
     customerBundleId: z.string().uuid('Invalid customer bundle ID format'),
     amountCents: z.number().int().min(1, 'Amount must be positive'),
@@ -77,6 +101,212 @@ function sanitizeString(str: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
     .trim();
+}
+
+async function handleMultiBookingConfirm(
+  supabase: any,
+  data: z.infer<typeof multiRequestSchema>,
+): Promise<Response> {
+  const { hotelId, clientData, items, bookingIds, groupId, paymentMethod, therapistGender } = data;
+
+  if (items.length !== bookingIds.length) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'items and bookingIds length mismatch' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    );
+  }
+
+  const sanitizedClientData = {
+    firstName: sanitizeString(clientData.firstName),
+    lastName: sanitizeString(clientData.lastName),
+    email: clientData.email ? sanitizeString(clientData.email) : null,
+    phone: sanitizeString(clientData.phone),
+    roomNumber: clientData.roomNumber ? sanitizeString(clientData.roomNumber) : null,
+    note: clientData.note ? sanitizeString(clientData.note) : null,
+  };
+
+  // Hotel info for surcharge + email
+  const { data: hotel, error: hotelError } = await supabase
+    .from('hotels')
+    .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, opening_time, closing_time, timezone, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
+    .eq('id', hotelId)
+    .single();
+
+  if (hotelError || !hotel) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Hotel not found' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+    );
+  }
+
+  if (paymentMethod === 'room' && hotel.venue_type === 'coworking') {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Room payment is not available for coworking spaces' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    );
+  }
+
+  // Verify every draft exists, belongs to this hotel, is still awaiting payment,
+  // and carries the expected booking_group_id (prevents a client from supplying
+  // someone else's groupId to trigger an unintended rollback).
+  const { data: drafts, error: draftsErr } = await supabase
+    .from('bookings')
+    .select('id, status, hotel_id, booking_group_id')
+    .in('id', bookingIds);
+
+  if (draftsErr || !drafts || drafts.length !== bookingIds.length ||
+      drafts.some((b: any) =>
+        b.hotel_id !== hotelId ||
+        b.status !== 'awaiting_payment' ||
+        b.booking_group_id !== groupId
+      )) {
+    // Rollback only drafts we own (scoped by both bookingIds and groupId).
+    await supabase.from('bookings').delete()
+      .in('id', bookingIds).eq('status', 'awaiting_payment');
+    return new Response(
+      JSON.stringify({ success: false, error: 'SLOT_TAKEN' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+    );
+  }
+
+  // Pre-fetch treatments referenced by all items, for price/duration recomputation.
+  const treatmentIds = Array.from(new Set(items.map(i => i.treatmentId)));
+  const variantIds = items.map(i => i.variantId).filter(Boolean) as string[];
+
+  const [menusRes, variantsRes] = await Promise.all([
+    supabase.from('treatment_menus').select('id, name, price, duration, lead_time, is_bundle, price_on_request').in('id', treatmentIds),
+    variantIds.length
+      ? supabase.from('treatment_variants').select('id, price, duration').in('id', variantIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+  const menuMap = new Map((menusRes.data ?? []).map((m: any) => [m.id, m]));
+  const variantMap = new Map((variantsRes.data ?? []).map((v: any) => [v.id, v]));
+
+  // Reject bundle/quote treatments in multi mode (V2 territory).
+  if (Array.from(menuMap.values()).some((m: any) => m.is_bundle || m.price_on_request)) {
+    await supabase.from('bookings').delete()
+      .eq('booking_group_id', groupId).eq('status', 'awaiting_payment');
+    return new Response(
+      JSON.stringify({ success: false, error: 'Bundles and price-on-request are not supported in multi-time mode.' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    );
+  }
+
+  // Find/create customer once.
+  const { data: customerId } = await supabase.rpc('find_or_create_customer', {
+    _phone: sanitizedClientData.phone,
+    _first_name: sanitizedClientData.firstName,
+    _last_name: sanitizedClientData.lastName,
+    _email: sanitizedClientData.email,
+  });
+
+  const isOffert = !!hotel.offert || !!hotel.company_offered;
+  const isDuoBooking = items.some(i => (i.guestCount ?? 1) > 1);
+  const bookingStatus = isDuoBooking ? 'awaiting_hairdresser_selection' : 'pending';
+  const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
+  const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : 'pending');
+
+  // Update each draft with real client data + per-item recomputed totals.
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const bookingId = bookingIds[i];
+    const variant: any = item.variantId ? variantMap.get(item.variantId) : null;
+    const menu: any = menuMap.get(item.treatmentId);
+    const unitPrice = (variant?.price ?? menu?.price ?? 0);
+    const itemBasePrice = isOffert ? 0 : unitPrice * item.quantity;
+    const surcharge = computeOutOfHoursSurcharge(item.time, itemBasePrice, hotel);
+    const itemTotal = itemBasePrice + surcharge.surchargeAmount;
+
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({
+        client_first_name: sanitizedClientData.firstName,
+        client_last_name: sanitizedClientData.lastName,
+        client_email: sanitizedClientData.email,
+        phone: sanitizedClientData.phone,
+        room_number: sanitizedClientData.roomNumber,
+        client_note: sanitizedClientData.note,
+        status: bookingStatus,
+        payment_method: effectivePaymentMethod,
+        payment_status: effectivePaymentStatus,
+        total_price: itemTotal,
+        customer_id: customerId || null,
+        guest_count: Math.max(1, item.guestCount ?? 1),
+        booking_group_id: groupId,
+        is_out_of_hours: surcharge.isOutOfHours,
+        surcharge_amount: surcharge.surchargeAmount,
+      })
+      .eq('id', bookingId);
+    if (updateError) {
+      console.error(`Failed to update draft ${bookingId}:`, updateError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to update booking' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    // Re-insert booking_treatments for this item only.
+    const { error: btDelErr } = await supabase.from('booking_treatments').delete().eq('booking_id', bookingId);
+    if (btDelErr) {
+      console.error(`booking_treatments delete error for ${bookingId}:`, btDelErr);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to update booking treatments' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    const treatmentRows = Array.from({ length: item.quantity }, () => ({
+      booking_id: bookingId,
+      treatment_id: item.treatmentId,
+      variant_id: item.variantId || null,
+    }));
+    const { error: btErr } = await supabase.from('booking_treatments').insert(treatmentRows);
+    if (btErr) {
+      console.error(`booking_treatments insert error for ${bookingId}:`, btErr);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to update booking treatments' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+  }
+
+  // Fetch sequential booking numbers for response.
+  const { data: numbered } = await supabase
+    .from('bookings')
+    .select('id, booking_id')
+    .in('id', bookingIds);
+  const idToNumber = new Map<string, number | null>(
+    (numbered ?? []).map((b: any) => [b.id, b.booking_id ?? null])
+  );
+  const bookingNumbers = bookingIds.map(id => idToNumber.get(id) ?? null);
+
+  // Notifications: pass groupId — emails handlers detect and aggregate.
+  // Single admin email for the whole group.
+  try {
+    await supabase.functions.invoke('notify-admin-new-booking', {
+      body: { bookingId: bookingIds[0], groupId },
+    });
+  } catch (err) {
+    console.error('notify-admin-new-booking error:', err);
+  }
+
+  // Smart dispatch: send 1 dispatch per booking (each may need a different therapist).
+  for (const bookingId of bookingIds) {
+    try {
+      await supabase.functions.invoke('dispatch-booking-therapist', { body: { bookingId } });
+    } catch (err) {
+      console.error('dispatch-booking-therapist error:', err);
+    }
+  }
+
+  // Single client confirmation email when applicable (here: pending state ⇒ no
+  // confirmation yet — same rule as single-mode; quote_pending is not allowed
+  // in multi). We skip sending here; therapist acceptance triggers
+  // notify-booking-confirmed which will aggregate the group.
+
+  return new Response(
+    JSON.stringify({ success: true, groupId, bookingIds, bookingNumbers }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+  );
 }
 
 serve(async (req) => {
@@ -105,6 +335,28 @@ try {
   );
 }
 
+    // -------- Multi-mode short-circuit --------
+    // When groupId + bookingIds + items are present, batch-confirm N drafts
+    // sharing a booking_group_id. Bundles & gift_amount are not supported in
+    // multi mode (V2). Falls through to legacy single-mode otherwise.
+    if (rawBody && Array.isArray(rawBody.items) && Array.isArray(rawBody.bookingIds) && rawBody.groupId) {
+      if (rawBody.bundleUsage || rawBody.giftAmountUsage) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Bundles and gift amounts are not supported for multi-time bookings yet.' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+      const multi = multiRequestSchema.safeParse(rawBody);
+      if (!multi.success) {
+        console.error('Multi validation error:', multi.error.issues);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Validation failed', details: multi.error.issues.map(i => i.message) }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+      return await handleMultiBookingConfirm(supabase, multi.data);
+    }
+
     const validationResult = requestSchema.safeParse(rawBody);
     if (!validationResult.success) {
       console.error('Validation error:', validationResult.error.issues);
@@ -130,8 +382,13 @@ try {
       totalPrice,
       therapistGender,
       bundleUsage,
+      draftBookingId,
+      guestCount,
       giftAmountUsage
     } = validationResult.data;
+
+    const effectiveGuestCount = Math.max(1, guestCount ?? 1);
+    const isDuoBooking = effectiveGuestCount > 1;
 
     console.log('Creating booking for hotel:', hotelId);
 
@@ -150,7 +407,7 @@ try {
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_type, pms_auto_charge_room, opening_time, closing_time, timezone')
+      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_type, pms_auto_charge_room, opening_time, closing_time, timezone, min_booking_notice_minutes, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
       .eq('id', hotelId)
       .single();
 
@@ -228,35 +485,64 @@ try {
       );
     }
 
-    // TOCTOU: Check lead time server-side (for today's bookings only)
-    const maxLeadTime = Math.max(...(validTreatments?.map(t => t.lead_time || 0) || [0]));
+    // TOCTOU: Check lead time server-side.
+    // Effective lead time = max(venue min booking notice, max treatment lead_time).
+    // Applies across days, not only today (venue policies like "48h ahead").
+    const maxTreatmentLeadTime = Math.max(...(validTreatments?.map(t => t.lead_time || 0) || [0]));
+    const venueMinNotice = (hotel as any).min_booking_notice_minutes ?? 0;
+    const maxLeadTime = Math.max(maxTreatmentLeadTime, venueMinNotice);
     if (maxLeadTime > 0) {
       const now = new Date();
-      const bookingDateStr = bookingData.date;
-      const todayStr = now.toISOString().split('T')[0];
+      // Compute booking datetime in the venue timezone, then convert to UTC for comparison.
+      const venueTz = (hotel as any).timezone || 'UTC';
+      const [bYear, bMonth, bDay] = bookingData.date.split('-').map(Number);
+      const [bHour, bMinute] = bookingData.time.split(':').map(Number);
+      // Trick: format "now" in venue TZ to measure the TZ offset, then apply it.
+      const tzOffsetMs = (() => {
+        const localAsUtc = Date.UTC(bYear, bMonth - 1, bDay, bHour, bMinute, 0);
+        // Determine venue UTC offset at that instant using Intl.
+        const parts = new Intl.DateTimeFormat('en-CA', {
+          timeZone: venueTz,
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+        }).formatToParts(new Date(localAsUtc)).reduce<Record<string, string>>((acc, p) => {
+          if (p.type !== 'literal') acc[p.type] = p.value;
+          return acc;
+        }, {});
+        const asIfLocal = Date.UTC(
+          parseInt(parts.year, 10), parseInt(parts.month, 10) - 1, parseInt(parts.day, 10),
+          parseInt(parts.hour, 10), parseInt(parts.minute, 10), parseInt(parts.second, 10)
+        );
+        return asIfLocal - localAsUtc;
+      })();
+      const bookingDateTimeMs = Date.UTC(bYear, bMonth - 1, bDay, bHour, bMinute, 0) - tzOffsetMs;
+      const minutesUntilBooking = Math.floor((bookingDateTimeMs - now.getTime()) / 60000);
 
-      if (bookingDateStr === todayStr) {
-        const bookingMinutes = parseInt(bookingData.time.split(':')[0]) * 60 + parseInt(bookingData.time.split(':')[1]);
-        const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        const minutesUntilBooking = bookingMinutes - nowMinutes;
-
-        if (minutesUntilBooking < maxLeadTime) {
-          console.log('Rejected: lead time violation', { minutesUntilBooking, maxLeadTime });
-          return new Response(
-            JSON.stringify({ success: false, error: 'LEAD_TIME_VIOLATION' }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-          );
-        }
+      if (minutesUntilBooking < maxLeadTime) {
+        console.log('Rejected: lead time violation', { minutesUntilBooking, maxLeadTime, venueMinNotice, maxTreatmentLeadTime });
+        return new Response(
+          JSON.stringify({ success: false, error: 'LEAD_TIME_VIOLATION', minLeadTimeMinutes: maxLeadTime }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
       }
     }
 
     // Check if any treatment is price_on_request
     const hasPriceOnRequest = validTreatments?.some(t => t.price_on_request) || false;
     const isOffert = !!hotel.offert || !!hotel.company_offered;
-    const bookingStatus = (!isOffert && hasPriceOnRequest) ? 'quote_pending' : 'pending';
-    const effectiveTotalPrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
+    // Duo bookings go straight to awaiting_hairdresser_selection so the
+    // broadcast-accept flow (accept_booking RPC) handles therapist assignment.
+    const bookingStatus = (!isOffert && hasPriceOnRequest)
+      ? 'quote_pending'
+      : isDuoBooking
+        ? 'awaiting_hairdresser_selection'
+        : 'pending';
+    // Recalcul serveur de la majoration hors horaires (source de vérité — ignore le totalPrice client)
+    const basePrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
+    const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);
+    const effectiveTotalPrice = basePrice + surcharge.surchargeAmount;
     const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
-    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : (paymentMethod === 'gift_amount' ? 'paid' : 'pending'));
+    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'paid' : 'pending');
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Find or create customer by phone
@@ -274,83 +560,158 @@ try {
       console.log('Customer linked:', customerId);
     }
 
-    // TOCTOU FIX: Atomically reserve treatment room + create booking via RPC with FOR UPDATE lock
-    const { data: bookingId, error: rpcError } = await supabase.rpc('reserve_trunk_atomically', {
-      _hotel_id: hotelId,
-      _booking_date: bookingData.date,
-      _booking_time: bookingData.time,
-      _duration: totalDuration > 0 ? totalDuration : null,
-      _hotel_name: hotel.name,
-      _client_first_name: sanitizedClientData.firstName,
-      _client_last_name: sanitizedClientData.lastName,
-      _client_email: sanitizedClientData.email,
-      _phone: sanitizedClientData.phone,
-      _room_number: sanitizedClientData.roomNumber,
-      _client_note: sanitizedClientData.note,
-      _status: bookingStatus,
-      _payment_method: effectivePaymentMethod,
-      _payment_status: effectivePaymentStatus,
-      _total_price: effectiveTotalPrice,
-      _language: 'fr',
-      _treatment_ids: treatmentIds,
-      _customer_id: customerId || null,
-      _therapist_gender: therapistGender || null,
-    });
+    // -------------------------------------------------------------------------
+    // Slot reservation: UPDATE draft booking if hold exists, otherwise INSERT
+    // -------------------------------------------------------------------------
+    let bookingId: string;
 
-    if (rpcError) {
-      if (rpcError.message?.includes('NO_TRUNK_AVAILABLE')) {
-        console.log('Slot taken (atomic check)');
-        return new Response(
-          JSON.stringify({ success: false, error: 'SLOT_TAKEN' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
-        );
-      }
-      console.error('RPC error:', rpcError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to create booking' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
+    if (draftBookingId) {
+      // The slot is already held — verify the draft belongs to this hotel and is still pending
+      const { data: draftBooking, error: draftFetchError } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('id', draftBookingId)
+        .eq('hotel_id', hotelId)
+        .eq('status', 'awaiting_payment')
+        .single();
 
-    console.log('Booking created atomically:', bookingId);
-
-    // Fetch the created booking to get booking_id (sequence number)
-    const { data: booking, error: bookingFetchError } = await supabase
-      .from('bookings')
-      .select('id, booking_id')
-      .eq('id', bookingId)
-      .single();
-
-    if (bookingFetchError || !booking) {
-      console.error('Failed to fetch created booking:', bookingFetchError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Booking created but failed to retrieve details' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
-
-    // Create booking treatments
-    const treatmentInserts = [];
-    for (const treatment of treatments) {
-      for (let i = 0; i < treatment.quantity; i++) {
-        treatmentInserts.push({
-          booking_id: bookingId,
-          treatment_id: treatment.treatmentId,
-          variant_id: treatment.variantId || null,
+      if (draftFetchError || !draftBooking) {
+        console.warn('Draft booking not found or expired, falling back to atomic reserve');
+        // Supprimer le draft expiré pour éviter qu'il reste en base indéfiniment
+        await supabase.from('bookings').delete().eq('id', draftBookingId).eq('status', 'awaiting_payment');
+        // Draft expired — fall through to the atomic reserve below
+        const { data: fallbackId, error: fallbackError } = await supabase.rpc('reserve_trunk_atomically', {
+          _hotel_id: hotelId,
+          _booking_date: bookingData.date,
+          _booking_time: bookingData.time,
+          _duration: totalDuration > 0 ? totalDuration : null,
+          _hotel_name: hotel.name,
+          _client_first_name: sanitizedClientData.firstName,
+          _client_last_name: sanitizedClientData.lastName,
+          _client_email: sanitizedClientData.email,
+          _phone: sanitizedClientData.phone,
+          _room_number: sanitizedClientData.roomNumber,
+          _client_note: sanitizedClientData.note,
+          _status: bookingStatus,
+          _payment_method: effectivePaymentMethod,
+          _payment_status: effectivePaymentStatus,
+          _total_price: effectiveTotalPrice,
+          _language: 'fr',
+          _treatment_ids: treatmentIds,
+          _customer_id: customerId || null,
+          _therapist_gender: therapistGender || null,
+          _guest_count: effectiveGuestCount,
         });
+        if (fallbackError) {
+          if (fallbackError.message?.includes('NO_ROOM_AVAILABLE')) {
+            return new Response(JSON.stringify({ success: false, error: 'SLOT_TAKEN' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 });
+          }
+          return new Response(JSON.stringify({ success: false, error: 'Failed to create booking' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 });
+        }
+        bookingId = fallbackId;
+      } else {
+        // Update the draft with real client data
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({
+            client_first_name: sanitizedClientData.firstName,
+            client_last_name: sanitizedClientData.lastName,
+            client_email: sanitizedClientData.email,
+            phone: sanitizedClientData.phone,
+            room_number: sanitizedClientData.roomNumber,
+            client_note: sanitizedClientData.note,
+            status: bookingStatus,
+            payment_method: effectivePaymentMethod,
+            payment_status: effectivePaymentStatus,
+            total_price: effectiveTotalPrice,
+            customer_id: customerId || null,
+            guest_count: effectiveGuestCount,
+          })
+          .eq('id', draftBookingId);
+
+        if (updateError) {
+          console.error('Failed to update draft booking:', updateError);
+          return new Response(JSON.stringify({ success: false, error: 'Failed to update booking' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 });
+        }
+
+        bookingId = draftBookingId;
+        console.log('Draft booking updated with real client data:', bookingId);
       }
+
+      // Re-insert booking_treatments with proper quantity support
+      await supabase.from('booking_treatments').delete().eq('booking_id', bookingId);
+      const treatmentInserts = treatments.flatMap(t =>
+        Array.from({ length: t.quantity }, () => ({
+          booking_id: bookingId,
+          treatment_id: t.treatmentId,
+          variant_id: t.variantId || null,
+        }))
+      );
+      const { error: treatmentsError } = await supabase.from('booking_treatments').insert(treatmentInserts);
+      if (treatmentsError) console.error('Treatments re-insert error:', treatmentsError);
+
+    } else {
+      // No hold — TOCTOU fix: atomically reserve treatment room + create booking
+      const { data: newBookingId, error: rpcError } = await supabase.rpc('reserve_trunk_atomically', {
+        _hotel_id: hotelId,
+        _booking_date: bookingData.date,
+        _booking_time: bookingData.time,
+        _duration: totalDuration > 0 ? totalDuration : null,
+        _hotel_name: hotel.name,
+        _client_first_name: sanitizedClientData.firstName,
+        _client_last_name: sanitizedClientData.lastName,
+        _client_email: sanitizedClientData.email,
+        _phone: sanitizedClientData.phone,
+        _room_number: sanitizedClientData.roomNumber,
+        _client_note: sanitizedClientData.note,
+        _status: bookingStatus,
+        _payment_method: effectivePaymentMethod,
+        _payment_status: effectivePaymentStatus,
+        _total_price: effectiveTotalPrice,
+        _language: 'fr',
+        _treatment_ids: treatmentIds,
+        _customer_id: customerId || null,
+        _therapist_gender: therapistGender || null,
+        _guest_count: effectiveGuestCount,
+      });
+
+      if (rpcError) {
+        if (rpcError.message?.includes('NO_ROOM_AVAILABLE')) {
+          console.log('Slot taken (atomic check)');
+          return new Response(JSON.stringify({ success: false, error: 'SLOT_TAKEN' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 });
+        }
+        console.error('RPC error:', rpcError);
+        return new Response(JSON.stringify({ success: false, error: 'Failed to create booking' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 });
+      }
+
+      bookingId = newBookingId;
+      console.log('Booking created atomically:', bookingId);
+
+      // Create booking treatments
+      const treatmentInserts = treatments.flatMap(t =>
+        Array.from({ length: t.quantity }, () => ({
+          booking_id: bookingId,
+          treatment_id: t.treatmentId,
+          variant_id: t.variantId || null,
+        }))
+      );
+      const { error: treatmentsError } = await supabase.from('booking_treatments').insert(treatmentInserts);
+      if (treatmentsError) console.error('Treatments creation error:', treatmentsError);
     }
 
-    const { error: treatmentsError } = await supabase
-      .from('booking_treatments')
-      .insert(treatmentInserts);
+    console.log('Booking treatments ready');
 
-    if (treatmentsError) {
-      console.error('Treatments creation error:', treatmentsError);
-      // Note: booking is already created, so we continue
+    // Persister les flags de majoration hors horaires sur la réservation
+    if (!isOffert && !hasPriceOnRequest && (surcharge.isOutOfHours || surcharge.surchargeAmount > 0)) {
+      const { error: surchargeErr } = await supabase
+        .from('bookings')
+        .update({
+          is_out_of_hours: surcharge.isOutOfHours,
+          surcharge_amount: surcharge.surchargeAmount,
+        })
+        .eq('id', bookingId);
+      if (surchargeErr) console.error('Surcharge flags update failed (non-blocking):', surchargeErr);
     }
-
-    console.log('Booking treatments created');
 
     // --- Bundle handling ---
     let bundleWarning: string | null = null;
@@ -412,6 +773,21 @@ try {
             console.error('Failed to update booking payment to gift_amount:', updateError);
             bundleWarning = 'Gift amount applied but payment status update failed.';
           }
+
+          // Maintain the 1:1 invariant with booking_payment_infos — other
+          // payment flows (card, setup intent) create a row, voucher must too.
+          const { error: paymentInfoError } = await supabase
+            .from('booking_payment_infos')
+            .insert({
+              booking_id: bookingId,
+              customer_id: customerId,
+              estimated_price: totalPrice,
+              payment_status: 'charged',
+              payment_at: new Date().toISOString(),
+            });
+          if (paymentInfoError) {
+            console.error('Failed to insert booking_payment_infos for gift amount:', paymentInfoError);
+          }
         }
       } catch (giftError) {
         console.error('Unexpected error during gift amount usage:', giftError);
@@ -447,7 +823,7 @@ try {
     let wasAutoValidated = false;
     let autoAssignedTherapist: { id: string; first_name: string; last_name: string } | null = null;
 
-    if (hotel.auto_validate_bookings && bookingStatus === 'pending') {
+    if (hotel.auto_validate_bookings && bookingStatus === 'pending' && !isDuoBooking) {
       console.log('Auto-validation enabled for hotel, checking for single therapist...');
 
       // Get active therapists assigned to this hotel (filtered by gender if preference set)
@@ -514,6 +890,13 @@ try {
       }
     }
 
+    // Fetch the created/updated booking to get booking_id (numéro séquentiel)
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('booking_id')
+      .eq('id', bookingId)
+      .single();
+
     // Get treatment names, prices and price_on_request status for email
     const { data: treatmentDetails } = await supabase
       .from('treatment_menus')
@@ -527,8 +910,12 @@ try {
       isPriceOnRequest: t.price_on_request || false,
     })) || [];
 
-    // Send confirmation email
-    if (sanitizedClientData.email) {
+    // Send confirmation email — skip when booking is still pending (awaiting therapist assignment).
+    // Quote bookings (bookingStatus === 'quote_pending') still get the quote-requested template.
+    const shouldSendConfirmationEmail =
+      wasAutoValidated || bookingStatus === 'quote_pending';
+
+    if (sanitizedClientData.email && shouldSendConfirmationEmail) {
       try {
         const emailResponse = await fetch(
           `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-booking-confirmation`,
@@ -541,7 +928,7 @@ try {
             body: JSON.stringify({
               email: sanitizedClientData.email,
               bookingId: bookingId,
-              bookingNumber: booking.booking_id.toString(),
+              bookingNumber: booking?.booking_id?.toString() ?? '',
               clientName: `${sanitizedClientData.firstName} ${sanitizedClientData.lastName}`,
               hotelName: hotel.name,
               roomNumber: sanitizedClientData.roomNumber,
@@ -582,6 +969,22 @@ try {
       } catch (quoteNotifError) {
         console.error('Error sending quote pending notification:', quoteNotifError);
       }
+    } else if (isDuoBooking) {
+      // Duo booking: broadcast to ALL therapists — N must accept to confirm
+      try {
+        console.log(`Duo booking (guest_count=${effectiveGuestCount}): broadcasting to all therapists for booking:`, bookingId);
+        const duoNotifResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
+          body: { bookingId: bookingId, notifyAll: true },
+          headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+        });
+        if (duoNotifResponse.error) {
+          console.error('Failed to broadcast duo notifications:', duoNotifResponse.error);
+        } else {
+          console.log('Duo broadcast sent:', duoNotifResponse.data);
+        }
+      } catch (duoNotifError) {
+        console.error('Error sending duo notifications:', duoNotifError);
+      }
     } else if (wasAutoValidated) {
       // Auto-validated booking: send confirmation notifications (not new booking notifications)
       try {
@@ -599,21 +1002,21 @@ try {
         console.error('Error sending booking confirmed notifications:', confirmError);
       }
     } else {
-      // Regular pending booking: smart dispatch to top-ranked therapists
+      // Broadcast to therapists with gender-preference filtering
       try {
-        console.log('Dispatching booking to ranked therapists:', bookingId);
-        const dispatchResponse = await supabase.functions.invoke('dispatch-booking-therapist', {
-          body: { bookingId: bookingId }
+        console.log('Broadcasting booking notifications (gender-aware):', bookingId);
+        const notifResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
+          body: { bookingId: bookingId, notifyAll: true },
+          headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
         });
 
-        if (dispatchResponse.error) {
-          console.error('Failed to dispatch booking:', dispatchResponse.error);
+        if (notifResponse.error) {
+          console.error('Failed to broadcast notifications:', notifResponse.error);
         } else {
-          console.log('Smart dispatch result:', dispatchResponse.data);
+          console.log('Broadcast result:', notifResponse.data);
         }
-      } catch (dispatchError) {
-        console.error('Error dispatching booking:', dispatchError);
-        // Continue even if dispatch fails
+      } catch (notifError) {
+        console.error('Error broadcasting notifications:', notifError);
       }
 
       // Trigger email notification to admins
@@ -676,7 +1079,7 @@ try {
       JSON.stringify({
         success: true,
         bookingId: bookingId,
-        bookingNumber: booking.booking_id,
+        bookingNumber: booking?.booking_id ?? null,
         ...(bundleWarning ? { bundleWarning } : {}),
       }),
       {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 import {
   useBookingData,
@@ -20,7 +21,8 @@ import {
 
 export default function BookingsList() {
   const navigate = useNavigate();
-  const { isAdmin, isConcierge } = useUserContext();
+  const { isAdmin } = useUserContext();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const [searchParams] = useSearchParams();
 
   const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();

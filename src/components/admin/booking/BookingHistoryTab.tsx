@@ -69,6 +69,33 @@ function isInsert(entry: BookingAuditEntry) {
   return entry.change_type === "insert";
 }
 
+function isAction(entry: BookingAuditEntry) {
+  return entry.change_type === "action";
+}
+
+function renderActionLabel(entry: BookingAuditEntry): string | null {
+  const newVals = (entry.new_values ?? {}) as Record<string, unknown>;
+  const action = typeof newVals.action === "string" ? newVals.action : null;
+
+  if (action === "payment_link_sent") {
+    const channels = Array.isArray(newVals.channels) ? newVals.channels as string[] : [];
+    const labels: string[] = [];
+    if (channels.includes("email") && typeof newVals.email === "string") {
+      labels.push(`email à ${newVals.email}`);
+    } else if (channels.includes("email")) {
+      labels.push("email");
+    }
+    if (channels.includes("sms") && typeof newVals.phone === "string") {
+      labels.push(`SMS au ${newVals.phone}`);
+    } else if (channels.includes("sms")) {
+      labels.push("SMS");
+    }
+    return `Lien de paiement envoyé${labels.length ? ` par ${labels.join(" et ")}` : ""}`;
+  }
+
+  return action ? `Action : ${action}` : null;
+}
+
 interface BookingHistoryTabProps {
   bookingId: string;
   enabled: boolean;
@@ -123,6 +150,8 @@ export function BookingHistoryTab({ bookingId, enabled }: BookingHistoryTabProps
 
                 {isInsert(entry) ? (
                   <p className="text-sm text-green-600 font-medium">Réservation créée</p>
+                ) : isAction(entry) ? (
+                  <p className="text-sm text-blue-600 font-medium">{renderActionLabel(entry) ?? "Action"}</p>
                 ) : (
                   <div className="space-y-2">
                     {fields.map(({ field, label, oldValue, newValue }) => (

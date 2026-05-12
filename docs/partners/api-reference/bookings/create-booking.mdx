@@ -1,0 +1,198 @@
+---
+title: "Create a booking"
+api: "POST /v1/bookings"
+description: "Push a new booking into a venue's agenda."
+---
+
+Creates a booking at a specific slot. Eïa atomically reserves a treatment
+room and assigns a therapist; if the slot is still available, the booking is
+created and the customer is notified by email.
+
+<Warning>
+  This call is idempotent on `external_reference`. Sending the same
+  `external_reference` twice returns the original booking instead of
+  creating a duplicate. Always set it to a stable id on your side.
+</Warning>
+
+## Body parameters
+
+<ParamField body="venue_id" type="string" required>
+  Target venue.
+</ParamField>
+
+<ParamField body="treatment_id" type="string" required>
+  Treatment to book.
+</ParamField>
+
+<ParamField body="variant_id" type="string">
+  Specific variant. Defaults to the variant marked `is_default: true`.
+</ParamField>
+
+<ParamField body="start_at" type="string (ISO 8601 UTC)" required>
+  Start time of the slot, as returned by `GET /v1/availability`.
+</ParamField>
+
+<ParamField body="guest_count" type="integer" default="1">
+  Number of guests. Must match the chosen variant's `guest_count`.
+</ParamField>
+
+<ParamField body="guest" type="Guest" required>
+  <Expandable title="Guest fields">
+    <ParamField body="guest.first_name" type="string" required />
+    <ParamField body="guest.last_name" type="string" required />
+    <ParamField body="guest.email" type="string" required>
+      Valid email. Used for customer-facing notifications.
+    </ParamField>
+    <ParamField body="guest.phone" type="string" required>
+      Phone in E.164 format (e.g. `+33612345678`).
+    </ParamField>
+    <ParamField body="guest.language" type="'fr' | 'en'" default="fr">
+      Preferred language for notifications.
+    </ParamField>
+    <ParamField body="guest.room_number" type="string">
+      Room number, only valid for venues with `type = 'hotel'`. Ignored
+      otherwise.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Free-text note passed to the venue (allergies, preferences, etc.). Max 500
+  chars.
+</ParamField>
+
+<ParamField body="external_reference" type="string" required>
+  Your own stable identifier for this booking. Used for idempotency and for
+  reconciliation.
+</ParamField>
+
+<ParamField body="price_paid" type="Money">
+  Amount charged by the partner to the customer, for reconciliation.
+  `{ amount: integer, currency: "EUR" }`.
+</ParamField>
+
+## Response
+
+Returns the created [Booking](/concepts/bookings). Status is typically
+`confirmed` (therapist assigned immediately) but can be `awaiting_therapist`
+for venues that broadcast to their pool.
+
+## Errors
+
+| Code                      | HTTP | Meaning                                                          |
+| ------------------------- | ---- | ---------------------------------------------------------------- |
+| `VALIDATION_ERROR`        | 400  | Missing or malformed fields                                      |
+| `INVALID_GUEST_DATA`      | 400  | Guest payload inconsistent (e.g. bad email/phone format)        |
+| `VENUE_NOT_FOUND`         | 404  | Unknown `venue_id`                                               |
+| `TREATMENT_NOT_FOUND`     | 404  | Unknown `treatment_id` for this venue                            |
+| `TREATMENT_NOT_AVAILABLE` | 422  | Treatment disabled, or not bookable on that day                  |
+| `OUT_OF_OPENING_HOURS`    | 422  | Slot outside the venue's opening hours                           |
+| `LEAD_TIME_NOT_MET`       | 422  | Slot is too close to "now" for this treatment                    |
+| `SLOT_TAKEN`              | 409  | Slot is no longer available (race condition — retry another slot)|
+
+## Example
+
+<RequestExample>
+
+```bash curl
+curl -X POST https://api-sandbox.lymfea.com/v1/bookings \
+  -H "Authorization: Bearer $LYMFEA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "venue_id": "hot_lutetia_paris",
+    "treatment_id": "trt_swedish_60",
+    "variant_id": "var_swedish_60",
+    "start_at": "2026-05-12T12:00:00Z",
+    "guest_count": 1,
+    "guest": {
+      "first_name": "Marie",
+      "last_name": "Durand",
+      "email": "marie@example.com",
+      "phone": "+33612345678",
+      "language": "fr"
+    },
+    "notes": "Préférence pression moyenne.",
+    "external_reference": "STAYCATION-ABC123",
+    "price_paid": { "amount": 12000, "currency": "EUR" }
+  }'
+```
+
+```javascript Node.js
+const res = await fetch("https://api-sandbox.lymfea.com/v1/bookings", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.LYMFEA_API_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    venue_id: "hot_lutetia_paris",
+    treatment_id: "trt_swedish_60",
+    variant_id: "var_swedish_60",
+    start_at: "2026-05-12T12:00:00Z",
+    guest_count: 1,
+    guest: {
+      first_name: "Marie",
+      last_name: "Durand",
+      email: "marie@example.com",
+      phone: "+33612345678",
+      language: "fr",
+    },
+    external_reference: "STAYCATION-ABC123",
+    price_paid: { amount: 12000, currency: "EUR" },
+  }),
+});
+if (!res.ok) throw await res.json();
+const { data: booking } = await res.json();
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 201
+{
+  "data": {
+    "id": "bkg_7f1a9c3b8d4e4f21",
+    "booking_number": 4832,
+    "status": "confirmed",
+    "venue_id": "hot_lutetia_paris",
+    "treatment_id": "trt_swedish_60",
+    "variant_id": "var_swedish_60",
+    "start_at": "2026-05-12T12:00:00Z",
+    "end_at": "2026-05-12T13:00:00Z",
+    "duration": 60,
+    "guest_count": 1,
+    "guest": {
+      "first_name": "Marie",
+      "last_name": "Durand",
+      "email": "marie@example.com",
+      "phone": "+33612345678",
+      "language": "fr"
+    },
+    "therapist": { "id": "thp_amelie", "assigned_at": "2026-04-22T13:05:12Z" },
+    "notes": "Préférence pression moyenne.",
+    "external_reference": "STAYCATION-ABC123",
+    "price": { "amount": 12000, "currency": "EUR" },
+    "client_type": "partner",
+    "payment_method": "partner_billed",
+    "payment_status": "pending_partner_billing",
+    "created_at": "2026-04-22T13:05:10Z",
+    "confirmation_url": "https://app.lymfea.com/booking/confirmation/bkg_7f1a9c3b8d4e4f21"
+  }
+}
+```
+
+```json 409 SLOT_TAKEN
+{
+  "error": {
+    "code": "SLOT_TAKEN",
+    "message": "The requested slot is no longer available.",
+    "details": {
+      "venue_id": "hot_lutetia_paris",
+      "start_at": "2026-05-12T12:00:00Z"
+    }
+  }
+}
+```
+
+</ResponseExample>

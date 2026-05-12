@@ -1,0 +1,91 @@
+---
+title: "Availability"
+description: "How Eïa computes real-time bookable slots."
+---
+
+A **Slot** is a specific moment in time at a given venue, for a given
+treatment, that is bookable by a customer. Availability is computed in
+real-time from the venue's schedule, staff roster and existing bookings.
+
+## The Slot object
+
+<ResponseField name="start_at" type="string (ISO 8601 UTC)">
+  Start of the slot.
+</ResponseField>
+
+<ResponseField name="end_at" type="string (ISO 8601 UTC)">
+  End of the slot (`start_at + variant.duration`).
+</ResponseField>
+
+<ResponseField name="venue_id" type="string">
+  The venue offering the slot.
+</ResponseField>
+
+<ResponseField name="treatment_id" type="string">
+  The treatment available at this slot.
+</ResponseField>
+
+<ResponseField name="variant_id" type="string">
+  The specific variant (duration × guest count) this slot matches.
+</ResponseField>
+
+<ResponseField name="duration_minutes" type="integer">
+  Duration of the slot, in minutes.
+</ResponseField>
+
+## How slots are computed
+
+A slot is returned by `GET /v1/availability` only if **all** of the following
+are true:
+
+1. The venue is deployed on that date (recurring schedule or one-time
+   opening).
+2. The slot falls within the venue's daily `opening_time` … `closing_time`.
+3. The slot respects the treatment's `lead_time` from "now".
+4. A **treatment room** with sufficient capacity is free for the full
+   duration (with buffer).
+5. At least one **therapist** is on shift, has the required skills for the
+   treatment, and is not already booked.
+6. The slot does not fall inside a **blocked time range** configured by the
+   venue (lunch break, maintenance, etc.).
+7. The slot respects the venue's `room_turnover_buffer_minutes` and
+   `inter_venue_buffer_minutes`.
+
+<Note>
+  Because availability depends on live data, a slot returned by
+  `GET /v1/availability` may be taken by another customer before you call
+  `POST /v1/bookings`. In that case the booking call returns `SLOT_TAKEN`
+  (HTTP 409). Always handle this error gracefully.
+</Note>
+
+## Time zones
+
+All slot times are returned in **UTC**. Use the `timezone` field on the
+parent Venue to convert to local time for display.
+
+```javascript
+// Display a slot in the venue's local time
+const slotLocal = new Date(slot.start_at).toLocaleTimeString("fr-FR", {
+  timeZone: venue.timezone,
+  hour: "2-digit",
+  minute: "2-digit",
+});
+```
+
+## Granularity
+
+Slots are always aligned on the venue's `slot_interval` (typically every
+30 minutes, starting at the `opening_time`).
+
+## Example
+
+```json
+{
+  "start_at": "2026-05-12T12:00:00Z",
+  "end_at": "2026-05-12T13:00:00Z",
+  "venue_id": "hot_lutetia_paris",
+  "treatment_id": "trt_swedish_60",
+  "variant_id": "var_swedish_60",
+  "duration_minutes": 60
+}
+```
