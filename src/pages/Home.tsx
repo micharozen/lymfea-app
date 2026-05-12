@@ -14,8 +14,8 @@ const Home = () => {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session) {
-          // No session: redirect to PWA welcome
-          navigate("/pwa/welcome", { replace: true });
+          // No session: redirect to admin login
+          navigate("/admin/dashboard", { replace: true });
           return;
         }
 
@@ -24,7 +24,7 @@ const Home = () => {
         navigate(redirectPath, { replace: true });
       } catch (error) {
         console.error("Error checking user:", error);
-        navigate("/pwa/welcome", { replace: true });
+        navigate("/admin/dashboard", { replace: true });
       } finally {
         setLoading(false);
       }

@@ -22,6 +22,7 @@ export interface TreatmentVariantData {
   price_on_request: boolean;
   is_default: boolean;
   sort_order: number;
+  guest_count?: number;
 }
 
 export interface DrawerTreatment {
@@ -69,7 +70,9 @@ export function TreatmentVariantDrawer({
   if (!treatment) return null;
 
   const currency = treatment.currency || 'EUR';
-  const variants = [...(treatment.variants ?? [])].sort((a, b) => a.duration - b.duration);
+  const variants = [...(treatment.variants ?? [])].sort(
+    (a, b) => (a.guest_count ?? 1) - (b.guest_count ?? 1) || a.duration - b.duration
+  );
   const selectedVariant = variants.find((v) => v.id === selectedVariantId) || null;
 
   const description = localize(treatment.description, treatment.description_en) ?? '';
@@ -145,17 +148,29 @@ export function TreatmentVariantDrawer({
                     idx > 0 && 'border-t border-gray-100'
                   )}
                 >
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-serif text-base sm:text-lg text-gray-900 font-medium leading-tight">
-                      {variant.duration} {t('treatmentDetail.minutes', { defaultValue: 'minutes' })}
-                    </span>
-                    {customLabel && (
-                      <span className="text-xs text-gray-400 mt-0.5 truncate font-light">
-                        {customLabel}
+                  <div className="flex flex-col min-w-0 flex-1">
+                    {/* Ligne 1 : Nom + Durée */}
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      {customLabel && (
+                        <span className="font-serif text-base sm:text-lg text-gray-900 font-medium leading-tight">
+                          {customLabel}
+                        </span>
+                      )}
+                      <span className={cn(
+                        'font-light leading-tight',
+                        customLabel ? 'text-sm text-gray-500' : 'font-serif text-base sm:text-lg text-gray-900 font-medium'
+                      )}>
+                        {variant.duration} {t('treatmentDetail.minutes', { defaultValue: 'min' })}
+                        {(variant.guest_count ?? 1) > 1 && (
+                          <span className="ml-1">
+                            · {variant.guest_count} {t('variant.guestShort', { defaultValue: 'pers.' })}
+                          </span>
+                        )}
                       </span>
-                    )}
+                    </div>
+                    {/* Ligne 2 : Prix */}
                     {priceLabel && (
-                      <span className="text-sm text-gray-700 mt-1 font-light">{priceLabel}</span>
+                      <span className="text-sm text-gray-700 mt-0.5 font-light">{priceLabel}</span>
                     )}
                   </div>
 

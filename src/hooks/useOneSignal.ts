@@ -60,7 +60,7 @@ export const getPendingNotificationUrl = (): string | null => {
 };
 
 // Pages where OneSignal should NOT initialize (auth pages and client booking flow)
-const EXCLUDED_PAGES = ['/auth', '/login', '/set-password', '/update-password', '/pwa/login', '/pwa/welcome', '/pwa/splash', '/client'];
+const EXCLUDED_PAGES = ['/auth', '/login', '/set-password', '/update-password', '/pwa/login', '/pwa/welcome', '/pwa/splash', '/pwa/reset-password', '/client'];
 
 export const useOneSignal = () => {
   const [isInitialized, setIsInitialized] = useState(isOneSignalInitialized);
@@ -102,6 +102,7 @@ export const useOneSignal = () => {
 
       // Check if we're on a supported domain for OneSignal
       const allowedDomains = [
+        'eiaspa.fr',
         'lymfea.fr',
         'localhost',
       ];
@@ -126,6 +127,19 @@ export const useOneSignal = () => {
         return;
       }
 
+      // iOS Safari only supports web push when the PWA is installed to the
+      // home screen (display-mode: standalone). In a regular Safari tab the
+      // SDK can't register its service worker and init silently times out.
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as { standalone?: boolean }).standalone === true;
+
+      if (isIOS && !isStandalone) {
+        console.log('[OneSignal] iOS Safari without standalone mode — skipping init (install PWA to home screen first)');
+        return;
+      }
+
       console.log('[OneSignal] Starting initialization...');
       console.log('[OneSignal] User Agent:', navigator.userAgent);
       console.log('[OneSignal] Notification permission:', Notification.permission);
@@ -135,6 +149,7 @@ export const useOneSignal = () => {
         console.warn('[OneSignal] VITE_ONESIGNAL_APP_ID not set, skipping initialization');
         return;
       }
+      console.log('[OneSignal] App ID:', appId, '| Origin:', window.location.origin);
 
       // Start new initialization
       initializationPromise = (async () => {

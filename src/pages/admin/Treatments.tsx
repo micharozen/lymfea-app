@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useTranslation } from "react-i18next";
+import { getSpecialtyLabel } from "@/lib/specialtyTypes";
 import {
   Table,
   TableBody,
@@ -56,6 +59,7 @@ export default function TreatmentMenus() {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   // Use shared hooks
+  const { i18n } = useTranslation();
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
   const { deleteId: deleteMenuId, openDelete, closeDelete } = useDialogState<string>();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
@@ -80,7 +84,9 @@ export default function TreatmentMenus() {
     fetchUserRole();
   }, []);
 
-  const isAdmin = userRole === "admin";
+  const { isVenueManagerView } = useEffectiveRole();
+  const isAdmin = userRole === "admin" && !isVenueManagerView;
+  const isConcierge = userRole === "concierge" || isVenueManagerView;
 
   const { data: menus, refetch, isLoading } = useQuery({
     queryKey: ["treatment-menus"],
@@ -143,7 +149,7 @@ export default function TreatmentMenus() {
   // Control overflow when pagination is needed
   useOverflowControl(!isLoading && needsPagination);
 
-  const columnCount = isAdmin ? 9 : 8;
+  const columnCount = isAdmin ? 9 : isConcierge ? 6 : 8;
 
   const categories = Array.from(
     new Set(menus?.map((menu) => menu.category).filter(Boolean))
@@ -257,19 +263,21 @@ export default function TreatmentMenus() {
               />
             </div>
 
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrer par catégorie" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes les catégories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {!isConcierge && (
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtrer par catégorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les catégories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             {isAdmin && (
               <Select value={hotelFilter} onValueChange={setHotelFilter}>
@@ -364,11 +372,15 @@ export default function TreatmentMenus() {
                         Tarif
                       </SortableTableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Delai</TableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Public</TableHead>
-                      <SortableTableHead column="category" sortDirection={getSortDirection("category")} onSort={toggleSort} align="center" className="w-[90px]">
-                        Categorie
-                      </SortableTableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[140px]">Hotel</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[90px]">Spécialité</TableHead>
+                      {!isConcierge && (
+                        <SortableTableHead column="category" sortDirection={getSortDirection("category")} onSort={toggleSort} align="center" className="w-[90px]">
+                          Categorie
+                        </SortableTableHead>
+                      )}
+                      {!isConcierge && (
+                        <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[140px]">Hotel</TableHead>
+                      )}
                       <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort} align="center" className="w-[70px]">
                         Statut
                       </SortableTableHead>
@@ -393,24 +405,14 @@ export default function TreatmentMenus() {
                         return (
                           <TableRow
                             key={menu.id}
-                            className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
-                            onClick={() => navigate(`/admin/treatments/${menu.id}`)}
+                            className={cn(
+                              "h-10 max-h-10 transition-colors",
+                              isConcierge ? "" : "cursor-pointer hover:bg-muted/50"
+                            )}
+                            onClick={isConcierge ? undefined : () => navigate(`/admin/treatments/${menu.id}`)}
                           >
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                              <div className="flex items-center gap-2 whitespace-nowrap">
-                                {menu.image ? (
-                                  <img
-                                    src={menu.image}
-                                    alt={menu.name}
-                                    className="w-6 h-6 rounded object-cover flex-shrink-0"
-                                  />
-                                ) : (
-                                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0 text-xs">
-                                    💆
-                                  </div>
-                                )}
-                                <span className="truncate font-medium text-foreground">{menu.name}</span>
-                              </div>
+                              <span className="truncate font-medium text-foreground whitespace-nowrap">{menu.name}</span>
                             </TableCell>
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                               <span className="truncate block text-foreground">
@@ -426,20 +428,18 @@ export default function TreatmentMenus() {
                               <span className="truncate block text-foreground">{formatLeadTime(menu.lead_time)}</span>
                             </TableCell>
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                              <span className="text-xs">
-                                {menu.service_for === "Male"
-                                  ? "👨"
-                                  : menu.service_for === "Female"
-                                  ? "👩"
-                                  : "👥"}
-                              </span>
+                              <span className="truncate block text-foreground text-xs">{menu.treatment_type ? getSpecialtyLabel(menu.treatment_type, i18n.language) : "—"}</span>
                             </TableCell>
-                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                              <span className="truncate block text-foreground">{menu.category}</span>
-                            </TableCell>
-                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                              <HotelCell hotel={hotel} />
-                            </TableCell>
+                            {!isConcierge && (
+                              <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                                <span className="truncate block text-foreground">{menu.category}</span>
+                              </TableCell>
+                            )}
+                            {!isConcierge && (
+                              <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                                <HotelCell hotel={hotel} />
+                              </TableCell>
+                            )}
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                               <Badge
                                 variant={menu.status === "active" ? "default" : "secondary"}

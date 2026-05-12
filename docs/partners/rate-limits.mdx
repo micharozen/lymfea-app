@@ -1,0 +1,58 @@
+---
+title: "Rate limits"
+description: "Usage quotas applied per API key."
+---
+
+Rate limits protect the Eïa platform and your integration from runaway traffic.
+Limits are applied **per API key**, per endpoint category.
+
+## Default limits
+
+| Category              | Limit          | Example endpoints                                 |
+| --------------------- | -------------- | ------------------------------------------------- |
+| Read endpoints        | 60 req / min   | `GET /v1/venues`, `GET /v1/availability`          |
+| Write endpoints       | 10 req / min   | `POST /v1/bookings`, `POST /.../cancel`           |
+
+<Note>
+  Need higher limits? Contact your Eïa account manager. Quotas can be raised on
+  a case-by-case basis once we understand your traffic profile.
+</Note>
+
+## Rate-limit headers
+
+Every response includes headers that describe your current usage:
+
+| Header                  | Description                                          |
+| ----------------------- | ---------------------------------------------------- |
+| `X-RateLimit-Limit`     | Your current quota for the endpoint category        |
+| `X-RateLimit-Remaining` | Requests remaining in the current window            |
+| `X-RateLimit-Reset`     | Unix timestamp (seconds) when the window resets     |
+
+## When you hit the limit
+
+Requests that exceed your quota return `429 RATE_LIMITED`:
+
+```json
+{
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "You have exceeded the rate limit for read endpoints.",
+    "details": {
+      "retry_after_seconds": 42
+    }
+  }
+}
+```
+
+The response also sets the standard `Retry-After` header. Implement an
+exponential backoff on `429` responses; do not retry tighter than `Retry-After`.
+
+## Best practices
+
+- **Cache venue and treatment data.** Venue metadata (name, images,
+  description) and treatment catalogues change rarely. Refresh them a few
+  times per day, not on every user request.
+- **Batch availability queries.** Use `venue_ids[]` on `GET /v1/availability`
+  to fetch several venues in a single call.
+- **Avoid hot-polling bookings.** Poll `GET /v1/bookings/{id}` at most every
+  30 seconds. Webhook notifications are on the roadmap for v1.1.

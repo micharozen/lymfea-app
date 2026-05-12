@@ -1,14 +1,16 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building, Gift, ShieldCheck, Calendar, Clock, Repeat, X, Package, MapPin, Phone } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
+import { useClientVenue } from './context/ClientVenueContext';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeEdgeFunction, invokeStripe } from '@/lib/supabaseEdgeFunctions';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { ProgressBar } from '@/components/client/ProgressBar';
@@ -18,23 +20,16 @@ import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { HoldBanner } from '@/components/client/HoldBanner';
+import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
+import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
 
 export default function Payment() {
-  const { hotelId } = useParams<{ hotelId: string }>();
+  const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
-  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase } = useClientFlow();
-
-  console.log('[Payment] items:', items);
-  console.log('[Payment] isBundleOnly:', isBundleOnly);
-  console.log('[Payment] isBundleOnlyPurchase:', isBundleOnlyPurchase);
-  console.log('[Payment] selectedBundle:', selectedBundle);
-  console.log('[Payment] bookingDateTime:', bookingDateTime);
-  console.log('[Payment] clientInfo:', clientInfo);
-  console.log('[Payment] total:', total, 'fixedTotal:', fixedTotal);
-  console.log('[Payment] canProceedToStep("payment"):', canProceedToStep('payment'));
+  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles, giftInfo, scheduleMode, perItemSchedule, groupId, bookingIds } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
-  const { authBundles } = useClientFlow();
 
   useEffect(() => {
     if (selectedMethod === 'room' && clientInfo?.isExternalGuest) {
@@ -42,7 +37,7 @@ export default function Payment() {
     }
   }, [selectedMethod, clientInfo?.isExternalGuest]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const { t } = useTranslation('client');
+  const { t, i18n } = useTranslation('client');
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 
   // Fetch the bundle template so gift cards can show tailored copy on the payment screen
@@ -86,9 +81,11 @@ export default function Payment() {
 
   useEffect(() => {
     if (!canProceedToStep('payment')) {
-      navigate(`/client/${hotelId}/cart`);
+      navigate(`/client/${slug}/schedule`);
     }
-  }, [canProceedToStep, navigate, hotelId]);
+  }, [canProceedToStep, navigate, slug]);
+
+  const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
 
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
@@ -114,10 +111,17 @@ export default function Payment() {
     ? Math.round(((selectedBundle?.remainingAmountCents ?? 0) - (selectedBundle?.amountToUseCents ?? 0)) / 100)
     : 0;
 
+  // Out-of-hours surcharge (affichage — le serveur recalcule et fait foi)
+  const surcharge = computeOutOfHoursSurcharge(bookingDateTime?.time, total, hotel);
+  const surchargeUncovered = computeOutOfHoursSurcharge(bookingDateTime?.time, uncoveredTotal, hotel);
+  const totalWithSurcharge = total + surcharge.surchargeAmount;
+  const uncoveredTotalWithSurcharge = uncoveredTotal + surchargeUncovered.surchargeAmount;
+  const fixedTotalWithSurcharge = fixedTotal + computeOutOfHoursSurcharge(bookingDateTime?.time, fixedTotal, hotel).surchargeAmount;
+
   const handlePayment = async () => {
     if (!clientInfo) {
       toast.error(t('common:errors.generic'));
-      navigate(`/client/${hotelId}/cart`);
+      navigate(`/client/${slug}/cart`);
       return;
     }
 
@@ -126,8 +130,7 @@ export default function Payment() {
       if (!isBundleOnly) return;
       setIsProcessing(true);
       try {
-        const { data, error } = await supabase.functions.invoke('create-bundle-payment', {
-          body: {
+        const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-bundle-payment', {
             hotelId,
             clientData: {
               firstName: clientInfo.firstName,
@@ -143,15 +146,26 @@ export default function Payment() {
               quantity: item.quantity,
             })),
             totalPrice: total,
-          },
-        });
+            ...(giftInfo && {
+              giftData: {
+                isGift: giftInfo.isGift,
+                deliveryMode: giftInfo.deliveryMode,
+                recipientName: giftInfo.recipientName,
+                recipientEmail: giftInfo.recipientEmail,
+                senderName: giftInfo.senderName,
+                giftMessage: giftInfo.giftMessage,
+                recipientLanguage: giftInfo.recipientLanguage,
+              },
+            }),
+            language: i18n.language === 'en' ? 'en' : 'fr',
+        }, { skipAuth: true });
 
         if (error) throw error;
 
         if (data?.url) {
           const url = new URL(data.url);
           const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+          if (url.protocol !== 'https:' || !trustedDomains.some(domain => url.hostname.endsWith(domain))) {
             throw new Error('Invalid redirect URL');
           }
           setPendingCheckoutSession(data.sessionId);
@@ -168,7 +182,7 @@ export default function Payment() {
 
     if (!bookingDateTime) {
       toast.error(t('common:errors.generic'));
-      navigate(`/client/${hotelId}/cart`);
+      navigate(`/client/${slug}/cart`);
       return;
     }
 
@@ -179,7 +193,7 @@ export default function Payment() {
       if (selectedBundle && isAmountBundle && selectedBundle.amountToUseCents) {
         if (uncoveredTotal === 0) {
           // Full coverage by gift amount
-          const { data, error } = await supabase.functions.invoke('create-client-booking', {
+          const { data, error } = await invokeEdgeFunction<unknown, { bookingId: string }>('create-client-booking', {
             body: {
               hotelId,
               clientData: {
@@ -209,19 +223,22 @@ export default function Payment() {
               },
               totalPrice: 0,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
+              ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
             },
+            skipAuth: true,
           });
 
           if (error) throw error;
+          if (!data) throw new Error('Booking creation failed');
 
           clearBasket();
           clearFlow();
-          navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+          navigate(`/client/${slug}/confirmation/${data.bookingId}`);
           return;
         } else {
           // Partial coverage — pay remainder via Stripe
-          const { data, error } = await supabase.functions.invoke('create-setup-intent', {
-            body: {
+          const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-setup-intent', {
               hotelId,
               clientData: {
                 firstName: clientInfo.firstName,
@@ -246,8 +263,7 @@ export default function Payment() {
                 amountCents: selectedBundle.amountToUseCents,
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-            },
-          });
+          }, { skipAuth: true });
 
           if (error) throw error;
 
@@ -266,7 +282,7 @@ export default function Payment() {
 
       // Session bundle — all items covered
       if (selectedBundle && bundleCoveredItems.length > 0 && uncoveredTotal === 0) {
-        const { data, error } = await supabase.functions.invoke('create-client-booking', {
+        const { data, error } = await invokeEdgeFunction<unknown, { bookingId: string }>('create-client-booking', {
           body: {
             hotelId,
             clientData: {
@@ -296,91 +312,124 @@ export default function Payment() {
             },
             totalPrice: 0,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
+            ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
           },
+          skipAuth: true,
         });
 
         if (error) throw error;
+        if (!data) throw new Error('Booking creation failed');
 
         clearBasket();
         clearFlow();
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
         return;
       } else if (isOffert) {
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
-        const { data, error } = await supabase.functions.invoke('create-setup-intent', {
-          body: {
-            hotelId,
-            clientData: {
-              firstName: clientInfo.firstName,
-              lastName: clientInfo.lastName,
-              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
-              email: clientInfo.email,
-              roomNumber: clientInfo.roomNumber,
-              note: clientInfo.note || '',
-            },
-            bookingData: {
-              date: bookingDateTime.date,
-              time: bookingDateTime.time,
-            },
-            treatmentIds: items.map(item => item.id),
-            treatments: items.map(item => ({
-              treatmentId: item.id,
-              variantId: item.variantId,
-            })),
-            totalPrice: total,
-            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+        // Le draft reste vivant en DB — confirm-setup-intent le promouvra en 'pending'.
+        // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
+        setHoldExpiresAt(null);
+
+        const isMulti = (bookingIds && bookingIds.length > 1)
+          || (scheduleMode === 'per_item' && Object.keys(perItemSchedule).length > 1);
+
+        const baseItemsForCardMulti = items.filter(i => !i.isAddon && !i.isBundle);
+        const multiItemsForCard = isMulti ? buildMultiBookingItems(baseItemsForCardMulti, perItemSchedule) : null;
+
+        const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-setup-intent', {
+          hotelId,
+          clientData: {
+            firstName: clientInfo.firstName,
+            lastName: clientInfo.lastName,
+            phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+            email: clientInfo.email,
+            roomNumber: clientInfo.roomNumber,
+            note: clientInfo.note || '',
+            pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+            pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
           },
-        });
+          bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
+          treatmentIds: items.map(item => item.id),
+          treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId })),
+          totalPrice: total,
+          ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+          ...(draftBookingId ? { draftBookingId } : {}),
+          ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+          isMulti,
+          ...(isMulti ? { groupId, bookingIds } : {}),
+          // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
+          ...(isMulti && multiItemsForCard && bookingIds.length === 0 ? { slots: multiItemsForCard } : {}),
+        }, { skipAuth: true });
 
         if (error) throw error;
 
         if (data?.url) {
           const url = new URL(data.url);
           const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+          if (url.protocol !== 'https:' || !trustedDomains.some(domain => url.hostname.endsWith(domain))) {
             throw new Error('Invalid redirect URL');
           }
           setPendingCheckoutSession(data.sessionId);
           window.location.href = data.url;
         }
       } else {
-        const { data, error } = await supabase.functions.invoke('create-client-booking', {
-          body: {
-            hotelId,
-            clientData: {
-              firstName: clientInfo.firstName,
-              lastName: clientInfo.lastName,
-              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
-              email: clientInfo.email,
-              roomNumber: clientInfo.roomNumber,
-              note: clientInfo.note || '',
-              pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
-              pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
-            },
-            bookingData: {
-              date: bookingDateTime.date,
-              time: bookingDateTime.time,
-            },
-            treatments: items.map(item => ({
-              treatmentId: item.id,
-              variantId: item.variantId,
-              quantity: item.quantity,
-              note: item.note,
-            })),
-            paymentMethod: 'room',
-            totalPrice: fixedTotal,
-            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-          },
-        });
+        // --- FLUX CHAMBRE / SUR PLACE (multi & solo) ---
+        const isMulti = (bookingIds && bookingIds.length > 1)
+          || (scheduleMode === 'per_item' && Object.keys(perItemSchedule).length > 1);
+
+        setHoldExpiresAt(null);
+
+        const baseItemsForMulti = items.filter(i => !i.isAddon && !i.isBundle);
+        const multiItems = isMulti ? buildMultiBookingItems(baseItemsForMulti, perItemSchedule) : null;
+
+        const clientDataPayload = {
+          firstName: clientInfo.firstName,
+          lastName: clientInfo.lastName,
+          phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+          email: clientInfo.email,
+          roomNumber: clientInfo.roomNumber,
+          note: clientInfo.note || '',
+          pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+          pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
+        };
+
+        const body = isMulti && multiItems
+          ? {
+              hotelId,
+              clientData: clientDataPayload,
+              items: multiItems,
+              bookingIds,
+              groupId,
+              paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
+              totalPrice: fixedTotal,
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            }
+          : {
+              hotelId,
+              clientData: clientDataPayload,
+              bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
+              treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId, quantity: item.quantity, note: item.note })),
+              paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
+              totalPrice: fixedTotal,
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
+              ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+            };
+
+        const { data, error } = await invokeEdgeFunction<unknown, { bookingId?: string; bookingIds?: string[] }>('create-client-booking', { body, skipAuth: true });
 
         if (error) throw error;
+        if (!data) throw new Error('Booking creation failed');
 
         clearBasket();
         clearFlow();
-        // Redirection vers la page dynamique
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        const navigateBookingId = isMulti && Array.isArray(data.bookingIds) && data.bookingIds.length
+          ? data.bookingIds[0]
+          : data.bookingId;
+        navigate(`/client/${slug}/confirmation/${navigateBookingId}`);
       }
     } catch (error: any) {
       console.error('Payment error:', error);
@@ -400,7 +449,7 @@ export default function Payment() {
           : errorCode === 'BLOCKED_SLOT' ? 'errors.blockedSlot'
           : 'errors.leadTimeViolation';
         toast.error(t(messageKey));
-        navigate(`/client/${hotelId}/schedule`, {
+        navigate(`/client/${slug}/schedule`, {
           state: { takenDate: bookingDateTime?.date, takenTime: bookingDateTime?.time },
         });
         return;
@@ -414,13 +463,14 @@ export default function Payment() {
 
   return (
     <div className="relative min-h-[100dvh] w-full bg-white pb-safe">
+      <HoldBanner />
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
         <div className="flex items-center gap-4 p-4">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/client/${hotelId}/guest-info`)}
+            onClick={() => navigate(`/client/${slug}/guest-info`, { replace: true })}
             disabled={isProcessing || isOffertProcessing}
             className="text-gray-900 hover:bg-gray-100"
           >
@@ -434,7 +484,7 @@ export default function Payment() {
       <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-8 pb-32">
         
         {/* Titre élégant */}
-        <div className="animate-fade-in text-center space-y-1.5 mt-4">
+        <div className="text-center space-y-1.5 mt-4">
           <h3 className="text-xl font-serif text-gray-900">
             {isBundleOnlyPurchase
               ? t('payment.bundleTitle', 'Finaliser votre achat')
@@ -461,7 +511,7 @@ export default function Payment() {
 
         {/* Bundle active banner */}
         {selectedBundle && (
-          <div className="bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 animate-fade-in flex items-start gap-3">
+          <div className="bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
               {isAmountBundle ? <Gift className="w-4 h-4 text-amber-700" /> : <Repeat className="w-4 h-4 text-amber-700" />}
             </div>
@@ -493,7 +543,7 @@ export default function Payment() {
         )}
 
         {/* Nouveau Récapitulatif Design Luxe */}
-        <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+        <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 space-y-4">
           {(hotel?.name || hotel?.address || hotel?.contact_phone) && (
             <div className="pb-3 border-b border-gray-100 space-y-1">
               {hotel?.name && (
@@ -554,22 +604,50 @@ export default function Payment() {
             })}
             
             {!isBundleOnlyPurchase && (
-              <>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Date</span>
-                  <span className="font-medium text-gray-900 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                    {bookingDateTime?.date ? format(new Date(bookingDateTime.date), 'd MMMM yyyy', { locale: fr }) : '-'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Heure</span>
-                  <span className="font-medium text-gray-900 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-gray-400" />
-                    {bookingDateTime?.time ? bookingDateTime.time.substring(0, 5) : '-'}
-                  </span>
-                </div>
-              </>
+              scheduleMode === 'per_item' && Object.keys(perItemSchedule).length > 0
+                ? items.filter(i => !i.isAddon && !i.isBundle).map((item) => {
+                    const key = item.variantId ? `${item.id}__${item.variantId}` : item.id;
+                    const slot = perItemSchedule[key];
+                    if (!slot?.date || !slot?.time) return null;
+                    return (
+                      <div key={key} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-gray-500 truncate">{item.name}</span>
+                        <span className="font-medium text-gray-900 flex items-center gap-1.5 shrink-0">
+                          <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                          {format(new Date(slot.date), 'd MMM yyyy', { locale: fr })}
+                          <span className="text-gray-400">·</span>
+                          {slot.time.substring(0, 5)}
+                        </span>
+                      </div>
+                    );
+                  })
+                : <>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500">Date</span>
+                      <span className="font-medium text-gray-900 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                        {bookingDateTime?.date ? format(new Date(bookingDateTime.date), 'd MMMM yyyy', { locale: fr }) : '-'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500">Heure</span>
+                      <span className="font-medium text-gray-900 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        {bookingDateTime?.time ? bookingDateTime.time.substring(0, 5) : '-'}
+                      </span>
+                    </div>
+                  </>
+            )}
+
+            {surcharge.isOutOfHours && surcharge.surchargeAmount > 0 && !isOffert && !hasPriceOnRequest && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">
+                  {t('payment.outOfHoursSurcharge', 'Majoration hors horaires')} ({surcharge.surchargePercent}%)
+                </span>
+                <span className="font-medium text-amber-600">
+                  +{formatPrice(surcharge.surchargeAmount, items[0]?.currency || 'EUR')}
+                </span>
+              </div>
             )}
           </div>
 
@@ -589,15 +667,15 @@ export default function Payment() {
             <div className="text-right">
               {isAmountBundle && giftAmountAppliedEuros > 0 && (
                 <span className="text-sm line-through text-gray-400 mr-2">
-                  {formatPrice(total, items[0]?.currency || 'EUR')}
+                  {formatPrice(totalWithSurcharge, items[0]?.currency || 'EUR')}
                 </span>
               )}
               <span className="text-xl font-serif font-semibold text-gray-900">
                 {selectedBundle
-                  ? formatPrice(uncoveredTotal, items[0]?.currency || 'EUR')
+                  ? formatPrice(uncoveredTotalWithSurcharge, items[0]?.currency || 'EUR')
                   : isOffert
                     ? formatPrice(0, items[0]?.currency || 'EUR')
-                    : formatPrice(hasPriceOnRequest ? fixedTotal : total, items[0]?.currency || 'EUR')
+                    : formatPrice(hasPriceOnRequest ? fixedTotalWithSurcharge : totalWithSurcharge, items[0]?.currency || 'EUR')
                 }
                 {hasPriceOnRequest && !selectedBundle && <span className="text-xs text-amber-500 ml-1">+ Devis</span>}
               </span>
@@ -607,7 +685,7 @@ export default function Payment() {
 
         {/* Message de réassurance (Bouclier) */}
         {!isOffert && !hasPriceOnRequest && !(selectedBundle && uncoveredTotal === 0) && selectedMethod === 'card' && (
-          <div className="flex items-start gap-3 bg-gray-50/80 border border-gray-100 p-4 rounded-xl animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <div className="flex items-start gap-3 bg-gray-50/80 border border-gray-100 p-4 rounded-xl">
             <ShieldCheck className="w-5 h-5 flex-shrink-0 text-gray-900 mt-0.5" />
             <p className="text-xs text-gray-500 leading-relaxed">
               {isBundleOnlyPurchase ? (
@@ -632,7 +710,7 @@ export default function Payment() {
 
         {/* Sélection du mode de garantie — hidden for bundle-only (card only) */}
         {!isBundleOnlyPurchase && !isOffert && !hasPriceOnRequest && !(selectedBundle && uncoveredTotal === 0) && (
-          <div className="space-y-3 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <div className="space-y-3">
             
             {/* Carte */}
             <button
@@ -693,6 +771,14 @@ export default function Payment() {
             )}
           </div>
         )}
+
+        {/* Politique d'annulation */}
+        <div className="pt-6 border-t border-gray-100">
+          <p className="text-xs text-gray-500 leading-relaxed">
+            <span className="font-medium text-gray-700">{t('payment.cancellationPolicyTitle')}</span>{' '}
+            {t('payment.cancellationPolicyText')}
+          </p>
+        </div>
       </div>
 
       {/* Bouton Fixe en bas - Design "Classe" */}

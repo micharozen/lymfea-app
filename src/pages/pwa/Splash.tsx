@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { brand, brandLogos } from "@/config/brand";
 import { supabase } from "@/integrations/supabase/client";
+import { isTherapistPending } from "@/hooks/useRoleRedirect";
 
 const PwaSplash = () => {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ const PwaSplash = () => {
             console.log("✅ Therapist role found, checking status...");
             const { data: therapist, error: therapistError } = await supabase
               .from('therapists')
-              .select('status')
+              .select('status, password_set')
               .eq('user_id', session.user.id)
               .maybeSingle();
 
@@ -49,8 +50,8 @@ const PwaSplash = () => {
             }
 
             if (therapist) {
-              console.log("✅ Therapist found, status:", therapist.status);
-              if (therapist.status === "pending") {
+              console.log("✅ Therapist found, status:", therapist.status, "password_set:", therapist.password_set);
+              if (isTherapistPending(therapist)) {
                 navigate("/pwa/onboarding", { replace: true });
               } else {
                 navigate("/pwa/dashboard", { replace: true });

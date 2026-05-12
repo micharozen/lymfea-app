@@ -9,18 +9,59 @@
   },
   "sharedModules": {
     "_comment": "Shared modules that must be ported before functions that depend on them",
-    "supabase-admin": { "status": "migrated", "target": "src/lib/supabase.ts" },
-    "stripe-client": { "status": "migrated", "target": "src/lib/stripe.ts" },
-    "send-email": { "status": "migrated", "target": "src/lib/email.ts" },
-    "brand": { "status": "pending", "target": "src/lib/brand.ts", "note": "Import brand.json directly" },
-    "email-template": { "status": "pending", "target": "src/lib/email-template.ts" },
-    "therapistEarnings": { "status": "pending", "target": "src/lib/therapist-earnings.ts" },
-    "whatsapp-meta": { "status": "pending", "target": "src/lib/whatsapp.ts" },
-    "pms-client": { "status": "pending", "target": "src/lib/pms/client.ts" },
-    "opera-cloud": { "status": "pending", "target": "src/lib/pms/opera-cloud.ts" },
-    "mews": { "status": "pending", "target": "src/lib/pms/mews.ts" },
-    "blocked-slots": { "status": "pending", "target": "src/lib/blocked-slots.ts" },
-    "payment-link-templates": { "status": "pending", "target": "src/lib/payment-link-templates.ts" }
+    "supabase-admin": {
+      "status": "migrated",
+      "target": "src/lib/supabase.ts"
+    },
+    "stripe-client": {
+      "status": "migrated",
+      "target": "src/lib/stripe.ts"
+    },
+    "stripe-resolver": {
+      "status": "migrated",
+      "target": "src/lib/stripe-resolver.ts",
+      "note": "Per-venue Stripe key resolver (Vault-backed) with fallback to global STRIPE_SECRET_KEY."
+    },
+    "send-email": {
+      "status": "migrated",
+      "target": "src/lib/email.ts"
+    },
+    "blocked-slots": {
+      "status": "migrated",
+      "target": "src/lib/blocked-slots.ts"
+    },
+    "brand": {
+      "status": "migrated",
+      "target": "src/lib/brand.ts"
+    },
+    "email-template": {
+      "status": "pending",
+      "target": "src/lib/email-template.ts"
+    },
+    "therapistEarnings": {
+      "status": "migrated",
+      "target": "src/lib/therapist-earnings.ts"
+    },
+    "whatsapp-meta": {
+      "status": "migrated",
+      "target": "src/lib/whatsapp.ts"
+    },
+    "pms-client": {
+      "status": "pending",
+      "target": "src/lib/pms/client.ts"
+    },
+    "opera-cloud": {
+      "status": "pending",
+      "target": "src/lib/pms/opera-cloud.ts"
+    },
+    "mews": {
+      "status": "pending",
+      "target": "src/lib/pms/mews.ts"
+    },
+    "payment-link-templates": {
+      "status": "pending",
+      "target": "src/lib/payment-link-templates.ts"
+    }
   },
   "functions": [
     {
@@ -35,23 +76,31 @@
     },
     {
       "name": "stripe-webhook",
-      "status": "pending",
+      "status": "migrated",
       "route": "/webhooks/stripe",
       "target": "src/routes/webhooks.ts",
       "priority": 1,
       "group": "payments",
       "auth": false,
-      "deps": ["therapistEarnings", "whatsapp-meta", "brand"]
+      "deps": [
+        "therapistEarnings",
+        "whatsapp-meta",
+        "brand"
+      ],
+      "migratedAt": "2026-05-06T00:00:00.000Z",
+      "note": "Per-venue routing via ?hotel_id=<uuid>. All event handlers (checkout.session.completed payment-link + standard flow, invoice.payment_succeeded with Connect payouts, payment_intent.payment_failed) ported. Inter-function calls to send-booking-confirmation / notify-admin-new-booking / trigger-new-booking-notifications / send-slack-notification still go through supabaseAdmin.functions.invoke until those are migrated."
     },
     {
       "name": "stripe-connect-webhook",
-      "status": "pending",
+      "status": "migrated",
       "route": "/webhooks/stripe-connect",
       "target": "src/routes/webhooks.ts",
       "priority": 1,
       "group": "payments",
       "auth": false,
-      "deps": []
+      "deps": [],
+      "migratedAt": "2026-04-18T07:08:06.409Z",
+      "sourceHash": "6dde1e6e8c5f94a7"
     },
     {
       "name": "finalize-payment",
@@ -61,27 +110,36 @@
       "priority": 1,
       "group": "payments",
       "auth": true,
-      "deps": ["therapistEarnings", "brand"]
+      "deps": [
+        "therapistEarnings",
+        "brand"
+      ]
     },
     {
       "name": "create-checkout-session",
-      "status": "pending",
+      "status": "migrated",
       "route": "/payments/checkout",
       "target": "src/routes/payments.ts",
       "priority": 1,
       "group": "payments",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ],
+      "migratedAt": "2026-05-06T00:00:00.000Z",
+      "note": "Ported from stripe-payment/actions/createCheckoutSession.ts. Uses per-venue Stripe resolver."
     },
     {
       "name": "charge-saved-card",
-      "status": "pending",
+      "status": "migrated",
       "route": "/payments/charge-card",
       "target": "src/routes/payments.ts",
       "priority": 1,
       "group": "payments",
       "auth": true,
-      "deps": []
+      "deps": [],
+      "migratedAt": "2026-04-18T07:08:23.459Z",
+      "sourceHash": "218db55a40f89961"
     },
     {
       "name": "send-payment-link",
@@ -91,7 +149,10 @@
       "priority": 1,
       "group": "payments",
       "auth": true,
-      "deps": ["payment-link-templates", "brand"]
+      "deps": [
+        "payment-link-templates",
+        "brand"
+      ]
     },
     {
       "name": "send-payment-reminder",
@@ -101,57 +162,70 @@
       "priority": 2,
       "group": "payments",
       "auth": true,
-      "deps": ["payment-link-templates", "brand"]
+      "deps": [
+        "payment-link-templates",
+        "brand"
+      ]
     },
     {
       "name": "create-bundle-payment",
-      "status": "pending",
+      "status": "migrated",
       "route": "/payments/bundle",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": true,
-      "deps": []
+      "deps": [],
+      "migratedAt": "2026-04-21T03:12:41.500Z",
+      "sourceHash": "c8b6dcaa266e5184"
     },
     {
       "name": "purchase-bundle",
-      "status": "pending",
+      "status": "migrated",
       "route": "/payments/purchase-bundle",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": true,
-      "deps": []
+      "deps": [],
+      "migratedAt": "2026-04-21T03:14:19.120Z",
+      "sourceHash": "8f7d74a1dd239458"
     },
     {
       "name": "confirm-setup-intent",
-      "status": "pending",
+      "status": "migrated",
       "route": "/payments/confirm-setup",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": true,
-      "deps": []
+      "deps": [],
+      "migratedAt": "2026-04-23T03:14:10.362Z",
+      "sourceHash": "ec73890d192fdea9"
     },
     {
       "name": "create-setup-intent",
-      "status": "pending",
+      "status": "migrated",
       "route": "/payments/setup-intent",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": true,
-      "deps": []
+      "deps": [],
+      "migratedAt": "2026-04-23T03:14:40.731Z",
+      "sourceHash": "4fa1246c516111c1"
     },
     {
       "name": "handle-checkout-success",
-      "status": "pending",
+      "status": "migrated",
       "route": "/payments/checkout-success",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": false,
-      "deps": []
+      "deps": [],
+      "migratedAt": "2026-05-06T00:00:00.000Z",
+      "note": "Re-resolves venue Stripe client via session metadata when hotelId is missing. Notification fan-out still uses supabase.functions.invoke until those are migrated."
     },
     {
       "name": "mark-tap-to-pay-paid",
@@ -171,7 +245,9 @@
       "priority": 2,
       "group": "booking",
       "auth": false,
-      "deps": ["blocked-slots"]
+      "deps": [
+        "blocked-slots"
+      ]
     },
     {
       "name": "create-client-booking",
@@ -221,7 +297,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"],
+      "deps": [
+        "email-template",
+        "brand"
+      ],
       "note": "Internal service, no HTTP endpoint — called directly by other routes"
     },
     {
@@ -232,7 +311,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"],
+      "deps": [
+        "email-template",
+        "brand"
+      ],
       "note": "Internal service"
     },
     {
@@ -243,7 +325,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "notify-admin-quote-pending",
@@ -253,7 +338,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "notify-concierge-booking",
@@ -263,7 +351,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "notify-concierge-completion",
@@ -273,7 +364,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "notify-concierge-room-payment",
@@ -283,7 +377,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "trigger-new-booking-notifications",
@@ -324,7 +421,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "send-rating-email",
@@ -334,7 +434,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "send-treatment-request-email",
@@ -344,7 +447,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "send-booking-whatsapp",
@@ -354,7 +460,9 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["whatsapp-meta"]
+      "deps": [
+        "whatsapp-meta"
+      ]
     },
     {
       "name": "send-slack-notification",
@@ -374,7 +482,9 @@
       "priority": 4,
       "group": "admin",
       "auth": false,
-      "deps": ["email-template"]
+      "deps": [
+        "email-template"
+      ]
     },
     {
       "name": "invite-admin",
@@ -384,7 +494,9 @@
       "priority": 4,
       "group": "admin",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "invite-concierge",
@@ -394,7 +506,9 @@
       "priority": 4,
       "group": "admin",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "invite-therapist",
@@ -404,7 +518,9 @@
       "priority": 4,
       "group": "admin",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "resend-invite",
@@ -414,7 +530,9 @@
       "priority": 4,
       "group": "admin",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "delete-admin",
@@ -514,7 +632,9 @@
       "priority": 4,
       "group": "therapists",
       "auth": true,
-      "deps": ["therapistEarnings"]
+      "deps": [
+        "therapistEarnings"
+      ]
     },
     {
       "name": "generate-invoice",
@@ -524,7 +644,9 @@
       "priority": 5,
       "group": "invoicing",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "generate-monthly-invoices",
@@ -534,7 +656,9 @@
       "priority": 5,
       "group": "invoicing",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "generate-therapist-invoices",
@@ -544,7 +668,9 @@
       "priority": 5,
       "group": "invoicing",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "generate-venue-invoices",
@@ -554,7 +680,9 @@
       "priority": 5,
       "group": "invoicing",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "check-expired-slots",
@@ -585,7 +713,10 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["opera-cloud", "pms-client"]
+      "deps": [
+        "opera-cloud",
+        "pms-client"
+      ]
     },
     {
       "name": "opera-cloud-post-charge",
@@ -595,7 +726,10 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["opera-cloud", "pms-client"]
+      "deps": [
+        "opera-cloud",
+        "pms-client"
+      ]
     },
     {
       "name": "opera-cloud-test-connection",
@@ -605,7 +739,10 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["opera-cloud", "pms-client"]
+      "deps": [
+        "opera-cloud",
+        "pms-client"
+      ]
     },
     {
       "name": "pms-fetch-services",
@@ -615,7 +752,9 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["pms-client"]
+      "deps": [
+        "pms-client"
+      ]
     },
     {
       "name": "pms-guest-lookup",
@@ -625,7 +764,9 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["pms-client"]
+      "deps": [
+        "pms-client"
+      ]
     },
     {
       "name": "pms-post-charge",
@@ -635,7 +776,9 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["pms-client"]
+      "deps": [
+        "pms-client"
+      ]
     },
     {
       "name": "pms-test-connection",
@@ -645,7 +788,9 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["pms-client"]
+      "deps": [
+        "pms-client"
+      ]
     },
     {
       "name": "create-portal-account",
@@ -685,7 +830,9 @@
       "priority": 6,
       "group": "notifications",
       "auth": false,
-      "deps": ["whatsapp-meta"]
+      "deps": [
+        "whatsapp-meta"
+      ]
     },
     {
       "name": "generate-vapid-keys",

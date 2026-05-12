@@ -32,9 +32,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Pencil, Trash2, Users } from "lucide-react";
+import { Search, Pencil, Trash2, Users, List, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import AddTherapistDialog from "@/components/AddTherapistDialog";
+import { TherapistAgendaView } from "@/components/admin/therapist/TherapistAgendaView";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelsCell, TreatmentRoomsCell, PersonCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
@@ -87,6 +88,8 @@ export default function Therapists() {
   const [hotelFilter, setHotelFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  const [view, setView] = useState<"list" | "agenda">("list");
 
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
@@ -318,7 +321,7 @@ export default function Therapists() {
   };
 
   return (
-    <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
+    <div className={cn("bg-background flex flex-col", (needsPagination || view === "agenda") ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
@@ -327,17 +330,40 @@ export default function Therapists() {
               Gérez vos thérapeutes et leurs informations
             </p>
           </div>
-          {isAdmin && (
-            <Button
-              className="flex-shrink-0"
-              onClick={openAdd}
-            >
-              Nouveau thérapeute
-            </Button>
-          )}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* View toggle */}
+            <div className="flex items-center rounded-md border border-border">
+              <Button
+                variant={view === "list" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8 rounded-r-none"
+                onClick={() => setView("list")}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={view === "agenda" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8 rounded-l-none"
+                onClick={() => setView("agenda")}
+              >
+                <CalendarDays className="h-4 w-4" />
+              </Button>
+            </div>
+            {isAdmin && (
+              <Button onClick={openAdd}>
+                Nouveau thérapeute
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
+      {view === "agenda" ? (
+        <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
+          <TherapistAgendaView hotelFilter={hotelFilter} />
+        </div>
+      ) : (
       <div className={cn("flex-1 px-4 md:px-6 pb-4 md:pb-6", needsPagination ? "overflow-hidden" : "")}>
         <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
           <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
@@ -509,6 +535,7 @@ export default function Therapists() {
           )}
         </div>
       </div>
+      )}
 
       <AddTherapistDialog
         open={isAddOpen}

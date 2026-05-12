@@ -1,7 +1,27 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
+import type Stripe from "stripe";
 import { authMiddleware } from "../middleware/auth";
 import { supabaseAdmin } from "../lib/supabase";
-import { stripe } from "../lib/stripe";
+import { getStripeForVenue } from "../lib/stripe-resolver";
+import { sendEmail } from "../lib/email";
+import { isInBlockedSlot } from "../lib/blocked-slots";
+
+const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
+const BRAND_WEBSITE = 'https://lymfea.fr';
+
+async function resolveStripeFromBody(c: Context): Promise<{ body: Record<string, unknown>; stripe: Stripe; hotelId: string | null }> {
+  const raw = await c.req.json().catch(() => ({}));
+  const body = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const hotelId = typeof body.hotelId === "string" && body.hotelId ? body.hotelId : null;
+  const resolved = await getStripeForVenue(supabaseAdmin, hotelId);
+  return { body, stripe: resolved.client, hotelId };
+}
+
+async function resolveStripeFromHotelId(hotelId: string | null | undefined): Promise<Stripe> {
+  const resolved = await getStripeForVenue(supabaseAdmin, hotelId ?? null);
+  return resolved.client;
+}
 
 /**
  * Payment routes — authenticated (therapist or admin).
@@ -15,7 +35,183 @@ import { stripe } from "../lib/stripe";
  */
 const payments = new Hono();
 
-// All payment routes require authentication
+payments.post("/checkout-success", async (c) => {
+  try {
+    console.log("[CHECKOUT-SUCCESS] Processing checkout success");
+
+    const raw = await c.req.json().catch(() => ({}));
+    const { sessionId, hotelId: bodyHotelId } = (raw || {}) as { sessionId?: string; hotelId?: string };
+
+    if (!sessionId) {
+      throw new Error("Missing session ID");
+    }
+
+    let stripe = await resolveStripeFromHotelId(bodyHotelId);
+    let session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    // If session was created on a venue Stripe account but caller didn't pass hotelId,
+    // re-resolve via metadata.hotel_id and retry once.
+    const metadataHotelId = session.metadata?.hotel_id;
+    if (!bodyHotelId && metadataHotelId) {
+      const resolved = await getStripeForVenue(supabaseAdmin, metadataHotelId);
+      if (resolved.source === "venue") {
+        stripe = resolved.client;
+        session = await stripe.checkout.sessions.retrieve(sessionId);
+      }
+    }
+
+    if (session.payment_status !== 'paid') {
+      throw new Error("Payment not completed");
+    }
+
+    console.log("[CHECKOUT-SUCCESS] Payment confirmed for session:", sessionId);
+
+    const metadata = session.metadata;
+    const treatments = JSON.parse(metadata?.treatments || '[]');
+
+    const { data: hotel, error: hotelError } = await supabaseAdmin
+      .from('hotels')
+      .select('name')
+      .eq('id', metadata?.hotel_id)
+      .maybeSingle();
+
+    if (hotelError) {
+      console.error("[CHECKOUT-SUCCESS] Hotel fetch error:", hotelError);
+    }
+
+    // Find available treatment room for this booking
+    const { data: rooms } = await supabaseAdmin
+      .from('treatment_rooms')
+      .select('id')
+      .eq('hotel_id', metadata?.hotel_id)
+      .eq('status', 'active');
+
+    let roomId = null;
+    if (rooms && rooms.length > 0) {
+      const { data: bookingsWithRooms } = await supabaseAdmin
+        .from('bookings')
+        .select('room_id')
+        .eq('hotel_id', metadata?.hotel_id)
+        .eq('booking_date', metadata?.booking_date)
+        .eq('booking_time', metadata?.booking_time)
+        .not('room_id', 'is', null)
+        .not('status', 'in', '("Annulé","Terminé","cancelled")');
+
+      const usedRoomIds = new Set(bookingsWithRooms?.map(b => b.room_id) || []);
+
+      for (const room of rooms) {
+        if (!usedRoomIds.has(room.id)) {
+          roomId = room.id;
+          break;
+        }
+      }
+    }
+    console.log("[CHECKOUT-SUCCESS] Assigned treatment room:", roomId);
+
+    const { data: booking, error: bookingError } = await supabaseAdmin
+      .from('bookings')
+      .insert({
+        hotel_id: metadata?.hotel_id,
+        hotel_name: hotel?.name,
+        client_first_name: metadata?.client_first_name,
+        client_last_name: metadata?.client_last_name,
+        client_email: metadata?.client_email,
+        phone: metadata?.client_phone,
+        room_number: metadata?.room_number || null,
+        client_note: metadata?.client_note || null,
+        booking_date: metadata?.booking_date,
+        booking_time: metadata?.booking_time,
+        status: 'pending',
+        payment_method: 'card',
+        payment_status: 'paid',
+        total_price: parseFloat(metadata?.total_price || '0'),
+        room_id: roomId,
+      })
+      .select()
+      .single();
+
+    if (bookingError) {
+      console.error("[CHECKOUT-SUCCESS] Booking creation error:", bookingError);
+      throw bookingError;
+    }
+
+    console.log("[CHECKOUT-SUCCESS] Booking created:", booking.id);
+
+    if (treatments.length > 0) {
+      const { error: treatmentError } = await supabaseAdmin
+        .from('booking_treatments')
+        .insert(treatments.map((t: any) => ({ booking_id: booking.id, treatment_id: t.id })));
+      if (treatmentError) {
+        console.error("[CHECKOUT-SUCCESS] Treatment insert error:", treatmentError);
+      }
+    }
+
+    const { data: treatmentDetails } = await supabaseAdmin
+      .from('treatment_menus')
+      .select('name, price')
+      .in('id', treatments.map((t: any) => t.id));
+
+    const treatmentNames = treatmentDetails?.map(t => `${t.name} - ${t.price}€`) || [];
+
+    try {
+      // TODO: replace with direct import once send-booking-confirmation is migrated
+      await supabaseAdmin.functions.invoke('send-booking-confirmation', {
+        body: {
+          email: metadata?.client_email,
+          bookingNumber: booking.booking_id.toString(),
+          clientName: `${metadata?.client_first_name} ${metadata?.client_last_name}`,
+          hotelName: hotel?.name,
+          roomNumber: metadata?.room_number,
+          bookingDate: metadata?.booking_date,
+          bookingTime: metadata?.booking_time,
+          treatments: treatmentNames,
+          totalPrice: parseFloat(metadata?.total_price || '0'),
+          currency: 'EUR',
+        },
+        headers: {
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      });
+      console.log("[CHECKOUT-SUCCESS] Confirmation email sent");
+    } catch (emailError) {
+      console.error("[CHECKOUT-SUCCESS] Email error:", emailError);
+    }
+
+    try {
+      // TODO: replace with direct import once notify-admin-new-booking is migrated
+      await supabaseAdmin.functions.invoke('notify-admin-new-booking', {
+        body: { bookingId: booking.id },
+        headers: {
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      });
+      console.log("[CHECKOUT-SUCCESS] Admin notification sent");
+    } catch (adminError) {
+      console.error("[CHECKOUT-SUCCESS] Admin notification error:", adminError);
+    }
+
+    try {
+      // TODO: replace with direct import once trigger-new-booking-notifications is migrated
+      await supabaseAdmin.functions.invoke('trigger-new-booking-notifications', {
+        body: { bookingId: booking.id },
+        headers: {
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      });
+      console.log("[CHECKOUT-SUCCESS] Push notifications sent");
+    } catch (pushError) {
+      console.error("[CHECKOUT-SUCCESS] Push notification error:", pushError);
+    }
+
+    return c.json({ success: true, bookingId: booking.booking_id });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[CHECKOUT-SUCCESS] Error:", errorMessage);
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+// All payment routes below require authentication
 payments.use("/*", authMiddleware);
 
 /**
@@ -101,6 +297,1154 @@ payments.post("/finalize", async (c) => {
     breakdown,
     message: "TODO: Port full finalize-payment logic",
   });
+});
+
+/**
+ * POST /payments/charge-card
+ * Charge a saved Stripe card for a completed booking (off-session).
+ */
+payments.post("/charge-card", async (c) => {
+  try {
+    const { bookingId, finalAmount, hotelId: bodyHotelId } = await c.req.json();
+
+    const { data: paymentInfo, error: fetchError } = await supabaseAdmin
+      .from("booking_payment_infos")
+      .select("*, customers(stripe_customer_id), bookings(hotel_id)")
+      .eq("booking_id", bookingId)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+    if (!paymentInfo) {
+      throw new Error("Informations de paiement introuvables pour cette réservation.");
+    }
+
+    if (finalAmount > paymentInfo.estimated_price) {
+      throw new Error(`Alerte sécurité : le montant demandé (${finalAmount}€) dépasse le devis autorisé (${paymentInfo.estimated_price}€).`);
+    }
+
+    const stripeCustomerId = (paymentInfo as any).customers?.stripe_customer_id;
+    if (!stripeCustomerId || !paymentInfo.stripe_payment_method_id) {
+      throw new Error("Moyen de paiement ou client Stripe manquant.");
+    }
+
+    const hotelId: string | null = bodyHotelId || (paymentInfo as any).bookings?.hotel_id || null;
+    const stripe = await resolveStripeFromHotelId(hotelId);
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(finalAmount * 100),
+      currency: "eur",
+      customer: stripeCustomerId,
+      payment_method: paymentInfo.stripe_payment_method_id,
+      off_session: true,
+      confirm: true,
+      metadata: { booking_id: bookingId },
+    });
+
+    await supabaseAdmin
+      .from("booking_payment_infos")
+      .update({
+        payment_status: "charged",
+        payment_at: new Date().toISOString(),
+        stripe_payment_intent_id: paymentIntent.id,
+      })
+      .eq("booking_id", bookingId);
+
+    await supabaseAdmin
+      .from("bookings")
+      .update({ payment_status: "paid" })
+      .eq("id", bookingId);
+
+    return c.json({ success: true, paymentIntent });
+  } catch (error: any) {
+    console.error("Erreur charge-saved-card:", error);
+    return c.json({ success: false, error: error.message }, 400);
+  }
+});
+
+payments.post("/bundle", async (c) => {
+  try {
+    const { hotelId, clientData, bundleItems, totalPrice, giftData } = await c.req.json();
+
+    // --- Validation ---
+    if (!hotelId || !clientData || !bundleItems || !Array.isArray(bundleItems) || bundleItems.length === 0) {
+      throw new Error("Missing required data");
+    }
+
+    const stripe = await resolveStripeFromHotelId(hotelId);
+    if (!clientData.firstName || !clientData.lastName || !clientData.phone || !clientData.email) {
+      throw new Error("Missing required client information");
+    }
+
+    // --- Verify bundle prices server-side ---
+    const bundleIds = bundleItems.map((b: { bundleId: string }) => b.bundleId).filter(Boolean);
+    if (bundleIds.length === 0) {
+      throw new Error("No valid bundle IDs provided");
+    }
+
+    const { data: bundles, error: bundlesError } = await supabaseAdmin
+      .from('treatment_bundles')
+      .select('id, name, name_en, price, currency, total_sessions, validity_days, status, hotel_id')
+      .in('id', bundleIds);
+
+    if (bundlesError || !bundles || bundles.length === 0) {
+      throw new Error("Failed to fetch valid bundles");
+    }
+
+    const invalidBundles = bundles.filter((b: any) => b.status !== 'active' || (b.hotel_id !== null && b.hotel_id !== hotelId));
+    if (invalidBundles.length > 0) {
+      throw new Error("Some bundles are not available for this hotel");
+    }
+
+    // Calculate verified total
+    const bundleMap = new Map(bundles.map((b: any) => [b.id, b]));
+    let verifiedTotal = 0;
+    const lineItems: { price_data: { currency: string; product_data: { name: string }; unit_amount: number }; quantity: number }[] = [];
+
+    for (const item of bundleItems) {
+      const bundle = bundleMap.get(item.bundleId) as any;
+      if (!bundle) throw new Error(`Bundle ${item.bundleId} not found`);
+      const qty = item.quantity || 1;
+      verifiedTotal += (bundle.price || 0) * qty;
+      lineItems.push({
+        price_data: {
+          currency: (bundle.currency || 'eur').toLowerCase(),
+          product_data: {
+            name: `${bundle.name} (${bundle.total_sessions} séances)`,
+          },
+          unit_amount: Math.round((bundle.price || 0) * 100),
+        },
+        quantity: qty,
+      });
+    }
+
+    if (verifiedTotal <= 0) {
+      throw new Error("Invalid total price");
+    }
+
+    // --- Hotel info ---
+    const { data: hotel, error: hotelError } = await supabaseAdmin
+      .from('hotels')
+      .select('slug, currency, name')
+      .eq('id', hotelId)
+      .maybeSingle();
+
+    if (hotelError || !hotel) {
+      throw new Error("Hotel not found");
+    }
+
+    // --- Stripe customer upsert ---
+    let stripeCustomerId: string;
+    const existingCustomers = await stripe.customers.list({ email: clientData.email, limit: 1 });
+
+    if (existingCustomers.data.length > 0) {
+      stripeCustomerId = existingCustomers.data[0].id;
+    } else {
+      const newCustomer = await stripe.customers.create({
+        email: clientData.email,
+        name: `${clientData.firstName} ${clientData.lastName}`,
+        phone: clientData.phone,
+      });
+      stripeCustomerId = newCustomer.id;
+    }
+
+    // Upsert customer in our DB
+    await supabaseAdmin
+      .from('customers')
+      .upsert({
+        phone: clientData.phone,
+        email: clientData.email,
+        first_name: clientData.firstName,
+        last_name: clientData.lastName,
+        stripe_customer_id: stripeCustomerId,
+      }, { onConflict: 'phone' });
+
+    // --- Create Stripe Checkout Session (payment mode) ---
+    const origin = c.req.header("origin") || "http://localhost:5173";
+    const venueSlug = (hotel as any).slug ?? hotelId;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer: stripeCustomerId,
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      success_url: `${origin}/client/${venueSlug}/confirmation/bundle?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/client/${venueSlug}/payment`,
+      metadata: {
+        type: 'bundle_purchase',
+        hotelId,
+        firstName: clientData.firstName,
+        lastName: clientData.lastName,
+        clientEmail: clientData.email,
+        phone: clientData.phone,
+        roomNumber: clientData.roomNumber || '',
+        note: clientData.note || '',
+        bundleItems: JSON.stringify(bundleItems),
+        isGift: giftData?.isGift ? 'true' : 'false',
+        giftDeliveryMode: giftData?.deliveryMode || '',
+        senderName: giftData?.senderName || '',
+        senderEmail: giftData?.isGift ? (clientData.email || '') : '',
+        recipientName: giftData?.recipientName || '',
+        recipientEmail: giftData?.recipientEmail || '',
+        giftMessage: giftData?.giftMessage || '',
+      },
+    });
+
+    return c.json({ url: session.url, sessionId: session.id });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[CREATE-BUNDLE-PAYMENT] Error:", errorMessage);
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+payments.post("/purchase-bundle", async (c) => {
+  try {
+    const { sessionId, hotelId: bodyHotelId } = await c.req.json();
+
+    if (!sessionId) {
+      throw new Error("Missing session ID");
+    }
+
+    let stripe = await resolveStripeFromHotelId(bodyHotelId);
+    let session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    // Re-resolve via metadata if hotelId not passed and session belongs to a venue Stripe account
+    const metaHotelId = (session.metadata as Record<string, string> | null)?.hotelId;
+    if (!bodyHotelId && metaHotelId) {
+      const resolved = await getStripeForVenue(supabaseAdmin, metaHotelId);
+      if (resolved.source === "venue") {
+        stripe = resolved.client;
+        session = await stripe.checkout.sessions.retrieve(sessionId);
+      }
+    }
+
+    if (session.payment_status !== 'paid') {
+      throw new Error("Payment not completed");
+    }
+
+    if (session.metadata?.type !== 'bundle_purchase') {
+      throw new Error("Invalid session type");
+    }
+
+    // Prevent double-processing: check if bundles already created for this session
+    const { data: existingBundles } = await supabaseAdmin
+      .from('customer_treatment_bundles')
+      .select('id')
+      .eq('payment_reference', `stripe:${sessionId}`)
+      .limit(1);
+
+    if (existingBundles && existingBundles.length > 0) {
+      const { data: allBundles } = await supabaseAdmin
+        .from('customer_treatment_bundles')
+        .select('id, bundle_id, total_sessions, total_amount_cents, expires_at, redemption_code, is_gift, gift_delivery_mode, recipient_name, treatment_bundles(name, name_en, bundle_type, amount_cents)')
+        .eq('payment_reference', `stripe:${sessionId}`);
+
+      return c.json({
+        success: true,
+        alreadyProcessed: true,
+        customerBundles: allBundles,
+      });
+    }
+
+    console.log('[PURCHASE-BUNDLE] Session metadata:', JSON.stringify(session.metadata));
+
+    const {
+      hotelId,
+      firstName,
+      lastName,
+      clientEmail,
+      phone,
+      bundleItems: bundleItemsJson,
+      isGift: isGiftMeta,
+      giftDeliveryMode,
+      senderName,
+      senderEmail,
+      recipientName,
+      recipientEmail,
+      giftMessage,
+    } = session.metadata!;
+
+    const bundleItems = JSON.parse(bundleItemsJson);
+
+    // --- Find or create customer ---
+    const { data: customerId, error: customerError } = await supabaseAdmin.rpc('find_or_create_customer', {
+      _phone: phone,
+      _first_name: firstName,
+      _last_name: lastName,
+      _email: clientEmail,
+    });
+
+    if (customerError) {
+      console.error('[PURCHASE-BUNDLE] Error finding/creating customer:', customerError);
+      throw new Error("Failed to create customer record");
+    }
+
+    // --- Fetch bundle templates to determine types ---
+    const bundleIds = bundleItems.map((b: { bundleId: string }) => b.bundleId);
+    const { data: bundleTemplates, error: templatesError } = await supabaseAdmin
+      .from('treatment_bundles')
+      .select('id, bundle_type')
+      .in('id', bundleIds);
+
+    if (templatesError || !bundleTemplates) {
+      throw new Error("Failed to fetch bundle templates");
+    }
+
+    const templateTypeMap = new Map(bundleTemplates.map(t => [t.id, t.bundle_type]));
+
+    // --- Create customer bundles ---
+    const createdBundles: { id: string; bundleId: string }[] = [];
+    const paymentRef = `stripe:${sessionId}`;
+
+    for (const item of bundleItems) {
+      const qty = item.quantity || 1;
+      const bundleType = templateTypeMap.get(item.bundleId) ?? 'cure';
+
+      for (let i = 0; i < qty; i++) {
+        let customerBundleId: string;
+
+        if (bundleType === 'cure') {
+          const { data, error: createError } = await supabaseAdmin.rpc('create_customer_bundle', {
+            _customer_id: customerId,
+            _bundle_id: item.bundleId,
+            _hotel_id: hotelId,
+            _booking_id: null,
+          });
+
+          if (createError) {
+            console.error('[PURCHASE-BUNDLE] Failed to create customer bundle:', createError.message);
+            throw new Error(`Failed to create bundle: ${createError.message}`);
+          }
+          customerBundleId = data;
+        } else {
+          // gift_treatments or gift_amount → use create_customer_gift_card
+          const isGiftVal = isGiftMeta === 'true';
+          const { data, error: createError } = await supabaseAdmin.rpc('create_customer_gift_card', {
+            _bundle_id: item.bundleId,
+            _purchaser_customer_id: customerId,
+            _hotel_id: hotelId,
+            _is_gift: isGiftVal,
+            _gift_delivery_mode: isGiftVal ? (giftDeliveryMode || 'email') : null,
+            _sender_name: isGiftVal ? (senderName || null) : null,
+            _sender_email: isGiftVal ? (senderEmail || null) : null,
+            _recipient_name: isGiftVal ? (recipientName || null) : null,
+            _recipient_email: isGiftVal ? (recipientEmail || null) : null,
+            _gift_message: isGiftVal ? (giftMessage || null) : null,
+            _payment_reference: paymentRef,
+          });
+
+          if (createError) {
+            console.error('[PURCHASE-BUNDLE] Failed to create gift card:', createError.message);
+            throw new Error(`Failed to create gift card: ${createError.message}`);
+          }
+          customerBundleId = data[0].customer_bundle_id;
+        }
+
+        // Tag with stripe session for idempotency (gift cards already have it via _payment_reference)
+        if (bundleType === 'cure') {
+          await supabaseAdmin
+            .from('customer_treatment_bundles')
+            .update({ payment_reference: paymentRef })
+            .eq('id', customerBundleId);
+        }
+
+        createdBundles.push({ id: customerBundleId, bundleId: item.bundleId });
+      }
+    }
+
+    // --- Fetch bundle details for confirmation ---
+    const bundleDetailIds = createdBundles.map(b => b.id);
+    const { data: bundleDetails } = await supabaseAdmin
+      .from('customer_treatment_bundles')
+      .select('id, bundle_id, total_sessions, total_amount_cents, expires_at, redemption_code, is_gift, gift_delivery_mode, recipient_name, treatment_bundles(name, name_en, bundle_type, amount_cents)')
+      .in('id', bundleDetailIds);
+
+    // --- Send confirmation email only for cure bundles (not gift cards) ---
+    const hasNonGiftBundles = bundleDetails?.some((b: any) => b.treatment_bundles?.bundle_type === 'cure');
+    if (hasNonGiftBundles) {
+      try {
+        // TODO: replace with direct import once send-booking-confirmation is migrated
+        await supabaseAdmin.functions.invoke('send-booking-confirmation', {
+          body: {
+            type: 'bundle_purchase',
+            email: clientEmail,
+            firstName,
+            lastName,
+            hotelId,
+            bundles: bundleDetails,
+          },
+        });
+      } catch (emailError) {
+        console.error('[PURCHASE-BUNDLE] Email sending failed (non-blocking):', emailError);
+      }
+    }
+
+    // --- Fetch venue for email templates ---
+    const { data: venue } = await supabaseAdmin
+      .from('hotels')
+      .select('slug, name, image')
+      .eq('id', hotelId)
+      .single();
+    const venueName = venue?.name || '';
+    const venueSlug = venue?.slug || hotelId;
+    const logoUrl = venue?.image || EMAIL_LOGO_URL;
+
+    // --- Send gift card email to recipient via Resend template ---
+    const isGift = isGiftMeta === 'true';
+    console.log('[PURCHASE-BUNDLE] Gift email check — isGift:', isGift, 'recipientEmail:', recipientEmail, 'deliveryMode:', giftDeliveryMode);
+    console.log('[PURCHASE-BUNDLE] Condition result:', isGift && recipientEmail && giftDeliveryMode === 'email');
+    if (isGift && recipientEmail && giftDeliveryMode === 'email') {
+      try {
+        // Build template variables from the first gift bundle
+        const giftBundle = bundleDetails?.[0];
+        const bundleName = giftBundle?.treatment_bundles?.name ?? 'Carte Cadeau';
+        const amountCents = giftBundle?.total_amount_cents ?? giftBundle?.treatment_bundles?.amount_cents ?? 0;
+        const valueDisplay = `${(amountCents / 100).toFixed(0)} EUR`;
+        const expiryDate = giftBundle?.expires_at
+          ? new Date(giftBundle.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+          : '';
+
+        const activateUrl = `https://apptest.eiaspa.fr/portal/redeem?token=${encodeURIComponent(giftBundle?.redemption_code ?? '')}`;
+
+        const templateVars = {
+          logo_url: logoUrl,
+          recipient_name: recipientName || '',
+          recipient_email: recipientEmail,
+          venue_name: venueName,
+          bundle_title: bundleName,
+          value_display: valueDisplay,
+          expiry_date: expiryDate,
+          activate_url: activateUrl,
+          sender_name: senderName || firstName || '',
+          gift_message: giftMessage || '',
+          redemption_code: '',
+        };
+        console.log('[PURCHASE-BUNDLE] Gift email template variables:', JSON.stringify(templateVars, null, 2));
+
+        const result = await sendEmail({
+          to: recipientEmail,
+          subject: `You've received a gift card — ${venueName}`,
+          templateId: '1b1674f1-5145-4bb5-8fce-b8b9f2c405ac',
+          templateVariables: templateVars,
+        });
+
+        if (result.error) {
+          console.error('[PURCHASE-BUNDLE] Resend API error for gift email:', result.error);
+        } else {
+          console.log('[PURCHASE-BUNDLE] Gift recipient email sent to:', recipientEmail, 'id:', result.id);
+        }
+      } catch (giftEmailError) {
+        console.error('[PURCHASE-BUNDLE] Gift recipient email failed (non-blocking):', giftEmailError);
+      }
+    }
+
+    // --- Send cure confirmation email to buyer via Resend template ---
+    const cureBundles = bundleDetails?.filter((b: any) => b.treatment_bundles?.bundle_type === 'cure');
+    if (cureBundles && cureBundles.length > 0) {
+      try {
+        const cureBundle = cureBundles[0];
+        const bundleName = cureBundle.treatment_bundles?.name ?? 'Cure';
+        const totalSessions = cureBundle.total_sessions ?? 0;
+        const valueDisplay = `${totalSessions} session${totalSessions > 1 ? 's' : ''}`;
+        const expiryDate = cureBundle.expires_at
+          ? new Date(cureBundle.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+          : '';
+
+        const siteUrl = process.env.SITE_URL || BRAND_WEBSITE;
+        const bookingUrl = `${siteUrl}/client/${venueSlug}/treatments`;
+
+        const result = await sendEmail({
+          to: clientEmail,
+          subject: `Your treatment package is activated — ${venueName}`,
+          templateId: '378deb7f-307f-40e9-8054-6bf0c29beef9',
+          templateVariables: {
+            logo_url: logoUrl,
+            recipient_name: firstName || '',
+            venue_name: venueName,
+            bundle_title: bundleName,
+            value_display: valueDisplay,
+            expiry_date: expiryDate,
+            booking_url: bookingUrl,
+          },
+        });
+
+        if (result.error) {
+          console.error('[PURCHASE-BUNDLE] Resend API error for cure email:', result.error);
+        }
+
+        console.log('[PURCHASE-BUNDLE] Cure confirmation email sent to:', clientEmail);
+      } catch (cureEmailError) {
+        console.error('[PURCHASE-BUNDLE] Cure email failed (non-blocking):', cureEmailError);
+      }
+    }
+
+    return c.json({
+      success: true,
+      customerBundles: bundleDetails,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[PURCHASE-BUNDLE] Error:", errorMessage);
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+payments.post("/confirm-setup", async (c) => {
+  try {
+    const { sessionId, hotelId: bodyHotelId } = await c.req.json();
+
+    // 1. Récupération de la session et des metadata
+    let stripe = await resolveStripeFromHotelId(bodyHotelId);
+    let session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['setup_intent', 'setup_intent.payment_method'] });
+
+    // Re-resolve via metadata.hotelId when caller didn't pass it
+    const metaHotelIdEarly = (session.metadata as Record<string, string> | null)?.hotelId;
+    if (!bodyHotelId && metaHotelIdEarly) {
+      const resolved = await getStripeForVenue(supabaseAdmin, metaHotelIdEarly);
+      if (resolved.source === "venue") {
+        stripe = resolved.client;
+        session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['setup_intent', 'setup_intent.payment_method'] });
+      }
+    }
+    const meta = session.metadata || {};
+
+    // On regarde dans booking_payment_infos si la session existe déjà
+    const { data: existingPaymentInfo } = await supabaseAdmin
+      .from('booking_payment_infos')
+      .select('booking_id')
+      .eq('stripe_session_id', sessionId)
+      .maybeSingle();
+
+    if (existingPaymentInfo) {
+      console.log("[CONFIRM-SETUP] Réservation déjà existante pour cette session :", existingPaymentInfo.booking_id);
+      return c.json({ success: true, bookingId: existingPaymentInfo.booking_id });
+    }
+
+    if (!meta.hotelId) throw new Error("Données de réservation introuvables dans la session Stripe.");
+
+    const treatmentIds = JSON.parse(meta.treatmentIds || "[]");
+    const treatmentsPayloadMeta: Array<{ treatmentId?: string; id?: string; variantId?: string | null }> =
+      JSON.parse(meta.treatmentsPayload || "[]");
+    const variantMapMeta: Record<string, string> = {};
+    for (const t of treatmentsPayloadMeta) {
+      const tid = t.treatmentId || t.id;
+      if (tid && t.variantId) variantMapMeta[tid] = t.variantId;
+    }
+
+    // 2. Calcul prix/durée
+    const { data: treatments } = await supabaseAdmin.from('treatment_menus').select('price, duration').in('id', treatmentIds);
+    const verifiedPrice = (treatments || []).reduce((sum: number, t: any) => sum + (t.price || 0), 0);
+    const totalDuration = (treatments || []).reduce((sum: number, t: any) => sum + (t.duration || 0), 0) || 30;
+
+    const { data: hotel } = await supabaseAdmin.from('hotels').select('name').eq('id', meta.hotelId).maybeSingle();
+
+    let customerId = null;
+    const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+
+    if (meta.clientEmail) {
+      const { data: existingCustomer } = await supabaseAdmin
+        .from('customers')
+        .select('id')
+        .eq('email', meta.clientEmail)
+        .maybeSingle();
+
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+        if (stripeCustomerId) {
+          await supabaseAdmin.from('customers').update({ stripe_customer_id: stripeCustomerId }).eq('id', customerId);
+        }
+      } else {
+        const { data: newCustomer } = await supabaseAdmin
+          .from('customers')
+          .insert({
+            first_name: meta.firstName,
+            last_name: meta.lastName,
+            email: meta.clientEmail,
+            phone: meta.phone,
+            stripe_customer_id: stripeCustomerId
+          })
+          .select('id')
+          .single();
+        if (newCustomer) customerId = newCustomer.id;
+      }
+    }
+
+    // 3. Création/mise à jour de la réservation
+    let bookingId: string;
+
+    if (meta.draftBookingId) {
+      // The slot is already held — update the draft booking with real client data
+      const { data: draftBooking, error: draftFetchError } = await supabaseAdmin
+        .from('bookings')
+        .select('id')
+        .eq('id', meta.draftBookingId)
+        .eq('hotel_id', meta.hotelId)
+        .eq('status', 'awaiting_payment')
+        .single();
+
+      if (draftFetchError || !draftBooking) {
+        console.warn("[CONFIRM-SETUP] Draft expired, falling back to atomic reserve");
+        const { data: fallbackId, error: fallbackError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
+          _booking_date: meta.bookingDate,
+          _booking_time: meta.bookingTime,
+          _client_email: meta.clientEmail || null,
+          _client_first_name: meta.firstName,
+          _client_last_name: meta.lastName,
+          _client_note: meta.note || null,
+          _customer_id: customerId,
+          _duration: totalDuration,
+          _hotel_id: meta.hotelId,
+          _hotel_name: hotel?.name || 'Hotel',
+          _language: meta.language || 'fr',
+          _payment_method: 'card',
+          _payment_status: 'pending',
+          _phone: meta.phone,
+          _room_number: meta.roomNumber || null,
+          _status: 'pending',
+          _therapist_gender: meta.therapistGender || null,
+          _total_price: verifiedPrice,
+          _treatment_ids: treatmentIds
+        });
+        if (fallbackError) throw new Error(`Désolé, ce créneau vient tout juste d'être réservé (${fallbackError.message})`);
+        if (!fallbackId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+        bookingId = fallbackId;
+        await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
+      } else {
+        const { error: updateError } = await supabaseAdmin
+          .from('bookings')
+          .update({
+            client_first_name: meta.firstName,
+            client_last_name: meta.lastName,
+            client_email: meta.clientEmail || null,
+            phone: meta.phone,
+            room_number: meta.roomNumber || null,
+            client_note: meta.note || null,
+            status: 'pending',
+            payment_method: 'card',
+            payment_status: 'pending',
+            total_price: verifiedPrice,
+            customer_id: customerId,
+            therapist_id: null,
+          })
+          .eq('id', meta.draftBookingId);
+
+        if (updateError) throw new Error(`Erreur lors de la mise à jour de la réservation : ${updateError.message}`);
+        bookingId = meta.draftBookingId;
+        console.log("[CONFIRM-SETUP] Draft booking updated:", bookingId);
+      }
+    } else {
+      // No hold — standard atomic reserve
+      const { data: newBookingId, error: rpcError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
+        _booking_date: meta.bookingDate,
+        _booking_time: meta.bookingTime,
+        _client_email: meta.clientEmail || null,
+        _client_first_name: meta.firstName,
+        _client_last_name: meta.lastName,
+        _client_note: meta.note || null,
+        _customer_id: customerId,
+        _duration: totalDuration,
+        _hotel_id: meta.hotelId,
+        _hotel_name: hotel?.name || 'Hotel',
+        _language: meta.language || 'fr',
+        _payment_method: 'card',
+        _payment_status: 'pending',
+        _phone: meta.phone,
+        _room_number: meta.roomNumber || null,
+        _status: 'pending',
+        _therapist_gender: meta.therapistGender || null,
+        _total_price: verifiedPrice,
+        _treatment_ids: treatmentIds
+      });
+
+      if (rpcError) {
+        console.error("[CONFIRM-SETUP] Erreur RPC lors de la réservation :", rpcError);
+        throw new Error(`Désolé, ce créneau vient tout juste d'être réservé ou une erreur est survenue (${rpcError.message})`);
+      }
+      if (!newBookingId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+
+      bookingId = newBookingId;
+      await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
+    }
+
+    if (!bookingId) {
+      throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+    }
+
+    // Attacher les soins — nettoyage préalable si c'était un draft pour éviter les doublons
+    if (treatmentIds && treatmentIds.length > 0) {
+      if (meta.draftBookingId) {
+        await supabaseAdmin
+          .from('booking_treatments')
+          .delete()
+          .eq('booking_id', bookingId);
+      }
+
+      const treatmentInserts = treatmentIds.map((id: string) => ({
+        booking_id: bookingId,
+        treatment_id: id,
+        variant_id: variantMapMeta[id] || null,
+      }));
+
+      if (treatmentInserts.length > 0) {
+        const { error: treatmentsError } = await supabaseAdmin
+          .from('booking_treatments')
+          .insert(treatmentInserts);
+
+        if (treatmentsError) {
+          console.error('[CONFIRM-SETUP] booking_treatments insert error:', treatmentsError);
+        }
+      }
+    }
+
+    // 4. Sauvegarde de la carte dans la nouvelle table
+    const setupIntent = session.setup_intent as import("stripe").Stripe.SetupIntent;
+    const paymentMethodId = typeof setupIntent?.payment_method === 'string' ? setupIntent.payment_method : (setupIntent?.payment_method as import("stripe").Stripe.PaymentMethod)?.id;
+    const paymentMethodCard = typeof setupIntent?.payment_method !== 'string' ? (setupIntent?.payment_method as import("stripe").Stripe.PaymentMethod)?.card : null;
+
+    if (paymentMethodId && setupIntent) {
+      await supabaseAdmin.from('booking_payment_infos').insert({
+        booking_id: bookingId,
+        customer_id: customerId,
+        stripe_payment_method_id: paymentMethodId,
+        stripe_setup_intent_id: setupIntent.id,
+        stripe_session_id: sessionId,
+        card_brand: paymentMethodCard?.brand || null,
+        card_last4: paymentMethodCard?.last4 || null,
+        estimated_price: verifiedPrice,
+        payment_status: 'card_saved'
+      });
+    }
+
+    return c.json({ success: true, bookingId });
+  } catch (error: any) {
+    console.error("[CONFIRM-SETUP] Erreur :", error.message);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+payments.post("/setup-intent", async (c) => {
+  try {
+    const {
+      bookingData,
+      clientData,
+      treatmentIds,
+      treatments: treatmentsPayload,
+      hotelId,
+      language,
+      therapistGender,
+      draftBookingId,
+      giftAmountUsage,
+    } = await c.req.json();
+
+    if (!bookingData || !clientData || !hotelId) {
+      throw new Error("Missing required data");
+    }
+
+    if (!clientData.firstName || !clientData.lastName || !clientData.phone || !clientData.email) {
+      throw new Error("Missing required client information (including email)");
+    }
+
+    const effectiveTreatmentIds: string[] = treatmentIds || (treatmentsPayload || []).map((t: any) => t.treatmentId);
+
+    if (!Array.isArray(effectiveTreatmentIds) || effectiveTreatmentIds.length === 0) {
+      throw new Error("At least one treatment is required");
+    }
+
+    const { data: treatments, error: treatmentsError } = await supabaseAdmin
+      .from('treatment_menus')
+      .select('id, name, price, hotel_id, status, duration')
+      .in('id', effectiveTreatmentIds);
+
+    if (treatmentsError || !treatments || treatments.length === 0) {
+      throw new Error("Failed to fetch valid treatments");
+    }
+
+    const invalidTreatments = treatments.filter(t =>
+      (t.hotel_id !== null && t.hotel_id !== hotelId) || t.status !== 'active'
+    );
+
+    if (invalidTreatments.length > 0) {
+      throw new Error("Some treatments are not available for this hotel");
+    }
+
+    const rawTotalPrice = treatments.reduce((sum, t) => sum + (t.price || 0), 0);
+    const totalDuration = treatments.reduce((sum, t) => sum + (t.duration || 0), 0) || 30;
+
+    const giftDeductionEuros = giftAmountUsage?.amountCents
+      ? Math.round(giftAmountUsage.amountCents / 100)
+      : 0;
+    const verifiedTotalPrice = Math.max(rawTotalPrice - giftDeductionEuros, 0);
+
+    if (verifiedTotalPrice <= 0 && !giftAmountUsage) {
+      throw new Error("Invalid total price calculated");
+    }
+
+    const { data: hotel, error: hotelError } = await supabaseAdmin
+      .from('hotels')
+      .select('slug, currency, name, offert, opening_time, closing_time')
+      .eq('id', hotelId)
+      .maybeSingle();
+
+    if (hotelError || !hotel) {
+      throw new Error("Hotel not found");
+    }
+
+    if (hotel.offert) {
+      throw new Error("Ce lieu propose actuellement des soins offerts.");
+    }
+
+    if (hotel.opening_time && hotel.closing_time) {
+      const bookingMinutes = parseInt(bookingData.time.split(':')[0]) * 60 + parseInt(bookingData.time.split(':')[1]);
+      const openMinutes = parseInt(hotel.opening_time.split(':')[0]) * 60 + parseInt(hotel.opening_time.split(':')[1]);
+      const closeMinutes = parseInt(hotel.closing_time.split(':')[0]) * 60 + parseInt(hotel.closing_time.split(':')[1]);
+      if (bookingMinutes < openMinutes || bookingMinutes >= closeMinutes) {
+        return c.json({ error: 'BLOCKED_SLOT' }, 400);
+      }
+    }
+
+    if (await isInBlockedSlot(supabaseAdmin, hotelId, bookingData.date, bookingData.time, totalDuration)) {
+      return c.json({ error: 'BLOCKED_SLOT' }, 400);
+    }
+
+    const stripe = await resolveStripeFromHotelId(hotelId);
+
+    let stripeCustomerId: string;
+    const existingCustomers = await stripe.customers.list({ email: clientData.email, limit: 1 });
+
+    if (existingCustomers.data.length > 0) {
+      stripeCustomerId = existingCustomers.data[0].id;
+    } else {
+      const newCustomer = await stripe.customers.create({
+        email: clientData.email,
+        name: `${clientData.firstName} ${clientData.lastName}`,
+        phone: clientData.phone,
+      });
+      stripeCustomerId = newCustomer.id;
+    }
+
+    const { error: upsertError } = await supabaseAdmin
+      .from('customers')
+      .upsert({
+        phone: clientData.phone,
+        email: clientData.email,
+        first_name: clientData.firstName,
+        last_name: clientData.lastName,
+        stripe_customer_id: stripeCustomerId,
+      }, { onConflict: 'phone' });
+
+    if (upsertError) {
+      console.error("[CREATE-SETUP-INTENT] Erreur Upsert Customer:", upsertError);
+    }
+
+    const origin = c.req.header("origin") || "http://localhost:5173";
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'setup',
+      customer: stripeCustomerId,
+      payment_method_types: ['card'],
+      success_url: `${origin}/client/${hotel.slug ?? hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/client/${hotel.slug ?? hotelId}/payment`,
+      metadata: {
+        hotelId: hotelId,
+        bookingDate: bookingData.date,
+        bookingTime: bookingData.time,
+        firstName: clientData.firstName,
+        lastName: clientData.lastName,
+        clientEmail: clientData.email,
+        phone: clientData.phone,
+        roomNumber: clientData.roomNumber || '',
+        note: clientData.note || '',
+        treatmentIds: JSON.stringify(effectiveTreatmentIds),
+        treatmentsPayload: JSON.stringify(treatmentsPayload || []),
+        language: language || 'fr',
+        therapistGender: therapistGender || '',
+        draftBookingId: draftBookingId || '',
+        ...(giftAmountUsage ? {
+          giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
+          giftAmountCents: String(giftAmountUsage.amountCents),
+        } : {}),
+      },
+    });
+
+    return c.json({ url: session.url, sessionId: session.id });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[CREATE-SETUP-INTENT] Error:", errorMessage);
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+/**
+ * POST /payments/checkout
+ * Creates a Stripe Checkout Session in `payment` mode for a booking.
+ * Migrated from: supabase/functions/stripe-payment/actions/createCheckoutSession.ts
+ */
+payments.post("/checkout", async (c) => {
+  try {
+    console.log("[CREATE-CHECKOUT] Starting checkout session creation");
+
+    const {
+      bookingData,
+      clientData,
+      treatmentIds,
+      treatments: treatmentsPayload,
+      hotelId,
+      language,
+      therapistGender,
+    } = await c.req.json() as {
+      bookingData?: { date: string; time: string };
+      clientData?: {
+        firstName: string;
+        lastName: string;
+        phone: string;
+        email?: string;
+        roomNumber?: string;
+        note?: string;
+      };
+      treatmentIds?: string[];
+      treatments?: { treatmentId: string; variantId?: string }[];
+      hotelId?: string;
+      language?: string;
+      therapistGender?: string | null;
+    };
+
+    if (!bookingData || !clientData || !hotelId) {
+      throw new Error("Missing required data");
+    }
+
+    const effectiveTreatmentIds: string[] =
+      treatmentIds ?? (treatmentsPayload ?? []).map((t) => t.treatmentId);
+    const variantMap: Record<string, string> = {};
+    if (treatmentsPayload) {
+      for (const t of treatmentsPayload) {
+        if (t.variantId) variantMap[t.treatmentId] = t.variantId;
+      }
+    }
+
+    if (!Array.isArray(effectiveTreatmentIds) || effectiveTreatmentIds.length === 0) {
+      throw new Error("At least one treatment is required");
+    }
+
+    if (!clientData.firstName || !clientData.lastName || !clientData.phone) {
+      throw new Error("Missing required client information");
+    }
+
+    const { data: treatments, error: treatmentsError } = await supabaseAdmin
+      .from("treatment_menus")
+      .select("id, name, price, hotel_id, status, duration")
+      .in("id", effectiveTreatmentIds);
+
+    if (treatmentsError) throw new Error("Failed to fetch treatments");
+    if (!treatments || treatments.length === 0) {
+      throw new Error("No valid treatments found");
+    }
+
+    const invalidTreatments = treatments.filter(
+      (t: any) =>
+        (t.hotel_id !== null && t.hotel_id !== hotelId) || t.status !== "active",
+    );
+    if (invalidTreatments.length > 0) {
+      throw new Error("Some treatments are not available for this hotel");
+    }
+
+    const verifiedTotalPrice = treatments.reduce(
+      (sum: number, t: any) => sum + (t.price || 0),
+      0,
+    );
+    if (verifiedTotalPrice <= 0) {
+      throw new Error("Invalid total price calculated");
+    }
+
+    const totalDuration =
+      treatments.reduce((sum: number, t: any) => sum + (t.duration || 0), 0) || 30;
+
+    const { data: hotel, error: hotelError } = await supabaseAdmin
+      .from("hotels")
+      .select("slug, currency, name, offert, opening_time, closing_time")
+      .eq("id", hotelId)
+      .maybeSingle();
+
+    if (hotelError) throw hotelError;
+    if (!hotel) throw new Error("Hotel not found");
+
+    if ((hotel as any).offert) {
+      return c.json(
+        { error: "Ce lieu propose actuellement des soins offerts. Utilisez la réservation directe." },
+        400,
+      );
+    }
+
+    if ((hotel as any).opening_time && (hotel as any).closing_time) {
+      const [bh, bm] = bookingData.time.split(":").map(Number);
+      const [oh, om] = (hotel as any).opening_time.split(":").map(Number);
+      const [ch, cm] = (hotel as any).closing_time.split(":").map(Number);
+      const bookingMinutes = bh * 60 + bm;
+      const openMinutes = oh * 60 + om;
+      const closeMinutes = ch * 60 + cm;
+      if (bookingMinutes < openMinutes || bookingMinutes >= closeMinutes) {
+        return c.json({ error: "BLOCKED_SLOT" }, 400);
+      }
+    }
+
+    if (await isInBlockedSlot(supabaseAdmin, hotelId, bookingData.date, bookingData.time, totalDuration)) {
+      return c.json({ error: "BLOCKED_SLOT" }, 400);
+    }
+
+    const currency = (hotel as any).currency?.toLowerCase() || "eur";
+
+    const { data: bookingId, error: rpcError } = await supabaseAdmin.rpc(
+      "reserve_trunk_atomically",
+      {
+        _hotel_id: hotelId,
+        _booking_date: bookingData.date,
+        _booking_time: bookingData.time,
+        _duration: totalDuration,
+        _hotel_name: (hotel as any).name,
+        _client_first_name: clientData.firstName,
+        _client_last_name: clientData.lastName,
+        _client_email: clientData.email || null,
+        _phone: clientData.phone,
+        _room_number: clientData.roomNumber || null,
+        _client_note: clientData.note || null,
+        _status: "pending",
+        _payment_method: "card",
+        _payment_status: "awaiting_payment",
+        _total_price: verifiedTotalPrice,
+        _language: language || "fr",
+        _treatment_ids: effectiveTreatmentIds,
+        _therapist_gender: therapistGender || null,
+      },
+    );
+
+    if (rpcError) {
+      if (rpcError.message?.includes("NO_ROOM_AVAILABLE")) {
+        return c.json({ error: "SLOT_TAKEN" }, 409);
+      }
+      throw rpcError;
+    }
+
+    if (effectiveTreatmentIds.length > 0) {
+      await supabaseAdmin.from("booking_treatments").insert(
+        effectiveTreatmentIds.map((treatmentId: string) => ({
+          booking_id: bookingId,
+          treatment_id: treatmentId,
+          variant_id: variantMap[treatmentId] || null,
+        }))
+      );
+    }
+
+    const treatmentNames = treatments.map((t: any) => t.name).join(", ");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validEmail =
+      clientData.email && emailRegex.test(clientData.email) ? clientData.email : undefined;
+
+    const stripe = await resolveStripeFromHotelId(hotelId);
+    const origin = c.req.header("origin") || "http://localhost:5173";
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer_email: validEmail,
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+      line_items: [
+        {
+          price_data: {
+            currency,
+            product_data: {
+              name: "Prestations bien-être",
+              description: `${treatmentNames} - ${clientData.firstName} ${clientData.lastName}`,
+            },
+            unit_amount: Math.round(verifiedTotalPrice * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${origin}/client/${(hotel as any).slug ?? hotelId}/confirmation/${bookingId}`,
+      cancel_url: `${origin}/client/${(hotel as any).slug ?? hotelId}/payment`,
+      metadata: {
+        booking_id: bookingId as string,
+        hotel_id: hotelId,
+        site_url: origin,
+      },
+    });
+
+    await supabaseAdmin
+      .from("bookings")
+      .update({ stripe_invoice_url: session.id })
+      .eq("id", bookingId);
+
+    return c.json({ url: session.url, sessionId: session.id });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[CREATE-CHECKOUT] Error:", errorMessage);
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+// ─── Unified Stripe action dispatcher ────────────────────────────
+//
+// Mirrors the consolidated `stripe-payment` Edge Function contract so
+// the frontend's `invokeStripe('action', payload)` helper can be routed
+// transparently here. Each action is forwarded to the matching route
+// handler by re-dispatching through Hono's internal fetch.
+//
+// Public actions (no auth) are routed to /payments/<route>.
+// Authenticated actions go through /payments/<route> too — auth is
+// enforced by the route's own middleware.
+const ACTION_ROUTES: Record<string, string> = {
+  "create-setup-intent": "/setup-intent",
+  "confirm-setup-intent": "/confirm-setup",
+  "charge-saved-card": "/charge-card",
+  "create-bundle-payment": "/bundle",
+  "purchase-bundle": "/purchase-bundle",
+  "create-checkout-session": "/checkout",
+  "handle-checkout-success": "/checkout-success",
+  // The following are not yet migrated — will fall back to 501.
+  // "finalize-payment": "/finalize",
+  // "send-payment-link": "/send-link",
+  // "check-expired-payment-links": "/check-expired-payment-links",
+};
+
+payments.all("/stripe", async (c) => {
+  if (c.req.method === "OPTIONS") {
+    return c.body(null, 204);
+  }
+  if (c.req.method !== "POST") {
+    return c.json({ error: "Method not allowed" }, 405);
+  }
+
+  let raw: any = {};
+  try {
+    raw = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const body = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const action = typeof body.action === "string" ? body.action : null;
+  if (!action) {
+    return c.json({ error: "Missing 'action' in body" }, 400);
+  }
+
+  const target = ACTION_ROUTES[action];
+  if (!target) {
+    return c.json({ error: `Action not yet migrated: ${action}` }, 501);
+  }
+
+  // Drop the `action` field; downstream routes don't expect it.
+  const { action: _, ...payload } = body;
+
+  // Re-dispatch through Hono — preserves auth headers and middleware.
+  // The sub-app sees inner paths (without the `/payments` mount prefix).
+  const url = new URL(c.req.url);
+  url.pathname = target;
+
+  const forwarded = new Request(url.toString(), {
+    method: "POST",
+    headers: c.req.raw.headers,
+    body: JSON.stringify(payload),
+  });
+
+  return payments.fetch(forwarded);
 });
 
 export default payments;

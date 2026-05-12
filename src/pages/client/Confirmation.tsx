@@ -1,9 +1,11 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useClientVenue } from "./context/ClientVenueContext";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import {
-  CheckCircle, Calendar, Clock, MapPin, CreditCard, Loader2,
+  CheckCircle, Calendar, MapPin, CreditCard,
   AlertCircle, Repeat, ShoppingBag, Package, Gift, Copy, Check, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,17 +16,21 @@ import { brand, brandLogos } from "@/config/brand";
 
 export default function Confirmation() {
   const navigate = useNavigate();
-  const { hotelId, bookingId: paramBookingId } = useParams();
+  const { bookingId: paramBookingId } = useParams<{ bookingId?: string }>();
+  const { slug, hotelId } = useClientVenue();
   const [searchParams] = useSearchParams();
   const { t, i18n } = useTranslation('client');
-  const dateLocale = i18n.language === 'fr' ? fr : enUS;
+  const { changeLanguage, language: currentLanguage } = i18n;
+  const dateLocale = currentLanguage === 'fr' ? fr : enUS;
 
   const sessionId = searchParams.get('session_id');
+  const isPaymentSuccess = searchParams.get('payment') === 'success';
   const isBundlePurchase = paramBookingId === 'bundle';
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paramBookingId || '');
 
-  const [booking, setBooking] = useState<any>(null);
-  const [bundleData, setBundleData] = useState<any>(null);
+  const [booking, setBooking] = useState<Record<string, unknown> | null>(null);
+  const [groupBookings, setGroupBookings] = useState<Array<{ booking_date: string; booking_time: string; treatmentName: string }> | null>(null);
+  const [bundleData, setBundleData] = useState<Record<string, unknown>[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -32,18 +38,17 @@ export default function Confirmation() {
   const hasConfirmed = useRef(false);
 
   useEffect(() => {
+    console.log("[Confirmation] URL:", window.location.href);
+    console.log("[Confirmation] paramBookingId:", paramBookingId, "| sessionId:", sessionId, "| isPaymentSuccess:", isPaymentSuccess, "| isUUID:", isUUID);
+
     async function confirmBundlePurchase() {
       if (hasConfirmed.current) return;
       hasConfirmed.current = true;
 
       try {
-        if (!sessionId) {
-          throw new Error("Identifiant de session manquant.");
-        }
+        if (!sessionId) throw new Error("Identifiant de session manquant.");
 
-        const { data, error: fnError } = await supabase.functions.invoke('purchase-bundle', {
-          body: { sessionId },
-        });
+        const { data, error: fnError } = await invokeStripe<{ customerBundles?: unknown[] }>('purchase-bundle', { sessionId, hotelId }, { skipAuth: true });
 
         if (fnError) throw new Error("La confirmation de votre achat a échoué.");
         if (!data?.customerBundles || data.customerBundles.length === 0) {
@@ -51,9 +56,9 @@ export default function Confirmation() {
         }
 
         setBundleData(data.customerBundles);
-      } catch (err: any) {
-        console.error("Erreur Confirmation Bundle :", err);
-        setError(err.message || "Une erreur est survenue.");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Une erreur est survenue.";
+        setError(msg);
       } finally {
         setIsLoading(false);
       }
@@ -67,14 +72,10 @@ export default function Confirmation() {
         let finalBookingId = paramBookingId;
 
         if (!isUUID && sessionId) {
-          const { data: confirmData, error: confirmError } = await supabase.functions.invoke('confirm-setup-intent', {
-            body: { sessionId }
-          });
-
+          console.log("[Confirmation] Appel confirm-setup-intent...");
+          const { data: confirmData, error: confirmError } = await invokeStripe<{ bookingId?: string }>('confirm-setup-intent', { sessionId, hotelId }, { skipAuth: true });
           if (confirmError) throw new Error("La validation de votre garantie bancaire a échoué.");
-          if (confirmData?.bookingId) {
-            finalBookingId = confirmData.bookingId;
-          }
+          if (confirmData?.bookingId) finalBookingId = confirmData.bookingId;
         }
 
         if (!finalBookingId || finalBookingId === 'setup') {
@@ -88,10 +89,35 @@ export default function Confirmation() {
         if (dbError) throw dbError;
         if (!data) throw new Error("Votre réservation est introuvable.");
 
-        setBooking(data);
-      } catch (err: any) {
-        console.error("Erreur Confirmation :", err);
-        setError(err.message || "Une erreur est survenue lors de la récupération.");
+        const bookingData = data as Record<string, unknown>;
+        setBooking(bookingData);
+
+        // Apply language from payment link if the client arrived via a payment link
+        if (isPaymentSuccess && bookingData.payment_link_language) {
+          changeLanguage(bookingData.payment_link_language as string);
+        }
+
+        // If this booking belongs to a group, show sibling slots (included in summary via SECURITY DEFINER).
+        // Direct RLS query on bookings is not available to the anon/guest client.
+        const siblings = bookingData.group_siblings as Array<{
+          id: string;
+          booking_date: string;
+          booking_time: string;
+          treatment_name: string | null;
+        }> | null;
+        if (siblings && siblings.length > 1) {
+          setGroupBookings(
+            siblings.map((s) => ({
+              booking_date: s.booking_date,
+              booking_time: s.booking_time,
+              treatmentName: s.treatment_name || '—',
+            }))
+          );
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Une erreur est survenue lors de la récupération.";
+        console.error("[Confirmation] Erreur:", msg);
+        setError(msg);
       } finally {
         setIsLoading(false);
       }
@@ -99,16 +125,17 @@ export default function Confirmation() {
 
     if (isBundlePurchase) {
       confirmBundlePurchase();
-    } else if (isUUID || sessionId) {
+    } else if (isUUID || sessionId || isPaymentSuccess) {
       confirmAndFetchBooking();
     } else {
       setIsLoading(false);
       setError("Aucune donnée de réservation trouvée.");
     }
-  }, [paramBookingId, sessionId, isUUID, isBundlePurchase]);
+
+  }, [paramBookingId, sessionId, isUUID, isPaymentSuccess, isBundlePurchase, changeLanguage]);
 
   const handleReturnHome = () => {
-    navigate(hotelId ? `/client/${hotelId}` : "/");
+    navigate(slug ? `/client/${slug}` : "/");
   };
 
   const handleCopyCode = (code: string) => {
@@ -119,11 +146,10 @@ export default function Confirmation() {
     });
   };
 
-  // Determine bundle purchase type from response data
-  const bundleType = bundleData?.[0]?.treatment_bundles?.bundle_type;
-  const isGiftCard = bundleType === 'gift_treatments' || bundleType === 'gift_amount';
-  const isGiftForSomeone = bundleData?.[0]?.is_gift === true;
-  const giftDeliveryMode = bundleData?.[0]?.gift_delivery_mode;
+  const bundleType = (bundleData?.[0] as Record<string, unknown>)?.treatment_bundles as Record<string, unknown> | undefined;
+  const isGiftCard = bundleType?.bundle_type === 'gift_treatments' || bundleType?.bundle_type === 'gift_amount';
+  const isGiftForSomeone = (bundleData?.[0] as Record<string, unknown>)?.is_gift === true;
+  const giftDeliveryMode = (bundleData?.[0] as Record<string, unknown>)?.gift_delivery_mode as string | undefined;
 
   // ---------------------------------------------------------------------------
   // LOADING
@@ -136,9 +162,36 @@ export default function Confirmation() {
         : t('confirmation.message', 'Finalisation de votre réservation...');
 
     return (
-      <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-10 h-10 animate-spin text-gray-400" />
-        <p className="text-sm text-gray-500 font-medium">{loadingText}</p>
+      <div className="min-h-screen bg-[#FBF7F2] text-[#2C2622] flex flex-col items-center justify-center px-6 py-10">
+        <div className="w-full max-w-[440px] flex flex-col items-center text-center">
+          <span className="font-serif italic text-[32px] leading-none tracking-[0.02em] text-[#2C2622]">Eïa</span>
+
+          <div className="mt-10 relative h-16 w-16 flex items-center justify-center">
+            <span className="absolute inset-0 rounded-full border border-[#E8DFD2]" />
+            <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#C96A43] animate-spin" style={{ animationDuration: '1.2s' }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#C96A43]" />
+          </div>
+
+          <div className="mt-10 text-[10px] tracking-[0.28em] uppercase text-[#C96A43] font-medium">
+            {t('confirmation.eyebrowPending', 'Un instant')}
+          </div>
+
+          <h1 className="mt-4 font-serif text-[26px] sm:text-[32px] font-normal leading-[1.2] tracking-[-0.01em] text-[#2C2622]">
+            {loadingText}
+          </h1>
+
+          <p className="mt-4 text-[14px] leading-[1.7] text-[#8C827B]">
+            {currentLanguage === 'fr'
+              ? 'Merci de ne pas fermer cette page — vous serez redirigé·e automatiquement.'
+              : 'Please keep this page open — you will be redirected automatically.'}
+          </p>
+
+          <div className="mt-10 h-px w-16 bg-[#EFE7DA]" />
+
+          <div className="mt-6 text-[10px] tracking-[0.22em] uppercase text-[#8C827B]">
+            {t('confirmation.tagline', 'Eïa · Awaken Your Senses')}
+          </div>
+        </div>
       </div>
     );
   }
@@ -148,12 +201,11 @@ export default function Confirmation() {
   // ---------------------------------------------------------------------------
   if (isBundlePurchase && bundleData) {
     if (isGiftCard) {
-      // --- GIFT CARD (self-purchase or gift for someone) ---
       let title: string;
       let subtitle: string;
 
       if (isGiftForSomeone) {
-        const recipientName = bundleData[0]?.recipient_name || '';
+        const recipientName = (bundleData[0] as Record<string, unknown>)?.recipient_name as string || '';
         if (giftDeliveryMode === 'print') {
           title = t('bundle.giftSentPrint');
           subtitle = t('bundle.giftSentPrintMessage');
@@ -169,39 +221,26 @@ export default function Confirmation() {
       return (
         <div className="min-h-dvh bg-gradient-to-b from-gray-50 to-white flex flex-col items-center p-4 pb-safe pt-safe">
           <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 py-8">
-
-            {/* Title + subtitle above the card */}
             <div className="text-center space-y-2">
               <h1 className="text-2xl font-serif text-gray-900">{title}</h1>
               <p className="text-gray-500 text-sm">{subtitle}</p>
             </div>
 
-            {/* 3D Gift card */}
-            {bundleData.map((bundle: any) => {
-              const amountCents = bundle.total_amount_cents ?? bundle.treatment_bundles?.amount_cents;
-              const isAmountType = bundle.treatment_bundles?.bundle_type === 'gift_amount';
+            {bundleData.map((bundle: Record<string, unknown>) => {
+              const treatmentBundles = bundle.treatment_bundles as Record<string, unknown> | undefined;
+              const amountCents = (bundle.total_amount_cents ?? treatmentBundles?.amount_cents) as number | undefined;
+              const isAmountType = treatmentBundles?.bundle_type === 'gift_amount';
 
               return (
-                <div key={bundle.id} className="space-y-6">
-                  {/* The 3D card */}
+                <div key={bundle.id as string} className="space-y-6">
                   <div className="[perspective:800px]">
                     <div
                       className="relative rounded-2xl overflow-hidden transition-transform duration-500 ease-out [transform:rotateX(2deg)_rotateY(-1deg)] hover:[transform:rotateX(0deg)_rotateY(0deg)]"
-                      style={{
-                        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15), 0 12px 24px -8px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)',
-                      }}
+                      style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15), 0 12px 24px -8px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)' }}
                     >
-                      {/* Card face */}
                       <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6 min-h-[220px] flex flex-col justify-between">
-                        {/* Subtle pattern overlay */}
-                        <div className="absolute inset-0 opacity-[0.04]" style={{
-                          backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)',
-                          backgroundSize: '60px 60px',
-                        }} />
-                        {/* Shine effect */}
+                        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
                         <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.03] to-transparent" />
-
-                        {/* Top row: brand + gift icon */}
                         <div className="relative flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <img src={brandLogos.monogramBlack} alt={brand.name} className="h-5 w-5 brightness-0 invert opacity-60" />
@@ -209,8 +248,6 @@ export default function Confirmation() {
                           </div>
                           <Gift className="w-5 h-5 text-[#03bfac]/70" strokeWidth={1.5} />
                         </div>
-
-                        {/* Center: amount */}
                         <div className="relative text-center py-2">
                           {isAmountType && amountCents ? (
                             <p className="text-5xl font-serif font-light text-white tracking-tight">
@@ -218,48 +255,42 @@ export default function Confirmation() {
                             </p>
                           ) : (
                             <p className="text-5xl font-serif font-light text-white tracking-tight">
-                              {bundle.total_sessions} <span className="text-2xl text-white/50">
-                                {t('bundle.sessions', { count: bundle.total_sessions }).replace(`${bundle.total_sessions} `, '')}
+                              {bundle.total_sessions as number} <span className="text-2xl text-white/50">
+                                {t('bundle.sessions', { count: bundle.total_sessions as number }).replace(`${bundle.total_sessions} `, '')}
                               </span>
                             </p>
                           )}
                           <p className="text-sm text-white/50 mt-1 font-light">
-                            {bundle.treatment_bundles?.name || t('bundle.giftDetails')}
+                            {treatmentBundles?.name as string || t('bundle.giftDetails')}
                           </p>
                         </div>
-
-                        {/* Bottom row: recipient + validity */}
                         <div className="relative flex items-end justify-between text-xs text-white/40">
                           {isGiftForSomeone && bundle.recipient_name ? (
                             <div className="flex items-center gap-1.5">
                               <Sparkles className="w-3 h-3" />
-                              <span className="uppercase tracking-wider">{bundle.recipient_name}</span>
+                              <span className="uppercase tracking-wider">{bundle.recipient_name as string}</span>
                             </div>
                           ) : <div />}
                           {bundle.expires_at && (
                             <span className="uppercase tracking-wider">
-                              {format(new Date(bundle.expires_at), 'MM/yyyy')}
+                              {format(new Date(bundle.expires_at as string), 'MM/yyyy')}
                             </span>
                           )}
                         </div>
                       </div>
-
-                      {/* Card edge / thickness illusion */}
                       <div className="h-1 bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700" />
                     </div>
                   </div>
 
-                  {/* Details below the card */}
                   <div className="space-y-3 px-2">
                     {bundle.expires_at && (
                       <div className="flex items-center gap-2.5 text-sm text-gray-500">
                         <Calendar className="w-4 h-4 text-gray-400" />
-                        <span>{t('bundle.validUntil', { date: format(new Date(bundle.expires_at), 'd MMMM yyyy', { locale: dateLocale }) })}</span>
+                        <span>{t('bundle.validUntil', { date: format(new Date(bundle.expires_at as string), 'd MMMM yyyy', { locale: dateLocale }) })}</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Redemption code — only visible in dev */}
                   {import.meta.env.DEV && bundle.redemption_code && (
                     <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 mx-2">
                       <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
@@ -267,41 +298,33 @@ export default function Confirmation() {
                       </p>
                       <div className="flex items-center gap-2">
                         <code className="flex-1 text-2xl font-mono font-bold text-gray-900 tracking-[0.15em] select-all">
-                          {bundle.redemption_code}
+                          {bundle.redemption_code as string}
                         </code>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-gray-400 hover:text-gray-600"
-                          onClick={() => handleCopyCode(bundle.redemption_code)}
-                        >
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-600" onClick={() => handleCopyCode(bundle.redemption_code as string)}>
                           {codeCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                         </Button>
                       </div>
                     </div>
                   )}
 
-                  {/* Info banner */}
                   <div className="flex items-start gap-3 p-3 rounded-xl border bg-[#03bfac]/5 border-[#03bfac]/20 mx-2">
                     <CheckCircle className="w-4 h-4 text-[#03bfac] mt-0.5 shrink-0" />
                     <p className="text-xs text-gray-600 leading-relaxed">
-                      {t('bundle.giftSentEmailMessage', { name: bundle.recipient_name || '' })}
+                      {t('bundle.giftSentEmailMessage', { name: bundle.recipient_name as string || '' })}
                     </p>
                   </div>
                 </div>
               );
             })}
 
-            {/* CTA */}
             <Button
-              onClick={() => navigate(`/client/${hotelId}/treatments`)}
+              onClick={() => navigate(`/client/${slug}/treatments`)}
               className="w-full h-14 bg-gray-900 text-white hover:bg-gray-800 rounded-xl text-base font-medium shadow-sm transition-all active:scale-[0.98]"
             >
               <ShoppingBag className="mr-2 h-5 w-5" />
               {t('bundle.giftBookTreatment')}
             </Button>
 
-            {/* Footer */}
             <div className="flex items-center justify-center gap-2 pt-4 opacity-40">
               <img src={brandLogos.monogramBlack} alt={brand.name} className="h-4 w-4" />
               <span className="text-xs text-gray-500 font-serif">{brand.name}</span>
@@ -311,11 +334,10 @@ export default function Confirmation() {
       );
     }
 
-    // --- CURE confirmation (existing design, now with i18n) ---
+    // --- CURE confirmation ---
     return (
       <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4 pb-20">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          {/* Header */}
           <div className="flex flex-col items-center text-center space-y-4">
             <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center">
               <Package className="w-10 h-10 text-amber-600" strokeWidth={1.5} />
@@ -326,60 +348,46 @@ export default function Confirmation() {
             </div>
           </div>
 
-          {/* Bundle details */}
           <div className="bg-[#FAFAFA] rounded-xl p-5 border border-gray-100 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-              {t('bundle.purchased')}
-            </h3>
-            {bundleData.map((bundle: any) => (
-              <div key={bundle.id} className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <Repeat className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {bundle.treatment_bundles?.name || 'Cure'}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {bundle.total_sessions} {t('bundle.sessions', { count: bundle.total_sessions })}
-                    </p>
-                  </div>
-                </div>
-                {bundle.expires_at && (
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">{t('bundle.purchased')}</h3>
+            {bundleData.map((bundle: Record<string, unknown>) => {
+              const treatmentBundles = bundle.treatment_bundles as Record<string, unknown> | undefined;
+              return (
+                <div key={bundle.id as string} className="space-y-3">
                   <div className="flex items-start gap-3">
-                    <Calendar className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                    <Repeat className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {t('bundle.validUntil', { date: format(new Date(bundle.expires_at), 'd MMMM yyyy', { locale: dateLocale }) })}
-                      </p>
+                      <p className="text-sm font-medium text-gray-900">{treatmentBundles?.name as string || 'Cure'}</p>
+                      <p className="text-sm text-gray-500">{bundle.total_sessions as number} {t('bundle.sessions', { count: bundle.total_sessions as number })}</p>
                     </div>
                   </div>
-                )}
-              </div>
-            ))}
+                  {bundle.expires_at && (
+                    <div className="flex items-start gap-3">
+                      <Calendar className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                      <p className="text-sm font-medium text-gray-900">
+                        {t('bundle.validUntil', { date: format(new Date(bundle.expires_at as string), 'd MMMM yyyy', { locale: dateLocale }) })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {/* CTA: Book a session */}
           <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
             <CheckCircle className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-amber-900">{t('bundle.bookFirstSession')}</p>
-            </div>
+            <p className="text-sm font-medium text-amber-900">{t('bundle.bookFirstSession')}</p>
           </div>
 
-          {/* Return buttons */}
           <div className="pt-2 space-y-3">
             <Button
-              onClick={() => navigate(`/client/${hotelId}/treatments`)}
+              onClick={() => navigate(`/client/${slug}/treatments`)}
               className="w-full h-14 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-base font-medium shadow-md transition-all active:scale-[0.98]"
             >
               <ShoppingBag className="mr-2 h-5 w-5" />
               {t('bundle.bookFirstSession')}
             </Button>
-            <Button
-              onClick={handleReturnHome}
-              variant="outline"
-              className="w-full h-12 rounded-xl text-sm"
-            >
+            <Button onClick={handleReturnHome} variant="outline" className="w-full h-12 rounded-xl text-sm">
               {t('confirmation.backHome')}
             </Button>
           </div>
@@ -405,100 +413,164 @@ export default function Confirmation() {
   }
 
   // ---------------------------------------------------------------------------
-  // BOOKING CONFIRMATION (regular booking)
+  // BOOKING CONFIRMATION
   // ---------------------------------------------------------------------------
   let treatmentNames = "Vos soins";
-
-  if (Array.isArray(booking?.treatments) && booking.treatments.length > 0) {
-    treatmentNames = booking.treatments.join(", ");
-  } else if (Array.isArray(booking?.booking_treatments) && booking.booking_treatments.length > 0) {
-    const names = booking.booking_treatments
-      .map((bt: any) => bt?.treatment_menus?.name)
+  if (Array.isArray((booking as Record<string, unknown>)?.treatments) && ((booking as Record<string, unknown>)?.treatments as unknown[]).length > 0) {
+    treatmentNames = ((booking as Record<string, unknown>)?.treatments as string[]).join(", ");
+  } else if (Array.isArray((booking as Record<string, unknown>)?.booking_treatments) && ((booking as Record<string, unknown>)?.booking_treatments as unknown[]).length > 0) {
+    const names = ((booking as Record<string, unknown>)?.booking_treatments as Record<string, unknown>[])
+      .map((bt) => (bt?.treatment_menus as Record<string, unknown>)?.name)
       .filter(Boolean);
-    if (names.length > 0) {
-      treatmentNames = names.join(", ");
-    }
+    if (names.length > 0) treatmentNames = (names as string[]).join(", ");
   }
 
-  const hotelName = booking?.hotels?.name || "Au sein de votre établissement";
+  const hotelName = ((booking as Record<string, unknown>)?.hotels as Record<string, unknown>)?.name as string || "Au sein de votre établissement";
+  const bookingStatus = (booking as Record<string, unknown>)?.status as string | undefined;
+  const paymentMethod = (booking as Record<string, unknown>)?.payment_method as string | undefined;
+  const isPending = bookingStatus === 'pending' || bookingStatus === 'pending_confirmation';
+  const isRoomCharge = paymentMethod === 'room';
+
+  const bookingRecord = booking as Record<string, unknown>;
+  const firstName = (bookingRecord?.client_first_name as string) || '';
+  const bookingDate = bookingRecord?.booking_date as string | undefined;
+  const bookingTime = bookingRecord?.booking_time as string | undefined;
+  const roomNumber = bookingRecord?.room_number as string | undefined;
+
+  const eyebrow = isPending ? t('confirmation.eyebrowPending') : t('confirmation.eyebrowConfirmed');
+  const pillLabel = isPending ? t('confirmation.pendingPill') : t('confirmation.confirmedPill');
+  const headerMessage = isPending ? t('confirmation.pendingMessage') : t('confirmation.message');
+  const venueLine = roomNumber ? `${hotelName} · ${t('confirmation.room')}.${roomNumber}` : hotelName;
+  const dateLabel = bookingDate
+    ? format(new Date(bookingDate), 'd MMMM yyyy', { locale: dateLocale })
+    : '—';
+  const timeLabel = bookingTime ? bookingTime.substring(0, 5) : t('confirmation.timeToConfirm');
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4 pb-20">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="min-h-screen bg-[#FBF7F2] text-[#2C2622] flex flex-col items-center px-4 py-8 sm:py-10">
+      <div className="w-full max-w-[600px] bg-white border border-[#E8DFD2] rounded-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
 
         {/* Header */}
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center">
-            <CheckCircle className="w-10 h-10 text-green-600" strokeWidth={1.5} />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-serif text-gray-900">{t('confirmation.title')}</h1>
-            <p className="text-gray-500 text-sm">{t('confirmation.message')}</p>
+        <div className="px-6 sm:px-12 pt-8 sm:pt-9 text-center">
+          <span className="font-serif italic text-[32px] leading-none tracking-[0.02em] text-[#2C2622]">Eïa</span>
+          <div className="mt-4 text-[10px] tracking-[0.28em] uppercase text-[#C96A43] font-medium">
+            {eyebrow}
           </div>
         </div>
 
-        {/* Booking details */}
-        <div className="bg-[#FAFAFA] rounded-xl p-5 border border-gray-100 space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-            {t('confirmation.yourService')}
-          </h3>
+        {/* Title */}
+        <div className="px-6 sm:px-12 pt-7 text-center">
+          <h1 className="font-serif text-[28px] sm:text-[36px] font-normal leading-[1.15] tracking-[-0.01em] text-[#2C2622]">
+            {firstName ? (
+              <>
+                {currentLanguage === 'fr' ? 'Merci,' : 'Thank you,'}{' '}
+                <em className="italic text-[#C96A43]">{firstName}</em>.
+              </>
+            ) : (
+              t('confirmation.thanksAnonymous')
+            )}
+          </h1>
+          <p className="mt-4 mx-auto max-w-[440px] text-[15px] leading-[1.7] text-[#8C827B]">
+            {headerMessage}
+          </p>
+        </div>
 
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Calendar className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-gray-900">{t('confirmation.yourService')}</p>
-                <p className="text-sm text-gray-500">{treatmentNames}</p>
-                {booking?.booking_date && (
-                  <p className="text-sm text-gray-500 mt-0.5">
-                    {format(new Date(booking.booking_date), 'd MMMM yyyy', { locale: dateLocale })}
-                  </p>
-                )}
-              </div>
-            </div>
+        {/* Status pill */}
+        <div className="px-6 sm:px-12 pt-5 text-center">
+          <span className={`inline-block text-[11px] tracking-[0.22em] uppercase font-medium px-5 py-2.5 rounded-full ${
+            isPending ? 'bg-[#F3E2D6] text-[#A8542F]' : 'bg-green-50 text-green-700'
+          }`}>
+            {pillLabel}
+          </span>
+        </div>
 
-            <div className="flex items-start gap-3">
-              <Clock className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-gray-900">Horaire</p>
-                <p className="text-sm text-gray-500">
-                  {booking?.booking_time ? booking.booking_time.substring(0, 5) : "Heure à confirmer"}
-                </p>
-              </div>
+        {/* Booking summary */}
+        <div className="px-6 sm:px-12 pt-7">
+          <div className="bg-[#F8F3EC] border border-[#E8DFD2] rounded-sm px-5 sm:px-6 py-5">
+            <div className="text-[10px] tracking-[0.28em] uppercase text-[#C96A43] font-medium pb-2">
+              {t('confirmation.yourRequest')}
             </div>
-
-            <div className="flex items-start gap-3">
-              <MapPin className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-gray-900">Lieu</p>
-                <p className="text-sm text-gray-500">{hotelName}</p>
-                {booking?.room_number && (
-                  <p className="text-sm text-gray-500 mt-0.5">Chambre : {booking.room_number}</p>
-                )}
+            <dl className="divide-y divide-[#EFE7DA]">
+              {groupBookings ? (
+                /* Multi-time booking: show one row per slot */
+                groupBookings.map((gb, i) => {
+                  const gbDate = format(new Date(gb.booking_date), 'd MMMM yyyy', { locale: dateLocale });
+                  const gbTime = gb.booking_time.substring(0, 5);
+                  return (
+                    <div key={i} className="flex items-start justify-between gap-3 py-3">
+                      <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] min-w-0 pt-0.5 leading-relaxed">
+                        {gb.treatmentName}
+                      </dt>
+                      <dd className="font-serif text-[13px] sm:text-[15px] text-[#2C2622] text-right shrink-0">
+                        <span className="block">{gbDate}</span>
+                        <span className="text-[#C96A43]">{gbTime}</span>
+                      </dd>
+                    </div>
+                  );
+                })
+              ) : (
+                /* Standard single booking */
+                <>
+                  <div className="flex items-center justify-between gap-4 py-3">
+                    <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.date')}</dt>
+                    <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right">{dateLabel}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 py-3">
+                    <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.time')}</dt>
+                    <dd className="font-serif text-[15px] sm:text-[16px] text-[#C96A43] text-right">{timeLabel}</dd>
+                  </div>
+                </>
+              )}
+              <div className="flex items-center justify-between gap-4 py-3">
+                <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.venue')}</dt>
+                <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right break-words">{venueLine}</dd>
               </div>
-            </div>
+              {!groupBookings && (
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.treatment')}</dt>
+                  <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right break-words">{treatmentNames}</dd>
+                </div>
+              )}
+            </dl>
           </div>
         </div>
 
-        {/* Bundle session used banner */}
-        {booking?.bundle_usage_id && (
-          <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
+        {/* What happens next (pending only) */}
+        {isPending && (
+          <div className="px-6 sm:px-12 pt-7">
+            <div className="text-[10px] tracking-[0.28em] uppercase text-[#8C827B] font-medium mb-3.5">
+              {t('confirmation.nextSteps')}
+            </div>
+            <ol className="space-y-3">
+              {[t('confirmation.step1'), t('confirmation.step2'), t('confirmation.step3')].map((step, i) => (
+                <li key={i} className="flex items-start gap-3.5">
+                  <span className="font-serif italic text-[13px] text-[#C96A43] pt-0.5 w-6 shrink-0">0{i + 1}</span>
+                  <span className="text-[13px] leading-[1.6] text-[#2C2622]">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        <div className="px-6 sm:px-12 pt-6 space-y-4">
+        {(booking as Record<string, unknown>)?.bundle_usage_id && (
+          <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-sm border border-amber-200">
             <Repeat className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-amber-900">{t('bundle.sessionUsed')}</p>
-              {booking?.bundle_remaining_sessions != null && (
+              {(booking as Record<string, unknown>)?.bundle_remaining_sessions != null && (
                 <p className="text-xs text-amber-700 leading-relaxed">
-                  {booking.bundle_remaining_sessions === 0
+                  {(booking as Record<string, unknown>)?.bundle_remaining_sessions === 0
                     ? t('bundle.noCreditsLeft')
-                    : t('bundle.remaining', { count: booking.bundle_remaining_sessions })
+                    : t('bundle.remaining', { count: (booking as Record<string, unknown>)?.bundle_remaining_sessions as number })
                   }
                 </p>
               )}
-              {booking?.bundle_remaining_sessions === 0 && (
+              {(booking as Record<string, unknown>)?.bundle_remaining_sessions === 0 && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/client/${hotelId}/treatments`)}
+                  onClick={() => navigate(`/client/${slug}/treatments`)}
                   className="mt-2 h-8 text-xs border-amber-300 text-amber-800 hover:bg-amber-100"
                 >
                   <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
@@ -509,18 +581,31 @@ export default function Confirmation() {
           </div>
         )}
 
-        {/* Payment info */}
-        {!booking?.bundle_usage_id && booking?.payment_method === 'gift_amount' ? (
+        {!(booking as Record<string, unknown>)?.bundle_usage_id && paymentMethod === 'gift_amount' ? (
           <div className="flex items-start gap-3 p-4 bg-[#03bfac]/5 rounded-xl border border-[#03bfac]/20">
             <Gift className="w-5 h-5 text-[#03bfac] mt-0.5 flex-shrink-0" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-900">{t('confirmation.giftCardPaymentTitle')}</p>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                {t('confirmation.giftCardPaymentMessage')}
-              </p>
+              <p className="text-xs text-gray-500 leading-relaxed">{t('confirmation.giftCardPaymentMessage')}</p>
             </div>
           </div>
-        ) : !booking?.bundle_usage_id && (
+        ) : !(booking as Record<string, unknown>)?.bundle_usage_id && isRoomCharge ? (
+          <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <MapPin className="w-5 h-5 text-gray-900 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-900">{t('confirmation.roomChargeTitle')}</p>
+              <p className="text-xs text-gray-500 leading-relaxed">{t('confirmation.roomChargeMessage')}</p>
+            </div>
+          </div>
+        ) : !(booking as Record<string, unknown>)?.bundle_usage_id && isPaymentSuccess ? (
+          <div className="flex items-start gap-3 p-4 bg-green-50 rounded-xl border border-green-200">
+            <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-900">{t('confirmation.paidOnlineTitle')}</p>
+              <p className="text-xs text-gray-500 leading-relaxed">{t('confirmation.paidOnlineMessage')}</p>
+            </div>
+          </div>
+        ) : !(booking as Record<string, unknown>)?.bundle_usage_id && (
           <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
             <CreditCard className="w-5 h-5 text-gray-900 mt-0.5 flex-shrink-0" />
             <div className="space-y-1">
@@ -530,17 +615,28 @@ export default function Confirmation() {
           </div>
         )}
 
-        {/* Return button */}
         <div className="pt-2">
-          <Button
-            onClick={handleReturnHome}
-            className="w-full h-14 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-base font-medium shadow-md transition-all active:scale-[0.98]"
-          >
+          <Button onClick={handleReturnHome} className="w-full h-12 bg-[#2C2622] hover:bg-[#2C2622]/90 text-white rounded-sm text-sm font-medium tracking-wide transition-all active:scale-[0.98]">
             {t('confirmation.backHome')}
           </Button>
         </div>
+        </div>
 
+        {/* Divider */}
+        <div className="px-6 sm:px-12 pt-8">
+          <div className="h-px bg-[#EFE7DA]" />
+        </div>
+
+        {/* Legal */}
+        <div className="px-6 sm:px-12 py-7 text-center text-[9px] tracking-[0.28em] uppercase text-[#8C827B] leading-[1.8]">
+          {t('confirmation.legal')}
+        </div>
       </div>
+
+      <div className="pt-5 text-center text-[10px] tracking-[0.22em] uppercase text-[#8C827B]">
+        {t('confirmation.tagline')}
+      </div>
+      <div className="pb-safe" />
     </div>
   );
 }

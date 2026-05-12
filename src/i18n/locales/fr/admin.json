@@ -1,4 +1,42 @@
 {
+  "welcome": {
+    "skip": "Passer",
+    "back": "Retour",
+    "next": "Suivant",
+    "finish": "Terminer",
+    "step1": {
+      "title": "Bienvenue sur Eïa",
+      "body": "Eïa centralise vos réservations, votre planning thérapeutes et votre billing en un seul endroit. Ce guide rapide vous présente les zones clés de l'app."
+    },
+    "step2": {
+      "title": "Trois zones essentielles",
+      "agenda": {
+        "title": "Planning",
+        "body": "Vue calendrier par lieu, salle et thérapeute. Créez et déplacez vos réservations."
+      },
+      "therapists": {
+        "title": "Thérapeutes & soins",
+        "body": "Ajoutez votre équipe, leurs spécialisations et leur planning."
+      },
+      "finance": {
+        "title": "Finance",
+        "body": "Suivez votre chiffre d'affaires, commissions thérapeutes et payouts."
+      },
+      "switcher": {
+        "title": "Astuce : mode Gestion du lieu",
+        "body": "Depuis la barre latérale, basculez vers la perspective d'un directeur de lieu en un clic."
+      }
+    },
+    "step3": {
+      "title": "Votre avis compte",
+      "body": "Vous testez Eïa : dites-nous tout. Vos retours guident la roadmap.",
+      "feedback": "Donner mon avis (5 min)",
+      "calendly": "Réserver un point visio (20 min)",
+      "trySwitcher": "Essayer le mode Gestion du lieu",
+      "pickVenue": "Choisissez un lieu :"
+    },
+    "reopen": "Revoir le guide d'introduction"
+  },
   "sidebar": {
     "home": "Accueil",
     "settings": "Paramètres & Accès",
@@ -8,7 +46,7 @@
     "hotels": "Lieux",
     "treatments": "Menus des Soins",
     "boxes": "Boxes",
-    "concierges": "Équipe lieu",
+    "concierges": "Gestion du lieu",
     "customers": "Clients",
     "products": "Produits {{brandName}}",
     "orders": "Commandes",
@@ -57,6 +95,22 @@
     "noBookings": "Aucune réservation",
     "filters": "Filtres",
     "searchPlaceholder": "Rechercher par client, hôtel...",
+    "clientType": {
+      "label": "Type de client",
+      "hotel": "Hôtel",
+      "staycation": "Staycation",
+      "classpass": "ClassPass",
+      "external": "Externe"
+    },
+    "payByVoucher": {
+      "label": "Payé par voucher (encaissé par le lieu)",
+      "helper": "Le lieu a encaissé le client. La prestation sera facturée au lieu en fin de mois.",
+      "referenceLabel": "Référence du voucher (optionnel)"
+    },
+    "payment": {
+      "paidByVoucher": "Payé par voucher — encaissé par le lieu",
+      "partnerBilled": "Facturé au partenaire (fin de mois)"
+    },
     "columns": {
       "id": "ID",
       "client": "Client",
@@ -119,6 +173,11 @@
     "activityTab": {
       "noActivity": "Aucune activité",
       "noActivityDesc": "Aucun changement de planning enregistré pour ce thérapeute"
+    },
+    "agendaView": {
+      "unassigned": "Non assigné",
+      "today": "Aujourd'hui",
+      "hour": "Heure"
     },
     "bookings": "Réservations",
     "bookingsTab": {
@@ -252,7 +311,7 @@
     "hotel": "Hôtel"
   },
   "concierges": {
-    "title": "Équipe lieu",
+    "title": "Gestion du lieu",
     "add": "Ajouter un membre",
     "edit": "Modifier le membre",
     "noConcierges": "Aucun membre",
@@ -319,6 +378,26 @@
       "overview": "Aperçu",
       "clientPreview": "Aperçu client"
     },
+    "interVenueBuffer": "Temps de trajet inter-lieux",
+    "interVenueBufferDesc": "Buffer ajouté avant et après chaque prestation quand le thérapeute vient d'un autre lieu. 0 = pas de buffer.",
+    "roomTurnoverBuffer": "Temps de remise en état",
+    "roomTurnoverBufferDesc": "Temps ajouté après chaque soin pour la remise en état de la salle. Bloque la salle et le thérapeute. 0 = pas de buffer.",
+    "minBookingNotice": "Délai minimum avant réservation",
+    "minBookingNoticeDesc": "Délai minimum entre maintenant et l'heure d'un créneau réservable (ex. 2h, 4h, 24h). Les créneaux trop proches sont masqués côté client. 0 = pas de délai.",
+    "bookingRules": {
+      "tabLabel": "Règles de réservation",
+      "holdSectionTitle": "Pré-réservation (hold)",
+      "holdSectionDescription": "Un hold verrouille temporairement un créneau dès que le client clique sur \"Continuer\" depuis la sélection du créneau, pour qu'il ait le temps de remplir ses informations et de payer sans qu'un autre client ne réserve le même créneau.",
+      "holdEnabled": {
+        "label": "Activer le hold du créneau",
+        "description": "Si désactivé, aucun hold n'est posé et le créneau n'est verrouillé qu'au moment du paiement. Un autre client peut réserver le même créneau entre la sélection et le paiement."
+      },
+      "holdDuration": {
+        "label": "Durée du hold",
+        "description": "Entre 1 et 15 minutes. Le compte à rebours s'affiche côté client et le hold est libéré automatiquement à l'expiration.",
+        "suffix": "min"
+      }
+    },
     "backToList": "Retour aux lieux",
     "edit": "Modifier",
     "cancelEdit": "Annuler",
@@ -331,7 +410,8 @@
       "noTreatments": "Aucun soin associé à ce lieu",
       "treatmentLinkCopied": "Lien du soin copié !",
       "venueLink": "Lien du lieu",
-      "searchTreatment": "Rechercher un soin..."
+      "searchTreatment": "Rechercher un soin...",
+      "language": "Langue du lien"
     },
     "save": "Enregistrer",
     "saving": "Enregistrement...",
@@ -480,7 +560,16 @@
     "acknowledgedSuccess": "Alerte acquittée",
     "acknowledgedAllSuccess": "{{count}} alerte(s) acquittée(s)",
     "allSources": "Toutes les sources",
-    "allTherapists": "Tous les thérapeutes"
+    "allTherapists": "Tous les thérapeutes",
+    "tabs": {
+      "alerts": "Alertes planning",
+      "notifications": "Notifications"
+    },
+    "notifications": {
+      "markAllRead": "Tout marquer comme lu",
+      "allMarkedRead": "Toutes les notifications marquées comme lues",
+      "empty": "Aucune notification"
+    }
   },
   "pms": {
     "title": "Integration PMS",
@@ -526,6 +615,40 @@
     "notTested": "Non testé",
     "connectedSince": "Connecté depuis le {{date}}",
     "cancel": "Annuler",
+    "close": "Fermer",
+    "save": "Sauvegarder"
+  },
+  "payment": {
+    "title": "Méthode de paiement",
+    "provider": "Fournisseur de paiement",
+    "providerDesc": "Configuration stockée par lieu. Le flow de paiement actuel continue d'utiliser la clé Stripe globale tant que ce lieu n'est pas explicitement migré.",
+    "none": "Aucun",
+    "stripe": "Stripe",
+    "adyen": "Adyen",
+    "stripeCredentials": "Identifiants Stripe",
+    "stripeSecretKey": "Clé secrète",
+    "stripePublishableKey": "Clé publique",
+    "stripeWebhookSecret": "Webhook secret",
+    "stripeAccountId": "Compte Connect (optionnel)",
+    "stripeAccountIdDesc": "Identifiant du compte Stripe Connect, si le lieu utilise un sous-compte Connect",
+    "adyenCredentials": "Identifiants Adyen",
+    "adyenEnvironment": "Environnement",
+    "adyenTest": "Test",
+    "adyenLive": "Live",
+    "adyenApiKey": "Clé API",
+    "adyenApiKeyDesc": "Trouvable dans Adyen Customer Area > Server settings > Authentication",
+    "adyenMerchantAccount": "Merchant account",
+    "adyenClientKey": "Client key (publique)",
+    "adyenClientKeyDesc": "Utilisée par le Drop-in côté navigateur (intégration future)",
+    "adyenHmacKey": "HMAC key (webhook)",
+    "adyenHmacKeyDesc": "Secret de signature des notifications webhook Adyen (intégration future)",
+    "testConnection": "Tester la connexion",
+    "testSuccess": "Connexion réussie",
+    "testFailed": "Connexion échouée",
+    "saved": "Configuration paiement sauvegardée",
+    "saveFailed": "Erreur lors de la sauvegarde",
+    "saveBeforeTest": "Renseigner les identifiants et sauvegarder avant de tester.",
+    "secretUnchanged": "Laisser vide pour conserver le secret actuel",
     "close": "Fermer",
     "save": "Sauvegarder"
   },
@@ -782,7 +905,9 @@
     "therapist": {
       "label": "Thérapeutes disponibles",
       "loading": "Recherche des thérapeutes disponibles...",
-      "empty": "Aucun thérapeute disponible pour ce créneau"
+      "empty": "Aucun thérapeute disponible pour ce créneau",
+      "broadcastTitle": "Ne pas sélectionner (broadcast)",
+      "broadcastDesc": "Proposer à tous les thérapeutes disponibles"
     },
     "client": {
       "firstName": "Prénom",
@@ -795,7 +920,8 @@
       "existingClient": "Client existant — champs préremplis",
       "email": "Email",
       "emailHint": "nécessaire pour le lien de paiement",
-      "room": "Numéro de chambre"
+      "room": "Numéro de chambre",
+      "clientType": "Type de client"
     },
     "confirm": {
       "venue": "Lieu",
@@ -804,18 +930,21 @@
       "treatments": "Soins",
       "total": "Total",
       "client": "Client",
-      "createAndSend": "Créer et envoyer le lien"
+      "createAndSend": "Créer et envoyer le lien",
+      "createAndNotify": "Créer et envoyer la confirmation"
     },
     "done": {
       "title": "Réservation créée",
-      "sendLink": "Envoyer lien de paiement"
+      "sendLink": "Envoyer lien de paiement",
+      "sendNotification": "Envoyer la confirmation"
     },
     "errors": {
       "selectVenue": "Sélectionnez un lieu",
       "selectTreatment": "Sélectionnez au moins un soin",
       "selectSlot": "Sélectionnez une date et un horaire",
       "selectTherapist": "Sélectionnez un thérapeute",
-      "fillClient": "Remplissez les informations client"
+      "fillClient": "Remplissez les informations client",
+      "roomRequired": "Numéro de chambre obligatoire pour un client hôtel"
     }
   }
 }

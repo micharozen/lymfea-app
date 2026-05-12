@@ -1,0 +1,95 @@
+---
+title: "Authentication"
+description: "Authenticate your requests to the Eïa Partner API with a bearer token."
+---
+
+All requests to the Partner API must be authenticated with a secret **API key**
+issued by the Eïa team.
+
+## API keys
+
+An API key is a long-lived secret that:
+
+- Identifies your organisation (the partner).
+- Can be scoped to a subset of venues (e.g. only venues that have opted in to
+  your distribution channel).
+- Carries a rate-limit configuration (see [Rate limits](/rate-limits)).
+- Can be rotated or revoked at any time.
+
+<Warning>
+  Treat API keys like passwords. Never expose them in client-side code
+  (browsers, mobile apps). All calls to the Partner API must originate from
+  your server.
+</Warning>
+
+## Using your key
+
+Send the API key in the `Authorization` header using the `Bearer` scheme:
+
+```http
+Authorization: Bearer lyf_live_sk_1a2b3c4d5e6f...
+```
+
+### Example
+
+<CodeGroup>
+
+```bash curl
+curl https://api-sandbox.lymfea.com/v1/venues \
+  -H "Authorization: Bearer lyf_sandbox_sk_1a2b3c4d..."
+```
+
+```javascript Node.js
+const res = await fetch("https://api-sandbox.lymfea.com/v1/venues", {
+  headers: {
+    Authorization: `Bearer ${process.env.LYMFEA_API_KEY}`,
+  },
+});
+const { data } = await res.json();
+```
+
+```python Python
+import os, requests
+
+res = requests.get(
+    "https://api-sandbox.lymfea.com/v1/venues",
+    headers={"Authorization": f"Bearer {os.environ['LYMFEA_API_KEY']}"},
+)
+data = res.json()["data"]
+```
+
+</CodeGroup>
+
+## Key format
+
+API keys follow the pattern `lyf_{env}_sk_{random}` where:
+
+- `env` is `live` (production) or `sandbox`.
+- `sk` stands for _secret key_.
+- `random` is a 32+ character URL-safe random string.
+
+Always verify the `env` prefix matches the environment you intend to call.
+
+## Rotation and revocation
+
+To rotate a key:
+
+1. Request a new key from your Eïa account manager.
+2. Deploy the new key to your servers.
+3. Confirm traffic is flowing on the new key.
+4. Ask the Eïa team to revoke the old key.
+
+A revoked key returns `401 UNAUTHORIZED` immediately.
+
+## Scopes
+
+Each API key is tagged with one or more scopes. The default scopes for
+distribution partners are:
+
+| Scope               | Description                                               |
+| ------------------- | --------------------------------------------------------- |
+| `venues:read`       | Read venues and their treatments                          |
+| `availability:read` | Read real-time availability                               |
+| `bookings:write`    | Create, read and cancel bookings under your partner tag  |
+
+Calls to endpoints outside your key's scope return `403 FORBIDDEN`.

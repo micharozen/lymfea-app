@@ -1,15 +1,16 @@
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ShoppingBag } from 'lucide-react';
 import { useBasket } from './context/CartContext';
+import { useClientVenue } from './context/ClientVenueContext';
 import { CartDrawer } from '@/components/client/CartDrawer';
 import { useState, useEffect } from 'react';
 import { ProgressBar } from '@/components/client/ProgressBar';
 import { SchedulePanel } from '@/components/client/SchedulePanel';
 
 export default function Schedule() {
-  const { hotelId } = useParams<{ hotelId: string }>();
+  const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const location = useLocation();
   const { itemCount } = useBasket();
@@ -18,10 +19,11 @@ export default function Schedule() {
 
   const takenDate = (location.state as any)?.takenDate as string | undefined;
   const slotTaken = !!(location.state as any)?.slotTaken;
+  const sessionExpired = !!(location.state as any)?.sessionExpired;
 
   // Clear navigation state to avoid re-triggering on re-render
   useEffect(() => {
-    if ((location.state as any)?.slotTaken) {
+    if ((location.state as any)?.slotTaken || (location.state as any)?.sessionExpired) {
       window.history.replaceState({}, '');
     }
   }, []);
@@ -62,9 +64,10 @@ export default function Schedule() {
       {/* Schedule content — reusable panel */}
       <SchedulePanel
         hotelId={hotelId!}
-        onContinue={() => navigate(`/client/${hotelId}/guest-info`)}
+        onContinue={() => navigate(`/client/${slug}/guest-info`)}
         takenDate={takenDate}
         slotTaken={slotTaken}
+        sessionExpired={sessionExpired}
         embedded={false}
       />
 

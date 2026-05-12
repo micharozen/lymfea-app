@@ -305,15 +305,15 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                       />
                     </div>
                   )}
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {(therapist.skills || []).map((skill: string) => {
-                    return (
-                      <Badge key={skill} variant="secondary" className="text-[10px] px-1.5 py-0">
-                        {getSpecialtyLabel(skill, i18n.language)}
-                      </Badge>
-                    );
-                  })}
+                  {(therapist.skills || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {(therapist.skills || []).map((skill: string) => (
+                        <Badge key={skill} variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
+                          {getSpecialtyLabel(skill, i18n.language)}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <Button
                   variant="ghost"

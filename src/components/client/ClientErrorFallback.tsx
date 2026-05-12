@@ -13,7 +13,7 @@ interface ClientErrorFallbackProps {
  * when something goes wrong in the client booking flow.
  */
 export function ClientErrorFallback({ error, reset }: ClientErrorFallbackProps) {
-  const { hotelId } = useParams<{ hotelId: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('common');
 
@@ -45,7 +45,7 @@ export function ClientErrorFallback({ error, reset }: ClientErrorFallbackProps) 
           </Button>
           <Button
             variant="ghost"
-            onClick={() => navigate(`/client/${hotelId}`)}
+            onClick={() => navigate(`/client/${slug}`)}
             className="text-gray-500 hover:text-gray-900 hover:bg-gray-50"
           >
             <Home className="mr-2 h-4 w-4" />

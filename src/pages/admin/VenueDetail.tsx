@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -8,7 +8,7 @@ import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
@@ -20,17 +20,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Save, Pencil, CalendarDays } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ArrowLeft, Loader2, Save, Pencil, CalendarDays, Eye } from "lucide-react";
 import { startOfMonth, startOfYear, subDays } from "date-fns";
-import { VenueGeneralTab } from "@/components/admin/venue/VenueGeneralTab";
+import { VenueGeneralTab, type VenueSectionId } from "@/components/admin/venue/VenueGeneralTab";
+import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
-import { VenueTreatmentRoomsTab } from "@/components/admin/venue/VenueTreatmentRoomsTab";
-import { VenueTherapistsTab } from "@/components/admin/venue/VenueTherapistsTab";
-import { VenueAmenitiesTab } from "@/components/admin/venue/VenueAmenitiesTab";
-import { VenueCategoriesStep } from "@/components/admin/steps/VenueCategoriesStep";
+import { VenueCatalogTab } from "@/components/admin/venue/VenueCatalogTab";
+import { VenueResourcesTab } from "@/components/admin/venue/VenueResourcesTab";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
 import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
-import { VenueGiftCardsTab } from "@/components/admin/venue/VenueGiftCardsTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { formatPrice } from "@/lib/formatPrice";
 import type { VenueWizardFormValues, BlockedSlot } from "@/components/admin/VenueWizardDialog";
@@ -38,6 +42,16 @@ import type { VenueWizardFormValues, BlockedSlot } from "@/components/admin/Venu
 // Same form schema as VenueWizardDialog
 const createFormSchema = (t: TFunction) => z.object({
   name: z.string().min(1, t('errors.validation.nameRequired')),
+  slug: z
+    .string()
+    .min(2, "Au moins 2 caractères")
+    .max(60, "60 caractères max")
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      "Lettres minuscules, chiffres et tirets uniquement"
+    )
+    .optional()
+    .or(z.literal("")),
   venue_type: z.enum(['hotel', 'coworking', 'enterprise']).default('hotel'),
   address: z.string().min(1, t('errors.validation.addressRequired')),
   postal_code: z.string().optional(),
@@ -56,13 +70,18 @@ const createFormSchema = (t: TFunction) => z.object({
   auto_validate_bookings: z.boolean().default(false),
   allow_out_of_hours_booking: z.boolean().default(false),
   out_of_hours_surcharge_percent: z.string().default("0"),
+  inter_venue_buffer_minutes: z.number().min(0).max(120).default(0),
+  room_turnover_buffer_minutes: z.number().min(0).max(120).default(0),
+  min_booking_notice_minutes: z.number().min(0).max(10080).default(0),
+  booking_hold_enabled: z.boolean().default(true),
+  booking_hold_duration_minutes: z.coerce.number().int().min(1).max(15).default(5),
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
   name_en: z.string().optional(),
   landing_subtitle_en: z.string().optional(),
   description_en: z.string().optional(),
-  calendar_color: z.string().default('#3b82f6'),
+  calendar_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -78,9 +97,27 @@ const createFormSchema = (t: TFunction) => z.object({
   path: ["closing_time"],
 });
 
-export default function VenueDetail() {
-  const { id } = useParams<{ id: string }>();
+interface VenueDetailProps {
+  /** Override the hotel id from the route params (used by /admin/my-venue). */
+  hotelIdOverride?: string;
+  /** Restrict the page to the configuration tab and a subset of section cards. */
+  restricted?: boolean;
+  restrictedSections?: VenueSectionId[];
+  /** Where the back button should navigate. Defaults to /admin/places. */
+  backTo?: string;
+}
+
+export default function VenueDetail({
+  hotelIdOverride,
+  restricted = false,
+  restrictedSections,
+  backTo = "/admin/places",
+}: VenueDetailProps = {}) {
+  const params = useParams<{ id: string }>();
+  const id = hotelIdOverride ?? params.id;
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
@@ -88,10 +125,39 @@ export default function VenueDetail() {
   const [savedHotelId, setSavedHotelId] = useState<string | null>(id || null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("general");
+
+  const validTabs = ["configuration", "planning", "catalog", "resources", "billing"] as const;
+  type TabValue = (typeof validTabs)[number];
+  const initialTab: TabValue = (() => {
+    const requested = searchParams.get("tab");
+    return (validTabs as readonly string[]).includes(requested ?? "")
+      ? (requested as TabValue)
+      : "configuration";
+  })();
+  const [activeTab, setActiveTab] = useState<TabValue>(initialTab);
+
+  // Keep activeTab in sync if the URL ?tab=... changes externally.
+  useEffect(() => {
+    const requested = searchParams.get("tab");
+    if (requested && (validTabs as readonly string[]).includes(requested) && requested !== activeTab) {
+      setActiveTab(requested as TabValue);
+    }
+  }, [searchParams, activeTab]);
+
+  const handleTabChange = (next: string) => {
+    setActiveTab(next as TabValue);
+    if (next === "configuration") {
+      searchParams.delete("tab");
+    } else {
+      searchParams.set("tab", next);
+    }
+    setSearchParams(searchParams, { replace: true });
+  };
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [existingScheduleId, setExistingScheduleId] = useState<string | null>(null);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [hotelName, setHotelName] = useState("");
+  const [hotelSlug, setHotelSlug] = useState<string | null>(null);
   const [isEditingState, setIsEditingState] = useState(false);
   const [statsPeriod, setStatsPeriod] = useState<"month" | "30d" | "year" | "all">("month");
   const isEditing = isNewMode || isEditingState;
@@ -129,6 +195,7 @@ export default function VenueDetail() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      slug: "",
       venue_type: "hotel",
       address: "",
       postal_code: "",
@@ -147,10 +214,15 @@ export default function VenueDetail() {
       auto_validate_bookings: false,
       allow_out_of_hours_booking: false,
       out_of_hours_surcharge_percent: "0",
+      inter_venue_buffer_minutes: 0,
+      room_turnover_buffer_minutes: 0,
+      min_booking_notice_minutes: 0,
+      booking_hold_enabled: true,
+      booking_hold_duration_minutes: 5,
       offert: false,
       company_offered: false,
       landing_subtitle: "",
-      calendar_color: "#3b82f6",
+      calendar_color: "",
     },
   });
 
@@ -176,6 +248,7 @@ export default function VenueDetail() {
       if (hotel) {
         form.reset({
           name: hotel.name || "",
+          slug: (hotel as any).slug || "",
           venue_type: hotel.venue_type || "hotel",
           address: hotel.address || "",
           postal_code: hotel.postal_code || "",
@@ -194,18 +267,24 @@ export default function VenueDetail() {
           auto_validate_bookings: hotel.auto_validate_bookings || false,
           allow_out_of_hours_booking: hotel.allow_out_of_hours_booking || false,
           out_of_hours_surcharge_percent: hotel.out_of_hours_surcharge_percent?.toString() || "0",
+          inter_venue_buffer_minutes: (hotel as any).inter_venue_buffer_minutes ?? 0,
+          room_turnover_buffer_minutes: (hotel as any).room_turnover_buffer_minutes ?? 0,
+          min_booking_notice_minutes: (hotel as any).min_booking_notice_minutes ?? 0,
+          booking_hold_enabled: (hotel as any).booking_hold_enabled ?? true,
+          booking_hold_duration_minutes: (hotel as any).booking_hold_duration_minutes ?? 5,
           offert: hotel.offert || false,
           company_offered: hotel.company_offered || false,
           landing_subtitle: (hotel as any).landing_subtitle || "",
           name_en: (hotel as any).name_en || "",
           landing_subtitle_en: (hotel as any).landing_subtitle_en || "",
           description_en: (hotel as any).description_en || "",
-          calendar_color: hotel.calendar_color || "#3b82f6",
+          calendar_color: hotel.calendar_color ?? "",
         });
 
         setHotelImage(hotel.image || "");
         setCoverImage(hotel.cover_image || "");
         setHotelName(hotel.name || "");
+        setHotelSlug((hotel as any).slug || null);
       }
 
       // Load deployment schedule
@@ -381,13 +460,13 @@ export default function VenueDetail() {
           ? `Champs requis manquants : ${missingFields.join(", ")}`
           : "Veuillez corriger les erreurs du formulaire"
       );
-      setActiveTab("general");
+      setActiveTab("configuration");
       return;
     }
 
     // Validate deployment
     if (!validateDeployment()) {
-      setActiveTab("general");
+      setActiveTab("configuration");
       return;
     }
 
@@ -397,6 +476,7 @@ export default function VenueDetail() {
 
       const hotelPayload = {
         name: values.name,
+        ...(values.slug ? { slug: values.slug } : {}),
         venue_type: values.venue_type,
         address: values.address,
         postal_code: values.postal_code || null,
@@ -417,13 +497,18 @@ export default function VenueDetail() {
         auto_validate_bookings: values.auto_validate_bookings,
         allow_out_of_hours_booking: values.allow_out_of_hours_booking,
         out_of_hours_surcharge_percent: parseFloat(values.out_of_hours_surcharge_percent) || 0,
+        inter_venue_buffer_minutes: values.inter_venue_buffer_minutes ?? 0,
+        room_turnover_buffer_minutes: values.room_turnover_buffer_minutes ?? 0,
+        min_booking_notice_minutes: values.min_booking_notice_minutes ?? 0,
+        booking_hold_enabled: values.booking_hold_enabled,
+        booking_hold_duration_minutes: values.booking_hold_duration_minutes,
         offert: values.offert,
         company_offered: values.company_offered,
         landing_subtitle: values.landing_subtitle || null,
         name_en: values.name_en || null,
         landing_subtitle_en: values.landing_subtitle_en || null,
         description_en: values.description_en || null,
-        calendar_color: values.calendar_color || '#3b82f6',
+        calendar_color: values.calendar_color || null,
       };
 
       if (isNewMode && !savedHotelId) {
@@ -439,6 +524,7 @@ export default function VenueDetail() {
         const newId = insertedHotel.id;
         setSavedHotelId(newId);
         setHotelName(values.name);
+        if (values.slug) setHotelSlug(values.slug);
 
         // Save deployment schedule
         await saveDeploymentSchedule(newId);
@@ -446,6 +532,7 @@ export default function VenueDetail() {
         // Save blocked slots
         await saveBlockedSlots(newId);
 
+        queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu créé avec succès");
 
         // Redirect to edit mode
@@ -462,6 +549,7 @@ export default function VenueDetail() {
         if (hotelError) throw hotelError;
 
         setHotelName(values.name);
+        if (values.slug) setHotelSlug(values.slug);
 
         // Update deployment schedule
         await saveDeploymentSchedule(targetId);
@@ -469,6 +557,7 @@ export default function VenueDetail() {
         // Save blocked slots
         await saveBlockedSlots(targetId);
 
+        queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu mis à jour avec succès");
         setIsEditingState(false);
       }
@@ -546,7 +635,7 @@ export default function VenueDetail() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/admin/places')}
+              onClick={() => navigate(backTo)}
               className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
@@ -586,6 +675,17 @@ export default function VenueDetail() {
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {canAccessTabs && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPreviewOpen(true)}
+                className="flex-shrink-0"
+              >
+                <Eye className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Aperçu client</span>
+              </Button>
+            )}
             {isNewMode ? (
               <Button
                 onClick={handleSave}
@@ -630,61 +730,69 @@ export default function VenueDetail() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           {/* Tab bar — sticky below header */}
+          {!restricted && (
           <div className="px-4 md:px-6 pt-4 bg-background sticky top-[57px] z-[9]">
             <TabsList className="w-full justify-start overflow-x-auto bg-transparent rounded-none border-b p-0 h-auto">
-              <TabsTrigger value="general" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">Général</TabsTrigger>
-              <TabsTrigger value="planning" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">Planning</TabsTrigger>
-              <TabsTrigger value="rooms" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Salles
+              <TabsTrigger value="configuration" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Configuration
               </TabsTrigger>
-              <TabsTrigger value="amenities" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Commodités
+              <TabsTrigger value="planning" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Planning
               </TabsTrigger>
-              <TabsTrigger value="therapists" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Thérapeutes
+              <TabsTrigger value="catalog" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Catalogue
               </TabsTrigger>
-              <TabsTrigger value="categories" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Catégories
-              </TabsTrigger>
-              <TabsTrigger value="client-preview" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Aperçu client
+              <TabsTrigger value="resources" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Ressources
               </TabsTrigger>
               <TabsTrigger value="billing" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Facturation
               </TabsTrigger>
-              <TabsTrigger value="gift-cards" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Cartes cadeaux
-              </TabsTrigger>
             </TabsList>
           </div>
+          )}
 
           {/* Tab content — flows naturally, main scrolls */}
           <div className="px-4 md:px-6 py-4">
             <Form {...form}>
               <form onSubmit={(e) => e.preventDefault()}>
-                <TabsContent value="general" className="mt-0">
-                  <VenueGeneralTab
-                    form={form}
-                    mode={isNewMode ? 'add' : 'edit'}
-                    disabled={!isEditing}
-                    hotelId={effectiveHotelId || undefined}
-                    hotelImage={hotelImage}
-                    coverImage={coverImage}
-                    uploadingHotel={uploadingHotel}
-                    uploadingCover={uploadingCover}
-                    hotelImageRef={hotelImageRef}
-                    coverImageRef={coverImageRef}
-                    handleHotelImageUpload={handleHotelImageUpload}
-                    handleCoverImageUpload={handleCoverImageUpload}
-                    triggerHotelImageSelect={triggerHotelImageSelect}
-                    triggerCoverImageSelect={triggerCoverImageSelect}
-                    deploymentState={deploymentState}
-                    onDeploymentStateChange={setDeploymentState}
-                    blockedSlots={blockedSlots}
-                    onBlockedSlotsChange={setBlockedSlots}
+                <TabsContent value="configuration" className="mt-0">
+                  {/* Option 2: Horizontal sticky sub-nav */}
+                  <VenueSectionNavBar
+                    topOffset={restricted ? 57 : 105}
+                    sections={
+                      restrictedSections
+                        ? VENUE_CONFIG_SECTIONS.filter((s) =>
+                            restrictedSections.includes(s.id as VenueSectionId),
+                          )
+                        : VENUE_CONFIG_SECTIONS
+                    }
                   />
+
+                  <VenueGeneralTab
+                        restrictedSections={restrictedSections}
+                        form={form}
+                        mode={isNewMode ? 'add' : 'edit'}
+                        disabled={!isEditing}
+                        hotelId={effectiveHotelId || undefined}
+                        hotelImage={hotelImage}
+                        coverImage={coverImage}
+                        uploadingHotel={uploadingHotel}
+                        uploadingCover={uploadingCover}
+                        hotelImageRef={hotelImageRef}
+                        coverImageRef={coverImageRef}
+                        handleHotelImageUpload={handleHotelImageUpload}
+                        handleCoverImageUpload={handleCoverImageUpload}
+                        triggerHotelImageSelect={triggerHotelImageSelect}
+                        triggerCoverImageSelect={triggerCoverImageSelect}
+                        onRequestEdit={() => setIsEditingState(true)}
+                        deploymentState={deploymentState}
+                        onDeploymentStateChange={setDeploymentState}
+                        blockedSlots={blockedSlots}
+                        onBlockedSlotsChange={setBlockedSlots}
+                      />
                 </TabsContent>
               </form>
             </Form>
@@ -704,43 +812,40 @@ export default function VenueDetail() {
 
             {canAccessTabs && (
               <>
-                <TabsContent value="rooms" className="mt-0">
-                  <VenueTreatmentRoomsTab
-                    hotelId={effectiveHotelId!}
-                    hotelName={hotelName || watchedName}
-                  />
-                </TabsContent>
-
-                <TabsContent value="amenities" className="mt-0">
-                  <VenueAmenitiesTab
+                <TabsContent value="catalog" className="mt-0">
+                  <VenueCatalogTab
                     hotelId={effectiveHotelId!}
                     venueType={watchedVenueType}
                   />
                 </TabsContent>
 
-                <TabsContent value="therapists" className="mt-0">
-                  <VenueTherapistsTab hotelId={effectiveHotelId!} />
-                </TabsContent>
-
-                <TabsContent value="categories" className="mt-0">
-                  <VenueCategoriesStep hotelId={effectiveHotelId} />
-                </TabsContent>
-
-                <TabsContent value="client-preview" className="mt-0">
-                  <VenueClientPreviewTab hotelId={effectiveHotelId!} />
+                <TabsContent value="resources" className="mt-0">
+                  <VenueResourcesTab
+                    hotelId={effectiveHotelId!}
+                    hotelName={hotelName || watchedName}
+                  />
                 </TabsContent>
 
                 <TabsContent value="billing" className="mt-0">
                   <VenueBillingTab hotelId={effectiveHotelId!} />
                 </TabsContent>
-
-                <TabsContent value="gift-cards" className="mt-0">
-                  <VenueGiftCardsTab hotelId={effectiveHotelId!} />
-                </TabsContent>
               </>
             )}
           </div>
         </Tabs>
+      )}
+
+      {canAccessTabs && (
+        <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
+          <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Aperçu client</SheetTitle>
+            </SheetHeader>
+            <div className="mt-4">
+              <VenueClientPreviewTab hotelId={effectiveHotelId!} slug={hotelSlug} />
+            </div>
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   );

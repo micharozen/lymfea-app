@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useBasket } from '@/pages/client/context/CartContext';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
+import { useClientVenue } from '@/pages/client/context/ClientVenueContext';
 import { useCreateOffertBooking } from '@/pages/client/hooks/useCreateOffertBooking';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
@@ -15,10 +16,13 @@ import { toast } from 'sonner';
 import { format, parse } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeEdgeFunction, invokeStripe } from '@/lib/supabaseEdgeFunctions';
 import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
+import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
+import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
 
 interface CheckoutPanelProps {
   hotelId: string;
@@ -34,16 +38,18 @@ export function CheckoutPanel({
   className,
 }: CheckoutPanelProps) {
   const navigate = useNavigate();
+  const { slug } = useClientVenue();
   const { t, i18n } = useTranslation('client');
   const locale = i18n.language === 'fr' ? fr : enUS;
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
   const {
     bookingDateTime, clientInfo, therapistGenderPreference,
     setPendingCheckoutSession, clearFlow, isBundleOnlyPurchase,
-    selectedBundle, setSelectedBundle, giftInfo, authBundles,
+    selectedBundle, setSelectedBundle, giftInfo, authBundles, draftBookingId, setHoldExpiresAt,
+    scheduleMode, perItemSchedule, groupId, bookingIds,
   } = useClientFlow();
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
-
+const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const { trackPageView } = useClientAnalytics(hotelId);
@@ -112,6 +118,14 @@ export function CheckoutPanel({
     ? Math.round(((selectedBundle?.remainingAmountCents ?? 0) - (selectedBundle?.amountToUseCents ?? 0)) / 100)
     : 0;
 
+  // Out-of-hours surcharge (display only — server is source of truth)
+  const surcharge = computeOutOfHoursSurcharge(bookingDateTime?.time, total, hotel);
+  const surchargeUncovered = computeOutOfHoursSurcharge(bookingDateTime?.time, uncoveredTotal, hotel);
+  const surchargeFixed = computeOutOfHoursSurcharge(bookingDateTime?.time, fixedTotal, hotel);
+  const totalWithSurcharge = total + surcharge.surchargeAmount;
+  const uncoveredTotalWithSurcharge = uncoveredTotal + surchargeUncovered.surchargeAmount;
+  const fixedTotalWithSurcharge = fixedTotal + surchargeFixed.surchargeAmount;
+
   const handlePayment = async () => {
     if (!clientInfo) {
       toast.error(t('common:errors.generic'));
@@ -124,8 +138,7 @@ export function CheckoutPanel({
       if (!isBundleOnly) return;
       setIsProcessing(true);
       try {
-        const { data, error } = await supabase.functions.invoke('create-bundle-payment', {
-          body: {
+        const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-bundle-payment', {
             hotelId,
             clientData: {
               firstName: clientInfo.firstName,
@@ -149,10 +162,11 @@ export function CheckoutPanel({
                 recipientEmail: giftInfo.recipientEmail,
                 senderName: giftInfo.senderName,
                 giftMessage: giftInfo.giftMessage,
+                recipientLanguage: giftInfo.recipientLanguage,
               },
             }),
-          },
-        });
+            language: i18n.language === 'en' ? 'en' : 'fr',
+        }, { skipAuth: true });
 
         if (error) throw error;
 
@@ -186,7 +200,7 @@ export function CheckoutPanel({
       // Gift amount bundle — full or partial coverage
       if (selectedBundle && isAmountBundle && selectedBundle.amountToUseCents) {
         if (uncoveredTotal === 0) {
-          const { data, error } = await supabase.functions.invoke('create-client-booking', {
+          const { data, error } = await invokeEdgeFunction<unknown, { bookingId: string }>('create-client-booking', {
             body: {
               hotelId,
               clientData: {
@@ -216,18 +230,21 @@ export function CheckoutPanel({
               },
               totalPrice: 0,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
             },
+            skipAuth: true,
           });
 
           if (error) throw error;
+          if (!data) throw new Error('Booking creation failed');
 
           clearBasket();
           clearFlow();
-          navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+          navigate(`/client/${slug}/confirmation/${data.bookingId}`);
           return;
         } else {
-          const { data, error } = await supabase.functions.invoke('create-setup-intent', {
-            body: {
+          setHoldExpiresAt(null);
+          const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-setup-intent', {
               hotelId,
               clientData: {
                 firstName: clientInfo.firstName,
@@ -252,8 +269,8 @@ export function CheckoutPanel({
                 amountCents: selectedBundle.amountToUseCents,
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-            },
-          });
+              ...(draftBookingId ? { draftBookingId } : {}),
+          }, { skipAuth: true });
 
           if (error) throw error;
 
@@ -272,7 +289,7 @@ export function CheckoutPanel({
 
       // All items covered by session bundle — create booking with bundle payment
       if (selectedBundle && bundleCoveredItems.length > 0 && uncoveredTotal === 0) {
-        const { data, error } = await supabase.functions.invoke('create-client-booking', {
+        const { data, error } = await invokeEdgeFunction<unknown, { bookingId: string }>('create-client-booking', {
           body: {
             hotelId,
             clientData: {
@@ -302,43 +319,56 @@ export function CheckoutPanel({
             },
             totalPrice: 0,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
+          skipAuth: true,
         });
 
         if (error) throw error;
+        if (!data) throw new Error('Booking creation failed');
 
         clearBasket();
         clearFlow();
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
         return;
       } else if (isOffert) {
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
-        const { data, error } = await supabase.functions.invoke('create-setup-intent', {
-          body: {
-            hotelId,
-            clientData: {
-              firstName: clientInfo.firstName,
-              lastName: clientInfo.lastName,
-              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
-              email: clientInfo.email,
-              roomNumber: clientInfo.roomNumber,
-              note: clientInfo.note || '',
-            },
-            bookingData: {
-              date: bookingDateTime.date,
-              time: bookingDateTime.time,
-            },
-            treatmentIds: items.map(item => item.id),
-            treatments: items.map(item => ({
-              treatmentId: item.id,
-              variantId: item.variantId,
-            })),
-            totalPrice: total,
-            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+        // Le draft reste vivant en DB — confirm-setup-intent le promouvra en 'pending'.
+        // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
+        setHoldExpiresAt(null);
+
+        const isMulti = (bookingIds && bookingIds.length > 1)
+          || (scheduleMode === 'per_item' && Object.keys(perItemSchedule).length > 1);
+
+        const baseItemsForCardMulti = items.filter(i => !i.isAddon && !i.isBundle);
+        const multiItemsForCard = isMulti ? buildMultiBookingItems(baseItemsForCardMulti, perItemSchedule) : null;
+
+        const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-setup-intent', {
+          hotelId,
+          clientData: {
+            firstName: clientInfo.firstName,
+            lastName: clientInfo.lastName,
+            phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+            email: clientInfo.email,
+            roomNumber: clientInfo.roomNumber,
+            note: clientInfo.note || '',
+            pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+            pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
           },
-        });
+          bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
+          treatmentIds: items.map(item => item.id),
+          treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId })),
+          totalPrice: total,
+          ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+          ...(draftBookingId ? { draftBookingId } : {}),
+          ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+          isMulti,
+          ...(isMulti ? { groupId, bookingIds } : {}),
+          // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
+          ...(isMulti && multiItemsForCard && bookingIds.length === 0 ? { slots: multiItemsForCard } : {}),
+        }, { skipAuth: true });
 
         if (error) throw error;
 
@@ -352,50 +382,75 @@ export function CheckoutPanel({
           window.location.href = data.url;
         }
       } else {
-        // Room payment or quote request
-        const { data, error } = await supabase.functions.invoke('create-client-booking', {
-          body: {
-            hotelId,
-            clientData: {
-              firstName: clientInfo.firstName,
-              lastName: clientInfo.lastName,
-              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
-              email: clientInfo.email,
-              roomNumber: clientInfo.roomNumber,
-              note: clientInfo.note || '',
-              pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
-              pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
-            },
-            bookingData: {
-              date: bookingDateTime.date,
-              time: bookingDateTime.time,
-            },
-            treatments: items.map(item => ({
-              treatmentId: item.id,
-              variantId: item.variantId,
-              quantity: item.quantity,
-              note: item.note,
-            })),
-            paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
-            totalPrice: fixedTotal,
-            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-          },
-        });
+        // --- FLUX CHAMBRE / SUR PLACE (multi & solo) ---
+        const isMulti = (bookingIds && bookingIds.length > 1)
+          || (scheduleMode === 'per_item' && Object.keys(perItemSchedule).length > 1);
+
+        setHoldExpiresAt(null);
+
+        const baseItemsForMulti = items.filter(i => !i.isAddon && !i.isBundle);
+        const multiItems = isMulti ? buildMultiBookingItems(baseItemsForMulti, perItemSchedule) : null;
+
+        const clientDataPayload = {
+          firstName: clientInfo.firstName,
+          lastName: clientInfo.lastName,
+          phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+          email: clientInfo.email,
+          roomNumber: clientInfo.roomNumber,
+          note: clientInfo.note || '',
+          pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+          pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
+        };
+
+        const body = isMulti && multiItems
+          ? {
+              hotelId,
+              clientData: clientDataPayload,
+              items: multiItems,
+              bookingIds,
+              groupId,
+              paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
+              totalPrice: fixedTotal,
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            }
+          : {
+              hotelId,
+              clientData: clientDataPayload,
+              bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
+              treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId, quantity: item.quantity, note: item.note })),
+              paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
+              totalPrice: fixedTotal,
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
+              ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+            };
+
+        const { data, error } = await invokeEdgeFunction<unknown, { bookingId?: string; bookingIds?: string[] }>('create-client-booking', { body, skipAuth: true });
 
         if (error) throw error;
+        if (!data) throw new Error('Booking creation failed');
 
         clearBasket();
         clearFlow();
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        const navigateBookingId = isMulti && Array.isArray(data.bookingIds) && data.bookingIds.length
+          ? data.bookingIds[0]
+          : data.bookingId;
+        navigate(`/client/${slug}/confirmation/${navigateBookingId}`);
       }
     } catch (error: any) {
+      
       console.error('Payment error:', error);
 
       const errorBody = error?.context?.body;
       let errorCode = '';
+      let errorPayload: any = null;
       if (typeof errorBody === 'string') {
-        try { errorCode = JSON.parse(errorBody)?.error || ''; } catch { /* ignore */ }
+        try {
+          errorPayload = JSON.parse(errorBody);
+          errorCode = errorPayload?.error || '';
+        } catch { /* ignore */ }
       } else if (errorBody?.error) {
+        errorPayload = errorBody;
         errorCode = errorBody.error;
       }
       if (!errorCode && error?.message) {
@@ -403,11 +458,23 @@ export function CheckoutPanel({
       }
 
       if (errorCode === 'SLOT_TAKEN' || errorCode === 'BLOCKED_SLOT' || errorCode === 'LEAD_TIME_VIOLATION') {
-        const messageKey = errorCode === 'SLOT_TAKEN' ? 'errors.slotTaken'
-          : errorCode === 'BLOCKED_SLOT' ? 'errors.blockedSlot'
-          : 'errors.leadTimeViolation';
-        toast.error(t(messageKey));
-        navigate(`/client/${hotelId}/schedule`, {
+        let message: string;
+        if (errorCode === 'SLOT_TAKEN') {
+          message = t('errors.slotTaken');
+        } else if (errorCode === 'BLOCKED_SLOT') {
+          message = t('errors.blockedSlot');
+        } else {
+          const minLeadMin = Number(errorPayload?.minLeadTimeMinutes) || 0;
+          if (minLeadMin >= 60 && minLeadMin % 60 === 0) {
+            message = t('errors.leadTimeViolationHours', { hours: minLeadMin / 60 });
+          } else if (minLeadMin > 0) {
+            message = t('errors.leadTimeViolationMinutes', { minutes: minLeadMin });
+          } else {
+            message = t('errors.leadTimeViolation');
+          }
+        }
+        toast.error(message);
+        navigate(`/client/${slug}/schedule`, {
           state: { takenDate: bookingDateTime?.date, takenTime: bookingDateTime?.time },
         });
         return;
@@ -694,6 +761,17 @@ export function CheckoutPanel({
           </>
         )}
 
+        {surcharge.isOutOfHours && surcharge.surchargeAmount > 0 && !isOffert && !hasPriceOnRequest && (
+          <div className="flex justify-between items-center text-sm pt-2">
+            <span className="text-gray-500">
+              {t('payment.outOfHoursSurcharge', 'Majoration hors horaires')} ({surcharge.surchargePercent}%)
+            </span>
+            <span className="font-medium text-amber-600">
+              +{formatPrice(surcharge.surchargeAmount, items[0]?.currency || 'EUR')}
+            </span>
+          </div>
+        )}
+
         {/* Total */}
         <div className="flex justify-between items-center pt-3 border-t border-gray-200">
           <div className="flex flex-col">
@@ -710,10 +788,10 @@ export function CheckoutPanel({
             <div className="text-right">
               {isAmountBundle && giftAmountAppliedEuros > 0 && (
                 <span className="text-sm line-through text-gray-400 mr-2">
-                  {formatPrice(total, items[0]?.currency || 'EUR')}
+                  {formatPrice(totalWithSurcharge, items[0]?.currency || 'EUR')}
                 </span>
               )}
-              <span className="text-gold-600 text-lg font-serif">{formatPrice(uncoveredTotal, items[0]?.currency || 'EUR')}</span>
+              <span className="text-gold-600 text-lg font-serif">{formatPrice(uncoveredTotalWithSurcharge, items[0]?.currency || 'EUR')}</span>
             </div>
           ) : isOffert ? (
             <span className="inline-flex items-baseline gap-1.5">
@@ -722,11 +800,11 @@ export function CheckoutPanel({
             </span>
           ) : hasPriceOnRequest ? (
             <div className="text-right">
-              <span className="text-gray-900 text-base font-light">{formatPrice(fixedTotal, items[0]?.currency || 'EUR')}</span>
+              <span className="text-gray-900 text-base font-light">{formatPrice(fixedTotalWithSurcharge, items[0]?.currency || 'EUR')}</span>
               <span className="text-amber-400 text-sm ml-2">{t('payment.plusQuote')}</span>
             </div>
           ) : (
-            <span className="text-gold-600 text-lg font-serif">{formatPrice(total, items[0]?.currency || 'EUR')}</span>
+            <span className="text-gold-600 text-lg font-serif">{formatPrice(totalWithSurcharge, items[0]?.currency || 'EUR')}</span>
           )}
         </div>
       </div>

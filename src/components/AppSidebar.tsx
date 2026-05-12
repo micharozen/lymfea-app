@@ -5,6 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { brand, brandLogos } from "@/config/brand";
 import { GlobalSearch } from "@/components/admin/GlobalSearch";
+import { ViewModeSwitcher } from "@/components/admin/ViewModeSwitcher";
+import { useViewMode } from "@/contexts/ViewModeContext";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -66,26 +68,27 @@ const adminPrimaryItems: MenuItem[] = [
   { title: "Lieux", url: "/admin/places", icon: Building2 },
   { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
-  { title: "Cures", url: "/admin/cures", icon: Package },
+  { title: "Cures / Cartes cadeaux", url: "/admin/cures", icon: Package },
   { title: "Clients", url: "/admin/customers", icon: Contact },
   { title: "Alertes", url: "/admin/schedule-alerts", icon: Bell, badge: true },
 ];
 
 const adminSecondaryItems: MenuItem[] = [
   { title: "Salles de soin", url: "/admin/treatment-rooms", icon: DoorOpen },
-  { title: "Équipe lieu", url: "/admin/concierges", icon: UserCog },
+  { title: "Gestion du lieu", url: "/admin/concierges", icon: UserCog },
   { title: `Produits`, url: "/admin/products", icon: Package },
   { title: "Commandes", url: "/admin/orders", icon: Truck },
   { title: "Finance", url: "/admin/finance", icon: Wallet },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
 
-const conciergePrimaryItems: MenuItem[] = [
+const venueManagerPrimaryItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Planning", url: "/admin/bookings", icon: CalendarDays },
   { title: "Réservations", url: "/admin/all-bookings", icon: ListChecks },
+  { title: "Clients", url: "/admin/customers", icon: Contact },
+  { title: "Mon lieu", url: "/admin/my-venue", icon: Building2 },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
-  { title: "Transactions", url: "/admin/transactions", icon: Wallet },
 ];
 
 const STORAGE_KEY = "lymfea-sidebar-more-open";
@@ -99,6 +102,7 @@ export function AppSidebar() {
   const [adminInfo, setAdminInfo] = useState<{ firstName: string; lastName: string; profileImage: string | null } | null>(null);
   const [userRole, setUserRole] = useState<string>("...");
   const [redFlagCount, setRedFlagCount] = useState(0);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [moreOpen, setMoreOpen] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) !== "false"; } catch { /* storage unavailable */ return true; }
   });
@@ -119,7 +123,7 @@ export function AppSidebar() {
           .maybeSingle();
         
         if (roleData) {
-          const roleLabel = roleData.role === 'admin' ? 'Admin' : roleData.role === 'concierge' ? 'Équipe lieu' : roleData.role;
+          const roleLabel = roleData.role === 'admin' ? 'Admin' : roleData.role === 'concierge' ? 'Gestion du lieu' : roleData.role;
           setUserRole(roleLabel);
         }
 
@@ -189,10 +193,28 @@ export function AppSidebar() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_log' }, () => fetchRedFlagCount())
       .subscribe();
 
+    const fetchUnreadNotifCount = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+      setUnreadNotifCount(count || 0);
+    };
+    fetchUnreadNotifCount();
+
+    const notifChannel = supabase
+      .channel('notifications-sidebar')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => fetchUnreadNotifCount())
+      .subscribe();
+
     return () => {
       supabase.removeChannel(adminChannel);
       supabase.removeChannel(conciergeChannel);
       supabase.removeChannel(alertChannel);
+      supabase.removeChannel(notifChannel);
     };
   }, []);
 
@@ -206,9 +228,18 @@ export function AppSidebar() {
     navigate("/auth");
   };
 
+  const { mode: viewMode, venueId: viewVenueId } = useViewMode();
   const isAdmin = userRole === 'Admin';
-  const primaryItems = isAdmin ? adminPrimaryItems : conciergePrimaryItems;
-  const secondaryItems = isAdmin ? adminSecondaryItems : [];
+  const inVenueManagerView = isAdmin && viewMode === 'venue_manager';
+
+  const venueManagerItems: MenuItem[] = venueManagerPrimaryItems;
+
+  const primaryItems = inVenueManagerView
+    ? venueManagerItems
+    : isAdmin
+      ? adminPrimaryItems
+      : venueManagerPrimaryItems;
+  const secondaryItems = isAdmin && !inVenueManagerView ? adminSecondaryItems : [];
 
   const renderNavItem = (item: MenuItem) => {
     const isActive = location.pathname === item.url;
@@ -225,9 +256,9 @@ export function AppSidebar() {
           >
             <item.icon className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={isActive ? 2 : 1.5} />
             <span className="text-sm">{item.title}</span>
-            {item.badge && redFlagCount > 0 && (
+            {item.badge && (redFlagCount + unreadNotifCount) > 0 && (
               <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                {redFlagCount > 99 ? '99+' : redFlagCount}
+                {(redFlagCount + unreadNotifCount) > 99 ? '99+' : (redFlagCount + unreadNotifCount)}
               </span>
             )}
           </NavLink>
@@ -267,6 +298,19 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* View mode switcher -- admin in admin mode only */}
+        {isAdmin && !inVenueManagerView && (
+          <SidebarGroup className="py-0">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <ViewModeSwitcher />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {/* Secondary navigation (collapsible "More") -- admin only */}
         {secondaryItems.length > 0 && (
           <Collapsible open={moreOpen} onOpenChange={handleMoreToggle}>
@@ -296,7 +340,7 @@ export function AppSidebar() {
             <SidebarGroup className="py-1">
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {renderNavItem({ title: "Paramètres", url: "/admin/settings", icon: Settings })}
+                  {renderNavItem({ title: "Admins", url: "/admin/admins", icon: Settings })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

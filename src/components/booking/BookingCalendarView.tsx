@@ -160,12 +160,6 @@ export function BookingCalendarView({
     return `${format(currentWeekStart, "d MMM", { locale: fr })} - ${format(endDate, "d MMM yyyy", { locale: fr })}`;
   }, [currentWeekStart, dayCount]);
 
-  // Venues for legend (show when 2+ venues)
-  const venuesWithBookings = useMemo(() => {
-    if (!hotels || hotels.length <= 1) return [];
-    return hotels;
-  }, [hotels]);
-
   const gridTemplateColumns = `60px repeat(${dayCount}, 1fr)`;
   const gridTemplateColumnsMd = `80px repeat(${dayCount}, 1fr)`;
 
@@ -207,22 +201,6 @@ export function BookingCalendarView({
         </Popover>
 
       </div>
-
-      {/* Venue legend */}
-      {venuesWithBookings.length > 1 && (
-        <div className="flex flex-wrap items-center gap-3 mb-1 px-1 flex-shrink-0">
-          <span className="text-xs text-muted-foreground font-medium">Lieux :</span>
-          {venuesWithBookings.map((hotel) => (
-            <div key={hotel.id} className="flex items-center gap-1.5">
-              <div
-                className="w-3 h-3 rounded-sm flex-shrink-0"
-                style={{ backgroundColor: hotel.calendar_color || '#3b82f6' }}
-              />
-              <span className="text-xs text-muted-foreground">{hotel.name}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Calendar grid */}
       <div className="w-full -mx-2 md:mx-0 px-2 md:px-0 flex-1 flex flex-col min-h-0">
@@ -617,11 +595,16 @@ function BookingCard({
       <TooltipTrigger asChild>
         <div
           className={cn(
-            "absolute rounded text-xs cursor-pointer overflow-hidden z-10 border-l-4 group",
-            getCalendarCardColor(booking.status, booking.payment_status)
+            "absolute rounded text-sm cursor-pointer overflow-hidden z-10 border-l-4 group",
+            // When hotel has a configured color, skip the status-based background class
+            // so the hotel color can tint the background consistently across all statuses
+            !hotelInfo?.calendar_color && getCalendarCardColor(booking.status, booking.payment_status)
           )}
           style={{
-            borderLeftColor: hotelInfo?.calendar_color || '#3b82f6',
+            ...(hotelInfo?.calendar_color && {
+              borderLeftColor: hotelInfo.calendar_color,
+              backgroundColor: hotelInfo.calendar_color + '20',
+            }),
             top: `${top}px`,
             height: `${height}px`,
             minHeight: '20px',
@@ -634,58 +617,82 @@ function BookingCard({
           }}
         >
           <div className="p-1 h-full flex flex-col relative">
-            {/* Top row: time + therapist badge */}
-            <div className="flex items-start justify-between gap-0.5">
-              <div className="font-bold text-[11px] leading-tight">
-                {booking.booking_time?.substring(0, 5)}
-              </div>
-              <div className="flex items-center gap-0.5 flex-shrink-0">
-                {/* Out-of-hours indicator */}
-                {booking.is_out_of_hours && (
-                  <div className="w-4 h-4 flex items-center justify-center flex-shrink-0" title="Hors horaires">
-                    <Clock className="h-2.5 w-2.5 text-amber-500" />
-                  </div>
-                )}
-                {/* Link to therapist on hover */}
-                {hasTherapist && (
-                  <button
-                    className="opacity-0 group-hover:opacity-100 transition-opacity h-4 w-4 flex items-center justify-center rounded-full hover:bg-foreground/10"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/admin/therapists/${booking.therapist_id}`);
-                    }}
-                    title="Voir la fiche thérapeute"
+            {/* Top row: time (+ inline client on short cards) + therapist badge */}
+            <div className="flex items-start justify-between gap-1">
+              <div className="flex items-baseline gap-1 min-w-0 flex-1">
+                <span className="font-bold text-[13px] leading-tight flex-shrink-0">
+                  {booking.booking_time?.substring(0, 5)}
+                </span>
+                {height < 56 && (booking.client_first_name || booking.client_last_name) && (
+                  <span
+                    className="truncate text-[11px] opacity-90 font-medium leading-tight min-w-0"
+                    title={`${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim()}
                   >
-                    <ExternalLink className="h-2.5 w-2.5" />
-                  </button>
-                )}
-                {/* Therapist badge OR "À assigner" alert */}
-                {hasTherapist ? (
-                  <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-foreground/10 text-foreground/70"
-                    title={booking.therapist_name || ""}
-                  >
-                    {therapistInitials}
-                  </div>
-                ) : (
-                  <div
-                    className="px-1.5 h-4 rounded-[3px] flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800 shadow-sm"
-                    title="Aucun thérapeute assigné"
-                  >
-                    À ASSIGNER
-                  </div>
+                    {booking.client_first_name} {booking.client_last_name}
+                  </span>
                 )}
               </div>
+              {height >= 28 && (
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  {/* Out-of-hours indicator */}
+                  {booking.is_out_of_hours && (
+                    <div className="w-4 h-4 flex items-center justify-center flex-shrink-0" title="Hors horaires">
+                      <Clock className="h-2.5 w-2.5 text-amber-500" />
+                    </div>
+                  )}
+                  {/* Link to therapist on hover */}
+                  {hasTherapist && (
+                    <button
+                      className="opacity-0 group-hover:opacity-100 transition-opacity h-4 w-4 flex items-center justify-center rounded-full hover:bg-foreground/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/admin/therapists/${booking.therapist_id}`);
+                      }}
+                      title="Voir la fiche thérapeute"
+                    >
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </button>
+                  )}
+                  {/* Therapist badge OR "À assigner" alert */}
+                  {hasTherapist ? (
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-foreground/10 text-foreground/70"
+                      title={booking.therapist_name || ""}
+                    >
+                      {therapistInitials}
+                    </div>
+                  ) : (
+                    <div
+                      className="px-1.5 h-4 rounded-[3px] flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800 shadow-sm"
+                      title="Aucun thérapeute assigné"
+                    >
+                      À ASSIGNER
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            {/* Client name (if card is tall enough) */}
-            {height >= 32 && (
-              <div className="truncate text-[8px] opacity-80 font-medium">
+            {/* Client name on its own line when card is tall enough */}
+            {height >= 56 && (
+              <div
+                className="truncate text-[11px] opacity-90 font-medium leading-tight"
+                title={`${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim()}
+              >
                 {booking.client_first_name} {booking.client_last_name}
               </div>
             )}
-            {/* Duration (if card is tall enough) */}
-            {height >= 48 && (
-              <div className="text-[7px] opacity-60">{durationFormatted}</div>
+            {/* Treatments */}
+            {height >= 76 && treatments.length > 0 && (
+              <div
+                className="truncate text-[10px] opacity-70 leading-tight"
+                title={treatments.map((t) => t.name).join(", ")}
+              >
+                {treatments.map((t) => t.name).join(", ")}
+              </div>
+            )}
+            {/* Duration */}
+            {height >= 96 && (
+              <div className="text-[10px] opacity-60 mt-auto">{durationFormatted}</div>
             )}
           </div>
         </div>
@@ -823,17 +830,18 @@ function AmenityBookingCard({
       <TooltipTrigger asChild>
         <div
           className={cn(
-            "absolute rounded text-xs cursor-pointer overflow-hidden z-10 border-l-4 group",
-            "bg-opacity-20 hover:bg-opacity-30 transition-colors"
+            "absolute rounded text-sm cursor-pointer overflow-hidden z-[5] border-l-4 group transition-opacity",
+            "hover:opacity-90"
           )}
           style={{
             borderLeftColor: booking.amenity_color,
-            backgroundColor: booking.amenity_color + "18",
+            backgroundColor: booking.amenity_color + "22",
             top: `${top}px`,
             height: `${height}px`,
             minHeight: "20px",
-            left: "2px",
+            left: "auto",
             right: "2px",
+            width: "38%",
           }}
           onClick={(e) => {
             e.stopPropagation();

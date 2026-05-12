@@ -7,16 +7,16 @@ interface VideoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   videoId: string;
-  hotelId: string;
+  slug: string;
 }
 
-export function VideoDialog({ open, onOpenChange, videoId, hotelId }: VideoDialogProps) {
+export function VideoDialog({ open, onOpenChange, videoId, slug }: VideoDialogProps) {
   const navigate = useNavigate();
   const { t } = useTranslation('client');
 
   const handleBookSession = () => {
     onOpenChange(false);
-    navigate(`/client/${hotelId}/treatments`);
+    navigate(`/client/${slug}/treatments`);
   };
 
   return (

@@ -8,10 +8,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -35,11 +37,13 @@ import {
   Send,
   Sparkles,
   UserCheck,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useBookingCart } from "@/hooks/booking/useBookingCart";
 import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
 import {
@@ -47,7 +51,12 @@ import {
   type AvailableTherapist,
 } from "@/hooks/booking/useAvailableTherapistsForSlot";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
-import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
+import {
+  BOOKING_CLIENT_TYPES,
+  CLIENT_TYPE_META,
+  type BookingClientType,
+} from "@/lib/clientTypeMeta";
 import {
   Popover,
   PopoverContent,
@@ -99,7 +108,8 @@ export default function PhoneBookingDialog({
   onOpenChange,
 }: PhoneBookingDialogProps) {
   const { t } = useTranslation("admin");
-  const { isConcierge, hotelIds } = useUser();
+  const { hotelIds } = useUser();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
 
   const [step, setStep] = useState<Step>("venue");
   const [hotelId, setHotelId] = useState<string>(
@@ -108,19 +118,23 @@ export default function PhoneBookingDialog({
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState<string>("");
   const [therapistId, setTherapistId] = useState<string>("");
+  const [additionalTherapistIds, setAdditionalTherapistIds] = useState<string[]>([]);
+  const [therapistChoiceMade, setTherapistChoiceMade] = useState(false);
   const [clientFirstName, setClientFirstName] = useState("");
   const [clientLastName, setClientLastName] = useState("");
   const [countryCode, setCountryCode] = useState("+33");
   const [phone, setPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [roomNumber, setRoomNumber] = useState("");
+  const [roomNumberLater, setRoomNumberLater] = useState(false);
+  const [clientType, setClientType] = useState<BookingClientType>("external");
 
   const [createdBooking, setCreatedBooking] = useState<{
     id: string;
     booking_id: number;
     hotel_name: string;
   } | null>(null);
-  const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
+  const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
 
   const { data: hotels } = useQuery({
     queryKey: ["phone-booking-hotels"],
@@ -150,7 +164,7 @@ export default function PhoneBookingDialog({
     queryFn: async () => {
       let q = supabase
         .from("treatment_menus")
-        .select("*")
+        .select("*, treatment_variants(id, guest_count)")
         .in("status", ["Actif", "active", "Active"])
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name");
@@ -185,6 +199,14 @@ export default function PhoneBookingDialog({
     [openingTime, closingTime, slotInterval],
   );
 
+  const requiredGuestCount = useMemo(() => {
+    if (!cartDetails.length) return 1;
+    return Math.max(1, ...cartDetails.flatMap((item) => {
+      const variants = (item.treatment as { treatment_variants?: { guest_count?: number }[] } | undefined)?.treatment_variants ?? [];
+      return variants.length > 0 ? variants.map((v) => v.guest_count ?? 1) : [1];
+    }));
+  }, [cartDetails]);
+
   const {
     data: availableTherapists = [],
     isLoading: isTherapistsLoading,
@@ -193,6 +215,7 @@ export default function PhoneBookingDialog({
     date,
     time,
     durationMinutes: totalDuration || 60,
+    treatmentIds: flatIds,
   });
 
   const mutation = useCreateBookingMutation({
@@ -206,7 +229,9 @@ export default function PhoneBookingDialog({
         hotel_name: data.hotel_name || "",
       });
       setStep("done");
-      setIsPaymentLinkDialogOpen(true);
+      if (clientType !== "external") {
+        setIsNotificationDialogOpen(true);
+      }
     },
   });
 
@@ -216,11 +241,15 @@ export default function PhoneBookingDialog({
     setDate(undefined);
     setTime("");
     setTherapistId("");
+    setAdditionalTherapistIds([]);
+    setTherapistChoiceMade(false);
     setClientFirstName("");
     setClientLastName("");
     setPhone("");
     setClientEmail("");
     setRoomNumber("");
+    setRoomNumberLater(false);
+    setClientType("external");
     setCart([]);
     setCreatedBooking(null);
   };
@@ -234,7 +263,7 @@ export default function PhoneBookingDialog({
     !!hotelId &&
     !!date &&
     !!time &&
-    !!therapistId &&
+    therapistChoiceMade &&
     cart.length > 0 &&
     clientFirstName.trim().length > 0 &&
     clientLastName.trim().length > 0 &&
@@ -242,17 +271,24 @@ export default function PhoneBookingDialog({
 
   const handleSubmit = () => {
     if (!canSubmit || !date) return;
+    const allTherapistIds = [
+      ...(therapistId ? [therapistId] : []),
+      ...additionalTherapistIds.filter(Boolean),
+    ];
     mutation.mutate({
       hotelId,
       clientFirstName: clientFirstName.trim(),
       clientLastName: clientLastName.trim(),
+      clientEmail: clientEmail.trim() || undefined,
       phone: phone.trim(),
       countryCode,
       roomNumber: roomNumber.trim(),
+      clientType,
       clientNote: "",
       date: format(date, "yyyy-MM-dd"),
       time,
-      therapistId,
+      therapistId: therapistId || "",
+      ...(allTherapistIds.length > 1 ? { therapistIds: allTherapistIds } : {}),
       slot2Date: null,
       slot2Time: null,
       slot3Date: null,
@@ -263,6 +299,7 @@ export default function PhoneBookingDialog({
       isAdmin: true,
       isOutOfHours: false,
       surchargeAmount: 0,
+      guestCount: requiredGuestCount,
     });
   };
 
@@ -281,17 +318,36 @@ export default function PhoneBookingDialog({
             <DialogTitle className="text-lg font-normal">
               {t("phoneBooking.title")}
             </DialogTitle>
+            <DialogDescription className="hidden">
+              Réservation manuelle d'un soin
+            </DialogDescription>
             {step !== "done" && (
-              <div className="flex items-center gap-1.5 pt-2">
-                {STEPS.map((s, i) => (
-                  <div
-                    key={s.key}
-                    className={cn(
-                      "h-1 flex-1 rounded-full transition-colors",
-                      i <= stepIndex ? "bg-primary" : "bg-muted",
-                    )}
-                  />
-                ))}
+              <div className="pt-2 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  {STEPS.map((s, i) => (
+                    <div
+                      key={s.key}
+                      className={cn(
+                        "h-1 flex-1 rounded-full transition-colors",
+                        i <= stepIndex ? "bg-primary" : "bg-muted",
+                      )}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-[10px] font-medium">
+                  {STEPS.map((s, i) => (
+                    <span
+                      key={s.key}
+                      className={cn(
+                        "flex-1 truncate",
+                        i === 0 ? "text-left" : i === STEPS.length - 1 ? "text-right" : "text-center",
+                        i === stepIndex ? "text-primary" : "text-muted-foreground",
+                      )}
+                    >
+                      {t(s.labelKey)}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </DialogHeader>
@@ -306,6 +362,8 @@ export default function PhoneBookingDialog({
                   setHotelId(id);
                   setCart([]);
                   setTherapistId("");
+                  setAdditionalTherapistIds([]);
+                  setTherapistChoiceMade(false);
                 }}
                 isConcierge={isConcierge}
                 treatments={treatments || []}
@@ -328,11 +386,15 @@ export default function PhoneBookingDialog({
                   setDate(d);
                   setTime("");
                   setTherapistId("");
+                  setAdditionalTherapistIds([]);
+                  setTherapistChoiceMade(false);
                 }}
                 time={time}
                 setTime={(v) => {
                   setTime(v);
                   setTherapistId("");
+                  setAdditionalTherapistIds([]);
+                  setTherapistChoiceMade(false);
                 }}
                 daySlots={daySlots}
                 isSlotAvailable={isSlotAvailable}
@@ -347,7 +409,39 @@ export default function PhoneBookingDialog({
                 therapists={availableTherapists}
                 isLoading={isTherapistsLoading}
                 therapistId={therapistId}
-                setTherapistId={setTherapistId}
+                requiredGuestCount={requiredGuestCount}
+                additionalTherapistIds={additionalTherapistIds}
+                broadcast={therapistChoiceMade && !therapistId && additionalTherapistIds.length === 0}
+                onPickBroadcast={() => {
+                  setTherapistId("");
+                  setAdditionalTherapistIds([]);
+                  setTherapistChoiceMade(true);
+                }}
+                onPickTherapist={(id, index) => {
+                  const currentId = index === 0 ? therapistId : (additionalTherapistIds[index - 1] ?? "");
+                  const isAlreadySelected = currentId === id;
+
+                  if (isAlreadySelected) {
+                    // Désélectionner en re-cliquant
+                    if (index === 0) {
+                      setTherapistId("");
+                    } else {
+                      const newIds = [...additionalTherapistIds];
+                      newIds[index - 1] = "";
+                      setAdditionalTherapistIds(newIds);
+                    }
+                    setTherapistChoiceMade(false);
+                  } else {
+                    if (index === 0) {
+                      setTherapistId(id);
+                    } else {
+                      const newIds = [...additionalTherapistIds];
+                      newIds[index - 1] = id;
+                      setAdditionalTherapistIds(newIds);
+                    }
+                    setTherapistChoiceMade(true);
+                  }
+                }}
               />
             )}
 
@@ -366,6 +460,10 @@ export default function PhoneBookingDialog({
                 setClientEmail={setClientEmail}
                 roomNumber={roomNumber}
                 setRoomNumber={setRoomNumber}
+                roomNumberLater={roomNumberLater}
+                setRoomNumberLater={setRoomNumberLater}
+                clientType={clientType}
+                setClientType={setClientType}
               />
             )}
 
@@ -379,7 +477,10 @@ export default function PhoneBookingDialog({
                 currency={selectedHotel?.currency || "EUR"}
                 date={date}
                 time={time}
-                therapist={availableTherapists.find((x) => x.id === therapistId)}
+                therapists={[therapistId, ...additionalTherapistIds]
+                  .filter(Boolean)
+                  .map((id) => availableTherapists.find((x) => x.id === id))
+                  .filter((x): x is AvailableTherapist => !!x)}
                 clientFirstName={clientFirstName}
                 clientLastName={clientLastName}
                 countryCode={countryCode}
@@ -396,7 +497,8 @@ export default function PhoneBookingDialog({
                 clientLastName={clientLastName}
                 totalPrice={totalPrice}
                 currency={selectedHotel?.currency || "EUR"}
-                onSendPaymentLink={() => setIsPaymentLinkDialogOpen(true)}
+                clientType={clientType}
+                onSendPaymentLink={() => setIsNotificationDialogOpen(true)}
                 onClose={handleClose}
               />
             )}
@@ -449,7 +551,7 @@ export default function PhoneBookingDialog({
                       }
                       setStep("therapist");
                     } else if (step === "therapist") {
-                      if (!therapistId) {
+                      if (!therapistChoiceMade) {
                         toast({
                           title: t("phoneBooking.errors.selectTherapist"),
                           variant: "destructive",
@@ -465,6 +567,13 @@ export default function PhoneBookingDialog({
                       ) {
                         toast({
                           title: t("phoneBooking.errors.fillClient"),
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      if (clientType === "hotel" && !roomNumberLater && !roomNumber.trim()) {
+                        toast({
+                          title: t("phoneBooking.errors.roomRequired"),
                           variant: "destructive",
                         });
                         return;
@@ -488,7 +597,9 @@ export default function PhoneBookingDialog({
                   ) : (
                     <Check className="h-4 w-4 mr-2" />
                   )}
-                  {t("phoneBooking.confirm.createAndSend")}
+                  {clientType === "external"
+                    ? t("phoneBooking.confirm.createAndSend")
+                    : t("phoneBooking.confirm.createAndNotify")}
                 </Button>
               )}
             </div>
@@ -497,9 +608,9 @@ export default function PhoneBookingDialog({
       </Dialog>
 
       {createdBooking && (
-        <SendPaymentLinkDialog
-          open={isPaymentLinkDialogOpen}
-          onOpenChange={setIsPaymentLinkDialogOpen}
+        <SendBookingNotificationDialog
+          open={isNotificationDialogOpen}
+          onOpenChange={setIsNotificationDialogOpen}
           booking={{
             id: createdBooking.id,
             booking_id: createdBooking.booking_id,
@@ -522,7 +633,7 @@ export default function PhoneBookingDialog({
             currency: selectedHotel?.currency || "EUR",
           }}
           onSuccess={() => {
-            setIsPaymentLinkDialogOpen(false);
+            setIsNotificationDialogOpen(false);
             handleClose();
           }}
         />
@@ -779,7 +890,17 @@ interface TherapistStepProps {
   therapists: AvailableTherapist[];
   isLoading: boolean;
   therapistId: string;
-  setTherapistId: (id: string) => void;
+  requiredGuestCount?: number;
+  additionalTherapistIds?: string[];
+  broadcast: boolean;
+  onPickBroadcast: () => void;
+  onPickTherapist: (id: string, index: number) => void;
+}
+
+function genderLabel(gender: string | null | undefined): string | null {
+  if (gender === "female") return "F";
+  if (gender === "male") return "H";
+  return null;
 }
 
 function TherapistStep({
@@ -787,8 +908,14 @@ function TherapistStep({
   therapists,
   isLoading,
   therapistId,
-  setTherapistId,
+  requiredGuestCount = 1,
+  additionalTherapistIds = [],
+  broadcast,
+  onPickBroadcast,
+  onPickTherapist,
 }: TherapistStepProps) {
+  const isDuo = requiredGuestCount > 1;
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
@@ -797,33 +924,53 @@ function TherapistStep({
       </div>
     );
   }
-  if (therapists.length === 0) {
-    return (
-      <div className="py-10 text-center text-sm text-muted-foreground">
-        {t("phoneBooking.therapist.empty")}
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-2">
-      <Label className="block mb-1">{t("phoneBooking.therapist.label")}</Label>
-      <ScrollArea className="h-[360px] pr-2">
-        <div className="space-y-2">
-          {therapists.map((th) => {
-            const selected = therapistId === th.id;
+
+  const TherapistList = ({ selectedId, slotIndex, exclude = [], showBroadcast = false }: { selectedId: string; slotIndex: number; exclude?: string[]; showBroadcast?: boolean }) => (
+    <ScrollArea className="h-[240px] pr-2">
+      <div className="space-y-2">
+        {showBroadcast && (
+          <button
+            type="button"
+            onClick={onPickBroadcast}
+            className={cn(
+              "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+              broadcast ? "border-primary bg-primary/5" : "hover:bg-muted",
+            )}
+          >
+            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+              <Users className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">
+                {t("phoneBooking.therapist.broadcastTitle")}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {t("phoneBooking.therapist.broadcastDesc")}
+              </p>
+            </div>
+            {broadcast && <Check className="h-4 w-4 text-primary" />}
+          </button>
+        )}
+
+        {therapists.length === 0 && !showBroadcast ? (
+          <div className="py-6 text-center text-sm text-muted-foreground">
+            {t("phoneBooking.therapist.empty")}
+          </div>
+        ) : (
+          therapists.filter(th => !exclude.includes(th.id) || th.id === selectedId).map((th) => {
+            const selected = selectedId === th.id;
+            const g = genderLabel((th as any).gender);
             return (
               <button
                 key={th.id}
                 type="button"
-                onClick={() => setTherapistId(th.id)}
+                onClick={() => onPickTherapist(th.id, slotIndex)}
                 className={cn(
                   "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
-                  selected
-                    ? "border-primary bg-primary/5"
-                    : "hover:bg-muted",
+                  selected ? "border-primary bg-primary/5" : "hover:bg-muted",
                 )}
               >
-                <Avatar className="h-12 w-12">
+                <Avatar className="h-10 w-10">
                   {th.profile_image && (
                     <AvatarImage
                       src={th.profile_image}
@@ -835,8 +982,13 @@ function TherapistStep({
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">
-                    {th.first_name} {th.last_name}
+                  <p className="font-medium text-sm truncate flex items-center gap-1.5">
+                    <span className="truncate">{th.first_name} {th.last_name}</span>
+                    {g && (
+                      <span className="shrink-0 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
+                        {g}
+                      </span>
+                    )}
                   </p>
                   {th.skills && th.skills.length > 0 && (
                     <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
@@ -848,9 +1000,66 @@ function TherapistStep({
                 {selected && <Check className="h-4 w-4 text-primary" />}
               </button>
             );
-          })}
+          })
+        )}
+      </div>
+    </ScrollArea>
+  );
+
+  if (isDuo) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg bg-violet-50 border border-violet-200 p-3 text-xs text-violet-800">
+          Soin à plusieurs — {requiredGuestCount} praticiens requis. Vous pouvez diffuser la demande à toute l'équipe, ou assigner manuellement.
         </div>
-      </ScrollArea>
+
+        <button
+          type="button"
+          onClick={onPickBroadcast}
+          className={cn(
+            "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+            broadcast ? "border-primary bg-primary/5 border-primary" : "hover:bg-muted border-border",
+          )}
+        >
+           <div className="h-10 w-10 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
+             <Users className="h-5 w-5 text-violet-600" />
+           </div>
+           <div className="flex-1 min-w-0">
+             <p className="font-medium text-sm truncate text-violet-900">
+               Diffuser à tous les praticiens
+             </p>
+             <p className="text-xs text-violet-700 truncate">
+               Laisse l'équipe s'organiser et accepter
+             </p>
+           </div>
+           {broadcast && <Check className="h-4 w-4 text-primary" />}
+        </button>
+
+        {!broadcast && Array.from({ length: requiredGuestCount }).map((_, idx) => {
+          const currentId = idx === 0 ? therapistId : (additionalTherapistIds[idx - 1] ?? "");
+          const otherIds = Array.from({ length: requiredGuestCount }, (_, i) =>
+            i === 0 ? therapistId : (additionalTherapistIds[i - 1] ?? "")
+          ).filter((id, i) => i !== idx && id !== "");
+          return (
+            <div key={idx} className="space-y-1">
+              <Label className="text-xs">Praticien {idx + 1}</Label>
+              <TherapistList
+                selectedId={currentId}
+                slotIndex={idx}
+                exclude={otherIds}
+                showBroadcast={false}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label className="block mb-1">{t("phoneBooking.therapist.label")}</Label>
+      <TherapistList selectedId={therapistId} slotIndex={0} showBroadcast={true} />
     </div>
   );
 }
@@ -953,6 +1162,10 @@ interface ClientStepProps {
   setClientEmail: (v: string) => void;
   roomNumber: string;
   setRoomNumber: (v: string) => void;
+  roomNumberLater: boolean;
+  setRoomNumberLater: (v: boolean) => void;
+  clientType: BookingClientType;
+  setClientType: (v: BookingClientType) => void;
 }
 
 interface CustomerResult {
@@ -977,6 +1190,10 @@ function ClientStep({
   setClientEmail,
   roomNumber,
   setRoomNumber,
+  roomNumberLater,
+  setRoomNumberLater,
+  clientType,
+  setClientType,
 }: ClientStepProps) {
   const [search, setSearch] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -1014,7 +1231,6 @@ function ClientStep({
     if (c.last_name) setClientLastName(c.last_name);
     if (c.email) setClientEmail(c.email);
     if (c.phone) {
-      // Match against known country codes (longest first to avoid partial matches like +336)
       const sorted = [...countries].sort((a, b) => b.code.length - a.code.length);
       const match = sorted.find((cc) => c.phone!.startsWith(cc.code));
       if (match) {
@@ -1126,16 +1342,67 @@ function ClientStep({
         />
       </div>
       <div>
+        <Label>{t("phoneBooking.client.clientType")}</Label>
+        <Select value={clientType} onValueChange={(v) => setClientType(v as BookingClientType)}>
+          <SelectTrigger className="mt-1">
+            <SelectValue>
+              <span className="flex items-center gap-2">
+                <img
+                  src={CLIENT_TYPE_META[clientType].logo}
+                  alt=""
+                  className="w-4 h-4 shrink-0"
+                />
+                <span>{t(CLIENT_TYPE_META[clientType].labelKey)}</span>
+              </span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {BOOKING_CLIENT_TYPES.map((ct) => (
+              <SelectItem key={ct} value={ct}>
+                <span className="flex items-center gap-2">
+                  <img
+                    src={CLIENT_TYPE_META[ct].logo}
+                    alt=""
+                    className="w-4 h-4 shrink-0"
+                  />
+                  <span>{t(CLIENT_TYPE_META[ct].labelKey)}</span>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
         <Label>
           {t("phoneBooking.client.room")}{" "}
-          <span className="text-muted-foreground text-xs">
-            ({t("phoneBooking.ui.optional")})
-          </span>
+          {clientType === "hotel" && !roomNumberLater ? (
+            <span className="text-primary">*</span>
+          ) : (
+            <span className="text-muted-foreground text-xs">
+              ({t("phoneBooking.ui.optional")})
+            </span>
+          )}
         </Label>
         <Input
           value={roomNumber}
           onChange={(e) => setRoomNumber(e.target.value)}
+          disabled={clientType === "hotel" && roomNumberLater}
+          placeholder={clientType === "hotel" && roomNumberLater ? "À renseigner plus tard" : undefined}
+          required={clientType === "hotel" && !roomNumberLater}
         />
+        {clientType === "hotel" && (
+          <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Checkbox
+              checked={roomNumberLater}
+              onCheckedChange={(v) => {
+                const checked = v === true;
+                setRoomNumberLater(checked);
+                if (checked) setRoomNumber("");
+              }}
+            />
+            Numéro de chambre à renseigner plus tard (client pas encore arrivé)
+          </label>
+        )}
       </div>
     </div>
   );
@@ -1154,7 +1421,7 @@ interface ConfirmStepProps {
   currency: string;
   date: Date | undefined;
   time: string;
-  therapist: AvailableTherapist | undefined;
+  therapists: AvailableTherapist[];
   clientFirstName: string;
   clientLastName: string;
   countryCode: string;
@@ -1171,7 +1438,7 @@ function ConfirmStep({
   currency,
   date,
   time,
-  therapist,
+  therapists,
   clientFirstName,
   clientLastName,
   countryCode,
@@ -1185,12 +1452,21 @@ function ConfirmStep({
         label={t("phoneBooking.confirm.when")}
         value={`${date ? format(date, "EEEE d MMMM yyyy", { locale: fr }) : ""} · ${time}`}
       />
-      <Row
-        label={t("phoneBooking.confirm.therapist")}
-        value={
-          therapist ? `${therapist.first_name} ${therapist.last_name}` : ""
-        }
-      />
+      {therapists.length <= 1 ? (
+        <Row
+          label={t("phoneBooking.confirm.therapist")}
+          value={therapists[0] ? `${therapists[0].first_name} ${therapists[0].last_name}` : t("phoneBooking.therapist.broadcastTitle", "Demande diffusée à l'équipe")}
+        />
+      ) : (
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground text-xs">{t("phoneBooking.confirm.therapist")}</span>
+          <div className="text-right space-y-0.5">
+            {therapists.map((th) => (
+              <div key={th.id}>{th.first_name} {th.last_name}</div>
+            ))}
+          </div>
+        </div>
+      )}
       <div>
         <p className="text-muted-foreground text-xs mb-1">
           {t("phoneBooking.confirm.treatments")}
@@ -1248,6 +1524,7 @@ interface DoneStepProps {
   clientLastName: string;
   totalPrice: number;
   currency: string;
+  clientType: BookingClientType;
   onSendPaymentLink: () => void;
   onClose: () => void;
 }
@@ -1259,6 +1536,7 @@ function DoneStep({
   clientLastName,
   totalPrice,
   currency,
+  clientType,
   onSendPaymentLink,
   onClose,
 }: DoneStepProps) {
@@ -1283,7 +1561,9 @@ function DoneStep({
           className="bg-foreground text-background hover:bg-foreground/90"
         >
           <Send className="h-4 w-4 mr-2" />
-          {t("phoneBooking.done.sendLink")}
+          {clientType === "external"
+            ? t("phoneBooking.done.sendLink")
+            : t("phoneBooking.done.sendNotification")}
         </Button>
         <Button type="button" variant="outline" onClick={onClose}>
           {t("phoneBooking.ui.close")}

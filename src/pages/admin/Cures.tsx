@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
-import { Search, Pencil, Trash2, Package, Plus, ShoppingCart } from "lucide-react";
+import { Search, Pencil, Trash2, Package, Plus, ShoppingCart, Gift } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -47,6 +47,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SellBundleDialog } from "@/components/admin/SellBundleDialog";
+import { VenueGiftCardsTab } from "@/components/admin/venue/VenueGiftCardsTab";
 
 interface TreatmentBundle {
   id: string;
@@ -82,6 +83,7 @@ export default function Cures() {
   const { t } = useTranslation("admin");
   const queryClient = useQueryClient();
 
+  const [topTab, setTopTab] = useState<"cures" | "gift-cards">("cures");
   const [activeTab, setActiveTab] = useState("templates");
   const [searchQuery, setSearchQuery] = useState("");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
@@ -255,25 +257,50 @@ export default function Cures() {
         <div className="mb-4 md:mb-6 flex items-center justify-between">
           <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
             <Package className="h-5 w-5" />
-            {t("cures.title")}
+            Cures / Cartes cadeaux
           </h1>
-          <div className="flex items-center gap-2">
-            {isAdmin && (
-              <Button variant="outline" onClick={() => setSellDialogOpen(true)}>
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                {t("cures.sellCure")}
-              </Button>
-            )}
-            {isAdmin && (
-              <Button onClick={() => navigate("/admin/cures/templates/new")}>
-                <Plus className="h-4 w-4 mr-2" />
-                {t("cures.createTemplate")}
-              </Button>
-            )}
-          </div>
+          {topTab === "cures" && (
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <Button variant="outline" onClick={() => setSellDialogOpen(true)}>
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  {t("cures.sellCure")}
+                </Button>
+              )}
+              {isAdmin && (
+                <Button onClick={() => navigate("/admin/cures/templates/new")}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("cures.createTemplate")}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
+        <Tabs value={topTab} onValueChange={(v) => setTopTab(v as "cures" | "gift-cards")}>
+          <TabsList className="bg-transparent rounded-none p-0 h-auto mb-0">
+            <TabsTrigger
+              value="cures"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Cures
+            </TabsTrigger>
+            <TabsTrigger
+              value="gift-cards"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
+            >
+              <Gift className="h-4 w-4 mr-2" />
+              Cartes cadeaux
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
+      {topTab === "gift-cards" ? (
+        <div className="flex-1 px-4 md:px-6 pt-4 md:pt-6 pb-4 md:pb-6">
+          <VenueGiftCardsTab />
+        </div>
+      ) : (
       <div className={cn("flex-1 px-4 md:px-6 pb-4 md:pb-6", needsPagination ? "overflow-hidden" : "")}>
         <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
           {/* Tabs */}
@@ -530,6 +557,7 @@ export default function Cures() {
           )}
         </div>
       </div>
+      )}
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && closeDelete()}>

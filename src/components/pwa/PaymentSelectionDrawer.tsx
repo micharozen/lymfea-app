@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
 
@@ -137,10 +137,10 @@ interface PaymentSelectionDrawerProps {
   totalPrice: number;
   treatments: Treatment[];
   vatRate: number;
-  venueType?: 'hotel' | 'coworking' | 'enterprise' | null;
+  venueType?: string | null;
+  roomNumber?: string | null;
   currency?: string;
   hasSavedCard?: boolean;
-  onSignatureRequired: () => void;
   onPaymentComplete: () => void;
   onTapToPayRequested: () => void;
 }
@@ -156,13 +156,13 @@ export const PaymentSelectionDrawer = ({
   treatments,
   vatRate,
   venueType,
+  roomNumber,
   currency = 'EUR',
   hasSavedCard = false,
-  onSignatureRequired,
   onPaymentComplete,
   onTapToPayRequested,
 }: PaymentSelectionDrawerProps) => {
-  const supportsRoomPayment = venueType !== 'coworking';
+  const supportsRoomPayment = venueType === 'hotel' && !!roomNumber;
   const { t } = useTranslation('pwa');
   const [step, setStep] = useState<PaymentStep>('selection');
   const [processing, setProcessing] = useState(false);
@@ -224,8 +224,9 @@ export const PaymentSelectionDrawer = ({
 
     try {
       if (hasSavedCard) {
-        const { data, error } = await invokeEdgeFunction<unknown, { success?: boolean; error?: string }>('charge-saved-card', {
-          body: { bookingId: bookingId, finalAmount: totalPrice },
+        const { data, error } = await invokeStripe<{ success?: boolean; error?: string }>('charge-saved-card', {
+          bookingId: bookingId,
+          finalAmount: totalPrice,
         });
         if (error) throw error;
         if (data?.success) {
@@ -234,8 +235,10 @@ export const PaymentSelectionDrawer = ({
           throw new Error(data?.error || t('payment.errorCreating'));
         }
       } else {
-        const { data, error } = await invokeEdgeFunction<unknown, { payment_url?: string }>('finalize-payment', {
-          body: { booking_id: bookingId, payment_method: 'card', final_amount: totalPrice },
+        const { data, error } = await invokeStripe<{ payment_url?: string }>('finalize-payment', {
+          booking_id: bookingId,
+          payment_method: 'card',
+          final_amount: totalPrice,
         });
         if (error) throw error;
         if (data?.payment_url) {
@@ -253,7 +256,27 @@ export const PaymentSelectionDrawer = ({
     }
   };
 
-  const handleRoomPayment = () => { onOpenChange(false); onSignatureRequired(); };
+  const handleRoomPayment = async () => {
+    if (processing) return;
+    setProcessing(true);
+    setStep('room-processing');
+    try {
+      const { data, error } = await invokeEdgeFunction<unknown, { success?: boolean; error?: string }>('finalize-payment', {
+        body: { booking_id: bookingId, payment_method: 'room', final_amount: totalPrice },
+      });
+      if (error) throw error;
+      if ((data as any)?.success) {
+        setStep('success');
+      } else {
+        throw new Error((data as any)?.error || t('payment.errorCreating'));
+      }
+    } catch (error: any) {
+      toast.error(error.message || t('payment.errorCreating'));
+      setStep('selection');
+    } finally {
+      setProcessing(false);
+    }
+  };
   const handleOpenPaymentLink = () => { if (paymentUrl) window.open(paymentUrl, '_blank'); };
   const handleCancelPaymentRequest = () => { setShowCancelDialog(true); };
 
@@ -336,52 +359,59 @@ export const PaymentSelectionDrawer = ({
             </div>
 
             {step === 'selection' && (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground text-center mb-4">{t('payment.howToPay')}</p>
-                
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground text-center mb-3">{t('payment.howToPay')}</p>
+
+                {supportsRoomPayment && (
+                  <button onClick={handleRoomPayment} disabled={processing} className="w-full rounded-xl p-3 flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all active:scale-[0.98] disabled:opacity-50">
+                    <div className="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0"><Building2 className="w-5 h-5 text-amber-700 dark:text-amber-400" /></div>
+                    <div className="text-left flex-1 min-w-0"><p className="text-sm font-semibold text-amber-900 dark:text-amber-100">{t('payment.addToRoom')}</p><p className="text-[11px] text-amber-700/70 dark:text-amber-400/70">{t('payment.roomDescription')}</p></div>
+                  </button>
+                )}
+
                 <button
                   onClick={handleCardPayment}
                   disabled={processing}
                   className={cn(
-                    "w-full rounded-2xl p-5 flex items-center gap-4 transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed",
-                    hasSavedCard 
-                      ? "bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-md shadow-purple-500/20 text-white" 
-                      : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white"
+                    "w-full rounded-xl p-3 flex items-center gap-3 border transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed",
+                    hasSavedCard
+                      ? "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/30"
+                      : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                   )}
                 >
-                  <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
-                    {processing ? <Loader2 className="w-7 h-7 animate-spin" /> : <CreditCard className="w-7 h-7" />}
+                  <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", hasSavedCard ? "bg-purple-500/15" : "bg-blue-500/15")}>
+                    {processing ? <Loader2 className={cn("w-5 h-5 animate-spin", hasSavedCard ? "text-purple-700 dark:text-purple-400" : "text-blue-700 dark:text-blue-400")} /> : <CreditCard className={cn("w-5 h-5", hasSavedCard ? "text-purple-700 dark:text-purple-400" : "text-blue-700 dark:text-blue-400")} />}
                   </div>
-                  <div className="text-left flex-1">
-                    <p className="font-bold text-lg">
-                      {processing 
-                        ? "Traitement en cours..." 
-                        : (hasSavedCard ? "Finaliser la prestation" : t('payment.payByCard'))}
+                  <div className="text-left flex-1 min-w-0">
+                    <p className={cn("text-sm font-semibold", hasSavedCard ? "text-purple-900 dark:text-purple-100" : "text-blue-900 dark:text-blue-100")}>
+                      {processing ? "Traitement en cours..." : (hasSavedCard ? "Finaliser la prestation" : t('payment.payByCard'))}
                     </p>
-                    <p className="text-sm text-white/80">
+                    <p className={cn("text-[11px]", hasSavedCard ? "text-purple-700/70 dark:text-purple-400/70" : "text-blue-700/70 dark:text-blue-400/70")}>
                       {hasSavedCard ? "Débit sécurisé de la carte enregistrée" : t('payment.cardDescription')}
                     </p>
                   </div>
                 </button>
 
-                {supportsRoomPayment && (
-                  <button onClick={handleRoomPayment} disabled={processing} className="w-full bg-gradient-to-r from-amber-600 to-amber-500 text-white rounded-2xl p-5 flex items-center gap-4 hover:from-amber-700 hover:to-amber-600 transition-all active:scale-[0.98] disabled:opacity-50">
-                    <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center"><Building2 className="w-7 h-7" /></div>
-                    <div className="text-left flex-1"><p className="font-bold text-lg">{t('payment.addToRoom')}</p><p className="text-sm text-white/80">{t('payment.roomDescription')}</p></div>
-                  </button>
-                )}
-
-                <button onClick={onTapToPayRequested} disabled={processing} className="w-full bg-primary text-primary-foreground rounded-2xl p-5 flex items-center gap-4 hover:bg-primary/90 transition-all active:scale-[0.98] disabled:opacity-50">
-                  <div className="w-14 h-14 bg-primary-foreground/20 rounded-xl flex items-center justify-center"><Smartphone className="w-7 h-7" /></div>
-                  <div className="text-left flex-1"><p className="font-bold text-lg">{t('payment.tapToPay')}</p><p className="text-sm text-white/80">{t('payment.tapToPayDescription')}</p></div>
+                <button onClick={onTapToPayRequested} disabled={processing} className="w-full rounded-xl p-3 flex items-center gap-3 bg-muted/50 border border-border hover:bg-muted transition-all active:scale-[0.98] disabled:opacity-50">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Smartphone className="w-5 h-5 text-primary" /></div>
+                  <div className="text-left flex-1 min-w-0"><p className="text-sm font-semibold">{t('payment.tapToPay')}</p><p className="text-[11px] text-muted-foreground">{t('payment.tapToPayDescription')}</p></div>
                 </button>
+
+                <div className="pt-4 mt-4 border-t border-border">
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <span className="font-medium text-foreground">{t('payment.cancellationPolicyTitle')}</span>{' '}
+                    {t('payment.cancellationPolicyText')}
+                  </p>
+                </div>
               </div>
             )}
 
-            {step === 'card-processing' && (
+            {(step === 'card-processing' || step === 'room-processing') && (
               <div className="flex flex-col items-center justify-center py-12">
                 <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                <p className="text-muted-foreground font-medium">{t('payment.creatingLink')}</p>
+                <p className="text-muted-foreground font-medium">
+                  {step === 'room-processing' ? t('payment.processing') : t('payment.creatingLink')}
+                </p>
                 <p className="text-xs text-muted-foreground mt-2">{t('payment.pleaseWait')}</p>
               </div>
             )}

@@ -24,7 +24,9 @@ import { useLocalizedField } from '@/hooks/useLocalizedField';
 import { SchedulePanel } from '@/components/client/SchedulePanel';
 import { TreatmentsBreadcrumb } from '@/components/client/TreatmentsBreadcrumb';
 import { TreatmentsSummaryPanel } from '@/components/client/TreatmentsSummaryPanel';
+import { ExpandableDescription } from '@/components/client/ExpandableDescription';
 import { useClientFlow } from './context/FlowContext';
+import { useClientVenue } from './context/ClientVenueContext';
 
 interface TreatmentVariantData {
   id: string;
@@ -35,10 +37,12 @@ interface TreatmentVariantData {
   price_on_request: boolean;
   is_default: boolean;
   sort_order: number;
+  guest_count?: number;
 }
 
 interface Treatment {
   id: string;
+  slug: string;
   name: string;
   name_en: string | null;
   description: string | null;
@@ -53,12 +57,12 @@ interface Treatment {
   is_addon?: boolean;
   is_bundle?: boolean;
   bundle_id?: string | null;
+  available_days?: number[] | null;
   variants?: TreatmentVariantData[];
 }
 
 export default function Treatments() {
-  // Extract hotelId from URL directly (useParams doesn't work in nested Routes)
-  const hotelId = window.location.pathname.split('/')[2];
+  const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, addItem, removeItem, updateQuantity: updateBasketQuantity, itemCount, hasBaseItem, isBundleOnly } = useBasket();
 
@@ -218,8 +222,24 @@ export default function Treatments() {
     }));
   }, [allTreatments, treatmentCategories, t, localize]);
 
-  // Collapsed category section state — sections are open by default
+  // Collapsed category section state — all sections start collapsed so the
+  // user lands on a compact list and opens only the categories they care about.
+  // Initialised once when categorySections first arrive; subsequent user
+  // toggles are preserved.
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set());
+  const collapsedInitializedRef = useRef(false);
+  useEffect(() => {
+    if (collapsedInitializedRef.current) return;
+    if (categorySections.length === 0) return;
+    const totalTreatments = categorySections.reduce((sum, s) => sum + s.treatments.length, 0);
+    const soleSectionId = totalTreatments === 1
+      ? categorySections.find((s) => s.treatments.length === 1)?.id
+      : undefined;
+    setCollapsedCategories(
+      new Set(categorySections.map((s) => s.id).filter((id) => id !== soleSectionId))
+    );
+    collapsedInitializedRef.current = true;
+  }, [categorySections]);
 
   const isCategoryExpanded = (sectionId: string) => !collapsedCategories.has(sectionId);
 
@@ -281,7 +301,49 @@ export default function Treatments() {
       trackPageView('treatments');
     }
   }, [trackPageView]);
+  useEffect(() => {
+    if (!isTreatmentsLoading && allTreatments.length > 0) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const treatmentsParam = searchParams.get('treatments');
 
+      if (treatmentsParam) {
+        const requestedIds = treatmentsParam.split(',');
+        let hasAddedItems = false;
+
+        requestedIds.forEach(id => {
+          const treatmentToAdd = allTreatments.find(t => t.id === id);
+          const isAlreadyInCart = items.some(item => item.id === id);
+
+          if (treatmentToAdd && !isAlreadyInCart) {
+            const resolvedVariant = treatmentToAdd.variants?.find(v => v.is_default) || treatmentToAdd.variants?.[0];
+
+            addItem({
+              id: treatmentToAdd.id,
+              variantId: resolvedVariant?.id,
+              variantLabel: (resolvedVariant ? localize(resolvedVariant.label, resolvedVariant.label_en) : undefined) || (resolvedVariant ? `${resolvedVariant.duration} min` : undefined),
+              name: localize(treatmentToAdd.name, treatmentToAdd.name_en),
+              price: Number(resolvedVariant?.price ?? treatmentToAdd.price) || 0,
+              currency: treatmentToAdd.currency || 'EUR',
+              duration: resolvedVariant?.duration ?? treatmentToAdd.duration ?? 0,
+              image: treatmentToAdd.image || undefined,
+              category: treatmentToAdd.category,
+              isPriceOnRequest: resolvedVariant?.price_on_request ?? treatmentToAdd.price_on_request ?? false,
+              isAddon: addonCategoryNames.has(treatmentToAdd.category),
+              isBundle: treatmentToAdd.is_bundle ?? false,
+              bundleId: treatmentToAdd.bundle_id ?? undefined,
+            });
+            hasAddedItems = true;
+          }
+        });
+
+        if (hasAddedItems) {
+          setIsCartOpen(true);
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }
+      }
+    }
+  }, [allTreatments, isTreatmentsLoading, items, addItem, localize, addonCategoryNames]);
 
   const handleAddToBasket = (treatment: Treatment, variant?: TreatmentVariantData) => {
     const resolvedVariant = variant ||
@@ -300,6 +362,7 @@ export default function Treatments() {
     // Add to basket - including price_on_request items for mixed cart logic
     addItem({
       id: treatment.id,
+      slug: treatment.slug,
       variantId: resolvedVariant?.id,
       variantLabel: (resolvedVariant ? localize(resolvedVariant.label, resolvedVariant.label_en) : undefined) || (resolvedVariant ? `${resolvedVariant.duration} min` : undefined),
       name: localize(treatment.name, treatment.name_en),
@@ -312,6 +375,8 @@ export default function Treatments() {
       isAddon: addonCategoryNames.has(treatment.category),
       isBundle: treatment.is_bundle ?? false,
       bundleId: treatment.bundle_id ?? undefined,
+      guestCount: resolvedVariant?.guest_count ?? 1,
+      availableDays: treatment.available_days ?? null,
     });
 
     if (navigator.vibrate) {
@@ -353,6 +418,15 @@ export default function Treatments() {
     return min === max ? `${min}` : `${min}-${max}`;
   };
 
+  /** Get guest count range string like "1-2 pers." if variants differ */
+  const getVariantGuestRange = (variants: TreatmentVariantData[]): string | null => {
+    const counts = variants.map(v => v.guest_count ?? 1);
+    const min = Math.min(...counts);
+    const max = Math.max(...counts);
+    if (min === max && min === 1) return null;
+    return min === max ? `${min} pers.` : `${min}-${max} pers.`;
+  };
+
   /** Render the price/duration line for a treatment */
   const renderPriceLine = (treatment: Treatment) => {
     // Multi-variant treatments show "from X" when collapsed
@@ -380,14 +454,16 @@ export default function Treatments() {
           </div>
         );
       }
+      const guestRange = getVariantGuestRange(variants);
       return (
         <div className="flex items-baseline gap-2">
           <span className="text-[10px] uppercase tracking-wider text-gray-400">{t('menu.fromPrice')}</span>
-          <span className="text-base sm:text-lg font-light text-gray-700">
+          <span className="text-base sm:text-lg font-light text-gray-700 whitespace-nowrap">
             {formatPrice(getMinVariantPrice(variants), treatment.currency || 'EUR', { decimals: 0 })}
           </span>
-          <span className="text-gray-400 text-xs font-light tracking-wider uppercase">
+          <span className="text-gray-400 text-xs font-light tracking-wider uppercase whitespace-nowrap">
             {getVariantDurationRange(variants)} min
+            {guestRange && ` · ${guestRange}`}
           </span>
         </div>
       );
@@ -410,11 +486,11 @@ export default function Treatments() {
           <span className="text-xs text-gray-400 line-through font-light">
             {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
           </span>
-          <span className="text-base sm:text-lg font-medium text-emerald-600">
+          <span className="text-base sm:text-lg font-medium text-emerald-600 whitespace-nowrap">
             {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
           </span>
           {treatment.duration > 0 && (
-            <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
+            <span className="text-gray-400 text-xs font-light tracking-wider uppercase whitespace-nowrap">{treatment.duration} min</span>
           )}
         </div>
       );
@@ -428,11 +504,11 @@ export default function Treatments() {
     }
     return (
       <div className="flex items-baseline gap-2">
-        <span className="text-base sm:text-lg font-light text-gray-700">
+        <span className="text-base sm:text-lg font-light text-gray-700 whitespace-nowrap">
           {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
         </span>
         {treatment.duration > 0 && (
-          <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
+          <span className="text-gray-400 text-xs font-light tracking-wider uppercase whitespace-nowrap">{treatment.duration} min</span>
         )}
       </div>
     );
@@ -535,9 +611,9 @@ export default function Treatments() {
             {localize(treatment.name, treatment.name_en)}
           </h3>
           {(treatment.description || treatment.description_en) && (
-            <p className="text-xs text-gray-400 line-clamp-3 leading-relaxed font-light">
-              {localize(treatment.description, treatment.description_en)}
-            </p>
+            <ExpandableDescription
+              text={localize(treatment.description, treatment.description_en)}
+            />
           )}
         </div>
 
@@ -597,7 +673,7 @@ export default function Treatments() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(`/client/${hotelId}`)}
+              onClick={() => navigate(`/client/${slug}`)}
               className="text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -813,7 +889,7 @@ export default function Treatments() {
                 </div>
                 <SchedulePanel
                   hotelId={hotelId}
-                  onContinue={() => navigate(`/client/${hotelId}/guest-info`)}
+                  onContinue={() => navigate(`/client/${slug}/guest-info`)}
                   embedded
                 />
               </div>
@@ -826,7 +902,7 @@ export default function Treatments() {
                 onContinue={() => {
                   if (isBundleOnly) {
                     setIsBundleOnlyPurchase(true);
-                    navigate(`/client/${hotelId}/guest-info`);
+                    navigate(`/client/${slug}/guest-info`);
                   } else {
                     setIsScheduleOpen(true);
                   }
@@ -845,9 +921,9 @@ export default function Treatments() {
             onClick={() => {
               if (isBundleOnly) {
                 setIsBundleOnlyPurchase(true);
-                navigate(`/client/${hotelId}/guest-info`);
+                navigate(`/client/${slug}/guest-info`);
               } else {
-                isDesktop ? setIsScheduleOpen(true) : navigate(`/client/${hotelId}/schedule`);
+                isDesktop ? setIsScheduleOpen(true) : navigate(`/client/${slug}/schedule`);
               }
             }}
             className="w-full h-12 sm:h-14 md:h-16 text-base bg-gold-400 text-black hover:bg-gold-200 font-medium tracking-wide shadow-lg transition-all duration-300"

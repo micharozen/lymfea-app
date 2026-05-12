@@ -1,0 +1,74 @@
+---
+title: "Introduction"
+description: "Integrate Eïa spa availability and bookings into your platform."
+---
+
+Eïa is a SaaS platform for spa management — booking, scheduling, therapist
+coordination and billing. The **Partner API** lets external platforms (OTAs,
+hotel groups, wellness marketplaces) query real-time availability across every
+venue on Eïa and push bookings directly into our system.
+
+## What you can do with this API
+
+<CardGroup cols={2}>
+  <Card title="List venues" icon="building">
+    Discover every active spa/hotel connected to Eïa, with their metadata,
+    photos and treatment catalogue.
+  </Card>
+  <Card title="Read availability" icon="calendar">
+    Get real-time available slots for any venue and any treatment over a date
+    range of up to 31 days.
+  </Card>
+  <Card title="Create bookings" icon="plus">
+    Push a confirmed booking directly into the venue's agenda. Eïa handles
+    therapist assignment and customer notifications.
+  </Card>
+  <Card title="Manage bookings" icon="arrows-rotate">
+    Read the current status of a booking or cancel it through the Partner API.
+  </Card>
+</CardGroup>
+
+## Environments
+
+<Note>
+  Base URLs and credentials will be provisioned by the Eïa team during
+  onboarding. The sandbox environment is isolated from production data and is
+  the right place to build and test your integration.
+</Note>
+
+| Environment | Base URL                                      |
+| ----------- | --------------------------------------------- |
+| Sandbox     | `https://api-sandbox.lymfea.com/v1`           |
+| Production  | `https://api.lymfea.com/v1`                   |
+
+## Versioning
+
+The current version is `v1`. The version is part of the URL (`/v1/...`). We
+commit to:
+
+- **No breaking changes** inside a major version.
+- **Additive changes only** (new optional fields, new endpoints) without notice.
+- **Deprecations** announced at least 6 months before removal, via email to the
+  partner contact.
+
+## Conventions
+
+- All timestamps are **ISO 8601** in **UTC** (`2026-05-12T14:00:00Z`). The
+  venue's local timezone is exposed on the `Venue` object so you can render
+  times correctly for end users.
+- Money amounts are returned as **integers in the smallest currency unit**
+  (cents for EUR/USD), alongside a `currency` code (ISO 4217).
+- All string IDs are **opaque** — do not parse or assume format stability.
+- Text fields are available in **French** and **English**. Fields suffixed
+  `_en` contain the English translation; the primary field holds French.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Authenticate" icon="key" href="/authentication">
+    Get your API key and make your first call.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/guides/quickstart">
+    Build a full booking flow in 5 minutes.
+  </Card>
+</CardGroup>

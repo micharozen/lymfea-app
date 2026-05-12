@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, X, Plus, Loader2 } from 'lucide-react';
+import { Check, X, Sparkles, Clock } from 'lucide-react';
 import {
   Drawer,
   DrawerContent,
@@ -9,240 +9,54 @@ import {
   DrawerDescription,
 } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { useQueries } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { useLocalizedField } from '@/hooks/useLocalizedField';
-import { useBasket, getCartKey, type BasketItem } from '@/pages/client/context/CartContext';
+import { useBasket } from '@/pages/client/context/CartContext';
+import type { FeasibleAddon } from '@/hooks/client/useFeasibleAddons';
 
 interface AddonProposalDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  hotelId: string;
-  date: string;
-  time: string;
+  feasibleAddons: FeasibleAddon[];
+  /** Formatted end time of the base slot (e.g. "12:50"). */
+  baseEndTime: string;
   onContinue: () => void;
 }
-
-interface AddonRow {
-  id: string;
-  name: string;
-  name_en: string | null;
-  description: string | null;
-  description_en: string | null;
-  category: string;
-  duration: number | null;
-  price: number | null;
-  price_on_request: boolean | null;
-  image: string | null;
-  currency: string | null;
-  sort_order: number | null;
-}
-
-interface FeasibleAddon {
-  addon: AddonRow;
-  parentKey: string;
-  parentName: string;
-  startTime: string;
-}
-
-const timeToMinutes = (time: string): number => {
-  const [h, m] = time.split(':').map(Number);
-  return (h || 0) * 60 + (m || 0);
-};
-
-const minutesToTime = (minutes: number): string => {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
-};
 
 export function AddonProposalDrawer({
   open,
   onOpenChange,
-  hotelId,
-  date,
-  time,
+  feasibleAddons,
+  baseEndTime,
   onContinue,
 }: AddonProposalDrawerProps) {
   const { t } = useTranslation('client');
   const localize = useLocalizedField();
-  const { items, addItem } = useBasket();
+  const { addItem } = useBasket();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Base (non-addon, non-bundle) items in the cart and their end time
-  const baseItems = useMemo(
-    () => items.filter((i) => !i.isAddon && !i.isBundle),
-    [items]
-  );
-
-  const totalBaseDuration = useMemo(
-    () => baseItems.reduce((sum, i) => sum + (i.duration || 0) * (i.quantity || 1), 0),
-    [baseItems]
-  );
-
-  const slotEndTime = useMemo(() => {
-    if (!time) return null;
-    return minutesToTime(timeToMinutes(time) + totalBaseDuration);
-  }, [time, totalBaseDuration]);
-
-  // Fetch add-on candidates for each base item (one query per parent id)
-  const addonQueries = useQueries({
-    queries: baseItems.map((item) => ({
-      queryKey: ['treatment-addons', item.id],
-      queryFn: async (): Promise<AddonRow[]> => {
-        const { data, error } = await supabase.rpc('get_public_treatment_addons', {
-          _parent_id: item.id,
-        });
-        // eslint-disable-next-line no-console
-        console.log('[AddonDrawer] RPC get_public_treatment_addons', {
-          parentId: item.id,
-          parentName: item.name,
-          error,
-          rowCount: data?.length ?? 0,
-          rows: data,
-        });
-        if (error) throw error;
-        return (data ?? []) as AddonRow[];
-      },
-      enabled: open && !!item.id,
-      staleTime: 5 * 60 * 1000,
-    })),
-  });
-
-  const isLoadingCandidates = addonQueries.some((q) => q.isLoading);
-
-  // Dedup candidates by addon id; pair with first parent it belongs to
-  const candidatesByAddon = useMemo(() => {
-    const map = new Map<string, { addon: AddonRow; parent: BasketItem }>();
-    addonQueries.forEach((q, idx) => {
-      const parent = baseItems[idx];
-      if (!parent || !q.data) return;
-      for (const addon of q.data) {
-        if (!map.has(addon.id)) {
-          map.set(addon.id, { addon, parent });
-        }
-      }
-    });
-    return map;
-  }, [addonQueries, baseItems]);
-
-  // Feasibility check: for each candidate, invoke check-availability and verify slotEndTime is in availableSlots
-  const [feasibleAddons, setFeasibleAddons] = useState<FeasibleAddon[]>([]);
-  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
-  const [hasCheckedFeasibility, setHasCheckedFeasibility] = useState(false);
-
-  // Reset state each time the drawer opens
   useEffect(() => {
-    if (open) {
-      setSelectedIds(new Set());
-      setHasCheckedFeasibility(false);
-      setFeasibleAddons([]);
-    }
+    if (open) setSelectedIds(new Set());
   }, [open]);
 
-  useEffect(() => {
-    if (!open || !slotEndTime || isLoadingCandidates) return;
+  const currency = feasibleAddons[0]?.addon.currency || 'EUR';
 
-    // No candidates at all → mark as checked so the auto-skip effect can fire
-    if (candidatesByAddon.size === 0) {
-      setFeasibleAddons([]);
-      setHasCheckedFeasibility(true);
-      return;
-    }
+  const addedTotal = useMemo(
+    () =>
+      feasibleAddons
+        .filter((f) => selectedIds.has(f.addon.id) && !f.addon.price_on_request)
+        .reduce((sum, f) => sum + (Number(f.addon.price) || 0), 0),
+    [feasibleAddons, selectedIds],
+  );
 
-    let cancelled = false;
-    const run = async () => {
-      setIsCheckingAvailability(true);
-      // eslint-disable-next-line no-console
-      console.log('[AddonDrawer] starting feasibility check', {
-        slotEndTime,
-        candidateCount: candidatesByAddon.size,
-        candidates: Array.from(candidatesByAddon.values()).map((v) => ({
-          id: v.addon.id,
-          name: v.addon.name,
-          duration: v.addon.duration,
-          category: v.addon.category,
-        })),
-      });
-      try {
-        const checks = await Promise.all(
-          Array.from(candidatesByAddon.values()).map(async ({ addon, parent }) => {
-            try {
-              const { data, error } = await supabase.functions.invoke('check-availability', {
-                body: {
-                  hotelId,
-                  date,
-                  treatmentIds: [addon.id],
-                },
-              });
-              const slots: string[] = data?.availableSlots || [];
-              // slotEndTime (e.g. 12:50) may not align to the slot grid (30min by default).
-              // Accept the add-on if ANY slot is >= slotEndTime within 30 minutes tolerance.
-              const endMin = timeToMinutes(slotEndTime);
-              const slotMinutes = slots
-                .map((s) => timeToMinutes(s))
-                .sort((a, b) => a - b);
-              const earliest = slotMinutes.find((m) => m >= endMin);
-              const fits = earliest !== undefined && earliest - endMin <= 30;
-              const effectiveStart =
-                earliest !== undefined ? minutesToTime(earliest) : slotEndTime;
-              // eslint-disable-next-line no-console
-              console.log('[AddonDrawer] check-availability for addon', {
-                addonId: addon.id,
-                addonName: addon.name,
-                error,
-                slotEndTime,
-                slotsReturned: slots.length,
-                earliestSlotAfterEnd: earliest !== undefined ? minutesToTime(earliest) : null,
-                fits,
-              });
-              if (error) return null;
-              if (!fits) return null;
-              return {
-                addon,
-                parentKey: getCartKey(parent.id, parent.variantId),
-                parentName: parent.name,
-                startTime: effectiveStart,
-              } satisfies FeasibleAddon;
-            } catch (e) {
-              // eslint-disable-next-line no-console
-              console.log('[AddonDrawer] check-availability threw', e);
-              return null;
-            }
-          })
-        );
-        if (cancelled) return;
-        const feasible = checks.filter((x): x is FeasibleAddon => x !== null);
-        // eslint-disable-next-line no-console
-        console.log('[AddonDrawer] feasibility check done', {
-          feasibleCount: feasible.length,
-        });
-        setFeasibleAddons(feasible);
-      } finally {
-        if (!cancelled) {
-          setIsCheckingAvailability(false);
-          setHasCheckedFeasibility(true);
-        }
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, slotEndTime, isLoadingCandidates, hotelId, date, candidatesByAddon.size]);
-
-  // Auto-skip ONLY after the feasibility check has actually completed and nothing remains to show
-  useEffect(() => {
-    if (open && hasCheckedFeasibility && !isCheckingAvailability && feasibleAddons.length === 0) {
-      onOpenChange(false);
-      onContinue();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, hasCheckedFeasibility, isCheckingAvailability, feasibleAddons.length]);
+  const addedDuration = useMemo(
+    () =>
+      feasibleAddons
+        .filter((f) => selectedIds.has(f.addon.id))
+        .reduce((sum, f) => sum + (f.addon.duration || 0), 0),
+    [feasibleAddons, selectedIds],
+  );
 
   const toggleSelection = (addonId: string) => {
     setSelectedIds((prev) => {
@@ -280,119 +94,178 @@ export function AddonProposalDrawer({
     onContinue();
   };
 
-  const formatAddonPrice = (addon: AddonRow) => {
+  const formatAddonPrice = (addon: FeasibleAddon['addon']) => {
     if (addon.price_on_request) return t('payment.onQuote');
     return formatPrice(addon.price ?? 0, addon.currency || 'EUR', { decimals: 0 });
   };
 
-  const isBusy = isLoadingCandidates || isCheckingAvailability;
+  const count = selectedIds.size;
+  const confirmLabel =
+    count === 0
+      ? t('schedule.addons.confirmEmpty', 'Choisir un soin')
+      : addedTotal > 0
+        ? t('schedule.addons.confirmWithTotal', 'Ajouter · +{{total}}', {
+            total: formatPrice(addedTotal, currency, { decimals: 0 }),
+          })
+        : t('schedule.addons.confirm', 'Ajouter');
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="lymfea-client max-h-[90dvh] flex flex-col font-grotesk text-gray-900 bg-gradient-to-b from-gold-50 via-white to-white border-t border-gold-200/60">
-        <DrawerHeader className="text-left border-b border-gold-100 pb-4 relative bg-gold-50/40">
+      <DrawerContent className="lymfea-client max-h-[92dvh] flex flex-col font-grotesk text-gray-900 bg-gradient-to-b from-gold-50 via-white to-white border-t border-gold-200/60">
+        <DrawerHeader className="text-left border-b border-gold-100 pb-5 relative bg-gold-50/40">
           <button
             type="button"
             onClick={handleSkip}
-            className="absolute top-3 right-4 p-1 rounded-full text-gold-700/60 hover:text-gold-800 hover:bg-gold-100 transition-colors"
+            className="absolute top-3 right-4 p-1.5 rounded-full text-gold-700/60 hover:text-gold-800 hover:bg-gold-100 transition-colors"
             aria-label={t('schedule.addons.skip', 'Passer')}
           >
             <X className="h-5 w-5" />
           </button>
+
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gold-100/70 text-gold-800 text-[11px] font-medium tracking-wide uppercase mb-3">
+            <Sparkles className="h-3 w-3" />
+            {t('schedule.addons.badge', 'Prolongez votre parenthèse')}
+          </div>
+
           <DrawerTitle className="font-serif text-xl sm:text-2xl text-gray-900 font-medium leading-tight pr-8">
-            {t('schedule.addons.title', 'Ajouter un soin complémentaire ?')}
+            {t('schedule.addons.titleRich', 'Votre soin se termine à {{end}}', {
+              end: baseEndTime,
+            })}
           </DrawerTitle>
           <DrawerDescription asChild>
             <div className="text-sm text-gray-600 leading-relaxed font-light mt-2">
               {t(
-                'schedule.addons.subtitle',
-                'Ces soins peuvent s\'enchaîner directement après votre sélection.'
+                'schedule.addons.subtitleRich',
+                "Ajoutez un soin qui s'enchaîne immédiatement — sans reprendre rendez-vous.",
               )}
             </div>
           </DrawerDescription>
         </DrawerHeader>
 
         <div className="flex-1 overflow-y-auto px-4 py-5">
-          {isBusy ? (
-            <div className="flex flex-col items-center justify-center py-10 text-sm text-gold-700/70 gap-3">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              {t('schedule.addons.checking', 'Vérification des disponibilités…')}
-            </div>
-          ) : feasibleAddons.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-sm text-gray-400">
-              {t('schedule.addons.none', 'Aucun add-on disponible pour ce créneau.')}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {feasibleAddons.map((entry) => {
-                const { addon } = entry;
-                const isSelected = selectedIds.has(addon.id);
-                return (
-                  <button
-                    key={addon.id}
-                    type="button"
-                    onClick={() => toggleSelection(addon.id)}
-                    className={cn(
-                      'w-full flex items-center justify-between gap-4 p-4 text-left rounded-2xl border transition-all duration-200',
-                      isSelected
-                        ? 'border-gold-500 bg-gold-50 shadow-[0_4px_14px_rgba(200,160,70,0.15)]'
-                        : 'border-gold-100 bg-white hover:border-gold-300 hover:bg-gold-50/40'
-                    )}
-                  >
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-serif text-base sm:text-lg text-gray-900 font-medium leading-tight">
-                        {localize(addon.name, addon.name_en)}
-                      </span>
-                      <span className="text-xs text-gold-700/70 mt-0.5 font-light">
-                        {addon.duration ? `${addon.duration} min · ` : ''}
-                        {entry.startTime.slice(0, 5)}
-                      </span>
-                      <span className="text-sm text-gray-800 mt-1 font-medium">
+          <div className="flex flex-col gap-3">
+            {feasibleAddons.map((entry) => {
+              const { addon } = entry;
+              const isSelected = selectedIds.has(addon.id);
+              const startHHMM = entry.startTime.slice(0, 5);
+              return (
+                <button
+                  key={addon.id}
+                  type="button"
+                  onClick={() => toggleSelection(addon.id)}
+                  aria-pressed={isSelected}
+                  className={cn(
+                    'group w-full flex items-stretch gap-3 p-3 text-left rounded-2xl border transition-all duration-200',
+                    isSelected
+                      ? 'border-gold-500 bg-gold-50 shadow-[0_6px_20px_rgba(200,160,70,0.18)]'
+                      : 'border-gold-100 bg-white hover:border-gold-300 hover:bg-gold-50/40',
+                  )}
+                >
+                  {addon.image ? (
+                    <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gold-50">
+                      <img
+                        src={addon.image}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : (
+                    <div className="shrink-0 w-20 h-20 rounded-xl bg-gradient-to-br from-gold-100 to-gold-50 flex items-center justify-center">
+                      <Sparkles className="h-5 w-5 text-gold-500" />
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-serif text-base sm:text-[17px] text-gray-900 font-medium leading-tight">
+                          {localize(addon.name, addon.name_en)}
+                        </span>
+                        <span
+                          className={cn(
+                            'shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all mt-0.5',
+                            isSelected ? 'border-gold-600 bg-gold-600' : 'border-gold-300 bg-white',
+                          )}
+                        >
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                          )}
+                        </span>
+                      </div>
+                      {(addon.description || addon.description_en) && (
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2 font-light">
+                          {localize(addon.description, addon.description_en)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 mt-2">
+                      <div className="flex items-center gap-2 text-[11px] text-gold-700/80 font-medium">
+                        {addon.duration ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gold-100/70">
+                            +{addon.duration} min
+                          </span>
+                        ) : null}
+                        <span className="inline-flex items-center gap-1 text-gray-500 font-light">
+                          <Clock className="h-3 w-3" />
+                          {startHHMM}
+                        </span>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900">
                         {formatAddonPrice(addon)}
                       </span>
                     </div>
-
-                    <span
-                      className={cn(
-                        'shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all',
-                        isSelected ? 'border-gold-600 bg-gold-600' : 'border-gold-300 bg-white'
-                      )}
-                    >
-                      {isSelected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div
-          className="border-t border-gold-100 px-4 pt-4 flex items-center justify-between gap-3 bg-white/80 backdrop-blur-sm"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}
+          className="border-t border-gold-100 px-4 pt-4 bg-white/90 backdrop-blur-sm"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)' }}
         >
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleSkip}
-            className="text-gray-500 hover:text-gray-900 font-grotesk"
-          >
-            {t('schedule.addons.skip', 'Passer')}
-          </Button>
-          <Button
-            type="button"
-            onClick={handleConfirm}
-            disabled={selectedIds.size === 0 || isBusy}
-            className={cn(
-              'h-11 px-6 rounded-full font-medium tracking-wide transition-colors shrink-0 font-grotesk',
-              selectedIds.size > 0
-                ? 'bg-gold-400 text-black hover:bg-gold-200'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            )}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            {t('schedule.addons.confirm', 'Ajouter')}
-          </Button>
+          {count > 0 && (
+            <div className="flex items-center justify-between text-xs text-gray-600 mb-3 font-light">
+              <span>
+                {count > 1
+                  ? t('schedule.addons.selectedCountPlural', '{{count}} soins sélectionnés', {
+                      count,
+                    })
+                  : t('schedule.addons.selectedCount', '{{count}} soin sélectionné', { count })}
+              </span>
+              {addedDuration > 0 && (
+                <span>
+                  {t('schedule.addons.extraDuration', '+{{min}} min', { min: addedDuration })}
+                </span>
+              )}
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleSkip}
+              className="text-gray-500 hover:text-gray-900 font-grotesk"
+            >
+              {t('schedule.addons.skip', 'Passer')}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirm}
+              disabled={count === 0}
+              className={cn(
+                'h-11 px-5 rounded-full font-medium tracking-wide transition-colors shrink-0 font-grotesk',
+                count > 0
+                  ? 'bg-gold-500 text-black hover:bg-gold-400'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed',
+              )}
+            >
+              {confirmLabel}
+            </Button>
+          </div>
         </div>
       </DrawerContent>
     </Drawer>

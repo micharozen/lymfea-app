@@ -11,6 +11,24 @@ export interface TreatmentVariant {
   price_on_request: boolean;
   is_default: boolean;
   sort_order: number;
+  guest_count?: number;
+}
+
+function getVariantDisplayLabel(variant: TreatmentVariant, variants: TreatmentVariant[], t: (key: string) => string): string {
+  const allSameDuration = variants.every(v => v.duration === variants[0].duration);
+  const allSameGuests = variants.every(v => (v.guest_count ?? 1) === (variants[0].guest_count ?? 1));
+  const gc = variant.guest_count ?? 1;
+
+  if (allSameDuration && !allSameGuests) {
+    return `${gc} ${t('variant.guestShort')}`;
+  }
+  if (!allSameDuration && allSameGuests) {
+    return `${variant.duration} min`;
+  }
+  if (gc > 1) {
+    return `${variant.duration} min · ${gc} ${t('variant.guestShort')}`;
+  }
+  return `${variant.duration} min`;
 }
 
 interface VariantSelectorProps {
@@ -34,7 +52,7 @@ export function VariantSelector({
 
   return (
     <div className="flex flex-wrap gap-2 py-3">
-      {[...variants].sort((a, b) => a.duration - b.duration).map((variant) => {
+      {[...variants].sort((a, b) => (a.guest_count ?? 1) - (b.guest_count ?? 1) || a.duration - b.duration).map((variant) => {
         const isSelected = variant.id === selectedVariantId;
         return (
           <button
@@ -62,7 +80,7 @@ export function VariantSelector({
                 isSelected ? "text-gold-600" : "text-gray-700"
               )}
             >
-              {variant.label ? `${variant.label} min` : `${variant.duration} min`}
+              {getVariantDisplayLabel(variant, variants, t)}
             </span>
             {!isCompanyOffered && (
               <span

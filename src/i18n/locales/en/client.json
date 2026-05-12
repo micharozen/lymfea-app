@@ -94,13 +94,25 @@
     "selectDateFirst": "First, choose your date above",
     "noSlots": "This date is fully booked",
     "tryAnotherDate": "Please try selecting a different date",
+    "dayFull": "Full",
+    "dayRestricted": "Unavailable",
+    "pickDate": "Calendar",
     "continue": "CONTINUE",
+    "outOfHoursHint": "Out-of-hours surcharge +{{percent}}%",
     "morning": "Morning",
     "afternoon": "Afternoon",
     "evening": "Evening",
     "available": "available",
     "slotTakenBanner": "This slot is no longer available",
-    "slotTakenDesc": "This slot was just taken. Nearby available slots are highlighted below."
+    "slotTakenDesc": "This slot was just taken. Nearby available slots are highlighted below.",
+    "sessionExpiredBanner": "Your session has expired",
+    "sessionExpiredDesc": "Your reservation time ran out. This slot may still be available — select it again.",
+    "dayConstraintInfo": "Some treatments in your cart are only available on certain days. Only compatible dates are shown.",
+    "multiTime": {
+      "toggle": "Different times per treatment",
+      "helper": "Pick a separate time slot for each treatment in your cart.",
+      "tapToChoose": "Tap to pick a time slot"
+    }
   },
   "info": {
     "title": "Your Information",
@@ -122,6 +134,7 @@
       "emailInvalid": "Invalid email format",
       "phoneRequired": "Phone number is required",
       "phoneInvalid": "Invalid phone number",
+      "phoneFormat": "Invalid number. Enter digits without country code, e.g.: {{format}}",
       "roomRequired": "Room number is required",
       "recipientNameRequired": "Recipient name is required",
       "recipientEmailRequired": "Recipient email is required",
@@ -138,7 +151,10 @@
     "recipientEmail": "Recipient email",
     "senderName": "From",
     "giftMessage": "Personal message",
-    "giftMessagePlaceholder": "E.g.: Happy birthday! Enjoy this relaxing moment."
+    "giftMessagePlaceholder": "E.g.: Happy birthday! Enjoy this relaxing moment.",
+    "recipientLanguage": "Email language",
+    "recipientLanguageFr": "Français",
+    "recipientLanguageEn": "English"
   },
   "checkout": {
     "title": "Summary",
@@ -156,6 +172,9 @@
     "headline": "Complete your booking",
     "stepLabel": "STEP 3 OF 3",
     "orderSummary": "Order Summary",
+    "outOfHoursSurcharge": "Out-of-hours surcharge",
+    "cancellationPolicyTitle": "Cancellation and modification policy:",
+    "cancellationPolicyText": "For any cancellation made less than 24 hours in advance, 100% of the treatment will be charged. Changes to appointments within this timeframe will be possible subject to availability.",
     "paymentMethod": "Payment Method",
     "addToRoom": "Add to Room",
     "addToRoomDesc": "Charge will be added to your room bill",
@@ -195,15 +214,41 @@
   "confirmation": {
     "title": "Booking Confirmed",
     "message": "You will receive a confirmation email with all the details of your booking",
+    "pendingTitle": "Booking request received",
+    "pendingMessage": "Your request has been sent to the venue. You will receive a confirmation email as soon as it is accepted.",
+    "roomChargeTitle": "Charged to your room",
+    "roomChargeMessage": "The amount will be added to your room bill. No payment is required on site.",
     "backHome": "Back to Home",
     "quotePendingTitle": "Quote Request Sent",
     "quotePendingMessage": "We will send you a quote very soon. You will receive an email with all the details.",
     "subtitle": "Thank you for your trust.",
     "yourService": "Your service",
+    "treatments": "Treatments",
+    "time": "Time",
+    "timeToConfirm": "Time to be confirmed",
+    "venue": "Venue",
+    "room": "Room",
     "giftCardPaymentTitle": "Paid by gift card",
     "giftCardPaymentMessage": "Your treatment amount has been deducted from your gift card. No additional payment is required.",
     "onSitePaymentTitle": "Pay on site",
-    "onSitePaymentMessage": "Your card details have been validated to guarantee the appointment. <strong>No amount has been charged today.</strong> Payment will be collected at the end of your treatment."
+    "onSitePaymentMessage": "Your card details have been validated to guarantee the appointment. <strong>No amount has been charged today.</strong> Payment will be collected at the end of your treatment.",
+    "paidOnlineTitle": "Payment received",
+    "paidOnlineMessage": "Your payment has been successfully recorded. No further charge will be made on the day of your treatment.",
+    "eyebrowPending": "Request received",
+    "eyebrowConfirmed": "Booking confirmed",
+    "thanks": "Thank you, {{name}}.",
+    "thanksAnonymous": "Thank you.",
+    "pendingPill": "Awaiting confirmation",
+    "confirmedPill": "Confirmed",
+    "yourRequest": "Your request",
+    "date": "Date",
+    "treatment": "Treatment",
+    "nextSteps": "What happens next?",
+    "step1": "An available therapist is reviewing your request.",
+    "step2": "As soon as it is accepted, you will receive a confirmation email with all the details.",
+    "step3": "This usually takes a few minutes.",
+    "legal": "EÏA SAS · 38 rue de Grenelle, 75007 Paris · SIREN 900 979 592",
+    "tagline": "Eïa · Awaken Your Senses · lymfea.fr"
   },
   "paymentConfirmation": {
     "label": "Payment Confirmation",
@@ -304,7 +349,9 @@
   "errors": {
     "slotTaken": "This slot has just been booked by another client. Please choose another time.",
     "blockedSlot": "This slot overlaps with an unavailable time range (e.g. lunch break).",
-    "leadTimeViolation": "This slot is no longer available due to advance booking requirements. Please choose a later time."
+    "leadTimeViolation": "This slot is no longer available due to advance booking requirements. Please choose a later time.",
+    "leadTimeViolationHours": "Bookings must be made at least {{hours}}h in advance. Please choose another time.",
+    "leadTimeViolationMinutes": "Bookings must be made at least {{minutes}} minutes in advance. Please choose another time."
   },
   "bundle": {
     "detected": "You have an active treatment package",
@@ -369,10 +416,16 @@
     "confirmMixedPayment": "Pay the rest: {{amount}}"
   },
   "cart": {
+    "dayConflict": "This treatment is not available on the same days as the other treatments in your cart.",
     "bundleMixWarning": "Packages must be purchased separately"
   },
   "badges": {
     "card_saved": "Card saved"
+  },
+  "variant": {
+    "guestShort": "pers.",
+    "guest_one": "person",
+    "guest_other": "persons"
   },
   "treatmentDetail": {
     "bookThisTreatment": "Book this treatment",
@@ -414,6 +467,9 @@
     "claimEmailPlaceholder": "email@example.com",
     "claimName": "Your first name",
     "claimNamePlaceholder": "First name",
+    "claimPhone": "Your phone number",
+    "claimPhonePlaceholder": "+33 6 12 34 56 78",
+    "claimErrorPhoneRequired": "Phone number is required.",
     "claimButton": "Activate my card",
     "claimLoading": "Activating...",
     "claimSuccess": "Gift card activated!",
@@ -482,8 +538,16 @@
       "subtitle": "These treatments can be added right after your selection.",
       "checking": "Checking availability…",
       "none": "No add-on available for this slot.",
-      "skip": "Skip",
-      "confirm": "Add"
+      "skip": "No thanks",
+      "confirm": "Add",
+      "confirmEmpty": "Choose a treatment",
+      "confirmWithTotal": "Add · +{{total}}",
+      "badge": "Extend your escape",
+      "titleRich": "Your treatment ends at {{end}}",
+      "subtitleRich": "Add a treatment that flows right after — no need to rebook.",
+      "selectedCount": "{{count}} treatment selected",
+      "selectedCountPlural": "{{count}} treatments selected",
+      "extraDuration": "+{{min}} min total"
     }
   }
 }

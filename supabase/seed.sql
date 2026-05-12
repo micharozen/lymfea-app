@@ -6,9 +6,10 @@
 -- Fixed UUIDs for predictability
 -- Admin:        00000000-0000-0000-0000-000000000001
 -- Therapist F: 00000000-0000-0000-0000-000000000002
--- Therapist M: 00000000-0000-0000-0000-000000000004  
+-- Therapist M: 00000000-0000-0000-0000-000000000004
 -- Concierge:   00000000-0000-0000-0000-000000000003
--- Hotel:       00000000-0000-0000-0000-000000000010
+-- Hotel 1:     00000000-0000-0000-0000-000000000010
+-- Hotel 2:     00000000-0000-0000-0000-000000000011
 
 -- 1) Auth users (password: "password" for all)
 INSERT INTO auth.users (
@@ -131,6 +132,26 @@ VALUES (
   'FR'
 );
 
+-- 3b) Second test venue (spa type)
+INSERT INTO public.hotels (id, name, status, opening_time, closing_time, timezone, address, city, country, postal_code, landing_subtitle, venue_type, currency, slot_interval, country_code)
+VALUES (
+  '00000000-0000-0000-0000-000000000011',
+  'Spa Nara',
+  'active',
+  '09:00',
+  '21:00',
+  'Europe/Paris',
+  '42 avenue Montaigne',
+  'Paris',
+  'France',
+  '75008',
+  'Paris',
+  'hotel',
+  'EUR',
+  30,
+  'FR'
+);
+
 -- 4) Admin record
 INSERT INTO public.admins (id, user_id, email, first_name, last_name, phone, status, country_code)
 VALUES (
@@ -189,19 +210,19 @@ VALUES (
   false
 );
 
--- 7) Link concierge to test hotel
+-- 7) Link concierge to test hotels
 INSERT INTO public.concierge_hotels (id, concierge_id, hotel_id)
-VALUES (
-  gen_random_uuid(),
-  '00000000-0000-0000-0000-000000000103',
-  '00000000-0000-0000-0000-000000000010'
-);
+VALUES
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000103', '00000000-0000-0000-0000-000000000010'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000103', '00000000-0000-0000-0000-000000000011');
 
--- 8) Link therapists to test hotel
+-- 8) Link therapists to test hotels
 INSERT INTO public.therapist_venues (id, therapist_id, hotel_id)
 VALUES
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000010'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000104', '00000000-0000-0000-0000-000000000010');
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000104', '00000000-0000-0000-0000-000000000010'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000011'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000104', '00000000-0000-0000-0000-000000000011');
 
 -- 9) Treatment categories + treatments (Noms harmonisés au singulier)
 INSERT INTO public.treatment_categories (id, name, hotel_id, sort_order)
@@ -218,20 +239,37 @@ VALUES
   ('00000000-0000-0000-0000-000000000026', 'Gommage corps', 'Soin du corps', '00000000-0000-0000-0000-000000000010', 'All', 30, 55.00, 'EUR', 'active', 'Exfoliation douce au sel marin et huile d''argan', false),
   ('00000000-0000-0000-0000-000000000027', 'Enveloppement détox', 'Soin du corps', '00000000-0000-0000-0000-000000000010', 'All', 50, 85.00, 'EUR', 'active', 'Enveloppement aux algues pour purifier et revitaliser', true);
 
+-- 9b) Treatment categories + treatments for Spa Nara
+INSERT INTO public.treatment_categories (id, name, hotel_id, sort_order)
+VALUES
+  ('00000000-0000-0000-0000-000000000040', 'Massage', '00000000-0000-0000-0000-000000000011', 1),
+  ('00000000-0000-0000-0000-000000000041', 'Soin du visage', '00000000-0000-0000-0000-000000000011', 2),
+  ('00000000-0000-0000-0000-000000000042', 'Soin du corps', '00000000-0000-0000-0000-000000000011', 3);
+
+INSERT INTO public.treatment_menus (id, name, category, hotel_id, service_for, duration, price, currency, status, description, is_bestseller)
+VALUES
+  ('00000000-0000-0000-0000-000000000043', 'Massage suédois', 'Massage', '00000000-0000-0000-0000-000000000011', 'All', 60, 95.00, 'EUR', 'active', 'Massage tonique aux techniques suédoises traditionnelles', true),
+  ('00000000-0000-0000-0000-000000000044', 'Massage aux pierres chaudes', 'Massage', '00000000-0000-0000-0000-000000000011', 'All', 90, 140.00, 'EUR', 'active', 'Massage avec pierres volcaniques pour une détente profonde', false),
+  ('00000000-0000-0000-0000-000000000045', 'Soin hydratant visage', 'Soin du visage', '00000000-0000-0000-0000-000000000011', 'All', 50, 80.00, 'EUR', 'active', 'Soin intensif hydratation et éclat pour peaux sèches', true),
+  ('00000000-0000-0000-0000-000000000046', 'Modelage corps relaxant', 'Soin du corps', '00000000-0000-0000-0000-000000000011', 'All', 45, 70.00, 'EUR', 'active', 'Modelage doux aux huiles chaudes pour un bien-être total', false);
+
 -- 10) Treatment rooms
 INSERT INTO public.treatment_rooms (id, name, room_number, room_type, status, hotel_id, hotel_name, capacity)
 VALUES
   ('00000000-0000-0000-0000-000000000030', 'Salle de Massage #1', 'ROOM-DEV-001', 'Massage', 'Actif', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana', 1),
   ('00000000-0000-0000-0000-000000000031', 'Salle de Massage #2', 'ROOM-DEV-002', 'Massage', 'Actif', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana', 1);
 
+-- 10b) Treatment rooms for Spa Nara
+INSERT INTO public.treatment_rooms (id, name, room_number, room_type, status, hotel_id, hotel_name, capacity)
+VALUES
+  ('00000000-0000-0000-0000-000000000032', 'Cabine Zen', 'ROOM-DEV-003', 'Massage', 'Actif', '00000000-0000-0000-0000-000000000011', 'Spa Nara', 1),
+  ('00000000-0000-0000-0000-000000000033', 'Cabine Lotus', 'ROOM-DEV-004', 'Massage', 'Actif', '00000000-0000-0000-0000-000000000011', 'Spa Nara', 1);
+
 -- 11) Venue deployment schedule
 INSERT INTO public.venue_deployment_schedules (id, hotel_id, schedule_type, recurrence_interval)
-VALUES (
-  gen_random_uuid(),
-  '00000000-0000-0000-0000-000000000010',
-  'always_open',
-  1
-);
+VALUES
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000010', 'always_open', 1),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000011', 'always_open', 1);
 
 -- 12) User roles
 INSERT INTO public.user_roles (id, user_id, role)

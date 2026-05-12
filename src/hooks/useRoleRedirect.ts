@@ -7,6 +7,18 @@ export interface RoleRedirectResult {
   redirectPath: string;
 }
 
+// A therapist should go through onboarding if their status is pending (supports legacy
+// French "En attente" and English "pending") OR if they have never set a password.
+export function isTherapistPending(
+  therapist: { status?: string | null; password_set?: boolean | null } | null | undefined,
+): boolean {
+  if (!therapist) return false;
+  const pendingStatuses = ["pending", "En attente", "en attente", "Pending"];
+  if (therapist.status && pendingStatuses.includes(therapist.status)) return true;
+  if (therapist.password_set !== true) return true;
+  return false;
+}
+
 /**
  * Determines the user's role and appropriate redirect path
  * @param userId - The user's UUID
@@ -60,7 +72,7 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
       log("match: therapist (user_roles) -> checking status");
       const { data: therapist, error: therapistError } = await supabase
         .from("therapists")
-        .select("status")
+        .select("status, password_set")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -68,9 +80,9 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
         console.warn("[getRoleRedirect] therapists status error:", therapistError);
       }
 
-      log("therapist status", { status: therapist?.status ?? null });
+      log("therapist status", { status: therapist?.status ?? null, password_set: therapist?.password_set ?? null });
 
-      if (therapist?.status === "En attente") {
+      if (isTherapistPending(therapist)) {
         log("match: therapist pending -> /pwa/onboarding");
         return { role: "therapist", redirectPath: "/pwa/onboarding" };
       }
@@ -106,7 +118,7 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
     if (isTherapist) {
       const { data: therapist, error: therapistError } = await supabase
         .from("therapists")
-        .select("status")
+        .select("status, password_set")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -114,9 +126,9 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
         console.warn("[getRoleRedirect] therapists status error:", therapistError);
       }
 
-      log("therapist status (rpc confirmed)", { status: therapist?.status ?? null });
+      log("therapist status (rpc confirmed)", { status: therapist?.status ?? null, password_set: therapist?.password_set ?? null });
 
-      if (therapist?.status === "En attente") {
+      if (isTherapistPending(therapist)) {
         return { role: "therapist", redirectPath: "/pwa/onboarding" };
       }
       return { role: "therapist", redirectPath: "/pwa/dashboard" };
@@ -157,7 +169,7 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
 
     const { data: therapistRow, error: therapistRowError } = await supabase
       .from("therapists")
-      .select("status")
+      .select("status, password_set")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -166,8 +178,8 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
     }
 
     if (therapistRow) {
-      log("legacy match: therapist", { status: therapistRow.status });
-      if (therapistRow.status === "En attente") {
+      log("legacy match: therapist", { status: therapistRow.status, password_set: therapistRow.password_set });
+      if (isTherapistPending(therapistRow)) {
         return { role: "therapist", redirectPath: "/pwa/onboarding" };
       }
       return { role: "therapist", redirectPath: "/pwa/dashboard" };

@@ -11,6 +11,9 @@ import { useOneSignal } from "@/hooks/useOneSignal";
 import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 import { UserProvider } from "@/contexts/UserContext";
+import { ViewModeProvider } from "@/contexts/ViewModeContext";
+import { StagingBanner } from "@/components/StagingBanner";
+import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
 import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
@@ -19,6 +22,7 @@ import { CartProvider } from "./pages/client/context/CartContext";
 import { ClientFlowWrapper } from "./components/ClientFlowWrapper";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ClientErrorFallback } from "./components/client/ClientErrorFallback";
+import { AppErrorFallback } from "./components/AppErrorFallback";
 import { PhoneBookingFab } from "./components/admin/PhoneBookingFab";
 
 // Lazy load all page components for code splitting
@@ -33,6 +37,7 @@ const BookingsList = lazy(() => import("./pages/admin/BookingsList"));
 const Therapists = lazy(() => import("./pages/admin/Therapists"));
 const AdminHotels = lazy(() => import("./pages/admin/Hotels"));
 const VenueDetail = lazy(() => import("./pages/admin/VenueDetail"));
+const MyVenue = lazy(() => import("./pages/admin/MyVenue"));
 const TherapistDetail = lazy(() => import("./pages/admin/TherapistDetail"));
 const AdminTreatments = lazy(() => import("./pages/admin/Treatments"));
 const TreatmentDetail = lazy(() => import("./pages/admin/TreatmentDetail"));
@@ -46,7 +51,8 @@ const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
 const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
-const Settings = lazy(() => import("./pages/admin/Settings"));
+const Admins = lazy(() => import("./pages/admin/Admins"));
+const AdminDetail = lazy(() => import("./pages/admin/AdminDetail"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
 const ScheduleAlerts = lazy(() => import("./pages/admin/ScheduleAlerts"));
 const SupportTickets = lazy(() => import("./pages/admin/SupportTickets"));
@@ -78,6 +84,7 @@ const PwaHotels = lazy(() => import("./pages/pwa/Hotels"));
 const PwaSplash = lazy(() => import("./pages/pwa/Splash"));
 const PwaWelcome = lazy(() => import("./pages/pwa/Welcome"));
 const PwaOnboarding = lazy(() => import("./pages/pwa/Onboarding"));
+const PwaResetPassword = lazy(() => import("./pages/pwa/ResetPassword"));
 const PwaNotifications = lazy(() => import("./pages/pwa/Notifications"));
 const PwaInstall = lazy(() => import("./pages/pwa/Install"));
 const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"));
@@ -218,12 +225,15 @@ const App = () => {
   }, [updateSafeAreaInsets]);
 
   return (
+    <ErrorBoundary fallback={(error, reset) => <AppErrorFallback error={error} reset={reset} />}>
     <QueryClientProvider client={queryClient}>
       <TimezoneProvider>
       <UserProvider>
+      <ViewModeProvider>
         <AuthLanguageSync />
         <TooltipProvider>
         <Sonner />
+        <StagingBanner />
         <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
@@ -237,22 +247,22 @@ const App = () => {
             <Route path="/enterprise/:hotelId" element={<EnterpriseDashboard />} />
 
             {/* Client Routes (QR Code - Public Access with Isolated Session) */}
-            <Route path="/client/:hotelId/*" element={
+            {/* :slug accepts either a human-readable slug or a legacy UUID;
+                ClientFlowWrapper redirects UUIDs to the canonical slug. */}
+            <Route path="/client/:slug/*" element={
               <ErrorBoundary fallback={(error, reset) => <ClientErrorFallback error={error} reset={reset} />}>
                 <Suspense fallback={<ClientPageLoader />}>
                   <ClientFlowWrapper>
-                    <CartProvider hotelId={window.location.pathname.split('/')[2]}>
-                      <Routes>
-                        <Route index element={<Welcome />} />
-                        <Route path="/treatment/:treatmentId" element={<ClientTreatmentLanding />} />
-                        <Route path="/treatments" element={<ClientTreatments />} />
-                        <Route path="/schedule" element={<Schedule />} />
-                        <Route path="/guest-info" element={<GuestInfo />} />
-                        <Route path="/payment" element={<Payment />} />
-                        <Route path="/checkout" element={<Checkout />} />
-                        <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
-                      </Routes>
-                    </CartProvider>
+                    <Routes>
+                      <Route index element={<Welcome />} />
+                      <Route path="/treatment/:treatmentSlug" element={<ClientTreatmentLanding />} />
+                      <Route path="/treatments" element={<ClientTreatments />} />
+                      <Route path="/schedule" element={<Schedule />} />
+                      <Route path="/guest-info" element={<GuestInfo />} />
+                      <Route path="/payment" element={<Payment />} />
+                      <Route path="/checkout" element={<Checkout />} />
+                      <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
+                    </Routes>
                   </ClientFlowWrapper>
                 </Suspense>
               </ErrorBoundary>
@@ -330,7 +340,8 @@ const App = () => {
             <Route path="/concierges" element={<Navigate to="/admin/concierges" replace />} />
             <Route path="/oom-products" element={<Navigate to="/admin/products" replace />} />
             <Route path="/oom-orders" element={<Navigate to="/admin/orders" replace />} />
-            <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
+            <Route path="/settings" element={<Navigate to="/admin/admins" replace />} />
+            <Route path="/admin/settings" element={<Navigate to="/admin/admins" replace />} />
             <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
             <Route path="/finance" element={<Navigate to="/admin/finance" replace />} />
             
@@ -339,6 +350,7 @@ const App = () => {
             <Route path="/pwa/welcome" element={<PwaWelcome />} />
             <Route path="/pwa/install" element={<PwaInstall />} />
             <Route path="/pwa/login" element={<PwaLogin />} />
+            <Route path="/pwa/reset-password" element={<PwaResetPassword />} />
             <Route path="/pwa/test-notifications" element={<PwaTestNotifications />} />
             <Route
               path="/pwa/onboarding"
@@ -462,6 +474,7 @@ const App = () => {
                           <SidebarTrigger className="mr-2" />
                           <span className="font-semibold">{brand.pwa.admin.shortName}</span>
                         </header>
+                        <VenueModeBanner />
                         <main className="flex-1 min-h-0 overflow-y-auto">
                           <Suspense fallback={
                             <div className="flex items-center justify-center h-full min-h-[50vh]">
@@ -480,6 +493,7 @@ const App = () => {
                               <Route path="/places" element={<AdminHotels />} />
                               <Route path="/places/new" element={<VenueDetail />} />
                               <Route path="/places/:id" element={<VenueDetail />} />
+                              <Route path="/my-venue" element={<MyVenue />} />
                               <Route path="/treatments" element={<AdminTreatments />} />
                               <Route path="/treatments/new" element={<TreatmentDetail />} />
                               <Route path="/treatments/:id" element={<TreatmentDetail />} />
@@ -500,7 +514,8 @@ const App = () => {
                               <Route path="/transactions" element={<Transactions />} />
                               <Route path="/analytics" element={<Analytics />} />
                               <Route path="/support" element={<SupportTickets />} />
-                              <Route path="/settings" element={<Settings />} />
+                              <Route path="/admins" element={<Admins />} />
+                              <Route path="/admins/:id" element={<AdminDetail />} />
                               <Route path="/profile" element={<AdminProfile />} />
                               
                               <Route path="*" element={<NotFound />} />
@@ -519,9 +534,11 @@ const App = () => {
         </Suspense>
       </BrowserRouter>
       </TooltipProvider>
+      </ViewModeProvider>
       </UserProvider>
     </TimezoneProvider>
   </QueryClientProvider>
+  </ErrorBoundary>
   );
 };
 

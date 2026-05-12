@@ -32,6 +32,7 @@ interface DeploymentSchedule {
 
 interface Hotel {
   id: string;
+  slug?: string | null;
   name: string;
   image: string | null;
   city: string;
@@ -158,7 +159,7 @@ export function HotelCard({
       {/* Actions Footer */}
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
+          <HotelQRCode slug={hotel.slug || hotel.id} hotelName={hotel.name} />
           {hotel.venue_type === "enterprise" && (
             <Button
               variant="ghost"

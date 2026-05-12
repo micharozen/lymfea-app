@@ -11,7 +11,7 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Loader2, Save, Pencil } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Pencil, Send } from "lucide-react";
 import { TherapistGeneralTab } from "@/components/admin/therapist/TherapistGeneralTab";
 import { TherapistAssignmentsTab } from "@/components/admin/therapist/TherapistAssignmentsTab";
 import { TherapistScheduleSection } from "@/components/admin/schedule/TherapistScheduleSection";
@@ -65,6 +65,7 @@ export default function TherapistDetail() {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [minimumGuarantee, setMinimumGuarantee] = useState<Record<string, number>>({});
   const [minimumGuaranteeActive, setMinimumGuaranteeActive] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const {
     url: profileImage,
@@ -291,7 +292,51 @@ export default function TherapistDetail() {
   };
 
   const effectiveTherapistId = savedTherapistId || id || null;
+
+  const handleResendInvite = async () => {
+    if (!effectiveTherapistId) return;
+    setResending(true);
+    try {
+      const values = form.getValues();
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast.error("Session expirée, veuillez vous reconnecter");
+        return;
+      }
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/invite-therapist`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: JSON.stringify({
+          therapistId: effectiveTherapistId,
+          email: values.email,
+          firstName: values.first_name,
+          lastName: values.last_name,
+          phone: values.phone,
+          countryCode: values.country_code,
+          hotelIds: selectedHotels,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Erreur lors de l'envoi");
+      }
+      toast.success(t("admin:therapists.inviteResent", "Invitation renvoyée avec succès"));
+    } catch (error: unknown) {
+      console.error("Error resending invite:", error);
+      toast.error("Erreur lors du renvoi de l'invitation");
+    } finally {
+      setResending(false);
+    }
+  };
   const canAccessTabs = !!effectiveTherapistId;
+
+  const watchedStatus = form.watch("status");
+  const isActive = watchedStatus === "active" || watchedStatus === "Actif";
+  const showResendInvite = !isNewMode && !isActive && effectiveTherapistId;
 
   const watchedFirstName = form.watch("first_name");
   const watchedLastName = form.watch("last_name");
@@ -309,7 +354,7 @@ export default function TherapistDetail() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/admin/therapists")}
+              onClick={() => navigate(-1)}
               className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
@@ -359,13 +404,29 @@ export default function TherapistDetail() {
                 </Button>
               </>
             ) : (
-              <Button
-                variant="outline"
-                onClick={() => setIsEditingState(true)}
-              >
-                <Pencil className="mr-2 h-4 w-4" />
-                {t("common:edit", "Modifier")}
-              </Button>
+              <>
+                {showResendInvite && (
+                  <Button
+                    variant="outline"
+                    onClick={handleResendInvite}
+                    disabled={resending}
+                  >
+                    {resending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
+                    {t("admin:therapists.resendInvite", "Renvoyer l'invitation")}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditingState(true)}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  {t("common:edit", "Modifier")}
+                </Button>
+              </>
             )}
           </div>
         </div>

@@ -243,7 +243,7 @@ export default function AddTherapistDialog({
       email: "",
       country_code: "+33",
       phone: "",
-      status: "En attente",
+      status: "pending",
     });
     setSelectedHotels([]);
     setSelectedSkills([]);
@@ -253,7 +253,7 @@ export default function AddTherapistDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Ajouter un thérapeute</DialogTitle>
         </DialogHeader>

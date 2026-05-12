@@ -1,14 +1,17 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Minus, Loader2, Clock } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Minus, Loader2, Clock, Ticket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
 import type { VenueAmenity } from "@/hooks/useVenueAmenities";
 import { CartItem } from "../CreateBookingDialog.schema";
+import type { BookingClientType } from "@/lib/clientTypeMeta";
 
 interface Treatment {
   id: string;
@@ -45,10 +48,17 @@ interface BookingPrestationsStepProps {
   finalPriceWithSurcharge?: number;
   isPending: boolean;
   onBack: () => void;
+  onNext?: () => void;
   // Amenity access
   venueAmenities?: VenueAmenity[];
   selectedAmenityIds?: string[];
   onToggleAmenity?: (amenityId: string, enabled: boolean) => void;
+  // Client type + voucher payment
+  clientType: BookingClientType;
+  payByVoucher: boolean;
+  onPayByVoucherChange: (value: boolean) => void;
+  voucherReference: string;
+  onVoucherReferenceChange: (value: string) => void;
 }
 
 export function BookingPrestationsStep({
@@ -75,11 +85,19 @@ export function BookingPrestationsStep({
   finalPriceWithSurcharge,
   isPending,
   onBack,
+  onNext,
   venueAmenities,
   selectedAmenityIds,
   onToggleAmenity,
+  clientType,
+  payByVoucher,
+  onPayByVoucherChange,
+  voucherReference,
+  onVoucherReferenceChange,
 }: BookingPrestationsStepProps) {
+  const { t } = useTranslation('admin');
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
+  const voucherSupported = clientType === "hotel" || clientType === "external";
 
   return (
     <>
@@ -280,6 +298,38 @@ export function BookingPrestationsStep({
           </div>
         )}
 
+        {/* Pay-by-voucher block (hotel + external only) */}
+        {voucherSupported && (
+          <div className="space-y-2 rounded-md border border-border px-2.5 py-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <Checkbox
+                checked={payByVoucher}
+                onCheckedChange={(checked) => onPayByVoucherChange(!!checked)}
+                className="mt-0.5"
+              />
+              <div className="flex-1 min-w-0">
+                <span className="flex items-center gap-1.5 text-xs font-medium">
+                  <Ticket className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  {t('bookings.payByVoucher.label')}
+                </span>
+                {payByVoucher && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {t('bookings.payByVoucher.helper')}
+                  </p>
+                )}
+              </div>
+            </label>
+            {payByVoucher && (
+              <Input
+                value={voucherReference}
+                onChange={(e) => onVoucherReferenceChange(e.target.value)}
+                placeholder={t('bookings.payByVoucher.referenceLabel')}
+                className="h-7 text-xs"
+              />
+            )}
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-3">
           {/* Back button */}
           <Button
@@ -312,21 +362,28 @@ export function BookingPrestationsStep({
             )}
           </div>
 
-          {/* Submit */}
-          <Button
-            type="submit"
-            disabled={isPending || cart.length === 0}
-            size="sm"
-            className={cn(
-              "h-7 text-xs px-3 shrink-0",
-              isAdmin
-                ? "bg-foreground text-background hover:bg-foreground/90"
-                : "bg-emerald-600 text-white hover:bg-emerald-700"
-            )}
-          >
-            {isPending ? "Création..." : isAdmin ? "Créer" : "Envoyer la demande"}
-            {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-          </Button>
+          {/* Admin: go to therapist step — Concierge: submit directly */}
+          {isAdmin && onNext ? (
+            <Button
+              type="button"
+              disabled={cart.length === 0}
+              size="sm"
+              onClick={onNext}
+              className="h-7 text-xs px-3 shrink-0 bg-foreground text-background hover:bg-foreground/90"
+            >
+              Suivant →
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              disabled={isPending || cart.length === 0}
+              size="sm"
+              className="h-7 text-xs px-3 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              {isPending ? "Création..." : "Envoyer la demande"}
+              {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+            </Button>
+          )}
         </div>
       </div>
     </>

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Eïa Partner API",
+  "description": "Integrate Eïa spa availability and bookings into your platform.",
+  "colors": {
+    "primary": "#8B7355",
+    "light": "#C9A96E",
+    "dark": "#5C4A32"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "introduction",
+              "authentication",
+              "rate-limits",
+              "errors"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/venues",
+              "concepts/treatments",
+              "concepts/availability",
+              "concepts/bookings"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/quickstart"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Venues",
+            "pages": [
+              "api-reference/venues/list-venues",
+              "api-reference/venues/get-venue",
+              "api-reference/venues/list-treatments"
+            ]
+          },
+          {
+            "group": "Availability",
+            "pages": [
+              "api-reference/availability/get-availability"
+            ]
+          },
+          {
+            "group": "Bookings",
+            "pages": [
+              "api-reference/bookings/create-booking",
+              "api-reference/bookings/get-booking",
+              "api-reference/bookings/cancel-booking"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "website": "https://lymfea.com"
+    }
+  }
+}

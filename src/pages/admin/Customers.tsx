@@ -131,10 +131,10 @@ export default function Customers() {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (c) =>
-          c.first_name.toLowerCase().includes(q) ||
+          (c.first_name && c.first_name.toLowerCase().includes(q)) ||
           (c.last_name && c.last_name.toLowerCase().includes(q)) ||
           (c.email && c.email.toLowerCase().includes(q)) ||
-          c.phone.includes(searchQuery)
+          (c.phone && c.phone.includes(searchQuery))
       );
     }
 

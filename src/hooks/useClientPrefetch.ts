@@ -1,15 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Prefetch data for the next page in the client booking flow.
- * This hook runs on each route change and prefetches data
- * that the user is likely to need next.
+ * Called once from ClientFlowWrapper with the resolved venue UUID.
  */
-export function useClientPrefetch() {
-  const { hotelId } = useParams<{ hotelId: string }>();
+export function useClientPrefetch(hotelId: string | null) {
   const location = useLocation();
   const queryClient = useQueryClient();
 
@@ -17,8 +15,6 @@ export function useClientPrefetch() {
     if (!hotelId) return;
 
     const currentPath = location.pathname;
-
-    // Debounce prefetching to avoid overwhelming the server
     const timer = setTimeout(() => {
       prefetchForRoute(currentPath, hotelId, queryClient);
     }, 300);
@@ -32,8 +28,9 @@ async function prefetchForRoute(
   hotelId: string,
   queryClient: ReturnType<typeof useQueryClient>
 ) {
-  // On Welcome page (now includes treatments) -> Prefetch venue hours for Schedule page
-  if (currentPath === `/client/${hotelId}` || currentPath === `/client/${hotelId}/`) {
+  // On Welcome page -> Prefetch venue hours for Schedule page
+  const clientRoot = currentPath.match(/^\/client\/[^/]+\/?$/);
+  if (clientRoot) {
     queryClient.prefetchQuery({
       queryKey: ['venue-hours', hotelId],
       queryFn: async () => {
