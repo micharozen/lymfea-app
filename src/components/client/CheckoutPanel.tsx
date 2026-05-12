@@ -166,7 +166,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               },
             }),
             language: i18n.language === 'en' ? 'en' : 'fr',
-        });
+        }, { skipAuth: true });
 
         if (error) throw error;
 
@@ -268,7 +268,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
-          });
+          }, { skipAuth: true });
 
           if (error) throw error;
 
@@ -364,7 +364,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
           ...(isMulti ? { groupId, bookingIds } : {}),
           // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
           ...(isMulti && multiItemsForCard && bookingIds.length === 0 ? { slots: multiItemsForCard } : {}),
-        });
+        }, { skipAuth: true });
 
         if (error) throw error;
 
