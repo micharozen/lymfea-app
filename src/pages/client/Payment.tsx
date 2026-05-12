@@ -158,7 +158,7 @@ export default function Payment() {
               },
             }),
             language: i18n.language === 'en' ? 'en' : 'fr',
-        });
+        }, { skipAuth: true });
 
         if (error) throw error;
 
@@ -261,7 +261,7 @@ export default function Payment() {
                 amountCents: selectedBundle.amountToUseCents,
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-          });
+          }, { skipAuth: true });
 
           if (error) throw error;
 
@@ -358,7 +358,7 @@ export default function Payment() {
           ...(isMulti ? { groupId, bookingIds } : {}),
           // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
           ...(isMulti && multiItemsForCard && bookingIds.length === 0 ? { slots: multiItemsForCard } : {}),
-        });
+        }, { skipAuth: true });
 
         if (error) throw error;
 
