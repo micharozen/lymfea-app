@@ -48,7 +48,7 @@ export default function Confirmation() {
       try {
         if (!sessionId) throw new Error("Identifiant de session manquant.");
 
-        const { data, error: fnError } = await invokeStripe<{ customerBundles?: unknown[] }>('purchase-bundle', { sessionId, hotelId });
+        const { data, error: fnError } = await invokeStripe<{ customerBundles?: unknown[] }>('purchase-bundle', { sessionId, hotelId }, { skipAuth: true });
 
         if (fnError) throw new Error("La confirmation de votre achat a échoué.");
         if (!data?.customerBundles || data.customerBundles.length === 0) {
@@ -73,7 +73,7 @@ export default function Confirmation() {
 
         if (!isUUID && sessionId) {
           console.log("[Confirmation] Appel confirm-setup-intent...");
-          const { data: confirmData, error: confirmError } = await invokeStripe<{ bookingId?: string }>('confirm-setup-intent', { sessionId, hotelId });
+          const { data: confirmData, error: confirmError } = await invokeStripe<{ bookingId?: string }>('confirm-setup-intent', { sessionId, hotelId }, { skipAuth: true });
           if (confirmError) throw new Error("La validation de votre garantie bancaire a échoué.");
           if (confirmData?.bookingId) finalBookingId = confirmData.bookingId;
         }
