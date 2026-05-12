@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { HOLISPA_NAME } from "./constants";
+import { BRAND_NAME } from "./constants";
 
 interface WordmarkProps {
   className?: string;
@@ -15,7 +15,7 @@ export const Wordmark = ({ className, variant = "default" }: WordmarkProps) => {
         className,
       )}
     >
-      {HOLISPA_NAME.toLowerCase()}
+      {BRAND_NAME.toLowerCase()}
       <span
         className={cn(
           "ml-0.5 inline-block",

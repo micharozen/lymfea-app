@@ -14,13 +14,13 @@ const Landing = () => {
   useEffect(() => {
     const isFr = i18n.language.startsWith("fr");
     document.title = isFr
-      ? "Holispa — La plateforme de gestion spa pour hôtels"
-      : "Holispa — The spa management platform for hotels";
+      ? "Saoma — La plateforme de gestion spa pour hôtels"
+      : "Saoma — The spa management platform for hotels";
 
     const metaDesc = document.querySelector('meta[name="description"]');
     const descContent = isFr
-      ? "Holispa, la plateforme tout-en-un pour gérer le spa de votre hôtel : agenda unifié, PMS Opera & Mews, app thérapeute, booking client sans friction."
-      : "Holispa, the all-in-one platform to run your hotel spa: unified schedule, Opera & Mews PMS, therapist app, frictionless client booking.";
+      ? "Saoma, la plateforme tout-en-un pour gérer le spa de votre hôtel : agenda unifié, PMS Opera & Mews, app thérapeute, booking client sans friction."
+      : "Saoma, the all-in-one platform to run your hotel spa: unified schedule, Opera & Mews PMS, therapist app, frictionless client booking.";
     if (metaDesc) metaDesc.setAttribute("content", descContent);
 
     document.documentElement.lang = isFr ? "fr" : "en";

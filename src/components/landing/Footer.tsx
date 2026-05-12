@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { HOLISPA_DEMO_CTA, HOLISPA_EMAIL } from "./constants";
+import { BRAND_DEMO_CTA, BRAND_EMAIL } from "./constants";
 import { Wordmark } from "./Wordmark";
 
 export const Footer = () => {
@@ -12,15 +12,15 @@ export const Footer = () => {
       links: [
         { label: t("footer.links.features"), href: "#features" },
         { label: t("footer.links.howItWorks"), href: "#how-it-works" },
-        { label: t("footer.links.demo"), href: HOLISPA_DEMO_CTA },
+        { label: t("footer.links.demo"), href: BRAND_DEMO_CTA },
         { label: t("footer.links.login"), href: "/login" },
       ],
     },
     {
       title: t("footer.company"),
       links: [
-        { label: t("footer.links.email"), href: `mailto:${HOLISPA_EMAIL}` },
-        { label: t("footer.links.contact"), href: HOLISPA_DEMO_CTA },
+        { label: t("footer.links.email"), href: `mailto:${BRAND_EMAIL}` },
+        { label: t("footer.links.contact"), href: BRAND_DEMO_CTA },
       ],
     },
     {
@@ -42,7 +42,7 @@ export const Footer = () => {
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-background/70">
               {t("footer.tagline")}
             </p>
-            <p className="mt-4 text-xs text-background/50">{HOLISPA_EMAIL}</p>
+            <p className="mt-4 text-xs text-background/50">{BRAND_EMAIL}</p>
           </div>
 
           {columns.map((col) => (

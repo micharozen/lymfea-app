@@ -90,10 +90,10 @@
     "title": "Ready to modernize your spa?",
     "subtitle": "Book a personalized 30-minute demo with our team. We'll show the platform with your treatments and organization.",
     "button": "Book my demo",
-    "secondary": "Or email us at hello@holispa.fr"
+    "secondary": "Or email us at hello@saoma.fr"
   },
   "footer": {
-    "tagline": "Holispa — the spa management platform for hotels & day spas.",
+    "tagline": "Saoma — the spa management platform for hotels & day spas.",
     "signature": "The art of spa, simplified.",
     "product": "Product",
     "company": "Company",
@@ -110,6 +110,6 @@
       "privacy": "Privacy policy",
       "legalMentions": "Legal notice"
     },
-    "copyright": "© {{year}} Holispa. All rights reserved."
+    "copyright": "© {{year}} Saoma. All rights reserved."
   }
 }

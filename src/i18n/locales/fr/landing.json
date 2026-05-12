@@ -90,10 +90,10 @@
     "title": "Prêt à moderniser votre spa ?",
     "subtitle": "Planifiez une démo personnalisée de 30 minutes avec notre équipe. Nous vous montrons la plateforme avec vos soins et votre organisation.",
     "button": "Réserver ma démo",
-    "secondary": "Ou écrivez-nous à hello@holispa.fr"
+    "secondary": "Ou écrivez-nous à hello@saoma.fr"
   },
   "footer": {
-    "tagline": "Holispa — la plateforme de gestion spa pour hôtels & day spas.",
+    "tagline": "Saoma — la plateforme de gestion spa pour hôtels & day spas.",
     "signature": "L'art du spa, simplifié.",
     "product": "Produit",
     "company": "Société",
@@ -110,6 +110,6 @@
       "privacy": "Politique de confidentialité",
       "legalMentions": "Mentions légales"
     },
-    "copyright": "© {{year}} Holispa. Tous droits réservés."
+    "copyright": "© {{year}} Saoma. Tous droits réservés."
   }
 }
