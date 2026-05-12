@@ -78,7 +78,7 @@
     "step2": {
       "number": "02",
       "title": "Train your teams",
-      "desc": "Training sessions for venue teams, spa directors and therapists. Guides and unlimited support included."
+      "desc": "Training sessions for concierges, spa directors and therapists. Guides and unlimited support included."
     },
     "step3": {
       "number": "03",
@@ -90,10 +90,11 @@
     "title": "Ready to modernize your spa?",
     "subtitle": "Book a personalized 30-minute demo with our team. We'll show the platform with your treatments and organization.",
     "button": "Book my demo",
-    "secondary": "Or email us at hello@lymfea.fr"
+    "secondary": "Or email us at hello@saoma.fr"
   },
   "footer": {
-    "tagline": "The spa management platform for hotels & day spas.",
+    "tagline": "Saoma — the spa management platform for hotels & day spas.",
+    "signature": "The art of spa, simplified.",
     "product": "Product",
     "company": "Company",
     "legal": "Legal",
@@ -109,6 +110,6 @@
       "privacy": "Privacy policy",
       "legalMentions": "Legal notice"
     },
-    "copyright": "© {{year}} Eïa. All rights reserved."
+    "copyright": "© {{year}} Saoma. All rights reserved."
   }
 }
