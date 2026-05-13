@@ -184,6 +184,8 @@ serve(async (req) => {
       .select("email, first_name, last_name, user_id")
       .or("status.eq.active,status.eq.Actif");
 
+      console.log("adminsError", adminsError);
+      console.log("admins", admins);
     if (adminsError) {
       console.error("Error fetching admins:", adminsError);
       throw adminsError;
