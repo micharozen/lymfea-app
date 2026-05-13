@@ -163,3 +163,6 @@ verify_jwt= false
 
 [functions.send-daily-closure-report]
 verify_jwt = true
+
+[functions.notify-admin-new-booking]
+verify_jwt = false
