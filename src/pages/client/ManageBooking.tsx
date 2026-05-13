@@ -89,35 +89,23 @@ const ManageBooking = () => {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
-  // Param can be either a UUID (legacy /booking/manage/:bookingId) or a
-  // base62 short_token (new /m/:bookingId used in SMS). UUIDs are 36 chars
-  // with dashes; short_tokens are 8 chars without dashes.
-  const isUuid = !!bookingId && bookingId.includes("-") && bookingId.length === 36;
-  const lookupColumn: "id" | "short_token" = isUuid ? "id" : "short_token";
-
   const { data: booking, isLoading, error } = useQuery<BookingRow | null>({
     queryKey: ["client-booking", bookingId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select(
-          `*,
-          booking_treatments(
-            id,
-            treatment_id,
-            treatment:treatment_menus(id, name, duration, price)
-          )`
-        )
-        .eq(lookupColumn, bookingId!)
-        .maybeSingle();
+      // Use SECURITY DEFINER RPC to bypass the restrictive anon RLS policy on
+      // bookings. Accepts either a UUID (/booking/manage/:uuid) or a base62
+      // short_token (/m/:token) — the SQL function handles both.
+      const { data: rows, error } = await supabase
+        .rpc("get_public_booking", { p_token: bookingId! });
 
       if (error) throw error;
+      const data = (rows?.[0] ?? null) as BookingRow | null;
       if (!data) return null;
 
       let hotelInfo: HotelInfo | null = null;
-      if ((data as { hotel_id?: string }).hotel_id) {
+      if (data.hotel_id) {
         const { data: hotelRows } = await supabase.rpc("get_public_hotel_by_id", {
-          _hotel_id: (data as { hotel_id: string }).hotel_id,
+          _hotel_id: data.hotel_id,
         });
         const h = Array.isArray(hotelRows) ? hotelRows[0] : hotelRows;
         if (h) {
@@ -236,12 +224,11 @@ const ManageBooking = () => {
     mutationFn: async () => {
       if (!booking || !selectedDate || !selectedTime) throw new Error("Missing date/time");
       const { error: updateError } = await supabase
-        .from("bookings")
-        .update({
-          booking_date: selectedDate,
-          booking_time: selectedTime,
-        })
-        .eq("id", booking.id);
+        .rpc("reschedule_booking_public", {
+          p_token: bookingId!,
+          p_new_date: selectedDate,
+          p_new_time: selectedTime,
+        });
       if (updateError) throw updateError;
 
       await invokeEdgeFunction("send-booking-notification", {
@@ -277,12 +264,7 @@ const ManageBooking = () => {
     mutationFn: async () => {
       if (!booking) throw new Error("No booking");
       const { error: updateError } = await supabase
-        .from("bookings")
-        .update({
-          status: "cancelled",
-          cancellation_reason: "Annulation client (Web)",
-        })
-        .eq("id", booking.id);
+        .rpc("cancel_booking_public", { p_token: bookingId! });
       if (updateError) throw updateError;
 
       await invokeEdgeFunction("send-booking-notification", {

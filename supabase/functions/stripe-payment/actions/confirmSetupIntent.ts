@@ -203,6 +203,25 @@ export async function handleConfirmSetupIntent(
       ? (setupIntent?.payment_method as Stripe.PaymentMethod)?.card
       : null;
 
+  console.log("[CONFIRM-SETUP] session state", {
+    sessionStatus: session.status,
+    setupIntentId: setupIntent?.id,
+    paymentMethodType: typeof setupIntent?.payment_method,
+    paymentMethodId,
+  });
+
+  let resolvedPaymentMethodId = paymentMethodId;
+  if (setupIntent?.id && !resolvedPaymentMethodId) {
+    console.warn("[CONFIRM-SETUP] paymentMethodId null — fetching SetupIntent directly");
+    const fullSI = await stripe.setupIntents.retrieve(setupIntent.id, {
+      expand: ["payment_method"],
+    });
+    resolvedPaymentMethodId = typeof fullSI.payment_method === "string"
+      ? fullSI.payment_method
+      : (fullSI.payment_method as Stripe.PaymentMethod)?.id;
+    console.log("[CONFIRM-SETUP] resolved paymentMethodId from SI:", resolvedPaymentMethodId);
+  }
+
   // ── MULTI-BOOKING PATH ───────────────────────────────────────────
   if (meta.isMulti === "1") {
     let multiBookingIds: string[] = [];
@@ -307,11 +326,11 @@ export async function handleConfirmSetupIntent(
         slotCreatedIds.push(newId);
       }
 
-      if (paymentMethodId && setupIntent) {
+      if (resolvedPaymentMethodId && setupIntent) {
         await insertPaymentInfo(supabase, {
           bookingId: slotCreatedIds[0],
           customerId,
-          paymentMethodId,
+          paymentMethodId: resolvedPaymentMethodId,
           setupIntentId: setupIntent.id,
           sessionId,
           cardBrand: paymentMethodCard?.brand,
@@ -356,11 +375,11 @@ export async function handleConfirmSetupIntent(
     // booking_payment_infos.stripe_session_id has a UNIQUE constraint, so we
     // attach the row to the first booking only. Sibling bookings of the group
     // are linked via booking_group_id.
-    if (paymentMethodId && setupIntent) {
+    if (resolvedPaymentMethodId && setupIntent) {
       await insertPaymentInfo(supabase, {
         bookingId: multiBookingIds[0],
         customerId,
-        paymentMethodId,
+        paymentMethodId: resolvedPaymentMethodId,
         setupIntentId: setupIntent.id,
         sessionId,
         cardBrand: paymentMethodCard?.brand,
@@ -561,11 +580,11 @@ export async function handleConfirmSetupIntent(
     }
   }
 
-  if (paymentMethodId && setupIntent) {
+  if (resolvedPaymentMethodId && setupIntent) {
     await insertPaymentInfo(supabase, {
       bookingId,
       customerId,
-      paymentMethodId,
+      paymentMethodId: resolvedPaymentMethodId,
       setupIntentId: setupIntent.id,
       sessionId,
       cardBrand: paymentMethodCard?.brand,
