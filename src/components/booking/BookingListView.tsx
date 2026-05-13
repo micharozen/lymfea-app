@@ -1,6 +1,5 @@
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import {
   Table,
   TableBody,
@@ -9,8 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, FileText, Layers, Package, Users } from "lucide-react";
+import { Clock, Layers, Package, Users } from "lucide-react";
 import { TablePagination } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -38,9 +36,7 @@ interface BookingListViewProps {
   totalColumns: number;
   onBookingClick: (booking: BookingWithTreatments) => void;
   getHotelInfo: (hotelId: string | null) => Hotel | null;
-  isAdmin: boolean;
   isConcierge: boolean;
-  onInvoicePreview: (html: string, bookingId: number, isRoomPayment: boolean) => void;
   currentPage: number;
   totalPages: number;
   totalItems: number;
@@ -56,9 +52,7 @@ export function BookingListView({
   totalColumns,
   onBookingClick,
   getHotelInfo,
-  isAdmin,
   isConcierge,
-  onInvoicePreview,
   currentPage,
   totalPages,
   totalItems,
@@ -67,80 +61,6 @@ export function BookingListView({
   paymentAsText = false,
 }: BookingListViewProps) {
   const navigate = useNavigate();
-
-  const handleInvoiceClick = async (
-    e: React.MouseEvent,
-    booking: BookingWithTreatments,
-    isRoomPayment: boolean
-  ) => {
-    e.stopPropagation();
-
-    if (booking.stripe_invoice_url) {
-      window.open(booking.stripe_invoice_url, "_blank");
-      return;
-    }
-
-    const { data, error } = await invokeEdgeFunction<unknown, { html: string; bookingId: string }>("generate-invoice", {
-      body: { bookingId: booking.id },
-    });
-
-    if (!error && data) {
-      onInvoicePreview(data.html, data.bookingId, isRoomPayment);
-    }
-  };
-
-  const renderInvoiceButton = (booking: BookingWithTreatments) => {
-    if (booking.status === 'quote_pending' || booking.status === 'waiting_approval') return null;
-
-    const isCompleted =
-      booking.status === "completed" ||
-      booking.payment_status === "paid" ||
-      booking.payment_status === "charged_to_room";
-    const isRoomPayment = booking.payment_method === "room";
-    const hasStripeInvoice = !!booking.stripe_invoice_url;
-
-    if (isAdmin && isCompleted) {
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className="inline-flex items-center justify-center gap-1.5 w-20 py-1 text-xs font-medium rounded-md border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/40 transition-all"
-                onClick={(e) => handleInvoiceClick(e, booking, isRoomPayment)}
-              >
-                <FileText className="h-3.5 w-3.5" />
-                <span>{hasStripeInvoice ? "Facture" : "Bon"}</span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {hasStripeInvoice ? "Voir la Facture Stripe" : "Télécharger le Bon de Prestation"}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
-    }
-
-    if (isConcierge && isCompleted && isRoomPayment) {
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className="inline-flex items-center justify-center gap-1.5 w-20 py-1 text-xs font-medium rounded-md border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/40 transition-all"
-                onClick={(e) => handleInvoiceClick(e, booking, true)}
-              >
-                <FileText className="h-3.5 w-3.5" />
-                <span>Bon</span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Télécharger le Bon de Prestation</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
-    }
-
-    return null;
-  };
 
   return (
     <div className="h-full flex flex-col min-w-0">
@@ -226,7 +146,7 @@ export function BookingListView({
                 )}
               </div>
 
-              {/* Bottom row: client info + invoice button */}
+              {/* Bottom row: client info */}
               <div className="flex items-end justify-between gap-2">
                 <div className="min-w-0 text-xs text-foreground space-y-0.5">
                   {customerId ? (
@@ -257,9 +177,6 @@ export function BookingListView({
                     )}
                   </div>
                 </div>
-                <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {renderInvoiceButton(booking)}
-                </div>
               </div>
             </div>
           );
@@ -272,16 +189,15 @@ export function BookingListView({
           <colgroup>
             <col className="w-[6%]" />
             <col className="w-[8%]" />
-            <col className="w-[5%]" />
-            <col className="w-[5%]" />
-            <col className="w-[9%]" />
-            <col className="w-[10%]" />
-            <col className="w-[9%]" />
-            <col className="w-[13%]" />
             <col className="w-[6%]" />
-            {!isConcierge && <col className="w-[9%]" />}
-            <col className="w-[9%]" />
+            <col className="w-[6%]" />
+            <col className="w-[10%]" />
+            <col className="w-[11%]" />
+            <col className="w-[10%]" />
+            <col className="w-[14%]" />
             <col className="w-[7%]" />
+            {!isConcierge && <col className="w-[11%]" />}
+            <col className="w-[11%]" />
           </colgroup>
           <TableHeader>
             <TableRow className="border-b h-8 bg-muted/20">
@@ -295,12 +211,9 @@ export function BookingListView({
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prestations</TableHead>
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Total</TableHead>
               {!isConcierge && (
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Lieu</TableHead>
               )}
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Thérapeute</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center sticky right-0 bg-card border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.08)]">
-                Facture
-              </TableHead>
             </TableRow>
           </TableHeader>
 
@@ -416,9 +329,6 @@ export function BookingListView({
                 )}
                 <TableCell className="text-foreground py-3 px-2 truncate">
                   <span className="block leading-none truncate">{booking.therapist_name || "-"}</span>
-                </TableCell>
-                <TableCell className="py-3 px-2 text-center sticky right-0 bg-card border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.08)] group-hover:bg-muted/50 transition-colors">
-                  {renderInvoiceButton(booking)}
                 </TableCell>
               </TableRow>
             ))}
