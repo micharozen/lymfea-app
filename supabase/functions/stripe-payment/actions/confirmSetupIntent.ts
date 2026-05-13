@@ -315,6 +315,7 @@ export async function handleConfirmSetupIntent(
           therapist_id: null,
           is_out_of_hours: slotSurcharge.isOutOfHours,
           surcharge_amount: slotSurcharge.surchargeAmount,
+          payment_status: "card_saved",
         }).eq("id", newId);
 
         await supabase.from("booking_treatments").insert({
@@ -359,7 +360,7 @@ export async function handleConfirmSetupIntent(
         client_note: meta.note || null,
         status: "pending",
         payment_method: "card",
-        payment_status: "pending",
+        payment_status: "card_saved",
         customer_id: customerId,
       })
       .in("id", multiBookingIds)
@@ -466,6 +467,7 @@ export async function handleConfirmSetupIntent(
         therapist_id: null,
         is_out_of_hours: surcharge.isOutOfHours,
         surcharge_amount: surcharge.surchargeAmount,
+        payment_status: "card_saved",
       }).eq("id", bookingId);
     } else {
       const { error: updateError } = await supabase
@@ -479,7 +481,7 @@ export async function handleConfirmSetupIntent(
           client_note: meta.note || null,
           status: "pending",
           payment_method: "card",
-          payment_status: "pending",
+          payment_status: "card_saved",
           total_price: verifiedPrice,
           customer_id: customerId,
           therapist_id: null,
@@ -519,6 +521,7 @@ export async function handleConfirmSetupIntent(
       therapist_id: null,
       is_out_of_hours: surcharge.isOutOfHours,
       surcharge_amount: surcharge.surchargeAmount,
+      payment_status: "card_saved",
     }).eq("id", bookingId);
   }
 

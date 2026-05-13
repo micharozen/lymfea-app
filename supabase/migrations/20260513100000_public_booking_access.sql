@@ -22,7 +22,7 @@ RETURNS TABLE (
   client_last_name text,
   phone text,
   client_email text,
-  hotel_id uuid,
+  hotel_id text,
   hotel_name text,
   room_number text,
   total_price numeric,
@@ -42,7 +42,7 @@ AS $$
     b.client_last_name,
     b.phone,
     b.client_email,
-    b.hotel_id,
+    b.hotel_id::text,
     b.hotel_name,
     b.room_number,
     b.total_price,
@@ -67,7 +67,8 @@ AS $$
   FROM public.bookings b
   LEFT JOIN public.booking_treatments bt ON bt.booking_id = b.id
   LEFT JOIN public.treatment_menus tm ON tm.id = bt.treatment_id
-  WHERE b.id::text = p_token
+  WHERE (p_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+         AND b.id = p_token::uuid)
      OR b.short_token = p_token
   GROUP BY b.id;
 $$;
@@ -88,7 +89,9 @@ BEGIN
     status = 'cancelled',
     cancellation_reason = 'Annulation client (Web)',
     updated_at = now()
-  WHERE (id::text = p_token OR short_token = p_token)
+  WHERE ((p_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+         AND id = p_token::uuid)
+        OR short_token = p_token)
     AND status NOT IN ('cancelled', 'completed');
   RETURN FOUND;
 END;
@@ -112,9 +115,11 @@ BEGIN
   UPDATE public.bookings
   SET
     booking_date = p_new_date::date,
-    booking_time = p_new_time,
+    booking_time = p_new_time::time,
     updated_at = now()
-  WHERE (id::text = p_token OR short_token = p_token)
+  WHERE ((p_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+         AND id = p_token::uuid)
+        OR short_token = p_token)
     AND status NOT IN ('cancelled', 'completed');
   RETURN FOUND;
 END;
