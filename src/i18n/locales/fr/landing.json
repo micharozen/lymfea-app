@@ -107,7 +107,8 @@
       "email": "Email",
       "terms": "Conditions générales",
       "privacy": "Politique de confidentialité",
-      "legalMentions": "Mentions légales"
+      "legalMentions": "Mentions légales",
+      "status": "Statut des services"
     },
     "copyright": "© {{year}} Eïa. Tous droits réservés."
   }

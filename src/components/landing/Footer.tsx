@@ -34,6 +34,7 @@ export const Footer = () => {
         { label: t("footer.links.terms"), href: "#" },
         { label: t("footer.links.privacy"), href: "#" },
         { label: t("footer.links.legalMentions"), href: "#" },
+        { label: t("footer.links.status"), href: "/status" },
       ],
     },
   ];

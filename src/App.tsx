@@ -69,6 +69,7 @@ const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
 const Landing = lazy(() => import("./pages/Landing"));
+const Status = lazy(() => import("./pages/Status"));
 const RateTherapist = lazy(() => import("./pages/RateTherapist"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
@@ -239,6 +240,9 @@ const App = () => {
           <Routes>
             {/* Root - Public marketing landing page */}
             <Route path="/" element={<Landing />} />
+
+            {/* Public status page (used by Mews and other partners) */}
+            <Route path="/status" element={<Status />} />
 
             {/* Smart redirect based on user type (post-login entrypoint) */}
             <Route path="/app" element={<Home />} />
