@@ -67,8 +67,11 @@ AS $$
   FROM public.bookings b
   LEFT JOIN public.booking_treatments bt ON bt.booking_id = b.id
   LEFT JOIN public.treatment_menus tm ON tm.id = bt.treatment_id
-  WHERE (p_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-         AND b.id = p_token::uuid)
+  WHERE b.id = CASE
+                 WHEN p_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                 THEN p_token::uuid
+                 ELSE NULL
+               END
      OR b.short_token = p_token
   GROUP BY b.id;
 $$;
@@ -89,8 +92,11 @@ BEGIN
     status = 'cancelled',
     cancellation_reason = 'Annulation client (Web)',
     updated_at = now()
-  WHERE ((p_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-         AND id = p_token::uuid)
+  WHERE (id = CASE
+                WHEN p_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                THEN p_token::uuid
+                ELSE NULL
+              END
         OR short_token = p_token)
     AND status NOT IN ('cancelled', 'completed');
   RETURN FOUND;
@@ -117,8 +123,11 @@ BEGIN
     booking_date = p_new_date::date,
     booking_time = p_new_time::time,
     updated_at = now()
-  WHERE ((p_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-         AND id = p_token::uuid)
+  WHERE (id = CASE
+                WHEN p_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                THEN p_token::uuid
+                ELSE NULL
+              END
         OR short_token = p_token)
     AND status NOT IN ('cancelled', 'completed');
   RETURN FOUND;
