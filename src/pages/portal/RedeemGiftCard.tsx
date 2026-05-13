@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Gift, Loader2, ArrowLeft, Calendar, Sparkles, CheckCircle, Clock, ShoppingBag, PartyPopper, Mail, User, Lock } from 'lucide-react';
+import { Gift, Loader2, ArrowLeft, Calendar, Sparkles, CheckCircle, Clock, ShoppingBag, PartyPopper, Mail, User, Lock, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,6 +52,7 @@ export default function RedeemGiftCard() {
   // Claim form state
   const [claimEmail, setClaimEmail] = useState('');
   const [claimName, setClaimName] = useState('');
+  const [claimPhone, setClaimPhone] = useState('');
   const [claimPassword, setClaimPassword] = useState('');
   const [claimPasswordConfirm, setClaimPasswordConfirm] = useState('');
   const [isClaiming, setIsClaiming] = useState(false);
@@ -103,8 +104,14 @@ export default function RedeemGiftCard() {
     }
   }, [tokenFromUrl]);
 
+  const normalizedClaimPhone = claimPhone.trim().replace(/\s/g, '');
+
   const handleClaim = async () => {
     if (!claimEmail.trim() || !claimEmail.includes('@')) return;
+    if (!normalizedClaimPhone) {
+      setClaimError(t('portal.claimErrorPhoneRequired'));
+      return;
+    }
     if (claimPassword.length < 6) {
       setClaimError(t('portal.claimErrorPasswordTooShort'));
       return;
@@ -127,6 +134,7 @@ export default function RedeemGiftCard() {
           email: claimEmail.trim(),
           password: claimPassword,
           firstName: claimName.trim() || null,
+          phone: normalizedClaimPhone,
         },
         skipAuth: true,
       });
@@ -178,6 +186,7 @@ export default function RedeemGiftCard() {
     setCode('');
     setClaimEmail('');
     setClaimName('');
+    setClaimPhone('');
     setClaimPassword('');
     setClaimPasswordConfirm('');
     setClaimError(null);
@@ -346,6 +355,17 @@ export default function RedeemGiftCard() {
                       />
                     </div>
                     <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        type="tel"
+                        value={claimPhone}
+                        onChange={(e) => { setClaimPhone(e.target.value); setClaimError(null); }}
+                        placeholder={t('portal.claimPhonePlaceholder')}
+                        className="h-12 pl-10 rounded-xl border-gray-200 focus:border-gray-400 focus:ring-gray-400/20"
+                        autoComplete="tel"
+                      />
+                    </div>
+                    <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <Input
                         type="password"
@@ -375,7 +395,7 @@ export default function RedeemGiftCard() {
 
                   <Button
                     onClick={handleClaim}
-                    disabled={!claimEmail.includes('@') || claimPassword.length < 6 || claimPassword !== claimPasswordConfirm || isClaiming}
+                    disabled={!claimEmail.includes('@') || !normalizedClaimPhone || claimPassword.length < 6 || claimPassword !== claimPasswordConfirm || isClaiming}
                     className="w-full h-12 bg-gray-900 text-white hover:bg-gray-800 rounded-xl font-medium shadow-sm transition-all active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-400"
                   >
                     {isClaiming ? (

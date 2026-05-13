@@ -39,12 +39,9 @@ i18n
   .init({
     resources,
     fallbackLng: 'en',
-    supportedLngs: ['fr', 'en'],
-    load: 'languageOnly',
-    nonExplicitSupportedLngs: true,
     defaultNS: 'common',
     ns: ['common', 'client', 'pwa', 'admin', 'landing'],
-
+    
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],
       caches: ['localStorage'],

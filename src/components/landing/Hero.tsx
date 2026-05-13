@@ -2,8 +2,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { ArrowRight, Calendar, Check, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const DEMO_CTA = "mailto:hello@lymfea.fr?subject=Demo%20Ei%CC%88a";
+import { BRAND_APP_DOMAIN, BRAND_DEMO_CTA } from "./constants";
 
 export const Hero = () => {
   const { t } = useTranslation("landing");
@@ -50,7 +49,7 @@ export const Hero = () => {
                 size="lg"
                 className="group h-12 bg-foreground px-6 text-base text-background hover:bg-foreground/90"
               >
-                <a href={DEMO_CTA}>
+                <a href={BRAND_DEMO_CTA}>
                   {t("hero.ctaPrimary")}
                   <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </a>
@@ -106,7 +105,7 @@ const DashboardMockup = () => (
       <span className="h-2.5 w-2.5 rounded-full bg-gold-300" />
       <span className="h-2.5 w-2.5 rounded-full bg-gold-400" />
       <div className="ml-auto hidden text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:block">
-        app.lymfea.fr
+        {BRAND_APP_DOMAIN}
       </div>
     </div>
 

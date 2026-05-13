@@ -66,6 +66,8 @@ serve(async (req) => {
         room_number,
         status,
         payment_status,
+        total_price,
+        gift_amount_applied_cents,
         booking_treatments(
           treatment_id,
           treatment_menus(name, price, duration)
@@ -120,11 +122,13 @@ serve(async (req) => {
     const hotelCommissionRate = hotel.hotel_commission || 10;
 
     const totalTTC = final_amount;
-    const totalHT = totalTTC / (1 + vatRate / 100);
-    const tvaAmount = totalTTC - totalHT;
+    // Commissions always based on the gross price (before gift card deduction)
+    // so that a gift card discount never reduces therapist earnings.
+    const grossTTC = (booking as any).total_price || final_amount;
+    const grossHT = grossTTC / (1 + vatRate / 100);
+    const tvaAmount = totalTTC - totalTTC / (1 + vatRate / 100);
 
-    // Commission lieu toujours calculée sur le HT
-    const hotelCommission = totalHT * (hotelCommissionRate / 100);
+    const hotelCommission = grossHT * (hotelCommissionRate / 100);
 
     const bookingDuration = (booking.booking_treatments || []).reduce(
       (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0),
@@ -149,12 +153,12 @@ serve(async (req) => {
       );
     }
 
-    const therapistShare = Math.min(earned, totalHT - hotelCommission);
-    const lymfeaShare = totalHT - hotelCommission - therapistShare;
+    const therapistShare = Math.min(earned, grossHT - hotelCommission);
+    const lymfeaShare = grossHT - hotelCommission - therapistShare;
 
     const breakdown: CommissionBreakdown = {
       totalTTC,
-      totalHT: Math.round(totalHT * 100) / 100,
+      totalHT: Math.round(grossHT * 100) / 100,
       tvaAmount: Math.round(tvaAmount * 100) / 100,
       tvaRate: vatRate,
       hotelCommission: Math.round(hotelCommission * 100) / 100,
@@ -204,7 +208,7 @@ serve(async (req) => {
         status: 'completed',
         payment_status: 'paid',
         payment_method: 'tap_to_pay',
-        total_price: totalTTC,
+        total_price: grossTTC,
         updated_at: new Date().toISOString(),
       })
       .eq('id', booking_id);

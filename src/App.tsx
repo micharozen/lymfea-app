@@ -311,6 +311,8 @@ const App = () => {
 
             {/* Client Booking Management (Public) */}
             <Route path="/booking/manage/:bookingId" element={<ManageBooking />} />
+            {/* Short URL for SMS — :bookingId is a base62 short_token here */}
+            <Route path="/m/:bookingId" element={<ManageBooking />} />
 
             {/* Payment Link Confirmation (Public) */}
             <Route path="/booking/confirmation/:bookingId" element={<PaymentConfirmation />} />

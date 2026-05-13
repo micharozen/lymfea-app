@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
+import { sendSms } from "../_shared/send-sms.ts";
 
 const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
 
@@ -170,6 +171,7 @@ serve(async (req) => {
     await delay(600);
 
     // 3. Send to client
+    let clientEmailOk = false;
     if (booking.client_email) {
       const { error: emailError } = await sendEmail({
         to: booking.client_email,
@@ -182,7 +184,40 @@ serve(async (req) => {
         errors.push(`client:${booking.client_email}`);
       } else {
         emailsSent.push(`client:${booking.client_email}`);
+        clientEmailOk = true;
       }
+    }
+
+    // 3bis. Send SMS to client when booking transitions to confirmed
+    // (therapist accepted). Garde : on n'envoie le SMS de confirmation que si
+    // le client a engagé son paiement (paid/charged/charged_to_room/card_saved)
+    // ou si le partenaire facture (Staycation/ClassPass). Un booking confirmé
+    // par un thérapeute mais non payé reste muet côté client.
+    const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing'];
+    const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
+    const clientPhone: string = (booking as any).phone ?? (booking as any).client_phone ?? '';
+    if (clientPhone && clientEmailOk && isPaidEnough) {
+      try {
+        const firstName = booking.client_first_name ?? '';
+        const shortToken = (booking as any).short_token;
+        const clientManageUrl = shortToken
+          ? `${siteUrl}/m/${shortToken}`
+          : `${siteUrl}/booking/manage/${bookingId}`;
+        const smsBody = `Bonjour ${firstName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${clientManageUrl}`;
+        const smsResult = await sendSms({ to: clientPhone, body: smsBody });
+        if (smsResult.error) {
+          console.error('[notify-booking-confirmed][sms] Confirmation SMS error:', smsResult.error);
+          errors.push(`sms:${clientPhone}`);
+        } else {
+          console.log('[notify-booking-confirmed][sms] Confirmation SMS sent:', smsResult.sid);
+          emailsSent.push(`sms:${clientPhone}`);
+        }
+      } catch (smsErr) {
+        console.error('[notify-booking-confirmed][sms] Confirmation SMS exception:', smsErr);
+        errors.push(`sms:${clientPhone}`);
+      }
+    } else if (!clientPhone) {
+      console.log('[notify-booking-confirmed][sms] No client phone, skipping SMS');
     }
 
     // 4. Send push notification to all accepted therapists (primary + duo secondary)
@@ -204,36 +239,39 @@ serve(async (req) => {
         .select('user_id, first_name')
         .in('id', therapistIds);
 
-      for (const therapist of therapistUsers || []) {
-        if (!therapist.user_id) continue;
-        try {
-          const { error: pushError } = await supabase.functions.invoke(
-            'send-push-notification',
-            {
-              body: {
-                userId: therapist.user_id,
-                title: '🎉 Nouvelle réservation confirmée !',
-                body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${formattedDate} à ${formattedTime}`,
-                data: {
-                  bookingId: booking.id,
-                  url: `/pwa/booking/${booking.id}`,
-                },
-              },
-              headers: {
-                Authorization: `Bearer ${supabaseServiceKey}`,
-              },
+      await Promise.all(
+        (therapistUsers || [])
+          .filter((t: any) => t.user_id)
+          .map(async (therapist: any) => {
+            try {
+              const { error: pushError } = await supabase.functions.invoke(
+                'send-push-notification',
+                {
+                  body: {
+                    userId: therapist.user_id,
+                    title: '🎉 Nouvelle réservation confirmée !',
+                    body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${formattedDate} à ${formattedTime}`,
+                    data: {
+                      bookingId: booking.id,
+                      url: `/pwa/booking/${booking.id}`,
+                    },
+                  },
+                  headers: {
+                    Authorization: `Bearer ${supabaseServiceKey}`,
+                  },
+                }
+              );
+              if (pushError) {
+                errors.push(`push:${therapist.first_name}`);
+              } else {
+                emailsSent.push(`push:${therapist.first_name}`);
+              }
+            } catch (e) {
+              console.error('[notify-booking-confirmed] Push exception:', e);
+              errors.push(`push:${therapist.first_name}`);
             }
-          );
-          if (pushError) {
-            errors.push(`push:${therapist.first_name}`);
-          } else {
-            emailsSent.push(`push:${therapist.first_name}`);
-          }
-        } catch (e) {
-          console.error('[notify-booking-confirmed] Push exception:', e);
-          errors.push(`push:${therapist.first_name}`);
-        }
-      }
+          })
+      );
     }
 
     // 5. Send push + in-app notifications to admins
@@ -243,40 +281,48 @@ serve(async (req) => {
       .eq('status', 'Actif');
 
     if (adminUsers && adminUsers.length > 0) {
-      for (const admin of adminUsers) {
-        if (!admin.user_id) continue;
+      const adminsWithUserId = adminUsers.filter((a: any) => a.user_id);
 
+      // Bulk insert all in-app notifications in one query
+      if (adminsWithUserId.length > 0) {
         try {
-          await supabase.from('notifications').insert({
-            user_id: admin.user_id,
-            booking_id: booking.id,
-            type: 'booking_confirmed',
-            message: `✅ Réservation #${booking.booking_id} confirmée par ${booking.therapist_name || 'un thérapeute'} · ${formattedDate} à ${formattedTime}`,
-          });
+          await supabase.from('notifications').insert(
+            adminsWithUserId.map((admin: any) => ({
+              user_id: admin.user_id,
+              booking_id: booking.id,
+              type: 'booking_confirmed',
+              message: `✅ Réservation #${booking.booking_id} confirmée par ${booking.therapist_name || 'un thérapeute'} · ${formattedDate} à ${formattedTime}`,
+            }))
+          );
         } catch (e) {
-          console.error(`[notify-booking-confirmed] Notification insert error for admin ${admin.first_name}:`, e);
-        }
-
-        try {
-          await supabase.functions.invoke('send-push-notification', {
-            body: {
-              userId: admin.user_id,
-              title: '✅ Réservation confirmée',
-              body: `#${booking.booking_id} confirmée par ${booking.therapist_name || 'un thérapeute'} · ${formattedDate} à ${formattedTime}`,
-              data: {
-                bookingId: booking.id,
-                url: `/admin-pwa/booking/${booking.id}`,
-              },
-            },
-            headers: {
-              Authorization: `Bearer ${supabaseServiceKey}`,
-            },
-          });
-          emailsSent.push(`admin-push:${admin.first_name}`);
-        } catch (e) {
-          console.error(`[notify-booking-confirmed] Admin push error for ${admin.first_name}:`, e);
+          console.error('[notify-booking-confirmed] Bulk notification insert error:', e);
         }
       }
+
+      // Send push notifications in parallel
+      await Promise.all(
+        adminsWithUserId.map(async (admin: any) => {
+          try {
+            await supabase.functions.invoke('send-push-notification', {
+              body: {
+                userId: admin.user_id,
+                title: '✅ Réservation confirmée',
+                body: `#${booking.booking_id} confirmée par ${booking.therapist_name || 'un thérapeute'} · ${formattedDate} à ${formattedTime}`,
+                data: {
+                  bookingId: booking.id,
+                  url: `/admin-pwa/booking/${booking.id}`,
+                },
+              },
+              headers: {
+                Authorization: `Bearer ${supabaseServiceKey}`,
+              },
+            });
+            emailsSent.push(`admin-push:${admin.first_name}`);
+          } catch (e) {
+            console.error(`[notify-booking-confirmed] Admin push error for ${admin.first_name}:`, e);
+          }
+        })
+      );
     }
 
     // 6. Send Slack notification

@@ -160,3 +160,6 @@ verify_jwt = false
 
 [functions.create-draft-booking]
 verify_jwt= false
+
+[functions.send-daily-closure-report]
+verify_jwt = true
