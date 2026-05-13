@@ -472,9 +472,12 @@ const App = () => {
                     <div className="flex h-full w-full">
                       <AppSidebar />
                       <div className="flex-1 flex flex-col min-h-0 min-w-0">
-                        <header className="flex items-center h-14 px-4 border-b border-border bg-background sticky top-0 z-40" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+                        <header
+                          className="flex items-center h-10 md:h-11 px-4 border-b border-border bg-background sticky top-0 z-40"
+                          style={{ paddingTop: "env(safe-area-inset-top)" }}
+                        >
                           <SidebarTrigger className="mr-2 md:hidden" />
-                          <span className="font-semibold md:hidden">{brand.pwa.admin.shortName}</span>
+                          <span className="font-semibold text-sm md:hidden">{brand.pwa.admin.shortName}</span>
                           <div className="flex-1" />
                           <NotificationsBellButton />
                         </header>

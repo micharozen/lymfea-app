@@ -136,7 +136,7 @@ export default function ScheduleAlerts() {
   useEffect(() => {
     fetchNotifications();
     const notifChannel = supabase
-      .channel("notifications-alerts-page")
+      .channel(`notifications-alerts-page-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => fetchNotifications())
       .subscribe();
     return () => { supabase.removeChannel(notifChannel); };
@@ -176,7 +176,7 @@ export default function ScheduleAlerts() {
     switch (type) {
       case "therapist_arrived": return { label: isFr ? "Arrivée" : "Arrival", className: "bg-blue-100 text-blue-700" };
       case "noshow": return { label: "No-show", className: "bg-amber-100 text-amber-700" };
-      case "new_booking": return { label: isFr ? "Réservation" : "Booking", className: "bg-green-100 text-green-700" };
+      case "new_booking": return { label: isFr ? "Nouvelle réservation" : "New booking", className: "bg-green-100 text-green-700" };
       case "booking_cancelled": return { label: isFr ? "Annulation" : "Cancellation", className: "bg-red-100 text-red-700" };
       default: return { label: type, className: "bg-gray-100 text-gray-700" };
     }
@@ -520,7 +520,7 @@ export default function ScheduleAlerts() {
                             )}
                             onClick={() => {
                               if (!notif.read) handleMarkNotifRead(notif.id);
-                              if (notif.booking_id) navigate(`/admin/booking?bookingId=${notif.booking_id}`);
+                              if (notif.booking_id) navigate(`/admin/bookings/${notif.booking_id}`);
                             }}
                           >
                             <TableCell className="py-0 px-2">
@@ -581,7 +581,7 @@ export default function ScheduleAlerts() {
                                     className="h-6 w-6"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      navigate(`/admin/booking?bookingId=${notif.booking_id}`);
+                                      navigate(`/admin/bookings/${notif.booking_id}`);
                                     }}
                                     title={t("scheduleAlerts.notifications.view")}
                                   >
