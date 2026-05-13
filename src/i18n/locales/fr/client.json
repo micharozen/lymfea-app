@@ -123,7 +123,7 @@
     "email": "Email",
     "phone": "Téléphone",
     "roomNumber": "Numéro de chambre",
-    "notHotelGuest": "Je ne suis pas client de l'hôtel",
+    "isHotelGuest": "Je suis client de l'hôtel",
     "note": "Note (optionnel)",
     "notePlaceholder": "Demandes spéciales ou informations...",
     "continue": "CONTINUER",

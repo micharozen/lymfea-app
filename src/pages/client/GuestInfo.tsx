@@ -46,7 +46,7 @@ import { ProgressBar } from '@/components/client/ProgressBar';
 const toFlagEmoji = (isoCode: string): string =>
   [...isoCode.toUpperCase()].map(c => String.fromCodePoint(c.charCodeAt(0) + 127397)).join('');
 
-const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean, isExternalGuest: boolean, isGiftCard: boolean) => z.object({
+const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean, isHotelGuest: boolean, isGiftCard: boolean) => z.object({
   firstName: z.string().min(1, t('info.errors.firstNameRequired')),
   lastName: z.string().min(1, t('info.errors.lastNameRequired')),
   email: z.string()
@@ -55,7 +55,7 @@ const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLook
   phone: z.string()
     .min(1, t('info.errors.phoneRequired')),
   countryCode: z.string(),
-  roomNumber: (isGiftCard || isCoworking || isExternalGuest) ? z.string().optional() : (pmsGuestLookup ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired'))),
+  roomNumber: (isGiftCard || isCoworking || !isHotelGuest) ? z.string().optional() : (pmsGuestLookup ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired'))),
   note: z.string().optional(),
 }).superRefine((data, ctx) => {
   const country = countries.find(c => c.code === data.countryCode);
@@ -140,7 +140,7 @@ export default function GuestInfo() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
-  const [isExternalGuest, setIsExternalGuest] = useState(clientInfo?.isExternalGuest ?? false);
+  const [isHotelGuest, setIsHotelGuest] = useState(clientInfo?.isExternalGuest === false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(!!authBundles);
   const treatmentIds = useMemo(() => items.map(i => i.id), [items]);
@@ -197,7 +197,7 @@ export default function GuestInfo() {
 
   const isCoworking = venueType === 'coworking' || venueType === 'enterprise';
   const pmsGuestLookupEnabled = !!hotel?.pms_guest_lookup_enabled;
-  const schema = useMemo(() => createClientInfoSchema(t, isCoworking, pmsGuestLookupEnabled, isExternalGuest, isGiftCardBundle), [t, isCoworking, pmsGuestLookupEnabled, isExternalGuest, isGiftCardBundle]);
+  const schema = useMemo(() => createClientInfoSchema(t, isCoworking, pmsGuestLookupEnabled, isHotelGuest, isGiftCardBundle), [t, isCoworking, pmsGuestLookupEnabled, isHotelGuest, isGiftCardBundle]);
 
   const form = useForm<ClientInfoFormData>({
     resolver: zodResolver(schema),
@@ -344,7 +344,7 @@ export default function GuestInfo() {
         ...data,
         pmsGuestCheckIn: pmsStayDatesRef.current.checkIn,
         pmsGuestCheckOut: pmsStayDatesRef.current.checkOut,
-        isExternalGuest,
+        isExternalGuest: !isHotelGuest,
       });
 
       // Save gift info to flow context
@@ -748,7 +748,21 @@ export default function GuestInfo() {
                     {/* Room number FIRST when PMS guest lookup is enabled */}
                     {!isCoworking && pmsGuestLookupEnabled && (
                       <div className="space-y-3">
-                        {!isExternalGuest && (
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={isHotelGuest}
+                            onChange={(e) => {
+                              setIsHotelGuest(e.target.checked);
+                              if (!e.target.checked) {
+                                form.setValue('roomNumber', '');
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
+                          />
+                          <span className="text-sm text-gray-500">{t('info.isHotelGuest')}</span>
+                        </label>
+                        {isHotelGuest && (
                           <FormField
                             control={form.control}
                             name="roomNumber"
@@ -780,20 +794,6 @@ export default function GuestInfo() {
                             )}
                           />
                         )}
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={isExternalGuest}
-                            onChange={(e) => {
-                              setIsExternalGuest(e.target.checked);
-                              if (e.target.checked) {
-                                form.setValue('roomNumber', '');
-                              }
-                            }}
-                            className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
-                          />
-                          <span className="text-sm text-gray-500">{t('info.notHotelGuest')}</span>
-                        </label>
                       </div>
                     )}
 
@@ -965,7 +965,21 @@ export default function GuestInfo() {
                     {/* Room number - classic position when PMS lookup is NOT enabled */}
                     {!isCoworking && !pmsGuestLookupEnabled && (
                       <div className="space-y-3">
-                        {!isExternalGuest && (
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={isHotelGuest}
+                            onChange={(e) => {
+                              setIsHotelGuest(e.target.checked);
+                              if (!e.target.checked) {
+                                form.setValue('roomNumber', '');
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
+                          />
+                          <span className="text-sm text-gray-500">{t('info.isHotelGuest')}</span>
+                        </label>
+                        {isHotelGuest && (
                           <FormField
                             control={form.control}
                             name="roomNumber"
@@ -986,20 +1000,6 @@ export default function GuestInfo() {
                             )}
                           />
                         )}
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={isExternalGuest}
-                            onChange={(e) => {
-                              setIsExternalGuest(e.target.checked);
-                              if (e.target.checked) {
-                                form.setValue('roomNumber', '');
-                              }
-                            }}
-                            className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
-                          />
-                          <span className="text-sm text-gray-500">{t('info.notHotelGuest')}</span>
-                        </label>
                       </div>
                     )}
 
