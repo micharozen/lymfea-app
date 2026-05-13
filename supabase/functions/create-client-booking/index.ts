@@ -985,6 +985,17 @@ try {
       } catch (duoNotifError) {
         console.error('Error sending duo notifications:', duoNotifError);
       }
+
+      try {
+        const adminEmailResponse = await supabase.functions.invoke('notify-admin-new-booking', {
+          body: { bookingId: bookingId }
+        });
+        if (adminEmailResponse.error) {
+          console.error('Failed to send admin email notification (duo):', adminEmailResponse.error);
+        }
+      } catch (adminEmailError) {
+        console.error('Error sending admin email notification (duo):', adminEmailError);
+      }
     } else if (wasAutoValidated) {
       // Auto-validated booking: send confirmation notifications (not new booking notifications)
       try {
@@ -1000,6 +1011,17 @@ try {
         }
       } catch (confirmError) {
         console.error('Error sending booking confirmed notifications:', confirmError);
+      }
+
+      try {
+        const adminEmailResponse = await supabase.functions.invoke('notify-admin-new-booking', {
+          body: { bookingId: bookingId }
+        });
+        if (adminEmailResponse.error) {
+          console.error('Failed to send admin email notification (auto-validated):', adminEmailResponse.error);
+        }
+      } catch (adminEmailError) {
+        console.error('Error sending admin email notification (auto-validated):', adminEmailError);
       }
     } else {
       // Broadcast to therapists with gender-preference filtering

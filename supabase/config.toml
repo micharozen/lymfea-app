@@ -163,3 +163,27 @@ verify_jwt= false
 
 [functions.send-daily-closure-report]
 verify_jwt = true
+
+[functions.notify-admin-new-booking]
+verify_jwt = false
+
+[functions.check-availability-range]
+verify_jwt = false
+
+[functions.check-expired-slots]
+verify_jwt = false
+
+[functions.send-booking-confirmation]
+verify_jwt = false
+
+[functions.send-booking-notification]
+verify_jwt = false
+
+[functions.send-treatment-request-email]
+verify_jwt = false
+
+[functions.stripe-payment]
+verify_jwt = false
+
+[functions.whatsapp-meta-webhook]
+verify_jwt = false

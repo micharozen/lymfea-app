@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,7 +99,9 @@ export default function ScheduleAlerts() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [therapistFilter, setTherapistFilter] = useState("all");
   const [acknowledging, setAcknowledging] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("alerts");
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") === "notifications" ? "notifications" : "alerts";
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   // Notifications state
   interface NotificationEntry {
@@ -134,7 +136,7 @@ export default function ScheduleAlerts() {
   useEffect(() => {
     fetchNotifications();
     const notifChannel = supabase
-      .channel("notifications-alerts-page")
+      .channel(`notifications-alerts-page-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => fetchNotifications())
       .subscribe();
     return () => { supabase.removeChannel(notifChannel); };
@@ -174,7 +176,7 @@ export default function ScheduleAlerts() {
     switch (type) {
       case "therapist_arrived": return { label: isFr ? "Arrivée" : "Arrival", className: "bg-blue-100 text-blue-700" };
       case "noshow": return { label: "No-show", className: "bg-amber-100 text-amber-700" };
-      case "new_booking": return { label: isFr ? "Réservation" : "Booking", className: "bg-green-100 text-green-700" };
+      case "new_booking": return { label: isFr ? "Nouvelle réservation" : "New booking", className: "bg-green-100 text-green-700" };
       case "booking_cancelled": return { label: isFr ? "Annulation" : "Cancellation", className: "bg-red-100 text-red-700" };
       default: return { label: type, className: "bg-gray-100 text-gray-700" };
     }
@@ -310,7 +312,36 @@ export default function ScheduleAlerts() {
     needsPagination,
   } = usePagination({ items: sortedAlerts, itemsPerPage });
 
-  useOverflowControl(!loading && needsPagination);
+  const {
+    toggleSort: toggleNotifSort,
+    getSortDirection: getNotifSortDirection,
+    sortItems: sortNotifItems,
+  } = useTableSort<string>();
+
+  const sortedNotifications = useMemo(() => {
+    return sortNotifItems(notifications, (notif, column) => {
+      switch (column) {
+        case "type": return notif.type;
+        case "date": return notif.created_at;
+        case "status": return notif.read ? "1" : "0";
+        default: return null;
+      }
+    });
+  }, [notifications, sortNotifItems]);
+
+  const {
+    currentPage: notifCurrentPage,
+    setCurrentPage: setNotifCurrentPage,
+    totalPages: notifTotalPages,
+    paginatedItems: paginatedNotifications,
+    needsPagination: notifNeedsPagination,
+  } = usePagination({ items: sortedNotifications, itemsPerPage });
+
+  const isAlertsTab = activeTab === "alerts";
+  const overflowActive = isAlertsTab
+    ? (!loading && needsPagination)
+    : (!notifLoading && notifNeedsPagination);
+  useOverflowControl(overflowActive);
 
   const handleAcknowledge = async (alertId: string) => {
     setAcknowledging(alertId);
@@ -363,7 +394,7 @@ export default function ScheduleAlerts() {
     <div
       className={cn(
         "bg-background flex flex-col",
-        needsPagination ? "h-screen overflow-hidden" : "min-h-0"
+        overflowActive ? "h-screen overflow-hidden" : "min-h-0"
       )}
     >
       <div
@@ -405,10 +436,19 @@ export default function ScheduleAlerts() {
 
       {/* Notifications Tab */}
       {activeTab === "notifications" && (
-        <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6">
-          <div className="bg-card rounded-lg border border-border">
-            {/* Header */}
-            <div className="p-4 border-b border-border flex items-center justify-between">
+        <div
+          className={cn(
+            "flex-1 px-4 md:px-6 pb-4 md:pb-6",
+            notifNeedsPagination ? "overflow-hidden" : ""
+          )}
+        >
+          <div
+            className={cn(
+              "bg-card rounded-lg border border-border flex flex-col",
+              notifNeedsPagination ? "h-full" : ""
+            )}
+          >
+            <div className="p-4 border-b border-border flex items-center justify-between flex-shrink-0">
               <span className="text-sm text-muted-foreground">
                 {notifications.length} {isFr ? "notifications" : "notifications"}
               </span>
@@ -420,56 +460,165 @@ export default function ScheduleAlerts() {
               )}
             </div>
 
-            {/* List */}
-            {notifLoading ? (
-              <div className="p-8 text-center text-muted-foreground text-sm">{isFr ? "Chargement..." : "Loading..."}</div>
-            ) : notifications.length === 0 ? (
-              <div className="p-8 text-center">
-                <Bell className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">{t("scheduleAlerts.notifications.empty")}</p>
+            <div
+              className={cn(
+                "flex-1",
+                notifNeedsPagination ? "min-h-0 overflow-hidden" : ""
+              )}
+            >
+              <div className="overflow-x-auto h-full">
+                <Table className="text-sm w-full min-w-[800px]">
+                  <TableHeader>
+                    <TableRow className="bg-muted/20 h-8">
+                      <SortableTableHead
+                        column="type"
+                        sortDirection={getNotifSortDirection("type")}
+                        onSort={toggleNotifSort}
+                      >
+                        {t("scheduleAlerts.notifications.columns.type")}
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">
+                        {t("scheduleAlerts.notifications.columns.message")}
+                      </TableHead>
+                      <SortableTableHead
+                        column="date"
+                        sortDirection={getNotifSortDirection("date")}
+                        onSort={toggleNotifSort}
+                      >
+                        {t("scheduleAlerts.notifications.columns.date")}
+                      </SortableTableHead>
+                      <SortableTableHead
+                        column="status"
+                        sortDirection={getNotifSortDirection("status")}
+                        onSort={toggleNotifSort}
+                      >
+                        {t("scheduleAlerts.notifications.columns.status")}
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-right">
+                        {t("scheduleAlerts.notifications.columns.actions")}
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  {notifLoading ? (
+                    <TableSkeleton rows={itemsPerPage} columns={5} />
+                  ) : paginatedNotifications.length === 0 ? (
+                    <TableEmptyState
+                      colSpan={5}
+                      icon={Bell}
+                      message={t("scheduleAlerts.notifications.empty")}
+                    />
+                  ) : (
+                    <TableBody>
+                      {paginatedNotifications.map((notif) => {
+                        const typeBadge = getNotifTypeBadge(notif.type);
+                        return (
+                          <TableRow
+                            key={notif.id}
+                            className={cn(
+                              "hover:bg-muted/50 transition-colors cursor-pointer",
+                              !notif.read && "bg-primary/5"
+                            )}
+                            onClick={() => {
+                              if (!notif.read) handleMarkNotifRead(notif.id);
+                              if (notif.booking_id) navigate(`/admin/bookings/${notif.booking_id}`);
+                            }}
+                          >
+                            <TableCell className="py-0 px-2">
+                              <div className="flex items-center gap-2">
+                                {getNotifIcon(notif.type)}
+                                <Badge className={cn("text-[10px] px-1.5 py-0", typeBadge.className)}>
+                                  {typeBadge.label}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-1 px-2">
+                              <span className={cn(!notif.read ? "font-medium text-foreground" : "text-muted-foreground")}>
+                                {notif.message}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2">
+                              <span
+                                className="text-muted-foreground"
+                                title={format(new Date(notif.created_at), "PPpp", { locale })}
+                              >
+                                {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale })}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2">
+                              {notif.read ? (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                >
+                                  {t("scheduleAlerts.notifications.status.read")}
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                  {t("scheduleAlerts.notifications.status.unread")}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-0 px-2">
+                              <div className="flex items-center justify-end gap-1">
+                                {!notif.read && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMarkNotifRead(notif.id);
+                                    }}
+                                    title={t("scheduleAlerts.notifications.acknowledge")}
+                                  >
+                                    <Check className="h-3 w-3" />
+                                  </Button>
+                                )}
+                                {notif.booking_id && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/admin/bookings/${notif.booking_id}`);
+                                    }}
+                                    title={t("scheduleAlerts.notifications.view")}
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteNotif(notif.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  )}
+                </Table>
               </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {notifications.map((notif) => {
-                  const typeBadge = getNotifTypeBadge(notif.type);
-                  return (
-                    <div
-                      key={notif.id}
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer",
-                        !notif.read && "bg-primary/5"
-                      )}
-                      onClick={() => {
-                        if (!notif.read) handleMarkNotifRead(notif.id);
-                        if (notif.booking_id) navigate(`/admin/booking?bookingId=${notif.booking_id}`);
-                      }}
-                    >
-                      <div className="flex-shrink-0">{getNotifIcon(notif.type)}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className={cn("text-sm", !notif.read ? "font-medium" : "text-muted-foreground")}>
-                          {notif.message}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge className={cn("text-[10px] px-1.5 py-0", typeBadge.className)}>{typeBadge.label}</Badge>
-                          <span className="text-[10px] text-muted-foreground">
-                            {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale })}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        {!notif.read && <div className="w-2 h-2 bg-primary rounded-full" />}
-                        {notif.booking_id && <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteNotif(notif.id); }}
-                          className="p-1 hover:bg-destructive/10 rounded transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            </div>
+
+            {notifNeedsPagination && (
+              <TablePagination
+                currentPage={notifCurrentPage}
+                totalPages={notifTotalPages}
+                totalItems={sortedNotifications.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setNotifCurrentPage}
+                itemName={isFr ? "notifications" : "notifications"}
+              />
             )}
           </div>
         </div>

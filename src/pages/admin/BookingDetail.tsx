@@ -14,7 +14,8 @@ import {
   Loader2, ArrowLeft, User, Users, Phone,
   Calendar, Clock, Building2, HandHeart,
   CheckCircle2, AlertCircle, Send, Pencil,
-  PenTool, ChevronRight, Package, History, MessageSquare
+  PenTool, ChevronRight, Package, History, MessageSquare,
+  FileText
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
@@ -27,10 +28,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 import { formatPrice } from "@/lib/formatPrice";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useBookingData } from "@/hooks/booking/useBookingData";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import {
   computeTherapistEarnings,
   hasCompleteRates,
@@ -68,6 +71,11 @@ export default function BookingDetail() {
   const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
+  const [invoiceHTML, setInvoiceHTML] = useState("");
+  const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
+  const [invoiceIsRoomPayment, setInvoiceIsRoomPayment] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
   const [bundleInfo, setBundleInfo] = useState<{
     bundleName: string;
@@ -235,6 +243,28 @@ export default function BookingDetail() {
     }
   };
 
+  const handleInvoiceClick = async () => {
+    if (!booking) return;
+    if (booking.stripe_invoice_url) {
+      window.open(booking.stripe_invoice_url, "_blank");
+      return;
+    }
+    setInvoiceLoading(true);
+    const { data, error } = await invokeEdgeFunction<unknown, { html: string; bookingId: string }>(
+      "generate-invoice",
+      { body: { bookingId: booking.id } }
+    );
+    setInvoiceLoading(false);
+    if (error || !data) {
+      toast.error("Impossible de générer la facture.");
+      return;
+    }
+    setInvoiceHTML(data.html);
+    setInvoiceBookingId(Number(data.bookingId));
+    setInvoiceIsRoomPayment(booking.payment_method === "room");
+    setIsInvoicePreviewOpen(true);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-20">
       <header className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex items-center justify-between gap-4">
@@ -282,6 +312,36 @@ export default function BookingDetail() {
           <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
             <MessageSquare className="h-4 w-4 mr-2" /> Notes
           </Button>
+          {booking.status === "completed" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleInvoiceClick}
+                  disabled={invoiceLoading}
+                >
+                  {invoiceLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4 mr-2" />
+                  )}
+                  {booking.stripe_invoice_url
+                    ? "Facture"
+                    : booking.payment_method === "room"
+                      ? "Bon"
+                      : "Facture"}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {booking.stripe_invoice_url
+                  ? "Voir la facture Stripe"
+                  : booking.payment_method === "room"
+                    ? "Télécharger le Bon de Prestation"
+                    : "Aperçu de la facture (PDF)"}
+              </TooltipContent>
+            </Tooltip>
+          )}
           {!isConcierge && !isPartnerBilled && !cardSavedToCharge && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -591,6 +651,14 @@ export default function BookingDetail() {
         open={isPaymentLinkOpen} 
         onOpenChange={setIsPaymentLinkOpen} 
         booking={booking} 
+      />
+
+      <InvoicePreviewDialog
+        open={isInvoicePreviewOpen}
+        onOpenChange={setIsInvoicePreviewOpen}
+        invoiceHTML={invoiceHTML}
+        bookingId={invoiceBookingId}
+        isRoomPayment={invoiceIsRoomPayment}
       />
 
       <InvoiceSignatureDialog
