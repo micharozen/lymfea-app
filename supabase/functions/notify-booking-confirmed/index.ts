@@ -216,8 +216,11 @@ serve(async (req) => {
         console.error('[notify-booking-confirmed][sms] Confirmation SMS exception:', smsErr);
         errors.push(`sms:${clientPhone}`);
       }
-    } else if (!clientPhone) {
-      console.log('[notify-booking-confirmed][sms] No client phone, skipping SMS');
+    } else {
+      console.log('[notify-booking-confirmed][sms] SMS skipped', {
+        hasPhone: !!clientPhone, clientEmailOk, isPaidEnough,
+        payment_status: (booking as any).payment_status,
+      });
     }
 
     // 4. Send push notification to all accepted therapists (primary + duo secondary)
