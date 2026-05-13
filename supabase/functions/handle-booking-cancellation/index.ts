@@ -135,42 +135,45 @@ serve(async (req) => {
         .or("status.eq.active,status.eq.Actif");
 
       if (adminUsers && adminUsers.length > 0) {
-        for (const admin of adminUsers) {
-          if (!admin.user_id) continue;
+        const adminsWithUserId = adminUsers.filter((a: any) => a.user_id);
+        const adminMessage = `❌ Réservation #${booking.booking_id} annulée · ${clientName} · ${booking.hotel_name || ""}`;
 
-          const adminMessage = `❌ Réservation #${booking.booking_id} annulée · ${clientName} · ${booking.hotel_name || ""}`;
-
-          // In-app notification
-          try {
-            await supabaseClient.from("notifications").insert({
+        // Bulk insert all in-app notifications in one query
+        try {
+          await supabaseClient.from("notifications").insert(
+            adminsWithUserId.map((admin: any) => ({
               user_id: admin.user_id,
               booking_id: booking.id,
               type: "booking_cancelled",
               message: adminMessage,
-            });
-          } catch (e) {
-            console.error(`[handle-booking-cancellation] Notification error for admin ${admin.first_name}:`, e);
-          }
-
-          // Push notification
-          try {
-            await supabaseClient.functions.invoke("send-push-notification", {
-              body: {
-                userId: admin.user_id,
-                title: "❌ Réservation annulée",
-                body: `#${booking.booking_id} · ${clientName} · ${booking.hotel_name || ""}`,
-                data: {
-                  bookingId: booking.id,
-                  type: "booking_cancelled",
-                  url: `/admin-pwa/booking/${booking.id}`,
-                },
-              },
-            });
-            console.log(`[handle-booking-cancellation] Push sent to admin: ${admin.first_name}`);
-          } catch (e) {
-            console.error(`[handle-booking-cancellation] Admin push error for ${admin.first_name}:`, e);
-          }
+            }))
+          );
+        } catch (e) {
+          console.error("[handle-booking-cancellation] Bulk notification insert error:", e);
         }
+
+        // Send push notifications in parallel
+        await Promise.all(
+          adminsWithUserId.map(async (admin: any) => {
+            try {
+              await supabaseClient.functions.invoke("send-push-notification", {
+                body: {
+                  userId: admin.user_id,
+                  title: "❌ Réservation annulée",
+                  body: `#${booking.booking_id} · ${clientName} · ${booking.hotel_name || ""}`,
+                  data: {
+                    bookingId: booking.id,
+                    type: "booking_cancelled",
+                    url: `/admin-pwa/booking/${booking.id}`,
+                  },
+                },
+              });
+              console.log(`[handle-booking-cancellation] Push sent to admin: ${admin.first_name}`);
+            } catch (e) {
+              console.error(`[handle-booking-cancellation] Admin push error for ${admin.first_name}:`, e);
+            }
+          })
+        );
       }
     } catch (err) {
       console.error("[handle-booking-cancellation] Admin notification error:", err);
