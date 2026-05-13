@@ -71,5 +71,24 @@
   "language": {
     "fr": "Français",
     "en": "English"
+  },
+  "cancelBookingDialog": {
+    "title": "Are you sure you want to cancel?",
+    "intro": "{{clientName}} paid a deposit when booking their appointment.",
+    "chargeLateFeesLabel": "Charge late cancellation fee",
+    "sendNotificationLabel": "Send cancellation notification",
+    "sendNotificationHelp": "The client will receive a cancellation email and SMS.",
+    "reasonLabel": "Cancellation reason",
+    "reasonPlaceholder": "No reason provided",
+    "detailsTitle": "Cancellation details",
+    "totalBooking": "Appointment total",
+    "depositPaid": "Deposit paid",
+    "cancellationFee": "Cancellation fee",
+    "totalRefund": "Total refund",
+    "toPaymentMethod": "To the original payment method",
+    "confirm": "Cancel appointment",
+    "back": "Go back",
+    "noCardInfo": "Non-card payment",
+    "successToast": "Booking cancelled"
   }
 }

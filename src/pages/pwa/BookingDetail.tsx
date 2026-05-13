@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
 import { ProposeAlternativeDialog } from "./ProposeAlternativeDialog";
+import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
 import PwaHeader from "@/components/pwa/Header";
@@ -150,6 +151,7 @@ const PwaBookingDetail = () => {
   const [tapToPayLoading, setTapToPayLoading] = useState(false);
   const [showHealthFormDialog, setShowHealthFormDialog] = useState(false);
   const [showNoShowDialog, setShowNoShowDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [roomGap, setRoomGap] = useState<{ gapMinutes: number } | null>(null);
   const [showExtendDialog, setShowExtendDialog] = useState(false);
   const [extendLoading, setExtendLoading] = useState(false);
@@ -885,6 +887,9 @@ const PwaBookingDetail = () => {
           <div className="p-4 space-y-2">
             <button onClick={() => { setShowContactDrawer(false); setShowNoShowDialog(true); }} className="flex items-center gap-3 p-4 bg-amber-50 text-amber-800 rounded-xl w-full font-medium"><UserX className="w-5 h-5"/> {t('bookingDetail.noShow')}</button>
             <button onClick={() => setShowUnassignDialog(true)} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X/> Désassigner</button>
+            {['pending', 'confirmed'].includes(booking.status) && (
+              <button onClick={() => { setShowContactDrawer(false); setShowCancelDialog(true); }} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X className="w-5 h-5"/> Annuler la réservation</button>
+            )}
           </div>
         </DrawerContent>
       </Drawer>
@@ -982,6 +987,25 @@ const PwaBookingDetail = () => {
           phone: booking.phone,
         }}
         onProposalSent={() => navigate("/pwa/dashboard", { state: { forceRefresh: true } })}
+      />
+
+      <CancelBookingDialog
+        isOpen={showCancelDialog}
+        onClose={() => setShowCancelDialog(false)}
+        onSuccess={() => {
+          setShowCancelDialog(false);
+          navigate("/pwa/bookings");
+        }}
+        bookingId={booking.id}
+        booking={{
+          booking_id: booking.booking_id,
+          client_first_name: booking.client_first_name,
+          client_last_name: booking.client_last_name,
+          total_price: Number(booking.total_price),
+          hotel_id: booking.hotel_id,
+          status: booking.status,
+        }}
+        userRole="therapist"
       />
     </div>
   );

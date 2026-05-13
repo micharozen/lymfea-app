@@ -263,26 +263,20 @@ const ManageBooking = () => {
   const cancelMutation = useMutation({
     mutationFn: async () => {
       if (!booking) throw new Error("No booking");
-      const { error: updateError } = await supabase
-        .rpc("cancel_booking_public", { p_token: bookingId! });
-      if (updateError) throw updateError;
-
-      await invokeEdgeFunction("send-booking-notification", {
+      const { error } = await invokeEdgeFunction("cancel-booking", {
         skipAuth: true,
         body: {
-          bookingId: booking.id,
-          language,
-          channels: ["sms"],
-          type: "cancellation",
-          clientPhone: booking.phone ?? undefined,
+          token: bookingId!,
+          send_notification: true,
         },
       });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
       toast({
         title: "Réservation annulée",
-        description: "Un SMS d'annulation avec un lien de re-réservation vous a été envoyé.",
+        description: "Un email de confirmation vous a été envoyé.",
       });
       setShowConfirmCancelDialog(false);
     },
