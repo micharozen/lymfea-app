@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { isInBlockedSlot } from '../_shared/blocked-slots.ts';
 import { computeOutOfHoursSurcharge } from '../_shared/surcharge.ts';
+import { createLogger } from '../_shared/logger.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -106,8 +107,10 @@ function sanitizeString(str: string): string {
 async function handleMultiBookingConfirm(
   supabase: any,
   data: z.infer<typeof multiRequestSchema>,
+  log: ReturnType<typeof createLogger>,
 ): Promise<Response> {
   const { hotelId, clientData, items, bookingIds, groupId, paymentMethod, therapistGender } = data;
+  log.bind({ hotelId, groupId, bookingCount: bookingIds.length, mode: 'multi' });
 
   if (items.length !== bookingIds.length) {
     return new Response(
@@ -163,6 +166,7 @@ async function handleMultiBookingConfirm(
     // Rollback only drafts we own (scoped by both bookingIds and groupId).
     await supabase.from('bookings').delete()
       .in('id', bookingIds).eq('status', 'awaiting_payment');
+    log.warn('rpc.reserve.no_slot', { path: 'multi_drafts_invalid' });
     return new Response(
       JSON.stringify({ success: false, error: 'SLOT_TAKEN' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
@@ -315,6 +319,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const log = createLogger({ function: 'create-client-booking', req });
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -354,7 +359,7 @@ try {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
         );
       }
-      return await handleMultiBookingConfirm(supabase, multi.data);
+      return await handleMultiBookingConfirm(supabase, multi.data, log);
     }
 
     const validationResult = requestSchema.safeParse(rawBody);
@@ -390,6 +395,7 @@ try {
     const effectiveGuestCount = Math.max(1, guestCount ?? 1);
     const isDuoBooking = effectiveGuestCount > 1;
 
+    log.bind({ hotelId, paymentMethod, isDuoBooking, draftBookingId });
     console.log('Creating booking for hotel:', hotelId);
 
     // Sanitize user-provided strings
@@ -479,6 +485,10 @@ try {
     // TOCTOU: Check blocked slots server-side
     if (await isInBlockedSlot(supabase, hotelId, bookingData.date, bookingData.time, totalDuration || 30)) {
       console.log('Rejected: overlaps with blocked slot', bookingData.time);
+      log.warn('booking.blocked_slot', {
+        date: bookingData.date,
+        time: bookingData.time,
+      });
       return new Response(
         JSON.stringify({ success: false, error: 'BLOCKED_SLOT' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -520,6 +530,12 @@ try {
 
       if (minutesUntilBooking < maxLeadTime) {
         console.log('Rejected: lead time violation', { minutesUntilBooking, maxLeadTime, venueMinNotice, maxTreatmentLeadTime });
+        log.warn('booking.lead_time_violation', {
+          minutesUntilBooking,
+          maxLeadTime,
+          venueMinNotice,
+          maxTreatmentLeadTime,
+        });
         return new Response(
           JSON.stringify({ success: false, error: 'LEAD_TIME_VIOLATION', minLeadTimeMinutes: maxLeadTime }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -604,8 +620,18 @@ try {
         });
         if (fallbackError) {
           if (fallbackError.message?.includes('NO_ROOM_AVAILABLE')) {
+            log.warn('rpc.reserve.no_slot', {
+              path: 'draft_expired_fallback',
+              date: bookingData.date,
+              time: bookingData.time,
+            });
             return new Response(JSON.stringify({ success: false, error: 'SLOT_TAKEN' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 });
           }
+          log.error('rpc.reserve.failed', fallbackError, {
+            path: 'draft_expired_fallback',
+            date: bookingData.date,
+            time: bookingData.time,
+          });
           return new Response(JSON.stringify({ success: false, error: 'Failed to create booking' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 });
         }
         bookingId = fallbackId;
@@ -678,9 +704,19 @@ try {
       if (rpcError) {
         if (rpcError.message?.includes('NO_ROOM_AVAILABLE')) {
           console.log('Slot taken (atomic check)');
+          log.warn('rpc.reserve.no_slot', {
+            path: 'atomic',
+            date: bookingData.date,
+            time: bookingData.time,
+          });
           return new Response(JSON.stringify({ success: false, error: 'SLOT_TAKEN' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 });
         }
         console.error('RPC error:', rpcError);
+        log.error('rpc.reserve.failed', rpcError, {
+          path: 'atomic',
+          date: bookingData.date,
+          time: bookingData.time,
+        });
         return new Response(JSON.stringify({ success: false, error: 'Failed to create booking' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 });
       }
 
@@ -1112,6 +1148,7 @@ try {
 
   } catch (error: any) {
     console.error('Error in create-client-booking:', error);
+    log.error('booking.creation_failed', error);
     return new Response(
       JSON.stringify({
         success: false,
@@ -1122,5 +1159,7 @@ try {
         status: 500,
       }
     );
+  } finally {
+    await log.flush();
   }
 });
