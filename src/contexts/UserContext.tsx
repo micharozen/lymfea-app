@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { setSentryUser } from "@/lib/sentry";
 
 interface UserContextType {
   userId: string | null;
@@ -30,12 +31,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setRole(null);
         setHotelIds([]);
         logger.clearContext(["userId", "role"]);
+        setSentryUser(null);
         setLoading(false);
         return;
       }
 
       setUserId(user.id);
       logger.setContext({ userId: user.id });
+      setSentryUser({ id: user.id });
 
       // Get user role
       const { data: roleData } = await supabase
@@ -47,7 +50,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       const userRole = roleData?.role as "admin" | "concierge" | null;
       setRole(userRole);
-      if (userRole) logger.setContext({ role: userRole });
+      if (userRole) {
+        logger.setContext({ role: userRole });
+        setSentryUser({ id: user.id, role: userRole });
+      }
 
       // Get hotel IDs for concierge
       if (userRole === "concierge") {

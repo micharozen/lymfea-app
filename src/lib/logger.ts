@@ -142,32 +142,13 @@ export const logger = {
 };
 
 /**
- * Install global error handlers. Call once at app boot.
- * Captures uncaught exceptions, unhandled promise rejections, and starts the
- * periodic flush loop.
+ * Start the periodic flush loop. Call once at app boot.
+ *
+ * Note: uncaught exceptions and unhandledrejection are captured by the Sentry
+ * SDK (see src/lib/sentry.ts) and shipped to BetterStack Errors. This logger
+ * only ships structured business events to BetterStack Telemetry.
  */
 export function initErrorTracking() {
   if (typeof window === 'undefined') return;
   startFlushLoop();
-
-  window.addEventListener('error', (event) => {
-    // Skip the chunk-reload signal we already handle in main.tsx — those
-    // aren't real errors, they're deploy-driven module misses.
-    const msg = event.message?.toLowerCase() ?? '';
-    if (
-      msg.includes('dynamically imported module') ||
-      msg.includes('importing a module script failed')
-    ) {
-      return;
-    }
-    logger.error('window.error', event.error ?? event.message, {
-      filename: event.filename,
-      lineno: event.lineno,
-      colno: event.colno,
-    });
-  });
-
-  window.addEventListener('unhandledrejection', (event) => {
-    logger.error('window.unhandledrejection', event.reason);
-  });
 }

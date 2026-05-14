@@ -32,6 +32,9 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   build: {
+    // Emit source maps so BetterStack Errors (Sentry-protocol) can resolve
+    // production stack traces. Maps are deployed alongside the JS bundles.
+    sourcemap: true,
     rollupOptions: {
       input: {
         app: path.resolve(__dirname, "index.html"),
@@ -42,6 +45,9 @@ export default defineConfig(({ mode }) => ({
         manualChunks(id) {
           if (id.includes('node_modules')) {
             // Regroupement par thématique comme dans ton ancienne config
+            if (id.includes('@sentry')) {
+              return 'vendor-sentry';
+            }
             if (id.includes('framer-motion')) {
               return 'vendor-motion';
             }

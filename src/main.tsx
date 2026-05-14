@@ -2,8 +2,12 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
+import { initSentry } from "./lib/sentry";
 import { initErrorTracking } from "./lib/logger";
 
+// Sentry first — its global error handlers must be installed before anything
+// else can throw.
+initSentry();
 initErrorTracking();
 
 const RELOAD_FLAG = "__chunk_reloaded_at";
