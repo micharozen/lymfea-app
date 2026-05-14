@@ -6,23 +6,23 @@ Logs centralisés via BetterStack Telemetry (anciennement Logtail). Transport HT
 
 ### Secrets requis
 
+Crée deux *sources* différentes dans BetterStack (platform **HTTP**) — une pour le frontend, une pour le backend. Chaque source a son **propre ingesting host** (visible dans la page de configuration de la source, ex: `s2439957.eu-fsn-3.betterstackdata.com`) et son propre **Source token**. Le token frontend est exposé publiquement (intégré au bundle JS), donc utilise un token ingest-only sans permission de lecture.
+
 **Edge Functions (Supabase)**
 
 ```bash
 supabase secrets set BETTERSTACK_SOURCE_TOKEN=<token_backend>
-# Optionnel — surcharge l'URL d'ingest (default: https://in.logs.betterstack.com)
-supabase secrets set BETTERSTACK_INGEST_URL=<custom_ingest_url>
+supabase secrets set BETTERSTACK_INGEST_URL=https://<host-backend>.betterstackdata.com
 ```
 
-**Frontend (`.env`)**
+**Frontend (`.env.local`)**
 
 ```env
 VITE_BETTERSTACK_FRONTEND_TOKEN=<token_frontend>
-# Optionnel
-VITE_BETTERSTACK_INGEST_URL=<custom_ingest_url>
+VITE_BETTERSTACK_INGEST_URL=https://<host-frontend>.betterstackdata.com
 ```
 
-Crée deux *sources* différentes dans BetterStack — une pour le frontend, une pour le backend. Le token frontend est exposé publiquement (intégré au bundle JS), donc utilise un token avec ingest-only sans permission de lecture.
+Les deux variables sont obligatoires (token + URL). Si l'une manque, le logger passe en mode console-only.
 
 ### No-op sans token
 

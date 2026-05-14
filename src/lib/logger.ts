@@ -1,7 +1,7 @@
 // Frontend logger that ships structured entries to BetterStack Telemetry.
 //
-// - Buffers entries in memory, flushes every 5s, on `beforeunload`, and when
-//   the buffer hits MAX_BATCH. Uses sendBeacon on unload for reliability.
+// - Buffers entries in memory, flushes every 5s, on `pagehide` (with
+//   `keepalive: true`), and when the buffer hits MAX_BATCH.
 // - No-op when VITE_BETTERSTACK_FRONTEND_TOKEN is unset (dev / preview).
 // - Always mirrors to console so devs still see output.
 //
@@ -15,6 +15,7 @@ interface LogEntry {
   dt: string;
   level: LogLevel;
   message: string;
+  env: string;
   context: Record<string, unknown>;
   error?: { name: string; message: string; stack?: string };
 }
@@ -22,9 +23,9 @@ interface LogEntry {
 const TOKEN = import.meta.env.VITE_BETTERSTACK_FRONTEND_TOKEN as
   | string
   | undefined;
-const INGEST_URL =
-  (import.meta.env.VITE_BETTERSTACK_INGEST_URL as string | undefined) ??
-  'https://in.logs.betterstack.com';
+const INGEST_URL = import.meta.env.VITE_BETTERSTACK_INGEST_URL as
+  | string
+  | undefined;
 const ENV = (import.meta.env.VITE_ENV as string | undefined) ?? 'development';
 
 const MAX_BATCH = 20;
@@ -49,7 +50,6 @@ function serializeError(err: unknown): LogEntry['error'] {
 function baseContext(): Record<string, unknown> {
   return {
     ...globalContext,
-    env: ENV,
     url:
       typeof window !== 'undefined' ? window.location.pathname : undefined,
     user_agent:
@@ -67,6 +67,7 @@ function enqueue(
     dt: new Date().toISOString(),
     level,
     message,
+    env: ENV,
     context: { ...baseContext(), ...(context ?? {}) },
   };
   if (error !== undefined) entry.error = serializeError(error);
@@ -81,27 +82,15 @@ function enqueue(
   if (buffer.length >= MAX_BATCH) void flush();
 }
 
-async function flush(useBeacon = false): Promise<void> {
+async function flush(): Promise<void> {
   if (buffer.length === 0) return;
-  if (!TOKEN) {
+  if (!TOKEN || !INGEST_URL) {
     buffer.length = 0;
     return;
   }
 
   const payload = buffer.splice(0, buffer.length);
   const body = JSON.stringify(payload);
-
-  if (useBeacon && typeof navigator !== 'undefined' && navigator.sendBeacon) {
-    // sendBeacon does not support custom headers, so the token is appended as
-    // a query string. BetterStack ingest accepts both header and `?token=`.
-    try {
-      const url = `${INGEST_URL}?source_token=${encodeURIComponent(TOKEN)}`;
-      navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
-      return;
-    } catch {
-      // fall through to fetch
-    }
-  }
 
   try {
     await fetch(INGEST_URL, {
@@ -114,7 +103,6 @@ async function flush(useBeacon = false): Promise<void> {
       keepalive: true,
     });
   } catch (err) {
-    // Silent — we don't want logger failures to break the app.
     console.error('[logger] flush failed', err);
   }
 }
@@ -122,8 +110,7 @@ async function flush(useBeacon = false): Promise<void> {
 function startFlushLoop() {
   if (flushTimer || typeof window === 'undefined') return;
   flushTimer = setInterval(() => void flush(), FLUSH_INTERVAL_MS);
-  window.addEventListener('beforeunload', () => void flush(true));
-  window.addEventListener('pagehide', () => void flush(true));
+  window.addEventListener('pagehide', () => void flush());
 }
 
 export const logger = {

@@ -19,6 +19,7 @@ interface LogEntry {
   message: string;
   function: string;
   request_id: string;
+  env: string;
   duration_ms?: number;
   context?: Record<string, unknown>;
   error?: {
@@ -33,8 +34,8 @@ interface LoggerOptions {
   req?: Request;
 }
 
-const INGEST_URL =
-  Deno.env.get('BETTERSTACK_INGEST_URL') ?? 'https://in.logs.betterstack.com';
+const INGEST_URL = Deno.env.get('BETTERSTACK_INGEST_URL');
+const ENV = Deno.env.get('APP_ENV') ?? 'development';
 
 function serializeError(err: unknown): LogEntry['error'] {
   if (err instanceof Error) {
@@ -81,6 +82,7 @@ export function createLogger(options: LoggerOptions): Logger {
       message,
       function: options.function,
       request_id: requestId,
+      env: ENV,
       duration_ms: Date.now() - startedAt,
       context: { ...bound, ...(context ?? {}) },
     };
@@ -106,7 +108,7 @@ export function createLogger(options: LoggerOptions): Logger {
     flush: async () => {
       if (buffer.length === 0) return;
       const token = Deno.env.get('BETTERSTACK_SOURCE_TOKEN');
-      if (!token) return; // No-op when not configured
+      if (!token || !INGEST_URL) return; // No-op when not configured
 
       const payload = buffer.splice(0, buffer.length);
       try {
