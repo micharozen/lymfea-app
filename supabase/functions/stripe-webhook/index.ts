@@ -9,11 +9,15 @@ import {
 import { brand } from "../_shared/brand.ts";
 import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
 import { getStripeForVenue, getGlobalStripe } from "../_shared/stripe-resolver.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
+  const log = createLogger({ function: "stripe-webhook", req });
 
   if (!signature) {
+    log.warn("webhook.missing_signature");
+    await log.flush();
     return new Response("No signature", { status: 400 });
   }
 
@@ -42,6 +46,8 @@ serve(async (req) => {
 
   if (!webhookSecret) {
     console.error(`[STRIPE-WEBHOOK] No webhook secret for hotel_id=${hotelIdParam ?? "<none>"}`);
+    log.error("webhook.missing_secret", null, { hotelId: hotelIdParam });
+    await log.flush();
     return new Response("Webhook secret not configured", { status: 400 });
   }
 
@@ -54,6 +60,7 @@ serve(async (req) => {
       webhookSecret
     );
 
+    log.bind({ event_type: event.type, hotelId: hotelIdParam });
     console.log(`[STRIPE-WEBHOOK] Event: ${event.type} (hotel=${hotelIdParam ?? "global"})`);
 
     if (event.type === "checkout.session.completed") {
@@ -539,6 +546,15 @@ serve(async (req) => {
 
       if (updateError) throw updateError;
 
+      log.warn("payment.declined", {
+        bookingId: booking.id,
+        bookingNumber: booking.booking_id,
+        error_code: errorDetails?.code,
+        decline_code: errorDetails?.decline_code,
+        card_brand: errorDetails?.payment_method?.card?.brand,
+        source: "checkout.session.async_payment_failed",
+      });
+
       try {
         await supabase.functions.invoke('send-slack-notification', {
           body: {
@@ -606,6 +622,15 @@ serve(async (req) => {
 
       if (updateError) throw updateError;
 
+      log.warn("payment.declined", {
+        bookingId: existingBooking.id,
+        bookingNumber: existingBooking.booking_id,
+        error_code: errorDetails?.code,
+        decline_code: errorDetails?.decline_code,
+        card_brand: errorDetails?.payment_method?.card?.brand,
+        source: "payment_intent.payment_failed",
+      });
+
       try {
         await supabase.functions.invoke('send-slack-notification', {
           body: {
@@ -632,6 +657,9 @@ serve(async (req) => {
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error("webhook.handler_failed", error);
     return new Response(JSON.stringify({ error: errorMessage }), { status: 400 });
+  } finally {
+    await log.flush();
   }
 });
