@@ -30,6 +30,7 @@ export const Navbar = () => {
   const links = [
     { href: "#features", label: t("nav.features") },
     { href: "#how-it-works", label: t("nav.howItWorks") },
+    { href: "#pricing", label: t("nav.pricing") },
   ];
 
   const switchLang = () => {
