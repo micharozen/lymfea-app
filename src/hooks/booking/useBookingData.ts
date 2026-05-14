@@ -139,6 +139,13 @@ export function useBookingData() {
   useEffect(() => {
     const channelName = 'bookings-admin-realtime';
 
+    // Remove any stale channel with this name before creating a new one.
+    // Needed because React Strict Mode runs effects twice and supabase.channel()
+    // returns the same (already-subscribed) object when given the same name,
+    // causing "cannot add callbacks after subscribe()" errors.
+    const stale = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
+    if (stale) supabase.removeChannel(stale);
+
     const channel = supabase.channel(channelName);
 
     channel.on(

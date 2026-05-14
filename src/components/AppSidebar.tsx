@@ -168,12 +168,12 @@ export function AppSidebar() {
     fetchAdminInfo();
 
     const adminChannel = supabase
-      .channel('admin-changes')
+      .channel(`admin-changes-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'admins' }, () => fetchAdminInfo())
       .subscribe();
 
     const conciergeChannel = supabase
-      .channel('concierge-changes')
+      .channel(`concierge-changes-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'concierges' }, () => fetchAdminInfo())
       .subscribe();
 
@@ -189,7 +189,7 @@ export function AppSidebar() {
     fetchRedFlagCount();
 
     const alertChannel = supabase
-      .channel('audit-log-sidebar')
+      .channel(`audit-log-sidebar-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_log' }, () => fetchRedFlagCount())
       .subscribe();
 
@@ -206,7 +206,7 @@ export function AppSidebar() {
     fetchUnreadNotifCount();
 
     const notifChannel = supabase
-      .channel('notifications-sidebar')
+      .channel(`notifications-sidebar-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => fetchUnreadNotifCount())
       .subscribe();
 

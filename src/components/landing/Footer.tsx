@@ -1,37 +1,34 @@
 import { useTranslation } from "react-i18next";
-import { brand, brandLogos } from "@/config/brand";
+import { BRAND_DEMO_CTA, BRAND_EMAIL } from "./constants";
+import { Wordmark } from "./Wordmark";
 
-const DEMO_CTA = "mailto:hello@lymfea.fr?subject=Demo%20Ei%CC%88a";
 
 export const Footer = () => {
-  const { t, i18n } = useTranslation("landing");
-  const isFr = i18n.language.startsWith("fr");
+  const { t } = useTranslation("landing");
   const year = new Date().getFullYear();
 
   const columns = [
     {
       title: t("footer.product"),
       links: [
-        { label: t("footer.links.features"), href: "#features" },
-        { label: t("footer.links.howItWorks"), href: "#how-it-works" },
-        { label: t("footer.links.demo"), href: DEMO_CTA },
+        { label: t("footer.links.features"), href: "/#features" },
+        { label: t("footer.links.howItWorks"), href: "/#how-it-works" },
+        { label: t("footer.links.pricing"), href: "/#pricing" },
+        { label: t("footer.links.demo"), href: BRAND_DEMO_CTA },
         { label: t("footer.links.login"), href: "/login" },
       ],
     },
     {
       title: t("footer.company"),
       links: [
-        { label: t("footer.links.email"), href: `mailto:${brand.legal.contactEmail}` },
-        {
-          label: brand.social.instagram ? "Instagram" : "",
-          href: brand.social.instagram,
-        },
-      ].filter((link) => !!link.label),
+        { label: t("footer.links.email"), href: `mailto:${BRAND_EMAIL}` },
+        { label: t("footer.links.contact"), href: BRAND_DEMO_CTA },
+      ],
     },
     {
       title: t("footer.legal"),
       links: [
-        { label: t("footer.links.terms"), href: "#" },
+        { label: t("footer.links.terms"), href: "/terms" },
         { label: t("footer.links.privacy"), href: "#" },
         { label: t("footer.links.legalMentions"), href: "#" },
       ],
@@ -43,17 +40,11 @@ export const Footer = () => {
       <div className="container mx-auto px-4 py-16 md:px-6">
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
-            <img
-              src={brandLogos.monogramWhite}
-              alt="Eïa"
-              className="h-8"
-            />
+            <Wordmark variant="inverted" className="text-3xl md:text-4xl" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-background/70">
               {t("footer.tagline")}
             </p>
-            <p className="mt-4 text-xs text-background/50">
-              {isFr ? brand.legal.address : brand.legal.address}
-            </p>
+            <p className="mt-4 text-xs text-background/50">{BRAND_EMAIL}</p>
           </div>
 
           {columns.map((col) => (
@@ -79,9 +70,7 @@ export const Footer = () => {
 
         <div className="mt-16 flex flex-col items-start justify-between gap-3 border-t border-background/10 pt-6 text-xs text-background/60 md:flex-row md:items-center">
           <span>{t("footer.copyright", { year })}</span>
-          <span className="font-serif italic text-background/70">
-            {isFr ? brand.tagline.fr : brand.tagline.en}
-          </span>
+          <span className="font-serif italic text-background/70">{t("footer.signature")}</span>
         </div>
       </div>
     </footer>

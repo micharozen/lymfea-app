@@ -619,7 +619,7 @@ try {
           _guest_count: effectiveGuestCount,
         });
         if (fallbackError) {
-          if (fallbackError.message?.includes('NO_TRUNK_AVAILABLE')) {
+          if (fallbackError.message?.includes('NO_ROOM_AVAILABLE')) {
             log.warn('rpc.reserve.no_slot', {
               path: 'draft_expired_fallback',
               date: bookingData.date,
@@ -702,7 +702,7 @@ try {
       });
 
       if (rpcError) {
-        if (rpcError.message?.includes('NO_TRUNK_AVAILABLE')) {
+        if (rpcError.message?.includes('NO_ROOM_AVAILABLE')) {
           console.log('Slot taken (atomic check)');
           log.warn('rpc.reserve.no_slot', {
             path: 'atomic',
@@ -1021,6 +1021,17 @@ try {
       } catch (duoNotifError) {
         console.error('Error sending duo notifications:', duoNotifError);
       }
+
+      try {
+        const adminEmailResponse = await supabase.functions.invoke('notify-admin-new-booking', {
+          body: { bookingId: bookingId }
+        });
+        if (adminEmailResponse.error) {
+          console.error('Failed to send admin email notification (duo):', adminEmailResponse.error);
+        }
+      } catch (adminEmailError) {
+        console.error('Error sending admin email notification (duo):', adminEmailError);
+      }
     } else if (wasAutoValidated) {
       // Auto-validated booking: send confirmation notifications (not new booking notifications)
       try {
@@ -1036,6 +1047,17 @@ try {
         }
       } catch (confirmError) {
         console.error('Error sending booking confirmed notifications:', confirmError);
+      }
+
+      try {
+        const adminEmailResponse = await supabase.functions.invoke('notify-admin-new-booking', {
+          body: { bookingId: bookingId }
+        });
+        if (adminEmailResponse.error) {
+          console.error('Failed to send admin email notification (auto-validated):', adminEmailResponse.error);
+        }
+      } catch (adminEmailError) {
+        console.error('Error sending admin email notification (auto-validated):', adminEmailError);
       }
     } else {
       // Broadcast to therapists with gender-preference filtering

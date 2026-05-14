@@ -17,7 +17,8 @@ export async function handleCreateBundlePayment(
   ctx: ActionContext,
 ): Promise<Response> {
   const { req, body, supabase, stripe } = ctx;
-  const { hotelId, clientData, bundleItems, giftData } = body as Record<string, any>;
+  const { hotelId, clientData, bundleItems, giftData, language } = body as Record<string, any>;
+  const recipientLanguage: string = giftData?.recipientLanguage || '';
 
   if (
     !hotelId ||
@@ -158,6 +159,8 @@ export async function handleCreateBundlePayment(
       recipientName: giftData?.recipientName || "",
       recipientEmail: giftData?.recipientEmail || "",
       giftMessage: giftData?.giftMessage || "",
+      language: language || 'fr',
+      recipientLanguage: recipientLanguage,
     },
   });
 

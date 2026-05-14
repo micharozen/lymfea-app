@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
+import { sendSms } from "../_shared/send-sms.ts";
 import { getStripeForVenue } from "../_shared/stripe-resolver.ts";
 
 const CLIENT_NEW_BOOKING_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
@@ -180,41 +181,42 @@ serve(async (req) => {
     let notificationsSent = 0;
     let skippedDuplicates = 0;
 
-    for (const th of eligibleTherapists) {
-      const h = th.therapists as any;
-      if (!h || !h.user_id) continue;
+    const eligibleWithUserId = eligibleTherapists
+      .map(th => ({ th, h: th.therapists as any }))
+      .filter(({ h }) => h && h.user_id);
 
-      // Check if notification already sent for this booking+user
-      const { data: existingLog } = await supabaseClient
+    const allUserIds = eligibleWithUserId.map(({ h }) => h.user_id);
+
+    // Batch dedup check: one query for all therapists instead of one per therapist
+    let alreadyNotifiedSet = new Set<string>();
+    if (allUserIds.length > 0) {
+      const { data: existingLogs } = await supabaseClient
         .from("push_notification_logs")
-        .select("id")
+        .select("user_id")
         .eq("booking_id", bookingId)
-        .eq("user_id", h.user_id)
-        .single();
+        .in("user_id", allUserIds);
+      alreadyNotifiedSet = new Set((existingLogs || []).map((l: any) => l.user_id));
+    }
 
-      if (existingLog) {
-        console.log(`[DEDUP] Skipping duplicate for user ${h.first_name} - already notified`);
-        skippedDuplicates++;
-        continue;
-      }
+    const toNotify = eligibleWithUserId.filter(({ h }) => !alreadyNotifiedSet.has(h.user_id));
+    skippedDuplicates = eligibleWithUserId.length - toNotify.length;
+    if (skippedDuplicates > 0) {
+      console.log(`[DEDUP] Skipping ${skippedDuplicates} already-notified therapist(s)`);
+    }
 
-      // Insert log BEFORE sending to prevent race conditions
-      const { error: logError } = await supabaseClient
+    // Bulk insert logs before sending (unique constraint handles any remaining race conditions)
+    if (toNotify.length > 0) {
+      await supabaseClient
         .from("push_notification_logs")
-        .insert({
-          booking_id: bookingId,
-          user_id: h.user_id,
-        });
+        .upsert(
+          toNotify.map(({ h }) => ({ booking_id: bookingId, user_id: h.user_id })),
+          { onConflict: "booking_id,user_id", ignoreDuplicates: true }
+        );
+    }
 
-      if (logError) {
-        if (logError.code === "23505") {
-          console.log(`[DEDUP] Race condition caught for user ${h.first_name}`);
-          skippedDuplicates++;
-          continue;
-        }
-        console.error("Error logging notification:", logError);
-      }
-
+    // Send push notifications in parallel
+    const pushResults = await Promise.all(
+      toNotify.map(async ({ h }) => {
         try {
           const { error: pushError } = await supabaseClient.functions.invoke(
             "send-push-notification",
@@ -233,17 +235,19 @@ serve(async (req) => {
               },
             }
           );
-
-        if (pushError) {
-          console.error(`Error sending push to ${h.first_name}:`, pushError);
-        } else {
+          if (pushError) {
+            console.error(`Error sending push to ${h.first_name}:`, pushError);
+            return false;
+          }
           console.log(`✅ Push sent to ${h.first_name} ${h.last_name}`);
-          notificationsSent++;
+          return true;
+        } catch (error) {
+          console.error("Error sending notification:", error);
+          return false;
         }
-      } catch (error) {
-        console.error("Error sending notification:", error);
-      }
-    }
+      })
+    );
+    notificationsSent = pushResults.filter(Boolean).length;
 
     console.log(`Push notifications sent: ${notificationsSent}, skipped duplicates: ${skippedDuplicates}`);
 
@@ -410,12 +414,40 @@ serve(async (req) => {
           } else {
             console.log('[trigger-new-booking-notifications] External client payment email sent:', clientEmailResult.id);
 
+            const channels: string[] = ['email'];
+
+            if (clientPhone) {
+              try {
+                // Format date sans jour de semaine pour le SMS (ex: "30 avril").
+                const smsDate = new Date(booking.booking_date).toLocaleDateString(
+                  language === 'fr' ? 'fr-FR' : 'en-US',
+                  { day: 'numeric', month: 'long' },
+                );
+                // URL = lien Stripe brut (sans ?prefilled_email=, plus court).
+                // Vise 1 segment SMS. Accents basiques (a, e, e) restent en GSM-7.
+                const smsBody = language === 'fr'
+                  ? `Bonjour ${firstName}, votre réservation chez ${booking.hotel_name ?? ''} le ${smsDate} à ${formattedTime} (${totalPrice}${currencySymbol}). Paiement : ${paymentLink.url}`
+                  : `Hello ${firstName}, your booking at ${booking.hotel_name ?? ''} on ${smsDate} at ${formattedTime} (${totalPrice}${currencySymbol}). Payment: ${paymentLink.url}`;
+                const smsResult = await sendSms({ to: clientPhone, body: smsBody });
+                if (smsResult.error) {
+                  console.error('[trigger-new-booking-notifications][sms] External payment-link SMS error:', smsResult.error);
+                } else {
+                  console.log('[trigger-new-booking-notifications][sms] External payment-link SMS sent:', smsResult.sid);
+                  channels.push('sms');
+                }
+              } catch (smsErr) {
+                console.error('[trigger-new-booking-notifications][sms] External payment-link SMS exception:', smsErr);
+              }
+            } else {
+              console.log('[trigger-new-booking-notifications][sms] No phone on customer/booking, skipping external SMS');
+            }
+
             await supabaseClient
               .from('bookings')
               .update({
                 payment_link_url: paymentLink.url,
                 payment_link_sent_at: new Date().toISOString(),
-                payment_link_channels: ['email'],
+                payment_link_channels: channels,
                 payment_link_language: language,
               })
               .eq('id', bookingId);
@@ -466,6 +498,41 @@ serve(async (req) => {
             console.error('[trigger-new-booking-notifications] Client email error:', clientEmailResult.error);
           } else {
             console.log('[trigger-new-booking-notifications] Client email sent:', clientEmailResult.id);
+
+            // SMS de confirmation : uniquement quand le booking est confirmed
+            // au moment de la création (cas admin direct-assign). Les bookings
+            // pending qui passent à confirmed plus tard via acceptation
+            // thérapeute déclenchent notify-booking-confirmed qui envoie le SMS.
+            // Garde supplémentaire : pas de SMS tant que le client n'a pas
+            // engagé son paiement (paid/charged/card_saved/partner_billing).
+            const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing'];
+            const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
+            if (!isPending && booking.status === 'confirmed' && isPaidEnough) {
+              if (clientPhone) {
+                try {
+                  const language: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';
+                  // SMS court (1 segment GSM-7 = 160 chars). Pas d'accents,
+                  // pas de lien manage (l'email contient deja l'URL).
+                  const shortToken = (booking as any).short_token;
+                  const smsManageUrl = shortToken
+                    ? `${siteUrl}/m/${shortToken}`
+                    : clientBookingUrl;
+                  const smsBody = language === 'fr'
+                    ? `Bonjour ${firstName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${smsManageUrl}`
+                    : `Hello ${firstName}, your treatment at ${booking.hotel_name ?? ''} on ${formattedDate} at ${formattedTime} is confirmed. Manage: ${smsManageUrl}`;
+                  const smsResult = await sendSms({ to: clientPhone, body: smsBody });
+                  if (smsResult.error) {
+                    console.error('[trigger-new-booking-notifications][sms] Confirmation SMS error:', smsResult.error);
+                  } else {
+                    console.log('[trigger-new-booking-notifications][sms] Confirmation SMS sent:', smsResult.sid);
+                  }
+                } catch (smsErr) {
+                  console.error('[trigger-new-booking-notifications][sms] Confirmation SMS exception:', smsErr);
+                }
+              } else {
+                console.log('[trigger-new-booking-notifications][sms] No phone on customer/booking, skipping confirmation SMS');
+              }
+            }
           }
         }
       } else {
