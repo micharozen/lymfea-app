@@ -1,11 +1,12 @@
 import { createRoot } from "react-dom/client";
 import { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./index.css";
 import "./i18n";
 
 const Landing = lazy(() => import("./pages/Landing"));
+const Terms = lazy(() => import("./pages/Terms"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,7 +19,7 @@ const queryClient = new QueryClient({
 
 const LandingLoader = () => (
   <div className="flex min-h-screen items-center justify-center bg-background">
-    <span className="font-serif text-2xl tracking-wide text-primary">Eïa</span>
+    <span className="font-serif text-2xl tracking-wide text-primary">Saoma</span>
   </div>
 );
 
@@ -26,7 +27,11 @@ createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <Suspense fallback={<LandingLoader />}>
-        <Landing />
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="*" element={<Landing />} />
+        </Routes>
       </Suspense>
     </BrowserRouter>
   </QueryClientProvider>,

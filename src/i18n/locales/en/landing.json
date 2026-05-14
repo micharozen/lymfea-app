@@ -2,6 +2,7 @@
   "nav": {
     "features": "Features",
     "howItWorks": "How it works",
+    "pricing": "Pricing",
     "contact": "Contact",
     "login": "Sign in",
     "cta": "Book a demo"
@@ -86,6 +87,44 @@
       "desc": "QR codes in rooms, online booking, therapist app deployed. Your clients book in 2 clicks."
     }
   },
+  "pricing": {
+    "eyebrow": "Pricing",
+    "title": "Simple pricing, aligned with your business",
+    "subtitle": "No hidden fees, no long-term contracts. Pay per location, scale as you grow.",
+    "starter": {
+      "name": "Starter",
+      "badge": "Most popular",
+      "tagline": "For a single spa, boutique hotel or independent day spa.",
+      "priceFrom": "Starting from",
+      "unit": "excl. VAT / month / location",
+      "features": {
+        "agenda": "Unified schedule, multi-therapist, multi-room",
+        "pwa": "Therapist mobile app (iOS & Android)",
+        "booking": "Online client booking + in-room QR code",
+        "billing": "Billing & Stripe payments included",
+        "giftcards": "Gift cards & treatment bundles",
+        "support": "Email support & guided onboarding"
+      },
+      "cta": "Start with Starter",
+      "note": "14-day free trial. No commitment, no credit card."
+    },
+    "custom": {
+      "name": "Custom",
+      "tagline": "For hotel chains, groups and tailored requirements.",
+      "priceLabel": "Pricing",
+      "price": "Custom quote",
+      "unit": "based on volume & integrations",
+      "features": {
+        "multivenue": "Multi-property & consolidated reporting",
+        "pms": "Opera Cloud & Mews PMS integrations",
+        "branding": "White-label & custom domain",
+        "sla": "Dedicated SLA & priority 7/7 support"
+      },
+      "cta": "Contact the team",
+      "note": "Response within 24 business hours."
+    },
+    "footnote": "All prices in EUR excl. VAT. Volume discount above 5 locations."
+  },
   "cta": {
     "title": "Ready to modernize your spa?",
     "subtitle": "Book a personalized 30-minute demo with our team. We'll show the platform with your treatments and organization.",
@@ -101,6 +140,7 @@
     "links": {
       "features": "Features",
       "howItWorks": "How it works",
+      "pricing": "Pricing",
       "login": "Sign in",
       "demo": "Book a demo",
       "about": "About",
