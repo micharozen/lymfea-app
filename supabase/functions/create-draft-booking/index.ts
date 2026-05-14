@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +28,7 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const log = createLogger({ function: "create-draft-booking", req });
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -38,6 +40,7 @@ serve(async (req: Request) => {
   try {
     const body = await req.json();
     const { hotelId, therapistGender } = body;
+    log.bind({ hotelId });
 
     if (!hotelId) {
       throw new Error("Données manquantes pour créer le brouillon");
@@ -162,8 +165,28 @@ serve(async (req: Request) => {
         _guest_count: effectiveGuestCount,
       });
 
-      if (rpcError) throw rpcError;
-      if (!newBookingId) throw new Error("Le créneau n'a pas pu être réservé (conflit).");
+      if (rpcError) {
+        if (rpcError.message?.includes("NO_TRUNK_AVAILABLE")) {
+          log.warn("rpc.reserve.no_slot", {
+            date: item.date,
+            time: item.time,
+          });
+        } else {
+          log.error("rpc.reserve.failed", rpcError, {
+            date: item.date,
+            time: item.time,
+          });
+        }
+        throw rpcError;
+      }
+      if (!newBookingId) {
+        log.warn("rpc.reserve.no_slot", {
+          date: item.date,
+          time: item.time,
+          reason: "null_id",
+        });
+        throw new Error("Le créneau n'a pas pu être réservé (conflit).");
+      }
 
       createdDraftIds.push(newBookingId);
       bookingIds.push(newBookingId);
@@ -210,6 +233,9 @@ serve(async (req: Request) => {
 
   } catch (error: any) {
     console.error("Erreur create-draft-booking:", error);
+    log.error("draft.creation_failed", error, {
+      rollback_count: createdDraftIds.length,
+    });
 
     // Rollback: drop any drafts that succeeded earlier in this request.
     if (createdDraftIds.length > 0) {
@@ -221,6 +247,7 @@ serve(async (req: Request) => {
           .eq('status', 'awaiting_payment');
       } catch (rollbackErr) {
         console.error("Rollback failed:", rollbackErr);
+        log.error("draft.rollback_failed", rollbackErr);
       }
     }
 
@@ -228,5 +255,7 @@ serve(async (req: Request) => {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
+  } finally {
+    await log.flush();
   }
 });

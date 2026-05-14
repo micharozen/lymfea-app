@@ -3,6 +3,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand } from "../_shared/brand.ts";
 import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -79,9 +80,12 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const remoteLog = createLogger({ function: "finalize-payment", req });
+
   try {
     const { booking_id, payment_method, final_amount, signature_data }: FinalizePaymentRequest = await req.json();
 
+    remoteLog.bind({ booking_id, payment_method, final_amount });
     log("Request received", { booking_id, payment_method, final_amount, hasSignature: !!signature_data });
 
     // Validation des inputs
@@ -427,7 +431,12 @@ serve(async (req) => {
           };
         } catch (transferError: any) {
           log("Transfer failed", { error: transferError.message });
-          
+          remoteLog.error("payment.transfer_failed", transferError, {
+            therapist_id: booking.therapist_id,
+            amount: breakdown.therapistShare,
+            stripe_account: therapist.stripe_account_id,
+          });
+
           // Enregistrer l'échec
           await supabase
             .from('therapist_payouts')
@@ -517,16 +526,19 @@ serve(async (req) => {
 
   } catch (error: any) {
     log("Error", { message: error.message, stack: error.stack });
+    remoteLog.error("payment.finalize_failed", error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
+      JSON.stringify({
+        success: false,
+        error: error.message
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       }
     );
+  } finally {
+    await remoteLog.flush();
   }
 });
 
