@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { BRAND_DEMO_CTA, BRAND_EMAIL } from "./constants";
 import { Wordmark } from "./Wordmark";
 
+
 export const Footer = () => {
   const { t } = useTranslation("landing");
   const year = new Date().getFullYear();
