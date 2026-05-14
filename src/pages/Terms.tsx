@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
+import { useLandingHead } from "@/components/landing/useLandingHead";
 
 const SECTION_KEYS = [
   "objet",
@@ -20,6 +21,8 @@ const SECTION_KEYS = [
 
 const Terms = () => {
   const { t, i18n } = useTranslation("terms");
+
+  useLandingHead();
 
   useEffect(() => {
     document.title = t("meta.title");

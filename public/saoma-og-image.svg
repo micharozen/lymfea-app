@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDFAF4"/>
+      <stop offset="100%" stop-color="#FAF4E8"/>
+    </linearGradient>
+    <radialGradient id="blob" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F5ECDA" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#F5ECDA" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <ellipse cx="980" cy="180" rx="320" ry="220" fill="url(#blob)"/>
+  <ellipse cx="220" cy="520" rx="280" ry="180" fill="url(#blob)"/>
+
+  <!-- Wordmark -->
+  <text x="100" y="295" font-family="Georgia, 'Times New Roman', serif" font-size="140" font-weight="400" letter-spacing="-2" fill="#26201A">saoma</text>
+  <circle cx="475" cy="280" r="14" fill="#C4B07A"/>
+
+  <!-- Tagline -->
+  <text x="105" y="370" font-family="Helvetica, Arial, sans-serif" font-size="38" font-weight="400" letter-spacing="-0.5" fill="#5A4A36">La plateforme de gestion spa</text>
+  <text x="105" y="418" font-family="Helvetica, Arial, sans-serif" font-size="38" font-weight="400" letter-spacing="-0.5" fill="#5A4A36">pour h&#244;tels &amp; day spas.</text>
+
+  <!-- Small caps eyebrow -->
+  <text x="100" y="215" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="500" letter-spacing="6" fill="#9A854A">SAOMA &#8212; PLATEFORME SPA</text>
+
+  <!-- Footer dot + url -->
+  <circle cx="100" cy="555" r="6" fill="#C4B07A"/>
+  <text x="120" y="563" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="400" letter-spacing="1" fill="#9A854A">saoma.fr</text>
+</svg>

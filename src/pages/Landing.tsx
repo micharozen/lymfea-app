@@ -8,9 +8,12 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Pricing } from "@/components/landing/Pricing";
 import { CtaSection } from "@/components/landing/CtaSection";
 import { Footer } from "@/components/landing/Footer";
+import { useLandingHead } from "@/components/landing/useLandingHead";
 
 const Landing = () => {
   const { t, i18n } = useTranslation("landing");
+
+  useLandingHead();
 
   useEffect(() => {
     const isFr = i18n.language.startsWith("fr");
