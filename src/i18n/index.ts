@@ -9,12 +9,14 @@ import clientFR from './locales/fr/client.json';
 import pwaFR from './locales/fr/pwa.json';
 import adminFR from './locales/fr/admin.json';
 import landingFR from './locales/fr/landing.json';
+import termsFR from './locales/fr/terms.json';
 
 import commonEN from './locales/en/common.json';
 import clientEN from './locales/en/client.json';
 import pwaEN from './locales/en/pwa.json';
 import adminEN from './locales/en/admin.json';
 import landingEN from './locales/en/landing.json';
+import termsEN from './locales/en/terms.json';
 
 const resources = {
   fr: {
@@ -23,6 +25,7 @@ const resources = {
     pwa: pwaFR,
     admin: adminFR,
     landing: landingFR,
+    terms: termsFR,
   },
   en: {
     common: commonEN,
@@ -30,6 +33,7 @@ const resources = {
     pwa: pwaEN,
     admin: adminEN,
     landing: landingEN,
+    terms: termsEN,
   },
 };
 
@@ -40,7 +44,7 @@ i18n
     resources,
     fallbackLng: 'en',
     defaultNS: 'common',
-    ns: ['common', 'client', 'pwa', 'admin', 'landing'],
+    ns: ['common', 'client', 'pwa', 'admin', 'landing', 'terms'],
     
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],
