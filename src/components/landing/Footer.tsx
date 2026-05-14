@@ -23,6 +23,7 @@ export const Footer = () => {
       links: [
         { label: t("footer.links.email"), href: `mailto:${BRAND_EMAIL}` },
         { label: t("footer.links.contact"), href: BRAND_DEMO_CTA },
+        { label: t("footer.links.status"), href: "https://status.saoma.io/" },
       ],
     },
     {
@@ -53,16 +54,22 @@ export const Footer = () => {
                 {col.title}
               </div>
               <ul className="mt-4 space-y-3">
-                {col.links.map((link) => (
-                  <li key={link.label}>
-                    <a
-                      href={link.href}
-                      className="text-sm text-background/80 transition-colors hover:text-background"
-                    >
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
+                {col.links.map((link) => {
+                  const isExternal = /^https?:\/\//.test(link.href);
+                  return (
+                    <li key={link.label}>
+                      <a
+                        href={link.href}
+                        className="text-sm text-background/80 transition-colors hover:text-background"
+                        {...(isExternal
+                          ? { target: "_blank", rel: "noopener noreferrer" }
+                          : {})}
+                      >
+                        {link.label}
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}
