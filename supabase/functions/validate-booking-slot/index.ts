@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,8 +17,6 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const log = createLogger({ function: "validate-booking-slot", req });
-
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -28,7 +25,6 @@ serve(async (req) => {
     );
 
     const { bookingId, slotNumber, therapistId }: ValidateSlotRequest = await req.json();
-    log.bind({ bookingId, slotNumber, therapistId });
 
     if (!bookingId || !slotNumber || !therapistId) {
       throw new Error("Missing required fields: bookingId, slotNumber, therapistId");
@@ -117,7 +113,6 @@ serve(async (req) => {
       .single();
 
     if (updateSlotsError || !updatedSlots) {
-      log.warn("slot.already_validated");
       throw new Error("This booking has already been validated by another therapist");
     }
 
@@ -211,13 +206,10 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("[VALIDATE-SLOT] Error:", error);
-    log.error("slot.validation_failed", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } finally {
-    await log.flush();
   }
 });

@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { logger } from "@/lib/logger";
 
 interface UserContextType {
   userId: string | null;
@@ -29,13 +28,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setUserId(null);
         setRole(null);
         setHotelIds([]);
-        logger.clearContext(["userId", "role"]);
         setLoading(false);
         return;
       }
 
       setUserId(user.id);
-      logger.setContext({ userId: user.id });
 
       // Get user role
       const { data: roleData } = await supabase
@@ -47,7 +44,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       const userRole = roleData?.role as "admin" | "concierge" | null;
       setRole(userRole);
-      if (userRole) logger.setContext({ role: userRole });
 
       // Get hotel IDs for concierge
       if (userRole === "concierge") {

@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { FunctionsResponse } from "@supabase/supabase-js";
-import { logger } from "@/lib/logger";
 
 export interface InvokeOptions<T = unknown> {
   body?: T;
@@ -169,10 +168,6 @@ async function invokeSupabase<TRequest, TResponse>(
     });
 
     if (response.error) {
-      logger.error("edge_function.failed", response.error, {
-        function: functionName,
-        transport: "supabase",
-      });
       return { data: null, error: response.error };
     }
 
@@ -180,10 +175,6 @@ async function invokeSupabase<TRequest, TResponse>(
 
   } catch (err) {
     console.error(`[invokeEdgeFunction] Unexpected error for ${functionName}:`, err);
-    logger.error("edge_function.threw", err, {
-      function: functionName,
-      transport: "supabase",
-    });
     return {
       data: null,
       error: err instanceof Error ? err : new Error("Unknown error occurred")
@@ -233,12 +224,6 @@ async function invokeBackend<TRequest, TResponse>(
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
       const errorMessage = errorData?.error || `API error: ${response.status}`;
-      logger.error("edge_function.failed", new Error(errorMessage), {
-        function: functionName,
-        path,
-        transport: "backend",
-        status: response.status,
-      });
       return { data: null, error: new Error(errorMessage) };
     }
 
@@ -246,11 +231,6 @@ async function invokeBackend<TRequest, TResponse>(
     return { data, error: null };
   } catch (err) {
     console.error(`[invokeBackend] Error calling ${functionName} → ${path}:`, err);
-    logger.error("edge_function.threw", err, {
-      function: functionName,
-      path,
-      transport: "backend",
-    });
     return {
       data: null,
       error: err instanceof Error ? err : new Error("Unknown error")
