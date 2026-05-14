@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { brand, brandLogos } from "@/config/brand";
-
-const DEMO_CTA = "mailto:hello@lymfea.fr?subject=Demo%20Ei%CC%88a";
+import { BRAND_DEMO_CTA } from "./constants";
 
 export const Footer = () => {
   const { t, i18n } = useTranslation("landing");
