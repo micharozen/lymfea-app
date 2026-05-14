@@ -106,10 +106,9 @@ const UpdatePassword = () => {
         // Non-fatal, continue anyway
       }
 
-      // Activate admin account if applicable
       const { error: adminActivateError } = await supabase
         .from("admins")
-        .update({ status: "Actif" })
+        .update({ status: "active" })
         .eq("user_id", user.id);
 
       if (adminActivateError) {

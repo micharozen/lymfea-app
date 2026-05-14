@@ -25,7 +25,6 @@ import {
   BookingFilters,
   BookingCalendarView,
   BookingListView,
-  InvoicePreviewDialog,
   SendPaymentLinkDialog,
 } from "@/components/booking";
 import {
@@ -84,12 +83,6 @@ useEffect(() => {
   useEffect(() => {
     localStorage.setItem('planning-day-count', String(dayCount));
   }, [dayCount]);
-
-  // Invoice state
-  const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
-  const [invoiceHTML, setInvoiceHTML] = useState("");
-  const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
-  const [invoiceIsRoomPayment, setInvoiceIsRoomPayment] = useState(false);
 
   // Payment link state
   const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
@@ -220,13 +213,6 @@ useEffect(() => {
     }
   };
 
-  const handleInvoicePreview = (html: string, bookingId: number, isRoomPayment: boolean) => {
-    setInvoiceHTML(html);
-    setInvoiceBookingId(bookingId);
-    setInvoiceIsRoomPayment(isRoomPayment);
-    setIsInvoicePreviewOpen(true);
-  };
-
   const handleFilterChange = (setter: (value: string) => void) => (value: string) => {
     setter(value);
     setCurrentPage(1);
@@ -350,9 +336,7 @@ useEffect(() => {
               totalColumns={totalListColumns}
               onBookingClick={handleBookingClick}
               getHotelInfo={getHotelInfo}
-              isAdmin={isAdmin}
               isConcierge={isConcierge}
-              onInvoicePreview={handleInvoicePreview}
               currentPage={currentPage}
               totalPages={totalPages}
               totalItems={filteredBookings?.length ?? 0}
@@ -385,14 +369,6 @@ useEffect(() => {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         booking={selectedBooking}
-      />
-
-      <InvoicePreviewDialog
-        open={isInvoicePreviewOpen}
-        onOpenChange={setIsInvoicePreviewOpen}
-        invoiceHTML={invoiceHTML}
-        bookingId={invoiceBookingId}
-        isRoomPayment={invoiceIsRoomPayment}
       />
 
       {paymentLinkBooking && (

@@ -568,7 +568,20 @@
     "notifications": {
       "markAllRead": "Tout marquer comme lu",
       "allMarkedRead": "Toutes les notifications marquées comme lues",
-      "empty": "Aucune notification"
+      "empty": "Aucune notification",
+      "columns": {
+        "type": "Type",
+        "message": "Message",
+        "date": "Date",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "status": {
+        "unread": "Non lu",
+        "read": "Lu"
+      },
+      "acknowledge": "Marquer comme lu",
+      "view": "Voir la réservation"
     }
   },
   "pms": {

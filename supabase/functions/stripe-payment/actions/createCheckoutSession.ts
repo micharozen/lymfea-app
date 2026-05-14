@@ -176,7 +176,7 @@ export async function handleCreateCheckoutSession(
     );
 
     if (rpcError) {
-      if (rpcError.message?.includes("NO_TRUNK_AVAILABLE")) {
+      if (rpcError.message?.includes("NO_ROOM_AVAILABLE")) {
         return jsonResponse({ error: "SLOT_TAKEN" }, 409);
       }
       throw rpcError;

@@ -137,14 +137,10 @@ payments.post("/checkout-success", async (c) => {
 
     console.log("[CHECKOUT-SUCCESS] Booking created:", booking.id);
 
-    for (const treatment of treatments) {
+    if (treatments.length > 0) {
       const { error: treatmentError } = await supabaseAdmin
         .from('booking_treatments')
-        .insert({
-          booking_id: booking.id,
-          treatment_id: treatment.id,
-        });
-
+        .insert(treatments.map((t: any) => ({ booking_id: booking.id, treatment_id: t.id })));
       if (treatmentError) {
         console.error("[CHECKOUT-SUCCESS] Treatment insert error:", treatmentError);
       }
@@ -827,6 +823,13 @@ payments.post("/confirm-setup", async (c) => {
     if (!meta.hotelId) throw new Error("Données de réservation introuvables dans la session Stripe.");
 
     const treatmentIds = JSON.parse(meta.treatmentIds || "[]");
+    const treatmentsPayloadMeta: Array<{ treatmentId?: string; id?: string; variantId?: string | null }> =
+      JSON.parse(meta.treatmentsPayload || "[]");
+    const variantMapMeta: Record<string, string> = {};
+    for (const t of treatmentsPayloadMeta) {
+      const tid = t.treatmentId || t.id;
+      if (tid && t.variantId) variantMapMeta[tid] = t.variantId;
+    }
 
     // 2. Calcul prix/durée
     const { data: treatments } = await supabaseAdmin.from('treatment_menus').select('price, duration').in('id', treatmentIds);
@@ -905,6 +908,7 @@ payments.post("/confirm-setup", async (c) => {
         if (fallbackError) throw new Error(`Désolé, ce créneau vient tout juste d'être réservé (${fallbackError.message})`);
         if (!fallbackId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
         bookingId = fallbackId;
+        await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
       } else {
         const { error: updateError } = await supabaseAdmin
           .from('bookings')
@@ -966,8 +970,6 @@ payments.post("/confirm-setup", async (c) => {
       throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
     }
 
-    await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
-
     // Attacher les soins — nettoyage préalable si c'était un draft pour éviter les doublons
     if (treatmentIds && treatmentIds.length > 0) {
       if (meta.draftBookingId) {
@@ -980,7 +982,7 @@ payments.post("/confirm-setup", async (c) => {
       const treatmentInserts = treatmentIds.map((id: string) => ({
         booking_id: bookingId,
         treatment_id: id,
-        variant_id: null,
+        variant_id: variantMapMeta[id] || null,
       }));
 
       if (treatmentInserts.length > 0) {
@@ -1153,6 +1155,7 @@ payments.post("/setup-intent", async (c) => {
         roomNumber: clientData.roomNumber || '',
         note: clientData.note || '',
         treatmentIds: JSON.stringify(effectiveTreatmentIds),
+        treatmentsPayload: JSON.stringify(treatmentsPayload || []),
         language: language || 'fr',
         therapistGender: therapistGender || '',
         draftBookingId: draftBookingId || '',
@@ -1314,18 +1317,20 @@ payments.post("/checkout", async (c) => {
     );
 
     if (rpcError) {
-      if (rpcError.message?.includes("NO_TRUNK_AVAILABLE")) {
+      if (rpcError.message?.includes("NO_ROOM_AVAILABLE")) {
         return c.json({ error: "SLOT_TAKEN" }, 409);
       }
       throw rpcError;
     }
 
-    for (const treatmentId of effectiveTreatmentIds) {
-      await supabaseAdmin.from("booking_treatments").insert({
-        booking_id: bookingId,
-        treatment_id: treatmentId,
-        variant_id: variantMap[treatmentId] || null,
-      });
+    if (effectiveTreatmentIds.length > 0) {
+      await supabaseAdmin.from("booking_treatments").insert(
+        effectiveTreatmentIds.map((treatmentId: string) => ({
+          booking_id: bookingId,
+          treatment_id: treatmentId,
+          variant_id: variantMap[treatmentId] || null,
+        }))
+      );
     }
 
     const treatmentNames = treatments.map((t: any) => t.name).join(", ");

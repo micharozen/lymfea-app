@@ -123,14 +123,12 @@ const SetPassword = () => {
         return;
       }
 
-      // Update admin status to "Actif" after password is set
       if (data.user) {
         await supabase
           .from("admins")
-          .update({ status: "Actif" })
+          .update({ status: "active" })
           .eq("user_id", data.user.id);
 
-        // Also update therapist if applicable
         await supabase
           .from("therapists")
           .update({ status: "Actif" })

@@ -16,12 +16,108 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+async function resolveCustomer(
+  supabase: ActionContext["supabase"],
+  clientEmail: string | undefined,
+  stripeCustomerId: string | undefined,
+  firstName: string,
+  lastName: string,
+  phone: string,
+): Promise<string | null> {
+  const basePayload = { phone, email: clientEmail, first_name: firstName, last_name: lastName };
+
+  // Lookup by stripe_customer_id first — avoids a collision on the second UNIQUE
+  // constraint when the customer's phone has changed since their first booking.
+  if (stripeCustomerId) {
+    const { data: byStripe } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("stripe_customer_id", stripeCustomerId)
+      .maybeSingle();
+    if (byStripe) {
+      await supabase.from("customers").update(basePayload).eq("id", byStripe.id);
+      return byStripe.id;
+    }
+  }
+
+  if (!phone) return null;
+  const { data: customer } = await supabase
+    .from("customers")
+    .upsert(
+      { ...basePayload, stripe_customer_id: stripeCustomerId },
+      { onConflict: "phone" },
+    )
+    .select("id")
+    .single();
+  return customer?.id ?? null;
+}
+
+async function insertPaymentInfo(
+  supabase: ActionContext["supabase"],
+  params: {
+    bookingId: string;
+    customerId: string | null;
+    paymentMethodId: string;
+    setupIntentId: string;
+    sessionId: string;
+    cardBrand?: string | null;
+    cardLast4?: string | null;
+    estimatedPrice?: number;
+  },
+) {
+  await supabase.from("booking_payment_infos").insert({
+    booking_id: params.bookingId,
+    customer_id: params.customerId,
+    stripe_payment_method_id: params.paymentMethodId,
+    stripe_setup_intent_id: params.setupIntentId,
+    stripe_session_id: params.sessionId,
+    card_brand: params.cardBrand || null,
+    card_last4: params.cardLast4 || null,
+    ...(params.estimatedPrice !== undefined
+      ? { estimated_price: params.estimatedPrice }
+      : {}),
+    payment_status: "card_saved",
+  });
+}
+
+async function atomicReserveSingle(
+  supabase: ActionContext["supabase"],
+  meta: Record<string, string>,
+  hotel: { name: string } | null,
+  customerId: string | null,
+  totalDuration: number,
+  verifiedPrice: number,
+  treatmentIds: string[],
+): Promise<{ data: string | null; error: Error | null }> {
+  return supabase.rpc("reserve_trunk_atomically", {
+    _booking_date: meta.bookingDate,
+    _booking_time: meta.bookingTime,
+    _client_email: meta.clientEmail || null,
+    _client_first_name: meta.firstName,
+    _client_last_name: meta.lastName,
+    _client_note: meta.note || null,
+    _customer_id: customerId,
+    _duration: totalDuration,
+    _hotel_id: meta.hotelId,
+    _hotel_name: hotel?.name || "Hotel",
+    _language: meta.language || "fr",
+    _payment_method: "card",
+    _payment_status: "pending",
+    _phone: meta.phone,
+    _room_number: meta.roomNumber || null,
+    _status: "pending",
+    _therapist_gender: meta.therapistGender || null,
+    _total_price: verifiedPrice,
+    _treatment_ids: treatmentIds,
+  });
+}
+
 async function triggerBookingNotifications(
   supabase: ActionContext["supabase"],
   bookingIds: string[],
 ): Promise<void> {
   await Promise.all(
-    bookingIds.map((bookingId) =>
+    bookingIds.flatMap((bookingId) => [
       supabase.functions
         .invoke("trigger-new-booking-notifications", {
           body: { bookingId, notifyAll: true },
@@ -29,7 +125,17 @@ async function triggerBookingNotifications(
         .catch((err: unknown) =>
           console.error(`[CONFIRM-SETUP] Notif error for ${bookingId}:`, err),
         ),
-    ),
+      supabase.functions
+        .invoke("notify-admin-new-booking", {
+          body: { bookingId },
+        })
+        .catch((err: unknown) =>
+          console.error(
+            `[CONFIRM-SETUP] Admin email error for ${bookingId}:`,
+            err,
+          ),
+        ),
+    ]),
   );
 }
 
@@ -69,13 +175,12 @@ export async function handleConfirmSetupIntent(
       "[CONFIRM-SETUP] Réservation déjà existante pour cette session :",
       existingPaymentInfo.booking_id,
     );
-    // For multi-booking, return all sibling bookings sharing the same group.
     if (meta.isMulti === "1" && meta.groupId) {
       const { data: groupBookings } = await supabase
         .from("bookings")
         .select("id")
         .eq("booking_group_id", meta.groupId);
-      const ids = (groupBookings || []).map((b: any) => b.id);
+      const ids = (groupBookings || []).map((b: { id: string }) => b.id);
       return jsonResponse({
         success: true,
         bookingId: existingPaymentInfo.booking_id,
@@ -92,6 +197,41 @@ export async function handleConfirmSetupIntent(
     throw new Error("Données de réservation introuvables dans la session Stripe.");
   }
 
+  // Shared across both multi and single paths
+  const stripeCustomerId =
+    typeof session.customer === "string"
+      ? session.customer
+      : session.customer?.id;
+
+  const setupIntent = session.setup_intent as Stripe.SetupIntent;
+  const paymentMethodId =
+    typeof setupIntent?.payment_method === "string"
+      ? setupIntent.payment_method
+      : (setupIntent?.payment_method as Stripe.PaymentMethod)?.id;
+  const paymentMethodCard =
+    typeof setupIntent?.payment_method !== "string"
+      ? (setupIntent?.payment_method as Stripe.PaymentMethod)?.card
+      : null;
+
+  console.log("[CONFIRM-SETUP] session state", {
+    sessionStatus: session.status,
+    setupIntentId: setupIntent?.id,
+    paymentMethodType: typeof setupIntent?.payment_method,
+    paymentMethodId,
+  });
+
+  let resolvedPaymentMethodId = paymentMethodId;
+  if (setupIntent?.id && !resolvedPaymentMethodId) {
+    console.warn("[CONFIRM-SETUP] paymentMethodId null — fetching SetupIntent directly");
+    const fullSI = await stripe.setupIntents.retrieve(setupIntent.id, {
+      expand: ["payment_method"],
+    });
+    resolvedPaymentMethodId = typeof fullSI.payment_method === "string"
+      ? fullSI.payment_method
+      : (fullSI.payment_method as Stripe.PaymentMethod)?.id;
+    console.log("[CONFIRM-SETUP] resolved paymentMethodId from SI:", resolvedPaymentMethodId);
+  }
+
   // ── MULTI-BOOKING PATH ───────────────────────────────────────────
   if (meta.isMulti === "1") {
     let multiBookingIds: string[] = [];
@@ -101,52 +241,14 @@ export async function handleConfirmSetupIntent(
       throw new Error("bookingIds metadata invalide");
     }
 
-    // Resolve/create customer (needed by both sub-paths below).
-    let multiCustomerId: string | null = null;
-    const multiStripeCustomerId =
-      typeof session.customer === "string"
-        ? session.customer
-        : session.customer?.id;
-
-    if (meta.clientEmail) {
-      const { data: existing } = await supabase
-        .from("customers")
-        .select("id")
-        .eq("email", meta.clientEmail)
-        .maybeSingle();
-      if (existing) {
-        multiCustomerId = existing.id;
-        if (multiStripeCustomerId) {
-          await supabase
-            .from("customers")
-            .update({ stripe_customer_id: multiStripeCustomerId })
-            .eq("id", multiCustomerId);
-        }
-      } else {
-        const { data: created } = await supabase
-          .from("customers")
-          .insert({
-            first_name: meta.firstName,
-            last_name: meta.lastName,
-            email: meta.clientEmail,
-            phone: meta.phone,
-            stripe_customer_id: multiStripeCustomerId,
-          })
-          .select("id")
-          .single();
-        if (created) multiCustomerId = created.id;
-      }
-    }
-
-    const multiSetupIntent = session.setup_intent as Stripe.SetupIntent;
-    const multiPaymentMethodId =
-      typeof multiSetupIntent?.payment_method === "string"
-        ? multiSetupIntent.payment_method
-        : (multiSetupIntent?.payment_method as Stripe.PaymentMethod)?.id;
-    const multiCard =
-      typeof multiSetupIntent?.payment_method !== "string"
-        ? (multiSetupIntent?.payment_method as Stripe.PaymentMethod)?.card
-        : null;
+    const customerId = await resolveCustomer(
+      supabase,
+      meta.clientEmail,
+      stripeCustomerId,
+      meta.firstName,
+      meta.lastName,
+      meta.phone,
+    );
 
     // ── Multi-no-hold: hold was disabled — no draft bookings exist.
     // Create N atomic reservations now using per-slot metadata arrays.
@@ -160,7 +262,7 @@ export async function handleConfirmSetupIntent(
       const slotGuestCounts = JSON.parse(meta.guest_counts_per_slot || "[]") as number[];
       const multiGroupId = meta.groupId || crypto.randomUUID();
 
-      const { data: noHoldHotel } = await supabase
+      const { data: venueData } = await supabase
         .from("hotels")
         .select("name, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent")
         .eq("id", meta.hotelId)
@@ -186,7 +288,7 @@ export async function handleConfirmSetupIntent(
         const baseUnitPrice = slotVariantId
           ? Number(varPriceMap.get(slotVariantId) ?? 0)
           : Number(txPriceMap.get(slotTreatmentIds[i]) ?? 0);
-        const slotSurcharge = computeOutOfHoursSurcharge(times[i], baseUnitPrice * qty, noHoldHotel || {});
+        const slotSurcharge = computeOutOfHoursSurcharge(times[i], baseUnitPrice * qty, venueData || {});
 
         const { data: newId, error: rpcError } = await supabase.rpc("reserve_trunk_atomically", {
           _booking_date: dates[i],
@@ -195,10 +297,10 @@ export async function handleConfirmSetupIntent(
           _client_first_name: meta.firstName,
           _client_last_name: meta.lastName,
           _client_note: meta.note || null,
-          _customer_id: multiCustomerId,
+          _customer_id: customerId,
           _duration: slotDurations[i] || 60,
           _hotel_id: meta.hotelId,
-          _hotel_name: noHoldHotel?.name || "Hotel",
+          _hotel_name: venueData?.name || "Hotel",
           _language: meta.language || "fr",
           _payment_method: "card",
           _payment_status: "pending",
@@ -223,6 +325,7 @@ export async function handleConfirmSetupIntent(
           therapist_id: null,
           is_out_of_hours: slotSurcharge.isOutOfHours,
           surcharge_amount: slotSurcharge.surchargeAmount,
+          payment_status: "card_saved",
         }).eq("id", newId);
 
         await supabase.from("booking_treatments").insert({
@@ -234,17 +337,15 @@ export async function handleConfirmSetupIntent(
         slotCreatedIds.push(newId);
       }
 
-      // booking_payment_infos: UNIQUE constraint on stripe_session_id — attach to first booking only.
-      if (multiPaymentMethodId && multiSetupIntent) {
-        await supabase.from("booking_payment_infos").insert({
-          booking_id: slotCreatedIds[0],
-          customer_id: multiCustomerId,
-          stripe_payment_method_id: multiPaymentMethodId,
-          stripe_setup_intent_id: multiSetupIntent.id,
-          stripe_session_id: sessionId,
-          card_brand: multiCard?.brand || null,
-          card_last4: multiCard?.last4 || null,
-          payment_status: "card_saved",
+      if (resolvedPaymentMethodId && setupIntent) {
+        await insertPaymentInfo(supabase, {
+          bookingId: slotCreatedIds[0],
+          customerId,
+          paymentMethodId: resolvedPaymentMethodId,
+          setupIntentId: setupIntent.id,
+          sessionId,
+          cardBrand: paymentMethodCard?.brand,
+          cardLast4: paymentMethodCard?.last4,
         });
       }
 
@@ -269,8 +370,8 @@ export async function handleConfirmSetupIntent(
         client_note: meta.note || null,
         status: "pending",
         payment_method: "card",
-        payment_status: "pending",
-        customer_id: multiCustomerId,
+        payment_status: "card_saved",
+        customer_id: customerId,
       })
       .in("id", multiBookingIds)
       .eq("hotel_id", meta.hotelId)
@@ -285,16 +386,15 @@ export async function handleConfirmSetupIntent(
     // booking_payment_infos.stripe_session_id has a UNIQUE constraint, so we
     // attach the row to the first booking only. Sibling bookings of the group
     // are linked via booking_group_id.
-    if (multiPaymentMethodId && multiSetupIntent) {
-      await supabase.from("booking_payment_infos").insert({
-        booking_id: multiBookingIds[0],
-        customer_id: multiCustomerId,
-        stripe_payment_method_id: multiPaymentMethodId,
-        stripe_setup_intent_id: multiSetupIntent.id,
-        stripe_session_id: sessionId,
-        card_brand: multiCard?.brand || null,
-        card_last4: multiCard?.last4 || null,
-        payment_status: "card_saved",
+    if (resolvedPaymentMethodId && setupIntent) {
+      await insertPaymentInfo(supabase, {
+        bookingId: multiBookingIds[0],
+        customerId,
+        paymentMethodId: resolvedPaymentMethodId,
+        setupIntentId: setupIntent.id,
+        sessionId,
+        cardBrand: paymentMethodCard?.brand,
+        cardLast4: paymentMethodCard?.last4,
       });
     }
 
@@ -307,6 +407,7 @@ export async function handleConfirmSetupIntent(
     });
   }
 
+  // ── SINGLE BOOKING PATH ──────────────────────────────────────────
   const treatmentIds = JSON.parse(meta.treatmentIds || "[]");
 
   const { data: treatments } = await supabase
@@ -314,12 +415,12 @@ export async function handleConfirmSetupIntent(
     .select("price, duration")
     .in("id", treatmentIds);
   const basePrice = (treatments || []).reduce(
-    (sum: number, t: any) => sum + (t.price || 0),
+    (sum: number, t: { price: number }) => sum + (t.price || 0),
     0,
   );
   const totalDuration =
     (treatments || []).reduce(
-      (sum: number, t: any) => sum + (t.duration || 0),
+      (sum: number, t: { duration: number }) => sum + (t.duration || 0),
       0,
     ) || 30;
 
@@ -338,42 +439,14 @@ export async function handleConfirmSetupIntent(
   );
   const verifiedPrice = surcharge.totalWithSurcharge;
 
-  let customerId: string | null = null;
-  const stripeCustomerId =
-    typeof session.customer === "string"
-      ? session.customer
-      : session.customer?.id;
-
-  if (meta.clientEmail) {
-    const { data: existingCustomer } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("email", meta.clientEmail)
-      .maybeSingle();
-
-    if (existingCustomer) {
-      customerId = existingCustomer.id;
-      if (stripeCustomerId) {
-        await supabase
-          .from("customers")
-          .update({ stripe_customer_id: stripeCustomerId })
-          .eq("id", customerId);
-      }
-    } else {
-      const { data: newCustomer } = await supabase
-        .from("customers")
-        .insert({
-          first_name: meta.firstName,
-          last_name: meta.lastName,
-          email: meta.clientEmail,
-          phone: meta.phone,
-          stripe_customer_id: stripeCustomerId,
-        })
-        .select("id")
-        .single();
-      if (newCustomer) customerId = newCustomer.id;
-    }
-  }
+  const customerId = await resolveCustomer(
+    supabase,
+    meta.clientEmail,
+    stripeCustomerId,
+    meta.firstName,
+    meta.lastName,
+    meta.phone,
+  );
 
   let bookingId: string;
 
@@ -388,29 +461,8 @@ export async function handleConfirmSetupIntent(
 
     if (draftFetchError || !draftBooking) {
       console.warn("[CONFIRM-SETUP] Draft expired, falling back to atomic reserve");
-      const { data: fallbackId, error: fallbackError } = await supabase.rpc(
-        "reserve_trunk_atomically",
-        {
-          _booking_date: meta.bookingDate,
-          _booking_time: meta.bookingTime,
-          _client_email: meta.clientEmail || null,
-          _client_first_name: meta.firstName,
-          _client_last_name: meta.lastName,
-          _client_note: meta.note || null,
-          _customer_id: customerId,
-          _duration: totalDuration,
-          _hotel_id: meta.hotelId,
-          _hotel_name: hotel?.name || "Hotel",
-          _language: meta.language || "fr",
-          _payment_method: "card",
-          _payment_status: "pending",
-          _phone: meta.phone,
-          _room_number: meta.roomNumber || null,
-          _status: "pending",
-          _therapist_gender: meta.therapistGender || null,
-          _total_price: verifiedPrice,
-          _treatment_ids: treatmentIds,
-        },
+      const { data: fallbackId, error: fallbackError } = await atomicReserveSingle(
+        supabase, meta, hotel, customerId, totalDuration, verifiedPrice, treatmentIds,
       );
       if (fallbackError)
         throw new Error(
@@ -421,6 +473,12 @@ export async function handleConfirmSetupIntent(
           "Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.",
         );
       bookingId = fallbackId;
+      await supabase.from("bookings").update({
+        therapist_id: null,
+        is_out_of_hours: surcharge.isOutOfHours,
+        surcharge_amount: surcharge.surchargeAmount,
+        payment_status: "card_saved",
+      }).eq("id", bookingId);
     } else {
       const { error: updateError } = await supabase
         .from("bookings")
@@ -433,10 +491,12 @@ export async function handleConfirmSetupIntent(
           client_note: meta.note || null,
           status: "pending",
           payment_method: "card",
-          payment_status: "pending",
+          payment_status: "card_saved",
           total_price: verifiedPrice,
           customer_id: customerId,
           therapist_id: null,
+          is_out_of_hours: surcharge.isOutOfHours,
+          surcharge_amount: surcharge.surchargeAmount,
         })
         .eq("id", meta.draftBookingId);
 
@@ -446,39 +506,10 @@ export async function handleConfirmSetupIntent(
         );
       bookingId = meta.draftBookingId;
       console.log("[CONFIRM-SETUP] Draft booking updated:", bookingId);
-
-      await supabase
-        .from("bookings")
-        .update({
-          is_out_of_hours: surcharge.isOutOfHours,
-          surcharge_amount: surcharge.surchargeAmount,
-        })
-        .eq("id", bookingId);
     }
   } else {
-    const { data: newBookingId, error: rpcError } = await supabase.rpc(
-      "reserve_trunk_atomically",
-      {
-        _booking_date: meta.bookingDate,
-        _booking_time: meta.bookingTime,
-        _client_email: meta.clientEmail || null,
-        _client_first_name: meta.firstName,
-        _client_last_name: meta.lastName,
-        _client_note: meta.note || null,
-        _customer_id: customerId,
-        _duration: totalDuration,
-        _hotel_id: meta.hotelId,
-        _hotel_name: hotel?.name || "Hotel",
-        _language: meta.language || "fr",
-        _payment_method: "card",
-        _payment_status: "pending",
-        _phone: meta.phone,
-        _room_number: meta.roomNumber || null,
-        _status: "pending",
-        _therapist_gender: meta.therapistGender || null,
-        _total_price: verifiedPrice,
-        _treatment_ids: treatmentIds,
-      },
+    const { data: newBookingId, error: rpcError } = await atomicReserveSingle(
+      supabase, meta, hotel, customerId, totalDuration, verifiedPrice, treatmentIds,
     );
 
     if (rpcError) {
@@ -496,14 +527,12 @@ export async function handleConfirmSetupIntent(
       );
 
     bookingId = newBookingId;
-    await supabase
-      .from("bookings")
-      .update({
-        therapist_id: null,
-        is_out_of_hours: surcharge.isOutOfHours,
-        surcharge_amount: surcharge.surchargeAmount,
-      })
-      .eq("id", bookingId);
+    await supabase.from("bookings").update({
+      therapist_id: null,
+      is_out_of_hours: surcharge.isOutOfHours,
+      surcharge_amount: surcharge.surchargeAmount,
+      payment_status: "card_saved",
+    }).eq("id", bookingId);
   }
 
   if (!bookingId) {
@@ -511,11 +540,6 @@ export async function handleConfirmSetupIntent(
       "Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.",
     );
   }
-
-  await supabase
-    .from("bookings")
-    .update({ therapist_id: null })
-    .eq("id", bookingId);
 
   if (treatmentIds && treatmentIds.length > 0) {
     if (meta.draftBookingId) {
@@ -525,10 +549,16 @@ export async function handleConfirmSetupIntent(
         .eq("booking_id", bookingId);
     }
 
+    const treatmentsPayload: Array<{ treatmentId: string; variantId?: string | null }> =
+      JSON.parse(meta.treatmentsPayload || "[]");
+    const variantMap = new Map(
+      treatmentsPayload.filter((t) => t.variantId).map((t) => [t.treatmentId, t.variantId]),
+    );
+
     const treatmentInserts = treatmentIds.map((id: string) => ({
       booking_id: bookingId,
       treatment_id: id,
-      variant_id: null,
+      variant_id: variantMap.get(id) || null,
     }));
 
     if (treatmentInserts.length > 0) {
@@ -544,27 +574,35 @@ export async function handleConfirmSetupIntent(
     }
   }
 
-  const setupIntent = session.setup_intent as Stripe.SetupIntent;
-  const paymentMethodId =
-    typeof setupIntent?.payment_method === "string"
-      ? setupIntent.payment_method
-      : (setupIntent?.payment_method as Stripe.PaymentMethod)?.id;
-  const paymentMethodCard =
-    typeof setupIntent?.payment_method !== "string"
-      ? (setupIntent?.payment_method as Stripe.PaymentMethod)?.card
-      : null;
+  // Apply gift card deduction if present in metadata
+  const giftAmountCents = meta.giftAmountCents ? parseInt(meta.giftAmountCents, 10) : 0;
+  const giftCustomerBundleId = meta.giftAmountCustomerBundleId || null;
+  let netPrice = verifiedPrice;
 
-  if (paymentMethodId && setupIntent) {
-    await supabase.from("booking_payment_infos").insert({
-      booking_id: bookingId,
-      customer_id: customerId,
-      stripe_payment_method_id: paymentMethodId,
-      stripe_setup_intent_id: setupIntent.id,
-      stripe_session_id: sessionId,
-      card_brand: paymentMethodCard?.brand || null,
-      card_last4: paymentMethodCard?.last4 || null,
-      estimated_price: verifiedPrice,
-      payment_status: "card_saved",
+  if (giftAmountCents > 0 && giftCustomerBundleId) {
+    const { error: giftError } = await supabase.rpc("use_gift_amount", {
+      _customer_bundle_id: giftCustomerBundleId,
+      _booking_id: bookingId,
+      _amount_cents: giftAmountCents,
+    });
+    if (giftError) {
+      console.error("[CONFIRM-SETUP] use_gift_amount failed (non-blocking):", giftError.message);
+    } else {
+      netPrice = Math.max(0, verifiedPrice - giftAmountCents / 100);
+      console.log("[CONFIRM-SETUP] Gift applied:", giftAmountCents, "cents. Net price:", netPrice);
+    }
+  }
+
+  if (resolvedPaymentMethodId && setupIntent) {
+    await insertPaymentInfo(supabase, {
+      bookingId,
+      customerId,
+      paymentMethodId: resolvedPaymentMethodId,
+      setupIntentId: setupIntent.id,
+      sessionId,
+      cardBrand: paymentMethodCard?.brand,
+      cardLast4: paymentMethodCard?.last4,
+      estimatedPrice: netPrice,
     });
   }
 

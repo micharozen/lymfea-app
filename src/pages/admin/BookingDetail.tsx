@@ -11,10 +11,11 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Loader2, ArrowLeft, User, Phone,
+  Loader2, ArrowLeft, User, Users, Phone,
   Calendar, Clock, Building2, HandHeart,
   CheckCircle2, AlertCircle, Send, Pencil,
-  PenTool, ChevronRight, Package, History, MessageSquare
+  PenTool, ChevronRight, Package, History, MessageSquare,
+  FileText
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
@@ -27,10 +28,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 import { formatPrice } from "@/lib/formatPrice";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useBookingData } from "@/hooks/booking/useBookingData";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import {
   computeTherapistEarnings,
   hasCompleteRates,
@@ -68,6 +71,11 @@ export default function BookingDetail() {
   const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
+  const [invoiceHTML, setInvoiceHTML] = useState("");
+  const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
+  const [invoiceIsRoomPayment, setInvoiceIsRoomPayment] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
   const [bundleInfo, setBundleInfo] = useState<{
     bundleName: string;
@@ -77,8 +85,9 @@ export default function BookingDetail() {
   const [therapistRatesMap, setTherapistRatesMap] = useState<Record<string, TherapistRates>>({});
   const [hotelCommission, setHotelCommission] = useState<{ therapist_commission: number; global_therapist_commission: boolean } | null>(null);
   const [acceptedTherapists, setAcceptedTherapists] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
+  const [therapistRefreshKey, setTherapistRefreshKey] = useState(0);
 
-  const { bookings, getHotelInfo, refetch } = useBookingData(); // <-- Ajout de refetch ici
+  const { bookings, getHotelInfo, refetch } = useBookingData();
   const isLoading = !bookings; 
   
   const booking = bookings?.find((b) => b.id === id);
@@ -126,7 +135,7 @@ export default function BookingDetail() {
         .in("id", btData.map((bt) => bt.therapist_id));
       setAcceptedTherapists(tData || []);
     })();
-  }, [booking?.id, (booking as any)?.guest_count]);
+  }, [booking?.id, (booking as any)?.guest_count, therapistRefreshKey]);
 
   // Fetch hotel commission settings for earnings calculation
   useEffect(() => {
@@ -178,10 +187,9 @@ export default function BookingDetail() {
   if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!booking) return <div className="p-10 text-center text-muted-foreground">Réservation introuvable.</div>;
 
-  // États logiques
   const isPaid = booking.payment_status === 'paid' || booking.payment_status === 'charged_to_room';
   const isPartnerBilled = booking.payment_status === 'pending_partner_billing';
-  const isSigned = !!booking.signed_at; // Vérifie si la date de signature existe
+  const isSigned = !!booking.signed_at;
 
   const hotelInfo = getHotelInfo(booking.hotel_id);
   const currency = hotelInfo?.currency || 'EUR';
@@ -193,7 +201,6 @@ export default function BookingDetail() {
   const totalDuration = booking.totalDuration || booking.treatmentsTotalDuration || 0;
   const guestCount = (booking as any)?.guest_count ?? 1;
   const isDuo = guestCount > 1;
-  // Solo path (unchanged behaviour for non-duo bookings)
   const soloRates = !isDuo && booking.therapist_id ? (therapistRatesMap[booking.therapist_id] ?? null) : null;
   const therapistEarnings = computeTherapistEarnings(soloRates, totalDuration);
   const ratesComplete = hasCompleteRates(soloRates);
@@ -209,7 +216,6 @@ export default function BookingDetail() {
     ? "Carte enregistrée à débiter"
     : (PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending);
 
-  // Fonction pour enregistrer la signature depuis l'admin
   const handleSignatureConfirm = async (signatureData: string) => {
     setSigningLoading(true);
     try {
@@ -218,7 +224,6 @@ export default function BookingDetail() {
         .update({
           client_signature: signatureData,
           signed_at: new Date().toISOString(),
-          // On peut aussi passer le statut à 'completed' si l'admin veut clôturer la resa
           status: booking.status === 'confirmed' ? 'completed' : booking.status 
         })
         .eq("id", booking.id);
@@ -228,7 +233,6 @@ export default function BookingDetail() {
       toast.success("Signature ajoutée avec succès au dossier !");
       setIsSignatureOpen(false);
       
-      // LA LIGNE MAGIQUE : Force le rechargement invisible des données instantanément 🪄
       refetch();
       
     } catch (err: any) {
@@ -237,6 +241,28 @@ export default function BookingDetail() {
     } finally {
       setSigningLoading(false);
     }
+  };
+
+  const handleInvoiceClick = async () => {
+    if (!booking) return;
+    if (booking.stripe_invoice_url) {
+      window.open(booking.stripe_invoice_url, "_blank");
+      return;
+    }
+    setInvoiceLoading(true);
+    const { data, error } = await invokeEdgeFunction<unknown, { html: string; bookingId: string }>(
+      "generate-invoice",
+      { body: { bookingId: booking.id } }
+    );
+    setInvoiceLoading(false);
+    if (error || !data) {
+      toast.error("Impossible de générer la facture.");
+      return;
+    }
+    setInvoiceHTML(data.html);
+    setInvoiceBookingId(Number(data.bookingId));
+    setInvoiceIsRoomPayment(booking.payment_method === "room");
+    setIsInvoicePreviewOpen(true);
   };
 
   return (
@@ -268,6 +294,12 @@ export default function BookingDetail() {
             type="payment"
             customLabel={paymentLabel}
           />
+          {isDuo && (
+            <span className="inline-flex items-center rounded-md border font-medium h-6 px-2 text-xs gap-1.5 bg-purple-100 text-purple-800 border-purple-200">
+              <Users className="w-3.5 h-3.5 shrink-0" />
+              Duo
+            </span>
+          )}
           {bundleInfo && (
             <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-xs">
               <Package className="w-3 h-3 mr-1" />
@@ -280,6 +312,36 @@ export default function BookingDetail() {
           <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
             <MessageSquare className="h-4 w-4 mr-2" /> Notes
           </Button>
+          {booking.status === "completed" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleInvoiceClick}
+                  disabled={invoiceLoading}
+                >
+                  {invoiceLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4 mr-2" />
+                  )}
+                  {booking.stripe_invoice_url
+                    ? "Facture"
+                    : booking.payment_method === "room"
+                      ? "Bon"
+                      : "Facture"}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {booking.stripe_invoice_url
+                  ? "Voir la facture Stripe"
+                  : booking.payment_method === "room"
+                    ? "Télécharger le Bon de Prestation"
+                    : "Aperçu de la facture (PDF)"}
+              </TooltipContent>
+            </Tooltip>
+          )}
           {!isConcierge && !isPartnerBilled && !cardSavedToCharge && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -320,7 +382,6 @@ export default function BookingDetail() {
           </TabsList>
 
           <TabsContent value="details" className="space-y-4 mt-4">
-        {/* ALERTES DE STATUT (PAIEMENT) */}
         {isPaid ? (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 text-green-800">
             <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -338,7 +399,6 @@ export default function BookingDetail() {
           </div>
         )}
 
-        {/* ALERTES DE STATUT (SIGNATURE) */}
         {isSigned ? (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-3 text-blue-800">
             <div className="flex items-center gap-3 min-w-0">
@@ -391,10 +451,8 @@ export default function BookingDetail() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
           
-          {/* COLONNE GAUCHE (Client + Soins) */}
           <div className="md:col-span-2 space-y-6">
             
-            {/* SECTION CLIENT (Cliquable) */}
             <section 
               onClick={() => (booking as any).customer_id && navigate(`/admin/customers/${(booking as any).customer_id}`)}
               className={`bg-white rounded-xl border p-6 shadow-sm transition-all duration-200 ${(booking as any).customer_id ? 'cursor-pointer hover:border-primary/50 hover:shadow-md group' : ''}`}
@@ -425,17 +483,15 @@ export default function BookingDetail() {
               )}
             </section>
 
-            {/* SECTION SOINS & PRATICIEN */}
             <section className="bg-white rounded-xl border p-6 shadow-sm">
               <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4 flex items-center gap-2">
                 <HandHeart className="h-4 w-4" /> Soins & Praticien
               </h3>
               
-              {/* ENCART THERAPEUTE(S) */}
-              {(booking as any).guest_count > 1 ? (
+              {isDuo ? (
                 <div className="mb-4 space-y-2">
                   <p className="text-xs text-gray-500">
-                    Thérapeutes assignés ({acceptedTherapists.length}/{(booking as any).guest_count})
+                    Thérapeutes assignés ({acceptedTherapists.length}/{guestCount})
                   </p>
                   {acceptedTherapists.length > 0 ? acceptedTherapists.map((therapist) => (
                     <div
@@ -454,9 +510,9 @@ export default function BookingDetail() {
                   )) : (
                     <p className="text-sm text-muted-foreground">Aucun thérapeute n'a encore rejoint ce soin</p>
                   )}
-                  {acceptedTherapists.length > 0 && acceptedTherapists.length < ((booking as any).guest_count ?? 2) && (
+                  {acceptedTherapists.length > 0 && acceptedTherapists.length < guestCount && (
                     <p className="text-xs text-violet-600">
-                      En attente de {(booking as any).guest_count - acceptedTherapists.length} thérapeute(s) supplémentaire(s)…
+                      En attente de {guestCount - acceptedTherapists.length} thérapeute(s) supplémentaire(s)…
                     </p>
                   )}
                 </div>
@@ -480,7 +536,6 @@ export default function BookingDetail() {
                 </div>
               )}
               
-              {/* LISTE DES SOINS */}
               <div className="space-y-3">
                 {booking.treatments?.map((t, i) => (
                   <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
@@ -492,7 +547,6 @@ export default function BookingDetail() {
             </section>
           </div>
 
-          {/* COLONNE DROITE (Organisation + Prix) */}
           <div className="space-y-6">
             <section className="bg-white rounded-xl border p-6 shadow-sm">
               <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4">Organisation</h3>
@@ -516,7 +570,6 @@ export default function BookingDetail() {
               <p className="text-xs opacity-70 uppercase mb-1">Montant Total</p>
               <p className="text-3xl font-bold">{formatPrice(displayPrice, currency)}</p>
 
-              {/* Gains — soin solo */}
               {showEarnings && (
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <p className="text-xs opacity-70 uppercase mb-1">Gain thérapeute</p>
@@ -528,7 +581,6 @@ export default function BookingDetail() {
                 </div>
               )}
 
-              {/* Gains — soin duo : répartition par thérapeute */}
               {isDuo && acceptedTherapists.length > 0 && hotelCommission && (
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <p className="text-xs opacity-70 uppercase mb-2">Répartition des gains</p>
@@ -587,12 +639,12 @@ export default function BookingDetail() {
         </Tabs>
       </main>
 
-      {/* MODALES */}
-      <EditBookingDialog 
-        open={isEditOpen} 
-        onOpenChange={setIsEditOpen} 
-        booking={booking} 
-        initialMode="edit" 
+      <EditBookingDialog
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        booking={booking}
+        initialMode="edit"
+        onSuccess={() => setTherapistRefreshKey(k => k + 1)}
       />
       
       <SendPaymentLinkDialog 
@@ -601,7 +653,14 @@ export default function BookingDetail() {
         booking={booking} 
       />
 
-      {/* Modale de Signature commune avec la PWA */}
+      <InvoicePreviewDialog
+        open={isInvoicePreviewOpen}
+        onOpenChange={setIsInvoicePreviewOpen}
+        invoiceHTML={invoiceHTML}
+        bookingId={invoiceBookingId}
+        isRoomPayment={invoiceIsRoomPayment}
+      />
+
       <InvoiceSignatureDialog
         open={isSignatureOpen}
         onOpenChange={setIsSignatureOpen}
@@ -613,7 +672,7 @@ export default function BookingDetail() {
           duration: t.duration || 0,
           price: t.price || 0
         }))}
-        vatRate={20} // Valeur par défaut
+        vatRate={20}
         totalPrice={displayPrice}
         isAlreadyPaid={isPaid}
         currency={currency}

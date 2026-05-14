@@ -14,6 +14,7 @@ import { UserProvider } from "@/contexts/UserContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { StagingBanner } from "@/components/StagingBanner";
 import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
+import { NotificationsBellButton } from "@/components/admin/NotificationsBellButton";
 import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
@@ -309,6 +310,8 @@ const App = () => {
 
             {/* Client Booking Management (Public) */}
             <Route path="/booking/manage/:bookingId" element={<ManageBooking />} />
+            {/* Short URL for SMS — :bookingId is a base62 short_token here */}
+            <Route path="/m/:bookingId" element={<ManageBooking />} />
 
             {/* Payment Link Confirmation (Public) */}
             <Route path="/booking/confirmation/:bookingId" element={<PaymentConfirmation />} />
@@ -471,10 +474,14 @@ const App = () => {
                     <div className="flex h-full w-full">
                       <AppSidebar />
                       <div className="flex-1 flex flex-col min-h-0 min-w-0">
-                        {/* Mobile header with menu trigger */}
-                        <header className="md:hidden flex items-center h-14 px-4 border-b border-border bg-background sticky top-0 z-40" style={{ paddingTop: "env(safe-area-inset-top)" }}>
-                          <SidebarTrigger className="mr-2" />
-                          <span className="font-semibold">{brand.pwa.admin.shortName}</span>
+                        <header
+                          className="flex items-center h-10 md:h-11 px-4 border-b border-border bg-background sticky top-0 z-40"
+                          style={{ paddingTop: "env(safe-area-inset-top)" }}
+                        >
+                          <SidebarTrigger className="mr-2 md:hidden" />
+                          <span className="font-semibold text-sm md:hidden">{brand.pwa.admin.shortName}</span>
+                          <div className="flex-1" />
+                          <NotificationsBellButton />
                         </header>
                         <VenueModeBanner />
                         <main className="flex-1 min-h-0 overflow-y-auto">

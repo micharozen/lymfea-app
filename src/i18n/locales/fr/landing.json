@@ -79,7 +79,7 @@
     "step2": {
       "number": "02",
       "title": "Formez vos équipes",
-      "desc": "Sessions de formation pour les équipes lieu, directeurs spa et thérapeutes. Guides et support illimité inclus."
+      "desc": "Sessions de formation pour les concierges, directeurs spa et thérapeutes. Guides et support illimité inclus."
     },
     "step3": {
       "number": "03",
@@ -129,10 +129,11 @@
     "title": "Prêt à moderniser votre spa ?",
     "subtitle": "Planifiez une démo personnalisée de 30 minutes avec notre équipe. Nous vous montrons la plateforme avec vos soins et votre organisation.",
     "button": "Réserver ma démo",
-    "secondary": "Ou écrivez-nous à hello@lymfea.fr"
+    "secondary": "Ou écrivez-nous à hello@saoma.fr"
   },
   "footer": {
-    "tagline": "La plateforme de gestion spa pour hôtels & day spas.",
+    "tagline": "Saoma — la plateforme de gestion spa pour hôtels & day spas.",
+    "signature": "L'art du spa, simplifié.",
     "product": "Produit",
     "company": "Société",
     "legal": "Légal",
@@ -149,6 +150,6 @@
       "privacy": "Politique de confidentialité",
       "legalMentions": "Mentions légales"
     },
-    "copyright": "© {{year}} Eïa. Tous droits réservés."
+    "copyright": "© {{year}} Saoma. Tous droits réservés."
   }
 }

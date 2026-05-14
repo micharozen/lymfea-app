@@ -12,15 +12,16 @@ import { supabaseAdmin } from "../lib/supabase";
 export async function checkExpiredSlots() {
   console.log("[cron] Checking expired pre-reservation slots...");
 
-  const fourMinutesAgo = new Date(Date.now() - 4 * 60 * 1000).toISOString();
+  const STALE_AWAITING_MIN = 10;
+  const staleThreshold = new Date(Date.now() - STALE_AWAITING_MIN * 60 * 1000).toISOString();
 
-  // Find pre-reserved bookings older than 4 minutes that haven't been paid
+  // Find pre-reserved bookings older than STALE_AWAITING_MIN minutes that haven't been paid
   const { data: expiredBookings, error } = await supabaseAdmin
     .from("bookings")
     .select("id, booking_id")
     .eq("status", "pre-reserved")
     .eq("payment_status", "awaiting_payment")
-    .lt("created_at", fourMinutesAgo);
+    .lt("created_at", staleThreshold);
 
   if (error) {
     console.error("[cron] Error fetching expired slots:", error);
