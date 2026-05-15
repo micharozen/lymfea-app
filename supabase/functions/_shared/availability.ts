@@ -1,0 +1,154 @@
+// Pure, side-effect-free slot availability logic shared between
+// check-availability and check-availability-range edge functions.
+//
+// Keeping this in one place makes it possible to unit-test the rules and
+// guarantees both endpoints stay in sync with reserve_trunk_atomically (RPC).
+
+export interface Booking {
+  booking_time: string; // "HH:MM:SS" venue-local
+  therapist_id: string | null;
+  room_id: string | null;
+  duration: number | null;
+}
+
+export interface CrossVenueBooking {
+  therapist_id: string | null;
+  booking_time: string;
+  duration: number | null;
+}
+
+export interface Room {
+  id: string;
+  capacity: number;
+}
+
+export interface PendingHold {
+  time: string;
+  duration: number;
+}
+
+export interface TherapistShift {
+  start: string; // "HH:MM"
+  end: string;   // "HH:MM"
+}
+
+export interface SlotAvailabilityInput {
+  slot: string; // "HH:MM:SS" venue-local
+  requestedDuration: number; // minutes
+  roomTurnoverBuffer: number; // minutes
+  rooms: Room[];
+  bookings: Booking[];
+  pendingHolds: PendingHold[]; // already filtered to current date
+  scheduledTherapistIds: string[];
+  scheduleByTherapist?: Map<string, { shifts: TherapistShift[] }>;
+  crossVenueBookings?: CrossVenueBooking[];
+  travelBuffer?: number;
+  requiredGuestCount: number;
+}
+
+export const timeToMinutes = (time: string): number => {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+};
+
+// A booking overlaps the requested slot when their intervals intersect, taking
+// the room turnover buffer into account on the booking side.
+// Slot interval:    [slotStart, slotStart + requestedDuration)
+// Booking interval: [bookingStart, bookingEnd + turnover)
+export const doesBookingBlockSlot = (
+  slot: string,
+  requestedDuration: number,
+  bookingTime: string,
+  bookingDuration: number | null,
+  turnoverMinutes: number,
+): boolean => {
+  const slotStart = timeToMinutes(slot);
+  const slotEnd = slotStart + requestedDuration;
+  const bookingStart = timeToMinutes(bookingTime);
+  const bookingEnd = bookingStart + (bookingDuration ?? 30) + turnoverMinutes;
+  return slotStart < bookingEnd && slotEnd > bookingStart;
+};
+
+export function isSlotAvailable(input: SlotAvailabilityInput): boolean {
+  const {
+    slot,
+    requestedDuration,
+    roomTurnoverBuffer,
+    rooms,
+    bookings,
+    pendingHolds,
+    scheduledTherapistIds,
+    scheduleByTherapist,
+    crossVenueBookings = [],
+    travelBuffer = 0,
+    requiredGuestCount,
+  } = input;
+
+  const slotStart = timeToMinutes(slot);
+  const slotEnd = slotStart + requestedDuration;
+
+  // Bookings overlapping this slot. Includes bookings without an assigned
+  // therapist (e.g. card-saved holds awaiting therapist broadcast) — they still
+  // hold a room and must block capacity, matching reserve_trunk_atomically.
+  const blocking = bookings.filter((b) =>
+    doesBookingBlockSlot(slot, requestedDuration, b.booking_time, b.duration, roomTurnoverBuffer)
+  );
+
+  // Room capacity: every blocking booking consumes a room (even without therapist_id).
+  const occupiedRoomIds = new Set<string>();
+  let bookingsWithoutRoom = 0;
+  for (const b of blocking) {
+    if (b.room_id) occupiedRoomIds.add(b.room_id);
+    else bookingsWithoutRoom++;
+  }
+  const freeRoomCapacity = rooms
+    .filter((r) => !occupiedRoomIds.has(r.id))
+    .reduce((sum, r) => sum + (r.capacity || 1), 0) - bookingsWithoutRoom;
+
+  const overlappingHolds = pendingHolds.filter((h) => {
+    const hs = timeToMinutes(h.time);
+    const he = hs + (h.duration || 30);
+    return slotStart < he && slotEnd > hs;
+  }).length;
+
+  if (freeRoomCapacity - overlappingHolds < requiredGuestCount) return false;
+
+  // Therapist check: at least requiredGuestCount therapists must be free,
+  // scheduled in shift, and not blocked by cross-venue travel buffer.
+  const busyTherapists = new Set(
+    blocking
+      .map((b) => b.therapist_id)
+      .filter((id): id is string => id !== null),
+  );
+
+  const availableTherapistCount = scheduledTherapistIds.filter((id) => {
+    if (busyTherapists.has(id)) return false;
+
+    if (travelBuffer > 0) {
+      const blockedCross = crossVenueBookings.some((b) => {
+        if (b.therapist_id !== id) return false;
+        const bs = timeToMinutes(b.booking_time);
+        const be = bs + (b.duration ?? 30);
+        return slotStart >= bs - travelBuffer && slotStart < be + travelBuffer;
+      });
+      if (blockedCross) return false;
+    }
+
+    const schedule = scheduleByTherapist?.get(id);
+    if (!schedule || schedule.shifts.length === 0) return true;
+    return schedule.shifts.some((shift) => {
+      const ss = timeToMinutes(shift.start + ":00");
+      const se = timeToMinutes(shift.end + ":00");
+      return slotStart >= ss && slotStart < se;
+    });
+  }).length;
+
+  return availableTherapistCount - overlappingHolds >= requiredGuestCount;
+}
+
+// Statuses that count as "active" for availability purposes. Matches the
+// reserve_trunk_atomically RPC. Stale awaiting_payment (>10min old) is also
+// excluded by the RPC; the edge functions should mirror that if/when they
+// surface awaiting_payment bookings.
+export const ACTIVE_BOOKING_STATUS_FILTER =
+  '("Annulé","Terminé","cancelled","completed","noshow")';
