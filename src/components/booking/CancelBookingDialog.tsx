@@ -10,7 +10,10 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
-import { needsRefundOnCancel } from "@/lib/cancelBookingRules";
+import {
+  getCancelPaymentSettlement,
+  hasCancelPaymentSidePanel,
+} from "@/lib/cancelBookingRules";
 import { computeCancellationAmounts } from "@/lib/cancellationAmounts";
 import { formatVenueCancellationPolicy } from "@/lib/formatVenueCancellationPolicy";
 import {
@@ -118,7 +121,6 @@ export function CancelBookingDialog({
 
   const chargeLateFeeLive = form.watch("charge_late_fee");
 
-  const needsRefund = needsRefundOnCancel(booking.payment_status, booking.payment_method);
   const isPartnerBilled = booking.payment_method === "partner_billed";
   const isChargedToRoom = booking.payment_status === "charged_to_room";
 
@@ -132,12 +134,11 @@ export function CancelBookingDialog({
         .maybeSingle();
       return data ?? null;
     },
-    enabled: isOpen && needsRefund && !paymentPreview,
+    enabled: isOpen && !paymentPreview,
     staleTime: 30_000,
   });
 
   const paymentInfo = useMemo<PaymentInfo | null>(() => {
-    if (!needsRefund) return null;
     if (paymentPreview) {
       return {
         card_brand: paymentPreview.card_brand ?? null,
@@ -147,7 +148,35 @@ export function CancelBookingDialog({
       };
     }
     return paymentInfoFromDb ?? null;
-  }, [needsRefund, paymentPreview, paymentInfoFromDb]);
+  }, [paymentPreview, paymentInfoFromDb]);
+
+  const hasCardDeposit =
+    !!paymentInfo?.card_last4 && Number(paymentInfo.estimated_price) > 0;
+
+  const paymentSettlement = useMemo(
+    () =>
+      getCancelPaymentSettlement(booking.payment_status, booking.payment_method, {
+        stripePaymentIntentId: paymentInfo?.stripe_payment_intent_id,
+        hasCardDeposit,
+      }),
+    [
+      booking.payment_status,
+      booking.payment_method,
+      paymentInfo?.stripe_payment_intent_id,
+      hasCardDeposit,
+    ],
+  );
+
+  const needsRefund = paymentSettlement === "refund";
+  const releaseCardHold = paymentSettlement === "release_hold";
+  const showPaymentSidePanel = hasCancelPaymentSidePanel(
+    booking.payment_status,
+    booking.payment_method,
+    {
+      stripePaymentIntentId: paymentInfo?.stripe_payment_intent_id,
+      hasCardDeposit,
+    },
+  );
 
   const { data: hotelFee } = useQuery<HotelFeeConfig | null>({
     queryKey: ["hotel-cancel-fee", booking.hotel_id],
@@ -256,7 +285,7 @@ export function CancelBookingDialog({
 
   return (
     <Dialog key={dialogLng} open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className={needsRefund ? "max-w-2xl p-0 overflow-hidden" : "max-w-lg p-0 overflow-hidden"}>
+      <DialogContent className={showPaymentSidePanel ? "max-w-2xl p-0 overflow-hidden" : "max-w-lg p-0 overflow-hidden"}>
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle className="text-xl font-bold">
             {t("cancelBookingDialog.title")}
@@ -265,6 +294,13 @@ export function CancelBookingDialog({
             {needsRefund ? (
               <Trans
                 i18nKey="cancelBookingDialog.intro"
+                ns="common"
+                values={{ clientName }}
+                components={{ policyLink: policyLinkButton }}
+              />
+            ) : releaseCardHold ? (
+              <Trans
+                i18nKey="cancelBookingDialog.introHold"
                 ns="common"
                 values={{ clientName }}
                 components={{ policyLink: policyLinkButton }}
@@ -282,13 +318,13 @@ export function CancelBookingDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit((values) => cancelMutation.mutate(values))}>
-            <div className={needsRefund ? "grid md:grid-cols-2 gap-0" : "px-6 pb-6 space-y-5"}>
+            <div className={showPaymentSidePanel ? "grid md:grid-cols-2 gap-0" : "px-6 pb-6 space-y-5"}>
               <CancelFormFields
                 form={form}
                 t={t}
                 hasFeePolicy={!!hasFeePolicy}
                 hotelFee={hotelFee}
-                className={needsRefund ? "px-6 pb-6 space-y-5" : undefined}
+                className={showPaymentSidePanel ? "px-6 pb-6 space-y-5" : undefined}
               />
 
               {needsRefund ? (
@@ -300,6 +336,15 @@ export function CancelBookingDialog({
                   isPartnerBilled={isPartnerBilled}
                   feeAmount={feeAmount}
                   refundAmount={refundAmount}
+                  isPending={cancelMutation.isPending}
+                  onClose={onClose}
+                />
+              ) : releaseCardHold ? (
+                <HoldReleaseSummaryPanel
+                  t={t}
+                  totalPrice={totalPrice}
+                  guaranteeAmount={depositAmount}
+                  cardLabel={cardLabel}
                   isPending={cancelMutation.isPending}
                   onClose={onClose}
                 />
@@ -486,6 +531,57 @@ function RefundSummaryPanel({
             </div>
           </>
         )}
+      </div>
+
+      <CancelActions t={t} isPending={isPending} onClose={onClose} />
+    </div>
+  );
+}
+
+function HoldReleaseSummaryPanel({
+  t,
+  totalPrice,
+  guaranteeAmount,
+  cardLabel,
+  isPending,
+  onClose,
+}: {
+  t: (key: string) => string;
+  totalPrice: number;
+  guaranteeAmount: number;
+  cardLabel: string | null;
+  isPending: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <div className="bg-muted/40 border-l px-6 py-6 flex flex-col gap-4">
+      <p className="text-sm font-semibold">{t("cancelBookingDialog.detailsTitle")}</p>
+
+      <div className="space-y-3 text-sm flex-1">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("cancelBookingDialog.totalBooking")}</span>
+          <span className="font-medium">{totalPrice}€</span>
+        </div>
+
+        <div>
+          <span className="text-muted-foreground">{t("cancelBookingDialog.cardOnFile")}</span>
+          <p className="text-xs text-muted-foreground">
+            {cardLabel ?? t("cancelBookingDialog.noCardInfo")}
+          </p>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">{t("cancelBookingDialog.guaranteeAmount")}</span>
+          <span className="font-medium">{guaranteeAmount}€</span>
+        </div>
+
+        <Separator />
+        <div>
+          <p className="font-semibold">{t("cancelBookingDialog.holdReleaseTitle")}</p>
+          <p className="text-xs font-normal text-muted-foreground mt-1">
+            {t("cancelBookingDialog.holdReleaseHelp")}
+          </p>
+        </div>
       </div>
 
       <CancelActions t={t} isPending={isPending} onClose={onClose} />

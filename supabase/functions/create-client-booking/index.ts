@@ -542,7 +542,13 @@ try {
     const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);
     const effectiveTotalPrice = basePrice + surcharge.surchargeAmount;
     const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
-    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'paid' : 'pending');
+    const effectivePaymentStatus = isOffert
+      ? 'offert'
+      : paymentMethod === 'room'
+        ? 'charged_to_room'
+        : paymentMethod === 'gift_amount'
+          ? 'paid'
+          : 'pending';
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Find or create customer by phone

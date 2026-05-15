@@ -23,6 +23,53 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+type BookingCancelSnapshot = {
+  status: string;
+  cancellation_reason: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+  cancellation_fee_amount: number | null;
+  refund_amount: number | null;
+  stripe_refund_id: string | null;
+};
+
+function snapshotBookingForRevert(booking: Record<string, unknown>): BookingCancelSnapshot {
+  return {
+    status: String(booking.status),
+    cancellation_reason: (booking.cancellation_reason as string | null) ?? null,
+    cancelled_at: (booking.cancelled_at as string | null) ?? null,
+    cancelled_by: (booking.cancelled_by as string | null) ?? null,
+    cancellation_fee_amount: booking.cancellation_fee_amount != null
+      ? Number(booking.cancellation_fee_amount)
+      : null,
+    refund_amount: booking.refund_amount != null ? Number(booking.refund_amount) : null,
+    stripe_refund_id: (booking.stripe_refund_id as string | null) ?? null,
+  };
+}
+
+async function revertBookingCancellation(
+  supabase: ReturnType<typeof createClient>,
+  bookingId: string,
+  previous: BookingCancelSnapshot,
+): Promise<void> {
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      status: previous.status,
+      cancellation_reason: previous.cancellation_reason,
+      cancelled_at: previous.cancelled_at,
+      cancelled_by: previous.cancelled_by,
+      cancellation_fee_amount: previous.cancellation_fee_amount ?? 0,
+      refund_amount: previous.refund_amount ?? 0,
+      stripe_refund_id: previous.stripe_refund_id,
+    })
+    .eq("id", bookingId);
+
+  if (error) {
+    console.error("[cancel-booking] CRITICAL: failed to revert booking after Stripe error:", error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -109,11 +156,7 @@ serve(async (req) => {
       }
     }
 
-    const isPartnerBilled = booking.payment_method === "partner_billed";
-    const isChargedToRoom = booking.payment_status === "charged_to_room";
-    const needsStripe = needsStripeSettlement(booking);
-    const applyLateFee = charge_late_fee && isAdmin && needsStripe && !isPartnerBilled;
-    const skipStripe = isPartnerBilled || isChargedToRoom;
+    const previousState = snapshotBookingForRevert(booking);
 
     const [{ data: paymentInfo }, { data: hotel }] = await Promise.all([
       supabase
@@ -127,6 +170,12 @@ serve(async (req) => {
         .eq("id", booking.hotel_id)
         .single(),
     ]);
+
+    const isPartnerBilled = booking.payment_method === "partner_billed";
+    const isChargedToRoom = booking.payment_status === "charged_to_room";
+    const needsStripe = needsStripeSettlement(booking);
+    const applyLateFee = charge_late_fee && isAdmin && needsStripe && !isPartnerBilled;
+    const skipStripe = isPartnerBilled || isChargedToRoom;
 
     const totalPrice = Number(booking.total_price) || 0;
     const depositAmount = paymentInfo?.estimated_price != null
@@ -144,6 +193,25 @@ serve(async (req) => {
 
     const feeApplied = needsStripe ? Math.min(fee, depositAmount) : 0;
     const refundAmount = needsStripe ? Math.max(0, depositAmount - feeApplied) : 0;
+
+    const cancelPayload: Record<string, unknown> = {
+      status: "cancelled",
+      cancellation_reason: reason?.trim() || null,
+      cancelled_at: new Date().toISOString(),
+      cancellation_fee_amount: feeApplied,
+      refund_amount: refundAmount,
+    };
+    if (callerUserId) cancelPayload.cancelled_by = callerUserId;
+
+    const { error: cancelUpdateError } = await supabase
+      .from("bookings")
+      .update(cancelPayload)
+      .eq("id", resolvedBookingId);
+
+    if (cancelUpdateError) {
+      console.error("[cancel-booking] DB cancel update error:", cancelUpdateError);
+      return jsonResponse({ error: "Failed to update booking" }, 500);
+    }
 
     let stripeRefundId: string | null = null;
     let setupIntentCancelled = false;
@@ -165,9 +233,10 @@ serve(async (req) => {
         setupIntentCancelled = settlement.setupIntentCancelled;
         console.log("[cancel-booking] Stripe settlement", settlement);
       } catch (stripeErr) {
+        await revertBookingCancellation(supabase, resolvedBookingId, previousState);
         const lang = resolveCancelLang(booking.language);
         const message = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
-        console.error("[cancel-booking] Stripe error:", stripeErr);
+        console.error("[cancel-booking] Stripe error (booking reverted):", stripeErr);
         return jsonResponse(
           { error: getCancelMessages(lang).stripeError(message) },
           502,
@@ -175,24 +244,18 @@ serve(async (req) => {
       }
     }
 
-    const updatePayload: Record<string, unknown> = {
-      status: "cancelled",
-      cancellation_reason: reason?.trim() || null,
-      cancelled_at: new Date().toISOString(),
-      cancellation_fee_amount: feeApplied,
-      refund_amount: refundAmount,
-    };
-    if (callerUserId) updatePayload.cancelled_by = callerUserId;
-    if (stripeRefundId) updatePayload.stripe_refund_id = stripeRefundId;
+    if (stripeRefundId) {
+      const { error: refundIdError } = await supabase
+        .from("bookings")
+        .update({ stripe_refund_id: stripeRefundId })
+        .eq("id", resolvedBookingId);
 
-    const { error: updateError } = await supabase
-      .from("bookings")
-      .update(updatePayload)
-      .eq("id", resolvedBookingId);
-
-    if (updateError) {
-      console.error("[cancel-booking] DB update error:", updateError);
-      return jsonResponse({ error: "Failed to update booking" }, 500);
+      if (refundIdError) {
+        console.error(
+          "[cancel-booking] CRITICAL: Stripe succeeded but stripe_refund_id not saved:",
+          refundIdError,
+        );
+      }
     }
 
     if (send_notification) {

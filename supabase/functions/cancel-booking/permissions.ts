@@ -1,12 +1,14 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { needsStripeSettlementOnCancel } from "../_shared/cancel-booking-rules.ts";
 
 export function needsStripeSettlement(booking: {
   payment_status?: string | null;
   payment_method?: string | null;
 }): boolean {
-  if (booking.payment_method === "partner_billed") return false;
-  if (booking.payment_status === "charged_to_room") return false;
-  return booking.payment_status === "paid";
+  return needsStripeSettlementOnCancel(
+    booking.payment_status,
+    booking.payment_method,
+  );
 }
 
 export async function assertCallerCanCancelBooking(

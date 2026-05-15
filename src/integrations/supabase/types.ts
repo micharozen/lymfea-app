@@ -2868,7 +2868,6 @@ export type Database = {
         }
         Returns: number
       }
-      cancel_booking_public: { Args: { p_token: string }; Returns: boolean }
       claim_gift_card: {
         Args: { _code: string; _email?: string }
         Returns: string

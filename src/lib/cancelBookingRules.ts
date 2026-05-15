@@ -1,11 +1,69 @@
-/** Stripe refund/settlement applies only when the booking was actually charged. */
+/**
+ * Cancel payment UX / Stripe settlement rules.
+ * Keep in sync with supabase/functions/_shared/cancel-booking-rules.ts
+ */
+export const PRE_AUTH_PAYMENT_STATUSES = [
+  "pending",
+  "awaiting_payment",
+  "card_saved",
+] as const;
+
+export type PreAuthPaymentStatus = (typeof PRE_AUTH_PAYMENT_STATUSES)[number];
+
+/** What happens to the client's card on cancel. */
+export type CancelPaymentSettlement = "none" | "release_hold" | "refund";
+
+function isPreAuthPaymentStatus(status: string | null | undefined): boolean {
+  return PRE_AUTH_PAYMENT_STATUSES.includes(status as PreAuthPaymentStatus);
+}
+
+export function getCancelPaymentSettlement(
+  paymentStatus?: string | null,
+  paymentMethod?: string | null,
+  options?: {
+    stripePaymentIntentId?: string | null;
+    hasCardDeposit?: boolean;
+  },
+): CancelPaymentSettlement {
+  if (paymentMethod === "partner_billed") return "none";
+  if (paymentStatus === "charged_to_room") return "none";
+
+  // Money was captured — real refund.
+  if (paymentStatus === "paid") return "refund";
+
+  // Pre-authorization on card (PI hold) — release, not refund.
+  if (options?.stripePaymentIntentId) return "release_hold";
+
+  // SetupIntent / empreinte (card_saved, etc.) — release, not refund.
+  if (isPreAuthPaymentStatus(paymentStatus) && options?.hasCardDeposit) {
+    return "release_hold";
+  }
+
+  return "none";
+}
+
+/** True only when Stripe must refund captured funds. */
 export function needsRefundOnCancel(
   paymentStatus?: string | null,
   paymentMethod?: string | null,
+  options?: {
+    stripePaymentIntentId?: string | null;
+    hasCardDeposit?: boolean;
+  },
 ): boolean {
-  if (paymentMethod === "partner_billed") return false;
-  if (paymentStatus === "charged_to_room") return false;
-  return paymentStatus === "paid";
+  return getCancelPaymentSettlement(paymentStatus, paymentMethod, options) === "refund";
+}
+
+export function hasCancelPaymentSidePanel(
+  paymentStatus?: string | null,
+  paymentMethod?: string | null,
+  options?: {
+    stripePaymentIntentId?: string | null;
+    hasCardDeposit?: boolean;
+  },
+): boolean {
+  const settlement = getCancelPaymentSettlement(paymentStatus, paymentMethod, options);
+  return settlement === "refund" || settlement === "release_hold";
 }
 
 export function canCancelBookingByStatus(status?: string | null): boolean {
