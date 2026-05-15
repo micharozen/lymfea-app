@@ -25,7 +25,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
-import { format, parseISO, differenceInMinutes } from "date-fns";
+import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
@@ -36,17 +36,8 @@ import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusSt
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { ButtonGroup } from "@/components/ui/button-group";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 
 const countries = [
   { code: "+27", label: "Afrique du Sud", flag: "🇿🇦" },
@@ -181,8 +172,7 @@ export default function EditBookingDialog({
   const [totalPrice, setTotalPrice] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [cancellationReason, setCancellationReason] = useState("");
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"view" | "edit" | "quote">("view");
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
   const [therapistIds, setTherapistIds] = useState<string[]>([]);
@@ -250,7 +240,12 @@ export default function EditBookingDialog({
   const { isVenueManagerView } = useEffectiveRole();
   const isAdmin = userRole === "admin" && !isVenueManagerView;
   const isConcierge = userRole === "concierge" || isVenueManagerView;
-  const canCancelBooking = isAdmin || isConcierge;
+  const canCancelBooking =
+    (isAdmin || isConcierge) &&
+    booking?.payment_status !== "paid" &&
+    booking?.payment_status !== "charged_to_room" &&
+    booking?.status !== "cancelled" &&
+    booking?.status !== "completed";
   const isDuo = (booking?.guest_count ?? 1) > 1;
   const therapistCount = booking?.guest_count ?? 1;
 
@@ -262,17 +257,6 @@ export default function EditBookingDialog({
   const slotDisabled = !conciergeCanEditSlot;
   const clientFieldsDisabled = isConcierge;
   const treatmentsDisabled = !conciergeCanEditTreatments;
-
-  const isLateCancellation = useMemo(() => {
-    if (!booking?.booking_date || !booking?.booking_time) return false;
-    
-    const now = new Date();
-    const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
-    const minutesUntilAppointment = differenceInMinutes(bookingDateTime, now);
-    const hoursUntilAppointment = minutesUntilAppointment / 60;
-    
-    return hoursUntilAppointment <= 2 && hoursUntilAppointment > 0;
-  }, [booking?.booking_date, booking?.booking_time]);
 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
@@ -675,55 +659,6 @@ export default function EditBookingDialog({
     },
   });
 
-  const cancelMutation = useMutation({
-    mutationFn: async (reason: string) => {
-      if (!booking?.id) return;
-
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "cancelled",
-          cancellation_reason: reason,
-        })
-        .eq("id", booking.id);
-
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      if (booking?.id) {
-        try {
-          await invokeEdgeFunction(
-            "handle-booking-cancellation",
-            {
-              body: {
-                bookingId: booking.id,
-                cancellationReason: cancellationReason || undefined,
-              },
-            }
-          );
-        } catch (e) {
-          console.error("handle-booking-cancellation exception:", e);
-        }
-      }
-
-      queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      toast({
-        title: "Succès",
-        description: "La réservation a été annulée avec succès",
-      });
-      setShowDeleteDialog(false);
-      setCancellationReason("");
-      onOpenChange(false);
-    },
-    onError: (error) => {
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de l'annulation de la réservation",
-        variant: "destructive",
-      });
-    },
-  });
-
   const validateQuoteMutation = useMutation({
     mutationFn: async ({ quotedVariablePrice, quotedVariableDuration }: { quotedVariablePrice: number; quotedVariableDuration: number }) => {
       if (!booking?.id) throw new Error("No booking ID");
@@ -1064,7 +999,7 @@ export default function EditBookingDialog({
                         variant="outline"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => setShowDeleteDialog(true)}
+                        onClick={() => setShowCancelDialog(true)}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -1673,7 +1608,7 @@ export default function EditBookingDialog({
                   <Button
                     type="button"
                     variant="destructive"
-                    onClick={() => setShowDeleteDialog(true)}
+                    onClick={() => setShowCancelDialog(true)}
                     className="gap-2"
                   >
                     <X className="h-4 w-4" />
@@ -1847,57 +1782,28 @@ export default function EditBookingDialog({
         )}
       </DialogContent>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={(open) => {
-        setShowDeleteDialog(open);
-        if (!open) setCancellationReason("");
-      }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Annuler la réservation</AlertDialogTitle>
-            <AlertDialogDescription>
-              Veuillez indiquer la raison de l'annulation. Cette action ne supprimera pas la réservation mais changera son statut en "Annulé".
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4 space-y-4">
-            {isConcierge && isLateCancellation && (
-              <Alert variant="destructive" className="bg-amber-50 border-amber-200">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-800">
-                  <strong>Attention :</strong> Cette réservation a lieu dans moins de 2h. 
-                  Politique = Facturation 100%.
-                </AlertDescription>
-              </Alert>
-            )}
-            
-            <div>
-              <Label htmlFor="cancellation-reason" className="text-sm font-medium">
-                Raison de l'annulation <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="cancellation-reason"
-                value={cancellationReason}
-                onChange={(e) => setCancellationReason(e.target.value)}
-                placeholder={isConcierge && isLateCancellation 
-                  ? "Ex: Geste commercial VIP, Client malade, Urgence familiale..."
-                  : "Saisissez la raison de l'annulation..."}
-                className="mt-2"
-                rows={3}
-              />
-            </div>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Retour</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => cancelMutation.mutate(cancellationReason)}
-              disabled={!cancellationReason.trim() || cancelMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {cancelMutation.isPending ? "Annulation..." : "Confirmer l'annulation"}
-              {cancelMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {booking && (
+        <CancelBookingDialog
+          isOpen={showCancelDialog}
+          onClose={() => setShowCancelDialog(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+            onSuccess?.();
+            onOpenChange(false);
+          }}
+          bookingId={booking.id}
+          booking={{
+            booking_id: booking.booking_id,
+            client_first_name: booking.client_first_name,
+            client_last_name: booking.client_last_name,
+            total_price: Number(booking.total_price ?? totalPrice) || 0,
+            hotel_id: booking.hotel_id,
+            status: booking.status,
+            payment_method: booking.payment_method,
+          }}
+          userRole={isConcierge ? "concierge" : "admin"}
+        />
+      )}
 
       {booking && (
         <SendPaymentLinkDialog

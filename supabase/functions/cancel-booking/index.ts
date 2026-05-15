@@ -113,14 +113,15 @@ serve(async (req) => {
         .maybeSingle();
       isAdmin = !!adminRow;
     }
-    const applyLateFee = charge_late_fee && isAdmin;
+    const isPartnerBilled = booking.payment_method === "partner_billed";
+    const applyLateFee = charge_late_fee && isAdmin && !isPartnerBilled;
 
     // ── 4. FETCH PAYMENT INFO & VENUE FEE POLICY ─────────────────────────────
 
     const [{ data: paymentInfo }, { data: hotel }] = await Promise.all([
       supabase
         .from("booking_payment_infos")
-        .select("stripe_payment_intent_id, stripe_setup_intent_id, card_brand, card_last4")
+        .select("stripe_payment_intent_id, stripe_setup_intent_id, card_brand, card_last4, estimated_price")
         .eq("booking_id", resolvedBookingId)
         .maybeSingle(),
       supabase
@@ -130,8 +131,11 @@ serve(async (req) => {
         .single(),
     ]);
 
-    // Calculate fee and refund
     const totalPrice = Number(booking.total_price) || 0;
+    const depositAmount = paymentInfo?.estimated_price != null
+      ? Number(paymentInfo.estimated_price)
+      : totalPrice;
+
     let fee = 0;
     if (applyLateFee && hotel) {
       if (hotel.cancellation_fee_type === "fixed") {
@@ -140,34 +144,58 @@ serve(async (req) => {
         fee = Math.round(totalPrice * (Number(hotel.cancellation_fee_amount) / 100) * 100) / 100;
       }
     }
-    const refundAmount = Math.max(0, totalPrice - fee);
 
-    // ── 5. STRIPE ACTION ──────────────────────────────────────────────────────
+    const feeApplied = isPartnerBilled ? 0 : Math.min(fee, depositAmount);
+    const refundAmount = isPartnerBilled ? 0 : Math.max(0, depositAmount - feeApplied);
+
+    // ── 5. STRIPE ACTION (before DB — fail closed on payment errors) ─────────
 
     let stripeRefundId: string | null = null;
 
-    if (paymentInfo?.stripe_payment_intent_id) {
+    if (!isPartnerBilled && paymentInfo?.stripe_payment_intent_id) {
       try {
         const { client: stripe } = await getStripeForVenue(supabase, booking.hotel_id);
         const pi = await stripe.paymentIntents.retrieve(paymentInfo.stripe_payment_intent_id);
 
         if (pi.status === "requires_capture") {
-          await stripe.paymentIntents.cancel(pi.id);
-          console.log("[cancel-booking] Pre-auth cancelled:", pi.id);
+          if (feeApplied > 0) {
+            const captureCents = Math.min(
+              Math.round(feeApplied * 100),
+              pi.amount_capturable ?? pi.amount,
+            );
+            if (captureCents > 0) {
+              await stripe.paymentIntents.capture(pi.id, { amount_to_capture: captureCents });
+              console.log("[cancel-booking] Pre-auth partial capture (late fee):", pi.id, captureCents);
+            }
+          } else {
+            await stripe.paymentIntents.cancel(pi.id);
+            console.log("[cancel-booking] Pre-auth cancelled:", pi.id);
+          }
         } else if (pi.status === "succeeded") {
           const refundCents = Math.round(refundAmount * 100);
-          const refund = await stripe.refunds.create({
-            payment_intent: pi.id,
-            amount: refundCents > 0 ? refundCents : undefined,
-          });
-          stripeRefundId = refund.id;
-          console.log("[cancel-booking] Refund created:", refund.id, "amount:", refundCents);
+          if (refundCents > 0) {
+            const refund = await stripe.refunds.create({
+              payment_intent: pi.id,
+              amount: refundCents,
+            });
+            stripeRefundId = refund.id;
+            console.log("[cancel-booking] Refund created:", refund.id, "amount:", refundCents);
+          } else {
+            console.log("[cancel-booking] No refund needed (fee covers full deposit)");
+          }
         } else {
           console.log("[cancel-booking] PI status is", pi.status, "— no Stripe action needed");
         }
       } catch (stripeErr) {
+        const message = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
         console.error("[cancel-booking] Stripe error:", stripeErr);
+        return jsonResponse(
+          { error: `Échec du remboursement Stripe : ${message}` },
+          502,
+        );
       }
+    } else if (isPartnerBilled) {
+      console.log("[cancel-booking] partner_billed — skip Stripe");
     } else {
       console.log("[cancel-booking] No payment intent — no Stripe action");
     }
@@ -178,7 +206,7 @@ serve(async (req) => {
       status: "cancelled",
       cancellation_reason: reason || "Annulation",
       cancelled_at: new Date().toISOString(),
-      cancellation_fee_amount: fee,
+      cancellation_fee_amount: feeApplied,
       refund_amount: refundAmount,
     };
     if (callerUserId) updatePayload.cancelled_by = callerUserId;
@@ -221,6 +249,28 @@ serve(async (req) => {
             ? `${paymentInfo.card_brand.toUpperCase()} ••••${paymentInfo.card_last4}`
             : null;
 
+          const paymentDetailsBlock = isPartnerBilled
+            ? `
+                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 12px; margin-bottom: 24px;">
+                  <tr><td style="padding: 20px;">
+                    <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #374151;">Détails de l'annulation</p>
+                    ${getInfoRow("Total du rendez-vous", `${totalPrice}€`)}
+                    ${getInfoRow("Paiement", "Facturé au partenaire (aucun remboursement carte)")}
+                    ${reason ? getInfoRow("Motif", reason) : ""}
+                  </td></tr>
+                </table>`
+            : `
+                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 12px; margin-bottom: 24px;">
+                  <tr><td style="padding: 20px;">
+                    <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #374151;">Détails du remboursement</p>
+                    ${getInfoRow("Total du rendez-vous", `${totalPrice}€`)}
+                    ${cardLine ? getInfoRow("Acompte versé", `${cardLine} — ${depositAmount}€`) : getInfoRow("Acompte versé", `${depositAmount}€`)}
+                    ${feeApplied > 0 ? getInfoRow("Frais d'annulation", `${feeApplied}€`) : ""}
+                    ${getInfoRow("Montant remboursé", `${refundAmount}€`)}
+                    ${reason ? getInfoRow("Motif", reason) : ""}
+                  </td></tr>
+                </table>`;
+
           const emailContent = `
             ${getEmailHeader("Votre rendez-vous a été annulé", "❌ Annulation", "#ef4444")}
             <tr>
@@ -235,16 +285,7 @@ serve(async (req) => {
             </tr>
             <tr>
               <td style="padding: 24px 30px 0;">
-                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 12px; margin-bottom: 24px;">
-                  <tr><td style="padding: 20px;">
-                    <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #374151;">Détails du remboursement</p>
-                    ${getInfoRow("Total du rendez-vous", `${totalPrice}€`)}
-                    ${cardLine ? getInfoRow("Acompte versé", `${cardLine} — ${totalPrice}€`) : ""}
-                    ${fee > 0 ? getInfoRow("Frais d'annulation", `${fee}€`) : ""}
-                    ${getInfoRow("Montant remboursé", `${refundAmount}€`)}
-                    ${reason ? getInfoRow("Motif", reason) : ""}
-                  </td></tr>
-                </table>
+                ${paymentDetailsBlock}
               </td>
             </tr>
           `;
@@ -273,7 +314,9 @@ serve(async (req) => {
             weekday: "short", day: "numeric", month: "short",
           });
           const formattedTime = booking.booking_time?.substring(0, 5) || "";
-          const smsBody = `Bonjour ${booking.client_first_name ?? ""}, votre soin chez ${booking.hotel_name ?? ""} le ${formattedDate} à ${formattedTime} a été annulé. Remboursement : ${refundAmount}€.`;
+          const smsBody = isPartnerBilled
+            ? `Bonjour ${booking.client_first_name ?? ""}, votre soin chez ${booking.hotel_name ?? ""} le ${formattedDate} à ${formattedTime} a été annulé.`
+            : `Bonjour ${booking.client_first_name ?? ""}, votre soin chez ${booking.hotel_name ?? ""} le ${formattedDate} à ${formattedTime} a été annulé. Remboursement : ${refundAmount}€.`;
           const smsResult = await sendSms({ to: clientPhone, body: smsBody });
           if (smsResult.error) {
             console.error("[cancel-booking] SMS error:", smsResult.error);

@@ -908,6 +908,63 @@ export function VenueGeneralTab({
               </div>
             )}
           </div>
+
+          <Separator />
+
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+              Frais d&apos;annulation tardive (admin)
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              Appliqués lors d&apos;une annulation avec l&apos;option « facturer des frais » (réservations carte).
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name={"cancellation_fee_type" as keyof VenueWizardFormValues}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type de frais</FormLabel>
+                    <Select
+                      value={String(field.value ?? "none")}
+                      onValueChange={field.onChange}
+                      disabled={disabled}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Aucun</SelectItem>
+                        <SelectItem value="fixed">Montant fixe</SelectItem>
+                        <SelectItem value="percentage">Pourcentage du total</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {form.watch("cancellation_fee_type" as keyof VenueWizardFormValues) !== "none" && (
+                <FormField
+                  control={form.control}
+                  name={"cancellation_fee_amount" as keyof VenueWizardFormValues}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {form.watch("cancellation_fee_type" as keyof VenueWizardFormValues) === "percentage"
+                          ? "Pourcentage (%)"
+                          : "Montant (€)"}
+                      </FormLabel>
+                      <FormControl>
+                        <Input type="number" min="0" step="0.01" {...field} value={String(field.value ?? "0")} disabled={disabled} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
       )}

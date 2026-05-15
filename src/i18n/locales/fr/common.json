@@ -74,7 +74,7 @@
   },
   "cancelBookingDialog": {
     "title": "Souhaitez-vous vraiment annuler ?",
-    "intro": "{{clientName}} a versé un acompte lors de la réservation de son rendez-vous.",
+    "intro": "{{clientName}} a versé un acompte lors de la réservation. <policyLink>Politique d'annulation</policyLink>",
     "chargeLateFeesLabel": "Facturer des frais d'annulation tardive",
     "sendNotificationLabel": "Envoyer une notification d'annulation",
     "sendNotificationHelp": "Le client recevra un email et un SMS d'annulation.",
@@ -89,6 +89,7 @@
     "confirm": "Annuler le rendez-vous",
     "back": "Retour",
     "noCardInfo": "Paiement non bancaire",
+    "partnerBilledNote": "Réservation facturée au partenaire — aucun remboursement carte.",
     "successToast": "Réservation annulée"
   }
 }

@@ -372,6 +372,7 @@ export default function AdminPwaBookingDetail() {
             total_price: Number(booking.total_price),
             hotel_id: booking.hotel_id,
             status: booking.status,
+            payment_method: booking.payment_method,
           }}
           userRole={userRole === "concierge" ? "concierge" : "admin"}
         />

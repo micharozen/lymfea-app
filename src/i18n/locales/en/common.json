@@ -74,7 +74,7 @@
   },
   "cancelBookingDialog": {
     "title": "Are you sure you want to cancel?",
-    "intro": "{{clientName}} paid a deposit when booking their appointment.",
+    "intro": "{{clientName}} paid a deposit when booking. <policyLink>Cancellation policy</policyLink>",
     "chargeLateFeesLabel": "Charge late cancellation fee",
     "sendNotificationLabel": "Send cancellation notification",
     "sendNotificationHelp": "The client will receive a cancellation email and SMS.",
@@ -89,6 +89,7 @@
     "confirm": "Cancel appointment",
     "back": "Go back",
     "noCardInfo": "Non-card payment",
+    "partnerBilledNote": "Partner-billed booking — no card refund.",
     "successToast": "Booking cancelled"
   }
 }

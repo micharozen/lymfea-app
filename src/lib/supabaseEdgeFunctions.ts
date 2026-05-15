@@ -171,6 +171,11 @@ async function invokeSupabase<TRequest, TResponse>(
       return { data: null, error: response.error };
     }
 
+    const payload = response.data as { error?: string; success?: boolean } | null;
+    if (payload && typeof payload === "object" && payload.error) {
+      return { data: null, error: new Error(payload.error) };
+    }
+
     return { data: response.data, error: null };
 
   } catch (err) {

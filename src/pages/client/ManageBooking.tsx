@@ -37,6 +37,7 @@ import {
 import TimePeriodSelector from "@/components/client/TimePeriodSelector";
 import { useToast } from "@/hooks/use-toast";
 import { brand, brandLogos } from "@/config/brand";
+import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 
 interface HotelInfo {
@@ -71,6 +72,10 @@ interface BookingRow {
   room_number: string | null;
   total_price: number | null;
   status: string;
+  payment_method: string | null;
+  card_brand: string | null;
+  card_last4: string | null;
+  estimated_price: number | null;
   language: "fr" | "en" | null;
   booking_treatments: BookingTreatmentRow[] | null;
   hotels: HotelInfo | null;
@@ -255,35 +260,6 @@ const ManageBooking = () => {
       toast({
         title: "Erreur",
         description: "Impossible de modifier la réservation. Veuillez réessayer.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: async () => {
-      if (!booking) throw new Error("No booking");
-      const { error } = await invokeEdgeFunction("cancel-booking", {
-        skipAuth: true,
-        body: {
-          token: bookingId!,
-          send_notification: true,
-        },
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
-      toast({
-        title: "Réservation annulée",
-        description: "Un email de confirmation vous a été envoyé.",
-      });
-      setShowConfirmCancelDialog(false);
-    },
-    onError: () => {
-      toast({
-        title: "Erreur",
-        description: "Impossible d'annuler la réservation. Veuillez réessayer.",
         variant: "destructive",
       });
     },
@@ -540,27 +516,38 @@ const ManageBooking = () => {
         </DrawerContent>
       </Drawer>
 
-      <AlertDialog open={showConfirmCancelDialog} onOpenChange={setShowConfirmCancelDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Annuler la réservation ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir annuler cette réservation ? Vous recevrez un SMS de confirmation avec un lien pour réserver à nouveau.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Non, conserver</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => cancelMutation.mutate()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={cancelMutation.isPending}
-            >
-              {cancelMutation.isPending ? "Annulation..." : "Oui, annuler"}
-              {cancelMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {booking && (
+        <CancelBookingDialog
+          isOpen={showConfirmCancelDialog}
+          onClose={() => setShowConfirmCancelDialog(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
+            toast({
+              title: "Réservation annulée",
+              description: "Un email de confirmation vous a été envoyé.",
+            });
+            setShowConfirmCancelDialog(false);
+          }}
+          bookingId={booking.id}
+          publicToken={bookingId!}
+          bookingUuid={booking.id}
+          paymentPreview={{
+            card_brand: booking.card_brand,
+            card_last4: booking.card_last4,
+            estimated_price: booking.estimated_price,
+          }}
+          booking={{
+            booking_id: Number(booking.booking_id),
+            client_first_name: booking.client_first_name ?? "",
+            client_last_name: booking.client_last_name ?? "",
+            total_price: Number(booking.total_price ?? 0),
+            hotel_id: booking.hotel_id,
+            status: booking.status,
+            payment_method: booking.payment_method,
+          }}
+          userRole="client"
+        />
+      )}
 
       <AlertDialog open={showLateWarningDialog} onOpenChange={setShowLateWarningDialog}>
         <AlertDialogContent>
