@@ -185,7 +185,7 @@ serve(async (req) => {
       .eq('hotel_id', hotelId)
       .gte('booking_date', startDate)
       .lte('booking_date', endDate)
-      .not('status', 'in', '("Annulé","Terminé","cancelled")');
+      .not('status', 'in', '("Annulé","Terminé","cancelled","completed","noshow")');
 
     const bookingsByDate = new Map<string, any[]>();
     (hotelBookings || []).forEach((b: any) => {
@@ -203,7 +203,7 @@ serve(async (req) => {
         .neq('hotel_id', hotelId)
         .gte('booking_date', startDate)
         .lte('booking_date', endDate)
-        .not('status', 'in', '("Annulé","Terminé","cancelled")');
+        .not('status', 'in', '("Annulé","Terminé","cancelled","completed","noshow")');
       (crossData || []).forEach((b: any) => {
         if (!crossVenueByDate.has(b.booking_date)) crossVenueByDate.set(b.booking_date, []);
         crossVenueByDate.get(b.booking_date)!.push(b);
@@ -307,7 +307,7 @@ serve(async (req) => {
         });
 
         // Room capacity
-        const capacityBookings = blocking.filter((b: any) => b.therapist_id !== null);
+        const capacityBookings = blocking;
         const occupiedRoomIds = new Set<string>();
         let bookingsWithoutRoom = 0;
         for (const b of capacityBookings) {
