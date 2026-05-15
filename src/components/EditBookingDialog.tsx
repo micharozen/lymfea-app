@@ -38,6 +38,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { ButtonGroup } from "@/components/ui/button-group";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
+import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
 
 const countries = [
   { code: "+27", label: "Afrique du Sud", flag: "🇿🇦" },
@@ -241,11 +242,7 @@ export default function EditBookingDialog({
   const isAdmin = userRole === "admin" && !isVenueManagerView;
   const isConcierge = userRole === "concierge" || isVenueManagerView;
   const canCancelBooking =
-    (isAdmin || isConcierge) &&
-    booking?.payment_status !== "paid" &&
-    booking?.payment_status !== "charged_to_room" &&
-    booking?.status !== "cancelled" &&
-    booking?.status !== "completed";
+    (isAdmin || isConcierge) && canCancelBookingByStatus(booking?.status);
   const isDuo = (booking?.guest_count ?? 1) > 1;
   const therapistCount = booking?.guest_count ?? 1;
 
@@ -515,7 +512,6 @@ export default function EditBookingDialog({
       const wasAssigned = bookingData.therapist_id && !booking.therapist_id;
       const therapistChanged = bookingData.therapist_id && booking.therapist_id &&
                                   bookingData.therapist_id !== booking.therapist_id;
-      const wasCancelled = bookingData.status === "cancelled" && booking.status !== "cancelled";
 
       if (bookingData.therapist_id && booking.status === "pending") {
         newStatus = "confirmed";
@@ -590,7 +586,7 @@ export default function EditBookingDialog({
         }
       }
 
-      return { wasAssigned, therapistChanged, wasCancelled };
+      return { wasAssigned, therapistChanged };
     },
     onSuccess: async (result) => {
       if ((result?.wasAssigned || result?.therapistChanged) && booking?.id) {
@@ -603,16 +599,6 @@ export default function EditBookingDialog({
         }
       }
 
-      if (result?.wasCancelled && booking?.id) {
-        try {
-          await invokeEdgeFunction('trigger-booking-cancelled-notification', {
-            body: { bookingId: booking.id }
-          });
-        } catch (notifError) {
-          console.error("Error sending cancellation push notification:", notifError);
-        }
-      }
-      
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       await queryClient.invalidateQueries({ queryKey: ["booking_treatments", booking?.id] });
       await queryClient.invalidateQueries({ queryKey: ["booking_treatments_details", booking?.id] });
@@ -1800,6 +1786,7 @@ export default function EditBookingDialog({
             hotel_id: booking.hotel_id,
             status: booking.status,
             payment_method: booking.payment_method,
+            payment_status: booking.payment_status,
           }}
           userRole={isConcierge ? "concierge" : "admin"}
         />

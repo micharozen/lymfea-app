@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, differenceInMinutes, addDays, startOfDay } from "date-fns";
@@ -73,6 +74,7 @@ interface BookingRow {
   total_price: number | null;
   status: string;
   payment_method: string | null;
+  payment_status: string | null;
   card_brand: string | null;
   card_last4: string | null;
   estimated_price: number | null;
@@ -83,6 +85,7 @@ interface BookingRow {
 
 const ManageBooking = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
+  const { t } = useTranslation("client");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -522,10 +525,6 @@ const ManageBooking = () => {
           onClose={() => setShowConfirmCancelDialog(false)}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
-            toast({
-              title: "Réservation annulée",
-              description: "Un email de confirmation vous a été envoyé.",
-            });
             setShowConfirmCancelDialog(false);
           }}
           bookingId={booking.id}
@@ -544,6 +543,7 @@ const ManageBooking = () => {
             hotel_id: booking.hotel_id,
             status: booking.status,
             payment_method: booking.payment_method,
+            payment_status: booking.payment_status,
           }}
           userRole="client"
         />

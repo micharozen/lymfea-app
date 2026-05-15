@@ -1,5 +1,4 @@
--- Expose card/deposit summary on public manage-booking page (for cancel dialog UI).
--- Must DROP first: Postgres cannot change RETURNS TABLE signature via CREATE OR REPLACE.
+-- Expose payment_status on public manage-booking (cancel dialog refund mode).
 
 DROP FUNCTION IF EXISTS public.get_public_booking(text);
 
@@ -21,6 +20,7 @@ RETURNS TABLE (
   language text,
   short_token text,
   payment_method text,
+  payment_status text,
   card_brand text,
   card_last4 text,
   estimated_price numeric,
@@ -45,6 +45,7 @@ AS $$
     b.language,
     b.short_token,
     b.payment_method,
+    b.payment_status,
     bpi.card_brand,
     bpi.card_last4,
     bpi.estimated_price,
@@ -70,7 +71,7 @@ AS $$
   WHERE (p_token ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
          AND b.id = p_token::uuid)
      OR b.short_token = p_token
-  GROUP BY b.id, bpi.card_brand, bpi.card_last4, bpi.estimated_price;
+  GROUP BY b.id, b.payment_status, bpi.card_brand, bpi.card_last4, bpi.estimated_price;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_public_booking(text) TO anon, authenticated;

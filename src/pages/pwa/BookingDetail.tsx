@@ -888,7 +888,7 @@ const PwaBookingDetail = () => {
             <button onClick={() => { setShowContactDrawer(false); setShowNoShowDialog(true); }} className="flex items-center gap-3 p-4 bg-amber-50 text-amber-800 rounded-xl w-full font-medium"><UserX className="w-5 h-5"/> {t('bookingDetail.noShow')}</button>
             <button onClick={() => setShowUnassignDialog(true)} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X/> Désassigner</button>
             {['pending', 'confirmed'].includes(booking.status) && (
-              <button onClick={() => { setShowContactDrawer(false); setShowCancelDialog(true); }} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X className="w-5 h-5"/> Annuler la réservation</button>
+              <button onClick={() => { setShowContactDrawer(false); setShowCancelDialog(true); }} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X className="w-5 h-5"/> {t("booking.cancelBooking")}</button>
             )}
           </div>
         </DrawerContent>
@@ -1005,6 +1005,7 @@ const PwaBookingDetail = () => {
           hotel_id: booking.hotel_id,
           status: booking.status,
           payment_method: booking.payment_method,
+          payment_status: booking.effective_payment_status ?? booking.payment_status,
         }}
         userRole="therapist"
       />

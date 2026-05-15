@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
+import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -51,8 +52,7 @@ export function BookingDetailDialog({
   const isConcierge = userRole === 'concierge' || isVenueManagerView;
 
   const canCancel =
-    booking?.payment_status !== 'paid' && booking?.payment_status !== 'charged_to_room' &&
-    booking?.status !== 'cancelled' && booking?.status !== 'completed' &&
+    canCancelBookingByStatus(booking?.status) &&
     (userRole === 'admin' || userRole === 'concierge');
 
 
@@ -210,6 +210,7 @@ export function BookingDetailDialog({
           hotel_id: booking.hotel_id,
           status: booking.status,
           payment_method: booking.payment_method,
+          payment_status: booking.payment_status,
         }}
         userRole={isConcierge ? "concierge" : "admin"}
       />

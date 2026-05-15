@@ -7,6 +7,7 @@ import type { BookingWithTreatments } from "@/hooks/booking";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
+import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatPrice } from "@/lib/formatPrice";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -76,10 +77,7 @@ export default function AdminPwaBookingDetail() {
   });
 
   const canCancel =
-    booking?.payment_status !== "paid" &&
-    booking?.payment_status !== "charged_to_room" &&
-    booking?.status !== "cancelled" &&
-    booking?.status !== "completed" &&
+    canCancelBookingByStatus(booking?.status) &&
     (userRole === "admin" || userRole === "concierge");
 
 
@@ -373,6 +371,7 @@ export default function AdminPwaBookingDetail() {
             hotel_id: booking.hotel_id,
             status: booking.status,
             payment_method: booking.payment_method,
+            payment_status: booking.payment_status,
           }}
           userRole={userRole === "concierge" ? "concierge" : "admin"}
         />

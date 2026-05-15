@@ -28,6 +28,7 @@ import {
   InvoicePreviewDialog,
   SendPaymentLinkDialog,
 } from "@/components/booking";
+import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import {
   CalendarSidebarDesktop,
   CalendarSidebarMobile,
@@ -94,6 +95,7 @@ useEffect(() => {
   // Payment link state
   const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
   const [paymentLinkBooking, setPaymentLinkBooking] = useState<BookingWithTreatments | null>(null);
+  const [cancelBooking, setCancelBooking] = useState<BookingWithTreatments | null>(null);
 
   // Filters
   const {
@@ -358,6 +360,7 @@ useEffect(() => {
               totalItems={filteredBookings?.length ?? 0}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
+              onRequestCancel={setCancelBooking}
             />
           )}
           </div>
@@ -394,6 +397,29 @@ useEffect(() => {
         bookingId={invoiceBookingId}
         isRoomPayment={invoiceIsRoomPayment}
       />
+
+      {cancelBooking && (
+        <CancelBookingDialog
+          isOpen={!!cancelBooking}
+          onClose={() => setCancelBooking(null)}
+          onSuccess={() => {
+            setCancelBooking(null);
+            refetch();
+          }}
+          bookingId={cancelBooking.id}
+          booking={{
+            booking_id: cancelBooking.booking_id,
+            client_first_name: cancelBooking.client_first_name,
+            client_last_name: cancelBooking.client_last_name,
+            total_price: Number(cancelBooking.total_price),
+            hotel_id: cancelBooking.hotel_id,
+            status: cancelBooking.status,
+            payment_method: cancelBooking.payment_method,
+            payment_status: cancelBooking.payment_status,
+          }}
+          userRole={isConcierge ? "concierge" : "admin"}
+        />
+      )}
 
       {paymentLinkBooking && (
         <SendPaymentLinkDialog

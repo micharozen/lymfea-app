@@ -84,6 +84,8 @@ const createFormSchema = (t: TFunction) => z.object({
   calendar_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
   cancellation_fee_type: z.enum(["none", "fixed", "percentage"]).default("none"),
   cancellation_fee_amount: z.string().default("0"),
+  cancellation_policy_text_fr: z.string().optional(),
+  cancellation_policy_text_en: z.string().optional(),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -227,6 +229,8 @@ export default function VenueDetail({
       calendar_color: "",
       cancellation_fee_type: "none",
       cancellation_fee_amount: "0",
+      cancellation_policy_text_fr: "",
+      cancellation_policy_text_en: "",
     },
   });
 
@@ -285,6 +289,8 @@ export default function VenueDetail({
           calendar_color: hotel.calendar_color ?? "",
           cancellation_fee_type: ((hotel as { cancellation_fee_type?: string }).cancellation_fee_type as "none" | "fixed" | "percentage") || "none",
           cancellation_fee_amount: String((hotel as { cancellation_fee_amount?: number }).cancellation_fee_amount ?? 0),
+          cancellation_policy_text_fr: (hotel as { cancellation_policy_text_fr?: string }).cancellation_policy_text_fr || "",
+          cancellation_policy_text_en: (hotel as { cancellation_policy_text_en?: string }).cancellation_policy_text_en || "",
         });
 
         setHotelImage(hotel.image || "");
@@ -517,6 +523,8 @@ export default function VenueDetail({
         calendar_color: values.calendar_color || null,
         cancellation_fee_type: values.cancellation_fee_type,
         cancellation_fee_amount: parseFloat(values.cancellation_fee_amount) || 0,
+        cancellation_policy_text_fr: values.cancellation_policy_text_fr?.trim() || null,
+        cancellation_policy_text_en: values.cancellation_policy_text_en?.trim() || null,
       };
 
       if (isNewMode && !savedHotelId) {

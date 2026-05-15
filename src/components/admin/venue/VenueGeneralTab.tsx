@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -964,6 +965,37 @@ export function VenueGeneralTab({
                 />
               )}
             </div>
+            <div className="mt-4 space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Texte affiché dans la modale d&apos;annulation (client et admin). Laissez vide pour le texte par défaut selon les frais configurés.
+              </p>
+              <FormField
+                control={form.control}
+                name={"cancellation_policy_text_fr" as keyof VenueWizardFormValues}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Politique d&apos;annulation (FR)</FormLabel>
+                    <FormControl>
+                      <Textarea rows={3} {...field} value={String(field.value ?? "")} disabled={disabled} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={"cancellation_policy_text_en" as keyof VenueWizardFormValues}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Politique d&apos;annulation (EN)</FormLabel>
+                    <FormControl>
+                      <Textarea rows={3} {...field} value={String(field.value ?? "")} disabled={disabled} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -1455,3 +1487,4 @@ export function VenueGeneralTab({
     </div>
   );
 }
+

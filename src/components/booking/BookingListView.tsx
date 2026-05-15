@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import {
@@ -10,7 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, FileText, Layers, Package, Users } from "lucide-react";
+import { Clock, FileText, Layers, Package, Users, X } from "lucide-react";
+import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
+import { Button } from "@/components/ui/button";
 import { TablePagination } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -47,6 +50,7 @@ interface BookingListViewProps {
   itemsPerPage: number;
   onPageChange: (page: number) => void;
   paymentAsText?: boolean;
+  onRequestCancel?: (booking: BookingWithTreatments) => void;
 }
 
 export function BookingListView({
@@ -65,8 +69,15 @@ export function BookingListView({
   itemsPerPage,
   onPageChange,
   paymentAsText = false,
+  onRequestCancel,
 }: BookingListViewProps) {
+  const { t } = useTranslation("common");
   const navigate = useNavigate();
+
+  const canShowCancel = (booking: BookingWithTreatments) =>
+    !!onRequestCancel &&
+    (isAdmin || isConcierge) &&
+    canCancelBookingByStatus(booking.status);
 
   const handleInvoiceClick = async (
     e: React.MouseEvent,
@@ -140,6 +151,28 @@ export function BookingListView({
     }
 
     return null;
+  };
+
+  const renderCancelButton = (booking: BookingWithTreatments) => {
+    if (!canShowCancel(booking)) return null;
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => onRequestCancel?.(booking)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("cancelBookingDialog.listCancelTooltip")}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
   };
 
   return (
@@ -257,7 +290,8 @@ export function BookingListView({
                     )}
                   </div>
                 </div>
-                <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                <div className="shrink-0 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  {renderCancelButton(booking)}
                   {renderInvoiceButton(booking)}
                 </div>
               </div>
@@ -418,7 +452,10 @@ export function BookingListView({
                   <span className="block leading-none truncate">{booking.therapist_name || "-"}</span>
                 </TableCell>
                 <TableCell className="py-3 px-2 text-center sticky right-0 bg-card border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.08)] group-hover:bg-muted/50 transition-colors">
-                  {renderInvoiceButton(booking)}
+                  <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    {renderCancelButton(booking)}
+                    {renderInvoiceButton(booking)}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
