@@ -304,7 +304,7 @@ serve(async (req) => {
       .select('booking_time, therapist_id, status, room_id, duration')
       .eq('booking_date', date)
       .eq('hotel_id', hotelId)
-      .not('status', 'in', '("Annulé","Terminé","cancelled")');
+      .not('status', 'in', '("Annulé","Terminé","cancelled","completed","noshow")');
 
     if (excludeBookingId) {
       hotelBookingsQuery = hotelBookingsQuery.neq('id', excludeBookingId);
@@ -330,7 +330,7 @@ serve(async (req) => {
         .eq('booking_date', date)
         .in('therapist_id', scheduledTherapistIds)
         .neq('hotel_id', hotelId)
-        .not('status', 'in', '("Annulé","Terminé","cancelled")');
+        .not('status', 'in', '("Annulé","Terminé","cancelled","completed","noshow")');
 
       if (crossVenueError) {
         console.error('Error fetching cross-venue bookings:', crossVenueError);
@@ -462,9 +462,7 @@ serve(async (req) => {
       // ROOM CAPACITY CHECK: account for room capacity (duo rooms can serve 2 guests).
       // A room with capacity >= requiredGuestCount can serve the entire group.
       // Otherwise, sum available capacity across free rooms.
-      const capacityBookings = bookingsBlockingSlot.filter(
-        (b: any) => b.therapist_id !== null
-      );
+      const capacityBookings = bookingsBlockingSlot;
       const occupiedRoomIds = new Set<string>();
       let bookingsWithoutRoom = 0;
       for (const b of capacityBookings) {
