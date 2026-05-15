@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { BRAND_DEMO_CTA, BRAND_EMAIL } from "./constants";
 import { Wordmark } from "./Wordmark";
 
+
 export const Footer = () => {
   const { t } = useTranslation("landing");
   const year = new Date().getFullYear();
@@ -10,8 +11,9 @@ export const Footer = () => {
     {
       title: t("footer.product"),
       links: [
-        { label: t("footer.links.features"), href: "#features" },
-        { label: t("footer.links.howItWorks"), href: "#how-it-works" },
+        { label: t("footer.links.features"), href: "/#features" },
+        { label: t("footer.links.howItWorks"), href: "/#how-it-works" },
+        { label: t("footer.links.pricing"), href: "/#pricing" },
         { label: t("footer.links.demo"), href: BRAND_DEMO_CTA },
         { label: t("footer.links.login"), href: "/login" },
       ],
@@ -26,7 +28,7 @@ export const Footer = () => {
     {
       title: t("footer.legal"),
       links: [
-        { label: t("footer.links.terms"), href: "#" },
+        { label: t("footer.links.terms"), href: "/terms" },
         { label: t("footer.links.privacy"), href: "#" },
         { label: t("footer.links.legalMentions"), href: "#" },
       ],

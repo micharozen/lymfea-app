@@ -1468,9 +1468,6 @@ export function VenueGeneralTab({
                     Connecté depuis le {format(new Date(paymentConfig.connection_verified_at), "d MMMM yyyy", { locale: fr })}
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Cette configuration est stockée et testable mais n'est pas encore branchée sur le flow de paiement client. La clé Stripe globale reste utilisée en attendant.
-                </p>
               </div>
             </CardContent>
           </Card>

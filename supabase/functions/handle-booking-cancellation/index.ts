@@ -132,7 +132,7 @@ serve(async (req) => {
       const { data: adminUsers } = await supabaseClient
         .from("admins")
         .select("user_id, first_name")
-        .eq("status", "Actif");
+        .or("status.eq.active,status.eq.Actif");
 
       if (adminUsers && adminUsers.length > 0) {
         const adminsWithUserId = adminUsers.filter((a: any) => a.user_id);

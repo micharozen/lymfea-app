@@ -105,13 +105,18 @@ serve(async (req) => {
     const emailsSent: string[] = [];
     const errors: string[] = [];
 
+    // Gate emails behind a secret so staging environments don't spam mailboxes.
+    const adminEmailsEnabled = Deno.env.get("ADMIN_EMAIL_NOTIFICATIONS_ENABLED") === "true";
+
     // 1. Send to admins
     const { data: admins } = await supabase
       .from('admins')
       .select('email, first_name, last_name')
       .or('status.eq.active,status.eq.Actif');
 
-    if (admins && admins.length > 0) {
+    if (!adminEmailsEnabled) {
+      console.log("[notify-booking-confirmed] Admin emails disabled (ADMIN_EMAIL_NOTIFICATIONS_ENABLED !== 'true'); skipping admin emails.");
+    } else if (admins && admins.length > 0) {
       console.log('[notify-booking-confirmed] Sending to admins:', JSON.stringify(admins, null, 2));
       for (const admin of admins) {
         const { error: emailError } = await sendEmail({
@@ -281,7 +286,7 @@ serve(async (req) => {
     const { data: adminUsers } = await supabase
       .from('admins')
       .select('user_id, first_name')
-      .eq('status', 'Actif');
+      .or('status.eq.active,status.eq.Actif');
 
     if (adminUsers && adminUsers.length > 0) {
       const adminsWithUserId = adminUsers.filter((a: any) => a.user_id);

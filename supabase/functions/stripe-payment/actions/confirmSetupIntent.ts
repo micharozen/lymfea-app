@@ -117,7 +117,7 @@ async function triggerBookingNotifications(
   bookingIds: string[],
 ): Promise<void> {
   await Promise.all(
-    bookingIds.map((bookingId) =>
+    bookingIds.flatMap((bookingId) => [
       supabase.functions
         .invoke("trigger-new-booking-notifications", {
           body: { bookingId, notifyAll: true },
@@ -125,7 +125,17 @@ async function triggerBookingNotifications(
         .catch((err: unknown) =>
           console.error(`[CONFIRM-SETUP] Notif error for ${bookingId}:`, err),
         ),
-    ),
+      supabase.functions
+        .invoke("notify-admin-new-booking", {
+          body: { bookingId },
+        })
+        .catch((err: unknown) =>
+          console.error(
+            `[CONFIRM-SETUP] Admin email error for ${bookingId}:`,
+            err,
+          ),
+        ),
+    ]),
   );
 }
 

@@ -182,8 +182,10 @@ serve(async (req) => {
     const { data: admins, error: adminsError } = await supabaseClient
       .from("admins")
       .select("email, first_name, last_name, user_id")
-      .eq("status", "Actif");
+      .or("status.eq.active,status.eq.Actif");
 
+      console.log("adminsError", adminsError);
+      console.log("admins", admins);
     if (adminsError) {
       console.error("Error fetching admins:", adminsError);
       throw adminsError;
@@ -205,31 +207,38 @@ serve(async (req) => {
     let emailsSent = 0;
     const errors: string[] = [];
 
-    for (const admin of admins) {
-      try {
-        const { error: emailError } = await resend.emails.send({
-          from: brand.emails.from.default,
-          to: [admin.email],
-          subject: `${subjectPrefix}${booking.client_first_name} · ${booking.hotel_name || booking.hotel_id}`,
-          html: emailHtml,
-        });
+    // Gate emails behind a secret so staging environments don't spam mailboxes.
+    const emailsEnabled = Deno.env.get("ADMIN_EMAIL_NOTIFICATIONS_ENABLED") === "true";
 
-        if (emailError) {
-          console.error(`Error sending email to ${admin.email}:`, emailError);
-          errors.push(`${admin.email}: ${emailError.message}`);
-        } else {
-          console.log(`✅ Email sent to admin: ${admin.first_name} ${admin.last_name} (${admin.email})`);
-          emailsSent++;
+    if (!emailsEnabled) {
+      console.log("Admin notification emails are disabled (ADMIN_EMAIL_NOTIFICATIONS_ENABLED !== 'true'); skipping email send.");
+    } else {
+      for (const admin of admins) {
+        try {
+          const { error: emailError } = await resend.emails.send({
+            from: brand.emails.from.default,
+            to: [admin.email],
+            subject: `${subjectPrefix}${booking.client_first_name} · ${booking.hotel_name || booking.hotel_id}`,
+            html: emailHtml,
+          });
+
+          if (emailError) {
+            console.error(`Error sending email to ${admin.email}:`, emailError);
+            errors.push(`${admin.email}: ${emailError.message}`);
+          } else {
+            console.log(`✅ Email sent to admin: ${admin.first_name} ${admin.last_name} (${admin.email})`);
+            emailsSent++;
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (err) {
+          console.error(`Error sending email to ${admin.email}:`, err);
+          errors.push(`${admin.email}: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (err) {
-        console.error(`Error sending email to ${admin.email}:`, err);
-        errors.push(`${admin.email}: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
-    }
 
-    console.log(`Admin notification emails sent: ${emailsSent}/${admins.length}`);
+      console.log(`Admin notification emails sent: ${emailsSent}/${admins.length}`);
+    }
 
     // Send push notifications and in-app notifications to admins
     const adminsWithUserId = admins.filter((a: any) => a.user_id);

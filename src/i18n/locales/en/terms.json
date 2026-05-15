@@ -1,0 +1,97 @@
+{
+  "meta": {
+    "title": "Terms & Conditions — Saoma",
+    "description": "Terms of use and sale for the Saoma platform."
+  },
+  "header": {
+    "eyebrow": "Legal",
+    "title": "Terms & Conditions",
+    "subtitle": "Terms of use and sale for the Saoma platform.",
+    "lastUpdated": "Last updated: May 14, 2026",
+    "back": "Back to home"
+  },
+  "intro": {
+    "paragraphs": [
+      "These terms and conditions (the \"Terms\") govern access to and use of the Saoma platform, operated by Saoma SAS, and the associated services provided to client establishments (hotels, spas, day spas).",
+      "Use of the platform implies full acceptance of these Terms. Anyone subscribing on behalf of an establishment represents that they have the authority to bind that establishment."
+    ]
+  },
+  "sections": {
+    "objet": {
+      "title": "1. Purpose",
+      "paragraphs": [
+        "Saoma is a SaaS (Software as a Service) spa management platform for hotels, independent spas and day spas. It enables, among other things, treatment scheduling, therapist coordination, billing, payment, and online client booking.",
+        "These Terms set forth the conditions under which Saoma provides the platform and the associated services, as well as the rights and obligations of the parties."
+      ]
+    },
+    "definitions": {
+      "title": "2. Definitions",
+      "paragraphs": [
+        "\"Client\" means the establishment (hotel, spa, day spa) subscribing to the Saoma platform.",
+        "\"User\" means any individual authorized by the Client to use the platform (administrator, concierge, therapist).",
+        "\"End Client\" means any person booking a treatment via the booking tools provided by the platform.",
+        "\"Location\" means a physical establishment (hotel or spa) managed via the platform. Pricing is calculated per Location."
+      ]
+    },
+    "service": {
+      "title": "3. Description of the service",
+      "paragraphs": [
+        "The Saoma platform includes, depending on the plan: a multi-therapist and multi-room schedule, a mobile app for therapists, an online client booking module, billing and payment modules, and additional features (gift cards, bundles, PMS integrations, etc.).",
+        "Saoma provides the service on a best-efforts basis. The platform is available 24/7, subject to maintenance and events beyond Saoma's control (network outages, force majeure, etc.).",
+        "Saoma reserves the right to evolve the platform and add, modify or remove features, provided this does not substantially degrade the subscribed service."
+      ]
+    },
+    "account": {
+      "title": "4. Registration, account and Client obligations",
+      "paragraphs": [
+        "Access to the platform requires the Client to create an account. The Client warrants the accuracy of the information provided at registration and agrees to keep it up to date.",
+        "The Client is responsible for the confidentiality of its credentials and those of its Users. Any action carried out from an account is deemed to have been carried out by the Client.",
+        "The Client agrees to use the platform in accordance with its intended purpose, applicable laws and regulations, and not to infringe third-party rights."
+      ]
+    },
+    "pricing": {
+      "title": "5. Pricing, payment and term",
+      "paragraphs": [
+        "Current pricing is displayed on saoma.fr. The Starter plan starts at €89 excl. VAT per month per Location. The Custom plan is subject to a tailored quote.",
+        "Subscriptions are billed monthly or annually, depending on the option chosen. Payment is made by automatic debit (credit card or SEPA direct debit) via our payment provider.",
+        "The subscription is entered into for a one-month term, tacitly renewed for identical periods. The Client may cancel at any time from their dashboard or by email; cancellation takes effect at the end of the current billing period. No pro-rata refund is owed.",
+        "In case of late or non-payment, Saoma reserves the right to suspend access to the platform after a formal notice that remains unanswered."
+      ]
+    },
+    "data": {
+      "title": "6. Personal data & confidentiality",
+      "paragraphs": [
+        "Saoma processes personal data in compliance with Regulation (EU) 2016/679 (GDPR) and the French Data Protection Act. A detailed privacy policy is available separately.",
+        "The Client is the controller of its End Clients' data. Saoma acts as a processor within the meaning of Article 28 GDPR, pursuant to a data processing agreement available upon request.",
+        "Saoma implements appropriate technical and organizational measures to ensure data security: encryption in transit (TLS 1.2+), regular backups, access control, and hosting within the European Union."
+      ]
+    },
+    "ip": {
+      "title": "7. Intellectual property",
+      "paragraphs": [
+        "All elements of the platform (code, design, trademarks, logos, content) are the exclusive property of Saoma or its licensors. No provision herein shall be construed as a transfer or license of these elements, other than the right to use the platform for the Client's needs.",
+        "Data and content entered by the Client remain its property. The Client grants Saoma a non-exclusive, royalty-free license to use them solely for the purpose of providing the service."
+      ]
+    },
+    "liability": {
+      "title": "8. Liability & force majeure",
+      "paragraphs": [
+        "Saoma is bound by a best-efforts obligation. Its liability shall not be engaged for indirect damages (loss of profits, loss of opportunity, reputational harm). In any event, Saoma's total liability is capped at the amounts actually paid by the Client during the 12 months preceding the triggering event.",
+        "Neither party shall be held liable for a breach resulting from force majeure as defined by Article 1218 of the French Civil Code and applicable case law."
+      ]
+    },
+    "law": {
+      "title": "9. Governing law & jurisdiction",
+      "paragraphs": [
+        "These Terms are governed by French law. In the event of a dispute, the parties shall endeavor to reach an amicable solution. Failing that, the courts within the jurisdiction of the Paris Court of Appeal shall have exclusive jurisdiction, notwithstanding multiple defendants or third-party proceedings."
+      ]
+    },
+    "contact": {
+      "title": "10. Contact",
+      "paragraphs": [
+        "For any question regarding these Terms, please contact us at hello@saoma.fr.",
+        "Saoma SAS — Registered office and legal details available on the Legal Notice page."
+      ]
+    }
+  }
+}

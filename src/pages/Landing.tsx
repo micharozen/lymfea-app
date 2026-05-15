@@ -5,6 +5,7 @@ import { Hero } from "@/components/landing/Hero";
 import { ProblemSolution } from "@/components/landing/ProblemSolution";
 import { FeaturesGrid } from "@/components/landing/FeaturesGrid";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Pricing } from "@/components/landing/Pricing";
 import { CtaSection } from "@/components/landing/CtaSection";
 import { Footer } from "@/components/landing/Footer";
 
@@ -34,6 +35,7 @@ const Landing = () => {
         <ProblemSolution />
         <FeaturesGrid />
         <HowItWorks />
+        <Pricing />
         <CtaSection />
       </main>
       <Footer />

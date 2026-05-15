@@ -2,6 +2,7 @@
   "nav": {
     "features": "Fonctionnalités",
     "howItWorks": "Comment ça marche",
+    "pricing": "Tarifs",
     "contact": "Contact",
     "login": "Se connecter",
     "cta": "Réserver une démo"
@@ -86,6 +87,44 @@
       "desc": "QR codes dans les chambres, booking en ligne, app thérapeute déployée. Vos clients réservent en 2 clics."
     }
   },
+  "pricing": {
+    "eyebrow": "Tarifs",
+    "title": "Une tarification simple, alignée sur votre activité",
+    "subtitle": "Pas de frais cachés, pas d'engagement long terme. Payez à l'usage, par lieu.",
+    "starter": {
+      "name": "Starter",
+      "badge": "Le plus populaire",
+      "tagline": "Pour un spa, un hôtel boutique ou un day spa indépendant.",
+      "priceFrom": "À partir de",
+      "unit": "HT / mois / lieu",
+      "features": {
+        "agenda": "Agenda unifié, multi-thérapeutes, multi-salles",
+        "pwa": "Application mobile thérapeute (iOS & Android)",
+        "booking": "Booking client en ligne + QR code en chambre",
+        "billing": "Facturation & paiements Stripe inclus",
+        "giftcards": "Cartes cadeaux & bundles de soins",
+        "support": "Support email & onboarding accompagné"
+      },
+      "cta": "Démarrer avec Starter",
+      "note": "Essai gratuit de 14 jours. Sans engagement, sans CB."
+    },
+    "custom": {
+      "name": "Custom",
+      "tagline": "Pour les chaînes, les groupes hôteliers et les besoins sur-mesure.",
+      "priceLabel": "Tarification",
+      "price": "Sur devis",
+      "unit": "selon volume & intégrations",
+      "features": {
+        "multivenue": "Multi-établissements & consolidation",
+        "pms": "Intégrations PMS Opera Cloud & Mews",
+        "branding": "White-label & domaine personnalisé",
+        "sla": "SLA dédié & support prioritaire 7j/7"
+      },
+      "cta": "Contacter l'équipe",
+      "note": "Réponse sous 24h ouvrées."
+    },
+    "footnote": "Tous les prix sont en euros HT. Tarif dégressif au-delà de 5 lieux."
+  },
   "cta": {
     "title": "Prêt à moderniser votre spa ?",
     "subtitle": "Planifiez une démo personnalisée de 30 minutes avec notre équipe. Nous vous montrons la plateforme avec vos soins et votre organisation.",
@@ -101,6 +140,7 @@
     "links": {
       "features": "Fonctionnalités",
       "howItWorks": "Comment ça marche",
+      "pricing": "Tarifs",
       "login": "Se connecter",
       "demo": "Réserver une démo",
       "about": "À propos",

@@ -25,7 +25,6 @@ import {
   BookingFilters,
   BookingCalendarView,
   BookingListView,
-  InvoicePreviewDialog,
   SendPaymentLinkDialog,
 } from "@/components/booking";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
@@ -85,12 +84,6 @@ useEffect(() => {
   useEffect(() => {
     localStorage.setItem('planning-day-count', String(dayCount));
   }, [dayCount]);
-
-  // Invoice state
-  const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
-  const [invoiceHTML, setInvoiceHTML] = useState("");
-  const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
-  const [invoiceIsRoomPayment, setInvoiceIsRoomPayment] = useState(false);
 
   // Payment link state
   const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
@@ -196,7 +189,7 @@ useEffect(() => {
   // Pagination calculations
   const paginatedBookings =
     filteredBookings?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) ?? [];
-  const totalListColumns = 10;
+  const totalListColumns = 11;
   const emptyRowsCount = Math.max(0, itemsPerPage - paginatedBookings.length);
   const totalPages = Math.max(1, Math.ceil((filteredBookings?.length ?? 0) / itemsPerPage));
 
@@ -220,13 +213,6 @@ useEffect(() => {
       setIsDetailDialogOpen(false);
       setIsEditDialogOpen(true);
     }
-  };
-
-  const handleInvoicePreview = (html: string, bookingId: number, isRoomPayment: boolean) => {
-    setInvoiceHTML(html);
-    setInvoiceBookingId(bookingId);
-    setInvoiceIsRoomPayment(isRoomPayment);
-    setIsInvoicePreviewOpen(true);
   };
 
   const handleFilterChange = (setter: (value: string) => void) => (value: string) => {
@@ -354,7 +340,6 @@ useEffect(() => {
               getHotelInfo={getHotelInfo}
               isAdmin={isAdmin}
               isConcierge={isConcierge}
-              onInvoicePreview={handleInvoicePreview}
               currentPage={currentPage}
               totalPages={totalPages}
               totalItems={filteredBookings?.length ?? 0}
@@ -388,14 +373,6 @@ useEffect(() => {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         booking={selectedBooking}
-      />
-
-      <InvoicePreviewDialog
-        open={isInvoicePreviewOpen}
-        onOpenChange={setIsInvoicePreviewOpen}
-        invoiceHTML={invoiceHTML}
-        bookingId={invoiceBookingId}
-        isRoomPayment={invoiceIsRoomPayment}
       />
 
       {cancelBooking && (

@@ -23,6 +23,7 @@ import { fr } from 'date-fns/locale';
 import { HoldBanner } from '@/components/client/HoldBanner';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
 import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
+import i18n from '@/i18n';
 
 export default function Payment() {
   const { slug, hotelId } = useClientVenue();
