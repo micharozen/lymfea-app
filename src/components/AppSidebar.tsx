@@ -22,6 +22,7 @@ import {
   Wallet,
   BarChart3,
   Bell,
+  Megaphone,
   Settings,
   ChevronDown,
   ChevronRight,
@@ -80,6 +81,7 @@ const adminSecondaryItems: MenuItem[] = [
   { title: "Commandes", url: "/admin/orders", icon: Truck },
   { title: "Finance", url: "/admin/finance", icon: Wallet },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
+  { title: "Paniers abandonnés", url: "/admin/marketing/abandoned-carts", icon: Megaphone },
 ];
 
 const venueManagerPrimaryItems: MenuItem[] = [

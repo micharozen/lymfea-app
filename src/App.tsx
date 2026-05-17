@@ -47,6 +47,7 @@ const TreatmentRoomDetail = lazy(() => import("./pages/admin/TreatmentRoomDetail
 const Concierges = lazy(() => import("./pages/admin/Concierges"));
 const Customers = lazy(() => import("./pages/admin/Customers"));
 const CustomerDetail = lazy(() => import("./pages/admin/CustomerDetail"));
+const AbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
@@ -117,6 +118,7 @@ const Payment = lazy(() => import("./pages/client/Payment"));
 const Confirmation = lazy(() => import("./pages/client/Confirmation"));
 const ManageBooking = lazy(() => import("./pages/client/ManageBooking"));
 const ClientTreatmentLanding = lazy(() => import("./pages/client/TreatmentLanding"));
+const RestoreCart = lazy(() => import("./pages/client/RestoreCart"));
 
 // Enterprise Dashboard
 const EnterpriseDashboard = lazy(() => import("./pages/enterprise/EnterpriseDashboard"));
@@ -265,6 +267,7 @@ const App = () => {
                       <Route path="/payment" element={<Payment />} />
                       <Route path="/checkout" element={<Checkout />} />
                       <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
+                      <Route path="/restore/:abandonedCartId" element={<RestoreCart />} />
                     </Routes>
                   </ClientFlowWrapper>
                 </Suspense>
@@ -522,6 +525,7 @@ const App = () => {
                               <Route path="/finance" element={<Finance />} />
                               <Route path="/transactions" element={<Transactions />} />
                               <Route path="/analytics" element={<Analytics />} />
+                              <Route path="/marketing/abandoned-carts" element={<AbandonedCarts />} />
                               <Route path="/support" element={<SupportTickets />} />
                               <Route path="/admins" element={<Admins />} />
                               <Route path="/admins/:id" element={<AdminDetail />} />

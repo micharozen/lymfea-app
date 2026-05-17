@@ -199,22 +199,27 @@ export async function handleCreateSetupIntent(
     first_name: clientData.firstName,
     last_name: clientData.lastName,
   };
+  let internalCustomerId: string | null = null;
   const { data: existingByStripe } = await supabase
     .from("customers")
     .select("id")
     .eq("stripe_customer_id", stripeCustomerId)
     .maybeSingle();
   if (existingByStripe) {
+    internalCustomerId = existingByStripe.id;
     const { error } = await supabase
       .from("customers")
       .update(customerPayload)
       .eq("id", existingByStripe.id);
     if (error) console.error("[CREATE-SETUP-INTENT] Erreur Update Customer:", error);
   } else {
-    const { error } = await supabase
+    const { data: upserted, error } = await supabase
       .from("customers")
-      .upsert({ ...customerPayload, stripe_customer_id: stripeCustomerId }, { onConflict: "phone" });
+      .upsert({ ...customerPayload, stripe_customer_id: stripeCustomerId }, { onConflict: "phone" })
+      .select("id")
+      .single();
     if (error) console.error("[CREATE-SETUP-INTENT] Erreur Upsert Customer:", error);
+    if (upserted) internalCustomerId = upserted.id;
   }
 
   const origin = req.headers.get("origin") || "http://localhost:5173";
@@ -266,6 +271,45 @@ export async function handleCreateSetupIntent(
       } : {}),
     },
   });
+
+  // Track the open Stripe Checkout Session as an "abandoned cart" candidate.
+  // confirmSetupIntent will mark it recovered if payment succeeds; otherwise it
+  // remains visible in the admin Marketing dashboard for manual relaunch.
+  if (internalCustomerId) {
+    const scheduleMode = isMultiBooking && slotsArr.length > 0 ? "per_item" : "single";
+    const cartItems = scheduleMode === "per_item"
+      ? slotsArr.map((s: SlotPayload) => ({
+          treatmentId: s.treatmentId,
+          variantId: s.variantId || null,
+          quantity: s.quantity || 1,
+          date: s.date,
+          time: s.time,
+          duration: s.duration ?? null,
+          guestCount: s.guestCount ?? 1,
+        }))
+      : safeTreatmentsPayload.map((t: any) => ({
+          treatmentId: t.treatmentId || t.id,
+          variantId: t.variantId || null,
+          quantity: t.quantity || 1,
+        }));
+
+    const { error: cartError } = await supabase.from("abandoned_carts").insert({
+      customer_id: internalCustomerId,
+      hotel_id: hotelId,
+      stripe_session_id: session.id,
+      cart_items: cartItems,
+      schedule_mode: scheduleMode,
+      booking_date: scheduleMode === "single" ? bookingData.date : null,
+      booking_time: scheduleMode === "single" ? bookingData.time : null,
+      is_multi: isMultiBooking,
+      total_price: finalTotalPrice,
+      language: language || "fr",
+      therapist_gender: therapistGender || null,
+    });
+    if (cartError) {
+      console.error("[CREATE-SETUP-INTENT] Erreur Insert AbandonedCart:", cartError);
+    }
+  }
 
   return jsonResponse({ url: session.url, sessionId: session.id });
 }

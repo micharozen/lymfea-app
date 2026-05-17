@@ -549,5 +549,14 @@
       "selectedCountPlural": "{{count}} treatments selected",
       "extraDuration": "+{{min}} min total"
     }
+  },
+  "restore": {
+    "loading": "Restoring your cart...",
+    "invalidLink": "Invalid link",
+    "expired": "This link is no longer valid. Your booking may already have been confirmed.",
+    "fetchError": "Could not retrieve your cart details.",
+    "itemsUnavailable": "The treatments in your cart are no longer available.",
+    "errorTitle": "Link unavailable",
+    "startOver": "Start over"
   }
 }

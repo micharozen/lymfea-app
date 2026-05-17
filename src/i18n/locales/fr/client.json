@@ -550,5 +550,14 @@
       "selectedCountPlural": "{{count}} soins sélectionnés",
       "extraDuration": "+{{min}} min au total"
     }
+  },
+  "restore": {
+    "loading": "Restauration de votre panier...",
+    "invalidLink": "Lien invalide",
+    "expired": "Ce lien n'est plus valide. Votre réservation a peut-être déjà été confirmée.",
+    "fetchError": "Impossible de récupérer le détail de votre panier.",
+    "itemsUnavailable": "Les soins de votre panier ne sont plus disponibles.",
+    "errorTitle": "Lien indisponible",
+    "startOver": "Reprendre depuis le début"
   }
 }

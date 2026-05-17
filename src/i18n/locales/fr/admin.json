@@ -959,5 +959,40 @@
       "fillClient": "Remplissez les informations client",
       "roomRequired": "Numéro de chambre obligatoire pour un client hôtel"
     }
+  },
+  "marketing": {
+    "abandonedCarts": {
+      "title": "Paniers abandonnés",
+      "subtitle": "Clients ayant été redirigés vers Stripe sans finaliser leur paiement.",
+      "statActive": "Actifs",
+      "statRecovered": "Récupérés",
+      "statTotal": "Total affiché",
+      "filterActive": "Actifs",
+      "filterRecovered": "Récupérés",
+      "filterDismissed": "Ignorés",
+      "filterAll": "Tous",
+      "filterAllVenues": "Tous les lieux",
+      "colClient": "Client",
+      "colVenue": "Lieu",
+      "colCart": "Panier",
+      "colSlot": "Créneau",
+      "colTotal": "Total",
+      "colCreated": "Créé",
+      "colReminders": "Relances",
+      "colStatus": "Statut",
+      "colActions": "Actions",
+      "statusActive": "Actif",
+      "statusRecovered": "Récupéré",
+      "statusDismissed": "Ignoré",
+      "relaunch": "Relancer",
+      "sending": "Envoi...",
+      "dismiss": "Ignorer",
+      "empty": "Aucun panier abandonné",
+      "fetchError": "Erreur lors du chargement des paniers",
+      "sendSuccess": "Relance envoyée",
+      "sendError": "Erreur lors de l'envoi de la relance",
+      "dismissSuccess": "Panier marqué comme ignoré",
+      "dismissError": "Erreur lors du marquage"
+    }
   }
 }

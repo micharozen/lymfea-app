@@ -52,6 +52,24 @@ async function resolveCustomer(
   return customer?.id ?? null;
 }
 
+async function markAbandonedCartRecovered(
+  supabase: ActionContext["supabase"],
+  sessionId: string,
+  bookingId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("abandoned_carts")
+    .update({
+      recovered_at: new Date().toISOString(),
+      recovered_booking_id: bookingId,
+    })
+    .eq("stripe_session_id", sessionId)
+    .is("recovered_at", null);
+  if (error) {
+    console.error("[CONFIRM-SETUP] Erreur Mark AbandonedCart Recovered:", error);
+  }
+}
+
 async function insertPaymentInfo(
   supabase: ActionContext["supabase"],
   params: {
@@ -350,6 +368,7 @@ export async function handleConfirmSetupIntent(
       }
 
       await triggerBookingNotifications(supabase, slotCreatedIds);
+      await markAbandonedCartRecovered(supabase, sessionId, slotCreatedIds[0]);
 
       return jsonResponse({ success: true, bookingId: slotCreatedIds[0], bookingIds: slotCreatedIds });
     }
@@ -399,6 +418,7 @@ export async function handleConfirmSetupIntent(
     }
 
     await triggerBookingNotifications(supabase, multiBookingIds);
+    await markAbandonedCartRecovered(supabase, sessionId, multiBookingIds[0]);
 
     return jsonResponse({
       success: true,
@@ -607,6 +627,7 @@ export async function handleConfirmSetupIntent(
   }
 
   await triggerBookingNotifications(supabase, [bookingId]);
+  await markAbandonedCartRecovered(supabase, sessionId, bookingId);
 
   return jsonResponse({ success: true, bookingId });
 }

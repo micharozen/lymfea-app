@@ -1015,6 +1015,16 @@ payments.post("/confirm-setup", async (c) => {
       });
     }
 
+    // Mark the abandoned cart as recovered (no-op if already recovered).
+    await supabaseAdmin
+      .from('abandoned_carts')
+      .update({
+        recovered_at: new Date().toISOString(),
+        recovered_booking_id: bookingId,
+      })
+      .eq('stripe_session_id', sessionId)
+      .is('recovered_at', null);
+
     return c.json({ success: true, bookingId });
   } catch (error: any) {
     console.error("[CONFIRM-SETUP] Erreur :", error.message);
@@ -1122,7 +1132,7 @@ payments.post("/setup-intent", async (c) => {
       stripeCustomerId = newCustomer.id;
     }
 
-    const { error: upsertError } = await supabaseAdmin
+    const { data: upsertedCustomer, error: upsertError } = await supabaseAdmin
       .from('customers')
       .upsert({
         phone: clientData.phone,
@@ -1130,11 +1140,14 @@ payments.post("/setup-intent", async (c) => {
         first_name: clientData.firstName,
         last_name: clientData.lastName,
         stripe_customer_id: stripeCustomerId,
-      }, { onConflict: 'phone' });
+      }, { onConflict: 'phone' })
+      .select('id')
+      .single();
 
     if (upsertError) {
       console.error("[CREATE-SETUP-INTENT] Erreur Upsert Customer:", upsertError);
     }
+    const internalCustomerId = upsertedCustomer?.id ?? null;
 
     const origin = c.req.header("origin") || "http://localhost:5173";
 
@@ -1165,6 +1178,37 @@ payments.post("/setup-intent", async (c) => {
         } : {}),
       },
     });
+
+    // Track the open Stripe Checkout Session as an "abandoned cart" candidate.
+    // /confirm-setup will mark it recovered if payment succeeds; otherwise it
+    // remains visible in the admin Marketing dashboard for manual relaunch.
+    if (internalCustomerId) {
+      const cartItems = (treatmentsPayload && treatmentsPayload.length > 0
+        ? treatmentsPayload
+        : effectiveTreatmentIds.map((id: string) => ({ treatmentId: id }))
+      ).map((t: any) => ({
+        treatmentId: t.treatmentId || t.id,
+        variantId: t.variantId || null,
+        quantity: t.quantity || 1,
+      }));
+
+      const { error: cartError } = await supabaseAdmin.from('abandoned_carts').insert({
+        customer_id: internalCustomerId,
+        hotel_id: hotelId,
+        stripe_session_id: session.id,
+        cart_items: cartItems,
+        schedule_mode: 'single',
+        booking_date: bookingData.date,
+        booking_time: bookingData.time,
+        is_multi: false,
+        total_price: verifiedTotalPrice,
+        language: language || 'fr',
+        therapist_gender: therapistGender || null,
+      });
+      if (cartError) {
+        console.error("[CREATE-SETUP-INTENT] Erreur Insert AbandonedCart:", cartError);
+      }
+    }
 
     return c.json({ url: session.url, sessionId: session.id });
   } catch (error) {

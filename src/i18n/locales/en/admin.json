@@ -959,5 +959,40 @@
       "fillClient": "Fill in client information",
       "roomRequired": "Room number required for hotel clients"
     }
+  },
+  "marketing": {
+    "abandonedCarts": {
+      "title": "Abandoned carts",
+      "subtitle": "Clients redirected to Stripe who didn't complete their payment.",
+      "statActive": "Active",
+      "statRecovered": "Recovered",
+      "statTotal": "Shown",
+      "filterActive": "Active",
+      "filterRecovered": "Recovered",
+      "filterDismissed": "Dismissed",
+      "filterAll": "All",
+      "filterAllVenues": "All venues",
+      "colClient": "Client",
+      "colVenue": "Venue",
+      "colCart": "Cart",
+      "colSlot": "Slot",
+      "colTotal": "Total",
+      "colCreated": "Created",
+      "colReminders": "Reminders",
+      "colStatus": "Status",
+      "colActions": "Actions",
+      "statusActive": "Active",
+      "statusRecovered": "Recovered",
+      "statusDismissed": "Dismissed",
+      "relaunch": "Send reminder",
+      "sending": "Sending...",
+      "dismiss": "Dismiss",
+      "empty": "No abandoned cart",
+      "fetchError": "Error loading carts",
+      "sendSuccess": "Reminder sent",
+      "sendError": "Error sending reminder",
+      "dismissSuccess": "Cart dismissed",
+      "dismissError": "Error dismissing cart"
+    }
   }
 }
