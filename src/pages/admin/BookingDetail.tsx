@@ -47,6 +47,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   refunded: "Remboursé",
   charged_to_room: "Facturé chambre",
   pending_partner_billing: "Paiement partenaire",
+  card_saved: "Carte enregistrée",
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -211,7 +212,9 @@ export default function BookingDetail() {
   const hasSavedCard = !!paymentInfos
     && paymentInfos.payment_status === "card_saved"
     && !!paymentInfos.stripe_payment_method_id;
-  const cardSavedToCharge = isExternal && hasSavedCard && (booking.payment_status || "pending") === "pending";
+  const cardSavedToCharge = isExternal
+    && (hasSavedCard || booking.payment_status === "card_saved")
+    && ["pending", "card_saved"].includes(booking.payment_status || "pending");
   const paymentLabel = cardSavedToCharge
     ? "Carte enregistrée à débiter"
     : (PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending);

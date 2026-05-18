@@ -30,6 +30,8 @@ const PAYMENT_STATUS_LABELS: Record<string, string> = {
   failed: "Échoué",
   refunded: "Remboursé",
   charged_to_room: "Facturé chambre",
+  pending_partner_billing: "Paiement partenaire",
+  card_saved: "Carte enregistrée",
 };
 
 function formatValue(field: string, value: unknown): string {
