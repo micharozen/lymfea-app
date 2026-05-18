@@ -9,6 +9,7 @@
 // per-venue webhook secret needed by stripe-webhook.
 
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const STRIPE_API_VERSION = "2025-08-27.basil" as const;
 
@@ -44,7 +45,7 @@ export function getGlobalStripe(): ResolvedStripe {
 }
 
 export async function getStripeForVenue(
-  supabase: any,
+  supabase: SupabaseClient,
   hotelId: string | null | undefined,
 ): Promise<ResolvedStripe> {
   if (!hotelId) {

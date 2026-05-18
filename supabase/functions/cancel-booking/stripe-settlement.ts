@@ -15,6 +15,7 @@ export interface StripeSettlementInput {
   feeApplied: number;
   refundAmount: number;
   skipStripe: boolean;
+  preExistingRefundedCents?: number | null;
 }
 
 export interface StripeSettlementResult {
@@ -52,14 +53,29 @@ async function getRefundedAmountForPaymentIntent(
   stripe: Stripe,
   paymentIntentId: string,
 ): Promise<{ refundedCents: number; refundId: string | null }> {
-  const refunds = await stripe.refunds.list({ payment_intent: paymentIntentId, limit: 100 });
-  const settledRefunds = refunds.data.filter((refund: Stripe.Refund) =>
-    refund.status !== "failed" && refund.status !== "canceled"
-  );
-  return {
-    refundedCents: settledRefunds.reduce((sum: number, refund: Stripe.Refund) => sum + refund.amount, 0),
-    refundId: settledRefunds[0]?.id ?? null,
-  };
+  let refundedCents = 0;
+  let refundId: string | null = null;
+  let startingAfter: string | undefined;
+
+  do {
+    const refunds = await stripe.refunds.list({
+      payment_intent: paymentIntentId,
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {}),
+    });
+
+    for (const refund of refunds.data) {
+      if (refund.status === "failed" || refund.status === "canceled") continue;
+      refundedCents += refund.amount;
+      refundId ??= refund.id;
+    }
+
+    startingAfter = refunds.has_more
+      ? refunds.data[refunds.data.length - 1]?.id
+      : undefined;
+  } while (startingAfter);
+
+  return { refundedCents, refundId };
 }
 
 async function capturePaymentIntentWithVerification(
@@ -114,6 +130,7 @@ async function refundPaymentIntentWithVerification(
   bookingId: string,
   paymentIntentId: string,
   refundCents: number,
+  preExistingRefundedCents: number | null,
 ): Promise<{ stripeRefundId: string | null; warnings: string[] }> {
   try {
     const refund = await stripe.refunds.create({
@@ -127,7 +144,8 @@ async function refundPaymentIntentWithVerification(
     if (!isRecoverableStripeStateError(err)) throw err;
 
     const { refundedCents, refundId } = await getRefundedAmountForPaymentIntent(stripe, paymentIntentId);
-    if (refundedCents >= refundCents) {
+    const expectedRefundedCents = (preExistingRefundedCents ?? 0) + refundCents;
+    if (refundedCents >= expectedRefundedCents) {
       return { stripeRefundId: refundId, warnings: ["refund_already_applied_verified"] };
     }
     throw err;
@@ -153,6 +171,7 @@ async function settlePaymentIntent(
   feeApplied: number,
   refundAmount: number,
   strictSettlement: boolean,
+  preExistingRefundedCents: number | null,
 ): Promise<{ stripeRefundId: string | null; warnings: string[] }> {
   const warnings: string[] = [];
   const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
@@ -167,10 +186,11 @@ async function settlePaymentIntent(
 
   if (pi.status === "requires_capture") {
     if (feeApplied > 0) {
-      const captureCents = Math.min(
-        Math.round(feeApplied * 100),
-        pi.amount_capturable ?? pi.amount,
-      );
+      const captureCents = Math.round(feeApplied * 100);
+      const capturableCents = pi.amount_capturable ?? pi.amount;
+      if (captureCents > capturableCents) {
+        throw new Error("payment_intent_capturable_amount_changed_before_capture");
+      }
       if (captureCents > 0) {
         warnings.push(...await capturePaymentIntentWithVerification(stripe, bookingId, pi.id, captureCents));
         console.log("[stripe-settlement] Pre-auth partial capture (late fee):", pi.id, captureCents);
@@ -185,7 +205,13 @@ async function settlePaymentIntent(
   if (pi.status === "succeeded") {
     const refundCents = Math.round(refundAmount * 100);
     if (refundCents > 0) {
-      const refundResult = await refundPaymentIntentWithVerification(stripe, bookingId, pi.id, refundCents);
+      const refundResult = await refundPaymentIntentWithVerification(
+        stripe,
+        bookingId,
+        pi.id,
+        refundCents,
+        preExistingRefundedCents,
+      );
       warnings.push(...refundResult.warnings);
       console.log("[stripe-settlement] Refund settled:", refundResult.stripeRefundId, "amount:", refundCents);
       return { stripeRefundId: refundResult.stripeRefundId, warnings };
@@ -264,6 +290,7 @@ export async function runStripeSettlement(
       feeApplied,
       refundAmount,
       true,
+      input.preExistingRefundedCents ?? null,
     );
     stripeRefundId = piResult.stripeRefundId;
     warnings.push(...piResult.warnings);
@@ -280,6 +307,7 @@ export async function runStripeSettlement(
         feeApplied,
         refundAmount,
         false,
+        input.preExistingRefundedCents ?? null,
       );
       stripeRefundId = piResult.stripeRefundId;
       warnings.push(...piResult.warnings, "pi_requires_capture_pre_paid_status");
@@ -302,4 +330,66 @@ export async function runStripeSettlement(
   }
 
   return { stripeRefundId, setupIntentCancelled, warnings };
+}
+
+export async function reconcileStripeSettlementAfterError(
+  input: StripeSettlementInput,
+): Promise<StripeSettlementResult | null> {
+  if (input.skipStripe || !input.paymentInfo) return null;
+
+  const warnings = ["stripe_error_reconciled_after_exception"];
+  let stripeRefundId: string | null = null;
+  let setupIntentCancelled = false;
+  const refundCents = Math.round(input.refundAmount * 100);
+  const feeCents = Math.round(input.feeApplied * 100);
+
+  if (input.paymentInfo.stripe_payment_intent_id) {
+    const pi = await input.stripe.paymentIntents.retrieve(input.paymentInfo.stripe_payment_intent_id);
+
+    if (input.needsRefund) {
+      if (pi.status !== "succeeded") return null;
+      if (refundCents <= 0) {
+        warnings.push("no_refund_needed_verified_after_error");
+        return { stripeRefundId, setupIntentCancelled, warnings };
+      }
+
+      const { refundedCents, refundId } = await getRefundedAmountForPaymentIntent(input.stripe, pi.id);
+      const expectedRefundedCents = (input.preExistingRefundedCents ?? 0) + refundCents;
+      if (refundedCents >= expectedRefundedCents) {
+        stripeRefundId = refundId;
+        warnings.push("refund_applied_verified_after_error");
+        return { stripeRefundId, setupIntentCancelled, warnings };
+      }
+      return null;
+    }
+
+    if (feeCents > 0) {
+      if (pi.status === "succeeded" && (pi.amount_received ?? 0) >= feeCents) {
+        warnings.push("capture_applied_verified_after_error");
+        return { stripeRefundId, setupIntentCancelled, warnings };
+      }
+      return null;
+    }
+
+    if (pi.status === "canceled") {
+      warnings.push("pi_cancel_applied_verified_after_error");
+      return { stripeRefundId, setupIntentCancelled, warnings };
+    }
+  }
+
+  const shouldReleaseSetup =
+    !input.needsRefund &&
+    !!input.paymentInfo.stripe_setup_intent_id &&
+    SETUP_INTENT_RELEASE_STATUSES.has(input.paymentStatus ?? "");
+
+  if (shouldReleaseSetup && input.paymentInfo.stripe_setup_intent_id) {
+    const si = await input.stripe.setupIntents.retrieve(input.paymentInfo.stripe_setup_intent_id);
+    if (si.status === "canceled") {
+      setupIntentCancelled = true;
+      warnings.push("si_cancel_applied_verified_after_error");
+      return { stripeRefundId, setupIntentCancelled, warnings };
+    }
+  }
+
+  return null;
 }

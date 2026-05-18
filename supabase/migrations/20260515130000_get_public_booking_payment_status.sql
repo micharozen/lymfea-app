@@ -1,4 +1,5 @@
--- Expose payment_status on public manage-booking (cancel dialog refund mode).
+-- Final public manage-booking read model used by ManageBooking and CancelBookingDialog.
+-- Exposes only the fields needed by the public client page, including payment preview/status.
 
 DROP FUNCTION IF EXISTS public.get_public_booking(text);
 

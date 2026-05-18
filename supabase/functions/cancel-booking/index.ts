@@ -7,7 +7,10 @@ import {
   needsStripeSettlement,
 } from "./permissions.ts";
 import { getCancelMessages, resolveCancelLang } from "./i18n.ts";
-import { runStripeSettlement } from "./stripe-settlement.ts";
+import {
+  reconcileStripeSettlementAfterError,
+  runStripeSettlement,
+} from "./stripe-settlement.ts";
 import { sendCancellationNotifications } from "./notifications.ts";
 
 const corsHeaders = {
@@ -33,7 +36,7 @@ const NON_STRIPE_PAYMENT_METHODS = new Set([
   "cash",
 ]);
 
-type SupabaseServiceClient = ReturnType<typeof createClient<any, "public", any>>;
+type SupabaseServiceClient = ReturnType<typeof createClient>;
 
 type BookingCancelSnapshot = {
   status: string;
@@ -43,6 +46,15 @@ type BookingCancelSnapshot = {
   cancellation_fee_amount: number | null;
   refund_amount: number | null;
   stripe_refund_id: string | null;
+  gift_amount_applied_cents: number;
+};
+
+type GiftAmountUsageSnapshot = {
+  id: string;
+  booking_id: string;
+  customer_bundle_id: string;
+  amount_cents_used: number;
+  used_at: string;
 };
 
 function snapshotBookingForRevert(booking: Record<string, unknown>): BookingCancelSnapshot {
@@ -56,6 +68,7 @@ function snapshotBookingForRevert(booking: Record<string, unknown>): BookingCanc
       : null,
     refund_amount: booking.refund_amount != null ? Number(booking.refund_amount) : null,
     stripe_refund_id: (booking.stripe_refund_id as string | null) ?? null,
+    gift_amount_applied_cents: Number(booking.gift_amount_applied_cents ?? 0),
   };
 }
 
@@ -107,6 +120,54 @@ function isNonStripePaymentMethod(method: unknown): boolean {
   return NON_STRIPE_PAYMENT_METHODS.has(String(method ?? ""));
 }
 
+function roundCurrency(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function centsToCurrency(cents: number): number {
+  return roundCurrency(cents / 100);
+}
+
+function computeCancellationPolicyFee(
+  totalPrice: number,
+  hotel: { cancellation_fee_amount?: number | string | null; cancellation_fee_type?: string | null } | null,
+): number {
+  if (!hotel) return 0;
+  if (hotel.cancellation_fee_type === "fixed") {
+    return Number(hotel.cancellation_fee_amount) || 0;
+  }
+  if (hotel.cancellation_fee_type === "percentage") {
+    return roundCurrency(totalPrice * ((Number(hotel.cancellation_fee_amount) || 0) / 100));
+  }
+  return 0;
+}
+
+async function getRefundedCentsForPaymentIntent(
+  stripe: Stripe,
+  paymentIntentId: string,
+): Promise<number> {
+  let refundedCents = 0;
+  let startingAfter: string | undefined;
+
+  do {
+    const refunds = await stripe.refunds.list({
+      payment_intent: paymentIntentId,
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {}),
+    });
+
+    refundedCents += refunds.data
+      .filter((refund: Stripe.Refund) => refund.status !== "failed" && refund.status !== "canceled")
+      .reduce((sum: number, refund: Stripe.Refund) => sum + refund.amount, 0);
+
+    startingAfter = refunds.has_more
+      ? refunds.data[refunds.data.length - 1]?.id
+      : undefined;
+  } while (startingAfter);
+
+  return refundedCents;
+}
+
 async function insertCancellationAuditLog(
   supabase: SupabaseServiceClient,
   {
@@ -149,22 +210,23 @@ async function revertBookingCancellation(
   supabase: SupabaseServiceClient,
   bookingId: string,
   previous: BookingCancelSnapshot,
+  giftAmountUsages: GiftAmountUsageSnapshot[],
 ): Promise<void> {
-  const { error } = await supabase
-    .from("bookings")
-    .update({
-      status: previous.status,
-      cancellation_reason: previous.cancellation_reason,
-      cancelled_at: previous.cancelled_at,
-      cancelled_by: previous.cancelled_by,
-      cancellation_fee_amount: previous.cancellation_fee_amount ?? 0,
-      refund_amount: previous.refund_amount ?? 0,
-      stripe_refund_id: previous.stripe_refund_id,
-    })
-    .eq("id", bookingId);
+  const { error } = await supabase.rpc("revert_booking_cancellation_after_stripe_error", {
+    _booking_id: bookingId,
+    _status: previous.status,
+    _reason: previous.cancellation_reason,
+    _cancelled_at: previous.cancelled_at,
+    _cancelled_by: previous.cancelled_by,
+    _cancellation_fee_amount: previous.cancellation_fee_amount ?? 0,
+    _refund_amount: previous.refund_amount ?? 0,
+    _stripe_refund_id: previous.stripe_refund_id,
+    _gift_amount_applied_cents: previous.gift_amount_applied_cents,
+    _gift_amount_usages: giftAmountUsages,
+  });
 
   if (error) {
-    console.error("[cancel-booking] CRITICAL: failed to revert booking after Stripe error:", error);
+    console.error("[cancel-booking] CRITICAL: failed to revert booking/gift usage after Stripe error:", error);
   }
 }
 
@@ -267,7 +329,7 @@ serve(async (req) => {
     const previousState = snapshotBookingForRevert(booking);
     const isPublicTokenRequest = !!token;
 
-    const [{ data: paymentInfo }, { data: hotel }] = await Promise.all([
+    const [{ data: paymentInfo }, { data: hotel }, { data: giftAmountUsageRows }] = await Promise.all([
       supabase
         .from("booking_payment_infos")
         .select("stripe_payment_intent_id, stripe_setup_intent_id, card_brand, card_last4, estimated_price")
@@ -278,11 +340,22 @@ serve(async (req) => {
         .select("cancellation_fee_amount, cancellation_fee_type, timezone")
         .eq("id", booking.hotel_id)
         .single(),
+      supabase
+        .from("bundle_amount_usages")
+        .select("id, booking_id, customer_bundle_id, amount_cents_used, used_at")
+        .eq("booking_id", targetBookingId),
     ]);
+    const giftAmountUsages = ((giftAmountUsageRows ?? []) as GiftAmountUsageSnapshot[]).map((usage) => ({
+      id: usage.id,
+      booking_id: usage.booking_id,
+      customer_bundle_id: usage.customer_bundle_id,
+      amount_cents_used: Number(usage.amount_cents_used) || 0,
+      used_at: usage.used_at,
+    }));
 
     const isPartnerBilled = booking.payment_method === "partner_billed";
     const isChargedToRoom = booking.payment_status === "charged_to_room";
-    const needsStripe = needsStripeSettlement(booking);
+    let needsStripe = needsStripeSettlement(booking);
     const skipStripe = isNonStripePaymentMethod(booking.payment_method) || isChargedToRoom;
     const lang = resolveCancelLang(booking.language);
 
@@ -299,8 +372,46 @@ serve(async (req) => {
       return jsonResponse({ error: getCancelMessages(lang).missingPaymentIntentError }, 409);
     }
 
+    const totalPrice = Number(booking.total_price) || 0;
+    let depositAmount = paymentInfo?.estimated_price != null
+      ? Number(paymentInfo.estimated_price)
+      : totalPrice;
+    let feeApplied = 0;
+    let refundAmount = 0;
+
     let stripeClientForSettlement: Stripe | null = null;
-    let hasCapturablePaymentIntentHold = false;
+    let livePaymentIntent: Stripe.PaymentIntent | null = null;
+    let preExistingRefundedCents: number | null = null;
+    let liveRefundableCents: number | null = null;
+
+    if (!skipStripe && paymentInfo?.stripe_payment_intent_id) {
+      const { client: stripe } = await getStripeForVenue(supabase, booking.hotel_id);
+      stripeClientForSettlement = stripe;
+      livePaymentIntent = await stripe.paymentIntents.retrieve(paymentInfo.stripe_payment_intent_id);
+      if (livePaymentIntent.status === "succeeded") {
+        preExistingRefundedCents = await getRefundedCentsForPaymentIntent(
+          stripe,
+          livePaymentIntent.id,
+        );
+        liveRefundableCents = Math.max(
+          0,
+          (livePaymentIntent.amount_received ?? 0) - preExistingRefundedCents,
+        );
+
+        if (liveRefundableCents > 0 && !needsStripe) {
+          console.warn("[cancel-booking] DB payment status is not paid but Stripe has captured funds", {
+            bookingId: targetBookingId,
+            payment_status: booking.payment_status,
+            payment_method: booking.payment_method,
+            payment_intent_id: livePaymentIntent.id,
+            refundable_cents: liveRefundableCents,
+          });
+          needsStripe = true;
+        }
+      }
+    }
+
+    const hasCapturablePaymentIntentHold = livePaymentIntent?.status === "requires_capture";
     const wantsLateFeeOnPaymentIntentHold =
       charge_late_fee &&
       isAdmin &&
@@ -308,23 +419,12 @@ serve(async (req) => {
       !skipStripe &&
       !!paymentInfo?.stripe_payment_intent_id;
 
-    if (wantsLateFeeOnPaymentIntentHold && paymentInfo?.stripe_payment_intent_id) {
-      const { client: stripe } = await getStripeForVenue(supabase, booking.hotel_id);
-      stripeClientForSettlement = stripe;
-      const pi = await stripe.paymentIntents.retrieve(paymentInfo.stripe_payment_intent_id);
-      if (pi.status !== "requires_capture") {
-        return jsonResponse(
-          { error: getCancelMessages(lang).lateFeeHoldNotCapturableError },
-          409,
-        );
-      }
-      hasCapturablePaymentIntentHold = true;
+    if (wantsLateFeeOnPaymentIntentHold && !hasCapturablePaymentIntentHold) {
+      return jsonResponse(
+        { error: getCancelMessages(lang).lateFeeHoldNotCapturableError },
+        409,
+      );
     }
-
-    const totalPrice = Number(booking.total_price) || 0;
-    const depositAmount = paymentInfo?.estimated_price != null
-      ? Number(paymentInfo.estimated_price)
-      : totalPrice;
 
     const applyLateFee =
       charge_late_fee &&
@@ -332,18 +432,53 @@ serve(async (req) => {
       !isPartnerBilled &&
       !skipStripe &&
       (needsStripe || hasCapturablePaymentIntentHold);
+    const policyFee = applyLateFee ? computeCancellationPolicyFee(totalPrice, hotel) : 0;
 
-    let fee = 0;
-    if (applyLateFee && hotel) {
-      if (hotel.cancellation_fee_type === "fixed") {
-        fee = Number(hotel.cancellation_fee_amount) || 0;
-      } else if (hotel.cancellation_fee_type === "percentage") {
-        fee = Math.round(totalPrice * (Number(hotel.cancellation_fee_amount) / 100) * 100) / 100;
+    if (livePaymentIntent) {
+      if (livePaymentIntent.status === "succeeded") {
+        if (needsStripe) {
+          if (!stripeClientForSettlement) {
+            throw new Error("stripe_client_missing_for_payment_intent");
+          }
+          const refundableCents = liveRefundableCents ?? Math.max(
+            0,
+            (livePaymentIntent.amount_received ?? 0) -
+              (preExistingRefundedCents ?? await getRefundedCentsForPaymentIntent(
+                stripeClientForSettlement,
+                livePaymentIntent.id,
+              )),
+          );
+          const feeCents = applyLateFee
+            ? Math.min(Math.round(policyFee * 100), refundableCents)
+            : 0;
+          const refundCents = Math.max(0, refundableCents - feeCents);
+
+          depositAmount = centsToCurrency(refundableCents);
+          feeApplied = centsToCurrency(feeCents);
+          refundAmount = centsToCurrency(refundCents);
+        } else {
+          depositAmount = centsToCurrency(livePaymentIntent.amount_received ?? 0);
+        }
+      } else if (livePaymentIntent.status === "requires_capture") {
+        const capturableCents = Math.max(0, livePaymentIntent.amount_capturable ?? livePaymentIntent.amount);
+        const feeCents = applyLateFee
+          ? Math.min(Math.round(policyFee * 100), capturableCents)
+          : 0;
+
+        depositAmount = centsToCurrency(capturableCents);
+        feeApplied = centsToCurrency(feeCents);
+        refundAmount = 0;
+      } else if (needsStripe) {
+        return jsonResponse(
+          {
+            error: getCancelMessages(lang).stripeError(
+              `payment_intent_${livePaymentIntent.status}_cannot_settle_paid_booking`,
+            ),
+          },
+          409,
+        );
       }
     }
-
-    const feeApplied = applyLateFee ? Math.min(fee, depositAmount) : 0;
-    const refundAmount = needsStripe ? Math.max(0, depositAmount - feeApplied) : 0;
 
     const { data: cancelledRows, error: cancelUpdateError } = await supabase
       .rpc("begin_booking_cancellation", {
@@ -390,19 +525,52 @@ serve(async (req) => {
           feeApplied,
           refundAmount,
           skipStripe: false,
+          preExistingRefundedCents,
         });
         stripeRefundId = settlement.stripeRefundId;
         setupIntentCancelled = settlement.setupIntentCancelled;
         settlementWarnings = settlement.warnings;
         console.log("[cancel-booking] Stripe settlement", settlement);
       } catch (stripeErr) {
-        await revertBookingCancellation(supabase, targetBookingId, previousState);
         const message = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
-        console.error("[cancel-booking] Stripe error (booking reverted):", stripeErr);
-        return jsonResponse(
-          { error: getCancelMessages(lang).stripeError(message) },
-          502,
-        );
+        try {
+          const stripe = stripeClientForSettlement ??
+            (await getStripeForVenue(supabase, booking.hotel_id)).client;
+          const reconciled = await reconcileStripeSettlementAfterError({
+            stripe,
+            bookingId: targetBookingId,
+            paymentStatus: booking.payment_status,
+            paymentMethod: booking.payment_method,
+            paymentInfo: paymentInfo ?? null,
+            needsRefund: needsStripe,
+            feeApplied,
+            refundAmount,
+            skipStripe: false,
+            preExistingRefundedCents,
+          });
+
+          if (reconciled) {
+            stripeRefundId = reconciled.stripeRefundId;
+            setupIntentCancelled = reconciled.setupIntentCancelled;
+            settlementWarnings = reconciled.warnings;
+            console.error("[cancel-booking] Stripe error reconciled; keeping DB cancellation:", stripeErr);
+          } else {
+            await revertBookingCancellation(supabase, targetBookingId, previousState, giftAmountUsages);
+            console.error("[cancel-booking] Stripe error (booking reverted):", stripeErr);
+            return jsonResponse(
+              { error: getCancelMessages(lang).stripeError(message) },
+              502,
+            );
+          }
+        } catch (reconcileErr) {
+          await revertBookingCancellation(supabase, targetBookingId, previousState, giftAmountUsages);
+          console.error("[cancel-booking] Stripe reconciliation failed (booking reverted):", reconcileErr);
+          console.error("[cancel-booking] Original Stripe error:", stripeErr);
+          return jsonResponse(
+            { error: getCancelMessages(lang).stripeError(message) },
+            502,
+          );
+        }
       }
     }
 
