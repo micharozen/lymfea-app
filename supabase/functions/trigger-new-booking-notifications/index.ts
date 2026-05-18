@@ -565,9 +565,11 @@ serve(async (req) => {
         }
       }
 
+      const slackType = booking.status === 'confirmed' ? 'booking_confirmed' : 'new_booking';
+
       await supabaseClient.functions.invoke('send-slack-notification', {
         body: {
-          type: 'new_booking',
+          type: slackType,
           bookingId: booking.id,
           bookingNumber: booking.booking_id?.toString() || '',
           clientName: `${booking.client_first_name} ${booking.client_last_name}`,
