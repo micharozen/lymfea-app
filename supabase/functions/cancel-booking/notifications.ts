@@ -10,6 +10,19 @@ import {
 } from "../_shared/email-template.ts";
 import { getCancelMessages, resolveCancelLang, shouldSendCancellationSms } from "./i18n.ts";
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function safeInfoRow(label: string, value: unknown): string {
+  return getInfoRow(escapeHtml(label), escapeHtml(value));
+}
+
 interface CancelNotificationContext {
   supabase: SupabaseClient;
   booking: Record<string, unknown>;
@@ -105,9 +118,9 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
           <td style="padding: 24px 30px 0;">
             ${getDateTimeHighlight(formattedDate, formattedTime)}
             <table width="100%" cellpadding="0" cellspacing="0">
-              ${getInfoRow(msg.clientLabel, clientName)}
-              ${getInfoRow(msg.venueLabel, String(booking.hotel_name ?? ""))}
-              ${booking.room_number ? getInfoRow(msg.roomLabel, String(booking.room_number)) : ""}
+              ${safeInfoRow(msg.clientLabel, clientName)}
+              ${safeInfoRow(msg.venueLabel, String(booking.hotel_name ?? ""))}
+              ${booking.room_number ? safeInfoRow(msg.roomLabel, String(booking.room_number)) : ""}
             </table>
           </td>
         </tr>
@@ -144,13 +157,13 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
         ${getEmailHeader(msg.adminEmailTitle, msg.emailBadge, "#ef4444")}
         <tr><td style="padding: 24px 30px;">
           <table width="100%" cellpadding="0" cellspacing="0">
-            ${getInfoRow(msg.clientLabel, clientName)}
-            ${getInfoRow(msg.venueLabel, String(booking.hotel_name ?? ""))}
+            ${safeInfoRow(msg.clientLabel, clientName)}
+            ${safeInfoRow(msg.venueLabel, String(booking.hotel_name ?? ""))}
             ${getDateTimeHighlight(formattedDate, formattedTime)}
-            ${getInfoRow(msg.totalBooking, `${totalPrice}€`)}
-            ${needsStripe && refundAmount > 0 ? getInfoRow(msg.adminRefund, `${refundAmount}€`) : ""}
-            ${feeApplied > 0 ? getInfoRow(msg.adminFee, `${feeApplied}€`) : ""}
-            ${reason ? getInfoRow(msg.adminReason, reason) : ""}
+            ${safeInfoRow(msg.totalBooking, `${totalPrice}€`)}
+            ${needsStripe && refundAmount > 0 ? safeInfoRow(msg.adminRefund, `${refundAmount}€`) : ""}
+            ${feeApplied > 0 ? safeInfoRow(msg.adminFee, `${feeApplied}€`) : ""}
+            ${reason ? safeInfoRow(msg.adminReason, reason) : ""}
           </table>
         </td></tr>
       `,
@@ -209,11 +222,11 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
 }
 
 function buildDetailsBlock(title: string, rows: string[][]): string {
-  const rowHtml = rows.map(([label, value]) => getInfoRow(label, value)).join("");
+  const rowHtml = rows.map(([label, value]) => safeInfoRow(label, value)).join("");
   return `
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 12px; margin-bottom: 24px;">
       <tr><td style="padding: 20px;">
-        <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #374151;">${title}</p>
+        <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #374151;">${escapeHtml(title)}</p>
         ${rowHtml}
       </td></tr>
     </table>`;

@@ -13,6 +13,14 @@ export type PreAuthPaymentStatus = (typeof PRE_AUTH_PAYMENT_STATUSES)[number];
 /** What happens to the client's card on cancel. */
 export type CancelPaymentSettlement = "none" | "release_hold" | "refund";
 
+const NON_STRIPE_PAYMENT_METHODS = new Set([
+  "partner_billed",
+  "gift_amount",
+  "voucher",
+  "offert",
+  "cash",
+]);
+
 function isPreAuthPaymentStatus(status: string | null | undefined): boolean {
   return PRE_AUTH_PAYMENT_STATUSES.includes(status as PreAuthPaymentStatus);
 }
@@ -25,7 +33,7 @@ export function getCancelPaymentSettlement(
     hasCardDeposit?: boolean;
   },
 ): CancelPaymentSettlement {
-  if (paymentMethod === "partner_billed") return "none";
+  if (NON_STRIPE_PAYMENT_METHODS.has(paymentMethod ?? "")) return "none";
   if (paymentStatus === "charged_to_room") return "none";
 
   // Money was captured — real refund.

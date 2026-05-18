@@ -82,7 +82,7 @@ interface HotelFeeConfig {
 }
 
 const schema = z.object({
-  reason: z.string().optional(),
+  reason: z.string().max(500).optional(),
   charge_late_fee: z.boolean().default(false),
   send_notification: z.boolean().default(true),
 });
@@ -169,6 +169,7 @@ export function CancelBookingDialog({
 
   const needsRefund = paymentSettlement === "refund";
   const releaseCardHold = paymentSettlement === "release_hold";
+  const hasPaymentIntentHold = releaseCardHold && !!paymentInfo?.stripe_payment_intent_id;
   const showPaymentSidePanel = hasCancelPaymentSidePanel(
     booking.payment_status,
     booking.payment_method,
@@ -218,9 +219,12 @@ export function CancelBookingDialog({
       ? Number(paymentInfo.estimated_price)
       : totalPrice;
 
-  const hasFeePolicy =
-    needsRefund &&
+  const canChargeLateFee =
     userRole === "admin" &&
+    (needsRefund || hasPaymentIntentHold);
+
+  const hasFeePolicy =
+    canChargeLateFee &&
     hotelFee?.cancellation_fee_type &&
     hotelFee.cancellation_fee_type !== "none" &&
     Number(hotelFee.cancellation_fee_amount) > 0;
@@ -250,12 +254,11 @@ export function CancelBookingDialog({
             ? {
                 token: publicToken,
                 reason: values.reason || undefined,
-                send_notification: values.send_notification,
               }
             : {
                 bookingId,
                 reason: values.reason || undefined,
-                charge_late_fee: needsRefund ? values.charge_late_fee : false,
+                charge_late_fee: canChargeLateFee ? values.charge_late_fee : false,
                 send_notification: values.send_notification,
               },
         },
@@ -324,6 +327,7 @@ export function CancelBookingDialog({
                 t={t}
                 hasFeePolicy={!!hasFeePolicy}
                 hotelFee={hotelFee}
+                showSendNotification={userRole !== "client"}
                 className={showPaymentSidePanel ? "px-6 pb-6 space-y-5" : undefined}
               />
 
@@ -345,6 +349,7 @@ export function CancelBookingDialog({
                   totalPrice={totalPrice}
                   guaranteeAmount={depositAmount}
                   cardLabel={cardLabel}
+                  feeAmount={feeAmount}
                   isPending={cancelMutation.isPending}
                   onClose={onClose}
                 />
@@ -385,12 +390,14 @@ function CancelFormFields({
   t,
   hasFeePolicy,
   hotelFee,
+  showSendNotification,
   className,
 }: {
   form: UseFormReturn<FormValues>;
   t: (key: string) => string;
   hasFeePolicy: boolean;
   hotelFee: HotelFeeConfig | null | undefined;
+  showSendNotification: boolean;
   className?: string;
 }) {
   return (
@@ -422,25 +429,27 @@ function CancelFormFields({
         />
       )}
 
-      <FormField
-        control={form.control}
-        name="send_notification"
-        render={({ field }) => (
-          <FormItem className="flex items-start gap-3 space-y-0">
-            <FormControl>
-              <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-            </FormControl>
-            <div>
-              <FormLabel className="text-sm font-normal cursor-pointer">
-                {t("cancelBookingDialog.sendNotificationLabel")}
-              </FormLabel>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {t("cancelBookingDialog.sendNotificationHelp")}
-              </p>
-            </div>
-          </FormItem>
-        )}
-      />
+      {showSendNotification && (
+        <FormField
+          control={form.control}
+          name="send_notification"
+          render={({ field }) => (
+            <FormItem className="flex items-start gap-3 space-y-0">
+              <FormControl>
+                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+              <div>
+                <FormLabel className="text-sm font-normal cursor-pointer">
+                  {t("cancelBookingDialog.sendNotificationLabel")}
+                </FormLabel>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("cancelBookingDialog.sendNotificationHelp")}
+                </p>
+              </div>
+            </FormItem>
+          )}
+        />
+      )}
 
       <FormField
         control={form.control}
@@ -543,6 +552,7 @@ function HoldReleaseSummaryPanel({
   totalPrice,
   guaranteeAmount,
   cardLabel,
+  feeAmount,
   isPending,
   onClose,
 }: {
@@ -550,6 +560,7 @@ function HoldReleaseSummaryPanel({
   totalPrice: number;
   guaranteeAmount: number;
   cardLabel: string | null;
+  feeAmount: number;
   isPending: boolean;
   onClose: () => void;
 }) {
@@ -574,6 +585,13 @@ function HoldReleaseSummaryPanel({
           <span className="text-muted-foreground">{t("cancelBookingDialog.guaranteeAmount")}</span>
           <span className="font-medium">{guaranteeAmount}€</span>
         </div>
+
+        {feeAmount > 0 && (
+          <div className="flex justify-between text-destructive">
+            <span>{t("cancelBookingDialog.cancellationFee")}</span>
+            <span className="font-medium">−{feeAmount}€</span>
+          </div>
+        )}
 
         <Separator />
         <div>
