@@ -407,7 +407,10 @@ export type Database = {
       booking_payment_infos: {
         Row: {
           booking_id: string | null
+          cancellation_fee_amount: number | null
           cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           card_brand: string | null
           card_last4: string | null
           created_at: string | null
@@ -421,15 +424,20 @@ export type Database = {
           payment_link_stripe_id: string | null
           payment_reminder_count: number | null
           payment_status: string | null
+          refund_amount: number | null
           stripe_payment_intent_id: string | null
           stripe_payment_method_id: string | null
+          stripe_refund_id: string | null
           stripe_session_id: string | null
           stripe_setup_intent_id: string | null
           updated_at: string | null
         }
         Insert: {
           booking_id?: string | null
+          cancellation_fee_amount?: number | null
           cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           card_brand?: string | null
           card_last4?: string | null
           created_at?: string | null
@@ -443,15 +451,20 @@ export type Database = {
           payment_link_stripe_id?: string | null
           payment_reminder_count?: number | null
           payment_status?: string | null
+          refund_amount?: number | null
           stripe_payment_intent_id?: string | null
           stripe_payment_method_id?: string | null
+          stripe_refund_id?: string | null
           stripe_session_id?: string | null
           stripe_setup_intent_id?: string | null
           updated_at?: string | null
         }
         Update: {
           booking_id?: string | null
+          cancellation_fee_amount?: number | null
           cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           card_brand?: string | null
           card_last4?: string | null
           created_at?: string | null
@@ -465,8 +478,10 @@ export type Database = {
           payment_link_stripe_id?: string | null
           payment_reminder_count?: number | null
           payment_status?: string | null
+          refund_amount?: number | null
           stripe_payment_intent_id?: string | null
           stripe_payment_method_id?: string | null
+          stripe_refund_id?: string | null
           stripe_session_id?: string | null
           stripe_setup_intent_id?: string | null
           updated_at?: string | null
@@ -640,10 +655,7 @@ export type Database = {
           booking_id: number
           booking_time: string
           bundle_usage_id: string | null
-          cancellation_fee_amount: number | null
           cancellation_reason: string | null
-          cancelled_at: string | null
-          cancelled_by: string | null
           client_email: string | null
           client_first_name: string
           client_form_data: Json | null
@@ -680,7 +692,6 @@ export type Database = {
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
           quote_token: string | null
-          refund_amount: number | null
           room_id: string | null
           room_number: string | null
           short_token: string
@@ -688,7 +699,6 @@ export type Database = {
           signed_at: string | null
           status: string
           stripe_invoice_url: string | null
-          stripe_refund_id: string | null
           surcharge_amount: number | null
           therapist_checked_in_at: string | null
           therapist_gender_preference: string | null
@@ -704,10 +714,7 @@ export type Database = {
           booking_id?: number
           booking_time: string
           bundle_usage_id?: string | null
-          cancellation_fee_amount?: number | null
           cancellation_reason?: string | null
-          cancelled_at?: string | null
-          cancelled_by?: string | null
           client_email?: string | null
           client_first_name: string
           client_form_data?: Json | null
@@ -744,7 +751,6 @@ export type Database = {
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
           quote_token?: string | null
-          refund_amount?: number | null
           room_id?: string | null
           room_number?: string | null
           short_token?: string
@@ -752,7 +758,6 @@ export type Database = {
           signed_at?: string | null
           status?: string
           stripe_invoice_url?: string | null
-          stripe_refund_id?: string | null
           surcharge_amount?: number | null
           therapist_checked_in_at?: string | null
           therapist_gender_preference?: string | null
@@ -768,10 +773,7 @@ export type Database = {
           booking_id?: number
           booking_time?: string
           bundle_usage_id?: string | null
-          cancellation_fee_amount?: number | null
           cancellation_reason?: string | null
-          cancelled_at?: string | null
-          cancelled_by?: string | null
           client_email?: string | null
           client_first_name?: string
           client_form_data?: Json | null
@@ -808,7 +810,6 @@ export type Database = {
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
           quote_token?: string | null
-          refund_amount?: number | null
           room_id?: string | null
           room_number?: string | null
           short_token?: string
@@ -816,7 +817,6 @@ export type Database = {
           signed_at?: string | null
           status?: string
           stripe_invoice_url?: string | null
-          stripe_refund_id?: string | null
           surcharge_amount?: number | null
           therapist_checked_in_at?: string | null
           therapist_gender_preference?: string | null
@@ -1494,8 +1494,10 @@ export type Database = {
           calendar_color: string | null
           cancellation_fee_amount: number | null
           cancellation_fee_type: string | null
+          cancellation_tiers: Json | null
           cancellation_policy_text_en: string | null
           cancellation_policy_text_fr: string | null
+          client_cancellation_cutoff_hours: number | null
           city: string | null
           closing_time: string | null
           company_offered: boolean | null
@@ -1543,8 +1545,10 @@ export type Database = {
           calendar_color?: string | null
           cancellation_fee_amount?: number | null
           cancellation_fee_type?: string | null
+          cancellation_tiers?: Json | null
           cancellation_policy_text_en?: string | null
           cancellation_policy_text_fr?: string | null
+          client_cancellation_cutoff_hours?: number | null
           city?: string | null
           closing_time?: string | null
           company_offered?: boolean | null
@@ -1592,8 +1596,10 @@ export type Database = {
           calendar_color?: string | null
           cancellation_fee_amount?: number | null
           cancellation_fee_type?: string | null
+          cancellation_tiers?: Json | null
           cancellation_policy_text_en?: string | null
           cancellation_policy_text_fr?: string | null
+          client_cancellation_cutoff_hours?: number | null
           city?: string | null
           closing_time?: string | null
           company_offered?: boolean | null
@@ -2930,10 +2936,7 @@ export type Database = {
           booking_id: number
           booking_time: string
           bundle_usage_id: string | null
-          cancellation_fee_amount: number | null
           cancellation_reason: string | null
-          cancelled_at: string | null
-          cancelled_by: string | null
           client_email: string | null
           client_first_name: string
           client_form_data: Json | null
@@ -2970,7 +2973,6 @@ export type Database = {
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
           quote_token: string | null
-          refund_amount: number | null
           room_id: string | null
           room_number: string | null
           short_token: string
@@ -2978,7 +2980,6 @@ export type Database = {
           signed_at: string | null
           status: string
           stripe_invoice_url: string | null
-          stripe_refund_id: string | null
           surcharge_amount: number | null
           therapist_checked_in_at: string | null
           therapist_gender_preference: string | null
@@ -2993,6 +2994,22 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      revert_booking_cancellation_after_stripe_error: {
+        Args: {
+          _booking_id: string
+          _cancellation_fee_amount?: number
+          _cancelled_at?: string
+          _cancelled_by?: string
+          _gift_amount_applied_cents: number
+          _gift_amount_usages?: Json
+          _payment_info_existed?: boolean
+          _reason: string
+          _refund_amount?: number
+          _status: string
+          _stripe_refund_id?: string
+        }
+        Returns: undefined
       }
       claim_gift_card: {
         Args: { _code: string; _email?: string }

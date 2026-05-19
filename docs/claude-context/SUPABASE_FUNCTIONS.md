@@ -141,8 +141,13 @@ const result = await invokeEdgeFunction('function-name', {
   - Erreurs Stripe idempotentes (`already_canceled`, refund déjà créé) traitées comme succès.
 - **SMS client** : même garde que la confirmation (`paid`, `card_saved`, `charged_to_room`, etc.) — pas si `awaiting_payment`.
 - **Emails** : client + recap admins actifs, langue `bookings.language` (`notifications.ts`, `i18n.ts`).
-- **Politique venue** : texte custom `hotels.cancellation_policy_text_fr/en` affiché dans la modale ; sinon texte dérivé des frais (`cancellation_fee_type` / `cancellation_fee_amount`).
-- **Audit DB** : `cancelled_at`, `cancelled_by`, `cancellation_reason`, `cancellation_fee_amount`, `refund_amount`, `stripe_refund_id`.
+- **Politique venue** : texte custom `hotels.cancellation_policy_text_fr/en` affiché dans la modale ; sinon tranches client (`cancellation_tiers` + `client_cancellation_cutoff_hours`) ou frais admin (`cancellation_fee_type` / `cancellation_fee_amount`).
+- **Client (token)** : cutoff dynamique par venue ; remboursement selon tranches (`_shared/cancellation-tiers.ts`). Pas de `custom_cancellation_fee_amount`.
+- **Admin** : body optionnel `custom_cancellation_fee_amount` (€, prioritaire) ou `charge_late_fee` + politique venue fixe/%.
+- **Audit DB** :
+  - `bookings` : `status = cancelled`, `cancellation_reason` (motif métier).
+  - `booking_payment_infos` : `cancelled_at`, `cancelled_by` (NULL si annulation token public), `cancellation_fee_amount`, `refund_amount`, `stripe_refund_id` — cycle de vie financier sur le même record que `estimated_price` / carte / PI.
+  - `booking_payment_infos.cancellation_reason` reste réservé aux annulations techniques paiement (ex. lien expiré), pas au motif utilisateur.
 
 **Tests manuels (checklist PR)** :
 
@@ -154,7 +159,9 @@ const result = await invokeEdgeFunction('function-name', {
 | `partner_billed` | Pas d'appel Stripe |
 | `charged_to_room` | Pas d'appel Stripe |
 | Concierge | Pas de checkbox frais d'annulation |
-| Admin | Frais selon politique venue |
+| Admin | Frais libres (`custom_cancellation_fee_amount`) ou politique venue (`charge_late_fee`) |
+| Client &lt; cutoff | 400, message cutoff |
+| Client entre tranches | Remboursement % acompte selon `cancellation_tiers` |
 | Thérapeute PWA | Annule uniquement ses bookings (403 sinon) |
 | Token manage-booking sans login | Annulation OK (`verify_jwt = false` + token body) |
 

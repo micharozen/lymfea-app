@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { UseFormReturn, useWatch, Control } from "react-hook-form";
+import { UseFormReturn, useWatch, Control, useFieldArray } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -72,6 +72,7 @@ import { VenueDeploymentStep, DeploymentScheduleState } from "@/components/admin
 import { VenueBookingRulesTab } from "./VenueBookingRulesTab";
 import { VenueAmenitiesTab } from "./VenueAmenitiesTab";
 import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
+import { CancellationTiersEditor } from "./CancellationTiersEditor";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
 import { slugify } from "@/lib/slugify";
@@ -914,10 +915,43 @@ export function VenueGeneralTab({
 
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+              Annulation client en ligne
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              Tranches de remboursement selon le délai avant le rendez-vous.
+            </p>
+            <FormField
+              control={form.control}
+              name={"client_cancellation_cutoff_hours" as keyof VenueWizardFormValues}
+              render={({ field }) => (
+                <FormItem className="mb-4 max-w-xs">
+                  <FormLabel>Délai minimum avant le RDV (heures)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      {...field}
+                      value={String(field.value ?? 2)}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      disabled={disabled}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <CancellationTiersEditor form={form} disabled={disabled} />
+          </div>
+
+          <Separator />
+
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
               Frais d&apos;annulation tardive (admin)
             </p>
             <p className="text-xs text-muted-foreground mb-4">
-              Appliqués lors d&apos;une annulation avec l&apos;option « facturer des frais » (réservations carte).
+              Valeur par défaut dans la modale admin (surchargeable). Réservations carte uniquement.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
@@ -1484,4 +1518,5 @@ export function VenueGeneralTab({
     </div>
   );
 }
+
 

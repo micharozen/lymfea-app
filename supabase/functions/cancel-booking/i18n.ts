@@ -35,7 +35,7 @@ type Messages = {
   adminFee: string;
   adminReason: string;
   stripeError: (detail: string) => string;
-  clientCutoffError: string;
+  clientCutoffError: (cutoffHours: number) => string;
   missingPaymentIntentError: string;
   lateFeeHoldNotCapturableError: string;
 };
@@ -66,7 +66,11 @@ const fr: Messages = {
   adminFee: "Frais d'annulation",
   adminReason: "Motif",
   stripeError: (detail) => `Échec du remboursement Stripe : ${detail}`,
-  clientCutoffError: "L'annulation en ligne n'est plus disponible moins de 2 heures avant le rendez-vous. Contactez directement l'établissement.",
+  clientCutoffError: (cutoffHours) => {
+    const h = Number.isFinite(cutoffHours) && cutoffHours >= 0 ? cutoffHours : 2;
+    const unit = h === 1 ? "heure" : "heures";
+    return `L'annulation en ligne n'est plus disponible moins de ${h} ${unit} avant le rendez-vous. Contactez directement l'établissement.`;
+  },
   missingPaymentIntentError: "Impossible d'annuler automatiquement : le paiement est marqué comme encaissé mais aucun identifiant Stripe n'est disponible.",
   lateFeeHoldNotCapturableError: "Impossible de facturer des frais : l'empreinte carte n'est plus capturable. Décochez les frais et réessayez.",
 };
@@ -97,7 +101,11 @@ const en: Messages = {
   adminFee: "Cancellation fee",
   adminReason: "Reason",
   stripeError: (detail) => `Stripe refund failed: ${detail}`,
-  clientCutoffError: "Online cancellation is no longer available less than 2 hours before the appointment. Please contact the venue directly.",
+  clientCutoffError: (cutoffHours) => {
+    const h = Number.isFinite(cutoffHours) && cutoffHours >= 0 ? cutoffHours : 2;
+    const unit = h === 1 ? "hour" : "hours";
+    return `Online cancellation is no longer available less than ${h} ${unit} before the appointment. Please contact the venue directly.`;
+  },
   missingPaymentIntentError: "Automatic cancellation is not possible: this booking is marked as paid but no Stripe payment identifier is available.",
   lateFeeHoldNotCapturableError: "Unable to charge a fee: the card hold is no longer capturable. Uncheck the fee and try again.",
 };

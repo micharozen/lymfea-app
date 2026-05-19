@@ -755,6 +755,21 @@ try {
       if (surchargeErr) console.error('Surcharge flags update failed (non-blocking):', surchargeErr);
     }
 
+    // Room billing: ensure booking_payment_infos exists for cancellation lifecycle tracking.
+    if (paymentMethod === 'room' && !isOffert) {
+      const { error: roomPaymentInfoError } = await supabase
+        .from('booking_payment_infos')
+        .insert({
+          booking_id: bookingId,
+          customer_id: customerId || null,
+          estimated_price: effectiveTotalPrice,
+          payment_status: 'charged',
+        });
+      if (roomPaymentInfoError) {
+        console.error('Failed to insert booking_payment_infos for room payment:', roomPaymentInfoError);
+      }
+    }
+
     // --- Bundle handling ---
     let bundleWarning: string | null = null;
 

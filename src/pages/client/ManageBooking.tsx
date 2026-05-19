@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import { brand, brandLogos } from "@/config/brand";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { hoursUntilBooking } from "@/lib/cancellationTiers";
 
 interface HotelInfo {
   id: string;
@@ -51,6 +52,8 @@ interface HotelInfo {
   opening_time: string | null;
   closing_time: string | null;
   slot_interval: number | null;
+  timezone: string | null;
+  client_cancellation_cutoff_hours: number | null;
 }
 
 interface BookingTreatmentRow {
@@ -127,6 +130,8 @@ const ManageBooking = () => {
             opening_time: h.opening_time ?? null,
             closing_time: h.closing_time ?? null,
             slot_interval: h.slot_interval ?? null,
+            timezone: h.timezone ?? null,
+            client_cancellation_cutoff_hours: Number(h.client_cancellation_cutoff_hours ?? 2),
           };
         }
       }
@@ -138,14 +143,19 @@ const ManageBooking = () => {
 
   const timeInfo = useMemo(() => {
     if (!booking) return null;
-    const now = new Date();
     const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
-    const minutesUntilAppointment = differenceInMinutes(bookingDateTime, now);
-    const hoursUntilAppointment = minutesUntilAppointment / 60;
+    const minutesUntilAppointment = differenceInMinutes(bookingDateTime, new Date());
+    const cutoffHours = Number(booking.hotels?.client_cancellation_cutoff_hours ?? 2);
+    const hoursUntil = hoursUntilBooking(
+      booking.booking_date,
+      booking.booking_time,
+      booking.hotels?.timezone ?? "UTC",
+    );
     return {
       bookingDateTime,
-      canActFreely: hoursUntilAppointment > 2,
+      canActFreely: hoursUntil != null && hoursUntil > cutoffHours,
       isPast: minutesUntilAppointment < 0,
+      cutoffHours,
     };
   }, [booking]);
 
@@ -544,6 +554,8 @@ const ManageBooking = () => {
             status: booking.status,
             payment_method: booking.payment_method,
             payment_status: booking.payment_status,
+            booking_date: booking.booking_date,
+            booking_time: booking.booking_time,
           }}
           userRole="client"
         />
@@ -558,7 +570,9 @@ const ManageBooking = () => {
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p>
-                Il est trop tard pour modifier ou annuler en ligne (moins de 2 heures avant le soin).
+                Il est trop tard pour modifier ou annuler en ligne (moins de{" "}
+                {timeInfo?.cutoffHours ?? 2} heure
+                {(timeInfo?.cutoffHours ?? 2) > 1 ? "s" : ""} avant le soin).
               </p>
               <p>Veuillez contacter directement la conciergerie de l'hôtel.</p>
               {hotel?.contact_phone && (

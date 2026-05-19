@@ -15,7 +15,15 @@ import {
   hasCancelPaymentSidePanel,
 } from "@/lib/cancelBookingRules";
 import { computeCancellationAmounts } from "@/lib/cancellationAmounts";
+import {
+  amountsFromRefundPercent,
+  canApplyClientTierFinancials,
+  hoursUntilBooking,
+  parseCancellationTiers,
+  resolveRefundPercent,
+} from "@/lib/cancellationTiers";
 import { formatVenueCancellationPolicy } from "@/lib/formatVenueCancellationPolicy";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +64,8 @@ export interface CancelBookingDialogProps {
     status: string;
     payment_method?: string | null;
     payment_status?: string | null;
+    booking_date?: string;
+    booking_time?: string;
   };
   userRole: "admin" | "concierge" | "therapist" | "client";
   publicToken?: string;
@@ -79,12 +89,16 @@ interface HotelFeeConfig {
   cancellation_fee_type: "none" | "fixed" | "percentage" | null;
   cancellation_policy_text_fr: string | null;
   cancellation_policy_text_en: string | null;
+  client_cancellation_cutoff_hours: number | null;
+  cancellation_tiers: unknown;
+  timezone: string | null;
 }
 
 const schema = z.object({
   reason: z.string().max(500).optional(),
   charge_late_fee: z.boolean().default(false),
   send_notification: z.boolean().default(true),
+  custom_cancellation_fee_amount: z.coerce.number().min(0).optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -116,10 +130,12 @@ export function CancelBookingDialog({
       reason: "",
       charge_late_fee: false,
       send_notification: true,
+      custom_cancellation_fee_amount: undefined,
     },
   });
 
   const chargeLateFeeLive = form.watch("charge_late_fee");
+  const customFeeLive = form.watch("custom_cancellation_fee_amount");
 
   const isPartnerBilled = booking.payment_method === "partner_billed";
   const isChargedToRoom = booking.payment_status === "charged_to_room";
@@ -179,16 +195,36 @@ export function CancelBookingDialog({
     },
   );
 
+  const isClientFlow = userRole === "client" || !!publicToken;
+
   const { data: hotelFee } = useQuery<HotelFeeConfig | null>({
-    queryKey: ["hotel-cancel-fee", booking.hotel_id],
+    queryKey: ["hotel-cancel-fee", booking.hotel_id, isClientFlow ? "public" : "staff"],
     queryFn: async () => {
-      const { data } = await supabase
+      if (isClientFlow) {
+        const { data: rows, error } = await supabase.rpc("get_public_hotel_by_id", {
+          _hotel_id: booking.hotel_id,
+        });
+        if (error) throw error;
+        const h = Array.isArray(rows) ? rows[0] : rows;
+        if (!h) return null;
+        return {
+          cancellation_fee_amount: null,
+          cancellation_fee_type: null,
+          cancellation_policy_text_fr: null,
+          cancellation_policy_text_en: null,
+          client_cancellation_cutoff_hours: Number(h.client_cancellation_cutoff_hours ?? 2),
+          cancellation_tiers: h.cancellation_tiers,
+          timezone: (h.timezone as string | null) ?? "UTC",
+        };
+      }
+      const { data, error } = await supabase
         .from("hotels")
         .select(
-          "cancellation_fee_amount, cancellation_fee_type, cancellation_policy_text_fr, cancellation_policy_text_en",
+          "cancellation_fee_amount, cancellation_fee_type, cancellation_policy_text_fr, cancellation_policy_text_en, client_cancellation_cutoff_hours, cancellation_tiers, timezone",
         )
         .eq("id", booking.hotel_id)
         .single();
+      if (error) throw error;
       return data ?? null;
     },
     enabled: isOpen,
@@ -209,6 +245,10 @@ export function CancelBookingDialog({
               en: hotelFee.cancellation_policy_text_en,
             }
           : null,
+        {
+          cutoffHours: Number(hotelFee?.client_cancellation_cutoff_hours ?? 2),
+          tiers: parseCancellationTiers(hotelFee?.cancellation_tiers),
+        },
       ),
     [hotelFee, dialogLng],
   );
@@ -229,13 +269,77 @@ export function CancelBookingDialog({
     hotelFee.cancellation_fee_type !== "none" &&
     Number(hotelFee.cancellation_fee_amount) > 0;
 
-  const { feeApplied: feeAmount, refundAmount } = computeCancellationAmounts({
+  const policyPreview = computeCancellationAmounts({
     totalPrice,
     depositAmount,
     feeType: hasFeePolicy ? hotelFee?.cancellation_fee_type : "none",
     feeAmount: hotelFee?.cancellation_fee_amount,
     chargeLateFee: chargeLateFeeLive && !!hasFeePolicy,
   });
+
+  const clientTierPreview = useMemo(() => {
+    if (userRole !== "client" || !booking.booking_date || !booking.booking_time) {
+      return null;
+    }
+    const hoursUntil = hoursUntilBooking(
+      booking.booking_date,
+      booking.booking_time,
+      hotelFee?.timezone ?? "UTC",
+    );
+    if (hoursUntil === null) return { blocked: true as const };
+    const cutoffHours = Number(hotelFee?.client_cancellation_cutoff_hours ?? 2);
+    const tierResult = resolveRefundPercent(
+      hoursUntil,
+      parseCancellationTiers(hotelFee?.cancellation_tiers),
+      cutoffHours,
+    );
+    if (tierResult.status === "blocked") return { blocked: true as const };
+    return {
+      blocked: false as const,
+      ...amountsFromRefundPercent(depositAmount, tierResult.refund_percent),
+      refundPercent: tierResult.refund_percent,
+    };
+  }, [
+    userRole,
+    booking.booking_date,
+    booking.booking_time,
+    hotelFee,
+    depositAmount,
+  ]);
+
+  const adminCustomFee =
+    userRole === "admin" &&
+    customFeeLive != null &&
+    !Number.isNaN(Number(customFeeLive))
+      ? Math.min(Number(customFeeLive), depositAmount)
+      : null;
+
+  const clientCanSettleTierFees = canApplyClientTierFinancials(
+    needsRefund,
+    hasPaymentIntentHold,
+    isPartnerBilled || isChargedToRoom,
+  );
+
+  const feeAmount =
+    userRole === "client" && clientTierPreview && !clientTierPreview.blocked
+      ? clientCanSettleTierFees
+        ? clientTierPreview.feeApplied
+        : 0
+      : adminCustomFee != null
+        ? adminCustomFee
+        : policyPreview.feeApplied;
+
+  const refundAmount =
+    userRole === "client" && clientTierPreview && !clientTierPreview.blocked
+      ? isChargedToRoom || !clientCanSettleTierFees
+        ? 0
+        : clientTierPreview.refundAmount
+      : adminCustomFee != null
+        ? Math.max(0, depositAmount - adminCustomFee)
+        : policyPreview.refundAmount;
+
+  const showClientRefundEstimate =
+    userRole === "client" && needsRefund && clientCanSettleTierFees;
 
   const cardLabel =
     paymentInfo?.card_brand && paymentInfo?.card_last4
@@ -260,6 +364,15 @@ export function CancelBookingDialog({
                 reason: values.reason || undefined,
                 charge_late_fee: canChargeLateFee ? values.charge_late_fee : false,
                 send_notification: values.send_notification,
+                ...(userRole === "admin" &&
+                values.custom_cancellation_fee_amount != null &&
+                !Number.isNaN(Number(values.custom_cancellation_fee_amount))
+                  ? {
+                      custom_cancellation_fee_amount: Number(
+                        values.custom_cancellation_fee_amount,
+                      ),
+                    }
+                  : {}),
               },
         },
       );
@@ -328,6 +441,8 @@ export function CancelBookingDialog({
                 hasFeePolicy={!!hasFeePolicy}
                 hotelFee={hotelFee}
                 showSendNotification={userRole !== "client"}
+                showAdminCustomFee={userRole === "admin" && canChargeLateFee}
+                policySuggestedFee={policyPreview.feeApplied}
                 className={showPaymentSidePanel ? "px-6 pb-6 space-y-5" : undefined}
               />
 
@@ -340,6 +455,7 @@ export function CancelBookingDialog({
                   isPartnerBilled={isPartnerBilled}
                   feeAmount={feeAmount}
                   refundAmount={refundAmount}
+                  showRefundEstimateDisclaimer={showClientRefundEstimate}
                   isPending={cancelMutation.isPending}
                   onClose={onClose}
                 />
@@ -349,7 +465,7 @@ export function CancelBookingDialog({
                   totalPrice={totalPrice}
                   guaranteeAmount={depositAmount}
                   cardLabel={cardLabel}
-                  feeAmount={feeAmount}
+                  feeAmount={clientCanSettleTierFees ? feeAmount : 0}
                   isPending={cancelMutation.isPending}
                   onClose={onClose}
                 />
@@ -391,6 +507,8 @@ function CancelFormFields({
   hasFeePolicy,
   hotelFee,
   showSendNotification,
+  showAdminCustomFee,
+  policySuggestedFee,
   className,
 }: {
   form: UseFormReturn<FormValues>;
@@ -398,10 +516,42 @@ function CancelFormFields({
   hasFeePolicy: boolean;
   hotelFee: HotelFeeConfig | null | undefined;
   showSendNotification: boolean;
+  showAdminCustomFee: boolean;
+  policySuggestedFee: number;
   className?: string;
 }) {
   return (
     <div className={className}>
+      {showAdminCustomFee && (
+        <FormField
+          control={form.control}
+          name="custom_cancellation_fee_amount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm font-medium">
+                {t("cancelBookingDialog.customFeeLabel")}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0"
+                  value={field.value ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    field.onChange(raw === "" ? undefined : Number(raw));
+                  }}
+                />
+              </FormControl>
+              <p className="text-xs text-muted-foreground">
+                {t("cancelBookingDialog.customFeeHelp")}
+              </p>
+            </FormItem>
+          )}
+        />
+      )}
+
       {hasFeePolicy && (
         <FormField
           control={form.control}
@@ -409,7 +559,15 @@ function CancelFormFields({
           render={({ field }) => (
             <FormItem className="flex items-start gap-3 space-y-0 pt-2">
               <FormControl>
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked);
+                    if (checked && showAdminCustomFee && policySuggestedFee > 0) {
+                      form.setValue("custom_cancellation_fee_amount", policySuggestedFee);
+                    }
+                  }}
+                />
               </FormControl>
               <FormLabel className="text-sm font-normal leading-snug cursor-pointer">
                 {t("cancelBookingDialog.chargeLateFeesLabel")}
@@ -482,6 +640,7 @@ function RefundSummaryPanel({
   isPartnerBilled,
   feeAmount,
   refundAmount,
+  showRefundEstimateDisclaimer,
   isPending,
   onClose,
 }: {
@@ -492,6 +651,7 @@ function RefundSummaryPanel({
   isPartnerBilled: boolean;
   feeAmount: number;
   refundAmount: number;
+  showRefundEstimateDisclaimer?: boolean;
   isPending: boolean;
   onClose: () => void;
 }) {
@@ -535,6 +695,11 @@ function RefundSummaryPanel({
                 <p className="text-xs font-normal text-muted-foreground">
                   {t("cancelBookingDialog.toPaymentMethod")}
                 </p>
+                {showRefundEstimateDisclaimer && (
+                  <p className="text-xs font-normal text-muted-foreground mt-1">
+                    {t("cancelBookingDialog.refundEstimateDisclaimer")}
+                  </p>
+                )}
               </div>
               <span className="text-lg">{refundAmount}€</span>
             </div>
@@ -665,3 +830,4 @@ function CancelActions({
     </>
   );
 }
+

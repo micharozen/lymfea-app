@@ -12,6 +12,13 @@ import {
   runStripeSettlement,
 } from "./stripe-settlement.ts";
 import { sendCancellationNotifications } from "./notifications.ts";
+import {
+  amountsFromRefundPercent,
+  canApplyClientTierFinancials as canApplyClientTierFinancialsOnStripe,
+  hoursUntilBooking,
+  parseCancellationTiers,
+  resolveRefundPercent,
+} from "../_shared/cancellation-tiers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +33,6 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const CLIENT_CANCELLATION_CUTOFF_MS = 2 * 60 * 60 * 1000;
 const MAX_CANCELLATION_REASON_LENGTH = 500;
 const NON_STRIPE_PAYMENT_METHODS = new Set([
   "partner_billed",
@@ -41,12 +47,16 @@ type SupabaseServiceClient = ReturnType<typeof createClient>;
 type BookingCancelSnapshot = {
   status: string;
   cancellation_reason: string | null;
+  gift_amount_applied_cents: number;
+};
+
+type PaymentInfoCancelSnapshot = {
+  existed: boolean;
   cancelled_at: string | null;
   cancelled_by: string | null;
   cancellation_fee_amount: number | null;
   refund_amount: number | null;
   stripe_refund_id: string | null;
-  gift_amount_applied_cents: number;
 };
 
 type GiftAmountUsageSnapshot = {
@@ -61,59 +71,109 @@ function snapshotBookingForRevert(booking: Record<string, unknown>): BookingCanc
   return {
     status: String(booking.status),
     cancellation_reason: (booking.cancellation_reason as string | null) ?? null,
-    cancelled_at: (booking.cancelled_at as string | null) ?? null,
-    cancelled_by: (booking.cancelled_by as string | null) ?? null,
-    cancellation_fee_amount: booking.cancellation_fee_amount != null
-      ? Number(booking.cancellation_fee_amount)
-      : null,
-    refund_amount: booking.refund_amount != null ? Number(booking.refund_amount) : null,
-    stripe_refund_id: (booking.stripe_refund_id as string | null) ?? null,
     gift_amount_applied_cents: Number(booking.gift_amount_applied_cents ?? 0),
   };
 }
 
-function parseBookingDateTime(booking: Record<string, unknown>, timezone = "UTC"): Date | null {
-  const bookingDate = String(booking.booking_date ?? "");
-  const bookingTime = String(booking.booking_time ?? "");
-  if (!bookingDate || !bookingTime) return null;
-
-  const [year, month, day] = bookingDate.split("-").map(Number);
-  const [hour, minute, second = 0] = bookingTime.split(":").map(Number);
-  if ([year, month, day, hour, minute, second].some((value) => Number.isNaN(value))) {
-    return null;
+function snapshotPaymentInfoForRevert(
+  paymentInfo: Record<string, unknown> | null,
+): PaymentInfoCancelSnapshot {
+  if (!paymentInfo) {
+    return {
+      existed: false,
+      cancelled_at: null,
+      cancelled_by: null,
+      cancellation_fee_amount: null,
+      refund_amount: null,
+      stripe_refund_id: null,
+    };
   }
-
-  const localAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date(localAsUtc)).reduce<Record<string, string>>((acc, part) => {
-    if (part.type !== "literal") acc[part.type] = part.value;
-    return acc;
-  }, {});
-  const asIfLocal = Date.UTC(
-    Number(parts.year),
-    Number(parts.month) - 1,
-    Number(parts.day),
-    Number(parts.hour),
-    Number(parts.minute),
-    Number(parts.second),
-  );
-  const timezoneOffsetMs = asIfLocal - localAsUtc;
-
-  return new Date(localAsUtc - timezoneOffsetMs);
+  return {
+    existed: true,
+    cancelled_at: (paymentInfo.cancelled_at as string | null) ?? null,
+    cancelled_by: (paymentInfo.cancelled_by as string | null) ?? null,
+    cancellation_fee_amount: paymentInfo.cancellation_fee_amount != null
+      ? Number(paymentInfo.cancellation_fee_amount)
+      : null,
+    refund_amount: paymentInfo.refund_amount != null
+      ? Number(paymentInfo.refund_amount)
+      : null,
+    stripe_refund_id: (paymentInfo.stripe_refund_id as string | null) ?? null,
+  };
 }
 
-function isInsideClientCancellationCutoff(booking: Record<string, unknown>, timezone?: string | null): boolean {
-  const bookingDateTime = parseBookingDateTime(booking, timezone || "UTC");
-  if (!bookingDateTime) return true;
-  return bookingDateTime.getTime() - Date.now() <= CLIENT_CANCELLATION_CUTOFF_MS;
+type HotelCancelConfig = {
+  cancellation_fee_amount?: number | string | null;
+  cancellation_fee_type?: string | null;
+  timezone?: string | null;
+  client_cancellation_cutoff_hours?: number | string | null;
+  cancellation_tiers?: unknown;
+};
+
+function clientCutoffHoursFromHotel(hotel: HotelCancelConfig | null): number {
+  const cutoffHours = Number(hotel?.client_cancellation_cutoff_hours ?? 2);
+  return Number.isFinite(cutoffHours) && cutoffHours >= 0 ? cutoffHours : 2;
+}
+
+function isInsideClientCancellationCutoff(
+  booking: Record<string, unknown>,
+  hotel: HotelCancelConfig | null,
+): boolean {
+  const hoursUntil = hoursUntilBooking(
+    String(booking.booking_date ?? ""),
+    String(booking.booking_time ?? ""),
+    hotel?.timezone || "UTC",
+  );
+  if (hoursUntil === null) return true;
+  return hoursUntil <= clientCutoffHoursFromHotel(hotel);
+}
+
+function resolveClientTierAmounts(
+  booking: Record<string, unknown>,
+  hotel: HotelCancelConfig | null,
+  depositAmount: number,
+  lang: ReturnType<typeof resolveCancelLang>,
+): { feeApplied: number; refundAmount: number } | { error: string } {
+  const hoursUntil = hoursUntilBooking(
+    String(booking.booking_date ?? ""),
+    String(booking.booking_time ?? ""),
+    hotel?.timezone || "UTC",
+  );
+  const cutoffHours = clientCutoffHoursFromHotel(hotel);
+  if (hoursUntil === null) {
+    return { error: getCancelMessages(lang).clientCutoffError(cutoffHours) };
+  }
+  const tierResult = resolveRefundPercent(
+    hoursUntil,
+    parseCancellationTiers(hotel?.cancellation_tiers),
+    cutoffHours,
+  );
+  if (tierResult.status === "blocked") {
+    return { error: getCancelMessages(lang).clientCutoffError(cutoffHours) };
+  }
+  return amountsFromRefundPercent(depositAmount, tierResult.refund_percent);
+}
+
+function resolveStaffCancellationAmounts(
+  depositAmount: number,
+  totalPrice: number,
+  hotel: HotelCancelConfig | null,
+  chargeLateFee: boolean,
+  customFeeAmount: number | null,
+): { feeApplied: number; refundAmount: number } {
+  if (customFeeAmount != null && Number.isFinite(customFeeAmount) && customFeeAmount >= 0) {
+    const feeApplied = Math.min(roundCurrency(customFeeAmount), depositAmount);
+    return {
+      feeApplied,
+      refundAmount: Math.max(0, roundCurrency(depositAmount - feeApplied)),
+    };
+  }
+  const policyFee = chargeLateFee ? computeCancellationPolicyFee(totalPrice, hotel) : 0;
+  const feeApplied = Math.min(policyFee, depositAmount);
+  return {
+    feeApplied,
+    refundAmount: Math.max(0, roundCurrency(depositAmount - feeApplied)),
+  };
 }
 
 function isNonStripePaymentMethod(method: unknown): boolean {
@@ -209,20 +269,22 @@ async function insertCancellationAuditLog(
 async function revertBookingCancellation(
   supabase: SupabaseServiceClient,
   bookingId: string,
-  previous: BookingCancelSnapshot,
+  previousBooking: BookingCancelSnapshot,
+  previousPayment: PaymentInfoCancelSnapshot,
   giftAmountUsages: GiftAmountUsageSnapshot[],
 ): Promise<void> {
   const { error } = await supabase.rpc("revert_booking_cancellation_after_stripe_error", {
     _booking_id: bookingId,
-    _status: previous.status,
-    _reason: previous.cancellation_reason,
-    _cancelled_at: previous.cancelled_at,
-    _cancelled_by: previous.cancelled_by,
-    _cancellation_fee_amount: previous.cancellation_fee_amount ?? 0,
-    _refund_amount: previous.refund_amount ?? 0,
-    _stripe_refund_id: previous.stripe_refund_id,
-    _gift_amount_applied_cents: previous.gift_amount_applied_cents,
+    _status: previousBooking.status,
+    _reason: previousBooking.cancellation_reason,
+    _gift_amount_applied_cents: previousBooking.gift_amount_applied_cents,
     _gift_amount_usages: giftAmountUsages,
+    _payment_info_existed: previousPayment.existed,
+    _cancelled_at: previousPayment.cancelled_at,
+    _cancelled_by: previousPayment.cancelled_by,
+    _cancellation_fee_amount: previousPayment.cancellation_fee_amount ?? 0,
+    _refund_amount: previousPayment.refund_amount ?? 0,
+    _stripe_refund_id: previousPayment.stripe_refund_id,
   });
 
   if (error) {
@@ -249,12 +311,14 @@ serve(async (req) => {
       reason,
       charge_late_fee = false,
       send_notification = true,
+      custom_cancellation_fee_amount,
     } = body as {
       bookingId?: string;
       token?: string;
       reason?: string;
       charge_late_fee?: boolean;
       send_notification?: boolean;
+      custom_cancellation_fee_amount?: number | null;
     };
 
     const cancellationReason = reason?.trim() || null;
@@ -326,18 +390,21 @@ serve(async (req) => {
       }
     }
 
-    const previousState = snapshotBookingForRevert(booking);
     const isPublicTokenRequest = !!token;
 
     const [{ data: paymentInfo }, { data: hotel }, { data: giftAmountUsageRows }] = await Promise.all([
       supabase
         .from("booking_payment_infos")
-        .select("stripe_payment_intent_id, stripe_setup_intent_id, card_brand, card_last4, estimated_price")
+        .select(
+          "stripe_payment_intent_id, stripe_setup_intent_id, card_brand, card_last4, estimated_price, cancelled_at, cancelled_by, cancellation_fee_amount, refund_amount, stripe_refund_id",
+        )
         .eq("booking_id", targetBookingId)
         .maybeSingle(),
       supabase
         .from("hotels")
-        .select("cancellation_fee_amount, cancellation_fee_type, timezone")
+        .select(
+          "cancellation_fee_amount, cancellation_fee_type, timezone, client_cancellation_cutoff_hours, cancellation_tiers",
+        )
         .eq("id", booking.hotel_id)
         .single(),
       supabase
@@ -345,6 +412,10 @@ serve(async (req) => {
         .select("id, booking_id, customer_bundle_id, amount_cents_used, used_at")
         .eq("booking_id", targetBookingId),
     ]);
+    const previousBookingState = snapshotBookingForRevert(booking);
+    const previousPaymentState = snapshotPaymentInfoForRevert(
+      paymentInfo as Record<string, unknown> | null,
+    );
     const giftAmountUsages = ((giftAmountUsageRows ?? []) as GiftAmountUsageSnapshot[]).map((usage) => ({
       id: usage.id,
       booking_id: usage.booking_id,
@@ -359,9 +430,25 @@ serve(async (req) => {
     const skipStripe = isNonStripePaymentMethod(booking.payment_method) || isChargedToRoom;
     const lang = resolveCancelLang(booking.language);
 
-    if (isPublicTokenRequest && isInsideClientCancellationCutoff(booking, hotel?.timezone)) {
-      return jsonResponse({ error: getCancelMessages(lang).clientCutoffError }, 400);
+    if (isPublicTokenRequest && isInsideClientCancellationCutoff(booking, hotel)) {
+      return jsonResponse({
+        error: getCancelMessages(lang).clientCutoffError(clientCutoffHoursFromHotel(hotel)),
+      }, 400);
     }
+
+    if (
+      !isPublicTokenRequest &&
+      custom_cancellation_fee_amount != null &&
+      !isAdmin
+    ) {
+      return jsonResponse({ error: "Forbidden" }, 403);
+    }
+
+    const parsedCustomFee = custom_cancellation_fee_amount != null &&
+        Number.isFinite(Number(custom_cancellation_fee_amount)) &&
+        Number(custom_cancellation_fee_amount) >= 0
+      ? roundCurrency(Number(custom_cancellation_fee_amount))
+      : null;
 
     if (needsStripe && !skipStripe && !paymentInfo?.stripe_payment_intent_id) {
       console.error("[cancel-booking] paid booking missing Stripe PaymentIntent", {
@@ -413,7 +500,7 @@ serve(async (req) => {
 
     const hasCapturablePaymentIntentHold = livePaymentIntent?.status === "requires_capture";
     const wantsLateFeeOnPaymentIntentHold =
-      charge_late_fee &&
+      (charge_late_fee || parsedCustomFee != null) &&
       isAdmin &&
       !needsStripe &&
       !skipStripe &&
@@ -426,13 +513,19 @@ serve(async (req) => {
       );
     }
 
-    const applyLateFee =
+    const applyStaffLateFee =
       charge_late_fee &&
       isAdmin &&
       !isPartnerBilled &&
       !skipStripe &&
       (needsStripe || hasCapturablePaymentIntentHold);
-    const policyFee = applyLateFee ? computeCancellationPolicyFee(totalPrice, hotel) : 0;
+
+    const applyStaffCustomFee =
+      parsedCustomFee != null &&
+      isAdmin &&
+      !isPartnerBilled &&
+      !skipStripe &&
+      (needsStripe || hasCapturablePaymentIntentHold);
 
     if (livePaymentIntent) {
       if (livePaymentIntent.status === "succeeded") {
@@ -448,12 +541,34 @@ serve(async (req) => {
                 livePaymentIntent.id,
               )),
           );
-          const feeCents = applyLateFee
-            ? Math.min(Math.round(policyFee * 100), refundableCents)
-            : 0;
-          const refundCents = Math.max(0, refundableCents - feeCents);
-
           depositAmount = centsToCurrency(refundableCents);
+
+          if (isPublicTokenRequest) {
+            const tierAmounts = resolveClientTierAmounts(booking, hotel, depositAmount, lang);
+            if ("error" in tierAmounts) {
+              return jsonResponse({ error: tierAmounts.error }, 400);
+            }
+            if (canApplyClientTierFinancialsOnStripe(needsStripe, skipStripe, livePaymentIntent?.status)) {
+              feeApplied = tierAmounts.feeApplied;
+              refundAmount = tierAmounts.refundAmount;
+            }
+          } else if (applyStaffCustomFee || applyStaffLateFee) {
+            const staffAmounts = resolveStaffCancellationAmounts(
+              depositAmount,
+              totalPrice,
+              hotel,
+              applyStaffLateFee,
+              applyStaffCustomFee ? parsedCustomFee : null,
+            );
+            feeApplied = staffAmounts.feeApplied;
+            refundAmount = staffAmounts.refundAmount;
+          } else {
+            feeApplied = 0;
+            refundAmount = depositAmount;
+          }
+
+          const feeCents = Math.min(Math.round(feeApplied * 100), refundableCents);
+          const refundCents = Math.max(0, refundableCents - feeCents);
           feeApplied = centsToCurrency(feeCents);
           refundAmount = centsToCurrency(refundCents);
         } else {
@@ -461,13 +576,34 @@ serve(async (req) => {
         }
       } else if (livePaymentIntent.status === "requires_capture") {
         const capturableCents = Math.max(0, livePaymentIntent.amount_capturable ?? livePaymentIntent.amount);
-        const feeCents = applyLateFee
-          ? Math.min(Math.round(policyFee * 100), capturableCents)
-          : 0;
-
         depositAmount = centsToCurrency(capturableCents);
+
+        if (isPublicTokenRequest) {
+          const tierAmounts = resolveClientTierAmounts(booking, hotel, depositAmount, lang);
+          if ("error" in tierAmounts) {
+            return jsonResponse({ error: tierAmounts.error }, 400);
+          }
+          if (canApplyClientTierFinancialsOnStripe(needsStripe, skipStripe, livePaymentIntent?.status)) {
+            feeApplied = tierAmounts.feeApplied;
+          }
+          refundAmount = 0;
+        } else if (applyStaffCustomFee || applyStaffLateFee) {
+          const staffAmounts = resolveStaffCancellationAmounts(
+            depositAmount,
+            totalPrice,
+            hotel,
+            applyStaffLateFee,
+            applyStaffCustomFee ? parsedCustomFee : null,
+          );
+          feeApplied = staffAmounts.feeApplied;
+          refundAmount = 0;
+        } else {
+          feeApplied = 0;
+          refundAmount = 0;
+        }
+
+        const feeCents = Math.min(Math.round(feeApplied * 100), capturableCents);
         feeApplied = centsToCurrency(feeCents);
-        refundAmount = 0;
       } else if (needsStripe) {
         return jsonResponse(
           {
@@ -478,6 +614,31 @@ serve(async (req) => {
           409,
         );
       }
+    }
+
+    if (isPublicTokenRequest && !livePaymentIntent && depositAmount > 0) {
+      const tierAmounts = resolveClientTierAmounts(booking, hotel, depositAmount, lang);
+      if ("error" in tierAmounts) {
+        return jsonResponse({ error: tierAmounts.error }, 400);
+      }
+      if (canApplyClientTierFinancialsOnStripe(needsStripe, skipStripe, null)) {
+        feeApplied = tierAmounts.feeApplied;
+        refundAmount = skipStripe ? 0 : tierAmounts.refundAmount;
+      }
+    } else if (
+      !isPublicTokenRequest &&
+      !livePaymentIntent &&
+      (applyStaffCustomFee || applyStaffLateFee)
+    ) {
+      const staffAmounts = resolveStaffCancellationAmounts(
+        depositAmount,
+        totalPrice,
+        hotel,
+        applyStaffLateFee,
+        applyStaffCustomFee ? parsedCustomFee : null,
+      );
+      feeApplied = staffAmounts.feeApplied;
+      refundAmount = skipStripe ? 0 : staffAmounts.refundAmount;
     }
 
     const { data: cancelledRows, error: cancelUpdateError } = await supabase
@@ -555,7 +716,13 @@ serve(async (req) => {
             settlementWarnings = reconciled.warnings;
             console.error("[cancel-booking] Stripe error reconciled; keeping DB cancellation:", stripeErr);
           } else {
-            await revertBookingCancellation(supabase, targetBookingId, previousState, giftAmountUsages);
+            await revertBookingCancellation(
+              supabase,
+              targetBookingId,
+              previousBookingState,
+              previousPaymentState,
+              giftAmountUsages,
+            );
             console.error("[cancel-booking] Stripe error (booking reverted):", stripeErr);
             return jsonResponse(
               { error: getCancelMessages(lang).stripeError(message) },
@@ -563,7 +730,13 @@ serve(async (req) => {
             );
           }
         } catch (reconcileErr) {
-          await revertBookingCancellation(supabase, targetBookingId, previousState, giftAmountUsages);
+          await revertBookingCancellation(
+            supabase,
+            targetBookingId,
+            previousBookingState,
+            previousPaymentState,
+            giftAmountUsages,
+          );
           console.error("[cancel-booking] Stripe reconciliation failed (booking reverted):", reconcileErr);
           console.error("[cancel-booking] Original Stripe error:", stripeErr);
           return jsonResponse(
@@ -576,9 +749,9 @@ serve(async (req) => {
 
     if (stripeRefundId) {
       const { error: refundIdError } = await supabase
-        .from("bookings")
-        .update({ stripe_refund_id: stripeRefundId })
-        .eq("id", targetBookingId);
+        .from("booking_payment_infos")
+        .update({ stripe_refund_id: stripeRefundId, updated_at: new Date().toISOString() })
+        .eq("booking_id", targetBookingId);
 
       if (refundIdError) {
         console.error(

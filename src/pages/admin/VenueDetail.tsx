@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/sheet";
 import { ArrowLeft, Loader2, Save, Pencil, CalendarDays, Eye } from "lucide-react";
 import { startOfMonth, startOfYear, subDays } from "date-fns";
+import { validateCancellationTiers } from "@/lib/cancellationTiers";
 import { VenueGeneralTab, type VenueSectionId } from "@/components/admin/venue/VenueGeneralTab";
 import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
@@ -86,6 +87,12 @@ const createFormSchema = (t: TFunction) => z.object({
   cancellation_fee_amount: z.string().default("0"),
   cancellation_policy_text_fr: z.string().optional(),
   cancellation_policy_text_en: z.string().optional(),
+  client_cancellation_cutoff_hours: z.coerce.number().min(0).max(168).default(2),
+  cancellation_tiers: z.array(z.object({
+    max_hours: z.coerce.number().min(0),
+    min_hours: z.coerce.number().min(0),
+    refund_percent: z.coerce.number().min(0).max(100),
+  })).default([]),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -99,6 +106,11 @@ const createFormSchema = (t: TFunction) => z.object({
 }, {
   message: "L'heure d'ouverture doit être avant l'heure de fermeture",
   path: ["closing_time"],
+}).superRefine((data, ctx) => {
+  const err = validateCancellationTiers(data.cancellation_tiers);
+  if (err) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: err, path: ["cancellation_tiers"] });
+  }
 });
 
 interface VenueDetailProps {
@@ -231,6 +243,8 @@ export default function VenueDetail({
       cancellation_fee_amount: "0",
       cancellation_policy_text_fr: "",
       cancellation_policy_text_en: "",
+      client_cancellation_cutoff_hours: 2,
+      cancellation_tiers: [],
     },
   });
 
@@ -291,6 +305,12 @@ export default function VenueDetail({
           cancellation_fee_amount: String((hotel as { cancellation_fee_amount?: number }).cancellation_fee_amount ?? 0),
           cancellation_policy_text_fr: (hotel as { cancellation_policy_text_fr?: string }).cancellation_policy_text_fr || "",
           cancellation_policy_text_en: (hotel as { cancellation_policy_text_en?: string }).cancellation_policy_text_en || "",
+          client_cancellation_cutoff_hours: Number(
+            (hotel as { client_cancellation_cutoff_hours?: number }).client_cancellation_cutoff_hours ?? 2,
+          ),
+          cancellation_tiers: Array.isArray((hotel as { cancellation_tiers?: unknown }).cancellation_tiers)
+            ? ((hotel as { cancellation_tiers: { max_hours: number; min_hours: number; refund_percent: number }[] }).cancellation_tiers)
+            : [],
         });
 
         setHotelImage(hotel.image || "");
@@ -525,6 +545,8 @@ export default function VenueDetail({
         cancellation_fee_amount: parseFloat(values.cancellation_fee_amount) || 0,
         cancellation_policy_text_fr: values.cancellation_policy_text_fr?.trim() || null,
         cancellation_policy_text_en: values.cancellation_policy_text_en?.trim() || null,
+        client_cancellation_cutoff_hours: values.client_cancellation_cutoff_hours ?? 2,
+        cancellation_tiers: values.cancellation_tiers ?? [],
       };
 
       if (isNewMode && !savedHotelId) {

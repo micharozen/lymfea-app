@@ -1,8 +1,8 @@
--- Cancellation flow: audit columns, venue policy, atomic DB helpers.
+-- Cancellation flow: payment audit on booking_payment_infos, venue policy, atomic DB helpers.
 -- Clients and staff must go through the cancel-booking Edge Function; RPCs are service_role only.
 
--- Cancellation audit columns on bookings (cancellation_reason TEXT already exists).
-ALTER TABLE public.bookings
+-- Financial cancellation audit on booking_payment_infos (not bookings).
+ALTER TABLE public.booking_payment_infos
   ADD COLUMN IF NOT EXISTS cancelled_at            TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS cancelled_by            UUID REFERENCES auth.users(id),
   ADD COLUMN IF NOT EXISTS cancellation_fee_amount NUMERIC DEFAULT 0,
@@ -85,15 +85,42 @@ BEGIN
   DELETE FROM public.bundle_amount_usages
   WHERE booking_id = _booking_id;
 
+  INSERT INTO public.booking_payment_infos (
+    booking_id,
+    customer_id,
+    estimated_price,
+    cancelled_at,
+    cancelled_by,
+    cancellation_fee_amount,
+    refund_amount,
+    updated_at
+  )
+  SELECT
+    b.id,
+    COALESCE(bpi.customer_id, b.customer_id),
+    COALESCE(bpi.estimated_price, b.total_price),
+    NOW(),
+    _cancelled_by,
+    COALESCE(_cancellation_fee_amount, 0),
+    COALESCE(_refund_amount, 0),
+    NOW()
+  FROM public.bookings b
+  LEFT JOIN public.booking_payment_infos bpi ON bpi.booking_id = b.id
+  WHERE b.id = _booking_id
+  ON CONFLICT (booking_id) DO UPDATE SET
+    cancelled_at = EXCLUDED.cancelled_at,
+    cancelled_by = EXCLUDED.cancelled_by,
+    cancellation_fee_amount = EXCLUDED.cancellation_fee_amount,
+    refund_amount = EXCLUDED.refund_amount,
+    estimated_price = COALESCE(booking_payment_infos.estimated_price, EXCLUDED.estimated_price),
+    customer_id = COALESCE(booking_payment_infos.customer_id, EXCLUDED.customer_id),
+    updated_at = NOW();
+
   RETURN QUERY
   UPDATE public.bookings
   SET
     status = 'cancelled',
     cancellation_reason = NULLIF(BTRIM(_reason), ''),
-    cancelled_at = NOW(),
-    cancelled_by = _cancelled_by,
-    cancellation_fee_amount = COALESCE(_cancellation_fee_amount, 0),
-    refund_amount = COALESCE(_refund_amount, 0),
     gift_amount_applied_cents = GREATEST(0, gift_amount_applied_cents - _gift_restored_cents)
   WHERE id = _booking_id
   RETURNING public.bookings.*;
@@ -105,17 +132,23 @@ REVOKE ALL ON FUNCTION public.begin_booking_cancellation(UUID, TEXT, UUID, NUMER
 REVOKE ALL ON FUNCTION public.begin_booking_cancellation(UUID, TEXT, UUID, NUMERIC, NUMERIC) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.begin_booking_cancellation(UUID, TEXT, UUID, NUMERIC, NUMERIC) TO service_role;
 
+-- Drop old signature before recreating with payment-info revert params.
+DROP FUNCTION IF EXISTS public.revert_booking_cancellation_after_stripe_error(
+  UUID, TEXT, TEXT, TIMESTAMPTZ, UUID, NUMERIC, NUMERIC, TEXT, INTEGER, JSONB
+);
+
 CREATE OR REPLACE FUNCTION public.revert_booking_cancellation_after_stripe_error(
   _booking_id UUID,
   _status TEXT,
   _reason TEXT,
-  _cancelled_at TIMESTAMPTZ,
-  _cancelled_by UUID,
-  _cancellation_fee_amount NUMERIC,
-  _refund_amount NUMERIC,
-  _stripe_refund_id TEXT,
   _gift_amount_applied_cents INTEGER,
-  _gift_amount_usages JSONB DEFAULT '[]'::JSONB
+  _gift_amount_usages JSONB DEFAULT '[]'::JSONB,
+  _payment_info_existed BOOLEAN DEFAULT FALSE,
+  _cancelled_at TIMESTAMPTZ DEFAULT NULL,
+  _cancelled_by UUID DEFAULT NULL,
+  _cancellation_fee_amount NUMERIC DEFAULT 0,
+  _refund_amount NUMERIC DEFAULT 0,
+  _stripe_refund_id TEXT DEFAULT NULL
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -136,13 +169,23 @@ BEGIN
   SET
     status = _status,
     cancellation_reason = _reason,
-    cancelled_at = _cancelled_at,
-    cancelled_by = _cancelled_by,
-    cancellation_fee_amount = COALESCE(_cancellation_fee_amount, 0),
-    refund_amount = COALESCE(_refund_amount, 0),
-    stripe_refund_id = _stripe_refund_id,
     gift_amount_applied_cents = COALESCE(_gift_amount_applied_cents, 0)
   WHERE id = _booking_id;
+
+  IF _payment_info_existed THEN
+    UPDATE public.booking_payment_infos
+    SET
+      cancelled_at = _cancelled_at,
+      cancelled_by = _cancelled_by,
+      cancellation_fee_amount = COALESCE(_cancellation_fee_amount, 0),
+      refund_amount = COALESCE(_refund_amount, 0),
+      stripe_refund_id = _stripe_refund_id,
+      updated_at = NOW()
+    WHERE booking_id = _booking_id;
+  ELSE
+    DELETE FROM public.booking_payment_infos
+    WHERE booking_id = _booking_id;
+  END IF;
 
   WITH input_rows AS (
     SELECT *
@@ -195,14 +238,14 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.revert_booking_cancellation_after_stripe_error(
-  UUID, TEXT, TEXT, TIMESTAMPTZ, UUID, NUMERIC, NUMERIC, TEXT, INTEGER, JSONB
+  UUID, TEXT, TEXT, INTEGER, JSONB, BOOLEAN, TIMESTAMPTZ, UUID, NUMERIC, NUMERIC, TEXT
 ) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.revert_booking_cancellation_after_stripe_error(
-  UUID, TEXT, TEXT, TIMESTAMPTZ, UUID, NUMERIC, NUMERIC, TEXT, INTEGER, JSONB
+  UUID, TEXT, TEXT, INTEGER, JSONB, BOOLEAN, TIMESTAMPTZ, UUID, NUMERIC, NUMERIC, TEXT
 ) FROM anon;
 REVOKE ALL ON FUNCTION public.revert_booking_cancellation_after_stripe_error(
-  UUID, TEXT, TEXT, TIMESTAMPTZ, UUID, NUMERIC, NUMERIC, TEXT, INTEGER, JSONB
+  UUID, TEXT, TEXT, INTEGER, JSONB, BOOLEAN, TIMESTAMPTZ, UUID, NUMERIC, NUMERIC, TEXT
 ) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.revert_booking_cancellation_after_stripe_error(
-  UUID, TEXT, TEXT, TIMESTAMPTZ, UUID, NUMERIC, NUMERIC, TEXT, INTEGER, JSONB
+  UUID, TEXT, TEXT, INTEGER, JSONB, BOOLEAN, TIMESTAMPTZ, UUID, NUMERIC, NUMERIC, TEXT
 ) TO service_role;
