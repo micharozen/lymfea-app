@@ -393,6 +393,8 @@ useEffect(() => {
             status: cancelBooking.status,
             payment_method: cancelBooking.payment_method,
             payment_status: cancelBooking.payment_status,
+            booking_date: cancelBooking.booking_date,
+            booking_time: cancelBooking.booking_time,
           }}
           userRole={isConcierge ? "concierge" : "admin"}
         />

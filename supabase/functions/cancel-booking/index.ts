@@ -103,8 +103,6 @@ function snapshotPaymentInfoForRevert(
 }
 
 type HotelCancelConfig = {
-  cancellation_fee_amount?: number | string | null;
-  cancellation_fee_type?: string | null;
   timezone?: string | null;
   client_cancellation_cutoff_hours?: number | string | null;
   cancellation_tiers?: unknown;
@@ -156,11 +154,17 @@ function resolveClientTierAmounts(
 
 function resolveStaffCancellationAmounts(
   depositAmount: number,
-  totalPrice: number,
-  hotel: HotelCancelConfig | null,
-  chargeLateFee: boolean,
   customFeeAmount: number | null,
+  customFeePercent: number | null,
 ): { feeApplied: number; refundAmount: number } {
+  if (customFeePercent != null && Number.isFinite(customFeePercent) && customFeePercent >= 0) {
+    const pct = Math.min(100, Math.max(0, Number(customFeePercent)));
+    const feeApplied = Math.min(roundCurrency(depositAmount * (pct / 100)), depositAmount);
+    return {
+      feeApplied,
+      refundAmount: Math.max(0, roundCurrency(depositAmount - feeApplied)),
+    };
+  }
   if (customFeeAmount != null && Number.isFinite(customFeeAmount) && customFeeAmount >= 0) {
     const feeApplied = Math.min(roundCurrency(customFeeAmount), depositAmount);
     return {
@@ -168,12 +172,7 @@ function resolveStaffCancellationAmounts(
       refundAmount: Math.max(0, roundCurrency(depositAmount - feeApplied)),
     };
   }
-  const policyFee = chargeLateFee ? computeCancellationPolicyFee(totalPrice, hotel) : 0;
-  const feeApplied = Math.min(policyFee, depositAmount);
-  return {
-    feeApplied,
-    refundAmount: Math.max(0, roundCurrency(depositAmount - feeApplied)),
-  };
+  return { feeApplied: 0, refundAmount: depositAmount };
 }
 
 function isNonStripePaymentMethod(method: unknown): boolean {
@@ -188,18 +187,29 @@ function centsToCurrency(cents: number): number {
   return roundCurrency(cents / 100);
 }
 
-function computeCancellationPolicyFee(
-  totalPrice: number,
-  hotel: { cancellation_fee_amount?: number | string | null; cancellation_fee_type?: string | null } | null,
-): number {
-  if (!hotel) return 0;
-  if (hotel.cancellation_fee_type === "fixed") {
-    return Number(hotel.cancellation_fee_amount) || 0;
+function resolveTierRefundPercent(
+  booking: Record<string, unknown>,
+  hotel: HotelCancelConfig | null,
+  mode: "client" | "staff",
+): { refund_percent: number } | { blocked: true } {
+  const hoursUntil = hoursUntilBooking(
+    String(booking.booking_date ?? ""),
+    String(booking.booking_time ?? ""),
+    hotel?.timezone || "UTC",
+  );
+  const cutoffHours = clientCutoffHoursFromHotel(hotel);
+  if (hoursUntil === null) {
+    return mode === "client" ? { blocked: true } : { refund_percent: 0 };
   }
-  if (hotel.cancellation_fee_type === "percentage") {
-    return roundCurrency(totalPrice * ((Number(hotel.cancellation_fee_amount) || 0) / 100));
+  const tierResult = resolveRefundPercent(
+    hoursUntil,
+    parseCancellationTiers(hotel?.cancellation_tiers),
+    cutoffHours,
+  );
+  if (tierResult.status === "blocked") {
+    return mode === "client" ? { blocked: true } : { refund_percent: 0 };
   }
-  return 0;
+  return { refund_percent: tierResult.refund_percent };
 }
 
 async function getRefundedCentsForPaymentIntent(
@@ -309,16 +319,16 @@ serve(async (req) => {
       bookingId,
       token,
       reason,
-      charge_late_fee = false,
       send_notification = true,
       custom_cancellation_fee_amount,
+      custom_cancellation_fee_percent,
     } = body as {
       bookingId?: string;
       token?: string;
       reason?: string;
-      charge_late_fee?: boolean;
       send_notification?: boolean;
       custom_cancellation_fee_amount?: number | null;
+      custom_cancellation_fee_percent?: number | null;
     };
 
     const cancellationReason = reason?.trim() || null;
@@ -403,7 +413,7 @@ serve(async (req) => {
       supabase
         .from("hotels")
         .select(
-          "cancellation_fee_amount, cancellation_fee_type, timezone, client_cancellation_cutoff_hours, cancellation_tiers",
+          "timezone, client_cancellation_cutoff_hours, cancellation_tiers",
         )
         .eq("id", booking.hotel_id)
         .single(),
@@ -436,11 +446,7 @@ serve(async (req) => {
       }, 400);
     }
 
-    if (
-      !isPublicTokenRequest &&
-      custom_cancellation_fee_amount != null &&
-      !isAdmin
-    ) {
+    if (!isPublicTokenRequest && (custom_cancellation_fee_amount != null || custom_cancellation_fee_percent != null) && !isAdmin) {
       return jsonResponse({ error: "Forbidden" }, 403);
     }
 
@@ -448,6 +454,12 @@ serve(async (req) => {
         Number.isFinite(Number(custom_cancellation_fee_amount)) &&
         Number(custom_cancellation_fee_amount) >= 0
       ? roundCurrency(Number(custom_cancellation_fee_amount))
+      : null;
+
+    const parsedCustomFeePercent = custom_cancellation_fee_percent != null &&
+        Number.isFinite(Number(custom_cancellation_fee_percent)) &&
+        Number(custom_cancellation_fee_percent) >= 0
+      ? Math.min(100, Math.max(0, Number(custom_cancellation_fee_percent)))
       : null;
 
     if (needsStripe && !skipStripe && !paymentInfo?.stripe_payment_intent_id) {
@@ -499,33 +511,30 @@ serve(async (req) => {
     }
 
     const hasCapturablePaymentIntentHold = livePaymentIntent?.status === "requires_capture";
-    const wantsLateFeeOnPaymentIntentHold =
-      (charge_late_fee || parsedCustomFee != null) &&
+    const allowStaffOverride =
       isAdmin &&
-      !needsStripe &&
+      !isPartnerBilled &&
       !skipStripe &&
-      !!paymentInfo?.stripe_payment_intent_id;
+      (needsStripe || hasCapturablePaymentIntentHold);
 
-    if (wantsLateFeeOnPaymentIntentHold && !hasCapturablePaymentIntentHold) {
-      return jsonResponse(
-        { error: getCancelMessages(lang).lateFeeHoldNotCapturableError },
-        409,
-      );
+    const hasOverride = parsedCustomFee != null || parsedCustomFeePercent != null;
+
+    const staffTier = resolveTierRefundPercent(booking, hotel, "staff");
+    const tierRefundPercent = "refund_percent" in staffTier ? staffTier.refund_percent : 0;
+
+    // If we are on a pre-auth flow (not a refund) and the PaymentIntent is no longer capturable,
+    // we cannot apply any fee (override or tier-based).
+    if (!needsStripe && !skipStripe && !!paymentInfo?.stripe_payment_intent_id) {
+      const wouldApplyFeePercent = hasOverride ? (parsedCustomFeePercent ?? null) : (100 - tierRefundPercent);
+      const wantsSomeFee = (parsedCustomFee != null && parsedCustomFee > 0) ||
+        (wouldApplyFeePercent != null && wouldApplyFeePercent > 0);
+      if (wantsSomeFee && !hasCapturablePaymentIntentHold) {
+        return jsonResponse(
+          { error: getCancelMessages(lang).lateFeeHoldNotCapturableError },
+          409,
+        );
+      }
     }
-
-    const applyStaffLateFee =
-      charge_late_fee &&
-      isAdmin &&
-      !isPartnerBilled &&
-      !skipStripe &&
-      (needsStripe || hasCapturablePaymentIntentHold);
-
-    const applyStaffCustomFee =
-      parsedCustomFee != null &&
-      isAdmin &&
-      !isPartnerBilled &&
-      !skipStripe &&
-      (needsStripe || hasCapturablePaymentIntentHold);
 
     if (livePaymentIntent) {
       if (livePaymentIntent.status === "succeeded") {
@@ -552,19 +561,14 @@ serve(async (req) => {
               feeApplied = tierAmounts.feeApplied;
               refundAmount = tierAmounts.refundAmount;
             }
-          } else if (applyStaffCustomFee || applyStaffLateFee) {
-            const staffAmounts = resolveStaffCancellationAmounts(
-              depositAmount,
-              totalPrice,
-              hotel,
-              applyStaffLateFee,
-              applyStaffCustomFee ? parsedCustomFee : null,
-            );
-            feeApplied = staffAmounts.feeApplied;
-            refundAmount = staffAmounts.refundAmount;
           } else {
-            feeApplied = 0;
-            refundAmount = depositAmount;
+            const staffAmounts = allowStaffOverride && hasOverride
+              ? resolveStaffCancellationAmounts(depositAmount, parsedCustomFee, parsedCustomFeePercent)
+              : amountsFromRefundPercent(depositAmount, tierRefundPercent);
+            if (canApplyClientTierFinancialsOnStripe(needsStripe, skipStripe, livePaymentIntent?.status)) {
+              feeApplied = staffAmounts.feeApplied;
+              refundAmount = staffAmounts.refundAmount;
+            }
           }
 
           const feeCents = Math.min(Math.round(feeApplied * 100), refundableCents);
@@ -587,18 +591,13 @@ serve(async (req) => {
             feeApplied = tierAmounts.feeApplied;
           }
           refundAmount = 0;
-        } else if (applyStaffCustomFee || applyStaffLateFee) {
-          const staffAmounts = resolveStaffCancellationAmounts(
-            depositAmount,
-            totalPrice,
-            hotel,
-            applyStaffLateFee,
-            applyStaffCustomFee ? parsedCustomFee : null,
-          );
-          feeApplied = staffAmounts.feeApplied;
-          refundAmount = 0;
         } else {
-          feeApplied = 0;
+          const staffAmounts = allowStaffOverride && hasOverride
+            ? resolveStaffCancellationAmounts(depositAmount, parsedCustomFee, parsedCustomFeePercent)
+            : amountsFromRefundPercent(depositAmount, tierRefundPercent);
+          if (canApplyClientTierFinancialsOnStripe(needsStripe, skipStripe, livePaymentIntent?.status)) {
+            feeApplied = staffAmounts.feeApplied;
+          }
           refundAmount = 0;
         }
 
@@ -628,17 +627,15 @@ serve(async (req) => {
     } else if (
       !isPublicTokenRequest &&
       !livePaymentIntent &&
-      (applyStaffCustomFee || applyStaffLateFee)
+      (allowStaffOverride || !isPublicTokenRequest)
     ) {
-      const staffAmounts = resolveStaffCancellationAmounts(
-        depositAmount,
-        totalPrice,
-        hotel,
-        applyStaffLateFee,
-        applyStaffCustomFee ? parsedCustomFee : null,
-      );
-      feeApplied = staffAmounts.feeApplied;
-      refundAmount = skipStripe ? 0 : staffAmounts.refundAmount;
+      const staffAmounts = allowStaffOverride && hasOverride
+        ? resolveStaffCancellationAmounts(depositAmount, parsedCustomFee, parsedCustomFeePercent)
+        : amountsFromRefundPercent(depositAmount, tierRefundPercent);
+      if (canApplyClientTierFinancialsOnStripe(needsStripe, skipStripe, null)) {
+        feeApplied = staffAmounts.feeApplied;
+        refundAmount = skipStripe ? 0 : staffAmounts.refundAmount;
+      }
     }
 
     const { data: cancelledRows, error: cancelUpdateError } = await supabase

@@ -1492,8 +1492,6 @@ export type Database = {
           booking_hold_duration_minutes: number
           booking_hold_enabled: boolean
           calendar_color: string | null
-          cancellation_fee_amount: number | null
-          cancellation_fee_type: string | null
           cancellation_tiers: Json | null
           cancellation_policy_text_en: string | null
           cancellation_policy_text_fr: string | null
@@ -1543,8 +1541,6 @@ export type Database = {
           booking_hold_duration_minutes?: number
           booking_hold_enabled?: boolean
           calendar_color?: string | null
-          cancellation_fee_amount?: number | null
-          cancellation_fee_type?: string | null
           cancellation_tiers?: Json | null
           cancellation_policy_text_en?: string | null
           cancellation_policy_text_fr?: string | null
@@ -1594,8 +1590,6 @@ export type Database = {
           booking_hold_duration_minutes?: number
           booking_hold_enabled?: boolean
           calendar_color?: string | null
-          cancellation_fee_amount?: number | null
-          cancellation_fee_type?: string | null
           cancellation_tiers?: Json | null
           cancellation_policy_text_en?: string | null
           cancellation_policy_text_fr?: string | null

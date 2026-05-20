@@ -946,90 +946,36 @@ export function VenueGeneralTab({
 
           <Separator />
 
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-              Frais d&apos;annulation tardive (admin)
+          <div className="mt-4 space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Texte affiché dans la modale d&apos;annulation (client et staff). Laissez vide pour un résumé automatique basé sur les tranches.
             </p>
-            <p className="text-xs text-muted-foreground mb-4">
-              Valeur par défaut dans la modale admin (surchargeable). Réservations carte uniquement.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name={"cancellation_fee_type" as keyof VenueWizardFormValues}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type de frais</FormLabel>
-                    <Select
-                      value={String(field.value ?? "none")}
-                      onValueChange={field.onChange}
-                      disabled={disabled}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Aucun</SelectItem>
-                        <SelectItem value="fixed">Montant fixe</SelectItem>
-                        <SelectItem value="percentage">Pourcentage du total</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {form.watch("cancellation_fee_type" as keyof VenueWizardFormValues) !== "none" && (
-                <FormField
-                  control={form.control}
-                  name={"cancellation_fee_amount" as keyof VenueWizardFormValues}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {form.watch("cancellation_fee_type" as keyof VenueWizardFormValues) === "percentage"
-                          ? "Pourcentage (%)"
-                          : "Montant (€)"}
-                      </FormLabel>
-                      <FormControl>
-                        <Input type="number" min="0" step="0.01" {...field} value={String(field.value ?? "0")} disabled={disabled} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <FormField
+              control={form.control}
+              name={"cancellation_policy_text_fr" as keyof VenueWizardFormValues}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Politique d&apos;annulation (FR)</FormLabel>
+                  <FormControl>
+                    <Textarea rows={3} {...field} value={String(field.value ?? "")} disabled={disabled} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            </div>
-            <div className="mt-4 space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Texte affiché dans la modale d&apos;annulation (client et admin). Laissez vide pour le texte par défaut selon les frais configurés.
-              </p>
-              <FormField
-                control={form.control}
-                name={"cancellation_policy_text_fr" as keyof VenueWizardFormValues}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Politique d&apos;annulation (FR)</FormLabel>
-                    <FormControl>
-                      <Textarea rows={3} {...field} value={String(field.value ?? "")} disabled={disabled} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name={"cancellation_policy_text_en" as keyof VenueWizardFormValues}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Politique d&apos;annulation (EN)</FormLabel>
-                    <FormControl>
-                      <Textarea rows={3} {...field} value={String(field.value ?? "")} disabled={disabled} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            />
+            <FormField
+              control={form.control}
+              name={"cancellation_policy_text_en" as keyof VenueWizardFormValues}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Politique d&apos;annulation (EN)</FormLabel>
+                  <FormControl>
+                    <Textarea rows={3} {...field} value={String(field.value ?? "")} disabled={disabled} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </CardContent>
       </Card>

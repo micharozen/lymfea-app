@@ -195,6 +195,7 @@ export function BookingDetailDialog({
 
     {booking && (
       <CancelBookingDialog
+        stackedOnDialog
         isOpen={showCancelDialog}
         onClose={() => setShowCancelDialog(false)}
         onSuccess={() => {
@@ -211,6 +212,8 @@ export function BookingDetailDialog({
           status: booking.status,
           payment_method: booking.payment_method,
           payment_status: booking.payment_status,
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
         }}
         userRole={isConcierge ? "concierge" : "admin"}
       />

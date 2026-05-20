@@ -470,9 +470,14 @@ const PwaBookingDetail = () => {
     if (!booking || updating) return;
     setUpdating(true);
     try {
-      const { error } = await supabase.from("bookings").update({ status: "noshow" }).eq("id", booking.id);
+      const { data, error } = await invokeEdgeFunction<{ bookingId: string; reason?: string }, { success?: boolean; error?: string }>(
+        "mark-booking-noshow",
+        {
+          body: { bookingId: booking.id },
+        },
+      );
       if (error) throw error;
-      await invokeEdgeFunction('notify-noshow', { body: { bookingId: booking.id } });
+      if (data?.error) throw new Error(data.error);
       toast.success(t('bookingDetail.noShowSuccess'));
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error: unknown) {
@@ -1006,6 +1011,8 @@ const PwaBookingDetail = () => {
           status: booking.status,
           payment_method: booking.payment_method,
           payment_status: booking.effective_payment_status ?? booking.payment_status,
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
         }}
         userRole="therapist"
       />
