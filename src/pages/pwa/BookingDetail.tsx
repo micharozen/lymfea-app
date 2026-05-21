@@ -341,6 +341,7 @@ const PwaBookingDetail = () => {
     try {
       const { data, error } = await invokeStripe<{ success?: boolean; error?: string }>('charge-saved-card', {
         bookingId: booking.id,
+        hotelId: booking.hotel_id,
         finalAmount: amount,
       });
       if (error || !data?.success) throw new Error(data?.error || "Échec débit");
