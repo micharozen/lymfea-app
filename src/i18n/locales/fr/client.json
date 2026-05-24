@@ -550,5 +550,9 @@
       "selectedCountPlural": "{{count}} soins sélectionnés",
       "extraDuration": "+{{min}} min au total"
     }
+  },
+  "manageBooking": {
+    "cancelSuccessTitle": "Réservation annulée",
+    "cancelSuccessDescription": "Un email de confirmation vous a été envoyé."
   }
 }

@@ -558,7 +558,13 @@ try {
     const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);
     const effectiveTotalPrice = basePrice + surcharge.surchargeAmount;
     const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
-    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'paid' : 'pending');
+    const effectivePaymentStatus = isOffert
+      ? 'offert'
+      : paymentMethod === 'room'
+        ? 'charged_to_room'
+        : paymentMethod === 'gift_amount'
+          ? 'paid'
+          : 'pending';
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Find or create customer by phone
@@ -747,6 +753,21 @@ try {
         })
         .eq('id', bookingId);
       if (surchargeErr) console.error('Surcharge flags update failed (non-blocking):', surchargeErr);
+    }
+
+    // Room billing: ensure booking_payment_infos exists for cancellation lifecycle tracking.
+    if (paymentMethod === 'room' && !isOffert) {
+      const { error: roomPaymentInfoError } = await supabase
+        .from('booking_payment_infos')
+        .insert({
+          booking_id: bookingId,
+          customer_id: customerId || null,
+          estimated_price: effectiveTotalPrice,
+          payment_status: 'charged',
+        });
+      if (roomPaymentInfoError) {
+        console.error('Failed to insert booking_payment_infos for room payment:', roomPaymentInfoError);
+      }
     }
 
     // --- Bundle handling ---

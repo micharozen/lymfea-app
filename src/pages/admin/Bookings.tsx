@@ -27,6 +27,7 @@ import {
   BookingListView,
   SendPaymentLinkDialog,
 } from "@/components/booking";
+import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import {
   CalendarSidebarDesktop,
   CalendarSidebarMobile,
@@ -87,6 +88,7 @@ useEffect(() => {
   // Payment link state
   const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
   const [paymentLinkBooking, setPaymentLinkBooking] = useState<BookingWithTreatments | null>(null);
+  const [cancelBooking, setCancelBooking] = useState<BookingWithTreatments | null>(null);
 
   // Filters
   const {
@@ -187,7 +189,7 @@ useEffect(() => {
   // Pagination calculations
   const paginatedBookings =
     filteredBookings?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) ?? [];
-  const totalListColumns = 10;
+  const totalListColumns = 11;
   const emptyRowsCount = Math.max(0, itemsPerPage - paginatedBookings.length);
   const totalPages = Math.max(1, Math.ceil((filteredBookings?.length ?? 0) / itemsPerPage));
 
@@ -336,12 +338,14 @@ useEffect(() => {
               totalColumns={totalListColumns}
               onBookingClick={handleBookingClick}
               getHotelInfo={getHotelInfo}
+              isAdmin={isAdmin}
               isConcierge={isConcierge}
               currentPage={currentPage}
               totalPages={totalPages}
               totalItems={filteredBookings?.length ?? 0}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
+              onRequestCancel={setCancelBooking}
             />
           )}
           </div>
@@ -370,6 +374,31 @@ useEffect(() => {
         onOpenChange={setIsEditDialogOpen}
         booking={selectedBooking}
       />
+
+      {cancelBooking && (
+        <CancelBookingDialog
+          isOpen={!!cancelBooking}
+          onClose={() => setCancelBooking(null)}
+          onSuccess={() => {
+            setCancelBooking(null);
+            refetch();
+          }}
+          bookingId={cancelBooking.id}
+          booking={{
+            booking_id: cancelBooking.booking_id,
+            client_first_name: cancelBooking.client_first_name,
+            client_last_name: cancelBooking.client_last_name,
+            total_price: Number(cancelBooking.total_price),
+            hotel_id: cancelBooking.hotel_id,
+            status: cancelBooking.status,
+            payment_method: cancelBooking.payment_method,
+            payment_status: cancelBooking.payment_status,
+            booking_date: cancelBooking.booking_date,
+            booking_time: cancelBooking.booking_time,
+          }}
+          userRole={isConcierge ? "concierge" : "admin"}
+        />
+      )}
 
       {paymentLinkBooking && (
         <SendPaymentLinkDialog

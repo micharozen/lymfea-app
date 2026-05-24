@@ -549,5 +549,9 @@
       "selectedCountPlural": "{{count}} treatments selected",
       "extraDuration": "+{{min}} min total"
     }
+  },
+  "manageBooking": {
+    "cancelSuccessTitle": "Booking cancelled",
+    "cancelSuccessDescription": "A confirmation email has been sent to you."
   }
 }
