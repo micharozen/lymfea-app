@@ -93,37 +93,55 @@
     "subtitle": "Pas de frais cachés, pas d'engagement long terme. Payez à l'usage, par lieu.",
     "starter": {
       "name": "Starter",
-      "badge": "Le plus populaire",
-      "tagline": "Pour un spa, un hôtel boutique ou un day spa indépendant.",
+      "tagline": "Pour un day spa ou hôtel boutique, sans intégration PMS.",
       "priceFrom": "À partir de",
+      "price": "149 €",
       "unit": "HT / mois / lieu",
       "features": {
-        "agenda": "Agenda unifié, multi-thérapeutes, multi-salles",
+        "agenda": "Agenda unifié multi-thérapeutes & multi-salles",
         "pwa": "Application mobile thérapeute (iOS & Android)",
         "booking": "Booking client en ligne + QR code en chambre",
-        "billing": "Facturation & paiements Stripe inclus",
+        "payments": "Paiements Stripe intégrés",
         "giftcards": "Cartes cadeaux & bundles de soins",
         "support": "Support email & onboarding accompagné"
       },
       "cta": "Démarrer avec Starter",
-      "note": "Essai gratuit de 14 jours. Sans engagement, sans CB."
+      "note": "Essai gratuit de 14 jours. Sans engagement."
     },
-    "custom": {
-      "name": "Custom",
-      "tagline": "Pour les chaînes, les groupes hôteliers et les besoins sur-mesure.",
+    "pro": {
+      "name": "Pro",
+      "badge": "Le plus populaire",
+      "tagline": "Pour les hôtels avec PMS et facturation automatisée.",
+      "priceFrom": "À partir de",
+      "price": "249 €",
+      "unit": "HT / mois / lieu",
+      "features": {
+        "everything_starter": "Tout Starter, inclus",
+        "pms": "Intégration PMS Opera Cloud & Mews",
+        "roomcharge": "Room charge automatique sur note de chambre",
+        "billing": "Facturation automatique mensuelle hôtel & thérapeutes",
+        "reports": "Rapports journaliers générés automatiquement",
+        "priority_support": "Support prioritaire & SLA garanti"
+      },
+      "cta": "Démarrer avec Pro",
+      "note": "Essai gratuit de 14 jours. Sans engagement."
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "tagline": "Pour les groupes hôteliers et besoins sur-mesure.",
       "priceLabel": "Tarification",
       "price": "Sur devis",
-      "unit": "selon volume & intégrations",
       "features": {
-        "multivenue": "Multi-établissements & consolidation",
-        "pms": "Intégrations PMS Opera Cloud & Mews",
-        "branding": "White-label & domaine personnalisé",
-        "sla": "SLA dédié & support prioritaire 7j/7"
+        "everything_pro": "Tout Pro, inclus",
+        "multisite": "Multi-établissements & reporting consolidé",
+        "whitelabel": "White-label & domaine personnalisé",
+        "sla": "SLA dédié & support 7j/7",
+        "account_manager": "Account manager dédié"
       },
       "cta": "Contacter l'équipe",
       "note": "Réponse sous 24h ouvrées."
     },
-    "footnote": "Tous les prix sont en euros HT. Tarif dégressif au-delà de 5 lieux."
+    "footnote": "Tous les prix sont en euros HT. Tarif dégressif au-delà de 3 lieux."
   },
   "cta": {
     "title": "Prêt à moderniser votre spa ?",

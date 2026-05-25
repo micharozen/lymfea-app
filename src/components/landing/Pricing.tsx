@@ -4,8 +4,22 @@ import { ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BRAND_DEMO_CTA } from "./constants";
 
-const STARTER_FEATURES = ["agenda", "pwa", "booking", "billing", "giftcards", "support"] as const;
-const CUSTOM_FEATURES = ["multivenue", "pms", "branding", "sla"] as const;
+const STARTER_FEATURES = ["agenda", "pwa", "booking", "payments", "giftcards", "support"] as const;
+const PRO_FEATURES = [
+  "everything_starter",
+  "pms",
+  "roomcharge",
+  "billing",
+  "reports",
+  "priority_support",
+] as const;
+const ENTERPRISE_FEATURES = [
+  "everything_pro",
+  "multisite",
+  "whitelabel",
+  "sla",
+  "account_manager",
+] as const;
 
 export const Pricing = () => {
   const { t } = useTranslation("landing");
@@ -31,21 +45,15 @@ export const Pricing = () => {
           </p>
         </motion.div>
 
-        <div className="mt-14 grid gap-6 lg:grid-cols-2">
+        <div className="mt-14 grid items-stretch gap-6 lg:grid-cols-3">
           {/* Starter tier */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.6 }}
-            className="relative overflow-hidden rounded-3xl border-2 border-gold-400 bg-card p-8 shadow-[0_30px_60px_-20px_rgba(150,110,60,0.18)] md:p-10"
+            className="relative flex flex-col overflow-hidden rounded-3xl border border-border bg-card p-8 md:p-10"
           >
-            <div className="absolute right-6 top-6">
-              <span className="inline-flex items-center rounded-full bg-gold-100 px-3 py-1 text-xs font-medium text-gold-800">
-                {t("pricing.starter.badge")}
-              </span>
-            </div>
-
             <div className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
               {t("pricing.starter.name")}
             </div>
@@ -54,7 +62,9 @@ export const Pricing = () => {
             <div className="mt-6">
               <div className="text-sm text-muted-foreground">{t("pricing.starter.priceFrom")}</div>
               <div className="mt-1 flex items-baseline gap-2">
-                <span className="font-serif text-5xl text-foreground md:text-6xl">89 €</span>
+                <span className="font-serif text-5xl text-foreground md:text-6xl">
+                  {t("pricing.starter.price")}
+                </span>
                 <span className="text-sm text-muted-foreground">{t("pricing.starter.unit")}</span>
               </div>
             </div>
@@ -70,68 +80,130 @@ export const Pricing = () => {
               ))}
             </ul>
 
-            <Button
-              asChild
-              size="lg"
-              className="group mt-10 h-12 w-full bg-foreground text-base text-background hover:bg-foreground/90"
-            >
-              <a href={BRAND_DEMO_CTA}>
-                {t("pricing.starter.cta")}
-                <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </a>
-            </Button>
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              {t("pricing.starter.note")}
-            </p>
+            <div className="mt-auto pt-10">
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="group h-12 w-full border-foreground/20 bg-transparent text-base text-foreground hover:bg-foreground/5"
+              >
+                <a href={BRAND_DEMO_CTA}>
+                  {t("pricing.starter.cta")}
+                  <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </a>
+              </Button>
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                {t("pricing.starter.note")}
+              </p>
+            </div>
           </motion.div>
 
-          {/* Custom tier */}
+          {/* Pro tier — highlighted */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-foreground via-foreground to-[#2a1f10] p-8 text-background md:p-10"
+            className="relative flex flex-col overflow-hidden rounded-3xl border-2 border-gold-400 bg-card p-8 shadow-[0_30px_60px_-20px_rgba(150,110,60,0.22)] md:p-10 lg:-mt-4 lg:mb-4"
           >
-            <div className="text-xs font-medium uppercase tracking-[0.2em] text-gold-400">
-              {t("pricing.custom.name")}
+            <div className="absolute right-6 top-6">
+              <span className="inline-flex items-center rounded-full bg-gold-100 px-3 py-1 text-xs font-medium text-gold-800">
+                {t("pricing.pro.badge")}
+              </span>
             </div>
-            <p className="mt-2 text-sm text-background/70">{t("pricing.custom.tagline")}</p>
+
+            <div className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+              {t("pricing.pro.name")}
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">{t("pricing.pro.tagline")}</p>
 
             <div className="mt-6">
-              <div className="text-sm text-background/70">{t("pricing.custom.priceLabel")}</div>
+              <div className="text-sm text-muted-foreground">{t("pricing.pro.priceFrom")}</div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="font-serif text-5xl text-foreground md:text-6xl">
+                  {t("pricing.pro.price")}
+                </span>
+                <span className="text-sm text-muted-foreground">{t("pricing.pro.unit")}</span>
+              </div>
+            </div>
+
+            <ul className="mt-8 space-y-3">
+              {PRO_FEATURES.map((key) => (
+                <li key={key} className="flex items-start gap-3 text-sm text-foreground">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Check className="h-3 w-3" />
+                  </span>
+                  {t(`pricing.pro.features.${key}`)}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-auto pt-10">
+              <Button
+                asChild
+                size="lg"
+                className="group h-12 w-full bg-foreground text-base text-background hover:bg-foreground/90"
+              >
+                <a href={BRAND_DEMO_CTA}>
+                  {t("pricing.pro.cta")}
+                  <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </a>
+              </Button>
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                {t("pricing.pro.note")}
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Enterprise tier */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="relative flex flex-col overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-foreground via-foreground to-[#2a1f10] p-8 text-background md:p-10"
+          >
+            <div className="text-xs font-medium uppercase tracking-[0.2em] text-gold-400">
+              {t("pricing.enterprise.name")}
+            </div>
+            <p className="mt-2 text-sm text-background/70">{t("pricing.enterprise.tagline")}</p>
+
+            <div className="mt-6">
+              <div className="text-sm text-background/70">{t("pricing.enterprise.priceLabel")}</div>
               <div className="mt-1 flex items-baseline gap-2">
                 <span className="font-serif text-5xl text-background md:text-6xl">
-                  {t("pricing.custom.price")}
+                  {t("pricing.enterprise.price")}
                 </span>
               </div>
             </div>
 
             <ul className="mt-8 space-y-3">
-              {CUSTOM_FEATURES.map((key) => (
+              {ENTERPRISE_FEATURES.map((key) => (
                 <li key={key} className="flex items-start gap-3 text-sm text-background/90">
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold-500/20 text-gold-400">
                     <Check className="h-3 w-3" />
                   </span>
-                  {t(`pricing.custom.features.${key}`)}
+                  {t(`pricing.enterprise.features.${key}`)}
                 </li>
               ))}
             </ul>
 
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="group mt-10 h-12 w-full border-background/30 bg-transparent text-base text-background hover:bg-background/10 hover:text-background"
-            >
-              <a href={BRAND_DEMO_CTA}>
-                {t("pricing.custom.cta")}
-                <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </a>
-            </Button>
-            <p className="mt-3 text-center text-xs text-background/60">
-              {t("pricing.custom.note")}
-            </p>
+            <div className="mt-auto pt-10">
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="group h-12 w-full border-background/30 bg-transparent text-base text-background hover:bg-background/10 hover:text-background"
+              >
+                <a href={BRAND_DEMO_CTA}>
+                  {t("pricing.enterprise.cta")}
+                  <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </a>
+              </Button>
+              <p className="mt-3 text-center text-xs text-background/60">
+                {t("pricing.enterprise.note")}
+              </p>
+            </div>
           </motion.div>
         </div>
 
