@@ -1058,6 +1058,7 @@ export type Database = {
           id: string
           last_name: string
           must_change_password: boolean
+          organization_id: string
           phone: string
           profile_image: string | null
           status: string
@@ -1075,6 +1076,7 @@ export type Database = {
           id?: string
           last_name: string
           must_change_password?: boolean
+          organization_id?: string
           phone: string
           profile_image?: string | null
           status?: string
@@ -1092,6 +1094,7 @@ export type Database = {
           id?: string
           last_name?: string
           must_change_password?: boolean
+          organization_id?: string
           phone?: string
           profile_image?: string | null
           status?: string
@@ -1100,7 +1103,15 @@ export type Database = {
           venue_role?: string | null
           welcome_seen_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "concierges_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_treatment_bundles: {
         Row: {

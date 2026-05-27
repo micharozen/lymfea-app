@@ -89,7 +89,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (userRole === "concierge") {
         const { data: concierge } = await supabase
           .from("concierges")
-          .select("id")
+          .select("id, organization_id, organizations(name)")
           .eq("user_id", user.id)
           .maybeSingle();
 
@@ -100,11 +100,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             .eq("concierge_id", concierge.id);
 
           setHotelIds(conciergeHotels?.map((h) => h.hotel_id) || []);
+          setOrganizationId(concierge.organization_id ?? null);
+          setOrganizationName(
+            (concierge.organizations as { name: string } | null)?.name ?? null,
+          );
         } else {
           setHotelIds([]);
+          setOrganizationId(null);
+          setOrganizationName(null);
         }
-        setOrganizationId(null);
-        setOrganizationName(null);
         setIsSuperAdmin(false);
         setActiveOrganizationIdState(null);
         setHasChosenActiveOrganization(false);
