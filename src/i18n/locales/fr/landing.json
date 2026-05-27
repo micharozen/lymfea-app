@@ -93,37 +93,52 @@
     "subtitle": "Pas de frais cachés, pas d'engagement long terme. Payez à l'usage, par lieu.",
     "starter": {
       "name": "Starter",
-      "badge": "Le plus populaire",
-      "tagline": "Pour un spa, un hôtel boutique ou un day spa indépendant.",
+      "tagline": "Pour un spa indépendant ou un day spa qui démarre.",
       "priceFrom": "À partir de",
       "unit": "HT / mois / lieu",
       "features": {
         "agenda": "Agenda unifié, multi-thérapeutes, multi-salles",
         "pwa": "Application mobile thérapeute (iOS & Android)",
         "booking": "Booking client en ligne + QR code en chambre",
-        "billing": "Facturation & paiements Stripe inclus",
-        "giftcards": "Cartes cadeaux & bundles de soins",
+        "billing": "Encaissements Stripe inclus",
         "support": "Support email & onboarding accompagné"
       },
       "cta": "Démarrer avec Starter",
-      "note": "Essai gratuit de 14 jours. Sans engagement, sans CB."
+      "note": "Sans engagement. Setup en 48h."
     },
-    "custom": {
-      "name": "Custom",
-      "tagline": "Pour les chaînes, les groupes hôteliers et les besoins sur-mesure.",
+    "pro": {
+      "name": "Pro",
+      "badge": "Le plus populaire",
+      "tagline": "Pour les hôtels qui veulent intégrer leur PMS et automatiser la facturation.",
+      "priceFrom": "À partir de",
+      "unit": "HT / mois / lieu",
+      "features": {
+        "everythingStarter": "Tout ce qui est inclus dans Starter",
+        "pms": "Intégration PMS Opera Cloud & Mews",
+        "autoBilling": "Facturation automatique mensuelle",
+        "giftcards": "Cartes cadeaux & bundles de soins",
+        "multiTherapist": "Coordination multi-thérapeutes avancée",
+        "prioritySupport": "Support prioritaire et CSM dédié"
+      },
+      "cta": "Essayer Pro",
+      "note": "Essai gratuit 14 jours. Sans CB."
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "tagline": "Pour les groupes hôteliers et chaînes multi-établissements.",
       "priceLabel": "Tarification",
       "price": "Sur devis",
-      "unit": "selon volume & intégrations",
       "features": {
         "multivenue": "Multi-établissements & consolidation",
-        "pms": "Intégrations PMS Opera Cloud & Mews",
         "branding": "White-label & domaine personnalisé",
-        "sla": "SLA dédié & support prioritaire 7j/7"
+        "sla": "SLA dédié & support prioritaire 7j/7",
+        "dedicatedCSM": "Customer Success Manager dédié",
+        "customIntegrations": "Intégrations sur-mesure (PMS, ERP, BI)"
       },
       "cta": "Contacter l'équipe",
       "note": "Réponse sous 24h ouvrées."
     },
-    "footnote": "Tous les prix sont en euros HT. Tarif dégressif au-delà de 5 lieux."
+    "footnote": "Tous les prix en € HT. Tarif dégressif au-delà de 5 lieux. Facturation Stripe, paiement mensuel."
   },
   "cta": {
     "title": "Prêt à moderniser votre spa ?",
