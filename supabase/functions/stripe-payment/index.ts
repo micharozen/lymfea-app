@@ -13,6 +13,7 @@ import type Stripe from "https://esm.sh/stripe@18.5.0";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { getStripeForVenue } from "../_shared/stripe-resolver.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 import { handleCreateSetupIntent } from "./actions/createSetupIntent.ts";
 import { handleConfirmSetupIntent } from "./actions/confirmSetupIntent.ts";
@@ -71,21 +72,28 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const log = createLogger({ function: "stripe-payment", req });
+
   let body: Record<string, unknown> = {};
   try {
     const text = await req.text();
     body = text ? JSON.parse(text) : {};
   } catch {
+    log.warn("request.invalid_json");
+    await log.flush();
     return jsonResponse({ error: "Invalid JSON body" }, 400);
   }
 
   const action = typeof body.action === "string" ? body.action : null;
   if (!action) {
+    await log.flush();
     return jsonResponse({ error: "Missing 'action' in body" }, 400);
   }
 
   const handler = actions[action];
   if (!handler) {
+    log.warn("action.unknown", { action });
+    await log.flush();
     return jsonResponse({ error: `Unknown action: ${action}` }, 400);
   }
 
@@ -93,6 +101,7 @@ serve(async (req) => {
     typeof body.hotelId === "string" && body.hotelId
       ? body.hotelId
       : null;
+  log.bind({ action, hotelId });
 
   let stripe;
   let accountId: string | null = null;
@@ -103,6 +112,8 @@ serve(async (req) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Stripe init failed";
     console.error(`[stripe-payment] resolver error for action=${action}:`, message);
+    log.error("stripe.resolver_failed", err);
+    await log.flush();
     return jsonResponse({ error: message }, 500);
   }
 
@@ -118,6 +129,15 @@ serve(async (req) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[stripe-payment] action=${action} error:`, message);
+    // Stripe declines surface here for charge-saved-card and purchase-bundle.
+    const errAny = err as { type?: string; code?: string; decline_code?: string };
+    log.error("payment.action_failed", err, {
+      stripe_error_type: errAny.type,
+      stripe_error_code: errAny.code,
+      stripe_decline_code: errAny.decline_code,
+    });
     return jsonResponse({ error: message }, 500);
+  } finally {
+    await log.flush();
   }
 });

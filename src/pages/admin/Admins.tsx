@@ -146,7 +146,7 @@ export default function Admins() {
           phone: data.phone,
           country_code: data.countryCode,
           profile_image: data.profileImage,
-          status: "En attente",
+          status: "active",
         })
         .select("id")
         .single();

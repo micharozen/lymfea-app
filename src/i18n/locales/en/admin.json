@@ -568,7 +568,20 @@
     "notifications": {
       "markAllRead": "Mark all as read",
       "allMarkedRead": "All notifications marked as read",
-      "empty": "No notifications"
+      "empty": "No notifications",
+      "columns": {
+        "type": "Type",
+        "message": "Message",
+        "date": "Date",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "status": {
+        "unread": "Unread",
+        "read": "Read"
+      },
+      "acknowledge": "Mark as read",
+      "view": "View booking"
     }
   },
   "pms": {

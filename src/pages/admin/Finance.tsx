@@ -7,23 +7,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Building2, 
-  TrendingUp, 
-  TrendingDown, 
-  Wallet, 
-  ArrowUpRight, 
-  ArrowDownRight,
+import {
+  Building2,
   RefreshCw,
-  Calendar,
   Euro,
   Users,
-  Clock
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { brand } from "@/config/brand";
+import { DailyClosureTab } from "@/components/admin/finance/DailyClosureTab";
 
 interface LedgerEntry {
   id: string;
@@ -225,107 +219,19 @@ const Finance = () => {
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Net Receivables */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Créances Hôtels (Net)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className={`text-2xl font-bold ${summary.totalReceivables >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {summary.totalReceivables >= 0 ? '+' : ''}{summary.totalReceivables.toFixed(2)}€
-              </span>
-              {summary.totalReceivables >= 0 ? (
-                <ArrowUpRight className="w-4 h-4 text-green-600" />
-              ) : (
-                <ArrowDownRight className="w-4 h-4 text-red-600" />
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {summary.totalReceivables >= 0 ? 'À recevoir des hôtels' : 'À payer aux hôtels'}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Payouts Sent */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Avances Thérapeutes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-orange-600">
-                -{summary.totalPayouts.toFixed(2)}€
-              </span>
-              <ArrowDownRight className="w-4 h-4 text-orange-600" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Cash advances versées
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Net Profit */}
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-primary">
-              <Wallet className="w-4 h-4" />
-              {`Profit Net ${brand.name}`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className={`text-2xl font-bold ${summary.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {summary.netProfit >= 0 ? '+' : ''}{summary.netProfit.toFixed(2)}€
-              </span>
-              {summary.netProfit >= 0 ? (
-                <TrendingUp className="w-4 h-4 text-green-600" />
-              ) : (
-                <TrendingDown className="w-4 h-4 text-red-600" />
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Créances - Avances
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Pending Payouts */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Payouts en attente
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-yellow-600">
-                {summary.pendingPayouts.toFixed(2)}€
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Transferts non complétés
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Tabs */}
-      <Tabs defaultValue="netting" className="space-y-4">
+      <Tabs defaultValue="closure" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="netting">🏨 Netting Hôtels</TabsTrigger>
-          <TabsTrigger value="ledger">📒 Grand Livre</TabsTrigger>
-          <TabsTrigger value="payouts">💆 Payouts Thérapeutes</TabsTrigger>
+          <TabsTrigger value="closure">📋 Clôture quotidienne</TabsTrigger>
+          <TabsTrigger value="netting" disabled title="Bientôt disponible">🏨 Netting Hôtels</TabsTrigger>
+          <TabsTrigger value="ledger" disabled title="Bientôt disponible">📒 Grand Livre</TabsTrigger>
+          <TabsTrigger value="payouts" disabled title="Bientôt disponible">💆 Payouts Thérapeutes</TabsTrigger>
         </TabsList>
+
+        {/* Daily Closure Tab */}
+        <TabsContent value="closure" className="space-y-4">
+          <DailyClosureTab />
+        </TabsContent>
 
         {/* Netting Tab */}
         <TabsContent value="netting" className="space-y-4">

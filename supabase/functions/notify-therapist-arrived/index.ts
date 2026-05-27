@@ -41,7 +41,7 @@ serve(async (req) => {
     const { data: admins, error: adminsError } = await supabaseClient
       .from("admins")
       .select("email, first_name, last_name, user_id")
-      .eq("status", "Actif");
+      .or("status.eq.active,status.eq.Actif");
 
     if (adminsError) {
       console.error("Error fetching admins:", adminsError);

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 const ACTIVE_ORG_STORAGE_KEY = "lymfea.activeOrganizationId";
 const ACTIVE_ORG_VIEW_ALL = "__all__";
@@ -66,11 +67,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setIsSuperAdmin(false);
         setActiveOrganizationIdState(null);
         setHasChosenActiveOrganization(false);
+        logger.clearContext(["userId", "role"]);
         setLoading(false);
         return;
       }
 
       setUserId(user.id);
+      logger.setContext({ userId: user.id });
 
       const { data: roleData } = await supabase
         .from("user_roles")
@@ -81,6 +84,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       const userRole = roleData?.role as "admin" | "concierge" | null;
       setRole(userRole);
+      if (userRole) logger.setContext({ role: userRole });
 
       if (userRole === "concierge") {
         const { data: concierge } = await supabase

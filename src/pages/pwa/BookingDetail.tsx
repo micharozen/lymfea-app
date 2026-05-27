@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
 import { ProposeAlternativeDialog } from "./ProposeAlternativeDialog";
+import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
 import PwaHeader from "@/components/pwa/Header";
@@ -150,6 +151,7 @@ const PwaBookingDetail = () => {
   const [tapToPayLoading, setTapToPayLoading] = useState(false);
   const [showHealthFormDialog, setShowHealthFormDialog] = useState(false);
   const [showNoShowDialog, setShowNoShowDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [roomGap, setRoomGap] = useState<{ gapMinutes: number } | null>(null);
   const [showExtendDialog, setShowExtendDialog] = useState(false);
   const [extendLoading, setExtendLoading] = useState(false);
@@ -341,6 +343,7 @@ const PwaBookingDetail = () => {
     try {
       const { data, error } = await invokeStripe<{ success?: boolean; error?: string }>('charge-saved-card', {
         bookingId: booking.id,
+        hotelId: booking.hotel_id,
         finalAmount: amount,
       });
       if (error || !data?.success) throw new Error(data?.error || "Échec débit");
@@ -468,9 +471,14 @@ const PwaBookingDetail = () => {
     if (!booking || updating) return;
     setUpdating(true);
     try {
-      const { error } = await supabase.from("bookings").update({ status: "noshow" }).eq("id", booking.id);
+      const { data, error } = await invokeEdgeFunction<{ bookingId: string; reason?: string }, { success?: boolean; error?: string }>(
+        "mark-booking-noshow",
+        {
+          body: { bookingId: booking.id },
+        },
+      );
       if (error) throw error;
-      await invokeEdgeFunction('notify-noshow', { body: { bookingId: booking.id } });
+      if (data?.error) throw new Error(data.error);
       toast.success(t('bookingDetail.noShowSuccess'));
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error: unknown) {
@@ -885,6 +893,9 @@ const PwaBookingDetail = () => {
           <div className="p-4 space-y-2">
             <button onClick={() => { setShowContactDrawer(false); setShowNoShowDialog(true); }} className="flex items-center gap-3 p-4 bg-amber-50 text-amber-800 rounded-xl w-full font-medium"><UserX className="w-5 h-5"/> {t('bookingDetail.noShow')}</button>
             <button onClick={() => setShowUnassignDialog(true)} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X/> Désassigner</button>
+            {['pending', 'confirmed'].includes(booking.status) && (
+              <button onClick={() => { setShowContactDrawer(false); setShowCancelDialog(true); }} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X className="w-5 h-5"/> {t("booking.cancelBooking")}</button>
+            )}
           </div>
         </DrawerContent>
       </Drawer>
@@ -925,7 +936,7 @@ const PwaBookingDetail = () => {
         totalPrice={totalPrice} 
         isAlreadyPaid={booking.effective_payment_status === 'paid' || booking.effective_payment_status === 'card_saved'} 
       />
-      <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} vatRate={booking.hotel_vat || 20} venueType={booking.venue_type} roomNumber={booking.room_number} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} hasSavedCard={booking.effective_payment_status === 'card_saved'} />
+      <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} hotelId={booking.hotel_id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} vatRate={booking.hotel_vat || 20} venueType={booking.venue_type} roomNumber={booking.room_number} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} hasSavedCard={booking.effective_payment_status === 'card_saved'} />
       
       <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Supprimer ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>Oui</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Désassigner ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={handleUnassignBooking}>Confirmer</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
@@ -982,6 +993,29 @@ const PwaBookingDetail = () => {
           phone: booking.phone,
         }}
         onProposalSent={() => navigate("/pwa/dashboard", { state: { forceRefresh: true } })}
+      />
+
+      <CancelBookingDialog
+        isOpen={showCancelDialog}
+        onClose={() => setShowCancelDialog(false)}
+        onSuccess={() => {
+          setShowCancelDialog(false);
+          navigate("/pwa/bookings");
+        }}
+        bookingId={booking.id}
+        booking={{
+          booking_id: booking.booking_id,
+          client_first_name: booking.client_first_name,
+          client_last_name: booking.client_last_name,
+          total_price: Number(booking.total_price),
+          hotel_id: booking.hotel_id,
+          status: booking.status,
+          payment_method: booking.payment_method,
+          payment_status: booking.effective_payment_status ?? booking.payment_status,
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
+        }}
+        userRole="therapist"
       />
     </div>
   );

@@ -117,7 +117,7 @@ async function triggerBookingNotifications(
   bookingIds: string[],
 ): Promise<void> {
   await Promise.all(
-    bookingIds.map((bookingId) =>
+    bookingIds.flatMap((bookingId) => [
       supabase.functions
         .invoke("trigger-new-booking-notifications", {
           body: { bookingId, notifyAll: true },
@@ -125,7 +125,17 @@ async function triggerBookingNotifications(
         .catch((err: unknown) =>
           console.error(`[CONFIRM-SETUP] Notif error for ${bookingId}:`, err),
         ),
-    ),
+      supabase.functions
+        .invoke("notify-admin-new-booking", {
+          body: { bookingId },
+        })
+        .catch((err: unknown) =>
+          console.error(
+            `[CONFIRM-SETUP] Admin email error for ${bookingId}:`,
+            err,
+          ),
+        ),
+    ]),
   );
 }
 
@@ -202,6 +212,25 @@ export async function handleConfirmSetupIntent(
     typeof setupIntent?.payment_method !== "string"
       ? (setupIntent?.payment_method as Stripe.PaymentMethod)?.card
       : null;
+
+  console.log("[CONFIRM-SETUP] session state", {
+    sessionStatus: session.status,
+    setupIntentId: setupIntent?.id,
+    paymentMethodType: typeof setupIntent?.payment_method,
+    paymentMethodId,
+  });
+
+  let resolvedPaymentMethodId = paymentMethodId;
+  if (setupIntent?.id && !resolvedPaymentMethodId) {
+    console.warn("[CONFIRM-SETUP] paymentMethodId null — fetching SetupIntent directly");
+    const fullSI = await stripe.setupIntents.retrieve(setupIntent.id, {
+      expand: ["payment_method"],
+    });
+    resolvedPaymentMethodId = typeof fullSI.payment_method === "string"
+      ? fullSI.payment_method
+      : (fullSI.payment_method as Stripe.PaymentMethod)?.id;
+    console.log("[CONFIRM-SETUP] resolved paymentMethodId from SI:", resolvedPaymentMethodId);
+  }
 
   // ── MULTI-BOOKING PATH ───────────────────────────────────────────
   if (meta.isMulti === "1") {
@@ -296,6 +325,7 @@ export async function handleConfirmSetupIntent(
           therapist_id: null,
           is_out_of_hours: slotSurcharge.isOutOfHours,
           surcharge_amount: slotSurcharge.surchargeAmount,
+          payment_status: "card_saved",
         }).eq("id", newId);
 
         await supabase.from("booking_treatments").insert({
@@ -307,11 +337,11 @@ export async function handleConfirmSetupIntent(
         slotCreatedIds.push(newId);
       }
 
-      if (paymentMethodId && setupIntent) {
+      if (resolvedPaymentMethodId && setupIntent) {
         await insertPaymentInfo(supabase, {
           bookingId: slotCreatedIds[0],
           customerId,
-          paymentMethodId,
+          paymentMethodId: resolvedPaymentMethodId,
           setupIntentId: setupIntent.id,
           sessionId,
           cardBrand: paymentMethodCard?.brand,
@@ -340,7 +370,7 @@ export async function handleConfirmSetupIntent(
         client_note: meta.note || null,
         status: "pending",
         payment_method: "card",
-        payment_status: "pending",
+        payment_status: "card_saved",
         customer_id: customerId,
       })
       .in("id", multiBookingIds)
@@ -356,11 +386,11 @@ export async function handleConfirmSetupIntent(
     // booking_payment_infos.stripe_session_id has a UNIQUE constraint, so we
     // attach the row to the first booking only. Sibling bookings of the group
     // are linked via booking_group_id.
-    if (paymentMethodId && setupIntent) {
+    if (resolvedPaymentMethodId && setupIntent) {
       await insertPaymentInfo(supabase, {
         bookingId: multiBookingIds[0],
         customerId,
-        paymentMethodId,
+        paymentMethodId: resolvedPaymentMethodId,
         setupIntentId: setupIntent.id,
         sessionId,
         cardBrand: paymentMethodCard?.brand,
@@ -447,6 +477,7 @@ export async function handleConfirmSetupIntent(
         therapist_id: null,
         is_out_of_hours: surcharge.isOutOfHours,
         surcharge_amount: surcharge.surchargeAmount,
+        payment_status: "card_saved",
       }).eq("id", bookingId);
     } else {
       const { error: updateError } = await supabase
@@ -460,7 +491,7 @@ export async function handleConfirmSetupIntent(
           client_note: meta.note || null,
           status: "pending",
           payment_method: "card",
-          payment_status: "pending",
+          payment_status: "card_saved",
           total_price: verifiedPrice,
           customer_id: customerId,
           therapist_id: null,
@@ -500,6 +531,7 @@ export async function handleConfirmSetupIntent(
       therapist_id: null,
       is_out_of_hours: surcharge.isOutOfHours,
       surcharge_amount: surcharge.surchargeAmount,
+      payment_status: "card_saved",
     }).eq("id", bookingId);
   }
 
@@ -561,11 +593,11 @@ export async function handleConfirmSetupIntent(
     }
   }
 
-  if (paymentMethodId && setupIntent) {
+  if (resolvedPaymentMethodId && setupIntent) {
     await insertPaymentInfo(supabase, {
       bookingId,
       customerId,
-      paymentMethodId,
+      paymentMethodId: resolvedPaymentMethodId,
       setupIntentId: setupIntent.id,
       sessionId,
       cardBrand: paymentMethodCard?.brand,
