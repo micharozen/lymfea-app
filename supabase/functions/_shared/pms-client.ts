@@ -256,6 +256,7 @@ export function buildPmsConfigFromRow(pmsType: string, row: Record<string, any>)
     case 'mews':
       return {
         baseUrl: row.api_url,
+        clientToken: row.client_token,
         accessToken: row.access_token,
         serviceId: row.service_id,
         accountingCategoryId: row.accounting_category_id || undefined,
