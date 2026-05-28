@@ -119,6 +119,7 @@ async function mewsLookupGuestByRoom(
           lastName: customer.LastName || '',
           email: customer.Email || undefined,
           phone: customer.Phone || undefined,
+          accountId: customerId,
           reservationId: reservation.Id,
           checkIn: reservation.StartUtc || undefined,
           checkOut: reservation.EndUtc || undefined,
@@ -156,6 +157,12 @@ async function mewsPostCharge(
       }],
       Notes: `Lymfea ${params.referenceNumber}`,
     };
+    if (params.consumptionUtc) {
+      body.ConsumptionUtc = params.consumptionUtc;
+    }
+    if (params.linkedReservationId) {
+      body.LinkedReservationId = params.linkedReservationId;
+    }
 
     const response = await mewsFetch(config, 'orders/add', body);
 
