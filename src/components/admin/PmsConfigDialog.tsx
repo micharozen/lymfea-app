@@ -47,6 +47,7 @@ const pmsConfigSchema = z.object({
   pms_hotel_id: z.string().optional(),
   // Mews fields
   mews_environment: z.enum(["demo", "production"]).optional(),
+  client_token: z.string().optional(),
   access_token: z.string().optional(),
   service_id: z.string().optional(),
   accounting_category_id: z.string().optional(),
@@ -95,6 +96,7 @@ export function PmsConfigDialog({
     error?: string;
   } | null>(null);
   const [hasExistingSecret, setHasExistingSecret] = useState(false);
+  const [hasExistingClientToken, setHasExistingClientToken] = useState(false);
   const [hasExistingAccessToken, setHasExistingAccessToken] = useState(false);
 
   const form = useForm<PmsConfigFormValues>({
@@ -108,6 +110,7 @@ export function PmsConfigDialog({
       enterprise_id: "",
       pms_hotel_id: "",
       mews_environment: "production",
+      client_token: "",
       access_token: "",
       service_id: "",
       accounting_category_id: "",
@@ -151,6 +154,7 @@ export function PmsConfigDialog({
           enterprise_id: config.enterprise_id || "",
           pms_hotel_id: config.pms_hotel_id || "",
           mews_environment: mewsEnv,
+          client_token: "", // Never pre-fill token
           access_token: "", // Never pre-fill token
           service_id: config.service_id || "",
           accounting_category_id: config.accounting_category_id || "",
@@ -158,6 +162,7 @@ export function PmsConfigDialog({
           guest_lookup_enabled: config.guest_lookup_enabled || false,
         });
         setHasExistingSecret(!!config.client_secret);
+        setHasExistingClientToken(!!config.client_token);
         setHasExistingAccessToken(!!config.access_token);
       } else {
         form.reset({
@@ -169,6 +174,7 @@ export function PmsConfigDialog({
           enterprise_id: "",
           pms_hotel_id: "",
           mews_environment: "production",
+          client_token: "",
           access_token: "",
           service_id: "",
           accounting_category_id: "",
@@ -176,6 +182,7 @@ export function PmsConfigDialog({
           guest_lookup_enabled: false,
         });
         setHasExistingSecret(false);
+        setHasExistingClientToken(false);
         setHasExistingAccessToken(false);
       }
 
@@ -257,6 +264,7 @@ export function PmsConfigDialog({
 
         toast.success(t("pms.saved"));
         setHasExistingSecret(false);
+        setHasExistingClientToken(false);
         setHasExistingAccessToken(false);
         return;
       }
@@ -288,6 +296,9 @@ export function PmsConfigDialog({
         configData.service_id = values.service_id;
         configData.accounting_category_id =
           values.accounting_category_id || null;
+        if (values.client_token) {
+          configData.client_token = values.client_token;
+        }
         // Only update access_token if a new value was provided
         if (values.access_token) {
           configData.access_token = values.access_token;
@@ -321,6 +332,10 @@ export function PmsConfigDialog({
       if (values.pms_type === "opera_cloud" && values.client_secret) {
         setHasExistingSecret(true);
         form.setValue("client_secret", "");
+      }
+      if (values.pms_type === "mews" && values.client_token) {
+        setHasExistingClientToken(true);
+        form.setValue("client_token", "");
       }
       if (values.pms_type === "mews" && values.access_token) {
         setHasExistingAccessToken(true);
@@ -532,6 +547,36 @@ export function PmsConfigDialog({
                               </SelectItem>
                             </SelectContent>
                           </Select>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="client_token"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("pms.mewsClientToken")}</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="password"
+                              placeholder={
+                                hasExistingClientToken
+                                  ? "••••••••"
+                                  : ""
+                              }
+                            />
+                          </FormControl>
+                          {hasExistingClientToken && !field.value && (
+                            <p className="text-xs text-muted-foreground">
+                              {t("pms.secretUnchanged")}
+                            </p>
+                          )}
+                          <FormDescription className="text-xs">
+                            {t("pms.mewsClientTokenDesc")}
+                          </FormDescription>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />

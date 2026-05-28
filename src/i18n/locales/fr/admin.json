@@ -601,6 +601,8 @@
     "mewsEnvironment": "Environnement",
     "mewsProduction": "Production (api.mews.com)",
     "mewsDemo": "Demo (api.mews-demo.com)",
+    "mewsClientToken": "Client Token",
+    "mewsClientTokenDesc": "ClientToken par propriete depuis Mews Commander (Connector API)",
     "mewsAccessToken": "Access Token",
     "mewsAccessTokenDesc": "Token par propriete fourni par l'hotel depuis Mews Commander",
     "mewsServiceId": "ID Service Spa",
