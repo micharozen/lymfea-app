@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { UseFormReturn, useWatch, Control } from "react-hook-form";
+import { UseFormReturn, useWatch, Control, useFieldArray } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -71,6 +72,7 @@ import { VenueDeploymentStep, DeploymentScheduleState } from "@/components/admin
 import { VenueBookingRulesTab } from "./VenueBookingRulesTab";
 import { VenueAmenitiesTab } from "./VenueAmenitiesTab";
 import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
+import { CancellationTiersEditor } from "./CancellationTiersEditor";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
 import { slugify } from "@/lib/slugify";
@@ -908,6 +910,73 @@ export function VenueGeneralTab({
               </div>
             )}
           </div>
+
+          <Separator />
+
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+              Annulation client en ligne
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              Tranches de remboursement selon le délai avant le rendez-vous.
+            </p>
+            <FormField
+              control={form.control}
+              name={"client_cancellation_cutoff_hours" as keyof VenueWizardFormValues}
+              render={({ field }) => (
+                <FormItem className="mb-4 max-w-xs">
+                  <FormLabel>Délai minimum avant le RDV (heures)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      {...field}
+                      value={String(field.value ?? 2)}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      disabled={disabled}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <CancellationTiersEditor form={form} disabled={disabled} />
+          </div>
+
+          <Separator />
+
+          <div className="mt-4 space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Texte affiché dans la modale d&apos;annulation (client et staff). Laissez vide pour un résumé automatique basé sur les tranches.
+            </p>
+            <FormField
+              control={form.control}
+              name={"cancellation_policy_text_fr" as keyof VenueWizardFormValues}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Politique d&apos;annulation (FR)</FormLabel>
+                  <FormControl>
+                    <Textarea rows={3} {...field} value={String(field.value ?? "")} disabled={disabled} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={"cancellation_policy_text_en" as keyof VenueWizardFormValues}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Politique d&apos;annulation (EN)</FormLabel>
+                  <FormControl>
+                    <Textarea rows={3} {...field} value={String(field.value ?? "")} disabled={disabled} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </CardContent>
       </Card>
       )}
@@ -1395,3 +1464,5 @@ export function VenueGeneralTab({
     </div>
   );
 }
+
+

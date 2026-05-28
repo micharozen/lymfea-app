@@ -2,6 +2,13 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import {
+  hotelKeys,
+  bundleKeys,
+  listHotelsForOrg,
+  listTreatmentBundlesForOrg,
+} from "@shared/db";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -53,33 +60,18 @@ export function SellBundleDialog({
   const [paymentReference, setPaymentReference] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Fetch active bundles
+  const scope = useOrgScope();
+
   const { data: bundles } = useQuery({
-    queryKey: ["treatment-bundles-active"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("treatment_bundles")
-        .select("id, name, hotel_id, total_sessions, price, currency")
-        .eq("status", "active")
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
-    enabled: open,
+    queryKey: bundleKeys.list(scope, "active"),
+    enabled: open && !!scope,
+    queryFn: () => listTreatmentBundlesForOrg(supabase, scope!, { status: "active" }),
   });
 
-  // Fetch hotels for display
   const { data: hotels } = useQuery({
-    queryKey: ["hotels"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name")
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
-    enabled: open,
+    queryKey: hotelKeys.list(scope),
+    enabled: open && !!scope,
+    queryFn: () => listHotelsForOrg(supabase, scope!),
   });
 
   // Search customers

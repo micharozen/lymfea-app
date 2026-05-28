@@ -93,37 +93,52 @@
     "subtitle": "No hidden fees, no long-term contracts. Pay per location, scale as you grow.",
     "starter": {
       "name": "Starter",
-      "badge": "Most popular",
-      "tagline": "For a single spa, boutique hotel or independent day spa.",
+      "tagline": "For an independent spa or a day spa getting started.",
       "priceFrom": "Starting from",
       "unit": "excl. VAT / month / location",
       "features": {
         "agenda": "Unified schedule, multi-therapist, multi-room",
         "pwa": "Therapist mobile app (iOS & Android)",
         "booking": "Online client booking + in-room QR code",
-        "billing": "Billing & Stripe payments included",
-        "giftcards": "Gift cards & treatment bundles",
+        "billing": "Stripe payments included",
         "support": "Email support & guided onboarding"
       },
       "cta": "Start with Starter",
-      "note": "14-day free trial. No commitment, no credit card."
+      "note": "No commitment. Setup in 48h."
     },
-    "custom": {
-      "name": "Custom",
-      "tagline": "For hotel chains, groups and tailored requirements.",
+    "pro": {
+      "name": "Pro",
+      "badge": "Most popular",
+      "tagline": "For hotels who want to integrate their PMS and automate billing.",
+      "priceFrom": "Starting from",
+      "unit": "excl. VAT / month / location",
+      "features": {
+        "everythingStarter": "Everything included in Starter",
+        "pms": "Opera Cloud & Mews PMS integration",
+        "autoBilling": "Automatic monthly billing",
+        "giftcards": "Gift cards & treatment bundles",
+        "multiTherapist": "Advanced multi-therapist coordination",
+        "prioritySupport": "Priority support & dedicated CSM"
+      },
+      "cta": "Try Pro",
+      "note": "14-day free trial. No credit card."
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "tagline": "For hotel groups and multi-property chains.",
       "priceLabel": "Pricing",
       "price": "Custom quote",
-      "unit": "based on volume & integrations",
       "features": {
         "multivenue": "Multi-property & consolidated reporting",
-        "pms": "Opera Cloud & Mews PMS integrations",
         "branding": "White-label & custom domain",
-        "sla": "Dedicated SLA & priority 7/7 support"
+        "sla": "Dedicated SLA & 7/7 priority support",
+        "dedicatedCSM": "Dedicated Customer Success Manager",
+        "customIntegrations": "Custom integrations (PMS, ERP, BI)"
       },
       "cta": "Contact the team",
       "note": "Response within 24 business hours."
     },
-    "footnote": "All prices in EUR excl. VAT. Volume discount above 5 locations."
+    "footnote": "All prices in EUR excl. VAT. Volume discount above 5 locations. Monthly billing via Stripe."
   },
   "cta": {
     "title": "Ready to modernize your spa?",

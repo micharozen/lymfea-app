@@ -3,6 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import {
+  hotelKeys,
+  bundleKeys,
+  listHotelsForOrg,
+  listTreatmentBundlesForOrg,
+  listCustomerTreatmentBundlesForOrg,
+  getTreatmentBundleItemCounts,
+} from "@shared/db";
 import {
   Table,
   TableBody,
@@ -112,59 +121,35 @@ export default function Cures() {
 
   const isAdmin = userRole === "admin";
 
-  // Fetch hotels
+  const scope = useOrgScope();
+
   const { data: hotels } = useQuery({
-    queryKey: ["hotels"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name, image")
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryKey: hotelKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listHotelsForOrg(supabase, scope!),
   });
 
-  // Fetch bundle templates
   const { data: templates, isLoading: templatesLoading, refetch: refetchTemplates } = useQuery({
-    queryKey: ["treatment-bundles"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("treatment_bundles")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as TreatmentBundle[];
-    },
+    queryKey: bundleKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listTreatmentBundlesForOrg(supabase, scope!) as Promise<TreatmentBundle[]>,
   });
 
-  // Fetch bundle items count per bundle
   const { data: bundleItemCounts } = useQuery({
-    queryKey: ["treatment-bundle-item-counts"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("treatment_bundle_items")
-        .select("bundle_id");
-      if (error) throw error;
-      const counts: Record<string, number> = {};
-      for (const item of data) {
-        counts[item.bundle_id] = (counts[item.bundle_id] || 0) + 1;
-      }
-      return counts;
-    },
+    queryKey: bundleKeys.itemCounts(),
+    enabled: !!templates,
+    queryFn: () =>
+      getTreatmentBundleItemCounts(
+        supabase,
+        (templates ?? []).map((t) => t.id),
+      ),
   });
 
-  // Fetch sold bundles
   const { data: soldBundles, isLoading: soldLoading, refetch: refetchSold } = useQuery({
-    queryKey: ["customer-treatment-bundles"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customer_treatment_bundles")
-        .select("*, customers(first_name, last_name), treatment_bundles(name)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as CustomerBundle[];
-    },
+    queryKey: bundleKeys.customerBundles(scope),
+    enabled: !!scope,
+    queryFn: () =>
+      listCustomerTreatmentBundlesForOrg(supabase, scope!) as Promise<CustomerBundle[]>,
   });
 
   // Delete mutation
