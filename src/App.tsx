@@ -52,6 +52,8 @@ const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
 const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
+const Organizations = lazy(() => import("./pages/admin/Organizations"));
+const OrganizationDetail = lazy(() => import("./pages/admin/OrganizationDetail"));
 const Admins = lazy(() => import("./pages/admin/Admins"));
 const AdminDetail = lazy(() => import("./pages/admin/AdminDetail"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
@@ -523,6 +525,8 @@ const App = () => {
                               <Route path="/transactions" element={<Transactions />} />
                               <Route path="/analytics" element={<Analytics />} />
                               <Route path="/support" element={<SupportTickets />} />
+                              <Route path="/organizations" element={<Organizations />} />
+                              <Route path="/organizations/:id" element={<OrganizationDetail />} />
                               <Route path="/admins" element={<Admins />} />
                               <Route path="/admins/:id" element={<AdminDetail />} />
                               <Route path="/profile" element={<AdminProfile />} />

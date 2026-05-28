@@ -5,6 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { brand, brandLogos } from "@/config/brand";
 import { GlobalSearch } from "@/components/admin/GlobalSearch";
+import { OrganizationPickerDialog } from "@/components/admin/OrganizationPickerDialog";
+import { useUser } from "@/contexts/UserContext";
 import { ViewModeSwitcher } from "@/components/admin/ViewModeSwitcher";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import {
@@ -29,6 +31,9 @@ import {
   User,
   LogOut,
   LifeBuoy,
+  Globe,
+  Network,
+  Check,
   type LucideIcon,
 } from "lucide-react";
 
@@ -93,15 +98,29 @@ const venueManagerPrimaryItems: MenuItem[] = [
 
 const STORAGE_KEY = "lymfea-sidebar-more-open";
 
+interface SidebarOrganization {
+  id: string;
+  name: string;
+}
+
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const {
+    isSuperAdmin,
+    isAdmin,
+    organizationId,
+    organizationName,
+    activeOrganizationId,
+    setActiveOrganization,
+  } = useUser();
   const isCollapsed = state === "collapsed";
   const [adminInfo, setAdminInfo] = useState<{ firstName: string; lastName: string; profileImage: string | null } | null>(null);
   const [userRole, setUserRole] = useState<string>("...");
   const [redFlagCount, setRedFlagCount] = useState(0);
+  const [switcherOrgs, setSwitcherOrgs] = useState<SidebarOrganization[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [moreOpen, setMoreOpen] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) !== "false"; } catch { /* storage unavailable */ return true; }
@@ -229,17 +248,54 @@ export function AppSidebar() {
   };
 
   const { mode: viewMode, venueId: viewVenueId } = useViewMode();
-  const isAdmin = userRole === 'Admin';
-  const inVenueManagerView = isAdmin && viewMode === 'venue_manager';
+  const isAdminRole = userRole === 'Admin';
+  const inVenueManagerView = isAdminRole && viewMode === 'venue_manager';
 
   const venueManagerItems: MenuItem[] = venueManagerPrimaryItems;
 
   const primaryItems = inVenueManagerView
     ? venueManagerItems
-    : isAdmin
+    : isAdminRole
       ? adminPrimaryItems
       : venueManagerPrimaryItems;
-  const secondaryItems = isAdmin && !inVenueManagerView ? adminSecondaryItems : [];
+  const secondaryItems: MenuItem[] =
+    isAdminRole && !inVenueManagerView ? [...adminSecondaryItems] : [];
+
+  if (isAdminRole && !inVenueManagerView) {
+    if (isSuperAdmin) {
+      secondaryItems.push({ title: "Organisations", url: "/admin/organizations", icon: Network });
+    } else if (isAdmin && !isSuperAdmin && organizationId) {
+      secondaryItems.push({
+        title: "Mon organisation",
+        url: `/admin/organizations/${organizationId}`,
+        icon: Network,
+      });
+    }
+  }
+
+  useEffect(() => {
+    if (!isSuperAdmin) {
+      setSwitcherOrgs([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("organizations")
+        .select("id, name")
+        .order("name");
+      if (!cancelled) setSwitcherOrgs(data ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSuperAdmin]);
+
+  const activeOrgLabel = isSuperAdmin
+    ? activeOrganizationId
+      ? organizationName ?? "Organisation"
+      : "Voir tout"
+    : organizationName ?? null;
 
   const renderNavItem = (item: MenuItem) => {
     const isActive = location.pathname === item.url;
@@ -336,7 +392,7 @@ export function AppSidebar() {
           <div className="mx-3 border-t border-sidebar-border" />
           
           {/* Settings (admin only) */}
-          {isAdmin && (
+          {isAdminRole && (
             <SidebarGroup className="py-1">
               <SidebarGroupContent>
                 <SidebarMenu>
@@ -344,6 +400,49 @@ export function AppSidebar() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+          )}
+
+          {/* Organization badge / switcher */}
+          {isAdminRole && (
+            <div className="px-3 pb-2 group-data-[collapsible=icon]:hidden">
+              {isSuperAdmin ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md border border-sidebar-border hover:bg-sidebar-accent/50 transition-colors text-left">
+                      <Globe className="h-3.5 w-3.5 text-sidebar-foreground/50 flex-shrink-0" />
+                      <span className="text-[11px] text-sidebar-foreground/70 truncate flex-1">{activeOrgLabel}</span>
+                      <ChevronDown className="h-3 w-3 text-sidebar-foreground/30 flex-shrink-0" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" side="top" className="w-56 max-h-80 overflow-y-auto">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => setActiveOrganization(null)}
+                    >
+                      <Globe className="mr-2 h-4 w-4" />
+                      <span className="flex-1">Voir tout</span>
+                      {activeOrganizationId === null && <Check className="h-4 w-4" />}
+                    </DropdownMenuItem>
+                    {switcherOrgs.map((org) => (
+                      <DropdownMenuItem
+                        key={org.id}
+                        className="cursor-pointer"
+                        onClick={() => setActiveOrganization(org.id)}
+                      >
+                        <Building2 className="mr-2 h-4 w-4" />
+                        <span className="flex-1 truncate">{org.name}</span>
+                        {activeOrganizationId === org.id && <Check className="h-4 w-4" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : activeOrgLabel ? (
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-sidebar-accent/30">
+                  <Building2 className="h-3.5 w-3.5 text-sidebar-foreground/50 flex-shrink-0" />
+                  <span className="text-[11px] text-sidebar-foreground/70 truncate">{activeOrgLabel}</span>
+                </div>
+              ) : null}
+            </div>
           )}
 
           {/* Profile */}
@@ -410,6 +509,7 @@ export function AppSidebar() {
           </div>
         </div>
       </SidebarContent>
+      <OrganizationPickerDialog />
     </Sidebar>
   );
 }

@@ -41,7 +41,9 @@ export type Database = {
           email: string
           first_name: string
           id: string
+          is_super_admin: boolean
           last_name: string
+          organization_id: string | null
           phone: string
           profile_image: string | null
           status: string
@@ -55,7 +57,9 @@ export type Database = {
           email: string
           first_name: string
           id?: string
+          is_super_admin?: boolean
           last_name: string
+          organization_id?: string | null
           phone: string
           profile_image?: string | null
           status?: string
@@ -69,7 +73,9 @@ export type Database = {
           email?: string
           first_name?: string
           id?: string
+          is_super_admin?: boolean
           last_name?: string
+          organization_id?: string | null
           phone?: string
           profile_image?: string | null
           status?: string
@@ -77,7 +83,15 @@ export type Database = {
           user_id?: string | null
           welcome_seen_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admins_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       amenity_bookings: {
         Row: {
@@ -1044,6 +1058,7 @@ export type Database = {
           id: string
           last_name: string
           must_change_password: boolean
+          organization_id: string
           phone: string
           profile_image: string | null
           status: string
@@ -1061,6 +1076,7 @@ export type Database = {
           id?: string
           last_name: string
           must_change_password?: boolean
+          organization_id?: string
           phone: string
           profile_image?: string | null
           status?: string
@@ -1078,6 +1094,7 @@ export type Database = {
           id?: string
           last_name?: string
           must_change_password?: boolean
+          organization_id?: string
           phone?: string
           profile_image?: string | null
           status?: string
@@ -1086,7 +1103,15 @@ export type Database = {
           venue_role?: string | null
           welcome_seen_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "concierges_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_treatment_bundles: {
         Row: {
@@ -1346,6 +1371,13 @@ export type Database = {
             referencedRelation: "hotels"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hotel_ledger_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       hotel_payment_configs: {
@@ -1518,6 +1550,7 @@ export type Database = {
           name_en: string | null
           offert: boolean | null
           opening_time: string | null
+          organization_id: string
           out_of_hours_surcharge_percent: number | null
           payment_provider: string | null
           pms_auto_charge_room: boolean | null
@@ -1567,6 +1600,7 @@ export type Database = {
           name_en?: string | null
           offert?: boolean | null
           opening_time?: string | null
+          organization_id?: string
           out_of_hours_surcharge_percent?: number | null
           payment_provider?: string | null
           pms_auto_charge_room?: boolean | null
@@ -1616,6 +1650,7 @@ export type Database = {
           name_en?: string | null
           offert?: boolean | null
           opening_time?: string | null
+          organization_id?: string
           out_of_hours_surcharge_percent?: number | null
           payment_provider?: string | null
           pms_auto_charge_room?: boolean | null
@@ -1632,7 +1667,15 @@ export type Database = {
           vat?: number | null
           venue_type?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hotels_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoices: {
         Row: {
@@ -1776,6 +1819,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      organizations: {
+        Row: {
+          contact_email: string | null
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       otp_rate_limits: {
         Row: {
@@ -2050,6 +2123,13 @@ export type Database = {
             columns: ["therapist_id"]
             isOneToOne: false
             referencedRelation: "therapists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "therapist_payouts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -3381,6 +3461,10 @@ export type Database = {
         }[]
       }
       get_therapist_id: { Args: { _user_id: string }; Returns: string }
+      get_user_organization_id: {
+        Args: { _user_id: string }
+        Returns: string
+      }
       get_user_timezone: { Args: { _user_id: string }; Returns: string }
       get_venue_available_dates: {
         Args: { _end_date: string; _hotel_id: string; _start_date: string }
@@ -3395,6 +3479,10 @@ export type Database = {
       }
       is_booking_participant: {
         Args: { _booking_id: string; _therapist_id: string }
+        Returns: boolean
+      }
+      is_super_admin: {
+        Args: { _user_id: string }
         Returns: boolean
       }
       is_venue_available_on_date: {

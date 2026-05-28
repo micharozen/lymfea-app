@@ -542,7 +542,9 @@ export default function VenueDetail({
       };
 
       if (isNewMode && !savedHotelId) {
-        // INSERT new hotel
+        // INSERT new hotel — organization_id is auto-filled by the
+        // BEFORE INSERT trigger `hotels_default_organization_id` from the
+        // current admin's organization, so we don't need to pass it here.
         const { data: insertedHotel, error: hotelError } = await supabase
           .from("hotels")
           .insert(hotelPayload)
