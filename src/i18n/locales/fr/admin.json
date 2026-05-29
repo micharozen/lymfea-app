@@ -363,6 +363,13 @@
     "no": "Non"
   },
   "venue": {
+    "organization": {
+      "label": "Organisation",
+      "placeholder": "Sélectionner une organisation",
+      "required": "Veuillez sélectionner une organisation",
+      "loading": "Chargement…",
+      "empty": "Aucune organisation disponible"
+    },
     "finance": {
       "globalTherapistCommission": "Commission thérapeute globale",
       "globalTherapistCommissionDesc": "Appliquer le même pourcentage de commission à tous les thérapeutes",

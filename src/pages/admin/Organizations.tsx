@@ -30,6 +30,7 @@ import { TableSkeleton } from "@/components/table/TableSkeleton";
 import { TableEmptyState } from "@/components/table/TableEmptyState";
 import { useDialogState } from "@/hooks/useDialogState";
 import { cn } from "@/lib/utils";
+import { useInvalidateOrganizationsList } from "@/hooks/useOrganizationsList";
 
 interface OrganizationRow {
   id: string;
@@ -44,6 +45,7 @@ interface OrganizationRow {
 
 export default function Organizations() {
   const { isSuperAdmin, loading: userLoading } = useUser();
+  const invalidateOrganizationsList = useInvalidateOrganizationsList();
   const navigate = useNavigate();
   const [orgs, setOrgs] = useState<OrganizationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,6 +137,7 @@ export default function Organizations() {
       return;
     }
     toast.success("Organisation supprimée");
+    await invalidateOrganizationsList();
     closeDelete();
     fetchOrgs();
   };

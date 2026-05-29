@@ -4,6 +4,7 @@ import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { useInvalidateOrganizationsList } from "@/hooks/useOrganizationsList";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,7 @@ function slugify(input: string): string {
 }
 
 export function AddOrganizationDialog({ open, onClose, onSuccess }: AddOrganizationDialogProps) {
+  const invalidateOrganizationsList = useInvalidateOrganizationsList();
   const {
     url: logoUrl,
     setUrl: setLogoUrl,
@@ -102,6 +104,7 @@ export function AddOrganizationDialog({ open, onClose, onSuccess }: AddOrganizat
     }
 
     toast.success("Organisation créée");
+    await invalidateOrganizationsList();
     handleClose();
     onSuccess();
   };

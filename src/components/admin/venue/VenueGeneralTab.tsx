@@ -76,6 +76,8 @@ import { CancellationTiersEditor } from "./CancellationTiersEditor";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
 import { slugify } from "@/lib/slugify";
+import { OrganizationSelectField } from "@/components/admin/OrganizationSelectField";
+import { useUser } from "@/contexts/UserContext";
 
 // Component to display calculated Eïa commission
 function LymfeaCommissionDisplay({ control }: { control: Control<VenueWizardFormValues> }) {
@@ -166,6 +168,7 @@ export function VenueGeneralTab({
   restrictedSections,
 }: VenueGeneralTabProps) {
   const { t } = useTranslation('common');
+  const { isSuperAdmin } = useUser();
   const uploading = uploadingHotel || uploadingCover;
   const showSection = (id: VenueSectionId) =>
     !restrictedSections || restrictedSections.includes(id);
@@ -291,6 +294,16 @@ export function VenueGeneralTab({
 
   return (
     <div className="space-y-6">
+      {isSuperAdmin && mode === "add" && (
+        <div className="mt-6 mb-8 border-b border-border/60 pb-8">
+          <OrganizationSelectField
+            control={form.control}
+            name="organization_id"
+            disabled={disabled}
+          />
+        </div>
+      )}
+
       {/* Card A: Identity */}
       {showSection('identity') && (
       <Card id="identity" className="scroll-mt-32">

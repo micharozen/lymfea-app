@@ -363,6 +363,13 @@
     "no": "No"
   },
   "venue": {
+    "organization": {
+      "label": "Organization",
+      "placeholder": "Select an organization",
+      "required": "Please select an organization",
+      "loading": "Loading…",
+      "empty": "No organizations available"
+    },
     "finance": {
       "globalTherapistCommission": "Global therapist commission",
       "globalTherapistCommissionDesc": "Apply the same commission percentage to all therapists",
