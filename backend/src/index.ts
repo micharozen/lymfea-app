@@ -8,6 +8,11 @@ import health from "./routes/health";
 import availability from "./routes/availability";
 import payments from "./routes/payments";
 import webhooks from "./routes/webhooks";
+import v1 from "./routes/v1";
+import adminApiKeys from "./routes/admin/api-keys";
+
+// External API gateway middleware
+import { apiKeyMiddleware } from "./middleware/apiKey";
 
 // Cron jobs
 import { startExpiredSlotsJob } from "./jobs/expired-slots";
@@ -31,6 +36,7 @@ app.use(
       "Content-Type",
       "x-client-info",
       "apikey",
+      "X-Api-Key",
     ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     maxAge: 86400,
@@ -53,6 +59,17 @@ app.route("/payments", payments);
 
 // Webhooks (verified via Stripe signature, no JWT auth)
 app.route("/webhooks", webhooks);
+
+// ─── External API gateway (api.saoma.io) ─────────────────────────
+//
+// Entry point for third-party applications. Authenticated with a per-third-party
+// API key (apiKeyMiddleware) and exposed under a dedicated domain. Read-only,
+// no business logic — just authenticated reads from Supabase.
+app.use("/v1/*", apiKeyMiddleware);
+app.route("/v1", v1);
+
+// Admin-only management of the API keys above (JWT + admin role).
+app.route("/admin/api-keys", adminApiKeys);
 
 // ─── Migration Guide ────────────────────────────────────────────
 //
