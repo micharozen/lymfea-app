@@ -124,6 +124,10 @@
     "phone": "Phone",
     "roomNumber": "Room Number",
     "isHotelGuest": "I'm a hotel guest",
+    "hotelGuestQuestion": "Are you a guest of the hotel?",
+    "hotelGuestYes": "Yes, I'm staying here",
+    "hotelGuestNo": "No",
+    "hotelGuestHint": "Enter your room number and we'll confirm your reservation — no need to fill in your email or phone.",
     "note": "Note (optional)",
     "notePlaceholder": "Any special requests or information...",
     "continue": "CONTINUE",
@@ -136,6 +140,7 @@
       "phoneInvalid": "Invalid phone number",
       "phoneFormat": "Invalid number. Enter digits without country code, e.g.: {{format}}",
       "roomRequired": "Room number is required",
+      "pmsVerificationFailed": "We couldn't find a reservation matching this room number and name. Please check your details, or select \"No\" if you are not staying at the hotel.",
       "recipientNameRequired": "Recipient name is required",
       "recipientEmailRequired": "Recipient email is required",
       "recipientEmailInvalid": "Invalid email format"
