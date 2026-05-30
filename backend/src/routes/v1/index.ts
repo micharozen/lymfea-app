@@ -16,7 +16,7 @@ const v1 = new Hono();
 
 // Curated, safe subset of venue columns for the list endpoint.
 const VENUE_LIST_FIELDS =
-  "id,name,name_en,image,cover_image,address,postal_code,city,country,currency,venue_type,description,description_en,contact_phone,timezone";
+  "id,name,name_en,image,cover_image,address,postal_code,city,country,currency,venue_type,description,description_en,timezone";
 
 /** Returns the venue the key is restricted to, or null for platform-wide keys. */
 function scopedHotelId(c: { get: (k: string) => unknown }): string | null {
