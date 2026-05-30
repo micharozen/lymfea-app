@@ -1,48 +1,35 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
+import {
+  useInvalidateOrganizationsList,
+  useOrganizationsList,
+} from "@/hooks/useOrganizationsList";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Building2, Globe } from "lucide-react";
+import { Building2, Globe, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Organization {
-  id: string;
-  name: string;
-  logo_url: string | null;
-}
 
 export function OrganizationPickerDialog() {
   const { isSuperAdmin, hasChosenActiveOrganization, setActiveOrganization, loading } = useUser();
-  const [orgs, setOrgs] = useState<Organization[]>([]);
-  const [fetching, setFetching] = useState(false);
-
   const open = !loading && isSuperAdmin && !hasChosenActiveOrganization;
+  const invalidateOrganizationsList = useInvalidateOrganizationsList();
 
+  const { data: orgs = [], isLoading: fetching, isFetching } = useOrganizationsList({
+    enabled: open,
+  });
+
+  // Refresh list each time the picker opens (e.g. after creating an org elsewhere)
   useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-
-    (async () => {
-      setFetching(true);
-      const { data } = await supabase
-        .from("organizations")
-        .select("id, name, logo_url")
-        .order("name");
-      if (!cancelled) {
-        setOrgs(data ?? []);
-        setFetching(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open]);
+    if (open) {
+      void invalidateOrganizationsList();
+    }
+  }, [open, invalidateOrganizationsList]);
 
   const handleSelect = (id: string | null) => {
     setActiveOrganization(id);
   };
+
+  const showLoading = fetching || (isFetching && orgs.length === 0);
 
   return (
     <Dialog open={open}>
@@ -76,11 +63,14 @@ export function OrganizationPickerDialog() {
             </div>
           </button>
 
-          {fetching && (
-            <div className="py-4 text-center text-sm text-muted-foreground">Chargement…</div>
+          {showLoading && (
+            <div className="py-4 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Chargement…
+            </div>
           )}
 
-          {!fetching && orgs.length === 0 && (
+          {!showLoading && orgs.length === 0 && (
             <div className="py-4 text-center text-sm text-muted-foreground">
               Aucune organisation. Créez-en une depuis la page « Organisations ».
             </div>

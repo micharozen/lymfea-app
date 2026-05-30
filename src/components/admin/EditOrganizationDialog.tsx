@@ -5,6 +5,7 @@ import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { useInvalidateOrganizationsList } from "@/hooks/useOrganizationsList";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +61,7 @@ export function EditOrganizationDialog({
   onClose,
   onSuccess,
 }: EditOrganizationDialogProps) {
+  const invalidateOrganizationsList = useInvalidateOrganizationsList();
   const {
     url: logoUrl,
     setUrl: setLogoUrl,
@@ -124,6 +126,7 @@ export function EditOrganizationDialog({
     }
 
     toast.success("Organisation mise à jour");
+    await invalidateOrganizationsList();
     handleClose();
     onSuccess();
   };

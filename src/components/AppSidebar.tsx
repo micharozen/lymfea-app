@@ -7,6 +7,7 @@ import { brand, brandLogos } from "@/config/brand";
 import { GlobalSearch } from "@/components/admin/GlobalSearch";
 import { OrganizationPickerDialog } from "@/components/admin/OrganizationPickerDialog";
 import { useUser } from "@/contexts/UserContext";
+import { useOrganizationsList } from "@/hooks/useOrganizationsList";
 import { ViewModeSwitcher } from "@/components/admin/ViewModeSwitcher";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import {
@@ -98,11 +99,6 @@ const venueManagerPrimaryItems: MenuItem[] = [
 
 const STORAGE_KEY = "lymfea-sidebar-more-open";
 
-interface SidebarOrganization {
-  id: string;
-  name: string;
-}
-
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const location = useLocation();
@@ -120,7 +116,6 @@ export function AppSidebar() {
   const [adminInfo, setAdminInfo] = useState<{ firstName: string; lastName: string; profileImage: string | null } | null>(null);
   const [userRole, setUserRole] = useState<string>("...");
   const [redFlagCount, setRedFlagCount] = useState(0);
-  const [switcherOrgs, setSwitcherOrgs] = useState<SidebarOrganization[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [moreOpen, setMoreOpen] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) !== "false"; } catch { /* storage unavailable */ return true; }
@@ -273,23 +268,7 @@ export function AppSidebar() {
     }
   }
 
-  useEffect(() => {
-    if (!isSuperAdmin) {
-      setSwitcherOrgs([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("organizations")
-        .select("id, name")
-        .order("name");
-      if (!cancelled) setSwitcherOrgs(data ?? []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isSuperAdmin]);
+  const { data: switcherOrgs = [] } = useOrganizationsList({ enabled: isSuperAdmin });
 
   const activeOrgLabel = isSuperAdmin
     ? activeOrganizationId

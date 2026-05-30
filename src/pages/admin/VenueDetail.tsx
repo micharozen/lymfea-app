@@ -38,10 +38,13 @@ import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPrevi
 import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { formatPrice } from "@/lib/formatPrice";
-import type { VenueWizardFormValues, BlockedSlot } from "@/components/admin/VenueWizardDialog";
+import type { VenueWizardFormValues, BlockedSlot, VenueFormSchemaOptions } from "@/components/admin/VenueWizardDialog";
+import { useUser } from "@/contexts/UserContext";
+import { requireHotelOrganizationIdForInsert } from "@/lib/resolveHotelOrganizationId";
 
 // Same form schema as VenueWizardDialog
-const createFormSchema = (t: TFunction) => z.object({
+const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.object({
+  organization_id: z.string().uuid().optional().or(z.literal("")),
   name: z.string().min(1, t('errors.validation.nameRequired')),
   slug: z
     .string()
@@ -109,6 +112,13 @@ const createFormSchema = (t: TFunction) => z.object({
   if (err) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: err, path: ["cancellation_tiers"] });
   }
+  if (options?.requireOrganizationId && !data.organization_id?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: options.organizationRequiredMessage ?? "Organisation requise",
+      path: ["organization_id"],
+    });
+  }
 });
 
 interface VenueDetailProps {
@@ -133,9 +143,19 @@ export default function VenueDetail({
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation('common');
-  const formSchema = useMemo(() => createFormSchema(t), [t]);
+  const { t: tAdmin } = useTranslation('admin');
+  const { isSuperAdmin, organizationId, activeOrganizationId } = useUser();
 
   const isNewMode = !id;
+  const requireOrganizationId = isSuperAdmin && isNewMode;
+  const formSchema = useMemo(
+    () =>
+      createFormSchema(t, {
+        requireOrganizationId,
+        organizationRequiredMessage: tAdmin('venue.organization.required'),
+      }),
+    [t, tAdmin, requireOrganizationId],
+  );
   const [savedHotelId, setSavedHotelId] = useState<string | null>(id || null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -208,6 +228,8 @@ export default function VenueDetail({
   const form = useForm<VenueWizardFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      organization_id:
+        isSuperAdmin && activeOrganizationId ? activeOrganizationId : "",
       name: "",
       slug: "",
       venue_type: "hotel",
@@ -243,6 +265,15 @@ export default function VenueDetail({
       cancellation_tiers: [],
     },
   });
+
+  // Pre-fill organization when super-admin has an active org scope (sidebar switcher)
+  useEffect(() => {
+    if (!isNewMode || !isSuperAdmin || !activeOrganizationId) return;
+    const current = form.getValues("organization_id");
+    if (!current) {
+      form.setValue("organization_id", activeOrganizationId, { shouldValidate: false });
+    }
+  }, [isNewMode, isSuperAdmin, activeOrganizationId, form]);
 
   // Load data in edit mode
   useEffect(() => {
@@ -480,6 +511,7 @@ export default function VenueDetail({
       if (errors.address) missingFields.push("Adresse");
       if (errors.city) missingFields.push("Ville");
       if (errors.country) missingFields.push("Pays");
+      if (errors.organization_id) missingFields.push("Organisation");
       if (errors.hotel_commission) missingFields.push("Commission");
       toast.error(
         missingFields.length > 0
@@ -542,12 +574,14 @@ export default function VenueDetail({
       };
 
       if (isNewMode && !savedHotelId) {
-        // INSERT new hotel — organization_id is auto-filled by the
-        // BEFORE INSERT trigger `hotels_default_organization_id` from the
-        // current admin's organization, so we don't need to pass it here.
+        const organization_id = requireHotelOrganizationIdForInsert({
+          isSuperAdmin,
+          adminOrganizationId: organizationId,
+          formOrganizationId: values.organization_id,
+        });
         const { data: insertedHotel, error: hotelError } = await supabase
           .from("hotels")
-          .insert(hotelPayload)
+          .insert({ ...hotelPayload, organization_id })
           .select('id')
           .single();
 

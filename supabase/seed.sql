@@ -152,8 +152,8 @@ VALUES (
   'FR'
 );
 
--- 4) Admin record
-INSERT INTO public.admins (id, user_id, email, first_name, last_name, phone, status, country_code)
+-- 4) Admin record (super-admin for local org multitenancy testing)
+INSERT INTO public.admins (id, user_id, email, first_name, last_name, phone, status, country_code, is_super_admin, organization_id)
 VALUES (
   '00000000-0000-0000-0000-000000000101',
   '00000000-0000-0000-0000-000000000001',
@@ -161,7 +161,9 @@ VALUES (
   'Michael', 'Admin',
   '0600000001',
   'Actif',
-  '+33'
+  '+33',
+  true,
+  'a0000000-0000-0000-0000-000000000001'
 );
 
 -- 5) Therapist records (Compétences mises à jour pour matcher les soins)
