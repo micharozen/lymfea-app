@@ -16,7 +16,7 @@ const v1 = new Hono();
 
 // Curated, safe subset of venue columns for the list endpoint.
 const VENUE_LIST_FIELDS =
-  "id,name,name_en,image,cover_image,address,postal_code,city,country,currency,venue_type,description,description_en,contact_phone,timezone";
+  "id,name,name_en,image,cover_image,address,postal_code,city,country,currency,venue_type,description,description_en,timezone";
 
 /** Returns the venue the key is restricted to, or null for platform-wide keys. */
 function scopedHotelId(c: { get: (k: string) => unknown }): string | null {
@@ -40,7 +40,7 @@ v1.get("/venues", requireScope("venues:read"), async (c) => {
   const { data, error } = await query;
   if (error) {
     console.error("GET /v1/venues error:", error);
-    return c.json({ error: "Failed to fetch venues", detail: error.message, code: error.code }, 500);
+    return c.json({ error: "Failed to fetch venues" }, 500);
   }
 
   return c.json({ data });
@@ -60,7 +60,7 @@ v1.get("/venues/:id", requireScope("venues:read"), async (c) => {
   });
   if (error) {
     console.error("GET /v1/venues/:id error:", error);
-    return c.json({ error: "Failed to fetch venue", detail: error.message, code: error.code }, 500);
+    return c.json({ error: "Failed to fetch venue" }, 500);
   }
 
   const venue = Array.isArray(data) ? data[0] : data;
@@ -85,7 +85,7 @@ v1.get("/venues/:id/treatments", requireScope("treatments:read"), async (c) => {
   });
   if (error) {
     console.error("GET /v1/venues/:id/treatments error:", error);
-    return c.json({ error: "Failed to fetch treatments", detail: error.message, code: error.code }, 500);
+    return c.json({ error: "Failed to fetch treatments" }, 500);
   }
 
   return c.json({ data });
