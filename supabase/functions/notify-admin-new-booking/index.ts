@@ -179,10 +179,32 @@ serve(async (req) => {
       : null;
     if (groupTotal !== null) booking.total_price = groupTotal;
 
-    const { data: admins, error: adminsError } = await supabaseClient
+    // Resolve the organization that owns this booking's venue so we only notify
+    // admins of that org. Super-admins (Lymfea staff) are authorized cross-org
+    // and keep receiving every booking. Without this, org-admins were notified
+    // of bookings belonging to other tenants (cross-tenant leak).
+    const { data: hotelRow, error: hotelError } = await supabaseClient
+      .from("hotels")
+      .select("organization_id")
+      .eq("id", booking.hotel_id)
+      .single();
+    if (hotelError) {
+      console.error("Error resolving hotel organization:", hotelError);
+    }
+    const organizationId = hotelRow?.organization_id ?? null;
+    if (!organizationId) {
+      console.warn(`No organization_id for hotel ${booking.hotel_id}; notifying super-admins only`);
+    }
+
+    let adminsQuery = supabaseClient
       .from("admins")
       .select("email, first_name, last_name, user_id")
       .or("status.eq.active,status.eq.Actif");
+    // Org isolation: super-admins see everything; org-admins only their org.
+    adminsQuery = organizationId
+      ? adminsQuery.or(`is_super_admin.eq.true,organization_id.eq.${organizationId}`)
+      : adminsQuery.eq("is_super_admin", true);
+    const { data: admins, error: adminsError } = await adminsQuery;
 
       console.log("adminsError", adminsError);
       console.log("admins", admins);
