@@ -33,7 +33,7 @@ async function mewsFetch(
     body: JSON.stringify({
       ClientToken: config.clientToken,
       AccessToken: config.accessToken,
-      Client: 'Lymfea',
+      Client: 'saoma',
       ...body,
     }),
   });
