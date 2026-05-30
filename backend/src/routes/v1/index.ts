@@ -40,7 +40,7 @@ v1.get("/venues", requireScope("venues:read"), async (c) => {
   const { data, error } = await query;
   if (error) {
     console.error("GET /v1/venues error:", error);
-    return c.json({ error: "Failed to fetch venues" }, 500);
+    return c.json({ error: "Failed to fetch venues", detail: error.message, code: error.code }, 500);
   }
 
   return c.json({ data });
@@ -60,7 +60,7 @@ v1.get("/venues/:id", requireScope("venues:read"), async (c) => {
   });
   if (error) {
     console.error("GET /v1/venues/:id error:", error);
-    return c.json({ error: "Failed to fetch venue" }, 500);
+    return c.json({ error: "Failed to fetch venue", detail: error.message, code: error.code }, 500);
   }
 
   const venue = Array.isArray(data) ? data[0] : data;
@@ -85,7 +85,7 @@ v1.get("/venues/:id/treatments", requireScope("treatments:read"), async (c) => {
   });
   if (error) {
     console.error("GET /v1/venues/:id/treatments error:", error);
-    return c.json({ error: "Failed to fetch treatments" }, 500);
+    return c.json({ error: "Failed to fetch treatments", detail: error.message, code: error.code }, 500);
   }
 
   return c.json({ data });
