@@ -25,7 +25,7 @@ import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import type { GiftInfo } from './context/FlowContext';
 import { useVenueTerms, VenueType } from '@/hooks/useVenueTerms';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
-import { usePmsGuestLookup } from '@/hooks/usePmsGuestLookup';
+import { usePmsGuestVerify } from '@/hooks/usePmsGuestVerify';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import {
   Form,
@@ -46,20 +46,27 @@ import { ProgressBar } from '@/components/client/ProgressBar';
 const toFlagEmoji = (isoCode: string): string =>
   [...isoCode.toUpperCase()].map(c => String.fromCodePoint(c.charCodeAt(0) + 127397)).join('');
 
-const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean, isHotelGuest: boolean, isGiftCard: boolean) => z.object({
+const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean, isHotelGuest: boolean, isGiftCard: boolean) => {
+  // PMS-verified hotel guest: we collect room + name only and resolve email/phone
+  // server-side from the PMS, so those fields are optional here and the room is required.
+  const isPmsVerifiedGuest = pmsGuestLookup && isHotelGuest && !isGiftCard && !isCoworking;
+  return z.object({
   firstName: z.string().min(1, t('info.errors.firstNameRequired')),
   lastName: z.string().min(1, t('info.errors.lastNameRequired')),
-  email: z.string()
-    .min(1, t('info.errors.emailRequired'))
-    .email(t('info.errors.emailInvalid')),
-  phone: z.string()
-    .min(1, t('info.errors.phoneRequired')),
+  email: isPmsVerifiedGuest
+    ? z.string().optional()
+    : z.string().min(1, t('info.errors.emailRequired')).email(t('info.errors.emailInvalid')),
+  phone: isPmsVerifiedGuest
+    ? z.string().optional()
+    : z.string().min(1, t('info.errors.phoneRequired')),
   countryCode: z.string(),
-  roomNumber: (isGiftCard || isCoworking || !isHotelGuest) ? z.string().optional() : (pmsGuestLookup ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired'))),
+  roomNumber: isPmsVerifiedGuest
+    ? z.string().min(1, t('info.errors.roomRequired'))
+    : ((isGiftCard || isCoworking || !isHotelGuest) ? z.string().optional() : (pmsGuestLookup ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired')))),
   note: z.string().optional(),
 }).superRefine((data, ctx) => {
   const country = countries.find(c => c.code === data.countryCode);
-  if (country && data.phone.length > 0) {
+  if (country && data.phone && data.phone.length > 0) {
     const clean = data.phone.replace(/\s/g, '');
     // Accept both with and without trunk prefix 0 (e.g. 0612345678 or 612345678 for France)
     const stripped = clean.startsWith('0') ? clean.slice(1) : clean;
@@ -72,6 +79,7 @@ const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLook
     }
   }
 });
+};
 
 type ClientInfoFormData = z.infer<ReturnType<typeof createClientInfoSchema>>;
 
@@ -141,6 +149,7 @@ export default function GuestInfo() {
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
   const [isHotelGuest, setIsHotelGuest] = useState(clientInfo?.isExternalGuest === false);
+  const [pmsVerifyError, setPmsVerifyError] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(!!authBundles);
   const treatmentIds = useMemo(() => items.map(i => i.id), [items]);
@@ -197,6 +206,10 @@ export default function GuestInfo() {
 
   const isCoworking = venueType === 'coworking' || venueType === 'enterprise';
   const pmsGuestLookupEnabled = !!hotel?.pms_guest_lookup_enabled;
+  // Secure PMS path: when the venue uses PMS guest lookup and the visitor declares
+  // they are a hotel guest, we collect room + name only and verify against the PMS.
+  // Email/phone are hidden and resolved server-side.
+  const isPmsVerifiedFlow = pmsGuestLookupEnabled && isHotelGuest && !isCoworking && !isGiftCardBundle;
   const schema = useMemo(() => createClientInfoSchema(t, isCoworking, pmsGuestLookupEnabled, isHotelGuest, isGiftCardBundle), [t, isCoworking, pmsGuestLookupEnabled, isHotelGuest, isGiftCardBundle]);
 
   const form = useForm<ClientInfoFormData>({
@@ -241,45 +254,9 @@ export default function GuestInfo() {
     toast.success(t('giftCardLogin.loginSuccess'));
   }, [form, setAuthBundles, t]);
 
-  // PMS guest lookup (auto-fill from Opera Cloud when room number is entered)
-  const { lookupGuest, guestData, isLoading: isLookingUpGuest } = usePmsGuestLookup(hotelId);
-  const pmsStayDatesRef = useRef<{ checkIn?: string; checkOut?: string }>({});
-
-  const handleRoomNumberBlur = useCallback(async (roomNumber: string) => {
-    if (!roomNumber || roomNumber.length === 0) return;
-
-    const result = await lookupGuest(roomNumber);
-    if (result?.found && result.guest) {
-      // Always overwrite — new room number = new guest
-      form.setValue('firstName', result.guest.firstName);
-      form.setValue('lastName', result.guest.lastName);
-      if (result.guest.email) {
-        form.setValue('email', result.guest.email);
-      }
-      if (result.guest.phone) {
-        // Parse country code from PMS phone (e.g. "+46706819856")
-        const pmsPhone = result.guest.phone;
-        const matchedCountry = countries
-          .sort((a, b) => b.code.length - a.code.length) // longest first
-          .find((c) => pmsPhone.startsWith(c.code));
-        if (matchedCountry) {
-          form.setValue('countryCode', matchedCountry.code);
-          form.setValue('phone', pmsPhone.slice(matchedCountry.code.length));
-        } else {
-          form.setValue('countryCode', '');
-          form.setValue('phone', pmsPhone);
-        }
-      }
-      pmsStayDatesRef.current = {
-        checkIn: result.guest.checkIn,
-        checkOut: result.guest.checkOut,
-      };
-      toast.success(t('guestLookup.found'));
-    } else if (result && !result.found) {
-      pmsStayDatesRef.current = {};
-      toast.info(t('guestLookup.notFound'));
-    }
-  }, [lookupGuest, form, t]);
+  // PMS guest verification — room number + last name are checked server-side.
+  // The browser only ever learns a yes/no; no guest PII is returned here.
+  const { verifyGuest, isVerifying } = usePmsGuestVerify(hotelId);
 
   const shouldRedirectToSchedule = !canProceedToStep('info');
   const hasShownRedirectToast = useRef(false);
@@ -309,7 +286,7 @@ export default function GuestInfo() {
 
   const onSubmit = async (data: ClientInfoFormData) => {
     // Strip country code prefix from phone if user (or browser autofill) included it
-    let cleanPhone = data.phone.replace(/\s/g, '');
+    let cleanPhone = (data.phone ?? '').replace(/\s/g, '');
     if (cleanPhone.startsWith(data.countryCode)) {
       cleanPhone = cleanPhone.slice(data.countryCode.length);
     } else if (cleanPhone.startsWith('+')) {
@@ -340,11 +317,31 @@ export default function GuestInfo() {
 
     setIsSubmitting(true);
     try {
+      // PMS-verified hotel guest: confirm room + last name against the PMS before
+      // continuing. We never auto-fill PII; on failure we block and invite the
+      // visitor to continue as a non-hotel guest.
+      let pmsVerified = false;
+      if (isPmsVerifiedFlow) {
+        const ok = await verifyGuest(data.roomNumber ?? '', data.lastName);
+        if (!ok) {
+          setPmsVerifyError(true);
+          return;
+        }
+        setPmsVerifyError(false);
+        pmsVerified = true;
+      }
+
       setClientInfo({
-        ...data,
-        pmsGuestCheckIn: pmsStayDatesRef.current.checkIn,
-        pmsGuestCheckOut: pmsStayDatesRef.current.checkOut,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        countryCode: data.countryCode,
+        // Verified hotel guests don't enter email/phone — resolved server-side from the PMS.
+        email: pmsVerified ? '' : (data.email ?? ''),
+        phone: pmsVerified ? '' : (data.phone ?? ''),
+        roomNumber: data.roomNumber ?? '',
+        note: data.note,
         isExternalGuest: !isHotelGuest,
+        pmsVerified,
       });
 
       // Save gift info to flow context
@@ -745,54 +742,58 @@ export default function GuestInfo() {
 
                   {/* Form fields */}
                   <div className="space-y-5">
-                    {/* Room number FIRST when PMS guest lookup is enabled */}
+                    {/* "Are you a hotel guest?" question FIRST when PMS guest lookup is enabled.
+                        If yes, we collect room + name and verify against the PMS on submit. */}
                     {!isCoworking && pmsGuestLookupEnabled && (
                       <div className="space-y-3">
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={isHotelGuest}
-                            onChange={(e) => {
-                              setIsHotelGuest(e.target.checked);
-                              if (!e.target.checked) {
-                                form.setValue('roomNumber', '');
-                              }
-                            }}
-                            className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
-                          />
-                          <span className="text-sm text-gray-500">{t('info.isHotelGuest')}</span>
-                        </label>
+                        <p className="text-sm font-medium text-gray-700">{t('info.hotelGuestQuestion')}</p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setIsHotelGuest(true); setPmsVerifyError(false); }}
+                            className={cn(
+                              "flex-1 h-11 rounded-lg border text-sm transition-all",
+                              isHotelGuest ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                            )}
+                          >
+                            {t('info.hotelGuestYes')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setIsHotelGuest(false); setPmsVerifyError(false); form.setValue('roomNumber', ''); }}
+                            className={cn(
+                              "flex-1 h-11 rounded-lg border text-sm transition-all",
+                              !isHotelGuest ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                            )}
+                          >
+                            {t('info.hotelGuestNo')}
+                          </button>
+                        </div>
                         {isHotelGuest && (
                           <FormField
                             control={form.control}
                             name="roomNumber"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className={labelStyles}>{locationNumberLabel} <span className="normal-case tracking-normal font-normal text-gray-400">({t('guestLookup.optional')})</span></FormLabel>
+                                <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
                                 <FormControl>
                                   <div className="relative">
                                     <Input
                                       {...field}
-                                      onBlur={(e) => {
-                                        field.onBlur();
-                                        handleRoomNumberBlur(e.target.value);
-                                      }}
+                                      onChange={(e) => { field.onChange(e); if (pmsVerifyError) setPmsVerifyError(false); }}
                                       placeholder="102"
                                       className={inputStyles}
                                     />
-                                    {isLookingUpGuest && (
-                                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
-                                    )}
-                                    {guestData?.found && !isLookingUpGuest && (
-                                      <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                                    )}
                                   </div>
                                 </FormControl>
-                                <p className="text-xs text-gray-400 mt-1">{t('guestLookup.hint')}</p>
+                                <p className="text-xs text-gray-400 mt-1">{t('info.hotelGuestHint')}</p>
                                 <FormMessage className="text-red-400 text-xs" />
                               </FormItem>
                             )}
                           />
+                        )}
+                        {pmsVerifyError && (
+                          <p className="text-sm text-red-500">{t('info.errors.pmsVerificationFailed')}</p>
                         )}
                       </div>
                     )}
@@ -835,6 +836,8 @@ export default function GuestInfo() {
                       />
                     </div>
 
+                    {/* Email + phone — hidden for PMS-verified hotel guests (resolved server-side from the PMS) */}
+                    {!isPmsVerifiedFlow && (<>
                     {/* Email with domain suggestions */}
                     <FormField
                       control={form.control}
@@ -961,6 +964,7 @@ export default function GuestInfo() {
                         );
                       }}
                     />
+                    </>)}
 
                     {/* Room number - classic position when PMS lookup is NOT enabled */}
                     {!isCoworking && !pmsGuestLookupEnabled && (
@@ -1031,7 +1035,7 @@ export default function GuestInfo() {
                 <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
                   <Button
                     type="submit"
-                    disabled={isSubmitting || isCreating}
+                    disabled={isSubmitting || isCreating || isVerifying}
                     className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
                   >
                     {(isSubmitting || isCreating) ? (
