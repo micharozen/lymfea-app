@@ -14,7 +14,7 @@ import {
   AlertCircle,
   Copy,
 } from "lucide-react";
-import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/formatPrice";
 
