@@ -166,7 +166,7 @@ export default function VenueDetail({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const validTabs = ["configuration", "planning", "catalog", "resources", "billing"] as const;
+  const validTabs = ["configuration", "planning", "catalog", "resources", "billing", "branding"] as const;
   type TabValue = (typeof validTabs)[number];
   const initialTab: TabValue = (() => {
     const requested = searchParams.get("tab");
