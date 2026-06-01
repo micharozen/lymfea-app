@@ -32,10 +32,13 @@ export interface PublicHotel {
   postal_code: string | null;
   contact_phone: string | null;
   welcome_background_color: string | null;
+  welcome_background_opacity: number | null;
   button_color: string | null;
   button_text_color: string | null;
-  custom_font_url: string | null;
-  custom_font_family: string | null;
+  font_title_url: string | null;
+  font_title_family: string | null;
+  font_body_url: string | null;
+  font_body_family: string | null;
 }
 
 interface ClientVenueContextValue {

@@ -262,10 +262,25 @@ export default function Welcome() {
         <div className="absolute inset-0">
           <img
             src={hotelBg}
-            className="h-full w-full object-cover object-[center_20%] brightness-[0.4] animate-hero-zoom"
+            className={`h-full w-full object-cover object-[center_20%] animate-hero-zoom ${hotel.welcome_background_color ? '' : 'brightness-[0.4]'}`}
             alt="Ambiance"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40" />
+          {/* Hero overlay — uses venue background color when set, otherwise default dark gradient. */}
+          <div
+            className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40"
+            style={
+              hotel.welcome_background_color
+                ? {
+                    backgroundImage: 'none',
+                    backgroundColor: hotel.welcome_background_color,
+                    opacity:
+                      hotel.welcome_background_opacity != null
+                        ? Math.max(0, Math.min(100, hotel.welcome_background_opacity)) / 100
+                        : 0.55,
+                  }
+                : undefined
+            }
+          />
         </div>
 
         {/* Top Bar */}
@@ -288,18 +303,29 @@ export default function Welcome() {
           {/* Venue Name + Subtitle — centered vertically & horizontally */}
           <div className="text-center">
             <h1
-              className="font-grotesk font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.1] pt-[0.15em] text-white uppercase tracking-wide animate-reveal-text"
-              style={{ animationDelay: '0.5s' }}
+              className="font-grotesk font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.1] pt-[0.15em] uppercase tracking-wide animate-reveal-text"
+              style={{
+                animationDelay: '0.5s',
+                color: hotel.button_color || '#ffffff',
+              }}
             >
               {localize(hotel.name, hotel.name_en)}
             </h1>
             <div
-              className="w-12 h-px bg-white/40 mx-auto mt-4 mb-3 animate-expand-line"
-              style={{ animationDelay: '1s' }}
+              className="w-12 h-px mx-auto mt-4 mb-3 animate-expand-line"
+              style={{
+                animationDelay: '1s',
+                backgroundColor: hotel.button_color
+                  ? `${hotel.button_color}66`
+                  : 'rgba(255,255,255,0.4)',
+              }}
             />
             <p
-              className="font-grotesk font-light italic text-2xl sm:text-3xl md:text-4xl text-white uppercase tracking-wide animate-slide-up-fade"
-              style={{ animationDelay: '1.3s' }}
+              className="font-grotesk font-light italic text-2xl sm:text-3xl md:text-4xl uppercase tracking-wide animate-slide-up-fade"
+              style={{
+                animationDelay: '1.3s',
+                color: hotel.button_color || '#ffffff',
+              }}
             >
               {subtitle}
             </p>
@@ -315,7 +341,12 @@ export default function Welcome() {
           >
             <Button
               onClick={() => navigate(`/client/${slug}/treatments`)}
-              className="w-full h-14 sm:h-16 text-base sm:text-lg font-grotesk font-medium tracking-widest uppercase bg-white text-black hover:bg-gray-100 transition-all duration-300 shadow-lg"
+              className="w-full h-14 sm:h-16 text-base sm:text-lg font-medium tracking-widest uppercase hover:opacity-90 transition-all duration-300 shadow-lg"
+              style={{
+                backgroundColor: hotel.button_color || '#ffffff',
+                color: hotel.button_text_color || '#000000',
+                fontFamily: 'var(--venue-font-body, "Founders Grotesk", sans-serif)',
+              }}
             >
               {t('welcome.booking')}
             </Button>

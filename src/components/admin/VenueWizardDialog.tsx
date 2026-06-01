@@ -93,10 +93,13 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   description_en: z.string().optional(),
   calendar_color: z.string().default('#3b82f6'),
   welcome_background_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  welcome_background_opacity: z.coerce.number().int().min(0).max(100).default(55),
   button_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
   button_text_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
-  custom_font_url: z.string().optional().or(z.literal("")),
-  custom_font_family: z.string().optional().or(z.literal("")),
+  font_title_url: z.string().optional().or(z.literal("")),
+  font_title_family: z.string().optional().or(z.literal("")),
+  font_body_url: z.string().optional().or(z.literal("")),
+  font_body_family: z.string().optional().or(z.literal("")),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;

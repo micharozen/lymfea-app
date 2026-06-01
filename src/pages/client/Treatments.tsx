@@ -575,7 +575,7 @@ export default function Treatments() {
             handleAddToBasket(treatment);
           }
         }}
-        className="h-11 w-11 rounded-full bg-gold-600 text-white hover:bg-gold-700 ring-1 ring-gold-700/20 shadow-md transition-all duration-200"
+        className="h-11 w-11 rounded-full bg-[var(--venue-button-bg,theme(colors.gold.600))] text-[var(--venue-button-text,#fff)] hover:opacity-90 ring-1 ring-black/10 shadow-md transition-all duration-200"
       >
         <Plus className="h-5 w-5" strokeWidth={2.5} />
       </Button>

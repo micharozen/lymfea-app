@@ -8,8 +8,10 @@ interface VenueThemeProviderProps {
     | 'welcome_background_color'
     | 'button_color'
     | 'button_text_color'
-    | 'custom_font_url'
-    | 'custom_font_family'
+    | 'font_title_url'
+    | 'font_title_family'
+    | 'font_body_url'
+    | 'font_body_family'
   >;
   children: React.ReactNode;
 }
@@ -27,20 +29,30 @@ function escapeCssString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
+function fontFaceRule(family: string, url: string): string {
+  const f = escapeCssString(family);
+  const u = escapeCssString(url);
+  const format = inferFontFormat(url);
+  return `@font-face { font-family: "${f}"; src: url("${u}") format("${format}"); font-display: swap; font-weight: 100 900; font-style: normal; }`;
+}
+
 export function buildVenueThemeCss(
   venue: VenueThemeProviderProps['venue'],
 ): string {
   const rules: string[] = [];
   const vars: string[] = [];
 
-  if (venue.custom_font_url && venue.custom_font_family) {
-    const family = escapeCssString(venue.custom_font_family);
-    const url = escapeCssString(venue.custom_font_url);
-    const format = inferFontFormat(venue.custom_font_url);
-    rules.push(
-      `@font-face { font-family: "${family}"; src: url("${url}") format("${format}"); font-display: swap; font-weight: 100 900; font-style: normal; }`,
+  if (venue.font_title_url && venue.font_title_family) {
+    rules.push(fontFaceRule(venue.font_title_family, venue.font_title_url));
+    vars.push(
+      `--venue-font-title: "${escapeCssString(venue.font_title_family)}", 'Kormelink', serif`,
     );
-    vars.push(`--venue-font: "${family}", 'Founders Grotesk', sans-serif`);
+  }
+  if (venue.font_body_url && venue.font_body_family) {
+    rules.push(fontFaceRule(venue.font_body_family, venue.font_body_url));
+    vars.push(
+      `--venue-font-body: "${escapeCssString(venue.font_body_family)}", 'Founders Grotesk', sans-serif`,
+    );
   }
 
   if (venue.welcome_background_color) {
@@ -78,8 +90,10 @@ export function VenueThemeProvider({ venue, children }: VenueThemeProviderProps)
     venue.welcome_background_color,
     venue.button_color,
     venue.button_text_color,
-    venue.custom_font_url,
-    venue.custom_font_family,
+    venue.font_title_url,
+    venue.font_title_family,
+    venue.font_body_url,
+    venue.font_body_family,
   ]);
 
   return <>{children}</>;

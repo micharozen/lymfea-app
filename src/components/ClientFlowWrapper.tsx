@@ -109,16 +109,7 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
             <ClientFlowProvider>
               <UrlStateHydrator hotelId={venue.id} />
               <PageTransition>
-                <div
-                  className="lymfea-client"
-                  style={
-                    venue.custom_font_family
-                      ? { fontFamily: 'var(--venue-font)' }
-                      : undefined
-                  }
-                >
-                  {children}
-                </div>
+                <div className="lymfea-client">{children}</div>
               </PageTransition>
             </ClientFlowProvider>
           </CartProvider>

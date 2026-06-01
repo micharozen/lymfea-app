@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
-import { Plus, Loader2, Upload, X, Sparkles } from "lucide-react";
+import { Loader2, Upload, X, Sparkles, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import {
   FormControl,
   FormField,
@@ -26,10 +27,28 @@ interface VenueBrandingTabProps {
   coverImage: string;
   hotelName: string;
   onRequestEdit: () => void;
+  /** Hotel id — used to render the live client preview iframe. */
+  hotelId?: string | null;
+  /** Canonical slug for the client URL. Falls back to hotelId. */
+  hotelSlug?: string | null;
+  /** External counter — incrementing forces an iframe reload (e.g. after Save). */
+  previewRefreshKey?: number;
 }
 
 const FONT_EXTS = [".woff2", ".woff", ".ttf", ".otf"];
 const MAX_FONT_SIZE_MB = 2;
+
+type FontKind = "title" | "body";
+
+interface FontFieldNames {
+  url: "font_title_url" | "font_body_url";
+  family: "font_title_family" | "font_body_family";
+}
+
+const FONT_FIELDS: Record<FontKind, FontFieldNames> = {
+  title: { url: "font_title_url", family: "font_title_family" },
+  body: { url: "font_body_url", family: "font_body_family" },
+};
 
 function slugifyFontName(name: string): string {
   return (
@@ -45,28 +64,43 @@ function slugifyFontName(name: string): string {
 export function VenueBrandingTab({
   form,
   disabled,
-  hotelImage,
-  coverImage,
-  hotelName,
+  hotelImage: _hotelImage,
+  coverImage: _coverImage,
+  hotelName: _hotelName,
   onRequestEdit,
+  hotelId,
+  hotelSlug,
+  previewRefreshKey = 0,
 }: VenueBrandingTabProps) {
   const { t } = useTranslation("admin");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadingFont, setUploadingFont] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
+  const combinedIframeKey = iframeKey + previewRefreshKey;
+  const identifier = hotelSlug || hotelId;
+  const previewUrl = identifier
+    ? `${window.location.origin}/client/${identifier}`
+    : null;
 
-  const [welcomeBg, buttonColor, buttonTextColor, customFontUrl, customFontFamily] =
-    useWatch({
-      control: form.control,
-      name: [
-        "welcome_background_color",
-        "button_color",
-        "button_text_color",
-        "custom_font_url",
-        "custom_font_family",
-      ],
-    });
+  const [
+    welcomeBg,
+    buttonColor,
+    buttonTextColor,
+    fontTitleUrl,
+    fontTitleFamily,
+    fontBodyUrl,
+    fontBodyFamily,
+  ] = useWatch({
+    control: form.control,
+    name: [
+      "welcome_background_color",
+      "button_color",
+      "button_text_color",
+      "font_title_url",
+      "font_title_family",
+      "font_body_url",
+      "font_body_family",
+    ],
+  });
 
-  // Inject preview font into document head for live preview rendering
   const previewCss = useMemo(
     () =>
       buildVenueThemeCss({
@@ -74,90 +108,37 @@ export function VenueBrandingTab({
         welcome_background_color: welcomeBg || null,
         button_color: buttonColor || null,
         button_text_color: buttonTextColor || null,
-        custom_font_url: customFontUrl || null,
-        custom_font_family: customFontFamily || null,
+        font_title_url: fontTitleUrl || null,
+        font_title_family: fontTitleFamily || null,
+        font_body_url: fontBodyUrl || null,
+        font_body_family: fontBodyFamily || null,
       }),
-    [welcomeBg, buttonColor, buttonTextColor, customFontUrl, customFontFamily],
+    [
+      welcomeBg,
+      buttonColor,
+      buttonTextColor,
+      fontTitleUrl,
+      fontTitleFamily,
+      fontBodyUrl,
+      fontBodyFamily,
+    ],
   );
-
-  const handleFontUpload = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      event.target.value = "";
-
-      const lower = file.name.toLowerCase();
-      if (!FONT_EXTS.some((ext) => lower.endsWith(ext))) {
-        toast.error(t("venue.branding.fontInvalidFormat", "Format de police invalide (woff2, woff, ttf, otf)"));
-        return;
-      }
-      if (file.size > MAX_FONT_SIZE_MB * 1024 * 1024) {
-        toast.error(t("venue.branding.fontTooLarge", `Le fichier ne doit pas dépasser ${MAX_FONT_SIZE_MB} Mo`));
-        return;
-      }
-
-      setUploadingFont(true);
-      try {
-        const ext = lower.match(/\.[^.]+$/)?.[0] ?? ".woff2";
-        const filename = `${Math.random().toString(36).slice(2)}-${slugifyFontName(file.name)}${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from("venue-fonts")
-          .upload(filename, file, {
-            cacheControl: "31536000",
-            contentType: file.type || "application/octet-stream",
-            upsert: false,
-          });
-        if (uploadError) throw uploadError;
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("venue-fonts").getPublicUrl(filename);
-
-        form.setValue("custom_font_url", publicUrl, { shouldDirty: true });
-        if (!form.getValues("custom_font_family")) {
-          form.setValue("custom_font_family", slugifyFontName(file.name), {
-            shouldDirty: true,
-          });
-        }
-        toast.success(t("venue.branding.fontUploaded", "Police téléchargée"));
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Upload failed";
-        toast.error(message);
-      } finally {
-        setUploadingFont(false);
-      }
-    },
-    [form, t],
-  );
-
-  const handleRemoveFont = useCallback(() => {
-    form.setValue("custom_font_url", "", { shouldDirty: true });
-    form.setValue("custom_font_family", "", { shouldDirty: true });
-  }, [form]);
 
   const handleReset = useCallback(() => {
     form.setValue("welcome_background_color", "", { shouldDirty: true });
+    form.setValue("welcome_background_opacity", 55, { shouldDirty: true });
     form.setValue("button_color", "", { shouldDirty: true });
     form.setValue("button_text_color", "", { shouldDirty: true });
-    form.setValue("custom_font_url", "", { shouldDirty: true });
-    form.setValue("custom_font_family", "", { shouldDirty: true });
+    form.setValue("font_title_url", "", { shouldDirty: true });
+    form.setValue("font_title_family", "", { shouldDirty: true });
+    form.setValue("font_body_url", "", { shouldDirty: true });
+    form.setValue("font_body_family", "", { shouldDirty: true });
   }, [form]);
-
-  const previewBg = welcomeBg || "#ffffff";
-  const previewButtonBg = buttonColor || "#EDE0C6";
-  const previewButtonText = buttonTextColor || "#000000";
-  const previewFontStack = customFontFamily
-    ? `"${customFontFamily}", 'Founders Grotesk', sans-serif`
-    : "'Kormelink', serif";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Inject live @font-face + variables for the preview */}
-      {previewCss && (
-        <style dangerouslySetInnerHTML={{ __html: previewCss }} />
-      )}
+      {previewCss && <style dangerouslySetInnerHTML={{ __html: previewCss }} />}
 
-      {/* Form column */}
       <Card className="p-6 space-y-6">
         <div>
           <h3 className="text-lg font-semibold mb-1">
@@ -171,7 +152,7 @@ export function VenueBrandingTab({
           </p>
         </div>
 
-        {!disabled ? null : (
+        {disabled && (
           <button
             type="button"
             onClick={onRequestEdit}
@@ -188,10 +169,11 @@ export function VenueBrandingTab({
           placeholder="#FFFFFF"
           disabled={disabled}
         />
+        <OpacityField form={form} disabled={disabled} />
         <ColorPickerField
           form={form}
           name="button_color"
-          label={t("venue.branding.buttonColor", "Couleur du bouton +")}
+          label={t("venue.branding.buttonColor", "Couleur des boutons")}
           placeholder="#EDE0C6"
           disabled={disabled}
         />
@@ -203,75 +185,18 @@ export function VenueBrandingTab({
           disabled={disabled}
         />
 
-        <div className="border-t pt-6 space-y-3">
-          <Label>{t("venue.branding.font", "Police de caractères")}</Label>
-          <p className="text-xs text-muted-foreground">
-            {t(
-              "venue.branding.fontHelp",
-              "Formats acceptés : woff2, woff, ttf, otf. Taille max 2 Mo.",
-            )}
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
-            className="hidden"
-            onChange={handleFontUpload}
-            disabled={disabled || uploadingFont}
-          />
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={disabled || uploadingFont}
-            >
-              {uploadingFont ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="mr-2 h-4 w-4" />
-              )}
-              {customFontUrl
-                ? t("venue.branding.replaceFont", "Remplacer la police")
-                : t("venue.branding.uploadFont", "Téléverser une police")}
-            </Button>
-            {customFontUrl && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleRemoveFont}
-                disabled={disabled}
-              >
-                <X className="mr-2 h-4 w-4" />
-                {t("venue.branding.removeFont", "Retirer")}
-              </Button>
-            )}
-          </div>
-
-          {customFontUrl && (
-            <FormField
-              control={form.control}
-              name="custom_font_family"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs">
-                    {t("venue.branding.fontFamily", "Nom CSS de la police (font-family)")}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="hotel-display"
-                      disabled={disabled}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
-        </div>
+        <FontUploadField
+          form={form}
+          kind="title"
+          disabled={disabled}
+          label={t("venue.branding.fontTitle", "Police des titres")}
+        />
+        <FontUploadField
+          form={form}
+          kind="body"
+          disabled={disabled}
+          label={t("venue.branding.fontBody", "Police du texte")}
+        />
 
         <div className="border-t pt-4 flex items-center justify-end gap-2">
           <Button
@@ -286,88 +211,51 @@ export function VenueBrandingTab({
         </div>
       </Card>
 
-      {/* Preview column */}
-      <div className="lg:sticky lg:top-24 self-start">
-        <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
+      {/* Preview column — same device frame as the "Aperçu client" sheet,
+          iframes the real /client/<slug> page so saved branding is rendered live. */}
+      <div className="lg:sticky lg:top-24 self-start flex flex-col items-center gap-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Sparkles className="h-4 w-4" />
-          {t("venue.branding.previewLabel", "Aperçu temps réel")}
+          {t("venue.branding.previewLabel", "Aperçu client")}
         </div>
-        <div className="mx-auto w-full max-w-[360px] rounded-[2.25rem] border-8 border-zinc-900 shadow-xl overflow-hidden bg-zinc-900">
-          <div
-            className="h-[640px] overflow-y-auto"
-            style={{ backgroundColor: previewBg, fontFamily: previewFontStack }}
-          >
-            {/* Hero */}
-            <div className="relative h-48 w-full overflow-hidden">
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: coverImage
-                    ? `url(${coverImage})`
-                    : "linear-gradient(135deg, #2c2c2c, #0a0a0a)",
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                  filter: "brightness(0.55)",
-                }}
-              />
-              <div className="relative z-10 h-full flex flex-col justify-end p-4">
-                {hotelImage && (
-                  <img
-                    src={hotelImage}
-                    alt=""
-                    className="h-9 w-9 object-contain mb-2"
-                  />
-                )}
-                <div
-                  className="text-[10px] uppercase tracking-[0.3em] mb-1"
-                  style={{ color: previewButtonBg }}
-                >
-                  Services exclusifs
-                </div>
-                <div className="text-white text-2xl leading-tight">
-                  {hotelName || "Votre établissement"}
-                </div>
+        {previewUrl ? (
+          <>
+            <div
+              className="relative bg-black rounded-[40px] p-3 shadow-2xl"
+              style={{ width: 390, height: 700 }}
+            >
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-full z-10" />
+              <div className="w-full h-full rounded-[32px] overflow-hidden bg-background">
+                <iframe
+                  key={`${previewUrl}-${combinedIframeKey}`}
+                  src={previewUrl}
+                  className="w-full h-full border-0"
+                  title="Aperçu client"
+                  loading="lazy"
+                />
               </div>
             </div>
-
-            {/* Treatment item w/ + button */}
-            <div className="p-4 space-y-3">
-              <div className="text-xs uppercase tracking-widest text-zinc-500">
-                Soins
-              </div>
-              <PreviewTreatmentRow
-                title="Massage relaxant"
-                subtitle="60 min · 120 €"
-                buttonBg={previewButtonBg}
-                buttonText={previewButtonText}
-              />
-              <PreviewTreatmentRow
-                title="Soin du visage"
-                subtitle="45 min · 95 €"
-                buttonBg={previewButtonBg}
-                buttonText={previewButtonText}
-              />
-              <PreviewTreatmentRow
-                title="Gommage corps"
-                subtitle="30 min · 70 €"
-                buttonBg={previewButtonBg}
-                buttonText={previewButtonText}
-              />
-
-              {/* CTA */}
-              <button
-                type="button"
-                className="w-full h-12 rounded-md font-medium tracking-wide mt-4"
-                style={{
-                  backgroundColor: previewButtonBg,
-                  color: previewButtonText,
-                }}
-              >
-                Réserver
-              </button>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIframeKey((k) => k + 1)}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {t(
+                "venue.branding.refreshPreview",
+                "Rafraîchir l'aperçu (après sauvegarde)",
+              )}
+            </Button>
+          </>
+        ) : (
+          <div className="text-sm text-muted-foreground italic max-w-xs text-center px-4 py-8 border border-dashed rounded-lg">
+            {t(
+              "venue.branding.previewUnavailable",
+              "Enregistre le lieu pour voir l'aperçu client en direct.",
+            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -424,31 +312,199 @@ function ColorPickerField({
   );
 }
 
-function PreviewTreatmentRow({
-  title,
-  subtitle,
-  buttonBg,
-  buttonText,
+function OpacityField({
+  form,
+  disabled,
 }: {
-  title: string;
-  subtitle: string;
-  buttonBg: string;
-  buttonText: string;
+  form: VenueBrandingTabProps["form"];
+  disabled: boolean;
 }) {
+  const { t } = useTranslation("admin");
   return (
-    <div className="flex items-center justify-between gap-3 py-2 border-b border-zinc-100">
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-zinc-900 truncate">{title}</div>
-        <div className="text-xs text-zinc-500">{subtitle}</div>
+    <FormField
+      control={form.control}
+      name="welcome_background_opacity"
+      render={({ field }) => {
+        const value = typeof field.value === "number" ? field.value : 55;
+        return (
+          <FormItem>
+            <FormLabel>
+              {t(
+                "venue.branding.welcomeBgOpacity",
+                "Opacité du fond (page d'accueil)",
+              )}{" "}
+              <span className="text-muted-foreground font-normal">— {value}%</span>
+            </FormLabel>
+            <FormControl>
+              <Slider
+                min={0}
+                max={100}
+                step={1}
+                value={[value]}
+                disabled={disabled}
+                onValueChange={(v) => field.onChange(v[0] ?? 0)}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        );
+      }}
+    />
+  );
+}
+
+interface FontUploadFieldProps {
+  form: VenueBrandingTabProps["form"];
+  kind: FontKind;
+  disabled: boolean;
+  label: string;
+}
+
+function FontUploadField({ form, kind, disabled, label }: FontUploadFieldProps) {
+  const { t } = useTranslation("admin");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const { url: urlField, family: familyField } = FONT_FIELDS[kind];
+
+  const url = useWatch({ control: form.control, name: urlField }) as string;
+
+  const handleUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      event.target.value = "";
+
+      const lower = file.name.toLowerCase();
+      if (!FONT_EXTS.some((ext) => lower.endsWith(ext))) {
+        toast.error(
+          t(
+            "venue.branding.fontInvalidFormat",
+            "Format de police invalide (woff2, woff, ttf, otf)",
+          ),
+        );
+        return;
+      }
+      if (file.size > MAX_FONT_SIZE_MB * 1024 * 1024) {
+        toast.error(
+          t(
+            "venue.branding.fontTooLarge",
+            `Le fichier ne doit pas dépasser ${MAX_FONT_SIZE_MB} Mo`,
+          ),
+        );
+        return;
+      }
+
+      setUploading(true);
+      try {
+        const ext = lower.match(/\.[^.]+$/)?.[0] ?? ".woff2";
+        const filename = `${Math.random().toString(36).slice(2)}-${slugifyFontName(file.name)}${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("venue-fonts")
+          .upload(filename, file, {
+            cacheControl: "31536000",
+            contentType: file.type || "application/octet-stream",
+            upsert: false,
+          });
+        if (uploadError) throw uploadError;
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("venue-fonts").getPublicUrl(filename);
+
+        form.setValue(urlField, publicUrl, { shouldDirty: true });
+        if (!form.getValues(familyField)) {
+          form.setValue(familyField, slugifyFontName(file.name), {
+            shouldDirty: true,
+          });
+        }
+        toast.success(t("venue.branding.fontUploaded", "Police téléchargée"));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Upload failed";
+        toast.error(message);
+      } finally {
+        setUploading(false);
+      }
+    },
+    [form, t, urlField, familyField],
+  );
+
+  const handleRemove = useCallback(() => {
+    form.setValue(urlField, "", { shouldDirty: true });
+    form.setValue(familyField, "", { shouldDirty: true });
+  }, [form, urlField, familyField]);
+
+  return (
+    <div className="border-t pt-6 space-y-3">
+      <Label>{label}</Label>
+      <p className="text-xs text-muted-foreground">
+        {t(
+          "venue.branding.fontHelp",
+          "Formats acceptés : woff2, woff, ttf, otf. Taille max 2 Mo.",
+        )}
+      </p>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
+        className="hidden"
+        onChange={handleUpload}
+        disabled={disabled || uploading}
+      />
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled || uploading}
+        >
+          {uploading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Upload className="mr-2 h-4 w-4" />
+          )}
+          {url
+            ? t("venue.branding.replaceFont", "Remplacer la police")
+            : t("venue.branding.uploadFont", "Téléverser une police")}
+        </Button>
+        {url && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleRemove}
+            disabled={disabled}
+          >
+            <X className="mr-2 h-4 w-4" />
+            {t("venue.branding.removeFont", "Retirer")}
+          </Button>
+        )}
       </div>
-      <button
-        type="button"
-        className="h-9 w-9 rounded-md flex items-center justify-center flex-shrink-0"
-        style={{ backgroundColor: buttonBg, color: buttonText }}
-        aria-label="Ajouter"
-      >
-        <Plus className="h-4 w-4" />
-      </button>
+
+      {url && (
+        <FormField
+          control={form.control}
+          name={familyField}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">
+                {t(
+                  "venue.branding.fontFamily",
+                  "Nom CSS de la police (font-family)",
+                )}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder="hotel-display"
+                  disabled={disabled}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
     </div>
   );
 }

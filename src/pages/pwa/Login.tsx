@@ -37,6 +37,45 @@ const countryCodes = [
 
 type AuthMode = "password" | "otp-phone" | "otp-code" | "forgot";
 
+// supabase.functions.invoke returns FunctionsHttpError where `.context` is the
+// raw Response. Its body is a ReadableStream, so we must clone+parse it to get
+// the actual server payload — otherwise we only see the generic
+// "Edge Function returned a non-2xx status code" message.
+async function extractEdgeError(error: unknown): Promise<{
+  status?: number;
+  body?: Record<string, unknown> | { raw: string } | undefined;
+  serverMessage?: string;
+}> {
+  const ctx = (error as { context?: Response | undefined })?.context;
+  let status: number | undefined;
+  let body: Record<string, unknown> | { raw: string } | undefined;
+
+  if (ctx && typeof ctx.clone === "function") {
+    status = ctx.status;
+    try {
+      body = (await ctx.clone().json()) as Record<string, unknown>;
+    } catch {
+      try {
+        body = { raw: await ctx.clone().text() };
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  const serverMessage =
+    (body && typeof body === "object" && "error" in body && typeof (body as { error: unknown }).error === "string"
+      ? (body as { error: string }).error
+      : undefined) ??
+    (body && typeof body === "object" && "message" in body && typeof (body as { message: unknown }).message === "string"
+      ? (body as { message: string }).message
+      : undefined) ??
+    (body && "raw" in (body as { raw?: string }) ? (body as { raw?: string }).raw : undefined) ??
+    (error instanceof Error ? error.message : undefined);
+
+  return { status, body, serverMessage };
+}
+
 const PwaLogin = () => {
   const navigate = useNavigate();
   const { t } = useTranslation("pwa");
@@ -244,14 +283,13 @@ const PwaLogin = () => {
       });
 
       if (error) {
-        const ctx = (error as any)?.context;
-        const status: number | undefined = ctx?.status ?? ctx?.response?.status;
-        const serverMessage: string | undefined = ctx?.body?.error || error.message;
+        const { status, body, serverMessage } = await extractEdgeError(error);
         const phoneTail = phone.slice(-4);
 
         logger.error("pwa.otp.send_failed", error, {
           status,
           serverMessage,
+          body,
           phoneTail,
           countryCode,
         });
@@ -267,7 +305,7 @@ const PwaLogin = () => {
             { duration: 10000 },
           );
         } else if (status === 429) {
-          const retryAfter = ctx?.body?.retryAfterSeconds;
+          const retryAfter = (body as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
           const minutes = retryAfter ? Math.ceil(retryAfter / 60) : 30;
           toast.error(
             `Trop de tentatives. Réessayez dans ${minutes} minute${minutes > 1 ? "s" : ""}.`,
@@ -302,13 +340,15 @@ const PwaLogin = () => {
       setIsCodeExpired(false);
       toast.success(t("common:toasts.success"));
     } catch (error: any) {
-      const status: number | undefined = error?.context?.status;
+      const { status, body, serverMessage } = await extractEdgeError(error);
       logger.error("pwa.otp.send_exception", error, {
         status,
+        body,
+        serverMessage,
         phoneTail: phone.slice(-4),
         countryCode,
       });
-      const errorMsg = error?.context?.body?.error || error.message || t("common:errors.generic");
+      const errorMsg = serverMessage || t("common:errors.generic");
       toast.error(`${errorMsg}${status ? ` (code ${status})` : ""}`, { duration: 8000 });
     } finally {
       setLoading(false);
@@ -328,13 +368,12 @@ const PwaLogin = () => {
       });
 
       if (error) {
-        const ctx = (error as any)?.context;
-        const status: number | undefined = ctx?.status ?? ctx?.response?.status;
-        const serverMessage: string | undefined = ctx?.body?.error || error.message;
+        const { status, body, serverMessage } = await extractEdgeError(error);
 
         logger.error("pwa.otp.resend_failed", error, {
           status,
           serverMessage,
+          body,
           phoneTail: phone.slice(-4),
           countryCode,
         });
@@ -345,7 +384,7 @@ const PwaLogin = () => {
             { duration: 10000 },
           );
         } else if (status === 429) {
-          const retryAfter = ctx?.body?.retryAfterSeconds;
+          const retryAfter = (body as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
           const minutes = retryAfter ? Math.ceil(retryAfter / 60) : 30;
           toast.error(
             `Trop de tentatives. Réessayez dans ${minutes} minute${minutes > 1 ? "s" : ""}.`,
@@ -378,14 +417,16 @@ const PwaLogin = () => {
       otpRefs.current[0]?.focus();
       toast.success(t("common:toasts.success"));
     } catch (error: any) {
-      const status: number | undefined = error?.context?.status;
+      const { status, body, serverMessage } = await extractEdgeError(error);
       logger.error("pwa.otp.resend_exception", error, {
         status,
+        body,
+        serverMessage,
         phoneTail: phone.slice(-4),
         countryCode,
       });
       toast.error(
-        `${error?.message || t("common:errors.generic")}${status ? ` (code ${status})` : ""}`,
+        `${serverMessage || t("common:errors.generic")}${status ? ` (code ${status})` : ""}`,
         { duration: 8000 },
       );
     } finally {
@@ -416,13 +457,12 @@ const PwaLogin = () => {
       });
 
       if (error) {
-        const ctx = (error as any)?.context;
-        const status: number | undefined = ctx?.status ?? ctx?.response?.status;
-        const serverMessage: string | undefined = ctx?.body?.error || error.message;
+        const { status, body, serverMessage } = await extractEdgeError(error);
 
         logger.error("pwa.otp.verify_failed", error, {
           status,
           serverMessage,
+          body,
           phoneTail: phone.slice(-4),
           countryCode,
         });
@@ -451,7 +491,7 @@ const PwaLogin = () => {
             { duration: 10000 },
           );
         } else if (status === 429) {
-          const retryAfter = ctx?.body?.retryAfterSeconds;
+          const retryAfter = (body as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
           const minutes = retryAfter ? Math.ceil(retryAfter / 60) : 30;
           toast.error(
             `Trop de tentatives. Réessayez dans ${minutes} minute${minutes > 1 ? "s" : ""}.`,

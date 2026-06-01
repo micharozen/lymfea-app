@@ -1,21 +1,72 @@
--- Per-venue branding customization for client booking flow
--- Adds: welcome background color, button color (bg + text), custom font (URL + family)
+-- Per-venue branding customization for client booking flow.
+-- Stores colors + per-text-type fonts in a dedicated 1:1 table to keep `hotels` lean
+-- and allow future expansion (sizes, weights, additional palette tokens...).
 -- Updates the public RPCs get_public_hotel_by_id + get_public_hotel to expose these fields
 -- (both used in /client/:slug, anonymous).
 
-ALTER TABLE public.hotels
-  ADD COLUMN IF NOT EXISTS welcome_background_color text,
-  ADD COLUMN IF NOT EXISTS button_color text,
-  ADD COLUMN IF NOT EXISTS button_text_color text,
-  ADD COLUMN IF NOT EXISTS custom_font_url text,
-  ADD COLUMN IF NOT EXISTS custom_font_family text;
+CREATE TABLE IF NOT EXISTS public.venue_branding (
+  hotel_id text PRIMARY KEY REFERENCES public.hotels(id) ON DELETE CASCADE,
+  welcome_background_color text,
+  welcome_background_opacity smallint CHECK (welcome_background_opacity BETWEEN 0 AND 100),
+  button_color text,
+  button_text_color text,
+  font_title_url text,
+  font_title_family text,
+  font_body_url text,
+  font_body_family text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
 
-COMMENT ON COLUMN public.hotels.welcome_background_color IS 'Hex color (e.g. #F5F0E8) for the client Welcome page background. NULL = use default.';
-COMMENT ON COLUMN public.hotels.button_color IS 'Hex color for primary CTA buttons in the client flow. NULL = use default gold-400.';
-COMMENT ON COLUMN public.hotels.button_text_color IS 'Hex color for text inside primary CTA buttons. NULL = use default black.';
-COMMENT ON COLUMN public.hotels.custom_font_url IS 'Public URL (Supabase Storage) of a custom font file (woff2/woff/ttf/otf) for the client flow.';
-COMMENT ON COLUMN public.hotels.custom_font_family IS 'CSS font-family name to register the custom font under (used in @font-face).';
+COMMENT ON TABLE public.venue_branding IS '1:1 with hotels — visual customization of the client booking flow (colors + custom fonts).';
+COMMENT ON COLUMN public.venue_branding.welcome_background_color IS 'Hex color for the client Welcome page hero overlay. NULL = use default gradient.';
+COMMENT ON COLUMN public.venue_branding.button_color IS 'Hex color for primary CTA buttons. NULL = default gold-400.';
+COMMENT ON COLUMN public.venue_branding.button_text_color IS 'Hex color for text inside primary CTA buttons. NULL = default black.';
+COMMENT ON COLUMN public.venue_branding.font_title_url IS 'Public URL (Supabase Storage) of the title font file (woff2/woff/ttf/otf).';
+COMMENT ON COLUMN public.venue_branding.font_title_family IS 'CSS font-family name to register the title font under (used in @font-face).';
+COMMENT ON COLUMN public.venue_branding.font_body_url IS 'Public URL (Supabase Storage) of the body font file (woff2/woff/ttf/otf).';
+COMMENT ON COLUMN public.venue_branding.font_body_family IS 'CSS font-family name to register the body font under (used in @font-face).';
 
+-- Auto-touch updated_at
+CREATE OR REPLACE FUNCTION public.venue_branding_set_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS venue_branding_updated_at ON public.venue_branding;
+CREATE TRIGGER venue_branding_updated_at
+  BEFORE UPDATE ON public.venue_branding
+  FOR EACH ROW EXECUTE FUNCTION public.venue_branding_set_updated_at();
+
+-- RLS: admins / concierges of the venue can read+write; client flow reads via security-definer RPCs.
+ALTER TABLE public.venue_branding ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "venue_branding admin read" ON public.venue_branding;
+CREATE POLICY "venue_branding admin read" ON public.venue_branding
+  FOR SELECT TO authenticated
+  USING (
+    public.has_role(auth.uid(), 'admin'::public.app_role)
+    OR public.has_role(auth.uid(), 'concierge'::public.app_role)
+  );
+
+DROP POLICY IF EXISTS "venue_branding admin write" ON public.venue_branding;
+CREATE POLICY "venue_branding admin write" ON public.venue_branding
+  FOR ALL TO authenticated
+  USING (
+    public.has_role(auth.uid(), 'admin'::public.app_role)
+    OR public.has_role(auth.uid(), 'concierge'::public.app_role)
+  )
+  WITH CHECK (
+    public.has_role(auth.uid(), 'admin'::public.app_role)
+    OR public.has_role(auth.uid(), 'concierge'::public.app_role)
+  );
+
+-- Public RPCs: expose branding via LEFT JOIN so anon clients can fetch.
 DROP FUNCTION IF EXISTS public.get_public_hotel_by_id(text);
 
 CREATE FUNCTION public.get_public_hotel_by_id(_hotel_id text)
@@ -51,10 +102,13 @@ RETURNS TABLE(
   "postal_code" text,
   "contact_phone" text,
   "welcome_background_color" text,
+  "welcome_background_opacity" smallint,
   "button_color" text,
   "button_text_color" text,
-  "custom_font_url" text,
-  "custom_font_family" text
+  "font_title_url" text,
+  "font_title_family" text,
+  "font_body_url" text,
+  "font_body_family" text
 )
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO 'public'
@@ -90,13 +144,16 @@ AS $$
     h.address,
     h.postal_code,
     con.contact_phone,
-    h.welcome_background_color,
-    h.button_color,
-    h.button_text_color,
-    h.custom_font_url,
-    h.custom_font_family
+    vb.welcome_background_color, vb.welcome_background_opacity,
+    vb.button_color,
+    vb.button_text_color,
+    vb.font_title_url,
+    vb.font_title_family,
+    vb.font_body_url,
+    vb.font_body_family
   FROM public.hotels h
   LEFT JOIN public.venue_deployment_schedules vds ON vds.hotel_id = h.id
+  LEFT JOIN public.venue_branding vb ON vb.hotel_id = h.id
   LEFT JOIN LATERAL (
     SELECT (c.country_code || ' ' || c.phone) AS contact_phone
     FROM public.concierges c
@@ -149,10 +206,13 @@ RETURNS TABLE(
   "postal_code" text,
   "contact_phone" text,
   "welcome_background_color" text,
+  "welcome_background_opacity" smallint,
   "button_color" text,
   "button_text_color" text,
-  "custom_font_url" text,
-  "custom_font_family" text
+  "font_title_url" text,
+  "font_title_family" text,
+  "font_body_url" text,
+  "font_body_family" text
 )
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO 'public'
@@ -188,13 +248,16 @@ AS $$
     h.address,
     h.postal_code,
     con.contact_phone,
-    h.welcome_background_color,
-    h.button_color,
-    h.button_text_color,
-    h.custom_font_url,
-    h.custom_font_family
+    vb.welcome_background_color, vb.welcome_background_opacity,
+    vb.button_color,
+    vb.button_text_color,
+    vb.font_title_url,
+    vb.font_title_family,
+    vb.font_body_url,
+    vb.font_body_family
   FROM public.hotels h
   LEFT JOIN public.venue_deployment_schedules vds ON vds.hotel_id = h.id
+  LEFT JOIN public.venue_branding vb ON vb.hotel_id = h.id
   LEFT JOIN LATERAL (
     SELECT (c.country_code || ' ' || c.phone) AS contact_phone
     FROM public.concierges c
