@@ -95,7 +95,7 @@ export const Pricing = () => {
     }
 
     if (!userId) {
-      navigate(`/auth?plan=${code}&cycle=${cycle}`);
+      navigate(`/signup?plan=${code}&cycle=${cycle}`);
       return;
     }
 

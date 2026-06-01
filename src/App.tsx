@@ -69,12 +69,18 @@ const Login = lazy(() => import("./pages/auth/Login"));
 const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
 const UpdatePassword = lazy(() => import("./pages/auth/UpdatePassword"));
 const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
+const AuthCallback = lazy(() => import("./pages/auth/AuthCallback"));
+
+// Onboarding Pages
+const Signup = lazy(() => import("./pages/onboarding/Signup"));
+const OnboardingComplete = lazy(() => import("./pages/onboarding/Complete"));
 
 // Shared Pages
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
 const Landing = lazy(() => import("./pages/Landing"));
 const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
 const RateTherapist = lazy(() => import("./pages/RateTherapist"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
@@ -246,6 +252,7 @@ const App = () => {
             {/* Root - Public marketing landing page */}
             <Route path="/" element={<Landing />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
 
             {/* Smart redirect based on user type (post-login entrypoint) */}
             <Route path="/app" element={<Home />} />
@@ -337,6 +344,11 @@ const App = () => {
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/update-password" element={<UpdatePassword />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+
+            {/* Onboarding (public — signup + post-Stripe-checkout landing) */}
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/onboarding/complete" element={<OnboardingComplete />} />
             
             {/* Legacy route redirects to admin routes */}
             <Route path="/booking" element={<Navigate to="/admin/bookings" replace />} />

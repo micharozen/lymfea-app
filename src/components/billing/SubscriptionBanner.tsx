@@ -47,11 +47,21 @@ export function SubscriptionBanner() {
       };
     }
 
-    if (
-      sub.status === "unpaid" ||
-      sub.status === "incomplete" ||
-      sub.status === "incomplete_expired"
-    ) {
+    if (sub.status === "incomplete") {
+      return {
+        tone: "warning",
+        title: t(
+          "billing.banner.incomplete.title",
+          "Subscription activation pending",
+        ),
+        detail: t(
+          "billing.banner.incomplete.detail",
+          "Finish your subscription setup to unlock full access.",
+        ),
+      };
+    }
+
+    if (sub.status === "unpaid" || sub.status === "incomplete_expired") {
       return {
         tone: "danger",
         title: t(

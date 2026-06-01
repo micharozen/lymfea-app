@@ -52,7 +52,7 @@
     "pricing": {
       "title": "5. Pricing, payment and term",
       "paragraphs": [
-        "Current pricing is displayed on saoma.fr. The Starter plan starts at €89 excl. VAT per month per Location. The Custom plan is subject to a tailored quote.",
+        "Current pricing is displayed on saoma.io. The Starter plan starts at €89 excl. VAT per month per Location. The Custom plan is subject to a tailored quote.",
         "Subscriptions are billed monthly or annually, depending on the option chosen. Payment is made by automatic debit (credit card or SEPA direct debit) via our payment provider.",
         "The subscription is entered into for a one-month term, tacitly renewed for identical periods. The Client may cancel at any time from their dashboard or by email; cancellation takes effect at the end of the current billing period. No pro-rata refund is owed.",
         "In case of late or non-payment, Saoma reserves the right to suspend access to the platform after a formal notice that remains unanswered."
@@ -89,7 +89,7 @@
     "contact": {
       "title": "10. Contact",
       "paragraphs": [
-        "For any question regarding these Terms, please contact us at hello@saoma.fr.",
+        "For any question regarding these Terms, please contact us at contact@saoma.io.",
         "Saoma SAS — Registered office and legal details available on the Legal Notice page."
       ]
     }

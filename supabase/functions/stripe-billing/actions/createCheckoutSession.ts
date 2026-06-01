@@ -20,6 +20,37 @@ function json(body: unknown, status = 200): Response {
 
 const TRIAL_PERIOD_DAYS = 14;
 
+interface PendingVenue {
+  name: string;
+  address: string;
+  venue_type: "hotel" | "spa";
+  postal_code?: string;
+  city?: string;
+  country?: string;
+}
+
+function trimStr(raw: unknown, max: number): string {
+  return typeof raw === "string" ? raw.trim().slice(0, max) : "";
+}
+
+function parsePendingVenue(raw: unknown): PendingVenue | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const name = trimStr(r.name, 120);
+  const address = trimStr(r.address, 200);
+  const venueType =
+    r.venue_type === "spa" ? "spa" : r.venue_type === "hotel" ? "hotel" : null;
+  if (!name || !address || !venueType) return null;
+  return {
+    name,
+    address,
+    venue_type: venueType,
+    postal_code: trimStr(r.postal_code, 20) || undefined,
+    city: trimStr(r.city, 120) || undefined,
+    country: trimStr(r.country, 120) || undefined,
+  };
+}
+
 export async function handleCreateCheckoutSession(
   ctx: ActionContext,
 ): Promise<Response> {
@@ -28,6 +59,7 @@ export async function handleCreateCheckoutSession(
   const successUrl = String(ctx.body.success_url ?? "");
   const cancelUrl = String(ctx.body.cancel_url ?? "");
   const seats = Math.max(1, Number(ctx.body.seats ?? 1));
+  const pendingVenue = parsePendingVenue(ctx.body.pending_venue);
 
   if (!planCode || !successUrl || !cancelUrl) {
     return json(
@@ -97,9 +129,25 @@ export async function handleCreateCheckoutSession(
           seats,
           plan_id: plan.id,
           billing_cycle: billingCycle,
+          ...(pendingVenue ? { metadata: { pending_venue: pendingVenue } } : {}),
         },
         { onConflict: "organization_id" },
       );
+  } else if (pendingVenue) {
+    // Existing subscription stub — merge pending_venue into metadata.
+    const { data: current } = await ctx.supabase
+      .from("subscriptions")
+      .select("metadata")
+      .eq("organization_id", org.id)
+      .maybeSingle();
+    const nextMetadata = {
+      ...((current?.metadata as Record<string, unknown>) ?? {}),
+      pending_venue: pendingVenue,
+    };
+    await ctx.supabase
+      .from("subscriptions")
+      .update({ metadata: nextMetadata })
+      .eq("organization_id", org.id);
   }
 
   const session = await ctx.stripe.checkout.sessions.create({

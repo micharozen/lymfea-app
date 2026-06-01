@@ -3,6 +3,7 @@
     "features": "Features",
     "howItWorks": "How it works",
     "pricing": "Pricing",
+    "faq": "FAQ",
     "contact": "Contact",
     "login": "Sign in",
     "cta": "Book a demo"
@@ -15,26 +16,26 @@
     "ctaPrimary": "Book a demo",
     "ctaSecondary": "Explore the platform",
     "stats": {
-      "confirmation": "Confirmation in < 10 min",
-      "pms": "2 PMS integrations",
-      "modules": "6 core modules"
+      "booking": "Fluid guest booking",
+      "pms": "PMS integration",
+      "customization": "100% customizable booking page"
     }
   },
   "problem": {
     "title": "Your hotel's spa deserves better",
-    "subtitle": "Legacy software is slow, complex and doesn't talk to your PMS. Your teams waste time, your guests wait.",
+    "subtitle": "Scattered tools, manual follow-ups, little visibility on bookings: your teams waste time and you lose guests.",
     "points": {
       "fragmented": {
         "title": "Fragmented tools",
         "desc": "Paper agenda, Excel for therapists, another sheet for billing."
       },
-      "slow": {
-        "title": "Slow confirmation",
-        "desc": "24h to confirm a booking. Clients drop off."
+      "followup": {
+        "title": "Manual follow-ups",
+        "desc": "Pending requests get forgotten, no automatic reminders. Guests book elsewhere."
       },
-      "noPms": {
-        "title": "No room charge",
-        "desc": "Treatments don't automatically land on the room bill."
+      "analytics": {
+        "title": "Limited visibility",
+        "desc": "No clear view of conversion rates or where bookings drop off."
       }
     }
   },
@@ -140,11 +141,50 @@
     },
     "footnote": "All prices in EUR excl. VAT. Volume discount above 5 locations. Monthly billing via Stripe."
   },
+  "faq": {
+    "eyebrow": "Frequently asked questions",
+    "title": "Everything you want to know about Saoma",
+    "subtitle": "Can't find your answer? Email us at contact@saoma.io, we reply within 24h.",
+    "items": {
+      "pricing": {
+        "q": "How much does Saoma cost for a hotel spa?",
+        "a": "Saoma offers three plans: Starter from €149 / month / location for day spas and independent spas, Pro from €299 / month / location for hotels with PMS integration, and Enterprise (custom pricing) for hotel groups. All plans have no long-term commitment, monthly Stripe billing, and volume discount above 5 locations."
+      },
+      "trial": {
+        "q": "Can I try Saoma for free?",
+        "a": "Yes. The Pro plan includes a 14-day free trial, no credit card required. You can configure your spa, add therapists, and test PMS integration without commitment. At the end of the trial, you choose to subscribe or stop, no fees."
+      },
+      "pms": {
+        "q": "Does Saoma integrate with Opera Cloud and Mews?",
+        "a": "Yes, Saoma offers native integrations with Opera Cloud (Oracle Hospitality) and Mews. This enables automatic room charge of treatments, real-time guest data synchronization, and post-stay billing without manual entry. Our team configures the integration in less than 48h."
+      },
+      "onboarding": {
+        "q": "How long does it take to deploy Saoma in my spa?",
+        "a": "Complete deployment — PMS connection, team training, client booking launch, therapist app rollout — takes on average 2 weeks. We support you with a dedicated Customer Success Manager, training sessions for concierges and therapists, and unlimited support during launch."
+      },
+      "therapistApp": {
+        "q": "Can my therapists use Saoma on mobile?",
+        "a": "Yes. The Saoma therapist app is a Progressive Web App (PWA) installable on iOS and Android. It includes push notifications for new bookings, in-session treatment add-ons, personal agenda management, earnings tracking, and automatic Stripe Connect payouts. No App Store installation required."
+      },
+      "roomCharge": {
+        "q": "How does room charge work with Saoma?",
+        "a": "When a hotel guest books a treatment via Saoma — from a QR code in their room, the concierge, or a direct link — they can choose to put the treatment on their room bill. Saoma communicates with your PMS (Opera or Mews), validates the room number, and the amount is automatically added to the stay invoice. The concierge receives a confirmation notification."
+      },
+      "multiVenue": {
+        "q": "Does Saoma manage multiple spas or hotels?",
+        "a": "Yes, Saoma is designed for multi-property hotel groups. The Enterprise plan consolidates schedule, therapists, billing, and reports across multiple spas, with per-location branding, user hierarchy (group director, spa director, concierges, therapists), and consolidated reporting."
+      },
+      "data": {
+        "q": "Is my data and my clients' data secure?",
+        "a": "Saoma is hosted in Europe (Supabase / AWS Frankfurt) and GDPR-compliant. All data is encrypted at rest and in transit, payments are handled by Stripe (PCI DSS Level 1 certified), and we never share client data with third parties. You retain ownership of your data and can export it anytime."
+      }
+    }
+  },
   "cta": {
     "title": "Ready to modernize your spa?",
     "subtitle": "Book a personalized 30-minute demo with our team. We'll show the platform with your treatments and organization.",
     "button": "Book my demo",
-    "secondary": "Or email us at hello@saoma.fr"
+    "secondary": "Or email us at contact@saoma.io"
   },
   "footer": {
     "tagline": "Saoma — the spa management platform for hotels & day spas.",

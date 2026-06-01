@@ -29,7 +29,7 @@ export const Footer = () => {
       title: t("footer.legal"),
       links: [
         { label: t("footer.links.terms"), href: "/terms" },
-        { label: t("footer.links.privacy"), href: "#" },
+        { label: t("footer.links.privacy"), href: "/privacy" },
         { label: t("footer.links.legalMentions"), href: "#" },
       ],
     },

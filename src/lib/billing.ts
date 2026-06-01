@@ -19,12 +19,22 @@ export interface CheckoutSessionResponse {
   session_id: string;
 }
 
+export interface PendingVenue {
+  name: string;
+  address: string;
+  venue_type: "hotel" | "spa";
+  postal_code?: string;
+  city?: string;
+  country?: string;
+}
+
 export async function createCheckoutSession(payload: {
   plan_code: PlanCode;
   billing_cycle: BillingCycle;
   success_url: string;
   cancel_url: string;
   seats?: number;
+  pending_venue?: PendingVenue;
 }) {
   return invokeEdgeFunction<typeof payload & { action: string }, CheckoutSessionResponse>(
     BILLING_FN,
@@ -108,4 +118,39 @@ export async function getBillingSummary() {
   return invokeEdgeFunction<{ action: string }, BillingSummaryResponse>(BILLING_FN, {
     body: { action: "get-billing-summary" },
   });
+}
+
+// --- Onboarding (single edge fn with actions, like stripe-billing) -----------
+
+const ONBOARDING_FN = "onboarding";
+
+export interface CompleteOrganizationSignupResponse {
+  organization_id: string;
+  organization_slug: string;
+  already_existed?: boolean;
+}
+
+export async function completeOrganizationSignup(payload: {
+  organization_name: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+}) {
+  return invokeEdgeFunction<
+    typeof payload & { action: string },
+    CompleteOrganizationSignupResponse
+  >(ONBOARDING_FN, {
+    body: { action: "complete-organization-signup", ...payload },
+  });
+}
+
+export interface CompleteOnboardingVenueResponse {
+  venue_id: string;
+}
+
+export async function completeOnboardingVenue() {
+  return invokeEdgeFunction<{ action: string }, CompleteOnboardingVenueResponse>(
+    ONBOARDING_FN,
+    { body: { action: "complete-onboarding-venue" } },
+  );
 }
