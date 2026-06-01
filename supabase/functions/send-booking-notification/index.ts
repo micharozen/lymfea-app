@@ -57,8 +57,10 @@ function buildEmailHtml(params: {
   totalPrice: number;
   currency: string;
   language: "fr" | "en";
+  clientType: string | null;
 }) {
-  const { clientName, hotelName, bookingId, dateLong, bookingTime, roomNumber, treatments, totalPrice, currency, language } = params;
+  const { clientName, hotelName, bookingId, dateLong, bookingTime, roomNumber, treatments, totalPrice, currency, language, clientType } = params;
+  const showPartnerNotice = clientType === "staycation" || clientType === "classpass" || clientType === "hotel";
   const labels = language === "fr"
     ? {
         title: "Votre réservation bien-être est confirmée",
@@ -101,9 +103,9 @@ function buildEmailHtml(params: {
   <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">${treatmentRows}
     <tr><td style="padding-top:8px;border-top:1px solid #e5e7eb;font-weight:600;">${labels.totalLabel}</td><td style="padding-top:8px;border-top:1px solid #e5e7eb;text-align:right;font-weight:600;">${formatPrice(totalPrice, currency)}</td></tr>
   </table>
-  <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:12px;color:#3730a3;font-size:13px;margin-bottom:16px;">
+  ${showPartnerNotice ? `<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:12px;color:#3730a3;font-size:13px;margin-bottom:16px;">
     ${labels.partnerNotice}
-  </div>
+  </div>` : ""}
   <p style="margin:0;">${labels.footer}</p>
 </body></html>`;
 }
@@ -206,6 +208,7 @@ serve(async (req: Request) => {
       .select(
         `id, booking_id, client_first_name, client_last_name, client_email, phone,
          booking_date, booking_time, room_number, total_price, hotel_id, client_type,
+         status, payment_status,
          hotels(name, currency)`
       )
       .eq("id", bookingId)
@@ -213,6 +216,22 @@ serve(async (req: Request) => {
 
     if (bookingError || !booking) {
       throw new Error(`Booking not found: ${bookingError?.message ?? "unknown"}`);
+    }
+
+    const bookingClientType = (booking as any).client_type as string | null;
+    const bookingPaymentStatus = (booking as any).payment_status as string | null;
+    const isPartnerBilled = bookingClientType === "staycation" || bookingClientType === "classpass" || bookingClientType === "hotel";
+    const isPaymentEngaged = bookingPaymentStatus === "paid" || bookingPaymentStatus === "authorized" || bookingPaymentStatus === "engaged";
+    const isReschedOrCancel = body.type === "reschedule" || body.type === "cancellation";
+
+    if (!isReschedOrCancel && !isPartnerBilled && !isPaymentEngaged) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Confirmation email blocked: client_type=${bookingClientType ?? "null"} requires payment_status to be paid/authorized/engaged (got ${bookingPaymentStatus ?? "null"}). Use the Stripe payment link flow instead.`,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
     }
 
     const { data: treatments } = await supabase
@@ -251,6 +270,7 @@ serve(async (req: Request) => {
           totalPrice: Number(booking.total_price ?? 0),
           currency,
           language,
+          clientType: bookingClientType,
         });
         const subject = language === "fr"
           ? `Confirmation de votre réservation #${booking.booking_id}`
