@@ -87,7 +87,7 @@ export function CartDrawer({ open, onOpenChange, isOffert = false, isCompanyOffe
                           variant="ghost"
                           size="icon"
                           onClick={() => updateQuantity(item.id, item.quantity + 1, item.variantId)}
-                          className="h-7 w-7 bg-gold-400 text-black hover:bg-gold-200"
+                          className="h-7 w-7 bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </Button>

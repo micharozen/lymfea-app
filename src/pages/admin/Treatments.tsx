@@ -32,7 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
-import { Search, Pencil, Trash2, HandHeart, Copy } from "lucide-react";
+import { Search, Pencil, Trash2, HandHeart, Copy, Sparkles, Package, Gift } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -241,6 +241,31 @@ export default function TreatmentMenus() {
               Nouvelle prestation
             </Button>
           )}
+        </div>
+        <div className="flex items-center gap-0 border-b border-border -mb-px">
+          <button
+            type="button"
+            className="rounded-none border-b-2 border-foreground text-foreground px-4 pb-2.5 pt-1.5 text-sm font-medium flex items-center"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Soins
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/admin/cures")}
+            className="rounded-none border-b-2 border-transparent text-muted-foreground hover:text-foreground px-4 pb-2.5 pt-1.5 text-sm flex items-center"
+          >
+            <Package className="h-4 w-4 mr-2" />
+            Cures
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/admin/cures?tab=gift-cards")}
+            className="rounded-none border-b-2 border-transparent text-muted-foreground hover:text-foreground px-4 pb-2.5 pt-1.5 text-sm flex items-center"
+          >
+            <Gift className="h-4 w-4 mr-2" />
+            Cartes cadeaux
+          </button>
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,7 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
-import { Search, Pencil, Trash2, Package, Plus, ShoppingCart, Gift } from "lucide-react";
+import { Search, Pencil, Trash2, Package, Plus, ShoppingCart, Gift, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -89,10 +89,13 @@ interface CustomerBundle {
 
 export default function Cures() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation("admin");
   const queryClient = useQueryClient();
 
-  const [topTab, setTopTab] = useState<"cures" | "gift-cards">("cures");
+  const [topTab, setTopTab] = useState<"cures" | "gift-cards">(
+    searchParams.get("tab") === "gift-cards" ? "gift-cards" : "cures"
+  );
   const [activeTab, setActiveTab] = useState("templates");
   const [searchQuery, setSearchQuery] = useState("");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
@@ -241,8 +244,7 @@ export default function Cures() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 md:mb-6 flex items-center justify-between">
           <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Cures / Cartes cadeaux
+            Menus de soins
           </h1>
           {topTab === "cures" && (
             <div className="flex items-center gap-2">
@@ -261,8 +263,26 @@ export default function Cures() {
             </div>
           )}
         </div>
-        <Tabs value={topTab} onValueChange={(v) => setTopTab(v as "cures" | "gift-cards")}>
+        <Tabs
+          value={topTab}
+          onValueChange={(v) => {
+            const next = v as "cures" | "gift-cards";
+            setTopTab(next);
+            const params = new URLSearchParams(searchParams);
+            if (next === "gift-cards") params.set("tab", "gift-cards");
+            else params.delete("tab");
+            setSearchParams(params, { replace: true });
+          }}
+        >
           <TabsList className="bg-transparent rounded-none p-0 h-auto mb-0">
+            <button
+              type="button"
+              onClick={() => navigate("/admin/treatments")}
+              className="rounded-none border-b-2 border-transparent text-muted-foreground hover:text-foreground px-4 pb-2.5 pt-1.5 text-sm flex items-center"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Soins
+            </button>
             <TabsTrigger
               value="cures"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"

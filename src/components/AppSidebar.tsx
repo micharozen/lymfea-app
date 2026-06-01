@@ -66,6 +66,7 @@ interface MenuItem {
   url: string;
   icon: LucideIcon;
   badge?: boolean;
+  soon?: boolean;
 }
 
 const adminPrimaryItems: MenuItem[] = [
@@ -75,7 +76,6 @@ const adminPrimaryItems: MenuItem[] = [
   { title: "Lieux", url: "/admin/places", icon: Building2 },
   { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
-  { title: "Cures / Cartes cadeaux", url: "/admin/cures", icon: Package },
   { title: "Clients", url: "/admin/customers", icon: Contact },
   { title: "Alertes", url: "/admin/schedule-alerts", icon: Bell, badge: true },
 ];
@@ -83,10 +83,9 @@ const adminPrimaryItems: MenuItem[] = [
 const adminSecondaryItems: MenuItem[] = [
   { title: "Salles de soin", url: "/admin/treatment-rooms", icon: DoorOpen },
   { title: "Gestion du lieu", url: "/admin/concierges", icon: UserCog },
-  { title: `Produits`, url: "/admin/products", icon: Package },
-  { title: "Commandes", url: "/admin/orders", icon: Truck },
+  { title: `Produits`, url: "/admin/products", icon: Package, soon: true },
+  { title: "Commandes", url: "/admin/orders", icon: Truck, soon: true },
   { title: "Finance", url: "/admin/finance", icon: Wallet },
-  { title: "Abonnement", url: "/admin/billing", icon: CreditCard },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
 
@@ -258,17 +257,14 @@ export function AppSidebar() {
   const secondaryItems: MenuItem[] =
     isAdminRole && !inVenueManagerView ? [...adminSecondaryItems] : [];
 
-  if (isAdminRole && !inVenueManagerView) {
-    if (isSuperAdmin) {
-      secondaryItems.push({ title: "Organisations", url: "/admin/organizations", icon: Network });
-    } else if (isAdmin && !isSuperAdmin && organizationId) {
-      secondaryItems.push({
-        title: "Mon organisation",
-        url: `/admin/organizations/${organizationId}`,
-        icon: Network,
-      });
-    }
-  }
+  const organizationMenuItem: MenuItem | null =
+    isAdminRole && !inVenueManagerView
+      ? isSuperAdmin
+        ? { title: "Organisations", url: "/admin/organizations", icon: Network }
+        : isAdmin && organizationId
+          ? { title: "Mon organisation", url: `/admin/organizations/${organizationId}`, icon: Network }
+          : null
+      : null;
 
   const { data: switcherOrgs = [] } = useOrganizationsList({ enabled: isSuperAdmin });
 
@@ -293,6 +289,11 @@ export function AppSidebar() {
           >
             <item.icon className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={isActive ? 2 : 1.5} />
             <span className="text-sm">{item.title}</span>
+            {item.soon && (
+              <span className="ml-auto bg-muted text-muted-foreground text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5">
+                Soon
+              </span>
+            )}
             {item.badge && (redFlagCount + unreadNotifCount) > 0 && (
               <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                 {(redFlagCount + unreadNotifCount) > 99 ? '99+' : (redFlagCount + unreadNotifCount)}
@@ -462,6 +463,22 @@ export function AppSidebar() {
                     <span>Profil</span>
                   </NavLink>
                 </DropdownMenuItem>
+                {organizationMenuItem && (
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <NavLink to={organizationMenuItem.url} className="flex items-center w-full">
+                      <Network className="mr-2 h-4 w-4" />
+                      <span>{organizationMenuItem.title}</span>
+                    </NavLink>
+                  </DropdownMenuItem>
+                )}
+                {isAdminRole && !inVenueManagerView && (
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <NavLink to="/admin/billing" className="flex items-center w-full">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      <span>Abonnement</span>
+                    </NavLink>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <NavLink to="/admin/support" className="flex items-center w-full">
                     <LifeBuoy className="mr-2 h-4 w-4" />

@@ -29,6 +29,7 @@ import {
 import { ArrowLeft, Loader2, Save, Pencil, CalendarDays, Eye } from "lucide-react";
 import { startOfMonth, startOfYear, subDays } from "date-fns";
 import { validateCancellationTiers } from "@/lib/cancellationTiers";
+import { VenueBrandingTab } from "@/components/admin/venue/VenueBrandingTab";
 import { VenueGeneralTab, type VenueSectionId } from "@/components/admin/venue/VenueGeneralTab";
 import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
@@ -94,6 +95,14 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
     min_hours: z.coerce.number().min(0),
     refund_percent: z.coerce.number().min(0).max(100),
   })).default([]),
+  welcome_background_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  welcome_background_opacity: z.coerce.number().int().min(0).max(100).default(55),
+  button_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  button_text_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  font_title_url: z.string().optional().or(z.literal("")),
+  font_title_family: z.string().optional().or(z.literal("")),
+  font_body_url: z.string().optional().or(z.literal("")),
+  font_body_family: z.string().optional().or(z.literal("")),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -160,7 +169,7 @@ export default function VenueDetail({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const validTabs = ["configuration", "planning", "catalog", "resources", "billing"] as const;
+  const validTabs = ["configuration", "planning", "catalog", "resources", "billing", "branding"] as const;
   type TabValue = (typeof validTabs)[number];
   const initialTab: TabValue = (() => {
     const requested = searchParams.get("tab");
@@ -188,6 +197,7 @@ export default function VenueDetail({
     setSearchParams(searchParams, { replace: true });
   };
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [brandingPreviewKey, setBrandingPreviewKey] = useState(0);
   const [existingScheduleId, setExistingScheduleId] = useState<string | null>(null);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [hotelName, setHotelName] = useState("");
@@ -259,6 +269,14 @@ export default function VenueDetail({
       company_offered: false,
       landing_subtitle: "",
       calendar_color: "",
+      welcome_background_color: "",
+      welcome_background_opacity: 55,
+      button_color: "",
+      button_text_color: "",
+      font_title_url: "",
+      font_title_family: "",
+      font_body_url: "",
+      font_body_family: "",
       cancellation_policy_text_fr: "",
       cancellation_policy_text_en: "",
       client_cancellation_cutoff_hours: 2,
@@ -294,6 +312,14 @@ export default function VenueDetail({
 
       if (hotelError) throw hotelError;
 
+      // Load branding (1:1 with hotel, may be absent for older venues)
+      const { data: branding } = await supabase
+        .from("venue_branding" as any)
+        .select("*")
+        .eq("hotel_id", hotelId)
+        .maybeSingle();
+      const b = (branding ?? {}) as Record<string, string | null>;
+
       if (hotel) {
         form.reset({
           name: hotel.name || "",
@@ -328,6 +354,15 @@ export default function VenueDetail({
           landing_subtitle_en: (hotel as any).landing_subtitle_en || "",
           description_en: (hotel as any).description_en || "",
           calendar_color: hotel.calendar_color ?? "",
+          welcome_background_color: b.welcome_background_color ?? "",
+          welcome_background_opacity:
+            b.welcome_background_opacity != null ? Number(b.welcome_background_opacity) : 55,
+          button_color: b.button_color ?? "",
+          button_text_color: b.button_text_color ?? "",
+          font_title_url: b.font_title_url ?? "",
+          font_title_family: b.font_title_family ?? "",
+          font_body_url: b.font_body_url ?? "",
+          font_body_family: b.font_body_family ?? "",
           cancellation_policy_text_fr: (hotel as { cancellation_policy_text_fr?: string }).cancellation_policy_text_fr || "",
           cancellation_policy_text_en: (hotel as { cancellation_policy_text_en?: string }).cancellation_policy_text_en || "",
           client_cancellation_cutoff_hours: Number(
@@ -483,6 +518,44 @@ export default function VenueDetail({
     }
   };
 
+  const saveVenueBranding = async (
+    targetHotelId: string,
+    values: VenueWizardFormValues,
+  ) => {
+    const payload = {
+      hotel_id: targetHotelId,
+      welcome_background_color: values.welcome_background_color || null,
+      welcome_background_opacity:
+        values.welcome_background_color ? values.welcome_background_opacity ?? 55 : null,
+      button_color: values.button_color || null,
+      button_text_color: values.button_text_color || null,
+      font_title_url: values.font_title_url?.trim() || null,
+      font_title_family: values.font_title_family?.trim() || null,
+      font_body_url: values.font_body_url?.trim() || null,
+      font_body_family: values.font_body_family?.trim() || null,
+    };
+    const allEmpty =
+      !payload.welcome_background_color &&
+      payload.welcome_background_opacity == null &&
+      !payload.button_color &&
+      !payload.button_text_color &&
+      !payload.font_title_url &&
+      !payload.font_title_family &&
+      !payload.font_body_url &&
+      !payload.font_body_family;
+    if (allEmpty) {
+      await supabase
+        .from("venue_branding" as any)
+        .delete()
+        .eq("hotel_id", targetHotelId);
+      return;
+    }
+    const { error } = await supabase
+      .from("venue_branding" as any)
+      .upsert(payload, { onConflict: "hotel_id" });
+    if (error) throw error;
+  };
+
   const validateDeployment = (): boolean => {
     if (deploymentState.isAlwaysOpen) return true;
 
@@ -598,6 +671,9 @@ export default function VenueDetail({
         // Save blocked slots
         await saveBlockedSlots(newId);
 
+        // Save branding
+        await saveVenueBranding(newId, values);
+
         queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu créé avec succès");
 
@@ -623,9 +699,13 @@ export default function VenueDetail({
         // Save blocked slots
         await saveBlockedSlots(targetId);
 
+        // Save branding
+        await saveVenueBranding(targetId, values);
+
         queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu mis à jour avec succès");
         setIsEditingState(false);
+        if (activeTab === "branding") setBrandingPreviewKey((k) => k + 1);
       }
     } catch (error: any) {
       console.error("Error saving venue:", error);
@@ -816,6 +896,9 @@ export default function VenueDetail({
               <TabsTrigger value="billing" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Facturation
               </TabsTrigger>
+              <TabsTrigger value="branding" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                {tAdmin('venue.branding.tab', 'Branding')}
+              </TabsTrigger>
             </TabsList>
           </div>
           )}
@@ -894,6 +977,22 @@ export default function VenueDetail({
 
                 <TabsContent value="billing" className="mt-0">
                   <VenueBillingTab hotelId={effectiveHotelId!} />
+                </TabsContent>
+
+                <TabsContent value="branding" className="mt-0">
+                  <Form {...form}>
+                    <VenueBrandingTab
+                      form={form}
+                      disabled={!isEditing}
+                      hotelImage={hotelImage}
+                      coverImage={coverImage}
+                      hotelName={hotelName || watchedName}
+                      onRequestEdit={() => setIsEditingState(true)}
+                      hotelId={effectiveHotelId}
+                      hotelSlug={hotelSlug}
+                      previewRefreshKey={brandingPreviewKey}
+                    />
+                  </Form>
                 </TabsContent>
               </>
             )}

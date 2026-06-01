@@ -319,7 +319,7 @@ export default function Confirmation() {
 
             <Button
               onClick={() => navigate(`/client/${slug}/treatments`)}
-              className="w-full h-14 bg-gray-900 text-white hover:bg-gray-800 rounded-xl text-base font-medium shadow-sm transition-all active:scale-[0.98]"
+              className="w-full h-14 bg-[var(--venue-button-bg,theme(colors.gray.900))] text-[var(--venue-button-text,#fff)] hover:opacity-90 rounded-xl text-base font-medium shadow-sm transition-all active:scale-[0.98]"
             >
               <ShoppingBag className="mr-2 h-5 w-5" />
               {t('bundle.giftBookTreatment')}
