@@ -118,12 +118,19 @@ const getPaymentStatusBadge = (paymentStatus?: string | null) => {
 interface Treatment {
   id: string;
   treatment_id: string;
+  variant_id?: string | null;
   treatment_menus: {
     name: string;
     description: string;
     duration: number;
     price: number;
     image?: string;
+  } | null;
+  treatment_variants?: {
+    id: string;
+    label?: string | null;
+    duration?: number | null;
+    price?: number | null;
   } | null;
 }
 
@@ -276,7 +283,7 @@ const PwaBookingDetail = () => {
         effective_payment_status: effectivePaymentStatus
       });
 
-      const { data: trData } = await supabase.from("booking_treatments").select("*, treatment_menus(*)").eq("booking_id", id);
+      const { data: trData } = await supabase.from("booking_treatments").select("*, treatment_menus(*), treatment_variants(id, label, duration, price)").eq("booking_id", id);
       if (trData) setTreatments(trData as Treatment[]);
 
       const { data: btData } = await supabase
@@ -409,7 +416,8 @@ const PwaBookingDetail = () => {
     if (!booking) return;
     setUpdating(true);
     try {
-      const deletedPrice = treatments.find(t => t.id === treatmentId)?.treatment_menus?.price || 0;
+      const found = treatments.find(t => t.id === treatmentId);
+      const deletedPrice = found?.treatment_variants?.price ?? found?.treatment_menus?.price ?? 0;
       const { data, error } = await supabase.from("booking_treatments").delete().eq("id", treatmentId).select();
       if (error || !data?.length) throw new Error("Suppression impossible (RLS ?)");
 
@@ -834,13 +842,23 @@ const PwaBookingDetail = () => {
             <h3 className="text-xs font-semibold">Soins</h3>
             {booking.status === "confirmed" && <button onClick={() => setShowAddTreatmentDialog(true)} className="text-[10px] bg-primary text-white px-3 py-1 rounded">+ Ajouter</button>}
           </div>
-          {treatments.map(t => (
-            <div key={t.id} className="flex justify-between items-center py-2 border-b border-border/50">
-              <div className="text-xs"><p className="font-medium">{t.treatment_menus?.name}</p><p className="text-[10px] text-muted-foreground">{t.treatment_menus?.duration}min</p></div>
-              <div className="flex items-center gap-3"><span className="text-xs">{formatPrice(t.treatment_menus?.price || 0, booking.hotel_currency)}</span>
-              {booking.status !== "completed" && <button onClick={() => setTreatmentToDelete(t.id)}><Trash2 className="w-3.5 h-3.5 text-destructive"/></button>}</div>
-            </div>
-          ))}
+          {treatments.map(t => {
+            const effectiveDuration = t.treatment_variants?.duration ?? t.treatment_menus?.duration;
+            const effectivePrice = t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0;
+            const variantLabel = t.treatment_variants?.label;
+            return (
+              <div key={t.id} className="flex justify-between items-center py-2 border-b border-border/50">
+                <div className="text-xs">
+                  <p className="font-medium">{t.treatment_menus?.name}{variantLabel ? ` · ${variantLabel}` : ''}</p>
+                  <p className="text-[10px] text-muted-foreground">{effectiveDuration}min</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs">{formatPrice(effectivePrice, booking.hotel_currency)}</span>
+                  {booking.status !== "completed" && <button onClick={() => setTreatmentToDelete(t.id)}><Trash2 className="w-3.5 h-3.5 text-destructive"/></button>}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -920,7 +938,7 @@ const PwaBookingDetail = () => {
         }}
         signatureToken={booking.signature_token}
         loading={false}
-        treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))}
+        treatments={treatments.map(t => ({ name: (t.treatment_menus?.name || "") + (t.treatment_variants?.label ? ` · ${t.treatment_variants.label}` : ""), duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0, price: t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0 }))}
         vatRate={booking.hotel_vat || 20}
         totalPrice={totalPrice}
         isAlreadyPaid={true}
@@ -931,12 +949,12 @@ const PwaBookingDetail = () => {
         onConfirm={handleSignatureConfirm} 
         signatureToken={booking.signature_token}
         loading={signingLoading} 
-        treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} 
+        treatments={treatments.map(t => ({ name: (t.treatment_menus?.name || "") + (t.treatment_variants?.label ? ` · ${t.treatment_variants.label}` : ""), duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0, price: t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0 }))} 
         vatRate={booking.hotel_vat || 20} 
         totalPrice={totalPrice} 
         isAlreadyPaid={booking.effective_payment_status === 'paid' || booking.effective_payment_status === 'card_saved'} 
       />
-      <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} hotelId={booking.hotel_id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} vatRate={booking.hotel_vat || 20} venueType={booking.venue_type} roomNumber={booking.room_number} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} hasSavedCard={booking.effective_payment_status === 'card_saved'} />
+      <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} hotelId={booking.hotel_id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: (t.treatment_menus?.name || "") + (t.treatment_variants?.label ? ` · ${t.treatment_variants.label}` : ""), duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0, price: t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0 }))} vatRate={booking.hotel_vat || 20} venueType={booking.venue_type} roomNumber={booking.room_number} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} hasSavedCard={booking.effective_payment_status === 'card_saved'} />
       
       <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Supprimer ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>Oui</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Désassigner ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={handleUnassignBooking}>Confirmer</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
