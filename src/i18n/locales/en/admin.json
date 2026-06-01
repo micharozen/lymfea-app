@@ -363,6 +363,26 @@
     "no": "No"
   },
   "venue": {
+    "branding": {
+      "tab": "Branding",
+      "title": "Visual customization",
+      "description": "Tailor the booking flow's colors and typography to your venue's identity.",
+      "welcomeBg": "Welcome page background",
+      "buttonColor": "“+” button color",
+      "buttonTextColor": "Button text color",
+      "font": "Font",
+      "fontHelp": "Accepted formats: woff2, woff, ttf, otf. Max size 2 MB.",
+      "uploadFont": "Upload a font",
+      "replaceFont": "Replace font",
+      "removeFont": "Remove",
+      "fontUploaded": "Font uploaded",
+      "fontInvalidFormat": "Invalid font format (woff2, woff, ttf, otf)",
+      "fontTooLarge": "File must not exceed 2 MB",
+      "fontFamily": "CSS font-family name",
+      "reset": "Reset",
+      "previewLabel": "Live preview",
+      "enableEdit": "Enable editing"
+    },
     "organization": {
       "label": "Organization",
       "placeholder": "Select an organization",

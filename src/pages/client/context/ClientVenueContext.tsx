@@ -31,6 +31,11 @@ export interface PublicHotel {
   address: string | null;
   postal_code: string | null;
   contact_phone: string | null;
+  welcome_background_color: string | null;
+  button_color: string | null;
+  button_text_color: string | null;
+  custom_font_url: string | null;
+  custom_font_family: string | null;
 }
 
 interface ClientVenueContextValue {

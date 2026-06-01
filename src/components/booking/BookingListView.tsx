@@ -232,8 +232,8 @@ export function BookingListView({
             <col className="w-[6%]" />
             <col className="w-[10%]" />
             <col className="w-[11%]" />
-            <col className="w-[10%]" />
-            <col className="w-[14%]" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
             <col className="w-[7%]" />
             {!isConcierge && <col className="w-[10%]" />}
             <col className="w-[10%]" />
@@ -338,12 +338,12 @@ export function BookingListView({
                           e.stopPropagation();
                           navigate(`/admin/customers/${customerId}`);
                         }}
-                        className="block leading-none truncate text-left hover:underline hover:text-primary"
+                        className="block leading-tight truncate text-left hover:underline hover:text-primary"
                       >
                         {label}
                       </button>
                     ) : (
-                      <span className="block leading-none truncate">{label}</span>
+                      <span className="block leading-tight truncate">{label}</span>
                     );
                   })()}
                 </TableCell>
@@ -368,7 +368,7 @@ export function BookingListView({
                   </TableCell>
                 )}
                 <TableCell className="text-foreground py-3 px-2 truncate">
-                  <span className="block leading-none truncate">{booking.therapist_name || "-"}</span>
+                  <span className="block leading-tight truncate">{booking.therapist_name || "-"}</span>
                 </TableCell>
                 <TableCell className="py-3 px-2 text-center" onClick={(e) => e.stopPropagation()}>
                   {renderCancelButton(booking)}

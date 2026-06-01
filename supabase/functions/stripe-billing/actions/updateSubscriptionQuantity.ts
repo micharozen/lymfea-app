@@ -56,10 +56,11 @@ export async function handleUpdateSubscriptionQuantity(
   }
 
   if (mode === "preview") {
-    // Stripe SDK shape varies; cast for invoices.retrieveUpcoming params.
+    // Stripe replaced invoices.retrieveUpcoming with invoices.createPreview
+    // in newer API versions. Param shapes differ slightly (subscription_details).
     const upcoming = await (
       ctx.stripe.invoices as unknown as {
-        retrieveUpcoming: (params: unknown) => Promise<{
+        createPreview: (params: unknown) => Promise<{
           amount_due: number;
           currency: string;
           total: number;
@@ -67,16 +68,18 @@ export async function handleUpdateSubscriptionQuantity(
           lines: { data: Array<{ amount: number; description: string | null }> };
         }>;
       }
-    ).retrieveUpcoming({
+    ).createPreview({
       customer: sub.stripe_customer_id,
       subscription: sub.stripe_subscription_id,
-      subscription_items: [
-        {
-          id: sub.stripe_subscription_item_id,
-          quantity: newSeats,
-        },
-      ],
-      subscription_proration_behavior: "create_prorations",
+      subscription_details: {
+        items: [
+          {
+            id: sub.stripe_subscription_item_id,
+            quantity: newSeats,
+          },
+        ],
+        proration_behavior: "create_prorations",
+      },
     });
 
     return json({

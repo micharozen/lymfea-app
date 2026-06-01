@@ -416,7 +416,7 @@ export default function Welcome() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 sm:h-11 sm:w-11 bg-gold-400 text-black hover:bg-gold-200"
+                  className="h-10 w-10 sm:h-11 sm:w-11 bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAddToBasket(treatment);
@@ -432,7 +432,7 @@ export default function Welcome() {
                 e.stopPropagation();
                 handleAddToBasket(treatment);
               }}
-              className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-200 transition-all duration-300 font-bold border-none flex-shrink-0"
+              className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 transition-all duration-300 font-bold border-none flex-shrink-0"
             >
               {t('menu.select')}
             </Button>
@@ -477,7 +477,7 @@ export default function Welcome() {
   return (
     <div
       className={cn(
-        'min-h-screen flex flex-col bg-white text-gray-900',
+        'min-h-screen flex flex-col bg-[var(--venue-bg,#fff)] text-gray-900',
         itemCount > 0 ? 'pb-20' : ''
       )}
     >
@@ -581,7 +581,7 @@ export default function Welcome() {
         <div className="fixed bottom-4 left-0 right-0 px-4 pb-safe z-30 bg-gradient-to-t from-white via-white to-transparent">
           <Button
             onClick={() => navigate(`/client/${slug}/schedule`)}
-            className="w-full h-12 sm:h-14 md:h-16 text-base font-medium tracking-wide transition-all duration-300 bg-gray-900 text-white hover:bg-gray-800 shadow-lg"
+            className="w-full h-12 sm:h-14 md:h-16 text-base font-medium tracking-wide transition-all duration-300 bg-[var(--venue-button-bg,theme(colors.gray.900))] text-[var(--venue-button-text,#fff)] hover:opacity-90 shadow-lg"
           >
             <ShoppingBag className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
             {t('menu.bookTreatment')} ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})

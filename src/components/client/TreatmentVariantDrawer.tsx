@@ -201,7 +201,7 @@ export function TreatmentVariantDrawer({
             className={cn(
               'h-11 px-6 rounded-full font-medium tracking-wide transition-colors shrink-0 font-grotesk',
               selectedVariant
-                ? 'bg-gold-400 text-black hover:bg-gold-200'
+                ? 'bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             )}
           >

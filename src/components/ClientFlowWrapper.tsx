@@ -29,6 +29,7 @@ import {
   ClientVenueProvider,
   type PublicHotel,
 } from '@/pages/client/context/ClientVenueContext';
+import { VenueThemeProvider } from '@/pages/client/context/VenueThemeProvider';
 import { CartProvider, useCart, type BasketItem } from '@/pages/client/context/CartContext';
 import { useUrlBookingState } from '@/pages/client/hooks/useUrlBookingState';
 
@@ -102,16 +103,27 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
 
   return (
     <ClientVenueProvider value={{ slug: venue.slug, hotelId: venue.id, venue }}>
-      <AnalyticsProvider hotelId={venue.id}>
-        <CartProvider hotelId={venue.id}>
-          <ClientFlowProvider>
-            <UrlStateHydrator hotelId={venue.id} />
-            <PageTransition>
-              <div className="lymfea-client">{children}</div>
-            </PageTransition>
-          </ClientFlowProvider>
-        </CartProvider>
-      </AnalyticsProvider>
+      <VenueThemeProvider venue={venue}>
+        <AnalyticsProvider hotelId={venue.id}>
+          <CartProvider hotelId={venue.id}>
+            <ClientFlowProvider>
+              <UrlStateHydrator hotelId={venue.id} />
+              <PageTransition>
+                <div
+                  className="lymfea-client"
+                  style={
+                    venue.custom_font_family
+                      ? { fontFamily: 'var(--venue-font)' }
+                      : undefined
+                  }
+                >
+                  {children}
+                </div>
+              </PageTransition>
+            </ClientFlowProvider>
+          </CartProvider>
+        </AnalyticsProvider>
+      </VenueThemeProvider>
     </ClientVenueProvider>
   );
 };

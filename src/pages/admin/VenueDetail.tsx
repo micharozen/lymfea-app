@@ -29,6 +29,7 @@ import {
 import { ArrowLeft, Loader2, Save, Pencil, CalendarDays, Eye } from "lucide-react";
 import { startOfMonth, startOfYear, subDays } from "date-fns";
 import { validateCancellationTiers } from "@/lib/cancellationTiers";
+import { VenueBrandingTab } from "@/components/admin/venue/VenueBrandingTab";
 import { VenueGeneralTab, type VenueSectionId } from "@/components/admin/venue/VenueGeneralTab";
 import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
@@ -94,6 +95,11 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
     min_hours: z.coerce.number().min(0),
     refund_percent: z.coerce.number().min(0).max(100),
   })).default([]),
+  welcome_background_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  button_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  button_text_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  custom_font_url: z.string().optional().or(z.literal("")),
+  custom_font_family: z.string().optional().or(z.literal("")),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -259,6 +265,11 @@ export default function VenueDetail({
       company_offered: false,
       landing_subtitle: "",
       calendar_color: "",
+      welcome_background_color: "",
+      button_color: "",
+      button_text_color: "",
+      custom_font_url: "",
+      custom_font_family: "",
       cancellation_policy_text_fr: "",
       cancellation_policy_text_en: "",
       client_cancellation_cutoff_hours: 2,
@@ -328,6 +339,11 @@ export default function VenueDetail({
           landing_subtitle_en: (hotel as any).landing_subtitle_en || "",
           description_en: (hotel as any).description_en || "",
           calendar_color: hotel.calendar_color ?? "",
+          welcome_background_color: (hotel as any).welcome_background_color ?? "",
+          button_color: (hotel as any).button_color ?? "",
+          button_text_color: (hotel as any).button_text_color ?? "",
+          custom_font_url: (hotel as any).custom_font_url ?? "",
+          custom_font_family: (hotel as any).custom_font_family ?? "",
           cancellation_policy_text_fr: (hotel as { cancellation_policy_text_fr?: string }).cancellation_policy_text_fr || "",
           cancellation_policy_text_en: (hotel as { cancellation_policy_text_en?: string }).cancellation_policy_text_en || "",
           client_cancellation_cutoff_hours: Number(
@@ -567,6 +583,11 @@ export default function VenueDetail({
         landing_subtitle_en: values.landing_subtitle_en || null,
         description_en: values.description_en || null,
         calendar_color: values.calendar_color || null,
+        welcome_background_color: values.welcome_background_color || null,
+        button_color: values.button_color || null,
+        button_text_color: values.button_text_color || null,
+        custom_font_url: values.custom_font_url?.trim() || null,
+        custom_font_family: values.custom_font_family?.trim() || null,
         cancellation_policy_text_fr: values.cancellation_policy_text_fr?.trim() || null,
         cancellation_policy_text_en: values.cancellation_policy_text_en?.trim() || null,
         client_cancellation_cutoff_hours: values.client_cancellation_cutoff_hours ?? 2,
@@ -816,6 +837,9 @@ export default function VenueDetail({
               <TabsTrigger value="billing" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Facturation
               </TabsTrigger>
+              <TabsTrigger value="branding" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                {tAdmin('venue.branding.tab', 'Branding')}
+              </TabsTrigger>
             </TabsList>
           </div>
           )}
@@ -894,6 +918,17 @@ export default function VenueDetail({
 
                 <TabsContent value="billing" className="mt-0">
                   <VenueBillingTab hotelId={effectiveHotelId!} />
+                </TabsContent>
+
+                <TabsContent value="branding" className="mt-0">
+                  <VenueBrandingTab
+                    form={form}
+                    disabled={!isEditing}
+                    hotelImage={hotelImage}
+                    coverImage={coverImage}
+                    hotelName={hotelName || watchedName}
+                    onRequestEdit={() => setIsEditingState(true)}
+                  />
                 </TabsContent>
               </>
             )}

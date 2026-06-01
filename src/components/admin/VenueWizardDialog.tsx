@@ -92,6 +92,11 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   landing_subtitle_en: z.string().optional(),
   description_en: z.string().optional(),
   calendar_color: z.string().default('#3b82f6'),
+  welcome_background_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  button_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  button_text_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  custom_font_url: z.string().optional().or(z.literal("")),
+  custom_font_family: z.string().optional().or(z.literal("")),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -206,6 +211,8 @@ export function VenueWizardDialog({
       slot_interval: 30,
       auto_validate_bookings: false,
       inter_venue_buffer_minutes: 0,
+      booking_hold_enabled: true,
+      booking_hold_duration_minutes: 5,
       offert: false,
       company_offered: false,
       landing_subtitle: "",
@@ -510,6 +517,8 @@ export function VenueWizardDialog({
           closing_time: values.closing_time + ':00',
           slot_interval: values.slot_interval,
           auto_validate_bookings: values.auto_validate_bookings,
+          booking_hold_enabled: values.booking_hold_enabled,
+          booking_hold_duration_minutes: values.booking_hold_duration_minutes,
           offert: values.offert,
           company_offered: values.company_offered,
           landing_subtitle: values.landing_subtitle || null,
@@ -614,6 +623,8 @@ export function VenueWizardDialog({
             closing_time: values.closing_time + ':00',
             slot_interval: values.slot_interval,
             auto_validate_bookings: values.auto_validate_bookings,
+            booking_hold_enabled: values.booking_hold_enabled,
+            booking_hold_duration_minutes: values.booking_hold_duration_minutes,
             offert: values.offert,
           company_offered: values.company_offered,
             landing_subtitle: values.landing_subtitle || null,

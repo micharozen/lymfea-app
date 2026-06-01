@@ -363,6 +363,26 @@
     "no": "Non"
   },
   "venue": {
+    "branding": {
+      "tab": "Branding",
+      "title": "Personnalisation visuelle",
+      "description": "Adapte les couleurs et la typographie du parcours de réservation à l'identité de ton lieu.",
+      "welcomeBg": "Fond de la page d'accueil",
+      "buttonColor": "Couleur du bouton +",
+      "buttonTextColor": "Couleur du texte des boutons",
+      "font": "Police de caractères",
+      "fontHelp": "Formats acceptés : woff2, woff, ttf, otf. Taille max 2 Mo.",
+      "uploadFont": "Téléverser une police",
+      "replaceFont": "Remplacer la police",
+      "removeFont": "Retirer",
+      "fontUploaded": "Police téléchargée",
+      "fontInvalidFormat": "Format de police invalide (woff2, woff, ttf, otf)",
+      "fontTooLarge": "Le fichier ne doit pas dépasser 2 Mo",
+      "fontFamily": "Nom CSS de la police (font-family)",
+      "reset": "Réinitialiser",
+      "previewLabel": "Aperçu temps réel",
+      "enableEdit": "Activer la modification"
+    },
     "organization": {
       "label": "Organisation",
       "placeholder": "Sélectionner une organisation",
