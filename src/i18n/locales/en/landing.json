@@ -2,6 +2,7 @@
   "nav": {
     "features": "Features",
     "howItWorks": "How it works",
+    "pricing": "Pricing",
     "contact": "Contact",
     "login": "Sign in",
     "cta": "Book a demo"
@@ -78,7 +79,7 @@
     "step2": {
       "number": "02",
       "title": "Train your teams",
-      "desc": "Training sessions for venue teams, spa directors and therapists. Guides and unlimited support included."
+      "desc": "Training sessions for concierges, spa directors and therapists. Guides and unlimited support included."
     },
     "step3": {
       "number": "03",
@@ -86,20 +87,75 @@
       "desc": "QR codes in rooms, online booking, therapist app deployed. Your clients book in 2 clicks."
     }
   },
+  "pricing": {
+    "eyebrow": "Pricing",
+    "title": "Simple pricing, aligned with your business",
+    "subtitle": "No hidden fees, no long-term contracts. Pay per location, scale as you grow.",
+    "starter": {
+      "name": "Starter",
+      "tagline": "For an independent spa or a day spa getting started.",
+      "priceFrom": "Starting from",
+      "unit": "excl. VAT / month / location",
+      "features": {
+        "agenda": "Unified schedule, multi-therapist, multi-room",
+        "pwa": "Therapist mobile app (iOS & Android)",
+        "booking": "Online client booking + in-room QR code",
+        "billing": "Stripe payments included",
+        "support": "Email support & guided onboarding"
+      },
+      "cta": "Start with Starter",
+      "note": "No commitment. Setup in 48h."
+    },
+    "pro": {
+      "name": "Pro",
+      "badge": "Most popular",
+      "tagline": "For hotels who want to integrate their PMS and automate billing.",
+      "priceFrom": "Starting from",
+      "unit": "excl. VAT / month / location",
+      "features": {
+        "everythingStarter": "Everything included in Starter",
+        "pms": "Opera Cloud & Mews PMS integration",
+        "autoBilling": "Automatic monthly billing",
+        "giftcards": "Gift cards & treatment bundles",
+        "multiTherapist": "Advanced multi-therapist coordination",
+        "prioritySupport": "Priority support & dedicated CSM"
+      },
+      "cta": "Try Pro",
+      "note": "14-day free trial. No credit card."
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "tagline": "For hotel groups and multi-property chains.",
+      "priceLabel": "Pricing",
+      "price": "Custom quote",
+      "features": {
+        "multivenue": "Multi-property & consolidated reporting",
+        "branding": "White-label & custom domain",
+        "sla": "Dedicated SLA & 7/7 priority support",
+        "dedicatedCSM": "Dedicated Customer Success Manager",
+        "customIntegrations": "Custom integrations (PMS, ERP, BI)"
+      },
+      "cta": "Contact the team",
+      "note": "Response within 24 business hours."
+    },
+    "footnote": "All prices in EUR excl. VAT. Volume discount above 5 locations. Monthly billing via Stripe."
+  },
   "cta": {
     "title": "Ready to modernize your spa?",
     "subtitle": "Book a personalized 30-minute demo with our team. We'll show the platform with your treatments and organization.",
     "button": "Book my demo",
-    "secondary": "Or email us at hello@lymfea.fr"
+    "secondary": "Or email us at hello@saoma.fr"
   },
   "footer": {
-    "tagline": "The spa management platform for hotels & day spas.",
+    "tagline": "Saoma — the spa management platform for hotels & day spas.",
+    "signature": "The art of spa, simplified.",
     "product": "Product",
     "company": "Company",
     "legal": "Legal",
     "links": {
       "features": "Features",
       "howItWorks": "How it works",
+      "pricing": "Pricing",
       "login": "Sign in",
       "demo": "Book a demo",
       "about": "About",
@@ -109,6 +165,6 @@
       "privacy": "Privacy policy",
       "legalMentions": "Legal notice"
     },
-    "copyright": "© {{year}} Eïa. All rights reserved."
+    "copyright": "© {{year}} Saoma. All rights reserved."
   }
 }

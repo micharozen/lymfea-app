@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { format, parse } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
-import { invokeStripe } from '@/lib/supabaseEdgeFunctions';
+import { invokeEdgeFunction, invokeStripe } from '@/lib/supabaseEdgeFunctions';
 import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
@@ -162,9 +162,11 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
                 recipientEmail: giftInfo.recipientEmail,
                 senderName: giftInfo.senderName,
                 giftMessage: giftInfo.giftMessage,
+                recipientLanguage: giftInfo.recipientLanguage,
               },
             }),
-        });
+            language: i18n.language === 'en' ? 'en' : 'fr',
+        }, { skipAuth: true });
 
         if (error) throw error;
 
@@ -198,7 +200,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
       // Gift amount bundle — full or partial coverage
       if (selectedBundle && isAmountBundle && selectedBundle.amountToUseCents) {
         if (uncoveredTotal === 0) {
-          const { data, error } = await supabase.functions.invoke('create-client-booking', {
+          const { data, error } = await invokeEdgeFunction<unknown, { bookingId: string }>('create-client-booking', {
             body: {
               hotelId,
               clientData: {
@@ -230,9 +232,11 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
             },
+            skipAuth: true,
           });
 
           if (error) throw error;
+          if (!data) throw new Error('Booking creation failed');
 
           clearBasket();
           clearFlow();
@@ -266,7 +270,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
-          });
+          }, { skipAuth: true });
 
           if (error) throw error;
 
@@ -285,7 +289,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
 
       // All items covered by session bundle — create booking with bundle payment
       if (selectedBundle && bundleCoveredItems.length > 0 && uncoveredTotal === 0) {
-        const { data, error } = await supabase.functions.invoke('create-client-booking', {
+        const { data, error } = await invokeEdgeFunction<unknown, { bookingId: string }>('create-client-booking', {
           body: {
             hotelId,
             clientData: {
@@ -317,9 +321,11 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
             ...(draftBookingId ? { draftBookingId } : {}),
           },
+          skipAuth: true,
         });
 
         if (error) throw error;
+        if (!data) throw new Error('Booking creation failed');
 
         clearBasket();
         clearFlow();
@@ -362,7 +368,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
           ...(isMulti ? { groupId, bookingIds } : {}),
           // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
           ...(isMulti && multiItemsForCard && bookingIds.length === 0 ? { slots: multiItemsForCard } : {}),
-        });
+        }, { skipAuth: true });
 
         if (error) throw error;
 
@@ -419,13 +425,14 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
             };
 
-        const { data, error } = await supabase.functions.invoke('create-client-booking', { body });
+        const { data, error } = await invokeEdgeFunction<unknown, { bookingId?: string; bookingIds?: string[] }>('create-client-booking', { body, skipAuth: true });
 
         if (error) throw error;
+        if (!data) throw new Error('Booking creation failed');
 
         clearBasket();
         clearFlow();
-        const navigateBookingId = isMulti && Array.isArray(data?.bookingIds) && data.bookingIds.length
+        const navigateBookingId = isMulti && Array.isArray(data.bookingIds) && data.bookingIds.length
           ? data.bookingIds[0]
           : data.bookingId;
         navigate(`/client/${slug}/confirmation/${navigateBookingId}`);

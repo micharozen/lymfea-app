@@ -14,6 +14,7 @@ import { UserProvider } from "@/contexts/UserContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { StagingBanner } from "@/components/StagingBanner";
 import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
+import { NotificationsBellButton } from "@/components/admin/NotificationsBellButton";
 import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
@@ -51,6 +52,8 @@ const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
 const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
+const Organizations = lazy(() => import("./pages/admin/Organizations"));
+const OrganizationDetail = lazy(() => import("./pages/admin/OrganizationDetail"));
 const Admins = lazy(() => import("./pages/admin/Admins"));
 const AdminDetail = lazy(() => import("./pages/admin/AdminDetail"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
@@ -69,6 +72,7 @@ const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
 const Landing = lazy(() => import("./pages/Landing"));
+const Terms = lazy(() => import("./pages/Terms"));
 const RateTherapist = lazy(() => import("./pages/RateTherapist"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
@@ -239,6 +243,7 @@ const App = () => {
           <Routes>
             {/* Root - Public marketing landing page */}
             <Route path="/" element={<Landing />} />
+            <Route path="/terms" element={<Terms />} />
 
             {/* Smart redirect based on user type (post-login entrypoint) */}
             <Route path="/app" element={<Home />} />
@@ -307,6 +312,8 @@ const App = () => {
 
             {/* Client Booking Management (Public) */}
             <Route path="/booking/manage/:bookingId" element={<ManageBooking />} />
+            {/* Short URL for SMS — :bookingId is a base62 short_token here */}
+            <Route path="/m/:bookingId" element={<ManageBooking />} />
 
             {/* Payment Link Confirmation (Public) */}
             <Route path="/booking/confirmation/:bookingId" element={<PaymentConfirmation />} />
@@ -469,10 +476,14 @@ const App = () => {
                     <div className="flex h-full w-full">
                       <AppSidebar />
                       <div className="flex-1 flex flex-col min-h-0 min-w-0">
-                        {/* Mobile header with menu trigger */}
-                        <header className="md:hidden flex items-center h-14 px-4 border-b border-border bg-background sticky top-0 z-40" style={{ paddingTop: "env(safe-area-inset-top)" }}>
-                          <SidebarTrigger className="mr-2" />
-                          <span className="font-semibold">{brand.pwa.admin.shortName}</span>
+                        <header
+                          className="flex items-center h-10 md:h-11 px-4 border-b border-border bg-background sticky top-0 z-40"
+                          style={{ paddingTop: "env(safe-area-inset-top)" }}
+                        >
+                          <SidebarTrigger className="mr-2 md:hidden" />
+                          <span className="font-semibold text-sm md:hidden">{brand.pwa.admin.shortName}</span>
+                          <div className="flex-1" />
+                          <NotificationsBellButton />
                         </header>
                         <VenueModeBanner />
                         <main className="flex-1 min-h-0 overflow-y-auto">
@@ -514,6 +525,8 @@ const App = () => {
                               <Route path="/transactions" element={<Transactions />} />
                               <Route path="/analytics" element={<Analytics />} />
                               <Route path="/support" element={<SupportTickets />} />
+                              <Route path="/organizations" element={<Organizations />} />
+                              <Route path="/organizations/:id" element={<OrganizationDetail />} />
                               <Route path="/admins" element={<Admins />} />
                               <Route path="/admins/:id" element={<AdminDetail />} />
                               <Route path="/profile" element={<AdminProfile />} />

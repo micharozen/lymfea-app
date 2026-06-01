@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { listHotelsForOrg } from "@shared/db";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Pencil, Trash2, Building2, LayoutDashboard } from "lucide-react";
@@ -98,6 +100,7 @@ interface Hotel {
 
 export default function Hotels() {
   const navigate = useNavigate();
+  const scope = useOrgScope();
   const { i18n } = useTranslation();
   const locale = i18n.language?.startsWith("fr") ? "fr" : "en";
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -138,9 +141,12 @@ export default function Hotels() {
   useOverflowControl(!loading && needsPagination);
 
   useEffect(() => {
-    fetchHotels();
     fetchUserRole();
   }, []);
+
+  useEffect(() => {
+    if (scope) fetchHotels();
+  }, [scope]);
 
   const fetchUserRole = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -164,33 +170,41 @@ export default function Hotels() {
   }, [hotels, searchQuery, statusFilter]);
 
   const fetchHotels = async () => {
+    if (!scope) return;
     try {
-      // Fetch hotels
-      const { data: hotelsData, error: hotelsError } = await supabase
-        .from("hotels")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const hotelsData = await listHotelsForOrg(supabase, scope, { order: "created_at" });
+      const hotelIds = hotelsData.map((h) => h.id);
 
-      if (hotelsError) throw hotelsError;
+      if (hotelIds.length === 0) {
+        setHotels([]);
+        setLoading(false);
+        return;
+      }
 
-      // Fetch concierges with their hotel associations
       const { data: conciergeMappings, error: mappingsError } = await supabase
         .from("concierge_hotels")
-        .select("hotel_id, concierge_id");
+        .select("hotel_id, concierge_id")
+        .in("hotel_id", hotelIds);
 
       if (mappingsError) throw mappingsError;
 
-      // Fetch all concierges
-      const { data: conciergesData, error: conciergesError } = await supabase
-        .from("concierges")
-        .select("id, first_name, last_name, profile_image");
+      const conciergeIds = Array.from(
+        new Set((conciergeMappings ?? []).map((m) => m.concierge_id)),
+      );
+
+      const { data: conciergesData, error: conciergesError } = conciergeIds.length > 0
+        ? await supabase
+            .from("concierges")
+            .select("id, first_name, last_name, profile_image")
+            .in("id", conciergeIds)
+        : { data: [], error: null };
 
       if (conciergesError) throw conciergesError;
 
-      // Fetch all treatment rooms
       const { data: roomsData, error: roomsError } = await supabase
         .from("treatment_rooms")
-        .select("id, name, room_number, image, hotel_id");
+        .select("id, name, room_number, image, hotel_id")
+        .in("hotel_id", hotelIds);
 
       if (roomsError) throw roomsError;
 
@@ -203,23 +217,26 @@ export default function Hotels() {
       const { data: bookingsData, error: bookingsError } = await supabase
         .from("bookings")
         .select("hotel_id, total_price, status, booking_date")
+        .in("hotel_id", hotelIds)
         .gte("booking_date", monthStart)
         .lt("booking_date", monthEnd);
 
       if (bookingsError) throw bookingsError;
 
-      // Fetch active therapists linked to venues
+      // Fetch active therapists linked to venues (scoped to org hotels)
       const { data: therapistVenuesData, error: tvError } = await supabase
         .from("therapist_venues")
         .select("hotel_id, therapists!inner(id, status)")
+        .in("hotel_id", hotelIds)
         .eq("therapists.status", "active");
 
       if (tvError) throw tvError;
 
-      // Fetch enabled amenities per venue
+      // Fetch enabled amenities per venue (scoped to org hotels)
       const { data: amenitiesData, error: amenitiesError } = await supabase
         .from("venue_amenities")
         .select("hotel_id, type, is_enabled")
+        .in("hotel_id", hotelIds)
         .eq("is_enabled", true);
 
       if (amenitiesError) throw amenitiesError;
@@ -227,7 +244,8 @@ export default function Hotels() {
       // Fetch deployment schedules
       const { data: schedulesData, error: schedulesError } = await supabase
         .from("venue_deployment_schedules")
-        .select("*");
+        .select("*")
+        .in("hotel_id", hotelIds);
 
       if (schedulesError) throw schedulesError;
 
@@ -270,8 +288,7 @@ export default function Hotels() {
         if (!s.amenities.includes(row.type)) s.amenities.push(row.type);
       });
 
-      // Map concierges, treatment rooms and stats to hotels
-      const hotelsWithData = (hotelsData || []).map((hotel) => {
+      const hotelsWithData = hotelsData.map((hotel) => {
         const hotelConcierges = (conciergeMappings || [])
           .filter((mapping) => mapping.hotel_id === hotel.id)
           .map((mapping) => {

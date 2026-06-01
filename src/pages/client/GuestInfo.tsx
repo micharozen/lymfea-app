@@ -25,7 +25,7 @@ import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import type { GiftInfo } from './context/FlowContext';
 import { useVenueTerms, VenueType } from '@/hooks/useVenueTerms';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
-import { usePmsGuestLookup } from '@/hooks/usePmsGuestLookup';
+import { usePmsGuestVerify } from '@/hooks/usePmsGuestVerify';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import {
   Form,
@@ -43,69 +43,93 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ProgressBar } from '@/components/client/ProgressBar';
 
-const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean, isExternalGuest: boolean, isGiftCard: boolean) => z.object({
+const toFlagEmoji = (isoCode: string): string =>
+  [...isoCode.toUpperCase()].map(c => String.fromCodePoint(c.charCodeAt(0) + 127397)).join('');
+
+const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean, isHotelGuest: boolean, isGiftCard: boolean) => {
+  // PMS-verified hotel guest: we collect room + name only and resolve email/phone
+  // server-side from the PMS, so those fields are optional here and the room is required.
+  const isPmsVerifiedGuest = pmsGuestLookup && isHotelGuest && !isGiftCard && !isCoworking;
+  return z.object({
   firstName: z.string().min(1, t('info.errors.firstNameRequired')),
   lastName: z.string().min(1, t('info.errors.lastNameRequired')),
-  email: z.string()
-    .min(1, t('info.errors.emailRequired'))
-    .email(t('info.errors.emailInvalid')),
-  phone: z.string()
-    .min(1, t('info.errors.phoneRequired'))
-    .min(6, t('info.errors.phoneInvalid')),
+  email: isPmsVerifiedGuest
+    ? z.string().optional()
+    : z.string().min(1, t('info.errors.emailRequired')).email(t('info.errors.emailInvalid')),
+  phone: isPmsVerifiedGuest
+    ? z.string().optional()
+    : z.string().min(1, t('info.errors.phoneRequired')),
   countryCode: z.string(),
-  roomNumber: (isGiftCard || isCoworking || isExternalGuest) ? z.string().optional() : (pmsGuestLookup ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired'))),
+  roomNumber: isPmsVerifiedGuest
+    ? z.string().min(1, t('info.errors.roomRequired'))
+    : ((isGiftCard || isCoworking || !isHotelGuest) ? z.string().optional() : (pmsGuestLookup ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired')))),
   note: z.string().optional(),
+}).superRefine((data, ctx) => {
+  const country = countries.find(c => c.code === data.countryCode);
+  if (country && data.phone && data.phone.length > 0) {
+    const clean = data.phone.replace(/\s/g, '');
+    // Accept both with and without trunk prefix 0 (e.g. 0612345678 or 612345678 for France)
+    const stripped = clean.startsWith('0') ? clean.slice(1) : clean;
+    if (!country.pattern.test(clean) && !country.pattern.test(stripped)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: t('info.errors.phoneFormat', { format: country.placeholder }),
+        path: ['phone'],
+      });
+    }
+  }
 });
+};
 
 type ClientInfoFormData = z.infer<ReturnType<typeof createClientInfoSchema>>;
 
 const countries = [
-  { code: "+33", label: "France", flag: "FR" },
-  { code: "+971", label: "UAE", flag: "AE" },
-  { code: "+1", label: "USA", flag: "US" },
-  { code: "+44", label: "UK", flag: "GB" },
-  { code: "+49", label: "Germany", flag: "DE" },
-  { code: "+39", label: "Italy", flag: "IT" },
-  { code: "+34", label: "Spain", flag: "ES" },
-  { code: "+41", label: "Switzerland", flag: "CH" },
-  { code: "+32", label: "Belgium", flag: "BE" },
-  { code: "+377", label: "Monaco", flag: "MC" },
-  { code: "+31", label: "Netherlands", flag: "NL" },
-  { code: "+351", label: "Portugal", flag: "PT" },
-  { code: "+43", label: "Austria", flag: "AT" },
-  { code: "+46", label: "Sweden", flag: "SE" },
-  { code: "+47", label: "Norway", flag: "NO" },
-  { code: "+45", label: "Denmark", flag: "DK" },
-  { code: "+358", label: "Finland", flag: "FI" },
-  { code: "+48", label: "Poland", flag: "PL" },
-  { code: "+420", label: "Czech Republic", flag: "CZ" },
-  { code: "+30", label: "Greece", flag: "GR" },
-  { code: "+353", label: "Ireland", flag: "IE" },
-  { code: "+352", label: "Luxembourg", flag: "LU" },
-  { code: "+36", label: "Hungary", flag: "HU" },
-  { code: "+40", label: "Romania", flag: "RO" },
-  { code: "+385", label: "Croatia", flag: "HR" },
-  { code: "+7", label: "Russia", flag: "RU" },
-  { code: "+81", label: "Japan", flag: "JP" },
-  { code: "+86", label: "China", flag: "CN" },
-  { code: "+82", label: "South Korea", flag: "KR" },
-  { code: "+91", label: "India", flag: "IN" },
-  { code: "+55", label: "Brazil", flag: "BR" },
-  { code: "+52", label: "Mexico", flag: "MX" },
-  { code: "+61", label: "Australia", flag: "AU" },
-  { code: "+64", label: "New Zealand", flag: "NZ" },
-  { code: "+65", label: "Singapore", flag: "SG" },
-  { code: "+852", label: "Hong Kong", flag: "HK" },
-  { code: "+966", label: "Saudi Arabia", flag: "SA" },
-  { code: "+974", label: "Qatar", flag: "QA" },
-  { code: "+212", label: "Morocco", flag: "MA" },
-  { code: "+216", label: "Tunisia", flag: "TN" },
-  { code: "+27", label: "South Africa", flag: "ZA" },
-  { code: "+90", label: "Turkey", flag: "TR" },
-  { code: "+972", label: "Israel", flag: "IL" },
-  { code: "+62", label: "Indonesia", flag: "ID" },
-  { code: "+66", label: "Thailand", flag: "TH" },
-  { code: "+60", label: "Malaysia", flag: "MY" },
+  { code: "+33", label: "France", flag: "FR", pattern: /^[1-9]\d{8}$/, placeholder: "6 12 34 56 78" },
+  { code: "+971", label: "UAE", flag: "AE", pattern: /^\d{9}$/, placeholder: "50 123 4567" },
+  { code: "+1", label: "USA", flag: "US", pattern: /^\d{10}$/, placeholder: "555 123 4567" },
+  { code: "+44", label: "UK", flag: "GB", pattern: /^[1-9]\d{9}$/, placeholder: "7911 123456" },
+  { code: "+49", label: "Germany", flag: "DE", pattern: /^\d{10,11}$/, placeholder: "151 234 56789" },
+  { code: "+39", label: "Italy", flag: "IT", pattern: /^\d{9,11}$/, placeholder: "333 123 4567" },
+  { code: "+34", label: "Spain", flag: "ES", pattern: /^\d{9}$/, placeholder: "612 345 678" },
+  { code: "+41", label: "Switzerland", flag: "CH", pattern: /^\d{9}$/, placeholder: "79 123 45 67" },
+  { code: "+32", label: "Belgium", flag: "BE", pattern: /^\d{8,9}$/, placeholder: "498 12 34 56" },
+  { code: "+377", label: "Monaco", flag: "MC", pattern: /^\d{8}$/, placeholder: "06 12 34 56" },
+  { code: "+31", label: "Netherlands", flag: "NL", pattern: /^\d{9}$/, placeholder: "6 12 34 56 78" },
+  { code: "+351", label: "Portugal", flag: "PT", pattern: /^\d{9}$/, placeholder: "912 345 678" },
+  { code: "+43", label: "Austria", flag: "AT", pattern: /^\d{10,11}$/, placeholder: "664 123 4567" },
+  { code: "+46", label: "Sweden", flag: "SE", pattern: /^\d{9}$/, placeholder: "70 123 45 67" },
+  { code: "+47", label: "Norway", flag: "NO", pattern: /^\d{8}$/, placeholder: "412 34 567" },
+  { code: "+45", label: "Denmark", flag: "DK", pattern: /^\d{8}$/, placeholder: "41 23 45 67" },
+  { code: "+358", label: "Finland", flag: "FI", pattern: /^\d{8,10}$/, placeholder: "41 234 5678" },
+  { code: "+48", label: "Poland", flag: "PL", pattern: /^\d{9}$/, placeholder: "512 345 678" },
+  { code: "+420", label: "Czech Republic", flag: "CZ", pattern: /^\d{9}$/, placeholder: "601 234 567" },
+  { code: "+30", label: "Greece", flag: "GR", pattern: /^\d{10}$/, placeholder: "694 123 4567" },
+  { code: "+353", label: "Ireland", flag: "IE", pattern: /^\d{9}$/, placeholder: "85 123 4567" },
+  { code: "+352", label: "Luxembourg", flag: "LU", pattern: /^\d{8,9}$/, placeholder: "621 123 456" },
+  { code: "+36", label: "Hungary", flag: "HU", pattern: /^\d{9}$/, placeholder: "20 123 4567" },
+  { code: "+40", label: "Romania", flag: "RO", pattern: /^\d{9}$/, placeholder: "712 345 678" },
+  { code: "+385", label: "Croatia", flag: "HR", pattern: /^\d{8,9}$/, placeholder: "91 234 5678" },
+  { code: "+7", label: "Russia", flag: "RU", pattern: /^\d{10}$/, placeholder: "912 345 67 89" },
+  { code: "+81", label: "Japan", flag: "JP", pattern: /^\d{9,10}$/, placeholder: "90 1234 5678" },
+  { code: "+86", label: "China", flag: "CN", pattern: /^\d{11}$/, placeholder: "131 2345 6789" },
+  { code: "+82", label: "South Korea", flag: "KR", pattern: /^\d{9,10}$/, placeholder: "10 1234 5678" },
+  { code: "+91", label: "India", flag: "IN", pattern: /^\d{10}$/, placeholder: "98765 43210" },
+  { code: "+55", label: "Brazil", flag: "BR", pattern: /^\d{10,11}$/, placeholder: "11 91234 5678" },
+  { code: "+52", label: "Mexico", flag: "MX", pattern: /^\d{10}$/, placeholder: "55 1234 5678" },
+  { code: "+61", label: "Australia", flag: "AU", pattern: /^\d{9}$/, placeholder: "412 345 678" },
+  { code: "+64", label: "New Zealand", flag: "NZ", pattern: /^\d{8,9}$/, placeholder: "21 234 5678" },
+  { code: "+65", label: "Singapore", flag: "SG", pattern: /^\d{8}$/, placeholder: "8123 4567" },
+  { code: "+852", label: "Hong Kong", flag: "HK", pattern: /^\d{8}$/, placeholder: "9123 4567" },
+  { code: "+966", label: "Saudi Arabia", flag: "SA", pattern: /^\d{9}$/, placeholder: "51 234 5678" },
+  { code: "+974", label: "Qatar", flag: "QA", pattern: /^\d{8}$/, placeholder: "3312 3456" },
+  { code: "+212", label: "Morocco", flag: "MA", pattern: /^\d{9}$/, placeholder: "6 12 34 56 78" },
+  { code: "+216", label: "Tunisia", flag: "TN", pattern: /^\d{8}$/, placeholder: "20 123 456" },
+  { code: "+27", label: "South Africa", flag: "ZA", pattern: /^\d{9}$/, placeholder: "71 234 5678" },
+  { code: "+90", label: "Turkey", flag: "TR", pattern: /^\d{10}$/, placeholder: "512 345 67 89" },
+  { code: "+972", label: "Israel", flag: "IL", pattern: /^\d{9}$/, placeholder: "50 123 4567" },
+  { code: "+62", label: "Indonesia", flag: "ID", pattern: /^\d{9,11}$/, placeholder: "812 3456 789" },
+  { code: "+66", label: "Thailand", flag: "TH", pattern: /^\d{9}$/, placeholder: "81 234 5678" },
+  { code: "+60", label: "Malaysia", flag: "MY", pattern: /^\d{9,10}$/, placeholder: "12 345 6789" },
 ];
 
 const inputStyles = "h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-500 focus:ring-gold-500/20";
@@ -114,7 +138,7 @@ const labelStyles = "text-gray-500 text-xs uppercase tracking-wider font-medium"
 export default function GuestInfo() {
   const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
-  const { t } = useTranslation('client');
+  const { t, i18n } = useTranslation('client');
   const { cancelHold,canProceedToStep, setClientInfo, clientInfo, bookingDateTime, isBundleOnlyPurchase, setGiftInfo, giftInfo, setAuthBundles, authBundles } = useClientFlow();
   const { items, itemCount, isBundleOnly } = useBasket();
   const { createOffertBooking, isCreating } = useCreateOffertBooking(hotelId);
@@ -124,7 +148,8 @@ export default function GuestInfo() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
-  const [isExternalGuest, setIsExternalGuest] = useState(clientInfo?.isExternalGuest ?? false);
+  const [isHotelGuest, setIsHotelGuest] = useState(clientInfo?.isExternalGuest === false);
+  const [pmsVerifyError, setPmsVerifyError] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(!!authBundles);
   const treatmentIds = useMemo(() => items.map(i => i.id), [items]);
@@ -137,6 +162,9 @@ export default function GuestInfo() {
   const [giftRecipientEmail, setGiftRecipientEmail] = useState(giftInfo?.recipientEmail ?? '');
   const [giftMessage, setGiftMessage] = useState(giftInfo?.giftMessage ?? '');
   const [giftErrors, setGiftErrors] = useState<Record<string, string>>({});
+  const [giftRecipientLanguage, setGiftRecipientLanguage] = useState<'fr' | 'en'>(
+    (giftInfo?.recipientLanguage) ?? (i18n.language === 'en' ? 'en' : 'fr')
+  );
 
   // Fetch venue type via RPC (bypasses RLS policies for anonymous users)
   const { data: hotel } = useQuery({
@@ -178,7 +206,11 @@ export default function GuestInfo() {
 
   const isCoworking = venueType === 'coworking' || venueType === 'enterprise';
   const pmsGuestLookupEnabled = !!hotel?.pms_guest_lookup_enabled;
-  const schema = useMemo(() => createClientInfoSchema(t, isCoworking, pmsGuestLookupEnabled, isExternalGuest, isGiftCardBundle), [t, isCoworking, pmsGuestLookupEnabled, isExternalGuest, isGiftCardBundle]);
+  // Secure PMS path: when the venue uses PMS guest lookup and the visitor declares
+  // they are a hotel guest, we collect room + name only and verify against the PMS.
+  // Email/phone are hidden and resolved server-side.
+  const isPmsVerifiedFlow = pmsGuestLookupEnabled && isHotelGuest && !isCoworking && !isGiftCardBundle;
+  const schema = useMemo(() => createClientInfoSchema(t, isCoworking, pmsGuestLookupEnabled, isHotelGuest, isGiftCardBundle), [t, isCoworking, pmsGuestLookupEnabled, isHotelGuest, isGiftCardBundle]);
 
   const form = useForm<ClientInfoFormData>({
     resolver: zodResolver(schema),
@@ -222,45 +254,9 @@ export default function GuestInfo() {
     toast.success(t('giftCardLogin.loginSuccess'));
   }, [form, setAuthBundles, t]);
 
-  // PMS guest lookup (auto-fill from Opera Cloud when room number is entered)
-  const { lookupGuest, guestData, isLoading: isLookingUpGuest } = usePmsGuestLookup(hotelId);
-  const pmsStayDatesRef = useRef<{ checkIn?: string; checkOut?: string }>({});
-
-  const handleRoomNumberBlur = useCallback(async (roomNumber: string) => {
-    if (!roomNumber || roomNumber.length === 0) return;
-
-    const result = await lookupGuest(roomNumber);
-    if (result?.found && result.guest) {
-      // Always overwrite — new room number = new guest
-      form.setValue('firstName', result.guest.firstName);
-      form.setValue('lastName', result.guest.lastName);
-      if (result.guest.email) {
-        form.setValue('email', result.guest.email);
-      }
-      if (result.guest.phone) {
-        // Parse country code from PMS phone (e.g. "+46706819856")
-        const pmsPhone = result.guest.phone;
-        const matchedCountry = countries
-          .sort((a, b) => b.code.length - a.code.length) // longest first
-          .find((c) => pmsPhone.startsWith(c.code));
-        if (matchedCountry) {
-          form.setValue('countryCode', matchedCountry.code);
-          form.setValue('phone', pmsPhone.slice(matchedCountry.code.length));
-        } else {
-          form.setValue('countryCode', '');
-          form.setValue('phone', pmsPhone);
-        }
-      }
-      pmsStayDatesRef.current = {
-        checkIn: result.guest.checkIn,
-        checkOut: result.guest.checkOut,
-      };
-      toast.success(t('guestLookup.found'));
-    } else if (result && !result.found) {
-      pmsStayDatesRef.current = {};
-      toast.info(t('guestLookup.notFound'));
-    }
-  }, [lookupGuest, form, t]);
+  // PMS guest verification — room number + last name are checked server-side.
+  // The browser only ever learns a yes/no; no guest PII is returned here.
+  const { verifyGuest, isVerifying } = usePmsGuestVerify(hotelId);
 
   const shouldRedirectToSchedule = !canProceedToStep('info');
   const hasShownRedirectToast = useRef(false);
@@ -290,13 +286,15 @@ export default function GuestInfo() {
 
   const onSubmit = async (data: ClientInfoFormData) => {
     // Strip country code prefix from phone if user (or browser autofill) included it
-    let cleanPhone = data.phone.replace(/\s/g, '');
+    let cleanPhone = (data.phone ?? '').replace(/\s/g, '');
     if (cleanPhone.startsWith(data.countryCode)) {
       cleanPhone = cleanPhone.slice(data.countryCode.length);
     } else if (cleanPhone.startsWith('+')) {
       // Strip any international prefix (e.g. user typed +33... with a different code selected)
       cleanPhone = cleanPhone.replace(/^\+\d{1,3}/, '');
     }
+    // Strip trunk prefix 0 (e.g. 07 12 34 56 78 → 7 12 34 56 78 for international format)
+    cleanPhone = cleanPhone.replace(/^0/, '');
     data = { ...data, phone: cleanPhone };
 
     // Validate gift fields for gift card bundles
@@ -319,11 +317,31 @@ export default function GuestInfo() {
 
     setIsSubmitting(true);
     try {
+      // PMS-verified hotel guest: confirm room + last name against the PMS before
+      // continuing. We never auto-fill PII; on failure we block and invite the
+      // visitor to continue as a non-hotel guest.
+      let pmsVerified = false;
+      if (isPmsVerifiedFlow) {
+        const ok = await verifyGuest(data.roomNumber ?? '', data.lastName);
+        if (!ok) {
+          setPmsVerifyError(true);
+          return;
+        }
+        setPmsVerifyError(false);
+        pmsVerified = true;
+      }
+
       setClientInfo({
-        ...data,
-        pmsGuestCheckIn: pmsStayDatesRef.current.checkIn,
-        pmsGuestCheckOut: pmsStayDatesRef.current.checkOut,
-        isExternalGuest,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        countryCode: data.countryCode,
+        // Verified hotel guests don't enter email/phone — resolved server-side from the PMS.
+        email: pmsVerified ? '' : (data.email ?? ''),
+        phone: pmsVerified ? '' : (data.phone ?? ''),
+        roomNumber: data.roomNumber ?? '',
+        note: data.note,
+        isExternalGuest: !isHotelGuest,
+        pmsVerified,
       });
 
       // Save gift info to flow context
@@ -335,6 +353,7 @@ export default function GuestInfo() {
           recipientEmail: giftRecipientEmail.trim(),
           senderName: `${data.firstName} ${data.lastName}`.trim(),
           giftMessage: giftMessage.trim() || undefined,
+          recipientLanguage: giftRecipientLanguage,
         });
       } else {
         setGiftInfo(null);
@@ -486,6 +505,39 @@ export default function GuestInfo() {
                       />
                       <p className="text-xs text-gray-400 mt-1 text-right">{giftMessage.length}/200</p>
                     </div>
+
+                    {/* Recipient language toggle */}
+                    <div>
+                      <label className={labelStyles}>{t('info.recipientLanguage')}</label>
+                      <div className="flex gap-2 mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setGiftRecipientLanguage('fr')}
+                          className={cn(
+                            "flex items-center gap-1.5 px-4 py-2 rounded-lg border text-sm font-medium transition-colors",
+                            giftRecipientLanguage === 'fr'
+                              ? "bg-rose-50 border-rose-300 text-rose-700"
+                              : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                          )}
+                        >
+                          <span>{toFlagEmoji('FR')}</span>
+                          {t('info.recipientLanguageFr')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setGiftRecipientLanguage('en')}
+                          className={cn(
+                            "flex items-center gap-1.5 px-4 py-2 rounded-lg border text-sm font-medium transition-colors",
+                            giftRecipientLanguage === 'en'
+                              ? "bg-rose-50 border-rose-300 text-rose-700"
+                              : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                          )}
+                        >
+                          <span>{toFlagEmoji('GB')}</span>
+                          {t('info.recipientLanguageEn')}
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Buyer section divider */}
@@ -575,81 +627,80 @@ export default function GuestInfo() {
                     <FormField
                       control={form.control}
                       name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className={labelStyles}>{t('info.phone')}</FormLabel>
-                          <FormControl>
-                            <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-gold-500 focus-within:ring-1 focus-within:ring-gold-500/20">
-                              <Popover open={countryPopoverOpen} onOpenChange={setCountryPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-full rounded-none border-r border-gray-200 px-3 font-normal text-sm text-gray-900 hover:bg-gray-100 hover:text-gray-900"
-                                    aria-expanded={countryPopoverOpen}
+                      render={({ field }) => {
+                        const selectedCountry = countries.find(c => c.code === form.watch('countryCode'));
+                        return (
+                          <FormItem>
+                            <FormLabel className={labelStyles}>{t('info.phone')}</FormLabel>
+                            <FormControl>
+                              <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-gold-500 focus-within:ring-1 focus-within:ring-gold-500/20">
+                                <Popover open={countryPopoverOpen} onOpenChange={setCountryPopoverOpen}>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-full rounded-none border-r border-gray-200 px-3 font-normal text-sm text-gray-900 hover:bg-gray-100 hover:text-gray-900 gap-1"
+                                      aria-expanded={countryPopoverOpen}
+                                    >
+                                      <span>{toFlagEmoji(selectedCountry?.flag ?? 'FR')}</span>
+                                      <span className="tabular-nums">{form.watch('countryCode')}</span>
+                                      <ChevronDown className="ml-0.5 h-3 w-3 shrink-0 text-gray-400" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    align="start"
+                                    className="w-[calc(100vw-2rem)] sm:w-64 p-0 border border-gray-200 shadow-lg z-50 bg-white"
                                   >
-                                    <span className="tabular-nums">{form.watch('countryCode')}</span>
-                                    <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-gray-400" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                  align="start"
-                                  className="w-[calc(100vw-2rem)] sm:w-56 p-0 border border-gray-200 shadow-lg z-50 bg-white"
-                                >
-                                  <div className="p-2 border-b border-gray-200">
-                                    <Input
-                                      placeholder="Search..."
-                                      value={countrySearch}
-                                      onChange={(e) => setCountrySearch(e.target.value)}
-                                      className="h-8 text-sm bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
-                                    />
-                                  </div>
-                                  <ScrollArea className="h-48 sm:h-40">
-                                    {filteredCountries.map((country) => (
-                                      <button
-                                        key={country.code}
-                                        type="button"
-                                        onClick={() => {
-                                          form.setValue('countryCode', country.code);
-                                          setCountryPopoverOpen(false);
-                                          setCountrySearch("");
-                                        }}
-                                        className={cn(
-                                          "flex w-full items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100",
-                                          form.watch('countryCode') === country.code && "bg-gold-500/10 text-gold-600"
-                                        )}
-                                      >
-                                        <span className="w-8 shrink-0 text-xs text-gray-400 uppercase">
-                                          {country.flag}
-                                        </span>
-                                        <span className="flex-1 text-left">{country.label}</span>
-                                        <span className="ml-2 shrink-0 tabular-nums text-gray-400">
-                                          {country.code}
-                                        </span>
-                                      </button>
-                                    ))}
-                                    {filteredCountries.length === 0 && (
-                                      <div className="px-3 py-2 text-sm text-gray-400">
-                                        No results
-                                      </div>
-                                    )}
-                                  </ScrollArea>
-                                </PopoverContent>
-                              </Popover>
-                              <Input
-                                id="phone"
-                                value={field.value}
-                                onChange={(e) => handlePhoneChange(e.target.value, field.onChange)}
-                                onBlur={() => {}}
-                                placeholder="612345678"
-                                className="h-full flex-1 border-0 bg-transparent text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage className="text-red-400 text-xs" />
-                        </FormItem>
-                      )}
+                                    <div className="p-2 border-b border-gray-200">
+                                      <Input
+                                        placeholder="Search..."
+                                        value={countrySearch}
+                                        onChange={(e) => setCountrySearch(e.target.value)}
+                                        className="h-8 text-sm bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
+                                      />
+                                    </div>
+                                    <ScrollArea className="h-48 sm:h-40">
+                                      {filteredCountries.map((country) => (
+                                        <button
+                                          key={country.code}
+                                          type="button"
+                                          onClick={() => {
+                                            form.setValue('countryCode', country.code);
+                                            form.setValue('phone', '');
+                                            setCountryPopoverOpen(false);
+                                            setCountrySearch("");
+                                          }}
+                                          className={cn(
+                                            "flex w-full items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100",
+                                            form.watch('countryCode') === country.code && "bg-gold-500/10 text-gold-600"
+                                          )}
+                                        >
+                                          <span className="w-8 shrink-0 text-base">{toFlagEmoji(country.flag)}</span>
+                                          <span className="flex-1 text-left">{country.label}</span>
+                                          <span className="ml-2 shrink-0 tabular-nums text-gray-400">{country.code}</span>
+                                        </button>
+                                      ))}
+                                      {filteredCountries.length === 0 && (
+                                        <div className="px-3 py-2 text-sm text-gray-400">No results</div>
+                                      )}
+                                    </ScrollArea>
+                                  </PopoverContent>
+                                </Popover>
+                                <Input
+                                  id="phone"
+                                  value={field.value}
+                                  onChange={(e) => handlePhoneChange(e.target.value, field.onChange)}
+                                  onBlur={() => {}}
+                                  placeholder={selectedCountry?.placeholder ?? '6 12 34 56 78'}
+                                  className="h-full flex-1 border-0 bg-transparent text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage className="text-red-400 text-xs" />
+                          </FormItem>
+                        );
+                      }}
                     />
                   </div>
                 </>
@@ -691,55 +742,59 @@ export default function GuestInfo() {
 
                   {/* Form fields */}
                   <div className="space-y-5">
-                    {/* Room number FIRST when PMS guest lookup is enabled */}
+                    {/* "Are you a hotel guest?" question FIRST when PMS guest lookup is enabled.
+                        If yes, we collect room + name and verify against the PMS on submit. */}
                     {!isCoworking && pmsGuestLookupEnabled && (
                       <div className="space-y-3">
-                        {!isExternalGuest && (
+                        <p className="text-sm font-medium text-gray-700">{t('info.hotelGuestQuestion')}</p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setIsHotelGuest(true); setPmsVerifyError(false); }}
+                            className={cn(
+                              "flex-1 h-11 rounded-lg border text-sm transition-all",
+                              isHotelGuest ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                            )}
+                          >
+                            {t('info.hotelGuestYes')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setIsHotelGuest(false); setPmsVerifyError(false); form.setValue('roomNumber', ''); }}
+                            className={cn(
+                              "flex-1 h-11 rounded-lg border text-sm transition-all",
+                              !isHotelGuest ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                            )}
+                          >
+                            {t('info.hotelGuestNo')}
+                          </button>
+                        </div>
+                        {isHotelGuest && (
                           <FormField
                             control={form.control}
                             name="roomNumber"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className={labelStyles}>{locationNumberLabel} <span className="normal-case tracking-normal font-normal text-gray-400">({t('guestLookup.optional')})</span></FormLabel>
+                                <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
                                 <FormControl>
                                   <div className="relative">
                                     <Input
                                       {...field}
-                                      onBlur={(e) => {
-                                        field.onBlur();
-                                        handleRoomNumberBlur(e.target.value);
-                                      }}
+                                      onChange={(e) => { field.onChange(e); if (pmsVerifyError) setPmsVerifyError(false); }}
                                       placeholder="102"
                                       className={inputStyles}
                                     />
-                                    {isLookingUpGuest && (
-                                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
-                                    )}
-                                    {guestData?.found && !isLookingUpGuest && (
-                                      <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                                    )}
                                   </div>
                                 </FormControl>
-                                <p className="text-xs text-gray-400 mt-1">{t('guestLookup.hint')}</p>
+                                <p className="text-xs text-gray-400 mt-1">{t('info.hotelGuestHint')}</p>
                                 <FormMessage className="text-red-400 text-xs" />
                               </FormItem>
                             )}
                           />
                         )}
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={isExternalGuest}
-                            onChange={(e) => {
-                              setIsExternalGuest(e.target.checked);
-                              if (e.target.checked) {
-                                form.setValue('roomNumber', '');
-                              }
-                            }}
-                            className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
-                          />
-                          <span className="text-sm text-gray-500">{t('info.notHotelGuest')}</span>
-                        </label>
+                        {pmsVerifyError && (
+                          <p className="text-sm text-red-500">{t('info.errors.pmsVerificationFailed')}</p>
+                        )}
                       </div>
                     )}
 
@@ -781,6 +836,8 @@ export default function GuestInfo() {
                       />
                     </div>
 
+                    {/* Email + phone — hidden for PMS-verified hotel guests (resolved server-side from the PMS) */}
+                    {!isPmsVerifiedFlow && (<>
                     {/* Email with domain suggestions */}
                     <FormField
                       control={form.control}
@@ -832,87 +889,101 @@ export default function GuestInfo() {
                     <FormField
                       control={form.control}
                       name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className={labelStyles}>{t('info.phone')}</FormLabel>
-                          <FormControl>
-                            <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-gold-500 focus-within:ring-1 focus-within:ring-gold-500/20">
-                              <Popover open={countryPopoverOpen} onOpenChange={setCountryPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-full rounded-none border-r border-gray-200 px-3 font-normal text-sm text-gray-900 hover:bg-gray-100 hover:text-gray-900"
-                                    aria-expanded={countryPopoverOpen}
+                      render={({ field }) => {
+                        const selectedCountry = countries.find(c => c.code === form.watch('countryCode'));
+                        return (
+                          <FormItem>
+                            <FormLabel className={labelStyles}>{t('info.phone')}</FormLabel>
+                            <FormControl>
+                              <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-gold-500 focus-within:ring-1 focus-within:ring-gold-500/20">
+                                <Popover open={countryPopoverOpen} onOpenChange={setCountryPopoverOpen}>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-full rounded-none border-r border-gray-200 px-3 font-normal text-sm text-gray-900 hover:bg-gray-100 hover:text-gray-900 gap-1"
+                                      aria-expanded={countryPopoverOpen}
+                                    >
+                                      <span>{toFlagEmoji(selectedCountry?.flag ?? 'FR')}</span>
+                                      <span className="tabular-nums">{form.watch('countryCode')}</span>
+                                      <ChevronDown className="ml-0.5 h-3 w-3 shrink-0 text-gray-400" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    align="start"
+                                    className="w-[calc(100vw-2rem)] sm:w-64 p-0 border border-gray-200 shadow-lg z-50 bg-white"
                                   >
-                                    <span className="tabular-nums">{form.watch('countryCode')}</span>
-                                    <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-gray-400" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                  align="start"
-                                  className="w-[calc(100vw-2rem)] sm:w-56 p-0 border border-gray-200 shadow-lg z-50 bg-white"
-                                >
-                                  <div className="p-2 border-b border-gray-200">
-                                    <Input
-                                      placeholder="Search..."
-                                      value={countrySearch}
-                                      onChange={(e) => setCountrySearch(e.target.value)}
-                                      className="h-8 text-sm bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
-                                    />
-                                  </div>
-                                  <ScrollArea className="h-48 sm:h-40">
-                                    {filteredCountries.map((country) => (
-                                      <button
-                                        key={country.code}
-                                        type="button"
-                                        onClick={() => {
-                                          form.setValue('countryCode', country.code);
-                                          setCountryPopoverOpen(false);
-                                          setCountrySearch("");
-                                        }}
-                                        className={cn(
-                                          "flex w-full items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100",
-                                          form.watch('countryCode') === country.code && "bg-gold-500/10 text-gold-600"
-                                        )}
-                                      >
-                                        <span className="w-8 shrink-0 text-xs text-gray-400 uppercase">
-                                          {country.flag}
-                                        </span>
-                                        <span className="flex-1 text-left">{country.label}</span>
-                                        <span className="ml-2 shrink-0 tabular-nums text-gray-400">
-                                          {country.code}
-                                        </span>
-                                      </button>
-                                    ))}
-                                    {filteredCountries.length === 0 && (
-                                      <div className="px-3 py-2 text-sm text-gray-400">
-                                        No results
-                                      </div>
-                                    )}
-                                  </ScrollArea>
-                                </PopoverContent>
-                              </Popover>
-                              <Input
-                                id="phone"
-                                value={field.value}
-                                onChange={(e) => handlePhoneChange(e.target.value, field.onChange)}
-                                onBlur={() => {}}
-                                placeholder="612345678"
-                                className="h-full flex-1 border-0 bg-transparent text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage className="text-red-400 text-xs" />
-                        </FormItem>
-                      )}
+                                    <div className="p-2 border-b border-gray-200">
+                                      <Input
+                                        placeholder="Search..."
+                                        value={countrySearch}
+                                        onChange={(e) => setCountrySearch(e.target.value)}
+                                        className="h-8 text-sm bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
+                                      />
+                                    </div>
+                                    <ScrollArea className="h-48 sm:h-40">
+                                      {filteredCountries.map((country) => (
+                                        <button
+                                          key={country.code}
+                                          type="button"
+                                          onClick={() => {
+                                            form.setValue('countryCode', country.code);
+                                            form.setValue('phone', '');
+                                            setCountryPopoverOpen(false);
+                                            setCountrySearch("");
+                                          }}
+                                          className={cn(
+                                            "flex w-full items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100",
+                                            form.watch('countryCode') === country.code && "bg-gold-500/10 text-gold-600"
+                                          )}
+                                        >
+                                          <span className="w-8 shrink-0 text-base">{toFlagEmoji(country.flag)}</span>
+                                          <span className="flex-1 text-left">{country.label}</span>
+                                          <span className="ml-2 shrink-0 tabular-nums text-gray-400">{country.code}</span>
+                                        </button>
+                                      ))}
+                                      {filteredCountries.length === 0 && (
+                                        <div className="px-3 py-2 text-sm text-gray-400">No results</div>
+                                      )}
+                                    </ScrollArea>
+                                  </PopoverContent>
+                                </Popover>
+                                <Input
+                                  id="phone"
+                                  value={field.value}
+                                  onChange={(e) => handlePhoneChange(e.target.value, field.onChange)}
+                                  onBlur={() => {}}
+                                  placeholder={selectedCountry?.placeholder ?? '6 12 34 56 78'}
+                                  className="h-full flex-1 border-0 bg-transparent text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage className="text-red-400 text-xs" />
+                          </FormItem>
+                        );
+                      }}
                     />
+                    </>)}
 
                     {/* Room number - classic position when PMS lookup is NOT enabled */}
                     {!isCoworking && !pmsGuestLookupEnabled && (
                       <div className="space-y-3">
-                        {!isExternalGuest && (
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={isHotelGuest}
+                            onChange={(e) => {
+                              setIsHotelGuest(e.target.checked);
+                              if (!e.target.checked) {
+                                form.setValue('roomNumber', '');
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
+                          />
+                          <span className="text-sm text-gray-500">{t('info.isHotelGuest')}</span>
+                        </label>
+                        {isHotelGuest && (
                           <FormField
                             control={form.control}
                             name="roomNumber"
@@ -933,20 +1004,6 @@ export default function GuestInfo() {
                             )}
                           />
                         )}
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={isExternalGuest}
-                            onChange={(e) => {
-                              setIsExternalGuest(e.target.checked);
-                              if (e.target.checked) {
-                                form.setValue('roomNumber', '');
-                              }
-                            }}
-                            className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
-                          />
-                          <span className="text-sm text-gray-500">{t('info.notHotelGuest')}</span>
-                        </label>
                       </div>
                     )}
 
@@ -978,7 +1035,7 @@ export default function GuestInfo() {
                 <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
                   <Button
                     type="submit"
-                    disabled={isSubmitting || isCreating}
+                    disabled={isSubmitting || isCreating || isVerifying}
                     className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
                   >
                     {(isSubmitting || isCreating) ? (

@@ -363,6 +363,13 @@
     "no": "Non"
   },
   "venue": {
+    "organization": {
+      "label": "Organisation",
+      "placeholder": "Sélectionner une organisation",
+      "required": "Veuillez sélectionner une organisation",
+      "loading": "Chargement…",
+      "empty": "Aucune organisation disponible"
+    },
     "finance": {
       "globalTherapistCommission": "Commission thérapeute globale",
       "globalTherapistCommissionDesc": "Appliquer le même pourcentage de commission à tous les thérapeutes",
@@ -568,7 +575,20 @@
     "notifications": {
       "markAllRead": "Tout marquer comme lu",
       "allMarkedRead": "Toutes les notifications marquées comme lues",
-      "empty": "Aucune notification"
+      "empty": "Aucune notification",
+      "columns": {
+        "type": "Type",
+        "message": "Message",
+        "date": "Date",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "status": {
+        "unread": "Non lu",
+        "read": "Lu"
+      },
+      "acknowledge": "Marquer comme lu",
+      "view": "Voir la réservation"
     }
   },
   "pms": {
@@ -588,6 +608,8 @@
     "mewsEnvironment": "Environnement",
     "mewsProduction": "Production (api.mews.com)",
     "mewsDemo": "Demo (api.mews-demo.com)",
+    "mewsClientToken": "Client Token",
+    "mewsClientTokenDesc": "ClientToken par propriete depuis Mews Commander (Connector API)",
     "mewsAccessToken": "Access Token",
     "mewsAccessTokenDesc": "Token par propriete fourni par l'hotel depuis Mews Commander",
     "mewsServiceId": "ID Service Spa",

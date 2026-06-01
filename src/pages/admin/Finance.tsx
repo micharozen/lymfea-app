@@ -1,27 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { listLedgerForOrg, listTherapistPayoutsForOrg } from "@shared/db";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Building2, 
-  TrendingUp, 
-  TrendingDown, 
-  Wallet, 
-  ArrowUpRight, 
-  ArrowDownRight,
+import {
+  Building2,
   RefreshCw,
-  Calendar,
   Euro,
   Users,
-  Clock
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { brand } from "@/config/brand";
+import { DailyClosureTab } from "@/components/admin/finance/DailyClosureTab";
 
 interface LedgerEntry {
   id: string;
@@ -78,6 +74,7 @@ interface FinanceSummary {
 
 const Finance = () => {
   const { t } = useTranslation();
+  const scope = useOrgScope();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
@@ -90,37 +87,16 @@ const Finance = () => {
     pendingPayouts: 0,
   });
 
-  const fetchFinanceData = async () => {
+  const fetchFinanceData = useCallback(async () => {
+    if (!scope) return;
     try {
-      // Fetch ledger entries with hotel info
-      const { data: ledgerData, error: ledgerError } = await supabase
-        .from('hotel_ledger')
-        .select(`
-          *,
-          hotels (name, image),
-          bookings (booking_id, client_first_name, client_last_name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const [ledgerData, payoutData] = await Promise.all([
+        listLedgerForOrg(supabase, scope, { limit: 100 }),
+        listTherapistPayoutsForOrg(supabase, scope, { limit: 100 }),
+      ]);
+      setLedgerEntries(ledgerData as unknown as LedgerEntry[]);
+      setPayoutEntries(payoutData as unknown as PayoutEntry[]);
 
-      if (ledgerError) throw ledgerError;
-      setLedgerEntries(ledgerData || []);
-
-      // Fetch payout entries with therapist info
-      const { data: payoutData, error: payoutError } = await supabase
-        .from('therapist_payouts')
-        .select(`
-          *,
-          therapists (first_name, last_name, profile_image),
-          bookings (booking_id, hotel_name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (payoutError) throw payoutError;
-      setPayoutEntries(payoutData || []);
-
-      // Calculate hotel netting (group by hotel)
       const nettingMap = new Map<string, HotelNetting>();
       (ledgerData || [])
         .filter(entry => entry.status === 'pending')
@@ -141,7 +117,6 @@ const Finance = () => {
         });
       setHotelNetting(Array.from(nettingMap.values()));
 
-      // Calculate summary
       const totalReceivables = (ledgerData || [])
         .filter(e => e.status === 'pending' && e.amount > 0)
         .reduce((sum, e) => sum + e.amount, 0);
@@ -172,12 +147,12 @@ const Finance = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [scope]);
 
   useEffect(() => {
+    if (!scope) return;
     fetchFinanceData();
 
-    // Real-time subscriptions
     const ledgerChannel = supabase
       .channel('ledger-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'hotel_ledger' }, fetchFinanceData)
@@ -192,7 +167,7 @@ const Finance = () => {
       supabase.removeChannel(ledgerChannel);
       supabase.removeChannel(payoutChannel);
     };
-  }, []);
+  }, [scope, fetchFinanceData]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -244,107 +219,19 @@ const Finance = () => {
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Net Receivables */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Créances Hôtels (Net)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className={`text-2xl font-bold ${summary.totalReceivables >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {summary.totalReceivables >= 0 ? '+' : ''}{summary.totalReceivables.toFixed(2)}€
-              </span>
-              {summary.totalReceivables >= 0 ? (
-                <ArrowUpRight className="w-4 h-4 text-green-600" />
-              ) : (
-                <ArrowDownRight className="w-4 h-4 text-red-600" />
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {summary.totalReceivables >= 0 ? 'À recevoir des hôtels' : 'À payer aux hôtels'}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Payouts Sent */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Avances Thérapeutes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-orange-600">
-                -{summary.totalPayouts.toFixed(2)}€
-              </span>
-              <ArrowDownRight className="w-4 h-4 text-orange-600" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Cash advances versées
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Net Profit */}
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-primary">
-              <Wallet className="w-4 h-4" />
-              {`Profit Net ${brand.name}`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className={`text-2xl font-bold ${summary.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {summary.netProfit >= 0 ? '+' : ''}{summary.netProfit.toFixed(2)}€
-              </span>
-              {summary.netProfit >= 0 ? (
-                <TrendingUp className="w-4 h-4 text-green-600" />
-              ) : (
-                <TrendingDown className="w-4 h-4 text-red-600" />
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Créances - Avances
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Pending Payouts */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Payouts en attente
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-yellow-600">
-                {summary.pendingPayouts.toFixed(2)}€
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Transferts non complétés
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Tabs */}
-      <Tabs defaultValue="netting" className="space-y-4">
+      <Tabs defaultValue="closure" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="netting">🏨 Netting Hôtels</TabsTrigger>
-          <TabsTrigger value="ledger">📒 Grand Livre</TabsTrigger>
-          <TabsTrigger value="payouts">💆 Payouts Thérapeutes</TabsTrigger>
+          <TabsTrigger value="closure">📋 Clôture quotidienne</TabsTrigger>
+          <TabsTrigger value="netting" disabled title="Bientôt disponible">🏨 Netting Hôtels</TabsTrigger>
+          <TabsTrigger value="ledger" disabled title="Bientôt disponible">📒 Grand Livre</TabsTrigger>
+          <TabsTrigger value="payouts" disabled title="Bientôt disponible">💆 Payouts Thérapeutes</TabsTrigger>
         </TabsList>
+
+        {/* Daily Closure Tab */}
+        <TabsContent value="closure" className="space-y-4">
+          <DailyClosureTab />
+        </TabsContent>
 
         {/* Netting Tab */}
         <TabsContent value="netting" className="space-y-4">

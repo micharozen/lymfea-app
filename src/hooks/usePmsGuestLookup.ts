@@ -28,7 +28,6 @@ export function usePmsGuestLookup(hotelId: string | undefined) {
           GuestLookupResult
         >("pms-guest-lookup", {
           body: { hotelId, roomNumber },
-          skipAuth: true,
         });
 
         if (error) {

@@ -29,6 +29,7 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
             lastName: clientInfo.lastName,
             phone: `${clientInfo.countryCode}${clientInfo.phone}`,
             email: clientInfo.email,
+            pmsVerified: clientInfo.pmsVerified,
             roomNumber: clientInfo.roomNumber,
             note: clientInfo.note || '',
           },

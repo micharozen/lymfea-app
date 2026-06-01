@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { listCustomersForOrg } from "@shared/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -76,10 +78,15 @@ export default function Customers() {
   const { deleteId: deleteCustomerId, openDelete, closeDelete } = useDialogState<string>();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
 
+  const scope = useOrgScope();
+
   useEffect(() => {
-    fetchCustomers();
     fetchUserRole();
   }, []);
+
+  useEffect(() => {
+    if (scope) fetchCustomers();
+  }, [scope]);
 
   const fetchUserRole = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -103,25 +110,16 @@ export default function Customers() {
   }, [searchQuery, languageFilter, customers]);
 
   const fetchCustomers = async () => {
+    if (!scope) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("customers")
-      .select(`
-        *,
-        preferred_therapist:therapists!customers_preferred_therapist_id_fkey(
-          id, first_name, last_name
-        )
-      `)
-      .order("created_at", { ascending: false });
-
-    if (error) {
+    try {
+      const data = await listCustomersForOrg(supabase, scope);
+      setCustomers(data as unknown as Customer[]);
+    } catch {
       toast.error(t("customers.noCustomers"));
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setCustomers(data || []);
-    setLoading(false);
   };
 
   const filterCustomers = () => {

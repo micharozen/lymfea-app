@@ -28,6 +28,9 @@ export interface ClientInfo {
   pmsGuestCheckIn?: string;
   pmsGuestCheckOut?: string;
   isExternalGuest?: boolean;
+  /** True when the hotel guest was verified against the PMS (room + last name match).
+   *  When set, email/phone are left empty client-side and resolved server-side from the PMS. */
+  pmsVerified?: boolean;
 }
 
 export interface SelectedBundle {
@@ -49,6 +52,7 @@ export interface GiftInfo {
   recipientEmail?: string;
   senderName: string;
   giftMessage?: string;
+  recipientLanguage?: 'fr' | 'en';
 }
 
 interface ClientFlowState {

@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS "public"."booking_payment_infos" (
     "payment_reminder_count" integer DEFAULT 0,
     "payment_last_reminder_at" timestamp with time zone,
     "cancellation_reason" "text",
+    "cancelled_at" timestamp with time zone,
+    "cancelled_by" "uuid",
+    "cancellation_fee_amount" numeric DEFAULT 0,
+    "refund_amount" numeric DEFAULT 0,
+    "stripe_refund_id" "text",
     CONSTRAINT "booking_payment_infos_payment_status_check" CHECK (("payment_status" = ANY (ARRAY['pending'::"text", 'charged'::"text", 'failed'::"text", 'requires_action'::"text", 'card_saved'::"text"])))
 );
 

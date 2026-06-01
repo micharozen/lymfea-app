@@ -48,7 +48,7 @@ export default function Confirmation() {
       try {
         if (!sessionId) throw new Error("Identifiant de session manquant.");
 
-        const { data, error: fnError } = await invokeStripe<{ customerBundles?: unknown[] }>('purchase-bundle', { sessionId, hotelId });
+        const { data, error: fnError } = await invokeStripe<{ customerBundles?: unknown[] }>('purchase-bundle', { sessionId, hotelId }, { skipAuth: true });
 
         if (fnError) throw new Error("La confirmation de votre achat a échoué.");
         if (!data?.customerBundles || data.customerBundles.length === 0) {
@@ -73,7 +73,7 @@ export default function Confirmation() {
 
         if (!isUUID && sessionId) {
           console.log("[Confirmation] Appel confirm-setup-intent...");
-          const { data: confirmData, error: confirmError } = await invokeStripe<{ bookingId?: string }>('confirm-setup-intent', { sessionId, hotelId });
+          const { data: confirmData, error: confirmError } = await invokeStripe<{ bookingId?: string }>('confirm-setup-intent', { sessionId, hotelId }, { skipAuth: true });
           if (confirmError) throw new Error("La validation de votre garantie bancaire a échoué.");
           if (confirmData?.bookingId) finalBookingId = confirmData.bookingId;
         }
@@ -497,13 +497,13 @@ export default function Confirmation() {
                   const gbDate = format(new Date(gb.booking_date), 'd MMMM yyyy', { locale: dateLocale });
                   const gbTime = gb.booking_time.substring(0, 5);
                   return (
-                    <div key={i} className="flex items-start justify-between gap-4 py-3">
-                      <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0 pt-0.5">
+                    <div key={i} className="flex items-start justify-between gap-3 py-3">
+                      <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] min-w-0 pt-0.5 leading-relaxed">
                         {gb.treatmentName}
                       </dt>
-                      <dd className="font-serif text-[14px] sm:text-[15px] text-[#2C2622] text-right">
-                        {gbDate}
-                        <span className="text-[#C96A43] ml-2">{gbTime}</span>
+                      <dd className="font-serif text-[13px] sm:text-[15px] text-[#2C2622] text-right shrink-0">
+                        <span className="block">{gbDate}</span>
+                        <span className="text-[#C96A43]">{gbTime}</span>
                       </dd>
                     </div>
                   );
@@ -636,6 +636,7 @@ export default function Confirmation() {
       <div className="pt-5 text-center text-[10px] tracking-[0.22em] uppercase text-[#8C827B]">
         {t('confirmation.tagline')}
       </div>
+      <div className="pb-safe" />
     </div>
   );
 }

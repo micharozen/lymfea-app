@@ -16,7 +16,6 @@ import {
 import {
   BookingFilters,
   BookingListView,
-  InvoicePreviewDialog,
 } from "@/components/booking";
 
 export default function BookingsList() {
@@ -43,11 +42,6 @@ export default function BookingsList() {
     }
   }, [searchParams, bookings, navigate]);
 
-  const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
-  const [invoiceHTML, setInvoiceHTML] = useState("");
-  const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
-  const [invoiceIsRoomPayment, setInvoiceIsRoomPayment] = useState(false);
-
   const {
     searchQuery,
     setSearchQuery,
@@ -62,11 +56,7 @@ export default function BookingsList() {
 
   const sortedBookings = useMemo<BookingWithTreatments[]>(() => {
     const list = filteredBookings ?? [];
-    return [...list].sort((a, b) => {
-      const dateCmp = (b.booking_date ?? "").localeCompare(a.booking_date ?? "");
-      if (dateCmp !== 0) return dateCmp;
-      return (b.booking_time ?? "").localeCompare(a.booking_time ?? "");
-    });
+    return [...list].sort((a, b) => (b.booking_id ?? 0) - (a.booking_id ?? 0));
   }, [filteredBookings]);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -106,7 +96,7 @@ export default function BookingsList() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-  const totalListColumns = 12;
+  const totalListColumns = 11;
   const emptyRowsCount = Math.max(0, itemsPerPage - paginatedBookings.length);
   const totalPages = Math.max(1, Math.ceil(sortedBookings.length / itemsPerPage));
 
@@ -114,13 +104,6 @@ export default function BookingsList() {
     if (booking) {
       navigate(`/admin/bookings/${booking.id}`);
     }
-  };
-
-  const handleInvoicePreview = (html: string, bookingId: number, isRoomPayment: boolean) => {
-    setInvoiceHTML(html);
-    setInvoiceBookingId(bookingId);
-    setInvoiceIsRoomPayment(isRoomPayment);
-    setIsInvoicePreviewOpen(true);
   };
 
   const handleFilterChange = (setter: (value: string) => void) => (value: string) => {
@@ -187,9 +170,7 @@ export default function BookingsList() {
             totalColumns={totalListColumns}
             onBookingClick={handleBookingClick}
             getHotelInfo={getHotelInfo}
-            isAdmin={isAdmin}
             isConcierge={isConcierge}
-            onInvoicePreview={handleInvoicePreview}
             currentPage={currentPage}
             totalPages={totalPages}
             totalItems={sortedBookings.length}
@@ -209,14 +190,6 @@ export default function BookingsList() {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         booking={selectedBooking}
-      />
-
-      <InvoicePreviewDialog
-        open={isInvoicePreviewOpen}
-        onOpenChange={setIsInvoicePreviewOpen}
-        invoiceHTML={invoiceHTML}
-        bookingId={invoiceBookingId}
-        isRoomPayment={invoiceIsRoomPayment}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 import { isInBlockedSlot } from "../../_shared/blocked-slots.ts";
 import { computeOutOfHoursSurcharge } from "../../_shared/surcharge.ts";
+import { resolveVerifiedPmsGuest } from "../../_shared/pms-verify.ts";
 import type { ActionContext } from "../index.ts";
 
 const corsHeaders = {
@@ -143,7 +144,7 @@ export async function handleCreateSetupIntent(
   const { data: hotel, error: hotelError } = await supabase
     .from("hotels")
     .select(
-      "slug, currency, name, offert, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent",
+      "slug, currency, name, offert, pms_guest_lookup_enabled, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent",
     )
     .eq("id", hotelId)
     .maybeSingle();
@@ -153,6 +154,25 @@ export async function handleCreateSetupIntent(
   }
   if (hotel.offert) {
     throw new Error("Ce lieu propose actuellement des soins offerts.");
+  }
+
+  // PMS-verified hotel guest paying by card: re-verify room + last name server-side
+  // and pull the contact details from the PMS. The visitor never typed an email/phone
+  // (they stay empty client-side), so we resolve them here for Stripe + the booking.
+  if (clientData.pmsVerified && (hotel as any).pms_guest_lookup_enabled) {
+    const guest = await resolveVerifiedPmsGuest(
+      supabase,
+      hotelId,
+      clientData.roomNumber || "",
+      clientData.lastName || "",
+    );
+    if (!guest) {
+      return jsonResponse({ error: "PMS_VERIFICATION_FAILED" }, 400);
+    }
+    clientData.firstName = guest.firstName || clientData.firstName;
+    clientData.lastName = guest.lastName || clientData.lastName;
+    clientData.email = guest.email || clientData.email;
+    clientData.phone = guest.phone || clientData.phone;
   }
 
   const surcharge = computeOutOfHoursSurcharge(
@@ -193,18 +213,28 @@ export async function handleCreateSetupIntent(
     stripeCustomerId = newCustomer.id;
   }
 
-  const { error: upsertError } = await supabase.from("customers").upsert(
-    {
-      phone: clientData.phone,
-      email: clientData.email,
-      first_name: clientData.firstName,
-      last_name: clientData.lastName,
-      stripe_customer_id: stripeCustomerId,
-    },
-    { onConflict: "phone" },
-  );
-  if (upsertError) {
-    console.error("[CREATE-SETUP-INTENT] Erreur Upsert Customer:", upsertError);
+  const customerPayload = {
+    phone: clientData.phone,
+    email: clientData.email,
+    first_name: clientData.firstName,
+    last_name: clientData.lastName,
+  };
+  const { data: existingByStripe } = await supabase
+    .from("customers")
+    .select("id")
+    .eq("stripe_customer_id", stripeCustomerId)
+    .maybeSingle();
+  if (existingByStripe) {
+    const { error } = await supabase
+      .from("customers")
+      .update(customerPayload)
+      .eq("id", existingByStripe.id);
+    if (error) console.error("[CREATE-SETUP-INTENT] Erreur Update Customer:", error);
+  } else {
+    const { error } = await supabase
+      .from("customers")
+      .upsert({ ...customerPayload, stripe_customer_id: stripeCustomerId }, { onConflict: "phone" });
+    if (error) console.error("[CREATE-SETUP-INTENT] Erreur Upsert Customer:", error);
   }
 
   const origin = req.headers.get("origin") || "http://localhost:5173";

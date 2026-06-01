@@ -123,7 +123,11 @@
     "email": "Email",
     "phone": "Téléphone",
     "roomNumber": "Numéro de chambre",
-    "notHotelGuest": "Je ne suis pas client de l'hôtel",
+    "isHotelGuest": "Je suis client de l'hôtel",
+    "hotelGuestQuestion": "Êtes-vous client de l'hôtel ?",
+    "hotelGuestYes": "Oui, je séjourne ici",
+    "hotelGuestNo": "Non",
+    "hotelGuestHint": "Saisissez votre numéro de chambre et nous confirmerons votre réservation — inutile de renseigner votre email ou téléphone.",
     "note": "Note (optionnel)",
     "notePlaceholder": "Demandes spéciales ou informations...",
     "continue": "CONTINUER",
@@ -134,7 +138,9 @@
       "emailInvalid": "Format d'email invalide",
       "phoneRequired": "Le téléphone est requis",
       "phoneInvalid": "Numéro de téléphone invalide",
+      "phoneFormat": "Numéro invalide. Entrez les chiffres sans indicatif pays, ex. : {{format}}",
       "roomRequired": "Le numéro de chambre est requis",
+      "pmsVerificationFailed": "Aucune réservation ne correspond à ce numéro de chambre et à ce nom. Vérifiez vos informations, ou sélectionnez « Non » si vous ne séjournez pas à l'hôtel.",
       "recipientNameRequired": "Le nom du bénéficiaire est requis",
       "recipientEmailRequired": "L'email du bénéficiaire est requis",
       "recipientEmailInvalid": "Format d'email invalide"
@@ -150,7 +156,10 @@
     "recipientEmail": "Email du bénéficiaire",
     "senderName": "De la part de",
     "giftMessage": "Message personnalisé",
-    "giftMessagePlaceholder": "Ex : Joyeux anniversaire ! Profite bien de ce moment de détente."
+    "giftMessagePlaceholder": "Ex : Joyeux anniversaire ! Profite bien de ce moment de détente.",
+    "recipientLanguage": "Langue de l'email",
+    "recipientLanguageFr": "Français",
+    "recipientLanguageEn": "English"
   },
   "checkout": {
     "title": "Récapitulatif",
@@ -464,6 +473,9 @@
     "claimEmailPlaceholder": "email@exemple.com",
     "claimName": "Votre prénom",
     "claimNamePlaceholder": "Prénom",
+    "claimPhone": "Votre numéro de téléphone",
+    "claimPhonePlaceholder": "+33 6 12 34 56 78",
+    "claimErrorPhoneRequired": "Le numéro de téléphone est obligatoire.",
     "claimButton": "Activer ma carte",
     "claimLoading": "Activation en cours...",
     "claimSuccess": "Carte cadeau activée !",
@@ -543,5 +555,9 @@
       "selectedCountPlural": "{{count}} soins sélectionnés",
       "extraDuration": "+{{min}} min au total"
     }
+  },
+  "manageBooking": {
+    "cancelSuccessTitle": "Réservation annulée",
+    "cancelSuccessDescription": "Un email de confirmation vous a été envoyé."
   }
 }

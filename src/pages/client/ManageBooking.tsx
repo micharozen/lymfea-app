@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, differenceInMinutes, addDays, startOfDay } from "date-fns";
@@ -37,7 +38,9 @@ import {
 import TimePeriodSelector from "@/components/client/TimePeriodSelector";
 import { useToast } from "@/hooks/use-toast";
 import { brand, brandLogos } from "@/config/brand";
+import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { hoursUntilBooking } from "@/lib/cancellationTiers";
 
 interface HotelInfo {
   id: string;
@@ -49,6 +52,8 @@ interface HotelInfo {
   opening_time: string | null;
   closing_time: string | null;
   slot_interval: number | null;
+  timezone: string | null;
+  client_cancellation_cutoff_hours: number | null;
 }
 
 interface BookingTreatmentRow {
@@ -71,6 +76,11 @@ interface BookingRow {
   room_number: string | null;
   total_price: number | null;
   status: string;
+  payment_method: string | null;
+  payment_status: string | null;
+  card_brand: string | null;
+  card_last4: string | null;
+  estimated_price: number | null;
   language: "fr" | "en" | null;
   booking_treatments: BookingTreatmentRow[] | null;
   hotels: HotelInfo | null;
@@ -78,6 +88,7 @@ interface BookingRow {
 
 const ManageBooking = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
+  const { t } = useTranslation("client");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -92,26 +103,20 @@ const ManageBooking = () => {
   const { data: booking, isLoading, error } = useQuery<BookingRow | null>({
     queryKey: ["client-booking", bookingId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select(
-          `*,
-          booking_treatments(
-            id,
-            treatment_id,
-            treatment:treatment_menus(id, name, duration, price)
-          )`
-        )
-        .eq("id", bookingId!)
-        .maybeSingle();
+      // Use SECURITY DEFINER RPC to bypass the restrictive anon RLS policy on
+      // bookings. Accepts either a UUID (/booking/manage/:uuid) or a base62
+      // short_token (/m/:token) — the SQL function handles both.
+      const { data: rows, error } = await supabase
+        .rpc("get_public_booking", { p_token: bookingId! });
 
       if (error) throw error;
+      const data = (rows?.[0] ?? null) as BookingRow | null;
       if (!data) return null;
 
       let hotelInfo: HotelInfo | null = null;
-      if ((data as { hotel_id?: string }).hotel_id) {
+      if (data.hotel_id) {
         const { data: hotelRows } = await supabase.rpc("get_public_hotel_by_id", {
-          _hotel_id: (data as { hotel_id: string }).hotel_id,
+          _hotel_id: data.hotel_id,
         });
         const h = Array.isArray(hotelRows) ? hotelRows[0] : hotelRows;
         if (h) {
@@ -125,6 +130,8 @@ const ManageBooking = () => {
             opening_time: h.opening_time ?? null,
             closing_time: h.closing_time ?? null,
             slot_interval: h.slot_interval ?? null,
+            timezone: h.timezone ?? null,
+            client_cancellation_cutoff_hours: Number(h.client_cancellation_cutoff_hours ?? 2),
           };
         }
       }
@@ -136,14 +143,19 @@ const ManageBooking = () => {
 
   const timeInfo = useMemo(() => {
     if (!booking) return null;
-    const now = new Date();
     const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
-    const minutesUntilAppointment = differenceInMinutes(bookingDateTime, now);
-    const hoursUntilAppointment = minutesUntilAppointment / 60;
+    const minutesUntilAppointment = differenceInMinutes(bookingDateTime, new Date());
+    const cutoffHours = Number(booking.hotels?.client_cancellation_cutoff_hours ?? 2);
+    const hoursUntil = hoursUntilBooking(
+      booking.booking_date,
+      booking.booking_time,
+      booking.hotels?.timezone ?? "UTC",
+    );
     return {
       bookingDateTime,
-      canActFreely: hoursUntilAppointment > 2,
+      canActFreely: hoursUntil != null && hoursUntil > cutoffHours,
       isPast: minutesUntilAppointment < 0,
+      cutoffHours,
     };
   }, [booking]);
 
@@ -230,12 +242,11 @@ const ManageBooking = () => {
     mutationFn: async () => {
       if (!booking || !selectedDate || !selectedTime) throw new Error("Missing date/time");
       const { error: updateError } = await supabase
-        .from("bookings")
-        .update({
-          booking_date: selectedDate,
-          booking_time: selectedTime,
-        })
-        .eq("id", booking.id);
+        .rpc("reschedule_booking_public", {
+          p_token: bookingId!,
+          p_new_date: selectedDate,
+          p_new_time: selectedTime,
+        });
       if (updateError) throw updateError;
 
       await invokeEdgeFunction("send-booking-notification", {
@@ -262,46 +273,6 @@ const ManageBooking = () => {
       toast({
         title: "Erreur",
         description: "Impossible de modifier la réservation. Veuillez réessayer.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: async () => {
-      if (!booking) throw new Error("No booking");
-      const { error: updateError } = await supabase
-        .from("bookings")
-        .update({
-          status: "cancelled",
-          cancellation_reason: "Annulation client (Web)",
-        })
-        .eq("id", booking.id);
-      if (updateError) throw updateError;
-
-      await invokeEdgeFunction("send-booking-notification", {
-        skipAuth: true,
-        body: {
-          bookingId: booking.id,
-          language,
-          channels: ["sms"],
-          type: "cancellation",
-          clientPhone: booking.phone ?? undefined,
-        },
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
-      toast({
-        title: "Réservation annulée",
-        description: "Un SMS d'annulation avec un lien de re-réservation vous a été envoyé.",
-      });
-      setShowConfirmCancelDialog(false);
-    },
-    onError: () => {
-      toast({
-        title: "Erreur",
-        description: "Impossible d'annuler la réservation. Veuillez réessayer.",
         variant: "destructive",
       });
     },
@@ -558,27 +529,37 @@ const ManageBooking = () => {
         </DrawerContent>
       </Drawer>
 
-      <AlertDialog open={showConfirmCancelDialog} onOpenChange={setShowConfirmCancelDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Annuler la réservation ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir annuler cette réservation ? Vous recevrez un SMS de confirmation avec un lien pour réserver à nouveau.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Non, conserver</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => cancelMutation.mutate()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={cancelMutation.isPending}
-            >
-              {cancelMutation.isPending ? "Annulation..." : "Oui, annuler"}
-              {cancelMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {booking && (
+        <CancelBookingDialog
+          isOpen={showConfirmCancelDialog}
+          onClose={() => setShowConfirmCancelDialog(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
+            setShowConfirmCancelDialog(false);
+          }}
+          bookingId={booking.id}
+          publicToken={bookingId!}
+          bookingUuid={booking.id}
+          paymentPreview={{
+            card_brand: booking.card_brand,
+            card_last4: booking.card_last4,
+            estimated_price: booking.estimated_price,
+          }}
+          booking={{
+            booking_id: Number(booking.booking_id),
+            client_first_name: booking.client_first_name ?? "",
+            client_last_name: booking.client_last_name ?? "",
+            total_price: Number(booking.total_price ?? 0),
+            hotel_id: booking.hotel_id,
+            status: booking.status,
+            payment_method: booking.payment_method,
+            payment_status: booking.payment_status,
+            booking_date: booking.booking_date,
+            booking_time: booking.booking_time,
+          }}
+          userRole="client"
+        />
+      )}
 
       <AlertDialog open={showLateWarningDialog} onOpenChange={setShowLateWarningDialog}>
         <AlertDialogContent>
@@ -589,7 +570,9 @@ const ManageBooking = () => {
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p>
-                Il est trop tard pour modifier ou annuler en ligne (moins de 2 heures avant le soin).
+                Il est trop tard pour modifier ou annuler en ligne (moins de{" "}
+                {timeInfo?.cutoffHours ?? 2} heure
+                {(timeInfo?.cutoffHours ?? 2) > 1 ? "s" : ""} avant le soin).
               </p>
               <p>Veuillez contacter directement la conciergerie de l'hôtel.</p>
               {hotel?.contact_phone && (

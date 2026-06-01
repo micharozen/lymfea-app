@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/sheet";
 import { ArrowLeft, Loader2, Save, Pencil, CalendarDays, Eye } from "lucide-react";
 import { startOfMonth, startOfYear, subDays } from "date-fns";
+import { validateCancellationTiers } from "@/lib/cancellationTiers";
 import { VenueGeneralTab, type VenueSectionId } from "@/components/admin/venue/VenueGeneralTab";
 import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
@@ -37,10 +38,13 @@ import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPrevi
 import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { formatPrice } from "@/lib/formatPrice";
-import type { VenueWizardFormValues, BlockedSlot } from "@/components/admin/VenueWizardDialog";
+import type { VenueWizardFormValues, BlockedSlot, VenueFormSchemaOptions } from "@/components/admin/VenueWizardDialog";
+import { useUser } from "@/contexts/UserContext";
+import { requireHotelOrganizationIdForInsert } from "@/lib/resolveHotelOrganizationId";
 
 // Same form schema as VenueWizardDialog
-const createFormSchema = (t: TFunction) => z.object({
+const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.object({
+  organization_id: z.string().uuid().optional().or(z.literal("")),
   name: z.string().min(1, t('errors.validation.nameRequired')),
   slug: z
     .string()
@@ -82,6 +86,14 @@ const createFormSchema = (t: TFunction) => z.object({
   landing_subtitle_en: z.string().optional(),
   description_en: z.string().optional(),
   calendar_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  cancellation_policy_text_fr: z.string().optional(),
+  cancellation_policy_text_en: z.string().optional(),
+  client_cancellation_cutoff_hours: z.coerce.number().min(0).max(168).default(2),
+  cancellation_tiers: z.array(z.object({
+    max_hours: z.coerce.number().min(0),
+    min_hours: z.coerce.number().min(0),
+    refund_percent: z.coerce.number().min(0).max(100),
+  })).default([]),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -95,6 +107,18 @@ const createFormSchema = (t: TFunction) => z.object({
 }, {
   message: "L'heure d'ouverture doit être avant l'heure de fermeture",
   path: ["closing_time"],
+}).superRefine((data, ctx) => {
+  const err = validateCancellationTiers(data.cancellation_tiers);
+  if (err) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: err, path: ["cancellation_tiers"] });
+  }
+  if (options?.requireOrganizationId && !data.organization_id?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: options.organizationRequiredMessage ?? "Organisation requise",
+      path: ["organization_id"],
+    });
+  }
 });
 
 interface VenueDetailProps {
@@ -119,9 +143,19 @@ export default function VenueDetail({
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation('common');
-  const formSchema = useMemo(() => createFormSchema(t), [t]);
+  const { t: tAdmin } = useTranslation('admin');
+  const { isSuperAdmin, organizationId, activeOrganizationId } = useUser();
 
   const isNewMode = !id;
+  const requireOrganizationId = isSuperAdmin && isNewMode;
+  const formSchema = useMemo(
+    () =>
+      createFormSchema(t, {
+        requireOrganizationId,
+        organizationRequiredMessage: tAdmin('venue.organization.required'),
+      }),
+    [t, tAdmin, requireOrganizationId],
+  );
   const [savedHotelId, setSavedHotelId] = useState<string | null>(id || null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -194,6 +228,8 @@ export default function VenueDetail({
   const form = useForm<VenueWizardFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      organization_id:
+        isSuperAdmin && activeOrganizationId ? activeOrganizationId : "",
       name: "",
       slug: "",
       venue_type: "hotel",
@@ -223,8 +259,21 @@ export default function VenueDetail({
       company_offered: false,
       landing_subtitle: "",
       calendar_color: "",
+      cancellation_policy_text_fr: "",
+      cancellation_policy_text_en: "",
+      client_cancellation_cutoff_hours: 2,
+      cancellation_tiers: [],
     },
   });
+
+  // Pre-fill organization when super-admin has an active org scope (sidebar switcher)
+  useEffect(() => {
+    if (!isNewMode || !isSuperAdmin || !activeOrganizationId) return;
+    const current = form.getValues("organization_id");
+    if (!current) {
+      form.setValue("organization_id", activeOrganizationId, { shouldValidate: false });
+    }
+  }, [isNewMode, isSuperAdmin, activeOrganizationId, form]);
 
   // Load data in edit mode
   useEffect(() => {
@@ -279,6 +328,14 @@ export default function VenueDetail({
           landing_subtitle_en: (hotel as any).landing_subtitle_en || "",
           description_en: (hotel as any).description_en || "",
           calendar_color: hotel.calendar_color ?? "",
+          cancellation_policy_text_fr: (hotel as { cancellation_policy_text_fr?: string }).cancellation_policy_text_fr || "",
+          cancellation_policy_text_en: (hotel as { cancellation_policy_text_en?: string }).cancellation_policy_text_en || "",
+          client_cancellation_cutoff_hours: Number(
+            (hotel as { client_cancellation_cutoff_hours?: number }).client_cancellation_cutoff_hours ?? 2,
+          ),
+          cancellation_tiers: Array.isArray((hotel as { cancellation_tiers?: unknown }).cancellation_tiers)
+            ? ((hotel as { cancellation_tiers: { max_hours: number; min_hours: number; refund_percent: number }[] }).cancellation_tiers)
+            : [],
         });
 
         setHotelImage(hotel.image || "");
@@ -454,6 +511,7 @@ export default function VenueDetail({
       if (errors.address) missingFields.push("Adresse");
       if (errors.city) missingFields.push("Ville");
       if (errors.country) missingFields.push("Pays");
+      if (errors.organization_id) missingFields.push("Organisation");
       if (errors.hotel_commission) missingFields.push("Commission");
       toast.error(
         missingFields.length > 0
@@ -509,13 +567,21 @@ export default function VenueDetail({
         landing_subtitle_en: values.landing_subtitle_en || null,
         description_en: values.description_en || null,
         calendar_color: values.calendar_color || null,
+        cancellation_policy_text_fr: values.cancellation_policy_text_fr?.trim() || null,
+        cancellation_policy_text_en: values.cancellation_policy_text_en?.trim() || null,
+        client_cancellation_cutoff_hours: values.client_cancellation_cutoff_hours ?? 2,
+        cancellation_tiers: values.cancellation_tiers ?? [],
       };
 
       if (isNewMode && !savedHotelId) {
-        // INSERT new hotel
+        const organization_id = requireHotelOrganizationIdForInsert({
+          isSuperAdmin,
+          adminOrganizationId: organizationId,
+          formOrganizationId: values.organization_id,
+        });
         const { data: insertedHotel, error: hotelError } = await supabase
           .from("hotels")
-          .insert(hotelPayload)
+          .insert({ ...hotelPayload, organization_id })
           .select('id')
           .single();
 

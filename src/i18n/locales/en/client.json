@@ -123,7 +123,11 @@
     "email": "Email",
     "phone": "Phone",
     "roomNumber": "Room Number",
-    "notHotelGuest": "I'm not a hotel guest",
+    "isHotelGuest": "I'm a hotel guest",
+    "hotelGuestQuestion": "Are you a guest of the hotel?",
+    "hotelGuestYes": "Yes, I'm staying here",
+    "hotelGuestNo": "No",
+    "hotelGuestHint": "Enter your room number and we'll confirm your reservation — no need to fill in your email or phone.",
     "note": "Note (optional)",
     "notePlaceholder": "Any special requests or information...",
     "continue": "CONTINUE",
@@ -134,7 +138,9 @@
       "emailInvalid": "Invalid email format",
       "phoneRequired": "Phone number is required",
       "phoneInvalid": "Invalid phone number",
+      "phoneFormat": "Invalid number. Enter digits without country code, e.g.: {{format}}",
       "roomRequired": "Room number is required",
+      "pmsVerificationFailed": "We couldn't find a reservation matching this room number and name. Please check your details, or select \"No\" if you are not staying at the hotel.",
       "recipientNameRequired": "Recipient name is required",
       "recipientEmailRequired": "Recipient email is required",
       "recipientEmailInvalid": "Invalid email format"
@@ -150,7 +156,10 @@
     "recipientEmail": "Recipient email",
     "senderName": "From",
     "giftMessage": "Personal message",
-    "giftMessagePlaceholder": "E.g.: Happy birthday! Enjoy this relaxing moment."
+    "giftMessagePlaceholder": "E.g.: Happy birthday! Enjoy this relaxing moment.",
+    "recipientLanguage": "Email language",
+    "recipientLanguageFr": "Français",
+    "recipientLanguageEn": "English"
   },
   "checkout": {
     "title": "Summary",
@@ -463,6 +472,9 @@
     "claimEmailPlaceholder": "email@example.com",
     "claimName": "Your first name",
     "claimNamePlaceholder": "First name",
+    "claimPhone": "Your phone number",
+    "claimPhonePlaceholder": "+33 6 12 34 56 78",
+    "claimErrorPhoneRequired": "Phone number is required.",
     "claimButton": "Activate my card",
     "claimLoading": "Activating...",
     "claimSuccess": "Gift card activated!",
@@ -542,5 +554,9 @@
       "selectedCountPlural": "{{count}} treatments selected",
       "extraDuration": "+{{min}} min total"
     }
+  },
+  "manageBooking": {
+    "cancelSuccessTitle": "Booking cancelled",
+    "cancelSuccessDescription": "A confirmation email has been sent to you."
   }
 }

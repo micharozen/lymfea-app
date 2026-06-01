@@ -1,0 +1,97 @@
+{
+  "meta": {
+    "title": "Conditions générales — Saoma",
+    "description": "Conditions générales d'utilisation et de vente de la plateforme Saoma."
+  },
+  "header": {
+    "eyebrow": "Légal",
+    "title": "Conditions générales",
+    "subtitle": "Conditions générales d'utilisation et de vente de la plateforme Saoma.",
+    "lastUpdated": "Dernière mise à jour : 14 mai 2026",
+    "back": "Retour à l'accueil"
+  },
+  "intro": {
+    "paragraphs": [
+      "Les présentes conditions générales (ci-après les « CGU/CGV ») régissent l'accès et l'utilisation de la plateforme Saoma, éditée par la société Saoma SAS, ainsi que les services associés proposés aux établissements clients (hôtels, spas, day spas).",
+      "L'utilisation de la plateforme implique l'acceptation pleine et entière des présentes conditions. Toute personne souscrivant un abonnement le fait au nom de l'établissement qu'elle représente et reconnaît disposer du pouvoir d'engager celui-ci."
+    ]
+  },
+  "sections": {
+    "objet": {
+      "title": "1. Objet",
+      "paragraphs": [
+        "Saoma est une plateforme SaaS (Software as a Service) de gestion de spa, destinée aux hôtels, spas indépendants et day spas. Elle permet notamment la gestion de l'agenda des soins, la coordination des thérapeutes, la facturation, le paiement, ainsi que la prise de réservation en ligne par les clients finaux.",
+        "Les présentes CGU/CGV ont pour objet de définir les modalités et conditions dans lesquelles Saoma met à disposition la plateforme et fournit les services associés, ainsi que les droits et obligations des parties."
+      ]
+    },
+    "definitions": {
+      "title": "2. Définitions",
+      "paragraphs": [
+        "« Client » : l'établissement (hôtel, spa, day spa) ayant souscrit un abonnement à la plateforme Saoma.",
+        "« Utilisateur » : toute personne physique habilitée par le Client à utiliser la plateforme (administrateur, concierge, thérapeute).",
+        "« Client final » : toute personne réservant un soin via les outils de réservation mis à disposition par la plateforme.",
+        "« Lieu » : un établissement physique (hôtel ou spa) géré via la plateforme. Le tarif est calculé par Lieu."
+      ]
+    },
+    "service": {
+      "title": "3. Description du service",
+      "paragraphs": [
+        "La plateforme Saoma inclut, selon la formule souscrite : un agenda multi-thérapeutes et multi-salles, une application mobile pour les thérapeutes, un module de réservation client en ligne, un module de facturation et paiement, ainsi que des fonctionnalités complémentaires (cartes cadeaux, bundles, intégrations PMS, etc.).",
+        "Saoma fournit le service avec une obligation de moyens. La plateforme est accessible 24h/24, 7j/7, sous réserve des opérations de maintenance et d'événements indépendants de la volonté de Saoma (panne réseau, force majeure, etc.).",
+        "Saoma se réserve le droit de faire évoluer la plateforme et d'ajouter, modifier ou supprimer des fonctionnalités, à condition de ne pas dégrader substantiellement le service souscrit."
+      ]
+    },
+    "account": {
+      "title": "4. Inscription, compte et obligations du Client",
+      "paragraphs": [
+        "L'accès à la plateforme nécessite la création d'un compte par le Client. Le Client garantit l'exactitude des informations transmises lors de l'inscription et s'engage à les maintenir à jour.",
+        "Le Client est responsable de la confidentialité de ses identifiants et de ceux de ses Utilisateurs. Toute action effectuée depuis un compte est réputée effectuée par le Client.",
+        "Le Client s'engage à utiliser la plateforme conformément à sa destination, aux lois et règlements en vigueur, et à ne pas porter atteinte aux droits de tiers."
+      ]
+    },
+    "pricing": {
+      "title": "5. Tarifs, paiement et durée",
+      "paragraphs": [
+        "Les tarifs en vigueur sont indiqués sur le site saoma.fr. Le tarif Starter débute à 89 € HT par mois et par Lieu. Le tarif Custom fait l'objet d'un devis sur mesure.",
+        "L'abonnement est facturé mensuellement ou annuellement, selon l'option choisie. Le paiement s'effectue par prélèvement automatique (carte bancaire ou prélèvement SEPA) via notre prestataire de paiement.",
+        "L'abonnement est conclu pour une durée d'un mois, renouvelé tacitement par périodes identiques. Le Client peut résilier à tout moment depuis son espace ou par email, la résiliation prenant effet à la fin de la période de facturation en cours. Aucun remboursement au prorata n'est dû.",
+        "En cas de retard ou de défaut de paiement, Saoma se réserve le droit de suspendre l'accès à la plateforme après mise en demeure restée sans effet."
+      ]
+    },
+    "data": {
+      "title": "6. Données personnelles & confidentialité",
+      "paragraphs": [
+        "Saoma traite les données personnelles dans le respect du Règlement (UE) 2016/679 (RGPD) et de la loi Informatique et Libertés. Une politique de confidentialité détaillée est disponible séparément.",
+        "Le Client est responsable du traitement des données de ses Clients finaux. Saoma agit en qualité de sous-traitant au sens de l'article 28 du RGPD, conformément à un accord de sous-traitance qui peut être conclu sur demande.",
+        "Saoma s'engage à mettre en œuvre les mesures techniques et organisationnelles appropriées pour garantir la sécurité des données : chiffrement en transit (TLS 1.2+), sauvegardes régulières, contrôle d'accès, hébergement au sein de l'Union européenne."
+      ]
+    },
+    "ip": {
+      "title": "7. Propriété intellectuelle",
+      "paragraphs": [
+        "L'ensemble des éléments de la plateforme (code, design, marques, logos, contenus) est la propriété exclusive de Saoma ou de ses concédants. Aucune disposition des présentes ne saurait être interprétée comme une cession ou une licence sur ces éléments, en dehors du droit d'usage de la plateforme pour les besoins du Client.",
+        "Les données et contenus saisis par le Client demeurent sa propriété. Le Client concède à Saoma une licence non exclusive, gratuite, pour les utiliser dans le seul cadre de la fourniture du service."
+      ]
+    },
+    "liability": {
+      "title": "8. Responsabilité & force majeure",
+      "paragraphs": [
+        "Saoma est tenue d'une obligation de moyens. Sa responsabilité ne saurait être engagée pour les dommages indirects (perte d'exploitation, perte de chance, atteinte à l'image). En tout état de cause, la responsabilité globale de Saoma est plafonnée aux sommes effectivement payées par le Client au titre des 12 mois précédant le fait générateur.",
+        "Aucune des parties ne pourra être tenue responsable d'un manquement résultant d'un cas de force majeure tel que défini par l'article 1218 du Code civil et la jurisprudence française."
+      ]
+    },
+    "law": {
+      "title": "9. Loi applicable & juridiction",
+      "paragraphs": [
+        "Les présentes CGU/CGV sont régies par le droit français. En cas de litige, les parties s'efforceront de trouver une solution amiable. À défaut, les tribunaux du ressort de la Cour d'appel de Paris seront seuls compétents, nonobstant pluralité de défendeurs ou appel en garantie."
+      ]
+    },
+    "contact": {
+      "title": "10. Contact",
+      "paragraphs": [
+        "Pour toute question relative aux présentes conditions, vous pouvez nous contacter par email à hello@saoma.fr.",
+        "Saoma SAS — Siège social et coordonnées légales disponibles sur la page Mentions légales."
+      ]
+    }
+  }
+}

@@ -1,5 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import {
+  ACTIVE_BOOKING_STATUS_FILTER,
+  isSlotAvailable,
+  timeToMinutes,
+  type TherapistShift,
+} from '../_shared/availability.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -304,7 +310,7 @@ serve(async (req) => {
       .select('booking_time, therapist_id, status, room_id, duration')
       .eq('booking_date', date)
       .eq('hotel_id', hotelId)
-      .not('status', 'in', '("Annulé","Terminé","cancelled")');
+      .not('status', 'in', ACTIVE_BOOKING_STATUS_FILTER);
 
     if (excludeBookingId) {
       hotelBookingsQuery = hotelBookingsQuery.neq('id', excludeBookingId);
@@ -330,7 +336,7 @@ serve(async (req) => {
         .eq('booking_date', date)
         .in('therapist_id', scheduledTherapistIds)
         .neq('hotel_id', hotelId)
-        .not('status', 'in', '("Annulé","Terminé","cancelled")');
+        .not('status', 'in', ACTIVE_BOOKING_STATUS_FILTER);
 
       if (crossVenueError) {
         console.error('Error fetching cross-venue bookings:', crossVenueError);
@@ -341,34 +347,12 @@ serve(async (req) => {
       _debug.travelBuffer = travelBuffer;
     }
 
-    // Helper function to convert time string to minutes
-    const timeToMinutes = (time: string): number => {
-      const [hours, minutes] = time.split(':').map(Number);
-      return hours * 60 + minutes;
-    };
-
     // Effective duration of the treatment being scheduled. Used to detect overlap
     // between the proposed slot interval [slotStart, slotStart + requestedDuration)
     // and existing bookings / pending holds. Falls back to slot interval so legacy
     // callers (without requestedDuration / treatmentIds) keep their previous behavior.
     const requestedDuration = clientRequestedDuration ?? maxTreatmentDuration ?? slotInterval;
     console.log(`[DEBUG] requestedDuration=${requestedDuration}min (clientRequested=${clientRequestedDuration}, maxTreatment=${maxTreatmentDuration}, slotInterval=${slotInterval})`);
-
-    // Function to check if a slot is blocked by an existing booking — interval-vs-interval
-    // overlap of [slotStart, slotStart + requestedDuration) vs [bookingStart, bookingEnd + turnover).
-    const isSlotBlockedByBooking = (
-      slotTime: string,
-      bookingTime: string,
-      bookingDuration: number,
-      turnoverMinutes: number = 0
-    ): boolean => {
-      const slotStartMinutes = timeToMinutes(slotTime);
-      const slotEndMinutes = slotStartMinutes + requestedDuration;
-      const bookingStartMinutes = timeToMinutes(bookingTime);
-      const bookingEndMinutes = bookingStartMinutes + (bookingDuration || 30) + turnoverMinutes;
-
-      return slotStartMinutes < bookingEndMinutes && slotEndMinutes > bookingStartMinutes;
-    };
 
     // Function to check if a slot overlaps with any blocked time range
     const isSlotInBlockedRange = (slotTime: string): boolean => {
@@ -454,90 +438,24 @@ serve(async (req) => {
         return false;
       }
 
-      // Get bookings that block this slot (considering duration overlap + room turnover buffer)
-      const bookingsBlockingSlot = (allHotelBookings || []).filter((b: any) =>
-        isSlotBlockedByBooking(slot, b.booking_time, b.duration || 30, roomTurnoverBuffer)
-      );
-
-      // ROOM CAPACITY CHECK: account for room capacity (duo rooms can serve 2 guests).
-      // A room with capacity >= requiredGuestCount can serve the entire group.
-      // Otherwise, sum available capacity across free rooms.
-      const capacityBookings = bookingsBlockingSlot.filter(
-        (b: any) => b.therapist_id !== null
-      );
-      const occupiedRoomIds = new Set<string>();
-      let bookingsWithoutRoom = 0;
-      for (const b of capacityBookings) {
-        if (b.room_id) {
-          occupiedRoomIds.add(b.room_id);
-        } else {
-          bookingsWithoutRoom++;
-        }
-      }
-
-      // Calculate free capacity: sum capacity of free rooms
-      const allRoomIds = Array.from(roomCapacityMap.keys());
-      const freeRoomIds = allRoomIds.filter(id => !occupiedRoomIds.has(id));
-      const freeRoomCapacity = freeRoomIds.reduce(
-        (sum, id) => sum + (roomCapacityMap.get(id) || 1), 0
-      ) - bookingsWithoutRoom;
-
-      // PENDING HOLDS: count in-cart holds (other items not yet persisted) that
-      // overlap this slot. Each consumes 1 generic room + 1 generic therapist.
-      // Use requestedDuration so a long treatment starting before a hold (and
-      // running into it) is correctly blocked.
-      const slotStartMinutes = timeToMinutes(slot);
-      const slotEndMinutes = slotStartMinutes + requestedDuration;
-      const overlappingHolds = pendingHoldsForDate.filter(h => {
-        const hStart = timeToMinutes(h.time);
-        const hEnd = hStart + (h.duration || 30);
-        return slotStartMinutes < hEnd && slotEndMinutes > hStart;
-      }).length;
-
-      if (freeRoomCapacity - overlappingHolds < requiredGuestCount) {
-        return false;
-      }
-
-      // THERAPIST CHECK: At least one therapist must be free AND within their shift hours
-      const busyTherapists = new Set(
-        bookingsBlockingSlot
-          .filter((b: any) => b.therapist_id !== null)
-          .map((b: any) => b.therapist_id)
-      );
-
-      const slotMinutes = timeToMinutes(slot);
-
-      // Count therapists who are: scheduled for this time slot AND not busy with a booking
-      const availableTherapistCount = scheduledTherapistIds.filter((id: string) => {
-        if (busyTherapists.has(id)) return false;
-
-        // Check cross-venue travel buffer: therapist blocked if they have a booking
-        // at another venue within the travel buffer window
-        if (travelBuffer > 0) {
-          const isCrossVenueBlocked = crossVenueBookings.some((b: any) => {
-            if (b.therapist_id !== id) return false;
-            const bStart = timeToMinutes(b.booking_time);
-            const bEnd = bStart + (b.duration || 30);
-            return slotMinutes >= (bStart - travelBuffer) && slotMinutes < (bEnd + travelBuffer);
-          });
-          if (isCrossVenueBlocked) return false;
-        }
-
-        // Check if slot falls within one of the therapist's shifts
-        const schedule = scheduleMap.get(id);
-        if (!schedule || schedule.shifts.length === 0) {
-          // No shift data (backward compat): available all day
-          return true;
-        }
-
-        return schedule.shifts.some((shift: any) => {
-          const shiftStart = timeToMinutes(shift.start + ':00');
-          const shiftEnd = timeToMinutes(shift.end + ':00');
-          return slotMinutes >= shiftStart && slotMinutes < shiftEnd;
-        });
-      }).length;
-
-      return availableTherapistCount - overlappingHolds >= requiredGuestCount;
+      // Delegate room + therapist + holds + travel-buffer evaluation to the
+      // shared helper. Kept in sync with reserve_trunk_atomically RPC.
+      return isSlotAvailable({
+        slot,
+        requestedDuration,
+        roomTurnoverBuffer,
+        rooms: (treatmentRooms || []).map((r: any) => ({
+          id: r.id,
+          capacity: r.capacity || 1,
+        })),
+        bookings: (allHotelBookings || []) as any,
+        pendingHolds: pendingHoldsForDate.map(h => ({ time: h.time, duration: h.duration })),
+        scheduledTherapistIds,
+        scheduleByTherapist: scheduleMap as Map<string, { shifts: TherapistShift[] }>,
+        crossVenueBookings: crossVenueBookings as any,
+        travelBuffer,
+        requiredGuestCount,
+      });
     });
 
     console.log(`[DEBUG] ====== RESULT: ${availableSlots.length} available out of ${timeSlots.length} ======`);

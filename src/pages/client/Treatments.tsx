@@ -231,7 +231,13 @@ export default function Treatments() {
   useEffect(() => {
     if (collapsedInitializedRef.current) return;
     if (categorySections.length === 0) return;
-    setCollapsedCategories(new Set(categorySections.map((s) => s.id)));
+    const totalTreatments = categorySections.reduce((sum, s) => sum + s.treatments.length, 0);
+    const soleSectionId = totalTreatments === 1
+      ? categorySections.find((s) => s.treatments.length === 1)?.id
+      : undefined;
+    setCollapsedCategories(
+      new Set(categorySections.map((s) => s.id).filter((id) => id !== soleSectionId))
+    );
     collapsedInitializedRef.current = true;
   }, [categorySections]);
 
@@ -452,10 +458,10 @@ export default function Treatments() {
       return (
         <div className="flex items-baseline gap-2">
           <span className="text-[10px] uppercase tracking-wider text-gray-400">{t('menu.fromPrice')}</span>
-          <span className="text-base sm:text-lg font-light text-gray-700">
+          <span className="text-base sm:text-lg font-light text-gray-700 whitespace-nowrap">
             {formatPrice(getMinVariantPrice(variants), treatment.currency || 'EUR', { decimals: 0 })}
           </span>
-          <span className="text-gray-400 text-xs font-light tracking-wider uppercase">
+          <span className="text-gray-400 text-xs font-light tracking-wider uppercase whitespace-nowrap">
             {getVariantDurationRange(variants)} min
             {guestRange && ` · ${guestRange}`}
           </span>
@@ -480,11 +486,11 @@ export default function Treatments() {
           <span className="text-xs text-gray-400 line-through font-light">
             {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
           </span>
-          <span className="text-base sm:text-lg font-medium text-emerald-600">
+          <span className="text-base sm:text-lg font-medium text-emerald-600 whitespace-nowrap">
             {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
           </span>
           {treatment.duration > 0 && (
-            <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
+            <span className="text-gray-400 text-xs font-light tracking-wider uppercase whitespace-nowrap">{treatment.duration} min</span>
           )}
         </div>
       );
@@ -498,11 +504,11 @@ export default function Treatments() {
     }
     return (
       <div className="flex items-baseline gap-2">
-        <span className="text-base sm:text-lg font-light text-gray-700">
+        <span className="text-base sm:text-lg font-light text-gray-700 whitespace-nowrap">
           {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
         </span>
         {treatment.duration > 0 && (
-          <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
+          <span className="text-gray-400 text-xs font-light tracking-wider uppercase whitespace-nowrap">{treatment.duration} min</span>
         )}
       </div>
     );

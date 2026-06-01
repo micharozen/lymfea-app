@@ -6,6 +6,7 @@ import { supabaseAdmin } from "../lib/supabase";
 import { getStripeForVenue } from "../lib/stripe-resolver";
 import { sendEmail } from "../lib/email";
 import { isInBlockedSlot } from "../lib/blocked-slots";
+import { resolveVerifiedPmsGuest } from "../lib/pms-verify";
 
 const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
 const BRAND_WEBSITE = 'https://lymfea.fr';
@@ -137,14 +138,10 @@ payments.post("/checkout-success", async (c) => {
 
     console.log("[CHECKOUT-SUCCESS] Booking created:", booking.id);
 
-    for (const treatment of treatments) {
+    if (treatments.length > 0) {
       const { error: treatmentError } = await supabaseAdmin
         .from('booking_treatments')
-        .insert({
-          booking_id: booking.id,
-          treatment_id: treatment.id,
-        });
-
+        .insert(treatments.map((t: any) => ({ booking_id: booking.id, treatment_id: t.id })));
       if (treatmentError) {
         console.error("[CHECKOUT-SUCCESS] Treatment insert error:", treatmentError);
       }
@@ -827,6 +824,13 @@ payments.post("/confirm-setup", async (c) => {
     if (!meta.hotelId) throw new Error("Données de réservation introuvables dans la session Stripe.");
 
     const treatmentIds = JSON.parse(meta.treatmentIds || "[]");
+    const treatmentsPayloadMeta: Array<{ treatmentId?: string; id?: string; variantId?: string | null }> =
+      JSON.parse(meta.treatmentsPayload || "[]");
+    const variantMapMeta: Record<string, string> = {};
+    for (const t of treatmentsPayloadMeta) {
+      const tid = t.treatmentId || t.id;
+      if (tid && t.variantId) variantMapMeta[tid] = t.variantId;
+    }
 
     // 2. Calcul prix/durée
     const { data: treatments } = await supabaseAdmin.from('treatment_menus').select('price, duration').in('id', treatmentIds);
@@ -905,6 +909,7 @@ payments.post("/confirm-setup", async (c) => {
         if (fallbackError) throw new Error(`Désolé, ce créneau vient tout juste d'être réservé (${fallbackError.message})`);
         if (!fallbackId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
         bookingId = fallbackId;
+        await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
       } else {
         const { error: updateError } = await supabaseAdmin
           .from('bookings')
@@ -966,8 +971,6 @@ payments.post("/confirm-setup", async (c) => {
       throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
     }
 
-    await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
-
     // Attacher les soins — nettoyage préalable si c'était un draft pour éviter les doublons
     if (treatmentIds && treatmentIds.length > 0) {
       if (meta.draftBookingId) {
@@ -980,7 +983,7 @@ payments.post("/confirm-setup", async (c) => {
       const treatmentInserts = treatmentIds.map((id: string) => ({
         booking_id: bookingId,
         treatment_id: id,
-        variant_id: null,
+        variant_id: variantMapMeta[id] || null,
       }));
 
       if (treatmentInserts.length > 0) {
@@ -1038,7 +1041,9 @@ payments.post("/setup-intent", async (c) => {
       throw new Error("Missing required data");
     }
 
-    if (!clientData.firstName || !clientData.lastName || !clientData.phone || !clientData.email) {
+    // PMS-verified hotel guests don't enter email/phone — those are resolved
+    // server-side from the PMS (see below). All other flows still require them.
+    if (!clientData.firstName || !clientData.lastName || (!clientData.pmsVerified && (!clientData.phone || !clientData.email))) {
       throw new Error("Missing required client information (including email)");
     }
 
@@ -1079,7 +1084,7 @@ payments.post("/setup-intent", async (c) => {
 
     const { data: hotel, error: hotelError } = await supabaseAdmin
       .from('hotels')
-      .select('slug, currency, name, offert, opening_time, closing_time')
+      .select('slug, currency, name, offert, pms_guest_lookup_enabled, opening_time, closing_time')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -1089,6 +1094,19 @@ payments.post("/setup-intent", async (c) => {
 
     if (hotel.offert) {
       throw new Error("Ce lieu propose actuellement des soins offerts.");
+    }
+
+    // PMS-verified hotel guest paying by card: re-verify room + last name and pull
+    // the contact details from the PMS so Stripe + the booking get verified data.
+    if (clientData.pmsVerified && (hotel as any).pms_guest_lookup_enabled) {
+      const guest = await resolveVerifiedPmsGuest(hotelId, clientData.roomNumber || '', clientData.lastName || '');
+      if (!guest) {
+        return c.json({ error: 'PMS_VERIFICATION_FAILED' }, 400);
+      }
+      clientData.firstName = guest.firstName || clientData.firstName;
+      clientData.lastName = guest.lastName || clientData.lastName;
+      clientData.email = guest.email || clientData.email;
+      clientData.phone = guest.phone || clientData.phone;
     }
 
     if (hotel.opening_time && hotel.closing_time) {
@@ -1153,6 +1171,7 @@ payments.post("/setup-intent", async (c) => {
         roomNumber: clientData.roomNumber || '',
         note: clientData.note || '',
         treatmentIds: JSON.stringify(effectiveTreatmentIds),
+        treatmentsPayload: JSON.stringify(treatmentsPayload || []),
         language: language || 'fr',
         therapistGender: therapistGender || '',
         draftBookingId: draftBookingId || '',
@@ -1314,18 +1333,20 @@ payments.post("/checkout", async (c) => {
     );
 
     if (rpcError) {
-      if (rpcError.message?.includes("NO_TRUNK_AVAILABLE")) {
+      if (rpcError.message?.includes("NO_ROOM_AVAILABLE")) {
         return c.json({ error: "SLOT_TAKEN" }, 409);
       }
       throw rpcError;
     }
 
-    for (const treatmentId of effectiveTreatmentIds) {
-      await supabaseAdmin.from("booking_treatments").insert({
-        booking_id: bookingId,
-        treatment_id: treatmentId,
-        variant_id: variantMap[treatmentId] || null,
-      });
+    if (effectiveTreatmentIds.length > 0) {
+      await supabaseAdmin.from("booking_treatments").insert(
+        effectiveTreatmentIds.map((treatmentId: string) => ({
+          booking_id: bookingId,
+          treatment_id: treatmentId,
+          variant_id: variantMap[treatmentId] || null,
+        }))
+      );
     }
 
     const treatmentNames = treatments.map((t: any) => t.name).join(", ");
