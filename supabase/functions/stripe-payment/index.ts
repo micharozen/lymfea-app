@@ -97,10 +97,26 @@ serve(async (req) => {
     return jsonResponse({ error: `Unknown action: ${action}` }, 400);
   }
 
-  const hotelId =
+  let hotelId =
     typeof body.hotelId === "string" && body.hotelId
       ? body.hotelId
       : null;
+
+  // Derive hotelId from bookingId when the caller didn't pass it explicitly.
+  // Frontends that only have a booking reference (e.g. PaymentLinkForm) rely
+  // on this so getStripeForVenue picks the venue's Stripe key instead of
+  // falling back to the missing global STRIPE_SECRET_KEY.
+  if (!hotelId && typeof body.bookingId === "string" && body.bookingId) {
+    const { data: bookingRow } = await supabaseAdmin
+      .from("bookings")
+      .select("hotel_id")
+      .eq("id", body.bookingId)
+      .maybeSingle();
+    if (bookingRow?.hotel_id) {
+      hotelId = bookingRow.hotel_id;
+    }
+  }
+
   log.bind({ action, hotelId });
 
   let stripe;
