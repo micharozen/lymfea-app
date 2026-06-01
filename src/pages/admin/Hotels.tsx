@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSeatCapacity } from "@/hooks/useSeatCapacity";
+import { SeatUpgradeDialog } from "@/components/billing/SeatUpgradeDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { listHotelsForOrg } from "@shared/db";
 import { useOrgScope } from "@/hooks/useOrgScope";
@@ -109,6 +111,16 @@ export default function Hotels() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const seatCapacity = useSeatCapacity();
+  const [seatDialogOpen, setSeatDialogOpen] = useState(false);
+  const handleNewVenue = useCallback(() => {
+    if (seatCapacity.loading) return;
+    if (!seatCapacity.canAddVenue && seatCapacity.seats > 0) {
+      setSeatDialogOpen(true);
+      return;
+    }
+    navigate('/admin/places/new');
+  }, [seatCapacity.loading, seatCapacity.canAddVenue, seatCapacity.seats, navigate]);
 
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
@@ -401,7 +413,7 @@ export default function Hotels() {
 
             <Button
               className="ml-auto"
-              onClick={() => navigate('/admin/places/new')}
+              onClick={handleNewVenue}
               style={{ display: isAdmin ? 'flex' : 'none' }}
             >
               Nouveau lieu
@@ -440,7 +452,7 @@ export default function Hotels() {
                       <p className="text-sm text-muted-foreground mt-1">Essayez de modifier vos filtres</p>
                     )}
                     {isAdmin && (
-                      <Button onClick={() => navigate('/admin/places/new')} className="mt-4">
+                      <Button onClick={handleNewVenue} className="mt-4">
                         Nouveau lieu
                       </Button>
                     )}
@@ -507,7 +519,7 @@ export default function Hotels() {
                       message="Aucun lieu trouve"
                       description={searchQuery || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
                       actionLabel={isAdmin ? "Ajouter un lieu" : undefined}
-                      onAction={isAdmin ? () => navigate('/admin/places/new') : undefined}
+                      onAction={isAdmin ? handleNewVenue : undefined}
                     />
                   ) : (
                     <TableBody>
@@ -685,6 +697,12 @@ export default function Hotels() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SeatUpgradeDialog
+        open={seatDialogOpen}
+        onOpenChange={setSeatDialogOpen}
+        onConfirmed={() => navigate('/admin/places/new')}
+      />
     </div>
   );
 }

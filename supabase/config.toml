@@ -190,3 +190,9 @@ verify_jwt = false
 
 [functions.whatsapp-meta-webhook]
 verify_jwt = false
+
+[functions.stripe-billing]
+verify_jwt = false
+
+[functions.stripe-billing-webhook]
+verify_jwt = false

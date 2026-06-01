@@ -169,6 +169,26 @@ async function invokeSupabase<TRequest, TResponse>(
     });
 
     if (response.error) {
+      // Supabase FunctionsHttpError attaches the original Response on `.context`.
+      // The SDK does not surface the JSON body's `error` field — extract it here
+      // so callers see the actual server message instead of a generic
+      // "Edge Function returned a non-2xx status code".
+      const ctx = (response.error as { context?: Response }).context;
+      if (ctx && typeof ctx.clone === "function") {
+        try {
+          const body = await ctx.clone().json();
+          if (body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string") {
+            const message = (body as { error: string }).error;
+            logger.error("edge_function.failed", new Error(message), {
+              function: functionName,
+              transport: "supabase",
+            });
+            return { data: null, error: new Error(message) };
+          }
+        } catch {
+          // fall through to generic error below
+        }
+      }
       logger.error("edge_function.failed", response.error, {
         function: functionName,
         transport: "supabase",

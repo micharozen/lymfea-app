@@ -23,6 +23,7 @@ import {
   Package,
   Truck,
   Wallet,
+  CreditCard,
   BarChart3,
   Bell,
   Settings,
@@ -85,6 +86,7 @@ const adminSecondaryItems: MenuItem[] = [
   { title: `Produits`, url: "/admin/products", icon: Package },
   { title: "Commandes", url: "/admin/orders", icon: Truck },
   { title: "Finance", url: "/admin/finance", icon: Wallet },
+  { title: "Abonnement", url: "/admin/billing", icon: CreditCard },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
 

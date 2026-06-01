@@ -14,6 +14,7 @@ import { UserProvider } from "@/contexts/UserContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { StagingBanner } from "@/components/StagingBanner";
 import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
+import { SubscriptionBanner } from "@/components/billing/SubscriptionBanner";
 import { NotificationsBellButton } from "@/components/admin/NotificationsBellButton";
 import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
@@ -50,6 +51,7 @@ const CustomerDetail = lazy(() => import("./pages/admin/CustomerDetail"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
+const Billing = lazy(() => import("./pages/admin/Billing"));
 const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Organizations = lazy(() => import("./pages/admin/Organizations"));
@@ -486,6 +488,7 @@ const App = () => {
                           <NotificationsBellButton />
                         </header>
                         <VenueModeBanner />
+                        <SubscriptionBanner />
                         <main className="flex-1 min-h-0 overflow-y-auto">
                           <Suspense fallback={
                             <div className="flex items-center justify-center h-full min-h-[50vh]">
@@ -522,6 +525,7 @@ const App = () => {
                               <Route path="/products" element={<Products />} />
                               <Route path="/orders" element={<Orders />} />
                               <Route path="/finance" element={<Finance />} />
+                              <Route path="/billing" element={<Billing />} />
                               <Route path="/transactions" element={<Transactions />} />
                               <Route path="/analytics" element={<Analytics />} />
                               <Route path="/support" element={<SupportTickets />} />
