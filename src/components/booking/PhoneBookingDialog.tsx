@@ -60,6 +60,12 @@ import {
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
 import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
 import {
+  getCartLineDisplayName,
+  getCartLineTotalPrice,
+  mapCartDetailToTreatmentLine,
+  type CartLineDetail,
+} from "@/lib/bookingCartLine";
+import {
   BOOKING_CLIENT_TYPES,
   CLIENT_TYPE_META,
   type BookingClientType,
@@ -626,13 +632,7 @@ export default function PhoneBookingDialog({
             booking_time: time,
             total_price: totalPrice,
             hotel_name: createdBooking.hotel_name,
-            treatments: cartDetails.map((item) => {
-              const tr = item.treatment as { name?: string; price?: number | null } | undefined;
-              return {
-                name: tr?.name || "Service",
-                price: (tr?.price || 0) * item.quantity,
-              };
-            }),
+            treatments: cartDetails.map(mapCartDetailToTreatmentLine),
             currency: selectedHotel?.currency || "EUR",
           }}
           onSuccess={() => {
@@ -1453,11 +1453,7 @@ function ClientStep({
 interface ConfirmStepProps {
   t: (k: string) => string;
   hotelName: string;
-  cartDetails: Array<{
-    treatmentId: string;
-    quantity: number;
-    treatment: { name?: string; price?: number | null } | undefined;
-  }>;
+  cartDetails: CartLineDetail[];
   totalPrice: number;
   totalDuration: number;
   currency: string;
@@ -1497,7 +1493,7 @@ function ConfirmStep({
       {therapists.length <= 1 ? (
         <Row
           label={t("phoneBooking.confirm.therapist")}
-          value={therapists[0] ? `${therapists[0].first_name} ${therapists[0].last_name}` : t("phoneBooking.therapist.broadcastTitle", "Demande diffusée à l'équipe")}
+          value={therapists[0] ? `${therapists[0].first_name} ${therapists[0].last_name}` : t("phoneBooking.therapist.broadcastTitle")}
         />
       ) : (
         <div className="flex justify-between gap-3">
@@ -1514,16 +1510,16 @@ function ConfirmStep({
           {t("phoneBooking.confirm.treatments")}
         </p>
         <div className="rounded-lg border divide-y">
-          {cartDetails.map((item, i) => (
-            <div key={i} className="flex justify-between px-3 py-2">
+          {cartDetails.map((item) => (
+            <div
+              key={`${item.treatmentId}-${item.variantId ?? "base"}`}
+              className="flex justify-between px-3 py-2"
+            >
               <span>
-                {item.quantity}× {item.treatment?.name}
+                {item.quantity}× {getCartLineDisplayName(item.treatment, item.variantId)}
               </span>
               <span className="text-muted-foreground">
-                {formatPrice(
-                  (item.treatment?.price || 0) * item.quantity,
-                  currency,
-                )}
+                {formatPrice(getCartLineTotalPrice(item), currency)}
               </span>
             </div>
           ))}

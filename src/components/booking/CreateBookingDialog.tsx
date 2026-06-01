@@ -39,6 +39,7 @@ import { format } from "date-fns";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
 import { isOutOfHours } from "@/lib/bookingUtils";
+import { mapCartDetailToTreatmentLine } from "@/lib/bookingCartLine";
 import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from "./CreateBookingDialog.schema";
 import { BookingInfoStep } from "./steps/BookingInfoStep";
 import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
@@ -161,7 +162,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const {
     cart, setCart, addToCart, incrementCart, decrementCart,
-    getCartQuantity, flatIds, totalPrice, totalDuration,
+    getCartQuantity, totalPrice, totalDuration,
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
 
@@ -582,10 +583,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           booking_time: time,
           total_price: finalPriceWithSurcharge,
           hotel_name: createdBooking.hotel_name,
-          treatments: cartDetails.map(item => ({
-            name: item.treatment?.name || 'Service',
-            price: (item.treatment?.price || 0) * item.quantity,
-          })),
+          treatments: cartDetails.map(mapCartDetailToTreatmentLine),
           currency: selectedHotel?.currency || 'EUR',
         }}
         onSuccess={() => {

@@ -11,6 +11,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
 import type { VenueAmenity } from "@/hooks/useVenueAmenities";
 import { CartItem } from "../CreateBookingDialog.schema";
+import { getCartLineDisplayName } from "@/lib/bookingCartLine";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
 
 interface Treatment {
@@ -424,7 +425,9 @@ export function BookingPrestationsStep({
               <div className="flex items-center gap-1.5 overflow-x-auto">
                 {cartDetails.slice(0, 3).map(({ treatmentId, variantId, quantity, treatment }) => (
                   <div key={`${treatmentId}-${variantId ?? 'base'}`} className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 shrink-0">
-                    <span className="text-[9px] font-medium truncate max-w-[60px]">{treatment!.name}</span>
+                    <span className="text-[9px] font-medium truncate max-w-[60px]">
+                      {getCartLineDisplayName(treatment, variantId)}
+                    </span>
                     <span className="text-[9px] font-bold">×{quantity}</span>
                   </div>
                 ))}
