@@ -34,6 +34,7 @@ import {
 import { useBookingCart } from "@/hooks/booking/useBookingCart";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
 import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
+import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { BookingWizardStepper } from "@/components/ui/BookingWizardStepper";
 import { format } from "date-fns";
 import { formatPrice } from "@/lib/formatPrice";
@@ -565,33 +566,49 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       </DialogContent>
     </Dialog>
 
-    {createdBooking && (
-      <SendBookingNotificationDialog
-        open={isNotificationDialogOpen}
-        onOpenChange={(open) => {
-          setIsNotificationDialogOpen(open);
-          if (!open) handleClose();
-        }}
-        booking={{
-          id: createdBooking.id,
-          booking_id: createdBooking.booking_id,
-          client_first_name: clientFirstName,
-          client_last_name: clientLastName,
-          phone: `${countryCode} ${phone}`,
-          room_number: roomNumber || undefined,
-          booking_date: date ? format(date, "yyyy-MM-dd") : "",
-          booking_time: time,
-          total_price: finalPriceWithSurcharge,
-          hotel_name: createdBooking.hotel_name,
-          treatments: cartDetails.map(mapCartDetailToTreatmentLine),
-          currency: selectedHotel?.currency || 'EUR',
-        }}
-        onSuccess={() => {
-          setIsNotificationDialogOpen(false);
-          handleClose();
-        }}
-      />
-    )}
+    {createdBooking && (() => {
+      const sharedBooking = {
+        id: createdBooking.id,
+        booking_id: createdBooking.booking_id,
+        client_first_name: clientFirstName,
+        client_last_name: clientLastName,
+        client_email: clientEmail || undefined,
+        phone: `${countryCode} ${phone}`,
+        room_number: roomNumber || undefined,
+        booking_date: date ? format(date, "yyyy-MM-dd") : "",
+        booking_time: time,
+        total_price: finalPriceWithSurcharge,
+        hotel_name: createdBooking.hotel_name,
+        treatments: cartDetails.map(item => ({
+          name: item.treatment?.name || 'Service',
+          price: (item.treatment?.price || 0) * item.quantity,
+        })),
+        currency: selectedHotel?.currency || 'EUR',
+      };
+      const handleSuccessAndClose = () => {
+        setIsNotificationDialogOpen(false);
+        handleClose();
+      };
+      const handleOpenChange = (open: boolean) => {
+        setIsNotificationDialogOpen(open);
+        if (!open) handleClose();
+      };
+      return clientType === "external" ? (
+        <SendPaymentLinkDialog
+          open={isNotificationDialogOpen}
+          onOpenChange={handleOpenChange}
+          booking={sharedBooking}
+          onSuccess={handleSuccessAndClose}
+        />
+      ) : (
+        <SendBookingNotificationDialog
+          open={isNotificationDialogOpen}
+          onOpenChange={handleOpenChange}
+          booking={sharedBooking}
+          onSuccess={handleSuccessAndClose}
+        />
+      );
+    })()}
 
     <AlertDialog open={showConfirmClose} onOpenChange={setShowConfirmClose}>
       <AlertDialogContent>
