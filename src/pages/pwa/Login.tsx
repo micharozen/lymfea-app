@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { brand } from "@/config/brand";
+import { logger } from "@/lib/logger";
 import { isTherapistPending } from "@/hooks/useRoleRedirect";
 
 const countryCodes = [
@@ -243,16 +244,46 @@ const PwaLogin = () => {
       });
 
       if (error) {
-        const errorMessage =
-          (error as any)?.context?.body?.error || error.message || t("common:errors.generic");
+        const ctx = (error as any)?.context;
+        const status: number | undefined = ctx?.status ?? ctx?.response?.status;
+        const serverMessage: string | undefined = ctx?.body?.error || error.message;
+        const phoneTail = phone.slice(-4);
 
-        if (errorMessage.includes("non trouvé") || errorMessage.includes("not found")) {
+        logger.error("pwa.otp.send_failed", error, {
+          status,
+          serverMessage,
+          phoneTail,
+          countryCode,
+        });
+
+        if (serverMessage && (serverMessage.includes("non trouvé") || serverMessage.includes("not found"))) {
           toast.error(
             `Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`,
             { duration: 8000 },
           );
+        } else if (status === 401 || status === 403) {
+          toast.error(
+            "Session expirée ou application obsolète. Fermez complètement l'app et rouvrez-la, ou réinstallez la PWA.",
+            { duration: 10000 },
+          );
+        } else if (status === 429) {
+          const retryAfter = ctx?.body?.retryAfterSeconds;
+          const minutes = retryAfter ? Math.ceil(retryAfter / 60) : 30;
+          toast.error(
+            `Trop de tentatives. Réessayez dans ${minutes} minute${minutes > 1 ? "s" : ""}.`,
+            { duration: 10000 },
+          );
+        } else if (status && status >= 500) {
+          toast.error("Serveur indisponible. Réessayez dans quelques instants.", {
+            duration: 8000,
+          });
+        } else if (!navigator.onLine) {
+          toast.error("Pas de connexion internet. Vérifiez votre réseau.", { duration: 8000 });
         } else {
-          toast.error(errorMessage);
+          toast.error(
+            `${serverMessage || t("common:errors.generic")} (code ${status ?? "?"})`,
+            { duration: 8000 },
+          );
         }
         return;
       }
@@ -271,9 +302,14 @@ const PwaLogin = () => {
       setIsCodeExpired(false);
       toast.success(t("common:toasts.success"));
     } catch (error: any) {
-      console.error("Send OTP error:", error);
+      const status: number | undefined = error?.context?.status;
+      logger.error("pwa.otp.send_exception", error, {
+        status,
+        phoneTail: phone.slice(-4),
+        countryCode,
+      });
       const errorMsg = error?.context?.body?.error || error.message || t("common:errors.generic");
-      toast.error(errorMsg);
+      toast.error(`${errorMsg}${status ? ` (code ${status})` : ""}`, { duration: 8000 });
     } finally {
       setLoading(false);
     }
@@ -292,9 +328,41 @@ const PwaLogin = () => {
       });
 
       if (error) {
-        const errorMessage =
-          (error as any)?.context?.body?.error || error.message || t("common:errors.generic");
-        toast.error(errorMessage);
+        const ctx = (error as any)?.context;
+        const status: number | undefined = ctx?.status ?? ctx?.response?.status;
+        const serverMessage: string | undefined = ctx?.body?.error || error.message;
+
+        logger.error("pwa.otp.resend_failed", error, {
+          status,
+          serverMessage,
+          phoneTail: phone.slice(-4),
+          countryCode,
+        });
+
+        if (status === 401 || status === 403) {
+          toast.error(
+            "Session expirée ou application obsolète. Fermez complètement l'app et rouvrez-la, ou réinstallez la PWA.",
+            { duration: 10000 },
+          );
+        } else if (status === 429) {
+          const retryAfter = ctx?.body?.retryAfterSeconds;
+          const minutes = retryAfter ? Math.ceil(retryAfter / 60) : 30;
+          toast.error(
+            `Trop de tentatives. Réessayez dans ${minutes} minute${minutes > 1 ? "s" : ""}.`,
+            { duration: 10000 },
+          );
+        } else if (status && status >= 500) {
+          toast.error("Serveur indisponible. Réessayez dans quelques instants.", {
+            duration: 8000,
+          });
+        } else if (!navigator.onLine) {
+          toast.error("Pas de connexion internet. Vérifiez votre réseau.", { duration: 8000 });
+        } else {
+          toast.error(
+            `${serverMessage || t("common:errors.generic")} (code ${status ?? "?"})`,
+            { duration: 8000 },
+          );
+        }
         return;
       }
 
@@ -310,8 +378,16 @@ const PwaLogin = () => {
       otpRefs.current[0]?.focus();
       toast.success(t("common:toasts.success"));
     } catch (error: any) {
-      console.error("Resend OTP error:", error);
-      toast.error(t("common:errors.generic"));
+      const status: number | undefined = error?.context?.status;
+      logger.error("pwa.otp.resend_exception", error, {
+        status,
+        phoneTail: phone.slice(-4),
+        countryCode,
+      });
+      toast.error(
+        `${error?.message || t("common:errors.generic")}${status ? ` (code ${status})` : ""}`,
+        { duration: 8000 },
+      );
     } finally {
       setLoading(false);
     }
@@ -340,9 +416,23 @@ const PwaLogin = () => {
       });
 
       if (error) {
-        console.error("OTP verification error:", error);
+        const ctx = (error as any)?.context;
+        const status: number | undefined = ctx?.status ?? ctx?.response?.status;
+        const serverMessage: string | undefined = ctx?.body?.error || error.message;
 
-        if (error.message?.includes("404") || error.message?.includes("not found")) {
+        logger.error("pwa.otp.verify_failed", error, {
+          status,
+          serverMessage,
+          phoneTail: phone.slice(-4),
+          countryCode,
+        });
+
+        const isExpired =
+          error.message?.includes("404") ||
+          error.message?.includes("not found") ||
+          serverMessage?.toLowerCase().includes("expired");
+
+        if (isExpired) {
           setIsCodeExpired(true);
           toast.error(t("login.expired"), {
             description: t("login.resend"),
@@ -355,13 +445,42 @@ const PwaLogin = () => {
           return;
         }
 
-        toast.error(t("common:errors.generic"), { duration: 4000 });
+        if (status === 401 || status === 403) {
+          toast.error(
+            "Session expirée ou application obsolète. Fermez complètement l'app et rouvrez-la, ou réinstallez la PWA.",
+            { duration: 10000 },
+          );
+        } else if (status === 429) {
+          const retryAfter = ctx?.body?.retryAfterSeconds;
+          const minutes = retryAfter ? Math.ceil(retryAfter / 60) : 30;
+          toast.error(
+            `Trop de tentatives. Réessayez dans ${minutes} minute${minutes > 1 ? "s" : ""}.`,
+            { duration: 10000 },
+          );
+        } else if (status === 400) {
+          toast.error("Code incorrect. Vérifiez les chiffres et réessayez.", { duration: 5000 });
+        } else if (status && status >= 500) {
+          toast.error("Serveur indisponible. Réessayez dans quelques instants.", {
+            duration: 8000,
+          });
+        } else if (!navigator.onLine) {
+          toast.error("Pas de connexion internet. Vérifiez votre réseau.", { duration: 8000 });
+        } else {
+          toast.error(
+            `${serverMessage || t("common:errors.generic")} (code ${status ?? "?"})`,
+            { duration: 8000 },
+          );
+        }
         setOtp(["", "", "", "", "", ""]);
         otpRefs.current[0]?.focus();
         return;
       }
 
       if (!data.success) {
+        logger.warn("pwa.otp.verify_unsuccessful", {
+          serverError: (data as any)?.error,
+          phoneTail: phone.slice(-4),
+        });
         toast.error(t("common:errors.generic"), {
           description: data.error,
           duration: 4000,
@@ -388,8 +507,16 @@ const PwaLogin = () => {
         await routeAfterLogin(user.id);
       }
     } catch (error: any) {
-      console.error("Verification error:", error);
-      toast.error(t("common:errors.generic"), { duration: 4000 });
+      const status: number | undefined = error?.context?.status;
+      logger.error("pwa.otp.verify_exception", error, {
+        status,
+        phoneTail: phone.slice(-4),
+        countryCode,
+      });
+      toast.error(
+        `${error?.message || t("common:errors.generic")}${status ? ` (code ${status})` : ""}`,
+        { duration: 6000 },
+      );
       setOtp(["", "", "", "", "", ""]);
       otpRefs.current[0]?.focus();
     } finally {
