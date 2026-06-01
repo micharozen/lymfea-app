@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { hotelKeys, listHotelsForOrgDropdown } from "@shared/db";
 import { slugify } from "@/lib/slugify";
 import { CategorySelectField } from "@/components/admin/category/CategorySelectField";
 import {
@@ -65,16 +67,11 @@ export function TreatmentGeneralTab({
     form.setValue("slug", slugify(nameValue), { shouldValidate: false });
   }, [nameValue, form]);
 
+  const scope = useOrgScope();
   const { data: hotels } = useQuery({
-    queryKey: ["hotels"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name, currency")
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryKey: hotelKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listHotelsForOrgDropdown(supabase, scope!),
   });
 
   return (
