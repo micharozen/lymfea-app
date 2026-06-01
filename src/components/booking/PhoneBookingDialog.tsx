@@ -59,6 +59,7 @@ import {
 } from "@/hooks/booking/useAvailableTherapistsForSlot";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
 import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
+import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import {
   BOOKING_CLIENT_TYPES,
   CLIENT_TYPE_META,
@@ -597,37 +598,48 @@ export default function PhoneBookingDialog({
         </DialogContent>
       </Dialog>
 
-      {createdBooking && (
-        <SendBookingNotificationDialog
-          open={isNotificationDialogOpen}
-          onOpenChange={setIsNotificationDialogOpen}
-          booking={{
-            id: createdBooking.id,
-            booking_id: createdBooking.booking_id,
-            client_first_name: clientFirstName,
-            client_last_name: clientLastName,
-            client_email: clientEmail || undefined,
-            phone: `${countryCode} ${phone}`,
-            room_number: roomNumber || undefined,
-            booking_date: date ? format(date, "yyyy-MM-dd") : "",
-            booking_time: time,
-            total_price: totalPrice,
-            hotel_name: createdBooking.hotel_name,
-            treatments: cartDetails.map((item) => {
-              const tr = item.treatment as { name?: string; price?: number | null } | undefined;
-              return {
-                name: tr?.name || "Service",
-                price: (tr?.price || 0) * item.quantity,
-              };
-            }),
-            currency: selectedHotel?.currency || "EUR",
-          }}
-          onSuccess={() => {
-            setIsNotificationDialogOpen(false);
-            handleClose();
-          }}
-        />
-      )}
+      {createdBooking && (() => {
+        const sharedBooking = {
+          id: createdBooking.id,
+          booking_id: createdBooking.booking_id,
+          client_first_name: clientFirstName,
+          client_last_name: clientLastName,
+          client_email: clientEmail || undefined,
+          phone: `${countryCode} ${phone}`,
+          room_number: roomNumber || undefined,
+          booking_date: date ? format(date, "yyyy-MM-dd") : "",
+          booking_time: time,
+          total_price: totalPrice,
+          hotel_name: createdBooking.hotel_name,
+          treatments: cartDetails.map((item) => {
+            const tr = item.treatment as { name?: string; price?: number | null } | undefined;
+            return {
+              name: tr?.name || "Service",
+              price: (tr?.price || 0) * item.quantity,
+            };
+          }),
+          currency: selectedHotel?.currency || "EUR",
+        };
+        const handleSuccessAndClose = () => {
+          setIsNotificationDialogOpen(false);
+          handleClose();
+        };
+        return clientType === "external" ? (
+          <SendPaymentLinkDialog
+            open={isNotificationDialogOpen}
+            onOpenChange={setIsNotificationDialogOpen}
+            booking={sharedBooking}
+            onSuccess={handleSuccessAndClose}
+          />
+        ) : (
+          <SendBookingNotificationDialog
+            open={isNotificationDialogOpen}
+            onOpenChange={setIsNotificationDialogOpen}
+            booking={sharedBooking}
+            onSuccess={handleSuccessAndClose}
+          />
+        );
+      })()}
     </>
   );
 }
