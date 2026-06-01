@@ -11,7 +11,7 @@ export async function listTreatmentMenusForOrg(
   const hotelIds = await resolveHotelIdsForOrg(client, scope);
   let q = client
     .from("treatment_menus")
-    .select("*, treatment_variants(id, guest_count)")
+    .select("*, treatment_variants(id, label, duration, price, is_default, guest_count)")
     .order("sort_order", { ascending: true, nullsFirst: true })
     .order("name");
 
@@ -42,7 +42,7 @@ export async function listActiveTreatmentsForHotel(
 ): Promise<TreatmentMenuRow[]> {
   const { data, error } = await client
     .from("treatment_menus")
-    .select("*, treatment_variants(id, guest_count)")
+    .select("*, treatment_variants(id, label, duration, price, is_default, guest_count)")
     .or(`hotel_id.eq.${hotelId},hotel_id.is.null`)
     .in("status", ["active", "Actif", "Active"])
     .order("sort_order", { ascending: true, nullsFirst: true })
