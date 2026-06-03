@@ -1157,7 +1157,41 @@
       "errorTitle": "Erreur de traitement",
       "dismissAction": "Ignorer",
       "dismissed": "Email ignoré.",
+      "convertAction": "Convertir en réservation",
       "close": "Fermer"
+    },
+    "convert": {
+      "title": "Convertir en réservation",
+      "subtitle": "Crée une réservation pour {{venue}} à partir des données extraites.",
+      "success": "Réservation créée et liée à l'email.",
+      "cancel": "Annuler",
+      "submit": "Créer la réservation",
+      "fields": {
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "email": "Email",
+        "phone": "Téléphone",
+        "date": "Date",
+        "pickDate": "Choisir une date",
+        "time": "Heure",
+        "duration": "Durée (min)",
+        "notes": "Notes"
+      },
+      "errors": {
+        "firstName": "Prénom requis",
+        "lastName": "Nom requis",
+        "email": "Email invalide",
+        "phone": "Téléphone requis",
+        "date": "Date requise",
+        "time": "Heure requise (HH:mm)",
+        "noVenue": "Email non lié à un lieu — conversion impossible."
+      }
+    },
+    "venueRow": {
+      "label": "Adresse email entrante",
+      "description": "Envoyez ou forwardez n'importe quel email à cette adresse — il sera analysé par IA et apparaîtra dans l'inbox.",
+      "copied": "Adresse copiée.",
+      "copyFailed": "Impossible de copier."
     }
   }
 }

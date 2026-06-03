@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 
 import type { EmailInquiry, EmailInquiryParsedData } from "@/hooks/inbox/useEmailInquiries";
+import { ConvertToBookingDialog } from "./ConvertToBookingDialog";
 
 interface Props {
   inquiry: EmailInquiry | null;
@@ -64,6 +65,7 @@ function ParsedSummary({ parsed, t }: { parsed: EmailInquiryParsedData; t: (k: s
 export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: Props) {
   const { t } = useTranslation("admin");
   const [busy, setBusy] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
 
   if (!inquiry) return null;
 
@@ -137,14 +139,31 @@ export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: P
 
         <div className="flex gap-2 justify-end">
           {inquiry.status !== "dismissed" && inquiry.status !== "converted" && (
-            <Button variant="outline" onClick={dismiss} disabled={busy}>
-              {t("inbox.detail.dismissAction")}
-            </Button>
+            <>
+              <Button variant="outline" onClick={dismiss} disabled={busy}>
+                {t("inbox.detail.dismissAction")}
+              </Button>
+              <Button
+                onClick={() => setConvertOpen(true)}
+                disabled={busy || !inquiry.hotel_id}
+              >
+                {t("inbox.detail.convertAction")}
+              </Button>
+            </>
           )}
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             {t("inbox.detail.close")}
           </Button>
         </div>
+
+        <ConvertToBookingDialog
+          inquiry={inquiry}
+          open={convertOpen}
+          onOpenChange={setConvertOpen}
+          onConverted={() => {
+            onChanged?.();
+          }}
+        />
       </SheetContent>
     </Sheet>
   );

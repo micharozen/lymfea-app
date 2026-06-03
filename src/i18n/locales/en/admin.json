@@ -1157,7 +1157,41 @@
       "errorTitle": "Processing error",
       "dismissAction": "Dismiss",
       "dismissed": "Email dismissed.",
+      "convertAction": "Convert to booking",
       "close": "Close"
+    },
+    "convert": {
+      "title": "Convert to booking",
+      "subtitle": "Create a booking for {{venue}} from the extracted data.",
+      "success": "Booking created and linked to the email.",
+      "cancel": "Cancel",
+      "submit": "Create booking",
+      "fields": {
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email",
+        "phone": "Phone",
+        "date": "Date",
+        "pickDate": "Pick a date",
+        "time": "Time",
+        "duration": "Duration (min)",
+        "notes": "Notes"
+      },
+      "errors": {
+        "firstName": "First name required",
+        "lastName": "Last name required",
+        "email": "Invalid email",
+        "phone": "Phone required",
+        "date": "Date required",
+        "time": "Time required (HH:mm)",
+        "noVenue": "Email not linked to a venue — cannot convert."
+      }
+    },
+    "venueRow": {
+      "label": "Inbound email address",
+      "description": "Send or forward any email to this address — it will be parsed by AI and appear in the inbox.",
+      "copied": "Address copied.",
+      "copyFailed": "Could not copy."
     }
   }
 }
