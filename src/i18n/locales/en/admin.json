@@ -1115,5 +1115,49 @@
       "venueFailed": "Could not create your venue",
       "checkoutCancelled": "Checkout cancelled. You can resume any time."
     }
+  },
+  "inbox": {
+    "title": "Email inbox",
+    "description": "Booking requests received by email — parsed by AI and ready to validate.",
+    "searchPlaceholder": "Search (sender, venue, subject)…",
+    "refresh": "Refresh",
+    "loading": "Loading…",
+    "empty": "No emails yet.",
+    "unknownVenue": "Unknown venue",
+    "noSubject": "(no subject)",
+    "columns": {
+      "received": "Received",
+      "from": "From",
+      "venue": "Venue",
+      "subject": "Subject",
+      "status": "Status",
+      "confidence": "Confidence"
+    },
+    "status": {
+      "all": "All statuses",
+      "received": "Received",
+      "parsed": "To review",
+      "converted": "Converted",
+      "dismissed": "Dismissed",
+      "failed": "Failed"
+    },
+    "detail": {
+      "parsed": "Extracted data",
+      "confidence": "Confidence",
+      "notParsed": "Not parsed yet.",
+      "client": "Client",
+      "email": "Email",
+      "phone": "Phone",
+      "dateTime": "Date & time",
+      "treatment": "Treatment",
+      "guests": "Guests",
+      "notes": "Notes",
+      "rawBody": "Email body",
+      "noBody": "(empty body)",
+      "errorTitle": "Processing error",
+      "dismissAction": "Dismiss",
+      "dismissed": "Email dismissed.",
+      "close": "Close"
+    }
   }
 }

@@ -1115,5 +1115,49 @@
       "venueFailed": "Impossible de créer votre lieu",
       "checkoutCancelled": "Paiement annulé. Vous pouvez reprendre quand vous le souhaitez."
     }
+  },
+  "inbox": {
+    "title": "Inbox emails",
+    "description": "Réservations reçues par email — analysées par IA et prêtes à être validées.",
+    "searchPlaceholder": "Rechercher (expéditeur, lieu, sujet)…",
+    "refresh": "Actualiser",
+    "loading": "Chargement…",
+    "empty": "Aucun email pour le moment.",
+    "unknownVenue": "Lieu inconnu",
+    "noSubject": "(sans sujet)",
+    "columns": {
+      "received": "Reçu",
+      "from": "Expéditeur",
+      "venue": "Lieu",
+      "subject": "Sujet",
+      "status": "Statut",
+      "confidence": "Confiance"
+    },
+    "status": {
+      "all": "Tous les statuts",
+      "received": "Reçu",
+      "parsed": "À traiter",
+      "converted": "Converti",
+      "dismissed": "Ignoré",
+      "failed": "Échec"
+    },
+    "detail": {
+      "parsed": "Données extraites",
+      "confidence": "Confiance",
+      "notParsed": "Pas encore analysé.",
+      "client": "Client",
+      "email": "Email",
+      "phone": "Téléphone",
+      "dateTime": "Date & heure",
+      "treatment": "Soin",
+      "guests": "Personnes",
+      "notes": "Notes",
+      "rawBody": "Corps de l'email",
+      "noBody": "(corps vide)",
+      "errorTitle": "Erreur de traitement",
+      "dismissAction": "Ignorer",
+      "dismissed": "Email ignoré.",
+      "close": "Fermer"
+    }
   }
 }
