@@ -27,7 +27,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { VenueInboundEmailRow } from "./VenueInboundEmailRow";
 import {
   Popover,
   PopoverContent,
@@ -481,9 +480,6 @@ export function VenueGeneralTab({
                   )}
                 />
               </div>
-
-              {/* Inbound email address (email-to-booking) */}
-              {hotelId && <VenueInboundEmailRow hotelId={hotelId} />}
 
               {/* Public URL identifier (slug) */}
               <FormField

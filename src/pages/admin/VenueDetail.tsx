@@ -30,6 +30,7 @@ import { ArrowLeft, Loader2, Save, Pencil, CalendarDays, Eye } from "lucide-reac
 import { startOfMonth, startOfYear, subDays } from "date-fns";
 import { validateCancellationTiers } from "@/lib/cancellationTiers";
 import { VenueBrandingTab } from "@/components/admin/venue/VenueBrandingTab";
+import { VenueInboundEmailTab } from "@/components/admin/venue/VenueInboundEmailTab";
 import { VenueGeneralTab, type VenueSectionId } from "@/components/admin/venue/VenueGeneralTab";
 import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
@@ -899,6 +900,9 @@ export default function VenueDetail({
               <TabsTrigger value="branding" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 {tAdmin('venue.branding.tab', 'Branding')}
               </TabsTrigger>
+              <TabsTrigger value="inbox-email" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                {tAdmin('inbox.tab.tabLabel', 'Inbox email')}
+              </TabsTrigger>
             </TabsList>
           </div>
           )}
@@ -993,6 +997,10 @@ export default function VenueDetail({
                       previewRefreshKey={brandingPreviewKey}
                     />
                   </Form>
+                </TabsContent>
+
+                <TabsContent value="inbox-email" className="mt-0">
+                  <VenueInboundEmailTab hotelId={effectiveHotelId || undefined} />
                 </TabsContent>
               </>
             )}

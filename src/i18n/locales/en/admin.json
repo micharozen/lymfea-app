@@ -1187,11 +1187,58 @@
         "noVenue": "Email not linked to a venue — cannot convert."
       }
     },
-    "venueRow": {
-      "label": "Inbound email address",
-      "description": "Send or forward any email to this address — it will be parsed by AI and appear in the inbox.",
-      "copied": "Address copied.",
-      "copyFailed": "Could not copy."
+    "tab": {
+      "tabLabel": "Email Inbox",
+      "hero": {
+        "title": "Receive bookings by email",
+        "aiBadge": "AI-powered",
+        "paidBadge": "Saoma add-on",
+        "description": "Concierges and guests often prefer email over a booking form. Turn that flow into pre-filled bookings — no behavior change required from your partners."
+      },
+      "activation": {
+        "title": "Feature activation",
+        "bodyActive": "Email Inbox is active for this venue. Share the address below with your concierges and partners.",
+        "bodyLocked": "Email Inbox is a paid option included in select Saoma plans. It is disabled by default.",
+        "contactCopy": "To enable this feature for your venue, please reach out to the Saoma team.",
+        "contactCta": "Contact Saoma",
+        "mailtoSubject": "Email Inbox activation request"
+      },
+      "address": {
+        "label": "Your dedicated email address (preview)",
+        "description": "Your concierges and clients send requests here. Each email is parsed by AI and pre-filled as a booking in your inbox.",
+        "copied": "Address copied.",
+        "copyFailed": "Could not copy."
+      },
+      "benefits": {
+        "title": "Why turn this on",
+        "newChannel": {
+          "title": "A brand-new booking channel",
+          "body": "Hotel receptions and concierges simply forward client requests. No new form, no account to create."
+        },
+        "aiParsing": {
+          "title": "Automatic AI parsing",
+          "body": "Claude Haiku extracts the client, date, time, requested treatment and notes — including from forwarded emails (FR/EN)."
+        },
+        "fewerClicks": {
+          "title": "One-click conversion",
+          "body": "The admin receives a pre-filled request in the Inbox. One click and the booking enters the standard pipeline."
+        },
+        "multilingual": {
+          "title": "Multilingual",
+          "body": "The parser understands French and English requests, formal or casual. Language is detected automatically."
+        },
+        "audit": {
+          "title": "Full audit trail",
+          "body": "Every email is stored with the raw payload and the AI parsing result. You can re-parse or dismiss at any time."
+        }
+      },
+      "how": {
+        "title": "How it works",
+        "step1": "A concierge or guest sends an email to your dedicated address (auto-generated from the venue name).",
+        "step2": "The email reaches our secure webhook. Our AI extracts: name, contact, date, time, treatment, party size, notes.",
+        "step3": "A new entry shows up in /admin/inbox with a confidence score. Ambiguous requests stay manual.",
+        "step4": "The admin clicks \"Convert to booking\": a booking is created with status 'pending', ready to be assigned to a therapist."
+      }
     }
   }
 }

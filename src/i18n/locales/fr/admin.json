@@ -1187,11 +1187,58 @@
         "noVenue": "Email non lié à un lieu — conversion impossible."
       }
     },
-    "venueRow": {
-      "label": "Adresse email entrante",
-      "description": "Envoyez ou forwardez n'importe quel email à cette adresse — il sera analysé par IA et apparaîtra dans l'inbox.",
-      "copied": "Adresse copiée.",
-      "copyFailed": "Impossible de copier."
+    "tab": {
+      "tabLabel": "Inbox email",
+      "hero": {
+        "title": "Recevez vos réservations par email",
+        "aiBadge": "Analysé par IA",
+        "paidBadge": "Option Saoma",
+        "description": "Vos concierges et clients préfèrent souvent l'email à un formulaire de réservation. Activez l'Inbox email pour transformer ce flux en réservations pré-remplies, sans changer leurs habitudes."
+      },
+      "activation": {
+        "title": "Activation de la fonctionnalité",
+        "bodyActive": "L'Inbox email est active sur ce lieu. Communiquez l'adresse ci-dessous à vos concierges et partenaires.",
+        "bodyLocked": "L'Inbox email est une option payante incluse dans certains plans Saoma. Elle est désactivée par défaut.",
+        "contactCopy": "Pour activer cette fonctionnalité sur votre lieu, rapprochez-vous de l'équipe Saoma.",
+        "contactCta": "Contacter Saoma",
+        "mailtoSubject": "Activation Inbox email — demande de mise en service"
+      },
+      "address": {
+        "label": "Votre adresse email dédiée (aperçu)",
+        "description": "Vos concierges et clients enverront leurs demandes ici. Chaque email est analysé par IA et pré-rempli en réservation dans votre Inbox.",
+        "copied": "Adresse copiée.",
+        "copyFailed": "Impossible de copier."
+      },
+      "benefits": {
+        "title": "Pourquoi activer cette option",
+        "newChannel": {
+          "title": "Un nouveau canal de réservation",
+          "body": "Vos partenaires (réceptions d'hôtels, concierges) forwardent simplement les demandes de leurs clients. Pas de formulaire, pas de compte à créer."
+        },
+        "aiParsing": {
+          "title": "Lecture automatique par IA",
+          "body": "Claude Haiku extrait le client, la date, l'heure, le soin demandé et même les notes — y compris dans les emails forwardés (FR/EN)."
+        },
+        "fewerClicks": {
+          "title": "Réservation en 1 clic",
+          "body": "L'admin reçoit une demande pré-remplie dans l'Inbox. Il valide et la réservation entre dans le pipeline standard."
+        },
+        "multilingual": {
+          "title": "Multilingue",
+          "body": "Le parser comprend les demandes en français et en anglais, formelles ou informelles. La langue est détectée automatiquement."
+        },
+        "audit": {
+          "title": "Audit trail complet",
+          "body": "Chaque email est archivé avec son payload brut et le résultat de l'analyse IA. Vous pouvez ré-analyser ou ignorer à tout moment."
+        }
+      },
+      "how": {
+        "title": "Comment ça marche",
+        "step1": "Un concierge ou un client envoie un email à votre adresse dédiée (générée automatiquement à partir du nom du lieu).",
+        "step2": "L'email arrive sur notre webhook sécurisé. Notre IA extrait les champs : nom, contact, date, heure, soin, nombre de personnes, notes.",
+        "step3": "Une nouvelle entrée apparaît dans /admin/inbox avec un score de confiance. Les demandes ambiguës restent à valider à la main.",
+        "step4": "L'admin clique sur \"Convertir en réservation\" : une réservation est créée en statut 'pending', prête à être assignée à un thérapeute."
+      }
     }
   }
 }
