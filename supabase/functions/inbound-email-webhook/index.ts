@@ -22,29 +22,33 @@ const corsHeaders = {
 };
 
 interface ResendInboundPayload {
-  // Resend Inbound webhook payload (metadata only).
-  // The body must be fetched via the Received Emails API using `id`.
+  // Resend `email.received` webhook payload (metadata only).
+  // Body + headers + attachments must be fetched separately via
+  // GET /emails/receiving/:email_id.
   type?: string;
   created_at?: string;
   data?: {
-    id?: string;
+    email_id?: string;
+    message_id?: string;
     from?: string | { address?: string; name?: string };
     to?: string | string[];
+    cc?: string[];
+    bcc?: string[];
     subject?: string;
-    headers?: Record<string, string>;
+    attachments?: Array<Record<string, unknown>>;
     [k: string]: unknown;
   };
   [k: string]: unknown;
 }
 
-interface ResendInboundFullEmail {
-  id: string;
+interface ResendReceivingEmail {
+  id?: string;
   from?: string | { address?: string };
   to?: string | string[];
   subject?: string;
   text?: string | null;
   html?: string | null;
-  headers?: Record<string, string>;
+  headers?: Record<string, string> | Array<{ name: string; value: string }>;
 }
 
 const supabaseAdmin = createClient(
@@ -59,11 +63,18 @@ function allowedDomains(): string[] {
     .filter(Boolean);
 }
 
+// Resend sometimes returns "Display Name <email@host>" — extract the bare email.
+function extractEmail(raw: string): string {
+  const m = raw.match(/<([^>]+)>/);
+  const email = (m ? m[1] : raw).trim().toLowerCase();
+  return email;
+}
+
 function normalizeAddress(input: unknown): string {
-  if (typeof input === "string") return input.toLowerCase().trim();
-  if (Array.isArray(input) && input.length > 0) return String(input[0]).toLowerCase().trim();
+  if (typeof input === "string") return extractEmail(input);
+  if (Array.isArray(input) && input.length > 0) return extractEmail(String(input[0]));
   if (input && typeof input === "object" && "address" in input) {
-    return String((input as { address?: string }).address ?? "").toLowerCase().trim();
+    return extractEmail(String((input as { address?: string }).address ?? ""));
   }
   return "";
 }
@@ -143,23 +154,23 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-async function fetchFullEmail(id: string): Promise<ResendInboundFullEmail | null> {
+async function fetchFullEmail(id: string): Promise<ResendReceivingEmail | null> {
   const apiKey = Deno.env.get("RESEND_API_KEY");
   if (!apiKey) {
-    console.error("RESEND_API_KEY missing — cannot fetch inbound email body");
+    console.error("RESEND_API_KEY missing — cannot fetch received email body");
     return null;
   }
   try {
-    const res = await fetch(`https://api.resend.com/emails/inbound/${encodeURIComponent(id)}`, {
+    const res = await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(id)}`, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
     if (!res.ok) {
-      console.error(`Resend inbound fetch failed: ${res.status} ${await res.text()}`);
+      console.error(`Resend receiving fetch failed: ${res.status} ${await res.text()}`);
       return null;
     }
-    return await res.json() as ResendInboundFullEmail;
+    return await res.json() as ResendReceivingEmail;
   } catch (err) {
-    console.error("Resend inbound fetch error:", err);
+    console.error("Resend receiving fetch error:", err);
     return null;
   }
 }
@@ -243,8 +254,8 @@ const handler = async (req: Request): Promise<Response> => {
   const fromAddress = normalizeAddress(data.from);
   const toAddress = normalizeAddress(data.to);
   const subject = (data.subject ?? null) as string | null;
-  const messageId = (data.headers?.["message-id"] ?? null) as string | null;
-  const resendInboundId = (data.id ?? null) as string | null;
+  const messageId = (data.message_id ?? null) as string | null;
+  const resendInboundId = (data.email_id ?? null) as string | null;
 
   if (!fromAddress || !toAddress) {
     return new Response(JSON.stringify({ error: "Missing from/to" }), {
