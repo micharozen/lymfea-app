@@ -4,20 +4,16 @@ import { fr } from "date-fns/locale";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
+import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { formatPrice } from "@/lib/formatPrice";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import {
   User, Phone, Mail, DoorOpen, Calendar, Clock, Building2, HandHeart, CreditCard,
@@ -39,7 +35,6 @@ export function BookingDetailDialog({
   open, onOpenChange, booking, hotel, onEdit, onSendPaymentLink,
 }: BookingDetailDialogProps) {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [cancellationReason, setCancellationReason] = useState("");
   const queryClient = useQueryClient();
 
   const { data: userRole } = useQuery({
@@ -57,29 +52,9 @@ export function BookingDetailDialog({
   const isConcierge = userRole === 'concierge' || isVenueManagerView;
 
   const canCancel =
-    booking?.payment_status !== 'paid' && booking?.payment_status !== 'charged_to_room' &&
-    booking?.status !== 'cancelled' && booking?.status !== 'completed' &&
+    canCancelBookingByStatus(booking?.status) &&
     (userRole === 'admin' || userRole === 'concierge');
 
-  const cancelMutation = useMutation({
-    mutationFn: async (reason: string) => {
-      if (!booking?.id) throw new Error("Booking ID manquant");
-      const { data, error } = await supabase.from("bookings").update({ status: "cancelled", cancellation_reason: reason }).eq("id", booking.id).select().single();
-      if (error) throw error;
-      if (!data) throw new Error("Échec de la mise à jour");
-      return data;
-    },
-    onSuccess: async () => {
-      if (booking?.id) {
-        try { await invokeEdgeFunction("handle-booking-cancellation", { body: { bookingId: booking.id, cancellationReason: cancellationReason || undefined } }); } catch (e) { console.error(e); }
-      }
-      queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      toast({ title: "Succès", description: "La réservation a été annulée avec succès" });
-      setShowCancelDialog(false);
-      setCancellationReason("");
-      onOpenChange(false);
-    },
-  });
 
   if (!booking) return null;
 
@@ -217,6 +192,32 @@ export function BookingDetailDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {booking && (
+      <CancelBookingDialog
+        stackedOnDialog
+        isOpen={showCancelDialog}
+        onClose={() => setShowCancelDialog(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["bookings"] });
+          onOpenChange(false);
+        }}
+        bookingId={booking.id}
+        booking={{
+          booking_id: booking.booking_id,
+          client_first_name: booking.client_first_name,
+          client_last_name: booking.client_last_name,
+          total_price: Number(booking.total_price),
+          hotel_id: booking.hotel_id,
+          status: booking.status,
+          payment_method: booking.payment_method,
+          payment_status: booking.payment_status,
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
+        }}
+        userRole={isConcierge ? "concierge" : "admin"}
+      />
+    )}
     </>
   );
 }

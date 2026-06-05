@@ -6,6 +6,7 @@ import { ProblemSolution } from "@/components/landing/ProblemSolution";
 import { FeaturesGrid } from "@/components/landing/FeaturesGrid";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Pricing } from "@/components/landing/Pricing";
+import { Faq } from "@/components/landing/Faq";
 import { CtaSection } from "@/components/landing/CtaSection";
 import { Footer } from "@/components/landing/Footer";
 
@@ -15,13 +16,13 @@ const Landing = () => {
   useEffect(() => {
     const isFr = i18n.language.startsWith("fr");
     document.title = isFr
-      ? "Saoma — La plateforme de gestion spa pour hôtels"
-      : "Saoma — The spa management platform for hotels";
+      ? "Saoma — Logiciel de gestion spa pour hôtels | PMS Opera & Mews"
+      : "Saoma — Spa management software for hotels | Opera & Mews PMS";
 
     const metaDesc = document.querySelector('meta[name="description"]');
     const descContent = isFr
-      ? "Saoma, la plateforme tout-en-un pour gérer le spa de votre hôtel : agenda unifié, PMS Opera & Mews, app thérapeute, booking client sans friction."
-      : "Saoma, the all-in-one platform to run your hotel spa: unified schedule, Opera & Mews PMS, therapist app, frictionless client booking.";
+      ? "Saoma, la plateforme tout-en-un pour gérer le spa de votre hôtel : agenda unifié, intégration PMS Opera Cloud & Mews, app thérapeute mobile, booking client sans friction. Essai gratuit 14 jours."
+      : "Saoma, the all-in-one platform to run your hotel spa: unified schedule, Opera Cloud & Mews PMS, therapist app, frictionless client booking. 14-day free trial.";
     if (metaDesc) metaDesc.setAttribute("content", descContent);
 
     document.documentElement.lang = isFr ? "fr" : "en";
@@ -36,6 +37,7 @@ const Landing = () => {
         <FeaturesGrid />
         <HowItWorks />
         <Pricing />
+        <Faq />
         <CtaSection />
       </main>
       <Footer />

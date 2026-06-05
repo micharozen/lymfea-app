@@ -196,7 +196,7 @@ export default function TreatmentLanding() {
         </p>
         <Button
           onClick={() => navigate(`/client/${slug}`)}
-          className="bg-gold-400 text-black hover:bg-gold-200 font-medium"
+          className="bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 font-medium"
         >
           {t('treatmentDetail.seeAllTreatments')}
         </Button>
@@ -402,7 +402,7 @@ export default function TreatmentLanding() {
             "w-full h-14 text-base font-medium tracking-wide shadow-lg transition-all duration-300",
             added
               ? "bg-emerald-500 text-white hover:bg-emerald-500"
-              : "bg-gold-400 text-black hover:bg-gold-200"
+              : "bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
           )}
         >
           <HandHeart className="mr-2 h-5 w-5" />

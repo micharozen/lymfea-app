@@ -545,7 +545,7 @@ export default function Treatments() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 sm:h-11 sm:w-11 bg-gold-400 text-black hover:bg-gold-200"
+              className="h-10 w-10 sm:h-11 sm:w-11 bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
               onClick={(e) => {
                 e.stopPropagation();
                 if (hasMultipleVariants(treatment)) {
@@ -575,7 +575,7 @@ export default function Treatments() {
             handleAddToBasket(treatment);
           }
         }}
-        className="h-11 w-11 rounded-full bg-gold-600 text-white hover:bg-gold-700 ring-1 ring-gold-700/20 shadow-md transition-all duration-200"
+        className="h-11 w-11 rounded-full bg-[var(--venue-button-bg,theme(colors.gold.600))] text-[var(--venue-button-text,#fff)] hover:opacity-90 ring-1 ring-black/10 shadow-md transition-all duration-200"
       >
         <Plus className="h-5 w-5" strokeWidth={2.5} />
       </Button>
@@ -926,7 +926,7 @@ export default function Treatments() {
                 isDesktop ? setIsScheduleOpen(true) : navigate(`/client/${slug}/schedule`);
               }
             }}
-            className="w-full h-12 sm:h-14 md:h-16 text-base bg-gold-400 text-black hover:bg-gold-200 font-medium tracking-wide shadow-lg transition-all duration-300"
+            className="w-full h-12 sm:h-14 md:h-16 text-base bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 font-medium tracking-wide shadow-lg transition-all duration-300"
           >
             {isBundleOnly ? (
               <>

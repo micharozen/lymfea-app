@@ -1,0 +1,107 @@
+{
+  "meta": {
+    "title": "Privacy Policy — Saoma",
+    "description": "Saoma privacy policy: data collected, purposes, GDPR rights and contact information."
+  },
+  "header": {
+    "eyebrow": "Legal",
+    "title": "Privacy Policy",
+    "subtitle": "How Saoma collects, uses and protects your personal data.",
+    "lastUpdated": "Last updated: June 1, 2026",
+    "back": "Back to home"
+  },
+  "intro": {
+    "paragraphs": [
+      "This privacy policy describes how Saoma SAS (\"Saoma\", \"we\") collects, processes and protects the personal data of users of the Saoma platform, its mobile applications and associated booking tools.",
+      "We are committed to processing your data in accordance with Regulation (EU) 2016/679 (GDPR) and the amended French Data Protection Act. By using our services, you acknowledge having read this policy."
+    ]
+  },
+  "sections": {
+    "controller": {
+      "title": "1. Data Controller",
+      "paragraphs": [
+        "The data controller is Saoma SAS, publisher of the Saoma platform.",
+        "For any question regarding your personal data or this policy, you may contact us at: contact@saoma.io."
+      ]
+    },
+    "dataCollected": {
+      "title": "2. Data Collected",
+      "paragraphs": [
+        "Account data: first name, last name, email address, phone number, password (hashed), role (admin, concierge, therapist) and associated venue(s).",
+        "Booking data: information about end clients (name, email, room number where applicable, treatment preferences, notes), booked services, dates and times.",
+        "Payment data: bank details are never stored on our servers; they are collected and processed directly by our provider Stripe. We only retain transaction identifiers and payment status.",
+        "Communication data: content of emails, SMS and push notifications sent or received through the platform.",
+        "Technical data: IP address, browser type, session identifiers, access logs, usage and diagnostic data."
+      ]
+    },
+    "purposes": {
+      "title": "3. Purposes and Legal Bases",
+      "paragraphs": [
+        "Performance of the contract (art. 6.1.b GDPR): account management, bookings, scheduling, payments and transactional communications.",
+        "Legal obligation (art. 6.1.c GDPR): retention of invoices and accounting records in accordance with tax and commercial obligations.",
+        "Legitimate interest (art. 6.1.f GDPR): platform security, fraud prevention, service improvement and aggregated usage statistics.",
+        "Consent (art. 6.1.a GDPR): sending marketing communications, promotional push notifications and use of non-strictly-necessary cookies."
+      ]
+    },
+    "recipients": {
+      "title": "4. Recipients and Sub-processors",
+      "paragraphs": [
+        "Your data is accessible to authorized personnel of Saoma and to authorized users of the relevant client venue (admins, concierges, therapists assigned to a booking).",
+        "We rely on technical sub-processors, each governed by a data processing agreement compliant with Article 28 GDPR: Supabase (database hosting, authentication and server functions), OVHcloud (application hosting, France), Stripe (payment processing and therapist payouts via Stripe Connect), OneSignal (push notifications), and a transactional email provider.",
+        "No data is sold or transferred to third parties for commercial purposes."
+      ]
+    },
+    "retention": {
+      "title": "5. Retention Periods",
+      "paragraphs": [
+        "Account data: for the entire duration of account activity, then archived for 3 years after the last login.",
+        "Booking data: 3 years from the last service, except for related accounting records.",
+        "Invoices and accounting records: 10 years, in accordance with article L.123-22 of the French Commercial Code.",
+        "Technical logs and connection logs: 12 months maximum.",
+        "Data collected on the basis of consent: until consent is withdrawn."
+      ]
+    },
+    "rights": {
+      "title": "6. Your Rights",
+      "paragraphs": [
+        "Under the GDPR, you have the following rights regarding your personal data: right of access, right to rectification, right to erasure, right to restriction of processing, right to data portability, right to object, right to withdraw your consent at any time, and right to define directives regarding the fate of your data after your death.",
+        "To exercise these rights, send your request to contact@saoma.io specifying the subject of your request and including any element allowing us to verify your identity.",
+        "You also have the right to lodge a complaint with the French Data Protection Authority (CNIL), 3 place de Fontenoy, 75007 Paris — www.cnil.fr."
+      ]
+    },
+    "security": {
+      "title": "7. Security",
+      "paragraphs": [
+        "Saoma implements appropriate technical and organizational measures to ensure the confidentiality, integrity and availability of your data: encryption of communications (HTTPS/TLS), encryption at rest, role-based access control, access logging, regular backups and a strong password policy.",
+        "In the event of a data breach likely to result in a risk to your rights and freedoms, we undertake to notify the CNIL within 72 hours and, where applicable, to inform you directly."
+      ]
+    },
+    "cookies": {
+      "title": "8. Cookies and Trackers",
+      "paragraphs": [
+        "We use cookies that are strictly necessary for the operation of the platform (authentication session, language preference, booking cart). These cookies do not require your consent.",
+        "Any analytics or personalization cookies are only set after your consent is obtained, which you can withdraw at any time via your browser settings."
+      ]
+    },
+    "transfers": {
+      "title": "9. Transfers Outside the European Union",
+      "paragraphs": [
+        "Some of our sub-processors (notably Stripe and OneSignal) may process data outside the European Union. Such transfers are governed by the Standard Contractual Clauses adopted by the European Commission or any other mechanism compliant with Chapter V of the GDPR.",
+        "Primary hosting of your data is provided within the European Union."
+      ]
+    },
+    "changes": {
+      "title": "10. Changes",
+      "paragraphs": [
+        "Saoma reserves the right to modify this privacy policy at any time to reflect changes in its services, regulations or best practices.",
+        "Any substantial change will be brought to your attention by email or via a notification within the platform. The date of last update is shown at the top of this document."
+      ]
+    },
+    "contact": {
+      "title": "11. Contact",
+      "paragraphs": [
+        "For any question regarding this privacy policy or the exercise of your rights, you may contact us at: contact@saoma.io."
+      ]
+    }
+  }
+}

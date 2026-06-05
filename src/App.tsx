@@ -14,6 +14,7 @@ import { UserProvider } from "@/contexts/UserContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { StagingBanner } from "@/components/StagingBanner";
 import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
+import { SubscriptionBanner } from "@/components/billing/SubscriptionBanner";
 import { NotificationsBellButton } from "@/components/admin/NotificationsBellButton";
 import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
@@ -50,8 +51,11 @@ const CustomerDetail = lazy(() => import("./pages/admin/CustomerDetail"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
+const Billing = lazy(() => import("./pages/admin/Billing"));
 const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
+const Organizations = lazy(() => import("./pages/admin/Organizations"));
+const OrganizationDetail = lazy(() => import("./pages/admin/OrganizationDetail"));
 const Admins = lazy(() => import("./pages/admin/Admins"));
 const AdminDetail = lazy(() => import("./pages/admin/AdminDetail"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
@@ -65,12 +69,18 @@ const Login = lazy(() => import("./pages/auth/Login"));
 const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
 const UpdatePassword = lazy(() => import("./pages/auth/UpdatePassword"));
 const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
+const AuthCallback = lazy(() => import("./pages/auth/AuthCallback"));
+
+// Onboarding Pages
+const Signup = lazy(() => import("./pages/onboarding/Signup"));
+const OnboardingComplete = lazy(() => import("./pages/onboarding/Complete"));
 
 // Shared Pages
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
 const Landing = lazy(() => import("./pages/Landing"));
 const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
 const RateTherapist = lazy(() => import("./pages/RateTherapist"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
@@ -242,6 +252,7 @@ const App = () => {
             {/* Root - Public marketing landing page */}
             <Route path="/" element={<Landing />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
 
             {/* Smart redirect based on user type (post-login entrypoint) */}
             <Route path="/app" element={<Home />} />
@@ -333,6 +344,11 @@ const App = () => {
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/update-password" element={<UpdatePassword />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+
+            {/* Onboarding (public — signup + post-Stripe-checkout landing) */}
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/onboarding/complete" element={<OnboardingComplete />} />
             
             {/* Legacy route redirects to admin routes */}
             <Route path="/booking" element={<Navigate to="/admin/bookings" replace />} />
@@ -484,6 +500,7 @@ const App = () => {
                           <NotificationsBellButton />
                         </header>
                         <VenueModeBanner />
+                        <SubscriptionBanner />
                         <main className="flex-1 min-h-0 overflow-y-auto">
                           <Suspense fallback={
                             <div className="flex items-center justify-center h-full min-h-[50vh]">
@@ -520,9 +537,12 @@ const App = () => {
                               <Route path="/products" element={<Products />} />
                               <Route path="/orders" element={<Orders />} />
                               <Route path="/finance" element={<Finance />} />
+                              <Route path="/billing" element={<Billing />} />
                               <Route path="/transactions" element={<Transactions />} />
                               <Route path="/analytics" element={<Analytics />} />
                               <Route path="/support" element={<SupportTickets />} />
+                              <Route path="/organizations" element={<Organizations />} />
+                              <Route path="/organizations/:id" element={<OrganizationDetail />} />
                               <Route path="/admins" element={<Admins />} />
                               <Route path="/admins/:id" element={<AdminDetail />} />
                               <Route path="/profile" element={<AdminProfile />} />

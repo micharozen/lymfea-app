@@ -201,7 +201,7 @@ export function BestsellerSection({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 rounded-none bg-gold-400 text-black hover:bg-gold-200"
+                        className="h-6 w-6 rounded-none bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
                         onClick={(e) => {
                           e.stopPropagation();
                           const defaultVariant = getDefaultVariant(treatment);
@@ -218,7 +218,7 @@ export function BestsellerSection({
                         const defaultVariant = getDefaultVariant(treatment);
                         onAddToBasket(treatment, defaultVariant);
                       }}
-                      className="w-full h-5 lg:h-6 px-2 text-[8px] sm:text-[10px] lg:text-xs bg-gold-400 text-black hover:bg-gold-200 font-medium font-grotesk border-none tracking-normal"
+                      className="w-full h-5 lg:h-6 px-2 text-[8px] sm:text-[10px] lg:text-xs bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 font-medium font-grotesk border-none tracking-normal"
                     >
                       {t('menu.select')}
                     </Button>

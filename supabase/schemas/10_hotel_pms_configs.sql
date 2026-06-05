@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS "public"."hotel_pms_configs" (
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
     "access_token" "text",
+    "client_token" "text",
     "service_id" "text",
     "accounting_category_id" "text",
     "api_url" "text",
@@ -23,6 +24,8 @@ CREATE TABLE IF NOT EXISTS "public"."hotel_pms_configs" (
 ALTER TABLE "public"."hotel_pms_configs" OWNER TO "postgres";
 
 COMMENT ON COLUMN "public"."hotel_pms_configs"."access_token" IS 'Mews: per-property AccessToken';
+
+COMMENT ON COLUMN "public"."hotel_pms_configs"."client_token" IS 'Mews: per-property ClientToken (Connector API)';
 
 COMMENT ON COLUMN "public"."hotel_pms_configs"."service_id" IS 'Mews: Spa ServiceId for posting charges';
 

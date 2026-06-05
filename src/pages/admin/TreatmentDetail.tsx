@@ -7,6 +7,8 @@ import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { hotelKeys, listHotelsForOrgDropdown } from "@shared/db";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { toast } from "sonner";
 import { Form } from "@/components/ui/form";
@@ -17,7 +19,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { ArrowLeft, Loader2, Save, Pencil } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Pencil, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { TreatmentGeneralTab } from "@/components/admin/treatment/TreatmentGeneralTab";
 import { TreatmentVariantsTab } from "@/components/admin/treatment/TreatmentVariantsTab";
 import { TreatmentAddonsTab } from "@/components/admin/treatment/TreatmentAddonsTab";
@@ -80,6 +83,8 @@ export default function TreatmentDetail() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
+  const [wizardStep, setWizardStep] = useState<1 | 2>(1);
+  const isWizardMode = isNewMode && !savedTreatmentId;
   const [treatmentName, setTreatmentName] = useState("");
   const [isEditingState, setIsEditingState] = useState(false);
   const isEditing = isNewMode || isEditingState;
@@ -122,16 +127,11 @@ export default function TreatmentDetail() {
     },
   });
 
+  const scope = useOrgScope();
   const { data: hotels } = useQuery({
-    queryKey: ["hotels"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name, currency")
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryKey: hotelKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listHotelsForOrgDropdown(supabase, scope!),
   });
 
   const loadTreatmentData = useCallback(
@@ -473,7 +473,48 @@ export default function TreatmentDetail() {
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {isNewMode ? (
+            {isWizardMode ? (
+              wizardStep === 1 ? (
+                <Button
+                  onClick={async () => {
+                    const ok = await form.trigger([
+                      "name",
+                      "hotel_id",
+                      "category",
+                      "service_for",
+                      "specialty",
+                    ]);
+                    if (!ok) {
+                      toast.error("Veuillez remplir les champs requis");
+                      return;
+                    }
+                    setWizardStep(2);
+                  }}
+                >
+                  Suivant
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setWizardStep(1)}
+                    disabled={saving}
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Précédent
+                  </Button>
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
+                    Créer le soin
+                  </Button>
+                </>
+              )
+            ) : isNewMode ? (
               <Button
                 onClick={handleSave}
                 disabled={saving}
@@ -523,6 +564,67 @@ export default function TreatmentDetail() {
       {loading ? (
         <div className="flex items-center justify-center py-12 flex-1">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : isWizardMode ? (
+        <div className="px-4 md:px-6 py-4">
+          <div className="flex items-center justify-center gap-2 pb-6">
+            {[
+              { id: 1 as const, label: "Général" },
+              { id: 2 as const, label: "Variantes" },
+            ].map((step, index, arr) => {
+              const isCompleted = wizardStep > step.id;
+              const isCurrent = wizardStep === step.id;
+              return (
+                <div key={step.id} className="flex items-center">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-medium transition-colors",
+                        isCompleted && "border-primary bg-primary text-primary-foreground",
+                        isCurrent && "border-primary bg-background text-primary",
+                        !isCompleted && !isCurrent && "border-muted-foreground/30 bg-background text-muted-foreground"
+                      )}
+                    >
+                      {isCompleted ? <Check className="h-4 w-4" /> : step.id}
+                    </div>
+                    <span
+                      className={cn(
+                        "text-sm font-medium",
+                        isCurrent ? "text-foreground" : "text-muted-foreground"
+                      )}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                  {index < arr.length - 1 && (
+                    <div
+                      className={cn(
+                        "mx-4 h-0.5 w-12 transition-colors",
+                        isCompleted ? "bg-primary" : "bg-muted-foreground/30"
+                      )}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <Form {...form}>
+            <form onSubmit={(e) => e.preventDefault()}>
+              {wizardStep === 1 ? (
+                <TreatmentGeneralTab
+                  form={form}
+                  disabled={false}
+                  menuImage={menuImage}
+                  isUploading={isUploading}
+                  fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
+                  handleImageUpload={handleImageUpload}
+                  triggerFileSelect={triggerFileSelect}
+                />
+              ) : (
+                <TreatmentVariantsTab form={form} disabled={false} />
+              )}
+            </form>
+          </Form>
         </div>
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>

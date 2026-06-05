@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender-landing.mjs",
+    "build:noprerender": "vite build",
     "build:dev": "vite build --mode development",
+    "prerender": "node scripts/prerender-landing.mjs",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -29,6 +31,7 @@
     "rebrand": "npm run sync:brand && npm run generate:manifests"
   },
   "dependencies": {
+    "@googlemaps/js-api-loader": "^2.0.2",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -95,6 +98,7 @@
     "@eslint/js": "^9.39.4",
     "@tailwindcss/typography": "^0.5.19",
     "@types/dompurify": "^3.2.0",
+    "@types/google.maps": "^3.65.0",
     "@types/node": "^22.19.17",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
@@ -109,6 +113,7 @@
     "jsdom": "^29.1.1",
     "lovable-tagger": "^1.1.13",
     "postcss": "^8.5.8",
+    "puppeteer": "^25.1.0",
     "sharp": "^0.34.5",
     "supabase": "^2.91.3",
     "tailwindcss": "^3.4.19",
@@ -120,6 +125,7 @@
   "trustedDependencies": [
     "@swc/core",
     "core-js",
+    "puppeteer",
     "sharp",
     "supabase"
   ]

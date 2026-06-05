@@ -22,6 +22,11 @@ import { VenueWizardStepper } from "./VenueWizardStepper";
 import { VenueGeneralInfoStep } from "./steps/VenueGeneralInfoStep";
 import { VenueDeploymentStep, DeploymentScheduleState } from "./steps/VenueDeploymentStep";
 import { VenueCategoriesStep } from "./steps/VenueCategoriesStep";
+import { useUser } from "@/contexts/UserContext";
+import {
+  isHotelOrganizationIdRequiredError,
+  requireHotelOrganizationIdForInsert,
+} from "@/lib/resolveHotelOrganizationId";
 
 interface TreatmentRoom {
   id: string;
@@ -40,8 +45,14 @@ export interface BlockedSlot {
   is_active: boolean;
 }
 
+export interface VenueFormSchemaOptions {
+  requireOrganizationId?: boolean;
+  organizationRequiredMessage?: string;
+}
+
 // Form schema for step 1
-const createFormSchema = (t: TFunction) => z.object({
+const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.object({
+  organization_id: z.string().uuid().optional().or(z.literal("")),
   name: z.string().min(1, t('errors.validation.nameRequired')),
   slug: z
     .string()
@@ -81,6 +92,14 @@ const createFormSchema = (t: TFunction) => z.object({
   landing_subtitle_en: z.string().optional(),
   description_en: z.string().optional(),
   calendar_color: z.string().default('#3b82f6'),
+  welcome_background_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  welcome_background_opacity: z.coerce.number().int().min(0).max(100).default(55),
+  button_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  button_text_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  font_title_url: z.string().optional().or(z.literal("")),
+  font_title_family: z.string().optional().or(z.literal("")),
+  font_body_url: z.string().optional().or(z.literal("")),
+  font_body_family: z.string().optional().or(z.literal("")),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -94,6 +113,14 @@ const createFormSchema = (t: TFunction) => z.object({
 }, {
   message: "L'heure d'ouverture doit être avant l'heure de fermeture",
   path: ["closing_time"],
+}).superRefine((data, ctx) => {
+  if (options?.requireOrganizationId && !data.organization_id?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: options.organizationRequiredMessage ?? "Organisation requise",
+      path: ["organization_id"],
+    });
+  }
 });
 
 export type VenueWizardFormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -114,7 +141,17 @@ export function VenueWizardDialog({
   hotelId,
 }: VenueWizardDialogProps) {
   const { t } = useTranslation('common');
-  const formSchema = useMemo(() => createFormSchema(t), [t]);
+  const { t: tAdmin } = useTranslation('admin');
+  const { isSuperAdmin, organizationId, activeOrganizationId } = useUser();
+  const requireOrganizationId = isSuperAdmin && mode === 'add';
+  const formSchema = useMemo(
+    () =>
+      createFormSchema(t, {
+        requireOrganizationId,
+        organizationRequiredMessage: tAdmin('venue.organization.required'),
+      }),
+    [t, tAdmin, requireOrganizationId],
+  );
   const queryClient = useQueryClient();
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -158,6 +195,7 @@ export function VenueWizardDialog({
   const form = useForm<VenueWizardFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      organization_id: "",
       name: "",
       slug: "",
       venue_type: "hotel",
@@ -176,6 +214,8 @@ export function VenueWizardDialog({
       slot_interval: 30,
       auto_validate_bookings: false,
       inter_venue_buffer_minutes: 0,
+      booking_hold_enabled: true,
+      booking_hold_duration_minutes: 5,
       offert: false,
       company_offered: false,
       landing_subtitle: "",
@@ -192,7 +232,40 @@ export function VenueWizardDialog({
         loadHotelData();
       } else {
         // Reset form for add mode
-        form.reset();
+        form.reset({
+          organization_id:
+            isSuperAdmin && activeOrganizationId ? activeOrganizationId : "",
+          name: "",
+          slug: "",
+          venue_type: "hotel",
+          address: "",
+          postal_code: "",
+          city: "",
+          country: "",
+          currency: "EUR",
+          vat: "20",
+          hotel_commission: "0",
+          therapist_commission: "0",
+          global_therapist_commission: true,
+          status: "active",
+          timezone: "Europe/Paris",
+          opening_time: "10:00",
+          closing_time: "20:00",
+          slot_interval: 30,
+          auto_validate_bookings: false,
+          allow_out_of_hours_booking: false,
+          out_of_hours_surcharge_percent: "0",
+          inter_venue_buffer_minutes: 0,
+          booking_hold_enabled: true,
+          booking_hold_duration_minutes: 5,
+          offert: false,
+          company_offered: false,
+          landing_subtitle: "",
+          name_en: "",
+          landing_subtitle_en: "",
+          description_en: "",
+          calendar_color: "#3b82f6",
+        });
         setHotelImage("");
         setCoverImage("");
         setSelectedRoomIds([]);
@@ -210,7 +283,7 @@ export function VenueWizardDialog({
         setSavedHotelId(null);
       }
     }
-  }, [open, mode, hotelId]);
+  }, [open, mode, hotelId, isSuperAdmin, activeOrganizationId, form]);
 
   const fetchRooms = async () => {
     const { data, error } = await supabase
@@ -325,7 +398,7 @@ export function VenueWizardDialog({
   };
 
   const validateStep1 = async (): Promise<boolean> => {
-    const result = await form.trigger([
+    const fields: (keyof VenueWizardFormValues)[] = [
       "name",
       "venue_type",
       "address",
@@ -338,8 +411,32 @@ export function VenueWizardDialog({
       "therapist_commission",
       "status",
       "timezone",
-    ]);
-    return result;
+    ];
+    if (requireOrganizationId) {
+      fields.push("organization_id");
+    }
+    return form.trigger(fields);
+  };
+
+  const resolveOrganizationIdForInsert = (
+    values: VenueWizardFormValues,
+  ): string | null => {
+    try {
+      return requireHotelOrganizationIdForInsert({
+        isSuperAdmin,
+        adminOrganizationId: organizationId,
+        formOrganizationId: values.organization_id,
+      });
+    } catch (error) {
+      if (!isHotelOrganizationIdRequiredError(error)) {
+        throw error;
+      }
+      const message = tAdmin("venue.organization.required");
+      form.setError("organization_id", { type: "manual", message });
+      toast.error(message);
+      setCurrentStep(1);
+      return null;
+    }
   };
 
   const validateStep2 = async (): Promise<boolean> => {
@@ -395,11 +492,14 @@ export function VenueWizardDialog({
     setSaving(true);
     try {
       const values = form.getValues();
+      const organization_id = resolveOrganizationIdForInsert(values);
+      if (!organization_id) return;
 
       // Insert new hotel
       const { data: insertedHotel, error: hotelError } = await supabase
         .from("hotels")
         .insert({
+          organization_id,
           name: values.name,
           ...(values.slug ? { slug: values.slug } : {}),
           venue_type: values.venue_type,
@@ -420,6 +520,8 @@ export function VenueWizardDialog({
           closing_time: values.closing_time + ':00',
           slot_interval: values.slot_interval,
           auto_validate_bookings: values.auto_validate_bookings,
+          booking_hold_enabled: values.booking_hold_enabled,
+          booking_hold_duration_minutes: values.booking_hold_duration_minutes,
           offert: values.offert,
           company_offered: values.company_offered,
           landing_subtitle: values.landing_subtitle || null,
@@ -449,9 +551,19 @@ export function VenueWizardDialog({
       queryClient.invalidateQueries({ queryKey: ["hotels"] });
       toast.success("Lieu créé. Vous pouvez maintenant gérer les catégories.");
       setCurrentStep(3);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving venue:", error);
-      if (error.code === '23505') {
+      if (isHotelOrganizationIdRequiredError(error)) {
+        const message = tAdmin("venue.organization.required");
+        form.setError("organization_id", { type: "manual", message });
+        toast.error(message);
+        setCurrentStep(1);
+      } else if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "23505"
+      ) {
         toast.error("Un lieu avec cet identifiant existe déjà");
       } else {
         toast.error("Erreur lors de l'enregistrement");
@@ -487,10 +599,14 @@ export function VenueWizardDialog({
       const values = form.getValues();
 
       if (mode === 'add') {
+        const organization_id = resolveOrganizationIdForInsert(values);
+        if (!organization_id) return;
+
         // Insert new hotel (should not happen if we went through step 3)
         const { data: insertedHotel, error: hotelError } = await supabase
           .from("hotels")
           .insert({
+            organization_id,
             name: values.name,
             ...(values.slug ? { slug: values.slug } : {}),
             venue_type: values.venue_type,
@@ -510,6 +626,8 @@ export function VenueWizardDialog({
             closing_time: values.closing_time + ':00',
             slot_interval: values.slot_interval,
             auto_validate_bookings: values.auto_validate_bookings,
+            booking_hold_enabled: values.booking_hold_enabled,
+            booking_hold_duration_minutes: values.booking_hold_duration_minutes,
             offert: values.offert,
           company_offered: values.company_offered,
             landing_subtitle: values.landing_subtitle || null,
@@ -596,9 +714,19 @@ export function VenueWizardDialog({
 
       onSuccess();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving venue:", error);
-      if (error.code === '23505') {
+      if (isHotelOrganizationIdRequiredError(error)) {
+        const message = tAdmin("venue.organization.required");
+        form.setError("organization_id", { type: "manual", message });
+        toast.error(message);
+        setCurrentStep(1);
+      } else if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "23505"
+      ) {
         toast.error("Un lieu avec cet identifiant existe déjà");
       } else {
         toast.error("Erreur lors de l'enregistrement");

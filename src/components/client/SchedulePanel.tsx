@@ -701,7 +701,7 @@ export function SchedulePanel({
                 ? !allItemsScheduled || isBusy
                 : !selectedDate || !selectedTime || isBusy
             }
-            className="w-full h-12 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
+            className="w-full h-12 bg-[var(--venue-button-bg,theme(colors.gray.900))] text-[var(--venue-button-text,#fff)] hover:opacity-90 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
           >
             {isHolding ? (
               <>
@@ -729,7 +729,7 @@ export function SchedulePanel({
                 ? !allItemsScheduled || isBusy
                 : !selectedDate || !selectedTime || isBusy
             }
-              className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
+              className="w-full h-12 sm:h-14 md:h-16 bg-[var(--venue-button-bg,theme(colors.gray.900))] text-[var(--venue-button-text,#fff)] hover:opacity-90 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
             >
               {isHolding ? (
                 <>

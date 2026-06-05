@@ -41,6 +41,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import {
+  hotelKeys,
+  treatmentKeys,
+  listHotelsForOrg,
+  listActiveTreatmentsForHotel,
+} from "@shared/db";
 import { toast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
@@ -137,18 +144,11 @@ export default function PhoneBookingDialog({
   } | null>(null);
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
 
+  const scope = useOrgScope();
   const { data: hotels } = useQuery({
-    queryKey: ["phone-booking-hotels"],
-    enabled: open,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("hotels")
-        .select(
-          "id, name, timezone, currency, opening_time, closing_time, slot_interval",
-        )
-        .order("name");
-      return data || [];
-    },
+    queryKey: hotelKeys.list(scope),
+    enabled: open && !!scope,
+    queryFn: () => listHotelsForOrg(supabase, scope!),
   });
 
   const selectedHotel = useMemo(
@@ -160,19 +160,9 @@ export default function PhoneBookingDialog({
   const closingTime = selectedHotel?.closing_time || "20:00";
 
   const { data: treatments } = useQuery({
-    queryKey: ["phone-booking-treatments", hotelId],
+    queryKey: hotelId ? treatmentKeys.forHotel(hotelId) : ["phone-booking-treatments", "pending"],
     enabled: open && !!hotelId,
-    queryFn: async () => {
-      let q = supabase
-        .from("treatment_menus")
-        .select("*, treatment_variants(id, guest_count)")
-        .in("status", ["Actif", "active", "Active"])
-        .order("sort_order", { ascending: true, nullsFirst: false })
-        .order("name");
-      if (hotelId) q = q.or(`hotel_id.eq.${hotelId},hotel_id.is.null`);
-      const { data } = await q;
-      return data || [];
-    },
+    queryFn: () => listActiveTreatmentsForHotel(supabase, hotelId!),
   });
 
   const {

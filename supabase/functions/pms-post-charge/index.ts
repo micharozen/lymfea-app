@@ -31,7 +31,7 @@ serve(async (req) => {
     // Load booking
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, hotel_id, room_number, total_price, payment_method, booking_id, client_first_name, client_last_name')
+      .select('id, hotel_id, room_number, total_price, payment_method, booking_id, client_first_name, client_last_name, booking_date, booking_time')
       .eq('id', bookingId)
       .single();
 
@@ -60,7 +60,7 @@ serve(async (req) => {
     // Check hotel has PMS auto-charge enabled
     const { data: hotel } = await supabase
       .from('hotels')
-      .select('pms_auto_charge_room, currency')
+      .select('pms_auto_charge_room, currency, timezone')
       .eq('id', booking.hotel_id)
       .single();
 
@@ -107,9 +107,12 @@ serve(async (req) => {
     }
 
     // Step 2: Post charge
+    const consumptionUtc = buildConsumptionUtc(booking.booking_date, booking.booking_time, hotel?.timezone);
     const chargeResult = await client.postCharge({
       hotelId: pmsConfig.pms_hotel_id || pmsConfig.hotel_id,
-      reservationId: guest.reservationId,
+      reservationId: pmsType === 'mews' ? (guest.accountId || guest.reservationId) : guest.reservationId,
+      linkedReservationId: guest.reservationId,
+      consumptionUtc,
       amount: booking.total_price || 0,
       currency: hotel.currency || 'EUR',
       description: `Spa - Booking #${booking.booking_id} - ${booking.client_first_name} ${booking.client_last_name}`,
@@ -162,4 +165,25 @@ async function updateChargeStatus(
   if (error) {
     console.error('[pms-post-charge] Failed to update charge status:', error);
   }
+}
+
+function buildConsumptionUtc(
+  bookingDate?: string | null,
+  bookingTime?: string | null,
+  timezone?: string | null,
+): string | undefined {
+  if (!bookingDate || !bookingTime) return undefined;
+
+  const [year, month, day] = bookingDate.split('-').map(Number);
+  const [hours, minutes, seconds = 0] = bookingTime.split(':').map(Number);
+  if ([year, month, day, hours, minutes, seconds].some(Number.isNaN)) return undefined;
+
+  const tz = timezone || 'UTC';
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+  const tzRendered = new Date(utcGuess.toLocaleString('en-US', { timeZone: tz }));
+  const offsetMs = utcGuess.getTime() - tzRendered.getTime();
+  const utcDate = new Date(utcGuess.getTime() + offsetMs);
+
+  if (Number.isNaN(utcDate.getTime())) return undefined;
+  return utcDate.toISOString();
 }

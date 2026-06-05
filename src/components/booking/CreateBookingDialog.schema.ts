@@ -39,6 +39,7 @@ export type BookingFormValues = z.infer<ReturnType<typeof createFormSchema>>;
 export interface CartItem {
   treatmentId: string;
   quantity: number;
+  variantId?: string | null;
 }
 
 export interface CreateBookingDialogProps {

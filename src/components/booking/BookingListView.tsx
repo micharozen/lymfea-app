@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   Table,
@@ -8,7 +9,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Clock, Layers, Package, Users } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Clock, Layers, Package, Users, X } from "lucide-react";
+import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
+import { Button } from "@/components/ui/button";
 import { TablePagination } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -37,6 +41,7 @@ interface BookingListViewProps {
   totalColumns: number;
   onBookingClick: (booking: BookingWithTreatments) => void;
   getHotelInfo: (hotelId: string | null) => Hotel | null;
+  isAdmin?: boolean;
   isConcierge: boolean;
   currentPage: number;
   totalPages: number;
@@ -44,6 +49,7 @@ interface BookingListViewProps {
   itemsPerPage: number;
   onPageChange: (page: number) => void;
   paymentAsText?: boolean;
+  onRequestCancel?: (booking: BookingWithTreatments) => void;
 }
 
 export function BookingListView({
@@ -53,6 +59,7 @@ export function BookingListView({
   totalColumns,
   onBookingClick,
   getHotelInfo,
+  isAdmin = false,
   isConcierge,
   currentPage,
   totalPages,
@@ -60,8 +67,37 @@ export function BookingListView({
   itemsPerPage,
   onPageChange,
   paymentAsText = false,
+  onRequestCancel,
 }: BookingListViewProps) {
+  const { t } = useTranslation("common");
   const navigate = useNavigate();
+
+  const canShowCancel = (booking: BookingWithTreatments) =>
+    !!onRequestCancel &&
+    (isAdmin || isConcierge) &&
+    canCancelBookingByStatus(booking.status);
+
+  const renderCancelButton = (booking: BookingWithTreatments) => {
+    if (!canShowCancel(booking)) return null;
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => onRequestCancel?.(booking)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("cancelBookingDialog.listCancelTooltip")}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
 
   return (
     <div className="h-full flex flex-col min-w-0">
@@ -178,6 +214,9 @@ export function BookingListView({
                     )}
                   </div>
                 </div>
+                <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {renderCancelButton(booking)}
+                </div>
               </div>
             </div>
           );
@@ -194,11 +233,12 @@ export function BookingListView({
             <col className="w-[6%]" />
             <col className="w-[10%]" />
             <col className="w-[11%]" />
-            <col className="w-[10%]" />
-            <col className="w-[14%]" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
             <col className="w-[7%]" />
-            {!isConcierge && <col className="w-[11%]" />}
-            <col className="w-[11%]" />
+            {!isConcierge && <col className="w-[10%]" />}
+            <col className="w-[10%]" />
+            <col className="w-[5%]" />
           </colgroup>
           <TableHeader>
             <TableRow className="border-b h-8 bg-muted/20">
@@ -299,12 +339,12 @@ export function BookingListView({
                           e.stopPropagation();
                           navigate(`/admin/customers/${customerId}`);
                         }}
-                        className="block leading-none truncate text-left hover:underline hover:text-primary"
+                        className="block leading-tight truncate text-left hover:underline hover:text-primary"
                       >
                         {label}
                       </button>
                     ) : (
-                      <span className="block leading-none truncate">{label}</span>
+                      <span className="block leading-tight truncate">{label}</span>
                     );
                   })()}
                 </TableCell>
@@ -329,7 +369,10 @@ export function BookingListView({
                   </TableCell>
                 )}
                 <TableCell className="text-foreground py-3 px-2 truncate">
-                  <span className="block leading-none truncate">{booking.therapist_name || "-"}</span>
+                  <span className="block leading-tight truncate">{booking.therapist_name || "-"}</span>
+                </TableCell>
+                <TableCell className="py-3 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                  {renderCancelButton(booking)}
                 </TableCell>
               </TableRow>
             ))}

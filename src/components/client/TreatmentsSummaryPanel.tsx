@@ -146,7 +146,7 @@ export function TreatmentsSummaryPanel({
                         variant="ghost"
                         size="icon"
                         onClick={() => updateQuantity(item.id, item.quantity + 1, item.variantId)}
-                        className="h-7 w-7 bg-gold-400 text-black hover:bg-gold-200"
+                        className="h-7 w-7 bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </Button>
@@ -209,7 +209,7 @@ export function TreatmentsSummaryPanel({
             'w-full h-12 rounded-full font-medium tracking-wide transition-all',
             isEmpty
               ? 'bg-gray-200 text-gray-400 hover:bg-gray-200 cursor-not-allowed'
-              : 'bg-gold-400 text-black hover:bg-gold-200 shadow-sm',
+              : 'bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 shadow-sm',
           )}
         >
           {t('basket.continue')}
