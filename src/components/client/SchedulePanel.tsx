@@ -147,7 +147,7 @@ export function SchedulePanel({
   }, [embedded, trackPageView]);
 
   // Fetch venue opening/closing hours and schedule info
-  const { data: venueData, isLoading: loadingVenueData } = useQuery({
+  const { data: venueData, isLoading: loadingVenueData, isError: venueDataError } = useQuery({
     queryKey: ['venue-data', hotelId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -155,6 +155,9 @@ export function SchedulePanel({
 
       if (error) throw error;
       const hotel = data?.[0];
+      if (!hotel) {
+        throw new Error('Venue not found or inactive');
+      }
 
       const baseOpeningMinutes = hotel?.opening_time
         ? parseInt(hotel.opening_time.split(':')[0], 10) * 60 + parseInt(hotel.opening_time.split(':')[1] || '0', 10)
@@ -169,7 +172,17 @@ export function SchedulePanel({
       const maxDaysAhead = isOneTime ? 90 : (isRecurring && daysPerWeek < 5) ? 90 : 90;
 
       const slotInterval = hotel?.slot_interval || 30;
-      const holdEnabled = (hotel as { booking_hold_enabled?: boolean } | undefined)?.booking_hold_enabled;
+      const holdRaw = (hotel as { booking_hold_enabled?: boolean } | undefined)?.booking_hold_enabled;
+      // Fail-closed in prod when RPC omits booking_hold_enabled (staging safety).
+      // In dev, fall back to true so local DBs behind on migrations stay usable.
+      let holdEnabled: boolean | undefined =
+        typeof holdRaw === 'boolean' ? holdRaw : undefined;
+      if (holdEnabled === undefined && import.meta.env.DEV) {
+        console.warn(
+          '[SchedulePanel] booking_hold_enabled missing from get_public_hotel_by_id — defaulting hold=true in dev. Run: bun run sup:reset',
+        );
+        holdEnabled = true;
+      }
       const holdDurationMinutes = (hotel as { booking_hold_duration_minutes?: number } | undefined)?.booking_hold_duration_minutes ?? 5;
 
       const allowOutOfHours = !!(hotel as { allow_out_of_hours_booking?: boolean } | undefined)?.allow_out_of_hours_booking;
@@ -566,8 +579,14 @@ export function SchedulePanel({
   }, [scheduleMode, baseItems, perItemSchedule]);
 
   const venueConfigReady =
-    !loadingVenueData && venueData !== undefined && typeof venueData.holdEnabled === 'boolean';
+    !loadingVenueData && !venueDataError && venueData !== undefined && typeof venueData.holdEnabled === 'boolean';
   const isBusy = !venueConfigReady || loadingAvailability || isHolding || (addonCheckArmed && !addonsReady);
+
+  useEffect(() => {
+    if (venueDataError) {
+      toast.error(t('common:errors.generic'));
+    }
+  }, [venueDataError, t]);
 
   return (
     <div className={cn(
