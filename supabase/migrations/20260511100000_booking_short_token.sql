@@ -22,7 +22,7 @@ BEGIN
   -- Retry loop to avoid extremely rare collisions.
   FOR attempt IN 1..5 LOOP
     result := '';
-    bytes := gen_random_bytes(8);
+    bytes := extensions.gen_random_bytes(8);
     FOR i IN 0..7 LOOP
       result := result || substr(alphabet, (get_byte(bytes, i) % 62) + 1, 1);
     END LOOP;
