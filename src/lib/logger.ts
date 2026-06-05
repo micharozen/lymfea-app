@@ -35,6 +35,14 @@ const buffer: LogEntry[] = [];
 let globalContext: Record<string, unknown> = {};
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 
+// Stable per-page-load id that ties together every log emitted from a single
+// browser session — useful for correlating logs from anonymous flows (e.g.
+// public client booking) where there is no userId.
+const SESSION_ID =
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `sess-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
 function serializeError(err: unknown): LogEntry['error'] {
   if (err instanceof Error) {
     return { name: err.name, message: err.message, stack: err.stack };
@@ -50,6 +58,7 @@ function serializeError(err: unknown): LogEntry['error'] {
 function baseContext(): Record<string, unknown> {
   return {
     ...globalContext,
+    session_id: SESSION_ID,
     url:
       typeof window !== 'undefined' ? window.location.pathname : undefined,
     user_agent:
