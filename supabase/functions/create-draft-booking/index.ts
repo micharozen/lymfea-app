@@ -77,9 +77,22 @@ serve(async (req: Request) => {
 
     if (hotelData && hotelData.booking_hold_enabled === false) {
       return new Response(
-        JSON.stringify({ success: false, reason: 'hold_disabled' }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: true, holdSkipped: true, reason: "hold_disabled" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Release prior draft holds server-side (client RLS cannot delete draft rows).
+    const priorDraftIds: string[] = Array.isArray(body.priorDraftIds)
+      ? body.priorDraftIds.filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
+      : [];
+    if (priorDraftIds.length > 0) {
+      await supabase
+        .from("bookings")
+        .delete()
+        .in("id", priorDraftIds)
+        .eq("status", "awaiting_payment")
+        .eq("client_email", "draft@lymfea.com");
     }
 
     const holdMinutes = hotelData?.booking_hold_duration_minutes ?? 5;
