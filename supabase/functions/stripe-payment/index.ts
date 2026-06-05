@@ -106,11 +106,16 @@ serve(async (req) => {
   // Frontends that only have a booking reference (e.g. PaymentLinkForm) rely
   // on this so getStripeForVenue picks the venue's Stripe key instead of
   // falling back to the missing global STRIPE_SECRET_KEY.
-  if (!hotelId && typeof body.bookingId === "string" && body.bookingId) {
+  const bookingIdForLookup =
+    (typeof body.bookingId === "string" && body.bookingId) ||
+    (typeof body.booking_id === "string" && body.booking_id) ||
+    null;
+
+  if (!hotelId && bookingIdForLookup) {
     const { data: bookingRow } = await supabaseAdmin
       .from("bookings")
       .select("hotel_id")
-      .eq("id", body.bookingId)
+      .eq("id", bookingIdForLookup)
       .maybeSingle();
     if (bookingRow?.hotel_id) {
       hotelId = bookingRow.hotel_id;
