@@ -30,8 +30,8 @@ async function parseFunctionErrorBody(error: unknown): Promise<Record<string, un
   if (!(error instanceof FunctionsHttpError)) return null;
   try {
     const ctx = error.context as Response | undefined;
-    if (ctx && typeof ctx.json === 'function') {
-      return (await ctx.json()) as Record<string, unknown>;
+    if (ctx && typeof ctx.clone === 'function') {
+      return (await ctx.clone().json()) as Record<string, unknown>;
     }
   } catch {
     /* ignore */
@@ -147,7 +147,7 @@ export function SchedulePanel({
   }, [embedded, trackPageView]);
 
   // Fetch venue opening/closing hours and schedule info
-  const { data: venueData } = useQuery({
+  const { data: venueData, isLoading: loadingVenueData } = useQuery({
     queryKey: ['venue-data', hotelId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -169,7 +169,7 @@ export function SchedulePanel({
       const maxDaysAhead = isOneTime ? 90 : (isRecurring && daysPerWeek < 5) ? 90 : 90;
 
       const slotInterval = hotel?.slot_interval || 30;
-      const holdEnabled = (hotel as { booking_hold_enabled?: boolean } | undefined)?.booking_hold_enabled ?? true;
+      const holdEnabled = (hotel as { booking_hold_enabled?: boolean } | undefined)?.booking_hold_enabled;
       const holdDurationMinutes = (hotel as { booking_hold_duration_minutes?: number } | undefined)?.booking_hold_duration_minutes ?? 5;
 
       const allowOutOfHours = !!(hotel as { allow_out_of_hours_booking?: boolean } | undefined)?.allow_out_of_hours_booking;
@@ -289,7 +289,7 @@ export function SchedulePanel({
       setLoadingAvailability(true);
       setNoTherapists(false);
       try {
-        const treatmentIds = Array.from(new Set(items.map((item) => item.id)));
+        const treatmentIds = Array.from(new Set(baseItems.map((item) => item.id)));
         const { data, error } = await supabase.functions.invoke('check-availability', {
           body: {
             hotelId,
@@ -323,7 +323,7 @@ export function SchedulePanel({
     };
 
     fetchAvailability();
-  }, [selectedDate, hotelId, therapistGenderPreference, requiredGuestCount, items, totalBaseDuration, t]);
+  }, [selectedDate, hotelId, therapistGenderPreference, requiredGuestCount, baseItems, totalBaseDuration, t]);
 
   /**
    * Creates a draft booking (holds the slot) then navigates forward.
@@ -565,7 +565,8 @@ export function SchedulePanel({
     });
   }, [scheduleMode, baseItems, perItemSchedule]);
 
-  const venueConfigReady = venueData !== undefined;
+  const venueConfigReady =
+    !loadingVenueData && venueData !== undefined && typeof venueData.holdEnabled === 'boolean';
   const isBusy = !venueConfigReady || loadingAvailability || isHolding || (addonCheckArmed && !addonsReady);
 
   return (
@@ -754,7 +755,7 @@ export function SchedulePanel({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {t('datetime.securing', 'Sécurisation du créneau…')}
               </>
-            ) : loadingAvailability ? (
+            ) : loadingVenueData || loadingAvailability ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {t('common:loading')}
@@ -782,7 +783,7 @@ export function SchedulePanel({
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {t('datetime.securing', 'Sécurisation du créneau…')}
                 </>
-              ) : loadingAvailability ? (
+              ) : loadingVenueData || loadingAvailability ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {t('common:loading')}

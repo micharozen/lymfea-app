@@ -87,12 +87,16 @@ serve(async (req: Request) => {
       ? body.priorDraftIds.filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
       : [];
     if (priorDraftIds.length > 0) {
-      await supabase
+      const { error: cleanupErr } = await supabase
         .from("bookings")
         .delete()
         .in("id", priorDraftIds)
+        .eq("hotel_id", hotelId)
         .eq("status", "awaiting_payment")
         .eq("client_email", "draft@lymfea.com");
+      if (cleanupErr) {
+        log.warn("prior_draft_cleanup_failed", cleanupErr, { priorDraftIds });
+      }
     }
 
     const holdMinutes = hotelData?.booking_hold_duration_minutes ?? 5;
