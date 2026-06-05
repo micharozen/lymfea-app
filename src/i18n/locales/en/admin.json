@@ -1232,6 +1232,13 @@
           "body": "Every email is stored with the raw payload and the AI parsing result. You can re-parse or dismiss at any time."
         }
       },
+      "flow": {
+        "title": "The process at a glance",
+        "step1": { "label": "Email received", "sub": "Guest or concierge" },
+        "step2": { "label": "Dedicated inbox", "sub": "Secure webhook" },
+        "step3": { "label": "AI parsing", "sub": "Fields extracted" },
+        "step4": { "label": "Booking", "sub": "Ready to confirm" }
+      },
       "how": {
         "title": "How it works",
         "step1": "A concierge or guest sends an email to your dedicated address (auto-generated from the venue name).",

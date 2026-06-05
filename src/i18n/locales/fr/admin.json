@@ -1232,6 +1232,13 @@
           "body": "Chaque email est archivé avec son payload brut et le résultat de l'analyse IA. Vous pouvez ré-analyser ou ignorer à tout moment."
         }
       },
+      "flow": {
+        "title": "Le processus en un coup d'œil",
+        "step1": { "label": "Email reçu", "sub": "Client ou concierge" },
+        "step2": { "label": "Inbox dédié", "sub": "Webhook sécurisé" },
+        "step3": { "label": "Analyse IA", "sub": "Champs extraits" },
+        "step4": { "label": "Réservation", "sub": "Prête à valider" }
+      },
       "how": {
         "title": "Comment ça marche",
         "step1": "Un concierge ou un client envoie un email à votre adresse dédiée (générée automatiquement à partir du nom du lieu).",

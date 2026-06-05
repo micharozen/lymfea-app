@@ -9,6 +9,9 @@ import {
   Globe2,
   ShieldCheck,
   Lock,
+  Inbox,
+  CalendarCheck,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,7 +20,6 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { brand } from "@/config/brand";
 
 interface Props {
   hotelId?: string;
@@ -28,7 +30,7 @@ interface InboundEmail {
   domain: string | null;
 }
 
-const SAOMA_CONTACT_EMAIL = brand.legal?.contactEmail ?? "hello@lymfea.fr";
+const SAOMA_CONTACT_EMAIL = "contact@saoma.io";
 
 export function VenueInboundEmailTab({ hotelId }: Props) {
   const { t } = useTranslation("admin");
@@ -167,7 +169,7 @@ export function VenueInboundEmailTab({ hotelId }: Props) {
                 {t("inbox.tab.address.label")}
               </div>
               <div className="flex items-center justify-between gap-3">
-                <code className="font-mono text-sm break-all">{fullAddress}</code>
+                <code className={`font-mono text-sm break-all ${!isActivated ? "blur-md select-none text-muted-foreground" : ""}`}>{fullAddress}</code>
                 <Button type="button" variant="ghost" size="sm" onClick={copy} disabled={!isActivated} className="flex-shrink-0">
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
@@ -179,6 +181,32 @@ export function VenueInboundEmailTab({ hotelId }: Props) {
           )}
         </CardContent>
       </Card>
+
+      {/* Flow schema */}
+      <div className="rounded-xl border border-border bg-card p-5 md:p-6">
+        <h3 className="text-sm font-semibold mb-5">{t("inbox.tab.flow.title")}</h3>
+        <div className="flex items-stretch justify-between gap-2 md:gap-4 overflow-x-auto">
+          {[
+            { icon: Mail, label: t("inbox.tab.flow.step1.label"), sub: t("inbox.tab.flow.step1.sub"), tint: "from-sky-100 to-sky-50 text-sky-700 ring-sky-200" },
+            { icon: Inbox, label: t("inbox.tab.flow.step2.label"), sub: t("inbox.tab.flow.step2.sub"), tint: "from-violet-100 to-violet-50 text-violet-700 ring-violet-200" },
+            { icon: Sparkles, label: t("inbox.tab.flow.step3.label"), sub: t("inbox.tab.flow.step3.sub"), tint: "from-amber-100 to-amber-50 text-amber-700 ring-amber-200" },
+            { icon: CalendarCheck, label: t("inbox.tab.flow.step4.label"), sub: t("inbox.tab.flow.step4.sub"), tint: "from-emerald-100 to-emerald-50 text-emerald-700 ring-emerald-200" },
+          ].map((step, idx, arr) => (
+            <div key={step.label} className="flex items-center gap-2 md:gap-4 flex-1 min-w-[140px]">
+              <div className="flex flex-col items-center text-center flex-1">
+                <div className={`flex items-center justify-center h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-gradient-to-br ${step.tint} ring-1 shadow-sm`}>
+                  <step.icon className="h-5 w-5 md:h-6 md:w-6" />
+                </div>
+                <div className="mt-2 text-xs md:text-sm font-medium text-foreground">{step.label}</div>
+                <div className="text-[11px] text-muted-foreground leading-snug mt-0.5">{step.sub}</div>
+              </div>
+              {idx < arr.length - 1 && (
+                <ArrowRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0 mt-[-28px]" />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Benefits grid */}
       <div>

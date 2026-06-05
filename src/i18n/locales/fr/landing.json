@@ -21,6 +21,18 @@
       "customization": "Page de réservation 100 % personnalisable"
     }
   },
+  "trustedBy": {
+    "tagline": "Sept maisons orchestrent leur spa avec Saoma",
+    "venues": {
+      "eia": { "name": "EÏA", "address": "Av. Victor Hugo · 75116" },
+      "hanna": { "name": "Hôtel Hanna", "address": "4 Septembre · 75002" },
+      "george": { "name": "Monsieur George", "address": "Washington · 75008" },
+      "soho": { "name": "Soho House", "address": "La Bruyère · 75009" },
+      "buci": { "name": "Hôtel de Buci", "address": "De Buci · 75006" },
+      "holy": { "name": "Studio by Holy", "address": "Guersant · 75017" },
+      "capAntibes": { "name": "Cap d'Antibes Beach Hotel", "address": "Cap d'Antibes · 06160" }
+    }
+  },
   "problem": {
     "title": "Le spa de votre hôtel mérite mieux",
     "subtitle": "Outils éparpillés, relances à la main, peu de visibilité sur vos réservations : vos équipes perdent du temps et vous laissez passer des clients.",
@@ -66,6 +78,39 @@
     "giftcards": {
       "title": "Cartes cadeaux & bundles",
       "desc": "Créez et vendez des cartes cadeaux, bundles de soins et offres saisonnières en quelques clics."
+    }
+  },
+  "aiSpotlight": {
+    "eyebrow": "Au-delà du standard",
+    "title": "Vos demandes par email deviennent des réservations",
+    "subtitle": "Là où les autres plateformes vous laissent ressaisir à la main, l'agent IA de Saoma lit, vérifie les disponibilités et planifie. Automatiquement.",
+    "badge": "Agent IA Saoma",
+    "email": {
+      "label": "Email entrant",
+      "fromLabel": "De :",
+      "fromValue": "sophie.martin@example.com",
+      "subjectLabel": "Objet :",
+      "subjectValue": "Réservation massage dimanche",
+      "body": "Bonjour, je souhaiterais réserver un massage californien de 60 minutes dimanche vers 14h30 pour deux personnes. Est-ce possible ? Merci !"
+    },
+    "agent": {
+      "label": "Agent IA Saoma",
+      "status": "En cours d'analyse",
+      "step1": "Lecture & compréhension du mail",
+      "step2": "Extraction du soin, créneau, client",
+      "step3": "Vérification des disponibilités"
+    },
+    "booking": {
+      "label": "Réservation créée",
+      "status": "En attente",
+      "title": "Massage californien · 60 min",
+      "client": "Sophie Martin · 2 personnes",
+      "slot": "Dimanche 14h30"
+    },
+    "bullets": {
+      "extract": "Extraction IA des dates, soins et infos client",
+      "create": "Création automatique d'un booking en attente",
+      "validate": "Validation par le concierge en 1 clic"
     }
   },
   "howItWorks": {
