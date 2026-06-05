@@ -11,13 +11,19 @@ un récap quotidien par email. Chaque log est expliqué et classé par un
 INDICATEUR D'IMPACT.
 
 ## Connexion Better Stack (via call API)
+⚠️ **Deux credentials distincts** (c'est volontaire côté Better Stack) :
 - Telemetry API (découverte sources) : `https://telemetry.betterstack.com`
+  → Auth **Bearer** : header `Authorization: Bearer ${BETTERSTACK_TOKEN}`
 - SQL Query API (lecture des logs)    : `https://s2440220.eu-fsn-3.betterstackdata.com`
-- Auth : header `Authorization: Bearer ${BETTERSTACK_TOKEN}` (le Bearer suffit
-  pour les deux APIs).
+  → Auth **Basic** : `-u "${BETTERSTACK_QUERY_USERNAME}:${BETTERSTACK_QUERY_PASSWORD}"`
 
-> Le token n'est **jamais** écrit ici : il est fourni via la variable
-> d'environnement `BETTERSTACK_TOKEN` (réglages de l'environnement).
+> Le `BETTERSTACK_TOKEN` (Telemetry API) ne donne **PAS** accès à la lecture SQL.
+> Les credentials de lecture sont une **connexion ClickHouse HTTP** à créer dans
+> Better Stack → Telemetry → Integrations → "Connect ClickHouse HTTP client" →
+> Create connection (le password n'est affiché qu'une fois).
+>
+> Aucun secret n'est écrit ici : tout passe par les variables d'environnement
+> `BETTERSTACK_TOKEN`, `BETTERSTACK_QUERY_USERNAME`, `BETTERSTACK_QUERY_PASSWORD`.
 > Réseau requis : autoriser `telemetry.betterstack.com` et `*.betterstackdata.com`
 > (les `curl` ne passent pas par le proxy des connecteurs, contrairement à
 > Slack/Gmail MCP).
@@ -40,7 +46,7 @@ curl -s https://telemetry.betterstack.com/api/v2/sources \
 Pour CHAQUE source (fenêtre 65 min = 60 min + recouvrement) :
 ```bash
 curl -s -X POST "https://s2440220.eu-fsn-3.betterstackdata.com/?output_format_pretty_row_numbers=0" \
-  -H "Authorization: Bearer ${BETTERSTACK_TOKEN}" \
+  -u "${BETTERSTACK_QUERY_USERNAME}:${BETTERSTACK_QUERY_PASSWORD}" \
   -H "Content-Type: text/plain" \
   --data-binary "
     SELECT dt,
@@ -101,7 +107,9 @@ niveau supérieur (prudence).
 ## Variables d'environnement attendues
 | Variable | Rôle | Exemple |
 |---|---|---|
-| `BETTERSTACK_TOKEN` | Bearer Telemetry API (lecture logs) | *(secret, dans l'env)* |
+| `BETTERSTACK_TOKEN` | Bearer Telemetry API — découverte des sources (Étape 0) | *(secret, dans l'env)* |
+| `BETTERSTACK_QUERY_USERNAME` | Username connexion ClickHouse HTTP — lecture SQL | `s2440220` |
+| `BETTERSTACK_QUERY_PASSWORD` | Password connexion ClickHouse HTTP — lecture SQL | *(secret, affiché 1 fois)* |
 
 Les autres paramètres (email `michael@saoma.io`, heure `19:00`, fuseau
 `Europe/Paris`, canal `#saoma_prod`) sont fixés ci-dessus ; les externaliser en
