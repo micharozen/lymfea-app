@@ -342,6 +342,10 @@ export function SchedulePanel({
    * Creates a draft booking (holds the slot) then navigates forward.
    * When the venue has hold disabled, skips draft creation — the slot will be locked
    * at confirm-setup-intent via the reserve_trunk_atomically fallback path.
+   *
+   * Hold OFF does not invoke create-draft-booking, so any prior draft rows are only
+   * released via priorDraftIds when the client still had a draft id, or by pg_cron
+   * (check-expired-slots) after hold TTL — max ~5 min orphan window.
    */
   const skipHoldAndContinue = (date: string, time: string) => {
     flushSync(() => {

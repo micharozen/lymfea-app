@@ -89,7 +89,7 @@ serve(async (req: Request) => {
         .eq("status", "awaiting_payment")
         .eq("client_email", "draft@lymfea.com");
       if (cleanupErr) {
-        log.error("prior_draft_cleanup_failed", cleanupErr, { priorDraftIds });
+        log.warn("prior_draft_cleanup_failed", cleanupErr, { priorDraftIds });
       }
     }
 
