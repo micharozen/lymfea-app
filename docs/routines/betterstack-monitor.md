@@ -14,8 +14,9 @@ INDICATEUR D'IMPACT.
 ⚠️ **Deux credentials distincts** (c'est volontaire côté Better Stack) :
 - Telemetry API (découverte sources) : `https://telemetry.betterstack.com`
   → Auth **Bearer** : header `Authorization: Bearer ${BETTERSTACK_TOKEN}`
-- SQL Query API (lecture des logs)    : `https://s2440220.eu-fsn-3.betterstackdata.com`
+- SQL Query API (lecture des logs)    : `https://eu-fsn-3-connect.betterstackdata.com`
   → Auth **Basic** : `-u "${BETTERSTACK_QUERY_USERNAME}:${BETTERSTACK_QUERY_PASSWORD}"`
+    (username = `s2440220`, password = celui de la connexion ClickHouse HTTP)
 
 > Le `BETTERSTACK_TOKEN` (Telemetry API) ne donne **PAS** accès à la lecture SQL.
 > Les credentials de lecture sont une **connexion ClickHouse HTTP** à créer dans
@@ -45,7 +46,7 @@ curl -s https://telemetry.betterstack.com/api/v2/sources \
 ## Étape 1 — Récupérer les NOUVEAUX logs error/warning (dernière heure)
 Pour CHAQUE source (fenêtre 65 min = 60 min + recouvrement) :
 ```bash
-curl -s -X POST "https://s2440220.eu-fsn-3.betterstackdata.com/?output_format_pretty_row_numbers=0" \
+curl -s -X POST "https://eu-fsn-3-connect.betterstackdata.com/?output_format_pretty_row_numbers=0" \
   -u "${BETTERSTACK_QUERY_USERNAME}:${BETTERSTACK_QUERY_PASSWORD}" \
   -H "Content-Type: text/plain" \
   --data-binary "
