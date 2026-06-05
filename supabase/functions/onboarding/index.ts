@@ -15,8 +15,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import {
   createClient,
   type SupabaseClient,
-} from "https://esm.sh/@supabase/supabase-js@2.57.2";
+} from "@supabase/supabase-js";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 import { handleCompleteOrganizationSignup } from "./actions/completeOrganizationSignup.ts";
@@ -30,12 +31,6 @@ export interface ActionContext {
   userEmail: string | null;
   userMetadata: Record<string, unknown>;
 }
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

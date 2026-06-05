@@ -8,7 +8,7 @@
 // Registered with verify_jwt = false (public endpoint, signed payload).
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import type Stripe from "https://esm.sh/stripe@18.5.0";
+import type Stripe from "stripe";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import {
   getBillingStripe,
@@ -16,12 +16,7 @@ import {
   getPlanByPriceId,
 } from "../_shared/stripe-billing.ts";
 import { createLogger } from "../_shared/logger.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, stripe-signature",
-};
+import { stripeWebhookCorsHeaders as corsHeaders } from "../_shared/cors.ts";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

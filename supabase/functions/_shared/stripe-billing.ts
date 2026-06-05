@@ -8,8 +8,8 @@
 // IMPORTANT: never import STRIPE_SECRET_KEY here, and never import
 // STRIPE_BILLING_SECRET_KEY from stripe-resolver.ts.
 
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import Stripe from "stripe";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const STRIPE_API_VERSION = "2025-08-27.basil" as const;
 

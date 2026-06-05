@@ -1,4 +1,4 @@
-import type Stripe from "https://esm.sh/stripe@18.5.0";
+import type Stripe from "stripe";
 import { computeOutOfHoursSurcharge } from "../../_shared/surcharge.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
 import type { ActionContext } from "../index.ts";
@@ -6,7 +6,7 @@ import type { ActionContext } from "../index.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-request-id",
 };
 
 function jsonResponse(body: unknown, status = 200): Response {

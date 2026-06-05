@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "sup:func": "supabase functions serve",
+    "sup:func": "supabase functions serve --env-file supabase/functions/.env",
     "sup:reset": "supabase db reset",
     "sup:start": "supabase start",
     "sup:stop": "supabase stop",

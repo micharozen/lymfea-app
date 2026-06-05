@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
+import { createClient } from '@supabase/supabase-js';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { isInBlockedSlot } from '../_shared/blocked-slots.ts';
 import { computeOutOfHoursSurcharge } from '../_shared/surcharge.ts';
@@ -9,7 +9,7 @@ import { resolveVerifiedPmsGuest } from '../_shared/pms-verify.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-request-id',
 };
 
 // Input validation schemas

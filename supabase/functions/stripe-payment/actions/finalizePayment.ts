@@ -2,12 +2,12 @@ import { brand } from "../../_shared/brand.ts";
 import { computeTherapistEarnings } from "../../_shared/therapistEarnings.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
 import type { ActionContext } from "../index.ts";
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-request-id",
 };
 
 function jsonResponse(body: unknown, status = 200): Response {

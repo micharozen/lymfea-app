@@ -9,10 +9,11 @@
 //   })
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import type Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import type Stripe from "stripe";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { getBillingStripe } from "../_shared/stripe-billing.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 import { handleCreateCheckoutSession } from "./actions/createCheckoutSession.ts";
@@ -29,12 +30,6 @@ export interface ActionContext {
   organizationId: string;
   isSuperAdmin: boolean;
 }
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

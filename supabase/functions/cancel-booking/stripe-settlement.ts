@@ -1,4 +1,4 @@
-import type Stripe from "https://esm.sh/stripe@18.5.0";
+import type Stripe from "stripe";
 
 export interface BookingPaymentInfo {
   stripe_payment_intent_id: string | null;

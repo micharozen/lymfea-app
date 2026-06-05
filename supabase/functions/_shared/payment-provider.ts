@@ -2,7 +2,7 @@
 // Mirrors the PMS pattern (_shared/pms-client.ts).
 // Supports: Stripe, Adyen.
 
-import Stripe from "https://esm.sh/stripe@18.5.0";
+import Stripe from "stripe";
 
 export type PaymentProviderType = "stripe" | "adyen";
 

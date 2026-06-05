@@ -8,7 +8,7 @@ const SITE_URL = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-request-id",
 };
 
 // Input validation schema

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createClient } from "@supabase/supabase-js";
 import { Resend } from 'https://esm.sh/resend@4.0.0';
 import { brand } from "../_shared/brand.ts";
 import {
@@ -13,7 +13,7 @@ import { getStripeForVenue } from '../_shared/stripe-resolver.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-request-id',
 };
 
 interface SendPaymentLinkRequest {
