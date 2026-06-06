@@ -344,49 +344,26 @@ serve(
         log.info('twilio.verify.approved');
       }
 
-      // Find therapist by phone number.
-      // The `phone` column is not strictly normalized in storage — some rows include
-      // a leading 0 or spaces (e.g. "06 08 75 64 82"). Match the logic used in
-      // `send-otp` by fetching all therapists for the country code and normalizing
-      // both sides in JS before comparing.
-      const { data: candidates, error: dbError } = await supabase
+      // Find therapist by phone number
+      // Use the same normalized phone for database lookup
+      const { data: therapist, error: dbError } = await supabase
         .from('therapists')
         .select('*')
-        .eq('country_code', countryCode);
+        .eq('country_code', countryCode)
+        .or(`phone.eq.${normalizedPhone},phone.eq.${phoneNumber}`)
+        .maybeSingle();
 
-      if (dbError) {
-        log.error('therapist.lookup_failed', dbError, { has_db_error: true });
-        return errorResponse(500, 'DATABASE_ERROR', 'Database error');
-      }
-
-      const matches = (candidates ?? []).filter((row: { phone?: string | null }) => {
-        if (!row.phone) return false;
-        const dbNormalizedPhone = row.phone.replace(/\s/g, '').replace(/^0/, '');
-        return dbNormalizedPhone === normalizedPhone;
-      });
-
-      if (matches.length === 0) {
-        log.warn('therapist.not_found');
+      if (dbError || !therapist) {
+        log.error('therapist.lookup_failed', dbError, {
+          has_db_error: !!dbError,
+          therapist_found: !!therapist,
+        });
         return errorResponse(
           404,
           'THERAPIST_NOT_FOUND',
           'No therapist account found with this phone number',
         );
       }
-
-      if (matches.length > 1) {
-        log.error('therapist.duplicate_phone', null, {
-          match_count: matches.length,
-          therapist_ids: matches.map((m: { id: string }) => m.id),
-        });
-        return errorResponse(
-          409,
-          'THERAPIST_DUPLICATE',
-          'Multiple therapist accounts share this phone number. Please contact support.',
-        );
-      }
-
-      const therapist = matches[0];
 
       log.bind({ therapist_id: therapist.id });
 

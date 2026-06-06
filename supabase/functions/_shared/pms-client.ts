@@ -11,7 +11,6 @@ export interface GuestInfo {
   lastName: string;
   email?: string;
   phone?: string;
-  accountId?: string;
   reservationId: string;
   checkIn?: string;
   checkOut?: string;
@@ -20,8 +19,6 @@ export interface GuestInfo {
 export interface ChargeParams {
   hotelId: string;
   reservationId: string;
-  linkedReservationId?: string;
-  consumptionUtc?: string;
   amount: number;
   currency: string;
   description: string;
@@ -259,7 +256,6 @@ export function buildPmsConfigFromRow(pmsType: string, row: Record<string, any>)
     case 'mews':
       return {
         baseUrl: row.api_url,
-        clientToken: row.client_token,
         accessToken: row.access_token,
         serviceId: row.service_id,
         accountingCategoryId: row.accounting_category_id || undefined,

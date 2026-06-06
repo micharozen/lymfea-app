@@ -7,10 +7,18 @@ import type { PmsClient, GuestInfo, ChargeParams, ChargeResult } from './pms-cli
 
 export interface MewsConfig {
   baseUrl: string;               // https://api.mews.com or https://api.mews-demo.com
-  clientToken: string;           // Per-property ClientToken (Connector API)
-  accessToken: string;           // Per-property AccessToken
+  accessToken: string;           // Per-property token (from hotel)
   serviceId: string;             // Spa ServiceId in Mews
   accountingCategoryId?: string; // Optional accounting category
+}
+
+// ClientToken is global (identifies Lymfea app) — stored in env var MEWS_CLIENT_TOKEN
+function getClientToken(): string {
+  const token = Deno.env.get('MEWS_CLIENT_TOKEN');
+  if (!token) {
+    throw new Error('MEWS_CLIENT_TOKEN environment variable is not set');
+  }
+  return token;
 }
 
 // --- Mews API helper ---
@@ -20,20 +28,15 @@ async function mewsFetch(
   endpoint: string,
   body: Record<string, unknown>,
 ): Promise<Response> {
-  if (!config.clientToken) {
-    throw new Error('Mews ClientToken is not configured for this venue');
-  }
-  if (!config.accessToken) {
-    throw new Error('Mews AccessToken is not configured for this venue');
-  }
+  const clientToken = getClientToken();
 
   return fetch(`${config.baseUrl}/api/connector/v1/${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      ClientToken: config.clientToken,
+      ClientToken: clientToken,
       AccessToken: config.accessToken,
-      Client: 'saoma',
+      Client: 'Lymfea',
       ...body,
     }),
   });
@@ -119,7 +122,6 @@ async function mewsLookupGuestByRoom(
           lastName: customer.LastName || '',
           email: customer.Email || undefined,
           phone: customer.Phone || undefined,
-          accountId: customerId,
           reservationId: reservation.Id,
           checkIn: reservation.StartUtc || undefined,
           checkOut: reservation.EndUtc || undefined,
@@ -157,12 +159,6 @@ async function mewsPostCharge(
       }],
       Notes: `Lymfea ${params.referenceNumber}`,
     };
-    if (params.consumptionUtc) {
-      body.ConsumptionUtc = params.consumptionUtc;
-    }
-    if (params.linkedReservationId) {
-      body.LinkedReservationId = params.linkedReservationId;
-    }
 
     const response = await mewsFetch(config, 'orders/add', body);
 

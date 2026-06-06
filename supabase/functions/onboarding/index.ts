@@ -34,7 +34,7 @@ export interface ActionContext {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-request-id",
 };
 
 function jsonResponse(body: unknown, status = 200): Response {

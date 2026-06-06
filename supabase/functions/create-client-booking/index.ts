@@ -5,7 +5,6 @@ import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { isInBlockedSlot } from '../_shared/blocked-slots.ts';
 import { computeOutOfHoursSurcharge } from '../_shared/surcharge.ts';
 import { createLogger } from '../_shared/logger.ts';
-import { resolveVerifiedPmsGuest } from '../_shared/pms-verify.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,14 +26,10 @@ const clientDataSchema = z.object({
     .max(255, 'Email must be less than 255 characters')
     .optional()
     .or(z.literal('')),
-  // Phone is optional: PMS-verified hotel guests don't enter it (resolved
-  // server-side from the PMS). Non-verified flows require it client-side and the
-  // value is still validated below.
   phone: z.string()
+    .min(6, 'Phone number is too short')
     .max(20, 'Phone number is too long')
-    .regex(/^[\d\s\+\-\(\)]*$/, 'Phone number contains invalid characters')
-    .optional()
-    .or(z.literal('')),
+    .regex(/^[\d\s\+\-\(\)]+$/, 'Phone number contains invalid characters'),
   roomNumber: z.string()
     .max(20, 'Room number must be less than 20 characters')
     .optional()
@@ -43,11 +38,6 @@ const clientDataSchema = z.object({
     .max(500, 'Note must be less than 500 characters')
     .optional()
     .or(z.literal('')),
-  // Set by the client flow when the visitor declared they are a hotel guest and
-  // passed the PMS verify step. The server RE-verifies before trusting it.
-  pmsVerified: z.boolean().optional(),
-  pmsGuestCheckIn: z.string().max(40).optional().or(z.literal('')).nullable(),
-  pmsGuestCheckOut: z.string().max(40).optional().or(z.literal('')).nullable(),
 });
 
 const bookingDataSchema = z.object({
@@ -133,7 +123,7 @@ async function handleMultiBookingConfirm(
     firstName: sanitizeString(clientData.firstName),
     lastName: sanitizeString(clientData.lastName),
     email: clientData.email ? sanitizeString(clientData.email) : null,
-    phone: clientData.phone ? sanitizeString(clientData.phone) : null,
+    phone: sanitizeString(clientData.phone),
     roomNumber: clientData.roomNumber ? sanitizeString(clientData.roomNumber) : null,
     note: clientData.note ? sanitizeString(clientData.note) : null,
   };
@@ -141,7 +131,7 @@ async function handleMultiBookingConfirm(
   // Hotel info for surcharge + email
   const { data: hotel, error: hotelError } = await supabase
     .from('hotels')
-    .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_guest_lookup_enabled, opening_time, closing_time, timezone, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
+    .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, opening_time, closing_time, timezone, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
     .eq('id', hotelId)
     .single();
 
@@ -150,28 +140,6 @@ async function handleMultiBookingConfirm(
       JSON.stringify({ success: false, error: 'Hotel not found' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
     );
-  }
-
-  // PMS-verified hotel guest: re-verify server-side and use PMS contact details
-  // (same security model as single-mode — never trust the client's flag).
-  if (clientData.pmsVerified && (hotel as any).pms_guest_lookup_enabled) {
-    const guest = await resolveVerifiedPmsGuest(
-      supabase,
-      hotelId,
-      sanitizedClientData.roomNumber ?? '',
-      sanitizedClientData.lastName,
-    );
-    if (!guest) {
-      log.warn('booking.pms_verification_failed', { hotelId, mode: 'multi' });
-      return new Response(
-        JSON.stringify({ success: false, error: 'PMS_VERIFICATION_FAILED' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
-    }
-    sanitizedClientData.firstName = sanitizeString(guest.firstName) || sanitizedClientData.firstName;
-    sanitizedClientData.lastName = sanitizeString(guest.lastName) || sanitizedClientData.lastName;
-    sanitizedClientData.email = guest.email ? sanitizeString(guest.email) : sanitizedClientData.email;
-    sanitizedClientData.phone = guest.phone ? sanitizeString(guest.phone) : sanitizedClientData.phone;
   }
 
   if (paymentMethod === 'room' && hotel.venue_type === 'coworking') {
@@ -435,7 +403,7 @@ try {
       firstName: sanitizeString(clientData.firstName),
       lastName: sanitizeString(clientData.lastName),
       email: clientData.email ? sanitizeString(clientData.email) : null,
-      phone: clientData.phone ? sanitizeString(clientData.phone) : null,
+      phone: sanitizeString(clientData.phone),
       roomNumber: clientData.roomNumber ? sanitizeString(clientData.roomNumber) : null,
       note: clientData.note ? sanitizeString(clientData.note) : null,
       pmsGuestCheckIn: clientData.pmsGuestCheckIn || null,
@@ -445,7 +413,7 @@ try {
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_type, pms_auto_charge_room, pms_guest_lookup_enabled, opening_time, closing_time, timezone, min_booking_notice_minutes, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
+      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_type, pms_auto_charge_room, opening_time, closing_time, timezone, min_booking_notice_minutes, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
       .eq('id', hotelId)
       .single();
 
@@ -458,32 +426,6 @@ try {
           status: 404,
         }
       );
-    }
-
-    // PMS-verified hotel guest: re-verify room + last name server-side (never trust
-    // the client's `pmsVerified` flag) and pull the contact details from the PMS so
-    // the customer + booking are stored with verified data — without the visitor
-    // ever exposing or fabricating someone else's email/phone.
-    if (clientData.pmsVerified && (hotel as any).pms_guest_lookup_enabled) {
-      const guest = await resolveVerifiedPmsGuest(
-        supabase,
-        hotelId,
-        sanitizedClientData.roomNumber ?? '',
-        sanitizedClientData.lastName,
-      );
-      if (!guest) {
-        log.warn('booking.pms_verification_failed', { hotelId });
-        return new Response(
-          JSON.stringify({ success: false, error: 'PMS_VERIFICATION_FAILED' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-        );
-      }
-      sanitizedClientData.firstName = sanitizeString(guest.firstName) || sanitizedClientData.firstName;
-      sanitizedClientData.lastName = sanitizeString(guest.lastName) || sanitizedClientData.lastName;
-      sanitizedClientData.email = guest.email ? sanitizeString(guest.email) : sanitizedClientData.email;
-      sanitizedClientData.phone = guest.phone ? sanitizeString(guest.phone) : sanitizedClientData.phone;
-      sanitizedClientData.pmsGuestCheckIn = guest.checkIn || sanitizedClientData.pmsGuestCheckIn;
-      sanitizedClientData.pmsGuestCheckOut = guest.checkOut || sanitizedClientData.pmsGuestCheckOut;
     }
 
     // Coworking spaces don't support room payment
@@ -616,13 +558,7 @@ try {
     const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);
     const effectiveTotalPrice = basePrice + surcharge.surchargeAmount;
     const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
-    const effectivePaymentStatus = isOffert
-      ? 'offert'
-      : paymentMethod === 'room'
-        ? 'charged_to_room'
-        : paymentMethod === 'gift_amount'
-          ? 'paid'
-          : 'pending';
+    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'paid' : 'pending');
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Find or create customer by phone
@@ -811,21 +747,6 @@ try {
         })
         .eq('id', bookingId);
       if (surchargeErr) console.error('Surcharge flags update failed (non-blocking):', surchargeErr);
-    }
-
-    // Room billing: ensure booking_payment_infos exists for cancellation lifecycle tracking.
-    if (paymentMethod === 'room' && !isOffert) {
-      const { error: roomPaymentInfoError } = await supabase
-        .from('booking_payment_infos')
-        .insert({
-          booking_id: bookingId,
-          customer_id: customerId || null,
-          estimated_price: effectiveTotalPrice,
-          payment_status: 'charged',
-        });
-      if (roomPaymentInfoError) {
-        console.error('Failed to insert booking_payment_infos for room payment:', roomPaymentInfoError);
-      }
     }
 
     // --- Bundle handling ---

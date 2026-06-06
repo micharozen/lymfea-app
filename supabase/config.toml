@@ -128,6 +128,9 @@ verify_jwt = false
 [functions.pms-guest-lookup]
 verify_jwt = false
 
+[functions.pms-guest-verify]
+verify_jwt = false
+
 [functions.pms-post-charge]
 verify_jwt = false
 
@@ -205,4 +208,46 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.onboarding]
+verify_jwt = false
+
+# ─── Authenticated-only functions ────────────────────────────────
+# These require a logged-in user (admin, therapist, or concierge).
+
+[functions.delete-admin]
+verify_jwt = true
+
+[functions.ensure-user-role]
+verify_jwt = true
+
+[functions.finalize-payment]
+verify_jwt = true
+
+[functions.generate-invoice]
+verify_jwt = true
+
+[functions.generate-stripe-login-link]
+verify_jwt = true
+
+[functions.mark-booking-noshow]
+verify_jwt = true
+
+[functions.payment-config-upsert]
+verify_jwt = true
+
+[functions.propose-alternative]
+verify_jwt = true
+
+[functions.send-payment-link]
+verify_jwt = true
+
+# ─── Server-to-server / cron-triggered ───────────────────────────
+# Called by other edge functions, cron, or webhooks — no browser CORS.
+
+[functions.pms-resolve-guest]
+verify_jwt = false
+
+[functions.send-booking-whatsapp]
+verify_jwt = false
+
+[functions.test-push-notifications]
 verify_jwt = false

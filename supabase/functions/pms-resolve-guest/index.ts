@@ -4,7 +4,7 @@ import { resolveVerifiedPmsGuest } from "../_shared/pms-verify.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-request-id',
 };
 
 // INTERNAL, service-to-service only. Returns verified guest PII (name, email, phone)

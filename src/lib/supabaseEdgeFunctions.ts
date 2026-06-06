@@ -196,9 +196,7 @@ async function invokeSupabase<TRequest, TResponse>(
   logContext: Record<string, unknown> | undefined,
 ): Promise<InvokeResult<TResponse>> {
   try {
-    const headers: Record<string, string> = {
-      "x-request-id": requestId,
-    };
+    const headers: Record<string, string> = {};
 
     if (!skipAuth) {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -352,7 +350,6 @@ async function invokeBackend<TRequest, TResponse>(
   try {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "x-request-id": requestId,
     };
 
     if (!skipAuth) {
