@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface SlackNotificationPayload {
-  type: 'new_booking' | 'booking_confirmed' | 'booking_cancelled' | 'payment_failed';
+  type: 'new_booking' | 'booking_confirmed' | 'booking_cancelled' | 'payment_failed' | 'room_charge_failed';
   bookingId: string;
   bookingNumber: string;
   clientName: string;
@@ -25,6 +25,9 @@ interface SlackNotificationPayload {
   paymentDeclineCode?: string;
   cardBrand?: string;
   cardLast4?: string;
+  // Room charge (PMS) failure fields
+  pmsErrorMessage?: string;
+  roomNumber?: string;
 }
 
 serve(async (req) => {
@@ -102,6 +105,11 @@ serve(async (req) => {
         emoji = "🚨";
         title = "Échec de paiement";
         color = "#e67e22"; // Orange (alert)
+        break;
+      case 'room_charge_failed':
+        emoji = "🏨";
+        title = "Facturation chambre échouée";
+        color = "#e74c3c"; // Red
         break;
     }
 
@@ -199,6 +207,33 @@ serve(async (req) => {
                 {
                   type: "mrkdwn",
                   text: "💡 *Actions recommandées:* Contacter le client • Renvoyer un lien de paiement • Facturer sur la chambre"
+                }
+              ]
+            }] : []),
+            ...(payload.type === 'room_charge_failed' ? [{
+              type: "section",
+              fields: [
+                {
+                  type: "mrkdwn",
+                  text: `*Chambre:*\n${payload.roomNumber || 'Non renseignée'}`
+                },
+                {
+                  type: "mrkdwn",
+                  text: `*Montant:*\n${priceText}`
+                }
+              ]
+            }, {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `*🏨 Erreur de facturation chambre:*\n${payload.pmsErrorMessage || 'Erreur inconnue'}`
+              }
+            }, {
+              type: "context",
+              elements: [
+                {
+                  type: "mrkdwn",
+                  text: "💡 *Actions recommandées:* Vérifier la chambre / le PMS • Relancer la facturation depuis la réservation • Facturer manuellement"
                 }
               ]
             }] : []),

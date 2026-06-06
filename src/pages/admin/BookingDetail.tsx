@@ -78,6 +78,7 @@ export default function BookingDetail() {
   const [invoiceIsRoomPayment, setInvoiceIsRoomPayment] = useState(false);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
+  const [retryingRoomCharge, setRetryingRoomCharge] = useState(false);
   const [bundleInfo, setBundleInfo] = useState<{
     bundleName: string;
     remainingSessions: number;
@@ -194,7 +195,18 @@ export default function BookingDetail() {
 
   const hotelInfo = getHotelInfo(booking.hotel_id);
   const currency = hotelInfo?.currency || 'EUR';
-  
+
+  // Room billing (PMS) push status. A 'failed' status means the automatic
+  // "charge to room" push to the venue's PMS (Mews/Opera) did not go through —
+  // the booking itself is not blocked, but the charge needs attention.
+  const isRoomPayment = booking.payment_method === 'room';
+  const roomChargeFailed = isRoomPayment && booking.pms_charge_status === 'failed';
+  const roomChargePending = isRoomPayment && booking.pms_charge_status === 'pending';
+  // The "Retry room billing" action is only meaningful when the venue still has
+  // an active PMS (otherwise pms-post-charge would just return "not enabled").
+  const venueHasActivePms = !!hotelInfo?.pms_type && hotelInfo?.pms_auto_charge_room === true;
+  const canRetryRoomCharge = roomChargeFailed && venueHasActivePms && !isConcierge;
+
   const displayPrice = booking.total_price && booking.total_price > 0
     ? booking.total_price
     : booking.treatmentsTotalPrice;
@@ -243,6 +255,27 @@ export default function BookingDetail() {
       toast.error(err.message || "Erreur lors de l'enregistrement de la signature");
     } finally {
       setSigningLoading(false);
+    }
+  };
+
+  const handleRetryRoomCharge = async () => {
+    setRetryingRoomCharge(true);
+    try {
+      const { data, error } = await invokeEdgeFunction<
+        { bookingId: string },
+        { success: boolean; chargeId?: string }
+      >("pms-post-charge", { body: { bookingId: booking.id } });
+
+      if (error || !data?.success) {
+        toast.error(error?.message || "Échec de la relance de la facturation en chambre.");
+      } else {
+        toast.success("Facturation en chambre relancée avec succès.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la relance de la facturation en chambre.");
+    } finally {
+      setRetryingRoomCharge(false);
+      refetch();
     }
   };
 
@@ -385,7 +418,35 @@ export default function BookingDetail() {
           </TabsList>
 
           <TabsContent value="details" className="space-y-4 mt-4">
-        {isPaid ? (
+        {roomChargeFailed ? (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start justify-between gap-3 text-red-800">
+            <div className="flex items-start gap-3 min-w-0">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="font-medium text-sm">Facturation en chambre non passée.</p>
+                {booking.pms_error_message && (
+                  <p className="text-xs opacity-80 mt-0.5 break-words">{booking.pms_error_message}</p>
+                )}
+              </div>
+            </div>
+            {canRetryRoomCharge && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-shrink-0 text-red-600 border-red-200 bg-white hover:bg-red-50 hover:text-red-700"
+                onClick={handleRetryRoomCharge}
+                disabled={retryingRoomCharge}
+              >
+                {retryingRoomCharge ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4 mr-2" />
+                )}
+                Relancer la facturation
+              </Button>
+            )}
+          </div>
+        ) : isPaid ? (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 text-green-800">
             <CheckCircle2 className="h-5 w-5 text-green-600" />
             <span className="font-medium text-sm">Le paiement a été réalisé avec succès.</span>
@@ -394,6 +455,11 @@ export default function BookingDetail() {
           <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center gap-3 text-indigo-800">
             <CheckCircle2 className="h-5 w-5 text-indigo-600" />
             <span className="font-medium text-sm">Paiement géré par le partenaire (facturation mensuelle).</span>
+          </div>
+        ) : roomChargePending ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3 text-blue-800">
+            <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+            <span className="font-medium text-sm">Facturation en chambre en cours…</span>
           </div>
         ) : (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 text-amber-800">

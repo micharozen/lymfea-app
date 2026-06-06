@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { UserX, CreditCard } from "lucide-react";
+import { UserX, CreditCard, Hotel } from "lucide-react";
 import type { AlertsData } from "@/hooks/useDashboardData";
 
 interface DashboardAlertsProps {
@@ -7,8 +7,8 @@ interface DashboardAlertsProps {
 }
 
 export function DashboardAlerts({ alerts }: DashboardAlertsProps) {
-  const { unassigned, failedPayments } = alerts;
-  const total = unassigned + failedPayments;
+  const { unassigned, failedPayments, roomChargeFailed } = alerts;
+  const total = unassigned + failedPayments + roomChargeFailed;
 
   if (total === 0) return null;
 
@@ -30,6 +30,15 @@ export function DashboardAlerts({ alerts }: DashboardAlertsProps) {
         >
           <CreditCard className="h-4 w-4" />
           {failedPayments} paiement{failedPayments > 1 ? "s" : ""} échoué{failedPayments > 1 ? "s" : ""}
+        </Link>
+      )}
+      {roomChargeFailed > 0 && (
+        <Link
+          to="/admin/bookings"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm font-medium hover:bg-red-100 transition-colors dark:bg-red-900/20 dark:border-red-800 dark:text-red-200"
+        >
+          <Hotel className="h-4 w-4" />
+          {roomChargeFailed} facturation{roomChargeFailed > 1 ? "s" : ""} chambre échouée{roomChargeFailed > 1 ? "s" : ""}
         </Link>
       )}
     </div>

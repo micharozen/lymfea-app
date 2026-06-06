@@ -12,12 +12,19 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { bookingId } = await req.json();
+  // Hoisted so the global catch can mark the charge failed + notify Slack.
+  let bookingId: string | undefined;
+  let booking: any = null;
+  let hotelName = '';
+  let currency = 'EUR';
+
+  try {
+    const parsed = await req.json();
+    bookingId = parsed.bookingId;
 
     if (!bookingId) {
       return new Response(
@@ -29,11 +36,13 @@ serve(async (req) => {
     console.log('[pms-post-charge] Processing booking:', bookingId);
 
     // Load booking
-    const { data: booking, error: bookingError } = await supabase
+    const { data: bookingData, error: bookingError } = await supabase
       .from('bookings')
       .select('id, hotel_id, room_number, total_price, payment_method, booking_id, client_first_name, client_last_name, booking_date, booking_time')
       .eq('id', bookingId)
       .single();
+
+    booking = bookingData;
 
     if (bookingError || !booking) {
       console.error('[pms-post-charge] Booking not found:', bookingError);
@@ -60,9 +69,12 @@ serve(async (req) => {
     // Check hotel has PMS auto-charge enabled
     const { data: hotel } = await supabase
       .from('hotels')
-      .select('pms_auto_charge_room, currency, timezone')
+      .select('name, pms_auto_charge_room, currency, timezone')
       .eq('id', booking.hotel_id)
       .single();
+
+    hotelName = hotel?.name ?? '';
+    currency = hotel?.currency || 'EUR';
 
     if (!hotel?.pms_auto_charge_room) {
       return new Response(
@@ -81,6 +93,7 @@ serve(async (req) => {
     if (configError || !pmsConfig) {
       console.error('[pms-post-charge] PMS config not found:', configError);
       await updateChargeStatus(supabase, bookingId, 'failed', null, 'PMS configuration not found');
+      await notifyRoomChargeFailure(supabase, booking, hotelName, currency, 'PMS configuration not found');
       return new Response(
         JSON.stringify({ success: false, error: 'PMS configuration not found', fallbackToManual: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -99,7 +112,9 @@ serve(async (req) => {
 
     if (!guest) {
       console.error('[pms-post-charge] Guest not found for room:', booking.room_number);
-      await updateChargeStatus(supabase, bookingId, 'failed', null, `No active guest found in room ${booking.room_number}`);
+      const guestErrorMessage = `No active guest found in room ${booking.room_number}`;
+      await updateChargeStatus(supabase, bookingId, 'failed', null, guestErrorMessage);
+      await notifyRoomChargeFailure(supabase, booking, hotelName, currency, guestErrorMessage);
       return new Response(
         JSON.stringify({ success: false, error: 'Guest not found in PMS', fallbackToManual: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -121,7 +136,9 @@ serve(async (req) => {
 
     if (!chargeResult.success) {
       console.error('[pms-post-charge] Charge failed:', chargeResult.error);
-      await updateChargeStatus(supabase, bookingId, 'failed', null, chargeResult.error || 'Charge posting failed');
+      const chargeErrorMessage = chargeResult.error || 'Charge posting failed';
+      await updateChargeStatus(supabase, bookingId, 'failed', null, chargeErrorMessage);
+      await notifyRoomChargeFailure(supabase, booking, hotelName, currency, chargeErrorMessage);
       return new Response(
         JSON.stringify({ success: false, error: chargeResult.error, fallbackToManual: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -131,6 +148,7 @@ serve(async (req) => {
     // Success
     console.log('[pms-post-charge] Charge posted successfully:', chargeResult.chargeId);
     await updateChargeStatus(supabase, bookingId, 'posted', chargeResult.chargeId || null, null);
+    await markRoomChargePaid(supabase, booking);
 
     return new Response(
       JSON.stringify({ success: true, chargeId: chargeResult.chargeId, fallbackToManual: false }),
@@ -139,8 +157,14 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('[pms-post-charge] Error:', error);
+    const errorMessage = error?.message || 'Unexpected error';
+    // Mark the charge failed + notify only when we have a room booking in context.
+    if (bookingId && booking?.payment_method === 'room') {
+      await updateChargeStatus(supabase, bookingId, 'failed', null, errorMessage);
+      await notifyRoomChargeFailure(supabase, booking, hotelName, currency, errorMessage);
+    }
     return new Response(
-      JSON.stringify({ success: false, error: error.message || 'Unexpected error', fallbackToManual: true }),
+      JSON.stringify({ success: false, error: errorMessage, fallbackToManual: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
@@ -164,6 +188,66 @@ async function updateChargeStatus(
 
   if (error) {
     console.error('[pms-post-charge] Failed to update charge status:', error);
+  }
+}
+
+// Reflect a successful room charge on the payment object + booking status so the
+// admin UI (booking banner) and dashboard alert clear automatically.
+async function markRoomChargePaid(supabase: any, booking: any) {
+  const { error: piError } = await supabase
+    .from('booking_payment_infos')
+    .upsert(
+      {
+        booking_id: booking.id,
+        estimated_price: booking.total_price ?? null,
+        payment_status: 'charged',
+        payment_at: new Date().toISOString(),
+        payment_error_message: null,
+      },
+      { onConflict: 'booking_id' },
+    );
+
+  if (piError) {
+    console.error('[pms-post-charge] Failed to upsert payment info:', piError);
+  }
+
+  const { error: bookingError } = await supabase
+    .from('bookings')
+    .update({ payment_status: 'charged_to_room' })
+    .eq('id', booking.id);
+
+  if (bookingError) {
+    console.error('[pms-post-charge] Failed to update booking payment status:', bookingError);
+  }
+}
+
+// Notify the team on Slack when a room charge push fails (non-blocking).
+async function notifyRoomChargeFailure(
+  supabase: any,
+  booking: any,
+  hotelName: string,
+  currency: string,
+  errorMessage: string,
+) {
+  try {
+    const clientName = `${booking?.client_first_name ?? ''} ${booking?.client_last_name ?? ''}`.trim();
+    await supabase.functions.invoke('send-slack-notification', {
+      body: {
+        type: 'room_charge_failed',
+        bookingId: booking?.id,
+        bookingNumber: String(booking?.booking_id ?? ''),
+        clientName: clientName || 'Client',
+        hotelName: hotelName || 'Établissement',
+        bookingDate: booking?.booking_date ?? '',
+        bookingTime: booking?.booking_time ?? '',
+        totalPrice: booking?.total_price ?? undefined,
+        currency,
+        roomNumber: booking?.room_number ?? undefined,
+        pmsErrorMessage: errorMessage,
+      },
+    });
+  } catch (notifyError) {
+    console.error('[pms-post-charge] Failed to send Slack notification:', notifyError);
   }
 }
 

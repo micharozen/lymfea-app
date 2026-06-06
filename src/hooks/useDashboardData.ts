@@ -33,6 +33,7 @@ interface RoomRow {
 export interface AlertsData {
   unassigned: number;
   failedPayments: number;
+  roomChargeFailed: number;
 }
 
 export interface OccupancyData {
@@ -286,6 +287,9 @@ export function useDashboardData(
       ).length,
       failedPayments: relevant.filter(
         (b) => b.payment_status === "failed"
+      ).length,
+      roomChargeFailed: relevant.filter(
+        (b) => b.payment_method === "room" && b.pms_charge_status === "failed"
       ).length,
     };
   }, [bookings, selectedHotel]);

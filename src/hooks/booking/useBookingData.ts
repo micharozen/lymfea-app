@@ -21,6 +21,8 @@ export interface Hotel {
   calendar_color: string | null;
   opening_time: string | null;
   closing_time: string | null;
+  pms_type: string | null;
+  pms_auto_charge_room: boolean | null;
 }
 
 export interface Therapist {
@@ -57,7 +59,7 @@ export function useBookingData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("id, name, image, currency, calendar_color, opening_time, closing_time")
+        .select("id, name, image, currency, calendar_color, opening_time, closing_time, pms_type, pms_auto_charge_room")
         .order("name");
       if (error) throw error;
       return data as Hotel[];
