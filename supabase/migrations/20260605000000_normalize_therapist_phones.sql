@@ -21,12 +21,25 @@ WHERE id = '4236a41c-9039-4259-b12b-d9f974bb3e22'
 DELETE FROM therapists
 WHERE id = '152623a0-fce7-41f6-ab37-a48697da924b';
 
--- 2. Normalize every stored phone: trim whitespace anywhere in the string and
---    strip a single leading 0. Empty results become NULL so the CHECK can pass.
+-- 2. Normalize every stored phone:
+--    a) strip every non-digit character (spaces, +, -, ., /, parens, etc.)
+--    b) strip ALL leading zeros (handles "00 33 …" international prefixes too)
+--    c) empty results become NULL so the CHECK can pass
 UPDATE therapists
-SET phone = NULLIF(regexp_replace(regexp_replace(phone, '\s', '', 'g'), '^0', ''), '')
+SET phone = NULLIF(
+  regexp_replace(regexp_replace(phone, '[^0-9]', '', 'g'), '^0+', ''),
+  ''
+)
 WHERE phone IS NOT NULL
-  AND phone <> NULLIF(regexp_replace(regexp_replace(phone, '\s', '', 'g'), '^0', ''), '');
+  AND phone IS DISTINCT FROM NULLIF(
+    regexp_replace(regexp_replace(phone, '[^0-9]', '', 'g'), '^0+', ''),
+    ''
+  );
+
+-- 2b. Safety: any phone too short to be a valid number is unusable for OTP anyway.
+--     Nulling it prevents the length-2 minimum in the CHECK below from failing.
+UPDATE therapists SET phone = NULL
+WHERE phone IS NOT NULL AND length(phone) < 2;
 
 -- 3. CHECK: canonical phone is digits only and never starts with 0.
 ALTER TABLE therapists
