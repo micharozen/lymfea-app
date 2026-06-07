@@ -1,0 +1,107 @@
+{
+  "meta": {
+    "title": "Politique de confidentialité — Saoma",
+    "description": "Politique de confidentialité de la plateforme Saoma : données collectées, finalités, droits RGPD et contact."
+  },
+  "header": {
+    "eyebrow": "Légal",
+    "title": "Politique de confidentialité",
+    "subtitle": "Comment Saoma collecte, utilise et protège vos données personnelles.",
+    "lastUpdated": "Dernière mise à jour : 1 juin 2026",
+    "back": "Retour à l'accueil"
+  },
+  "intro": {
+    "paragraphs": [
+      "La présente politique de confidentialité décrit la manière dont Saoma SAS (ci-après « Saoma », « nous ») collecte, traite et protège les données à caractère personnel des utilisateurs de la plateforme Saoma, de ses applications mobiles et des outils de réservation associés.",
+      "Nous nous engageons à traiter vos données conformément au Règlement (UE) 2016/679 (RGPD) et à la loi Informatique et Libertés modifiée. En utilisant nos services, vous reconnaissez avoir pris connaissance de la présente politique."
+    ]
+  },
+  "sections": {
+    "controller": {
+      "title": "1. Responsable du traitement",
+      "paragraphs": [
+        "Le responsable de traitement est Saoma SAS, éditeur de la plateforme Saoma.",
+        "Pour toute question relative à vos données personnelles ou à la présente politique, vous pouvez nous contacter à l'adresse : contact@saoma.io."
+      ]
+    },
+    "dataCollected": {
+      "title": "2. Données collectées",
+      "paragraphs": [
+        "Données de compte : nom, prénom, adresse email, numéro de téléphone, mot de passe (haché), rôle (administrateur, concierge, thérapeute), établissement(s) de rattachement.",
+        "Données de réservation : informations relatives aux clients finaux (nom, prénom, email, numéro de chambre le cas échéant, préférences de soins, notes), prestations réservées, dates et horaires.",
+        "Données de paiement : les informations bancaires ne sont jamais stockées sur nos serveurs ; elles sont collectées et traitées directement par notre prestataire Stripe. Nous conservons uniquement les identifiants de transaction et le statut des paiements.",
+        "Données de communication : contenu des emails, SMS et notifications push envoyés ou reçus via la plateforme.",
+        "Données techniques : adresse IP, type de navigateur, identifiants de session, journaux d'accès, données d'usage et de diagnostic."
+      ]
+    },
+    "purposes": {
+      "title": "3. Finalités et bases légales",
+      "paragraphs": [
+        "Exécution du contrat (art. 6.1.b RGPD) : gestion des comptes, des réservations, de l'agenda, des paiements et des communications transactionnelles.",
+        "Obligation légale (art. 6.1.c RGPD) : conservation des factures et pièces comptables conformément aux obligations fiscales et commerciales.",
+        "Intérêt légitime (art. 6.1.f RGPD) : sécurité de la plateforme, prévention de la fraude, amélioration du service et statistiques d'usage agrégées.",
+        "Consentement (art. 6.1.a RGPD) : envoi de communications marketing, notifications push promotionnelles et utilisation de cookies non strictement nécessaires."
+      ]
+    },
+    "recipients": {
+      "title": "4. Destinataires et sous-traitants",
+      "paragraphs": [
+        "Vos données sont accessibles aux personnels habilités de Saoma ainsi qu'aux utilisateurs autorisés de l'établissement client concerné (administrateurs, concierges, thérapeutes affectés à une réservation).",
+        "Nous faisons appel à des sous-traitants techniques, chacun encadré par un contrat de sous-traitance conforme à l'article 28 du RGPD : Supabase (hébergement de la base de données, authentification et fonctions serveur), OVHcloud (hébergement applicatif, France), Stripe (traitement des paiements et virements aux thérapeutes via Stripe Connect), OneSignal (notifications push), ainsi qu'un prestataire de routage des emails transactionnels.",
+        "Aucune donnée n'est cédée ni vendue à des tiers à des fins commerciales."
+      ]
+    },
+    "retention": {
+      "title": "5. Durées de conservation",
+      "paragraphs": [
+        "Données de compte : pendant toute la durée d'activité du compte, puis archivage en base intermédiaire 3 ans après la dernière connexion.",
+        "Données de réservation : 3 ans à compter de la dernière prestation, sauf pièces comptables associées.",
+        "Factures et pièces comptables : 10 ans, conformément à l'article L.123-22 du Code de commerce.",
+        "Journaux techniques et logs de connexion : 12 mois maximum.",
+        "Données collectées sur la base du consentement : jusqu'au retrait du consentement."
+      ]
+    },
+    "rights": {
+      "title": "6. Vos droits",
+      "paragraphs": [
+        "Conformément au RGPD, vous disposez des droits suivants sur vos données personnelles : droit d'accès, droit de rectification, droit à l'effacement, droit à la limitation du traitement, droit à la portabilité, droit d'opposition, droit de retirer votre consentement à tout moment, et droit de définir des directives relatives au sort de vos données après votre décès.",
+        "Pour exercer ces droits, adressez votre demande à contact@saoma.io en précisant l'objet de votre demande et en joignant tout élément permettant de vérifier votre identité.",
+        "Vous disposez également du droit d'introduire une réclamation auprès de la Commission Nationale de l'Informatique et des Libertés (CNIL), 3 place de Fontenoy, 75007 Paris — www.cnil.fr."
+      ]
+    },
+    "security": {
+      "title": "7. Sécurité",
+      "paragraphs": [
+        "Saoma met en œuvre des mesures techniques et organisationnelles appropriées pour garantir la confidentialité, l'intégrité et la disponibilité de vos données : chiffrement des communications (HTTPS/TLS), chiffrement au repos, contrôle d'accès basé sur les rôles, journalisation des accès, sauvegardes régulières et politique de mots de passe robustes.",
+        "En cas de violation de données susceptible d'engendrer un risque pour vos droits et libertés, nous nous engageons à notifier la CNIL dans un délai de 72 heures et, le cas échéant, à vous en informer directement."
+      ]
+    },
+    "cookies": {
+      "title": "8. Cookies et traceurs",
+      "paragraphs": [
+        "Nous utilisons des cookies strictement nécessaires au fonctionnement de la plateforme (session d'authentification, préférence de langue, panier de réservation). Ces cookies ne nécessitent pas votre consentement.",
+        "Les éventuels cookies de mesure d'audience et de personnalisation ne sont déposés qu'après recueil de votre consentement, que vous pouvez retirer à tout moment via les paramètres de votre navigateur."
+      ]
+    },
+    "transfers": {
+      "title": "9. Transferts hors Union européenne",
+      "paragraphs": [
+        "Certains de nos sous-traitants (notamment Stripe et OneSignal) peuvent être amenés à traiter des données en dehors de l'Union européenne. Ces transferts sont encadrés par les Clauses Contractuelles Types adoptées par la Commission européenne ou tout autre mécanisme conforme au chapitre V du RGPD.",
+        "L'hébergement principal de vos données est assuré en Union européenne."
+      ]
+    },
+    "changes": {
+      "title": "10. Modifications",
+      "paragraphs": [
+        "Saoma se réserve le droit de modifier la présente politique de confidentialité à tout moment afin de refléter l'évolution de ses services, de la réglementation ou des bonnes pratiques.",
+        "Toute modification substantielle sera portée à votre connaissance par email ou via une notification au sein de la plateforme. La date de dernière mise à jour est indiquée en tête du présent document."
+      ]
+    },
+    "contact": {
+      "title": "11. Contact",
+      "paragraphs": [
+        "Pour toute question relative à la présente politique de confidentialité ou à l'exercice de vos droits, vous pouvez nous contacter à l'adresse suivante : contact@saoma.io."
+      ]
+    }
+  }
+}

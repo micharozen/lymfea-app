@@ -892,7 +892,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
                     ? "bg-emerald-600 text-white hover:bg-emerald-500"
                     : hasPriceOnRequest
                       ? "bg-amber-500 text-black hover:bg-amber-400"
-                      : "bg-gray-900 text-white hover:bg-gray-800"
+                      : "bg-[var(--venue-button-bg,theme(colors.gray.900))] text-[var(--venue-button-text,#fff)] hover:opacity-90"
             )}
           >
             {(isProcessing || isOffertProcessing) ? (
@@ -938,7 +938,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
                       ? "bg-emerald-600 text-white hover:bg-emerald-500"
                       : hasPriceOnRequest
                         ? "bg-amber-500 text-black hover:bg-amber-400"
-                        : "bg-gray-900 text-white hover:bg-gray-800"
+                        : "bg-[var(--venue-button-bg,theme(colors.gray.900))] text-[var(--venue-button-text,#fff)] hover:opacity-90"
               )}
             >
               {(isProcessing || isOffertProcessing) ? (

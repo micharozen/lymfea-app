@@ -52,7 +52,7 @@
     "pricing": {
       "title": "5. Tarifs, paiement et durée",
       "paragraphs": [
-        "Les tarifs en vigueur sont indiqués sur le site saoma.fr. Le tarif Starter débute à 89 € HT par mois et par Lieu. Le tarif Custom fait l'objet d'un devis sur mesure.",
+        "Les tarifs en vigueur sont indiqués sur le site saoma.io. Le tarif Starter débute à 89 € HT par mois et par Lieu. Le tarif Custom fait l'objet d'un devis sur mesure.",
         "L'abonnement est facturé mensuellement ou annuellement, selon l'option choisie. Le paiement s'effectue par prélèvement automatique (carte bancaire ou prélèvement SEPA) via notre prestataire de paiement.",
         "L'abonnement est conclu pour une durée d'un mois, renouvelé tacitement par périodes identiques. Le Client peut résilier à tout moment depuis son espace ou par email, la résiliation prenant effet à la fin de la période de facturation en cours. Aucun remboursement au prorata n'est dû.",
         "En cas de retard ou de défaut de paiement, Saoma se réserve le droit de suspendre l'accès à la plateforme après mise en demeure restée sans effet."
@@ -89,7 +89,7 @@
     "contact": {
       "title": "10. Contact",
       "paragraphs": [
-        "Pour toute question relative aux présentes conditions, vous pouvez nous contacter par email à hello@saoma.fr.",
+        "Pour toute question relative aux présentes conditions, vous pouvez nous contacter par email à contact@saoma.io.",
         "Saoma SAS — Siège social et coordonnées légales disponibles sur la page Mentions légales."
       ]
     }

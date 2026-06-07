@@ -5,8 +5,8 @@
     "next": "Suivant",
     "finish": "Terminer",
     "step1": {
-      "title": "Bienvenue sur Eïa",
-      "body": "Eïa centralise vos réservations, votre planning thérapeutes et votre billing en un seul endroit. Ce guide rapide vous présente les zones clés de l'app."
+      "title": "Bienvenue sur Saoma",
+      "body": "Saoma centralise vos réservations, votre planning thérapeutes et votre billing en un seul endroit. Ce guide rapide vous présente les zones clés de l'app."
     },
     "step2": {
       "title": "Trois zones essentielles",
@@ -29,7 +29,7 @@
     },
     "step3": {
       "title": "Votre avis compte",
-      "body": "Vous testez Eïa : dites-nous tout. Vos retours guident la roadmap.",
+      "body": "Vous testez Saoma : dites-nous tout. Vos retours guident la roadmap.",
       "feedback": "Donner mon avis (5 min)",
       "calendly": "Réserver un point visio (20 min)",
       "trySwitcher": "Essayer le mode Gestion du lieu",
@@ -363,6 +363,33 @@
     "no": "Non"
   },
   "venue": {
+    "branding": {
+      "tab": "Branding",
+      "title": "Personnalisation visuelle",
+      "description": "Adapte les couleurs et la typographie du parcours de réservation à l'identité de ton lieu.",
+      "welcomeBg": "Fond de la page d'accueil",
+      "buttonColor": "Couleur du bouton +",
+      "buttonTextColor": "Couleur du texte des boutons",
+      "font": "Police de caractères",
+      "fontHelp": "Formats acceptés : woff2, woff, ttf, otf. Taille max 2 Mo.",
+      "uploadFont": "Téléverser une police",
+      "replaceFont": "Remplacer la police",
+      "removeFont": "Retirer",
+      "fontUploaded": "Police téléchargée",
+      "fontInvalidFormat": "Format de police invalide (woff2, woff, ttf, otf)",
+      "fontTooLarge": "Le fichier ne doit pas dépasser 2 Mo",
+      "fontFamily": "Nom CSS de la police (font-family)",
+      "reset": "Réinitialiser",
+      "previewLabel": "Aperçu temps réel",
+      "enableEdit": "Activer la modification"
+    },
+    "organization": {
+      "label": "Organisation",
+      "placeholder": "Sélectionner une organisation",
+      "required": "Veuillez sélectionner une organisation",
+      "loading": "Chargement…",
+      "empty": "Aucune organisation disponible"
+    },
     "finance": {
       "globalTherapistCommission": "Commission thérapeute globale",
       "globalTherapistCommissionDesc": "Appliquer le même pourcentage de commission à tous les thérapeutes",
@@ -601,6 +628,8 @@
     "mewsEnvironment": "Environnement",
     "mewsProduction": "Production (api.mews.com)",
     "mewsDemo": "Demo (api.mews-demo.com)",
+    "mewsClientToken": "Client Token",
+    "mewsClientTokenDesc": "ClientToken par propriete depuis Mews Commander (Connector API)",
     "mewsAccessToken": "Access Token",
     "mewsAccessTokenDesc": "Token par propriete fourni par l'hotel depuis Mews Commander",
     "mewsServiceId": "ID Service Spa",
@@ -678,7 +707,7 @@
     "pricing": "Tarification",
     "external": "Externe",
     "internal": "Interne (hôtel)",
-    "lymfea": "Eïa (client soin)",
+    "lymfea": "Saoma (client soin)",
     "includedWithTreatment": "Inclus avec soin",
     "accessDuration": "Durée accès offert",
     "free": "Gratuit",
@@ -958,6 +987,133 @@
       "selectTherapist": "Sélectionnez un thérapeute",
       "fillClient": "Remplissez les informations client",
       "roomRequired": "Numéro de chambre obligatoire pour un client hôtel"
+    }
+  },
+  "onboarding": {
+    "title": "Créer votre compte Saoma",
+    "steps": {
+      "account": "Compte",
+      "organization": "Organisation",
+      "venue": "Lieu",
+      "plan": "Offre",
+      "summary": "Récapitulatif"
+    },
+    "account": {
+      "continueWithGoogle": "Continuer avec Google",
+      "orDivider": "ou",
+      "firstName": { "label": "Prénom", "placeholder": "Camille", "error": "Prénom requis" },
+      "lastName": { "label": "Nom", "placeholder": "Durand", "error": "Nom requis" },
+      "phone": { "label": "Téléphone", "placeholder": "+33 6 12 34 56 78", "error": "Téléphone requis (min 6 chiffres)" },
+      "email": { "label": "Email", "placeholder": "camille@exemple.com", "error": "Email invalide" },
+      "password": {
+        "label": "Mot de passe",
+        "placeholder": "Min 8 caractères",
+        "error": "Mot de passe requis (min 8 caractères)",
+        "show": "Afficher le mot de passe",
+        "hide": "Masquer le mot de passe",
+        "strength": {
+          "veryWeak": "Mot de passe très faible",
+          "weak": "Mot de passe faible",
+          "fair": "Mot de passe correct",
+          "good": "Bon mot de passe",
+          "strong": "Mot de passe fort"
+        }
+      },
+      "confirmPassword": { "label": "Confirmer le mot de passe", "placeholder": "Retapez le mot de passe", "error": "Les mots de passe ne correspondent pas", "match": "Les mots de passe correspondent" },
+      "terms": {
+        "label": "J'accepte les <tos>Conditions Générales d'Utilisation</tos>",
+        "error": "Vous devez accepter les CGU"
+      },
+      "privacy": {
+        "label": "J'accepte la <pp>Politique de Confidentialité</pp>",
+        "error": "Vous devez accepter la Politique de Confidentialité"
+      }
+    },
+    "organization": {
+      "name": { "label": "Nom de l'organisation", "placeholder": "Groupe Spa Lumière", "error": "Nom requis (min 2 caractères)" },
+      "slugPreview": "URL : {{slug}}",
+      "helper": "Ce nom apparaît sur vos factures et dans l'espace administrateur."
+    },
+    "venue": {
+      "type": {
+        "label": "Type de lieu",
+        "hotel": "Hôtel",
+        "spa": "Spa indépendant",
+        "hotelHint": "Spa au sein d'un hôtel",
+        "spaHint": "Day spa autonome",
+        "error": "Choisissez un type de lieu"
+      },
+      "name": {
+        "label": "Nom du lieu",
+        "placeholder": "Spa Sérénité — Hôtel des Pins",
+        "hint": "Cherchez votre établissement pour pré-remplir l'adresse",
+        "error": "Nom requis"
+      },
+      "address": { "label": "Adresse", "placeholder": "12 rue des Lilas", "error": "Adresse requise" },
+      "postalCode": { "label": "Code postal", "placeholder": "75004" },
+      "city": { "label": "Ville", "placeholder": "Paris" },
+      "country": { "label": "Pays", "placeholder": "France" }
+    },
+    "plan": {
+      "cycle": {
+        "monthly": "Mensuel",
+        "yearly": "Annuel",
+        "yearlyHint": "−2 mois"
+      },
+      "unitMonth": "mois",
+      "unitYear": "an",
+      "starter": { "tagline": "Pour démarrer en douceur" },
+      "pro": { "tagline": "Pour les structures établies" },
+      "trialNotice": "14 jours d'essai gratuit. Carte demandée, non débitée pendant l'essai."
+    },
+    "summary": {
+      "organization": "Votre organisation",
+      "venue": "Votre premier lieu",
+      "plan": "Votre offre",
+      "fields": {
+        "orgName": "Nom",
+        "admin": "Administrateur",
+        "email": "Email",
+        "phone": "Téléphone",
+        "type": "Type",
+        "name": "Nom",
+        "address": "Adresse",
+        "cityZip": "Ville",
+        "country": "Pays",
+        "tier": "Offre",
+        "cycle": "Facturation"
+      },
+      "trial": "14 jours d'essai gratuit avant la première facturation.",
+      "card": "Carte demandée par Stripe — aucun débit pendant l'essai.",
+      "secure": "Paiement sécurisé par Stripe. Aucune donnée bancaire stockée sur Saoma.",
+      "goToCheckout": "Continuer vers le paiement"
+    },
+    "emailConfirm": {
+      "title": "Vérifiez votre email",
+      "body": "Un lien de confirmation vient d'être envoyé à {{email}}. Cliquez dessus pour continuer votre inscription.",
+      "hint": "Pensez à regarder vos spams si vous ne le voyez pas."
+    },
+    "complete": {
+      "polling": "Activation de votre abonnement…",
+      "creatingVenue": "Création de votre lieu…",
+      "pleaseWait": "Cela prend généralement quelques secondes.",
+      "errorTitle": "Une erreur est survenue",
+      "error": "Nous n'avons pas pu finaliser votre onboarding.",
+      "timeout": "L'activation de votre abonnement prend plus longtemps que prévu.",
+      "retry": "Réessayer",
+      "goToBilling": "Aller à mon abonnement"
+    },
+    "cta": {
+      "next": "Suivant",
+      "back": "Retour"
+    },
+    "errors": {
+      "signupFailed": "Impossible de créer votre compte",
+      "oauthFailed": "Échec de l'authentification Google. Veuillez réessayer.",
+      "orgFailed": "Impossible de créer votre organisation",
+      "checkoutFailed": "Impossible d'ouvrir le paiement",
+      "venueFailed": "Impossible de créer votre lieu",
+      "checkoutCancelled": "Paiement annulé. Vous pouvez reprendre quand vous le souhaitez."
     }
   }
 }

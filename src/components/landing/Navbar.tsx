@@ -13,7 +13,10 @@ export const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
+    const onScroll = () => {
+      const y = window.scrollY || document.documentElement.scrollTop;
+      setScrolled(y > 4);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -30,19 +33,22 @@ export const Navbar = () => {
     { href: "#features", label: t("nav.features") },
     { href: "#how-it-works", label: t("nav.howItWorks") },
     { href: "#pricing", label: t("nav.pricing") },
+    { href: "#faq", label: t("nav.faq") },
   ];
 
   const switchLang = () => {
     i18n.changeLanguage(i18n.language.startsWith("fr") ? "en" : "fr");
   };
 
+  const showBackground = scrolled || mobileOpen;
+
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-50 transition-all duration-300",
-        scrolled
-          ? "border-b border-border/60 bg-background/85 backdrop-blur-xl"
-          : "bg-transparent",
+        "fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,border-color] duration-300",
+        showBackground
+          ? "border-b border-border/60 bg-background shadow-sm backdrop-blur-md"
+          : "border-b border-transparent bg-transparent",
       )}
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:h-20 md:px-6">

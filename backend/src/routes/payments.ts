@@ -6,6 +6,7 @@ import { supabaseAdmin } from "../lib/supabase";
 import { getStripeForVenue } from "../lib/stripe-resolver";
 import { sendEmail } from "../lib/email";
 import { isInBlockedSlot } from "../lib/blocked-slots";
+import { resolveVerifiedPmsGuest } from "../lib/pms-verify";
 
 const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
 const BRAND_WEBSITE = 'https://lymfea.fr';
@@ -1040,7 +1041,9 @@ payments.post("/setup-intent", async (c) => {
       throw new Error("Missing required data");
     }
 
-    if (!clientData.firstName || !clientData.lastName || !clientData.phone || !clientData.email) {
+    // PMS-verified hotel guests don't enter email/phone — those are resolved
+    // server-side from the PMS (see below). All other flows still require them.
+    if (!clientData.firstName || !clientData.lastName || (!clientData.pmsVerified && (!clientData.phone || !clientData.email))) {
       throw new Error("Missing required client information (including email)");
     }
 
@@ -1081,7 +1084,7 @@ payments.post("/setup-intent", async (c) => {
 
     const { data: hotel, error: hotelError } = await supabaseAdmin
       .from('hotels')
-      .select('slug, currency, name, offert, opening_time, closing_time')
+      .select('slug, currency, name, offert, pms_guest_lookup_enabled, opening_time, closing_time')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -1091,6 +1094,19 @@ payments.post("/setup-intent", async (c) => {
 
     if (hotel.offert) {
       throw new Error("Ce lieu propose actuellement des soins offerts.");
+    }
+
+    // PMS-verified hotel guest paying by card: re-verify room + last name and pull
+    // the contact details from the PMS so Stripe + the booking get verified data.
+    if (clientData.pmsVerified && (hotel as any).pms_guest_lookup_enabled) {
+      const guest = await resolveVerifiedPmsGuest(hotelId, clientData.roomNumber || '', clientData.lastName || '');
+      if (!guest) {
+        return c.json({ error: 'PMS_VERIFICATION_FAILED' }, 400);
+      }
+      clientData.firstName = guest.firstName || clientData.firstName;
+      clientData.lastName = guest.lastName || clientData.lastName;
+      clientData.email = guest.email || clientData.email;
+      clientData.phone = guest.phone || clientData.phone;
     }
 
     if (hotel.opening_time && hotel.closing_time) {

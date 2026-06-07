@@ -51,6 +51,45 @@ const countryCodes = [
 
 type AuthMode = "password" | "otp-phone" | "otp-code" | "forgot";
 
+// supabase.functions.invoke returns FunctionsHttpError where `.context` is the
+// raw Response. Its body is a ReadableStream, so we must clone+parse it to get
+// the actual server payload — otherwise we only see the generic
+// "Edge Function returned a non-2xx status code" message.
+async function extractEdgeError(error: unknown): Promise<{
+  status?: number;
+  body?: Record<string, unknown> | { raw: string } | undefined;
+  serverMessage?: string;
+}> {
+  const ctx = (error as { context?: Response | undefined })?.context;
+  let status: number | undefined;
+  let body: Record<string, unknown> | { raw: string } | undefined;
+
+  if (ctx && typeof ctx.clone === "function") {
+    status = ctx.status;
+    try {
+      body = (await ctx.clone().json()) as Record<string, unknown>;
+    } catch {
+      try {
+        body = { raw: await ctx.clone().text() };
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  const serverMessage =
+    (body && typeof body === "object" && "error" in body && typeof (body as { error: unknown }).error === "string"
+      ? (body as { error: string }).error
+      : undefined) ??
+    (body && typeof body === "object" && "message" in body && typeof (body as { message: unknown }).message === "string"
+      ? (body as { message: string }).message
+      : undefined) ??
+    (body && "raw" in (body as { raw?: string }) ? (body as { raw?: string }).raw : undefined) ??
+    (error instanceof Error ? error.message : undefined);
+
+  return { status, body, serverMessage };
+}
+
 const PwaLogin = () => {
   const navigate = useNavigate();
   const { t } = useTranslation("pwa");

@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
-import { ArrowRight, Calendar, Check, Sparkles } from "lucide-react";
+import { ArrowRight, Calendar, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BRAND_APP_DOMAIN, BRAND_DEMO_CTA } from "./constants";
 
@@ -22,16 +21,11 @@ export const Hero = () => {
       <div className="container relative mx-auto px-4 pb-20 md:px-6 md:pb-28">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           {/* Left: text */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col items-start"
-          >
-            <span className="inline-flex items-center gap-2 rounded-full border border-gold-300 bg-gold-50 px-3 py-1 text-xs font-medium tracking-wide text-gold-700">
-              <Sparkles className="h-3.5 w-3.5" />
+          <div className="flex flex-col items-start">
+            <p className="flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-gold-700">
+              <span className="h-px w-8 shrink-0 bg-gold-400" aria-hidden />
               {t("hero.eyebrow")}
-            </span>
+            </p>
 
             <h1 className="mt-6 font-serif text-4xl leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-[4.2rem]">
               {t("hero.title")}{" "}
@@ -65,32 +59,22 @@ export const Hero = () => {
             </div>
 
             <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-muted-foreground">
-              {["confirmation", "pms", "modules"].map((key) => (
+              {["booking", "pms", "customization"].map((key) => (
                 <div key={key} className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-primary" />
                   <span>{t(`hero.stats.${key}`)}</span>
                 </div>
               ))}
             </div>
-          </motion.div>
+          </div>
 
           {/* Right: product mockup */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-            className="relative"
-          >
+          <div className="relative">
             <DashboardMockup />
-            <motion.div
-              initial={{ opacity: 0, y: 30, rotate: -4 }}
-              animate={{ opacity: 1, y: 0, rotate: -6 }}
-              transition={{ duration: 0.9, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute -bottom-10 -left-6 hidden w-[220px] md:block lg:-left-10"
-            >
+            <div className="absolute -bottom-10 -left-6 hidden w-[220px] rotate-[-6deg] md:block lg:-left-10">
               <PhoneMockup />
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

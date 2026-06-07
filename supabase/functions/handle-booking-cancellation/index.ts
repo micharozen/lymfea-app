@@ -129,10 +129,30 @@ serve(async (req) => {
     // 2. NOTIFY ADMINS (Push + In-App Notification)
     // ============================================
     try {
-      const { data: adminUsers } = await supabaseClient
+      // Resolve the booking's organization so we only notify admins of that org.
+      // Super-admins (Lymfea staff) are authorized cross-org and keep receiving
+      // every notification; org-admins must not be notified about other tenants.
+      const { data: hotelRow, error: hotelError } = await supabaseClient
+        .from("hotels")
+        .select("organization_id")
+        .eq("id", booking.hotel_id)
+        .single();
+      if (hotelError) {
+        console.error("Error resolving hotel organization:", hotelError);
+      }
+      const organizationId = hotelRow?.organization_id ?? null;
+      if (!organizationId) {
+        console.warn(`No organization_id for hotel ${booking.hotel_id}; notifying super-admins only`);
+      }
+
+      let adminUsersQuery = supabaseClient
         .from("admins")
         .select("user_id, first_name")
         .or("status.eq.active,status.eq.Actif");
+      adminUsersQuery = organizationId
+        ? adminUsersQuery.or(`is_super_admin.eq.true,organization_id.eq.${organizationId}`)
+        : adminUsersQuery.eq("is_super_admin", true);
+      const { data: adminUsers } = await adminUsersQuery;
 
       if (adminUsers && adminUsers.length > 0) {
         const adminsWithUserId = adminUsers.filter((a: any) => a.user_id);

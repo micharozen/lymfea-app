@@ -19,7 +19,18 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
+import {
+  hotelKeys,
+  therapistKeys,
+  treatmentKeys,
+  listHotelsForOrg,
+  listActiveTherapistsForHotel,
+  listActiveTherapistsForOrg,
+  listActiveTreatmentsForHotel,
+  listTreatmentMenusForOrg,
+} from "@shared/db";
 import { useBookingCart } from "@/hooks/booking/useBookingCart";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
 import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
@@ -29,6 +40,7 @@ import { format } from "date-fns";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
 import { isOutOfHours } from "@/lib/bookingUtils";
+import { mapCartDetailToTreatmentLine } from "@/lib/bookingCartLine";
 import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from "./CreateBookingDialog.schema";
 import { BookingInfoStep } from "./steps/BookingInfoStep";
 import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
@@ -112,12 +124,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   }, [selectedDate, selectedTime]);
 
 
+  const scope = useOrgScope();
   const { data: hotels } = useQuery({
-    queryKey: ["hotels"],
-    queryFn: async () => {
-      const { data } = await supabase.from("hotels").select("id, name, timezone, currency, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent, pms_guest_lookup_enabled, slot_interval").order("name");
-      return data || [];
-    }
+    queryKey: hotelKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listHotelsForOrg(supabase, scope!),
   });
 
   const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
@@ -131,48 +142,44 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   });
 
   const { data: therapists } = useQuery({
-    queryKey: ["therapists-for-hotel", hotelId],
-    queryFn: async () => {
-      if (!hotelId) {
-        const { data } = await supabase.from("therapists").select("id, first_name, last_name, status, profile_image, skills, gender").in("status", ["Actif", "active", "Active"]).order("first_name");
-        return data || [];
-      }
-      const { data } = await supabase.from("therapist_venues").select(`therapist_id, therapists (id, first_name, last_name, status, profile_image, skills, gender)`).eq("hotel_id", hotelId);
-      return data?.map((hh: any) => hh.therapists).filter((h: any) => h && ["Actif", "active", "Active"].includes(h.status)).sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
-    },
+    queryKey: hotelId
+      ? therapistKeys.forHotel(hotelId)
+      : therapistKeys.activeForOrg(scope),
+    enabled: hotelId ? true : !!scope,
+    queryFn: () =>
+      hotelId
+        ? listActiveTherapistsForHotel(supabase, hotelId)
+        : listActiveTherapistsForOrg(supabase, scope!),
   });
 
   const { data: treatments } = useQuery({
-    queryKey: ["treatment_menus", hotelId],
-    queryFn: async () => {
-      let q = supabase
-        .from("treatment_menus")
-        .select("*, treatment_variants(id, guest_count)")
-        .in("status", ["Actif", "active", "Active"])
-        .order("sort_order", { ascending: true, nullsFirst: false })
-        .order("name");
-      if (hotelId) q = q.or(`hotel_id.eq.${hotelId},hotel_id.is.null`);
-      const { data } = await q;
-      return data || [];
-    },
+    queryKey: hotelId ? treatmentKeys.forHotel(hotelId) : treatmentKeys.list(scope),
+    enabled: hotelId ? true : !!scope,
+    queryFn: () =>
+      hotelId
+        ? listActiveTreatmentsForHotel(supabase, hotelId)
+        : listTreatmentMenusForOrg(supabase, scope!, { includeNullHotel: true }),
   });
 
   const {
     cart, setCart, addToCart, incrementCart, decrementCart,
-    getCartQuantity, flatIds, totalPrice, totalDuration,
+    getCartQuantity, totalPrice, totalDuration,
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
 
-  // Detect max guest_count across cart items to drive multi-therapist picker.
-  // A treatment with no variants defaults to 1 guest.
+  // guest_count driven by the SELECTED variant for each cart item (not the max of all variants).
+  // Falls back to 1 when no variant is selected or the treatment has no variants.
   const requiredGuestCount = useMemo(() => {
     if (!cartDetails.length) return 1;
     return Math.max(
       1,
       ...cartDetails.map((item) => {
-        const t = item.treatment as { treatment_variants?: { guest_count?: number }[] } | undefined;
-        const variants = t?.treatment_variants ?? [];
-        return variants.length > 0 ? Math.max(...variants.map(v => v.guest_count ?? 1)) : 1;
+        const variants = item.treatment?.treatment_variants ?? [];
+        if (!variants.length) return 1;
+        const selected = item.variantId
+          ? variants.find(v => v.id === item.variantId)
+          : null;
+        return selected?.guest_count ?? 1;
       })
     );
   }, [cartDetails]);
@@ -361,7 +368,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       slot2Time: values.slot2Time || null,
       slot3Date: values.slot3Date ? format(values.slot3Date, "yyyy-MM-dd") : null,
       slot3Time: values.slot3Time || null,
-      treatmentIds: flatIds,
+      treatmentIds: [],
+      treatments: cart.flatMap(item =>
+        Array.from({ length: item.quantity }, () => ({
+          treatmentId: item.treatmentId,
+          variantId: item.variantId || undefined,
+        }))
+      ),
       totalPrice: finalPriceWithSurcharge,
       totalDuration: finalDuration,
       isAdmin,

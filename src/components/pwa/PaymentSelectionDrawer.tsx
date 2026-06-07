@@ -133,6 +133,7 @@ interface PaymentSelectionDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bookingId: string;
+  hotelId: string;
   bookingNumber: number;
   totalPrice: number;
   treatments: Treatment[];
@@ -151,6 +152,7 @@ export const PaymentSelectionDrawer = ({
   open,
   onOpenChange,
   bookingId,
+  hotelId,
   bookingNumber,
   totalPrice,
   treatments,
@@ -226,6 +228,7 @@ export const PaymentSelectionDrawer = ({
       if (hasSavedCard) {
         const { data, error } = await invokeStripe<{ success?: boolean; error?: string }>('charge-saved-card', {
           bookingId: bookingId,
+          hotelId,
           finalAmount: totalPrice,
         });
         if (error) throw error;
@@ -237,6 +240,7 @@ export const PaymentSelectionDrawer = ({
       } else {
         const { data, error } = await invokeStripe<{ payment_url?: string }>('finalize-payment', {
           booking_id: bookingId,
+          hotelId,
           payment_method: 'card',
           final_amount: totalPrice,
         });

@@ -5,6 +5,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { brand, brandLogos } from "@/config/brand";
 import { GlobalSearch } from "@/components/admin/GlobalSearch";
+import { OrganizationPickerDialog } from "@/components/admin/OrganizationPickerDialog";
+import { useUser } from "@/contexts/UserContext";
+import { useOrganizationsList } from "@/hooks/useOrganizationsList";
 import { ViewModeSwitcher } from "@/components/admin/ViewModeSwitcher";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import {
@@ -20,6 +23,7 @@ import {
   Package,
   Truck,
   Wallet,
+  CreditCard,
   BarChart3,
   Bell,
   Settings,
@@ -29,6 +33,9 @@ import {
   User,
   LogOut,
   LifeBuoy,
+  Globe,
+  Network,
+  Check,
   type LucideIcon,
 } from "lucide-react";
 
@@ -59,6 +66,7 @@ interface MenuItem {
   url: string;
   icon: LucideIcon;
   badge?: boolean;
+  soon?: boolean;
 }
 
 const adminPrimaryItems: MenuItem[] = [
@@ -68,7 +76,6 @@ const adminPrimaryItems: MenuItem[] = [
   { title: "Lieux", url: "/admin/places", icon: Building2 },
   { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
-  { title: "Cures / Cartes cadeaux", url: "/admin/cures", icon: Package },
   { title: "Clients", url: "/admin/customers", icon: Contact },
   { title: "Alertes", url: "/admin/schedule-alerts", icon: Bell, badge: true },
 ];
@@ -76,8 +83,8 @@ const adminPrimaryItems: MenuItem[] = [
 const adminSecondaryItems: MenuItem[] = [
   { title: "Salles de soin", url: "/admin/treatment-rooms", icon: DoorOpen },
   { title: "Gestion du lieu", url: "/admin/concierges", icon: UserCog },
-  { title: `Produits`, url: "/admin/products", icon: Package },
-  { title: "Commandes", url: "/admin/orders", icon: Truck },
+  { title: `Produits`, url: "/admin/products", icon: Package, soon: true },
+  { title: "Commandes", url: "/admin/orders", icon: Truck, soon: true },
   { title: "Finance", url: "/admin/finance", icon: Wallet },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
@@ -98,6 +105,14 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const {
+    isSuperAdmin,
+    isAdmin,
+    organizationId,
+    organizationName,
+    activeOrganizationId,
+    setActiveOrganization,
+  } = useUser();
   const isCollapsed = state === "collapsed";
   const [adminInfo, setAdminInfo] = useState<{ firstName: string; lastName: string; profileImage: string | null } | null>(null);
   const [userRole, setUserRole] = useState<string>("...");
@@ -229,17 +244,35 @@ export function AppSidebar() {
   };
 
   const { mode: viewMode, venueId: viewVenueId } = useViewMode();
-  const isAdmin = userRole === 'Admin';
-  const inVenueManagerView = isAdmin && viewMode === 'venue_manager';
+  const isAdminRole = userRole === 'Admin';
+  const inVenueManagerView = isAdminRole && viewMode === 'venue_manager';
 
   const venueManagerItems: MenuItem[] = venueManagerPrimaryItems;
 
   const primaryItems = inVenueManagerView
     ? venueManagerItems
-    : isAdmin
+    : isAdminRole
       ? adminPrimaryItems
       : venueManagerPrimaryItems;
-  const secondaryItems = isAdmin && !inVenueManagerView ? adminSecondaryItems : [];
+  const secondaryItems: MenuItem[] =
+    isAdminRole && !inVenueManagerView ? [...adminSecondaryItems] : [];
+
+  const organizationMenuItem: MenuItem | null =
+    isAdminRole && !inVenueManagerView
+      ? isSuperAdmin
+        ? { title: "Organisations", url: "/admin/organizations", icon: Network }
+        : isAdmin && organizationId
+          ? { title: "Mon organisation", url: `/admin/organizations/${organizationId}`, icon: Network }
+          : null
+      : null;
+
+  const { data: switcherOrgs = [] } = useOrganizationsList({ enabled: isSuperAdmin });
+
+  const activeOrgLabel = isSuperAdmin
+    ? activeOrganizationId
+      ? organizationName ?? "Organisation"
+      : "Voir tout"
+    : organizationName ?? null;
 
   const renderNavItem = (item: MenuItem) => {
     const isActive = location.pathname === item.url;
@@ -256,6 +289,11 @@ export function AppSidebar() {
           >
             <item.icon className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={isActive ? 2 : 1.5} />
             <span className="text-sm">{item.title}</span>
+            {item.soon && (
+              <span className="ml-auto bg-muted text-muted-foreground text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5">
+                Soon
+              </span>
+            )}
             {item.badge && (redFlagCount + unreadNotifCount) > 0 && (
               <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                 {(redFlagCount + unreadNotifCount) > 99 ? '99+' : (redFlagCount + unreadNotifCount)}
@@ -336,7 +374,7 @@ export function AppSidebar() {
           <div className="mx-3 border-t border-sidebar-border" />
           
           {/* Settings (admin only) */}
-          {isAdmin && (
+          {isAdminRole && (
             <SidebarGroup className="py-1">
               <SidebarGroupContent>
                 <SidebarMenu>
@@ -344,6 +382,49 @@ export function AppSidebar() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+          )}
+
+          {/* Organization badge / switcher */}
+          {isAdminRole && (
+            <div className="px-3 pb-2 group-data-[collapsible=icon]:hidden">
+              {isSuperAdmin ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md border border-sidebar-border hover:bg-sidebar-accent/50 transition-colors text-left">
+                      <Globe className="h-3.5 w-3.5 text-sidebar-foreground/50 flex-shrink-0" />
+                      <span className="text-[11px] text-sidebar-foreground/70 truncate flex-1">{activeOrgLabel}</span>
+                      <ChevronDown className="h-3 w-3 text-sidebar-foreground/30 flex-shrink-0" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" side="top" className="w-56 max-h-80 overflow-y-auto">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => setActiveOrganization(null)}
+                    >
+                      <Globe className="mr-2 h-4 w-4" />
+                      <span className="flex-1">Voir tout</span>
+                      {activeOrganizationId === null && <Check className="h-4 w-4" />}
+                    </DropdownMenuItem>
+                    {switcherOrgs.map((org) => (
+                      <DropdownMenuItem
+                        key={org.id}
+                        className="cursor-pointer"
+                        onClick={() => setActiveOrganization(org.id)}
+                      >
+                        <Building2 className="mr-2 h-4 w-4" />
+                        <span className="flex-1 truncate">{org.name}</span>
+                        {activeOrganizationId === org.id && <Check className="h-4 w-4" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : activeOrgLabel ? (
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-sidebar-accent/30">
+                  <Building2 className="h-3.5 w-3.5 text-sidebar-foreground/50 flex-shrink-0" />
+                  <span className="text-[11px] text-sidebar-foreground/70 truncate">{activeOrgLabel}</span>
+                </div>
+              ) : null}
+            </div>
           )}
 
           {/* Profile */}
@@ -382,6 +463,22 @@ export function AppSidebar() {
                     <span>Profil</span>
                   </NavLink>
                 </DropdownMenuItem>
+                {organizationMenuItem && (
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <NavLink to={organizationMenuItem.url} className="flex items-center w-full">
+                      <Network className="mr-2 h-4 w-4" />
+                      <span>{organizationMenuItem.title}</span>
+                    </NavLink>
+                  </DropdownMenuItem>
+                )}
+                {isAdminRole && !inVenueManagerView && (
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <NavLink to="/admin/billing" className="flex items-center w-full">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      <span>Abonnement</span>
+                    </NavLink>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <NavLink to="/admin/support" className="flex items-center w-full">
                     <LifeBuoy className="mr-2 h-4 w-4" />
@@ -410,6 +507,7 @@ export function AppSidebar() {
           </div>
         </div>
       </SidebarContent>
+      <OrganizationPickerDialog />
     </Sidebar>
   );
 }

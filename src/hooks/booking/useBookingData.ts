@@ -1,32 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import { useUser } from "@/contexts/UserContext";
+import {
+  bookingKeys,
+  listBookings,
+  type BookingListItem,
+  type BookingTreatment,
+  type OrgScope,
+} from "@shared/db";
 
-type BookingRow = Database['public']['Tables']['bookings']['Row'];
-
-export interface Treatment {
-  id?: string;             
-  treatment_id?: string;
-  name: string;
-  duration: number | null;
-  price: number | null;
-}
-
-export interface BookingWithTreatments extends BookingRow {
-  totalDuration: number;
-  treatmentsTotalDuration: number;
-  treatmentsTotalPrice: number;
-  treatments: Treatment[];
-  // Ajout pour que TypeScript connaisse la relation des soins duo
-  booking_therapists?: { status: string; therapist_id: string }[];
-  booking_payment_infos?: { payment_status: string | null; stripe_payment_method_id: string | null } | null;
-}
-
-interface BookingTreatmentJoin {
-  treatment_id: string;
-  treatment_menus: Treatment | null;
-}
+export type Treatment = BookingTreatment;
+export type BookingWithTreatments = BookingListItem;
 
 export interface Hotel {
   id: string;
@@ -45,69 +30,26 @@ export interface Therapist {
 }
 
 export function useBookingData() {
+  const { isSuperAdmin, organizationId, activeOrganizationId, hasChosenActiveOrganization } =
+    useUser();
+
+  // Resolve org scope. Regular admins: always their own org. Super-admins:
+  // active org if picked, otherwise explicit "view all" (only possible for super-admins).
+  const scope = useMemo<OrgScope | null>(() => {
+    if (!isSuperAdmin) {
+      return organizationId ? { organizationId } : null;
+    }
+    if (activeOrganizationId) return { organizationId: activeOrganizationId };
+    if (hasChosenActiveOrganization) return { allOrganizations: true };
+    return null;
+  }, [isSuperAdmin, organizationId, activeOrganizationId, hasChosenActiveOrganization]);
+
   const { data: bookings, refetch: refetchBookings } = useQuery({
-    queryKey: ["bookings"],
+    queryKey: scope ? bookingKeys.list(scope, {}) : ["bookings", "disabled"],
+    enabled: !!scope,
     refetchOnWindowFocus: true,
     staleTime: 30000,
-    queryFn: async () => {
-      const { data: bookingsData, error: bookingsError } = await (supabase as any)
-        .from("bookings")
-        .select(`
-          *,
-          booking_therapists(status, therapist_id),
-          booking_treatments(
-            treatment_id,
-            treatment_menus(name, duration, price)
-          ),
-          booking_payment_infos(payment_status, stripe_payment_method_id)
-        `)
-        .order("booking_date", { ascending: true })
-        .order("booking_time", { ascending: true });
-
-      if (bookingsError) throw bookingsError;
-
-      return (bookingsData || []).map((booking: any) => {
-        const treatments: any[] = booking.booking_treatments || [];
-
-        const treatmentsTotalDuration = treatments.reduce(
-          (sum, t) => sum + (t.treatment_menus?.duration || 0),
-          0,
-        );
-        const treatmentsTotalPrice = treatments.reduce(
-          (sum, t) => sum + (t.treatment_menus?.price || 0),
-          0,
-        );
-
-          const totalDuration = booking.duration && booking.duration > 0
-            ? booking.duration
-            : treatmentsTotalDuration;
-
-          const treatmentsList = (treatments as any[] | null)
-            ?.map((t): Treatment | null => {
-              if (!t.treatment_menus) return null;
-              return {
-                ...t.treatment_menus,
-                id: t.treatment_id,
-                treatment_id: t.treatment_id
-              } as Treatment;
-            })
-            .filter((m): m is Treatment => m !== null) || [];
-
-          const paymentInfos = Array.isArray(booking.booking_payment_infos)
-            ? booking.booking_payment_infos[0] ?? null
-            : booking.booking_payment_infos ?? null;
-
-          return {
-            ...booking,
-            totalDuration,
-            treatmentsTotalDuration,
-            treatmentsTotalPrice,
-            treatments: treatmentsList,
-            booking_therapists: booking.booking_therapists || [], // On s'assure de bien le passer à l'UI
-            booking_payment_infos: paymentInfos,
-          } as BookingWithTreatments;
-      });
-    },
+    queryFn: () => listBookings(supabase, scope!),
   });
 
   const { data: hotels, refetch: refetchHotels } = useQuery({

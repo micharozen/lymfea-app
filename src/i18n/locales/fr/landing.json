@@ -3,6 +3,7 @@
     "features": "Fonctionnalités",
     "howItWorks": "Comment ça marche",
     "pricing": "Tarifs",
+    "faq": "FAQ",
     "contact": "Contact",
     "login": "Se connecter",
     "cta": "Réserver une démo"
@@ -15,26 +16,26 @@
     "ctaPrimary": "Réserver une démo",
     "ctaSecondary": "Découvrir la plateforme",
     "stats": {
-      "confirmation": "Confirmation en < 10 min",
-      "pms": "2 PMS intégrés",
-      "modules": "6 modules clés"
+      "booking": "Réservation client fluide",
+      "pms": "Intégration PMS",
+      "customization": "Page de réservation 100 % personnalisable"
     }
   },
   "problem": {
     "title": "Le spa de votre hôtel mérite mieux",
-    "subtitle": "Les logiciels legacy sont lents, complexes et ne parlent pas à votre PMS. Vos équipes perdent du temps, vos clients attendent.",
+    "subtitle": "Outils éparpillés, relances à la main, peu de visibilité sur vos réservations : vos équipes perdent du temps et vous laissez passer des clients.",
     "points": {
       "fragmented": {
         "title": "Outils fragmentés",
         "desc": "Un agenda papier, un Excel pour les thérapeutes, un autre pour la facturation."
       },
-      "slow": {
-        "title": "Confirmation lente",
-        "desc": "24h pour confirmer une réservation. Les clients abandonnent."
+      "followup": {
+        "title": "Relances manuelles",
+        "desc": "Demandes en attente oubliées, pas de rappels automatiques. Les clients réservent ailleurs."
       },
-      "noPms": {
-        "title": "Pas de room charge",
-        "desc": "Les soins ne se retrouvent pas sur la note de chambre automatiquement."
+      "analytics": {
+        "title": "Peu de visibilité",
+        "desc": "Impossible de suivre le taux de conversion ou d'identifier où les réservations décrochent."
       }
     }
   },
@@ -93,43 +94,97 @@
     "subtitle": "Pas de frais cachés, pas d'engagement long terme. Payez à l'usage, par lieu.",
     "starter": {
       "name": "Starter",
-      "badge": "Le plus populaire",
-      "tagline": "Pour un spa, un hôtel boutique ou un day spa indépendant.",
+      "tagline": "Pour un spa indépendant ou un day spa qui démarre.",
       "priceFrom": "À partir de",
       "unit": "HT / mois / lieu",
       "features": {
         "agenda": "Agenda unifié, multi-thérapeutes, multi-salles",
         "pwa": "Application mobile thérapeute (iOS & Android)",
         "booking": "Booking client en ligne + QR code en chambre",
-        "billing": "Facturation & paiements Stripe inclus",
-        "giftcards": "Cartes cadeaux & bundles de soins",
+        "billing": "Encaissements Stripe inclus",
         "support": "Support email & onboarding accompagné"
       },
       "cta": "Démarrer avec Starter",
-      "note": "Essai gratuit de 14 jours. Sans engagement, sans CB."
+      "note": "Sans engagement. Setup en 48h."
     },
-    "custom": {
-      "name": "Custom",
-      "tagline": "Pour les chaînes, les groupes hôteliers et les besoins sur-mesure.",
+    "pro": {
+      "name": "Pro",
+      "badge": "Le plus populaire",
+      "tagline": "Pour les hôtels qui veulent intégrer leur PMS et automatiser la facturation.",
+      "priceFrom": "À partir de",
+      "unit": "HT / mois / lieu",
+      "features": {
+        "everythingStarter": "Tout ce qui est inclus dans Starter",
+        "pms": "Intégration PMS Opera Cloud & Mews",
+        "autoBilling": "Facturation automatique mensuelle",
+        "giftcards": "Cartes cadeaux & bundles de soins",
+        "multiTherapist": "Coordination multi-thérapeutes avancée",
+        "prioritySupport": "Support prioritaire et CSM dédié"
+      },
+      "cta": "Essayer Pro",
+      "note": "Essai gratuit 14 jours. Sans CB."
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "tagline": "Pour les groupes hôteliers et chaînes multi-établissements.",
       "priceLabel": "Tarification",
       "price": "Sur devis",
-      "unit": "selon volume & intégrations",
       "features": {
         "multivenue": "Multi-établissements & consolidation",
-        "pms": "Intégrations PMS Opera Cloud & Mews",
         "branding": "White-label & domaine personnalisé",
-        "sla": "SLA dédié & support prioritaire 7j/7"
+        "sla": "SLA dédié & support prioritaire 7j/7",
+        "dedicatedCSM": "Customer Success Manager dédié",
+        "customIntegrations": "Intégrations sur-mesure (PMS, ERP, BI)"
       },
       "cta": "Contacter l'équipe",
       "note": "Réponse sous 24h ouvrées."
     },
-    "footnote": "Tous les prix sont en euros HT. Tarif dégressif au-delà de 5 lieux."
+    "footnote": "Tous les prix en € HT. Tarif dégressif au-delà de 5 lieux. Facturation Stripe, paiement mensuel."
+  },
+  "faq": {
+    "eyebrow": "Questions fréquentes",
+    "title": "Tout ce que vous voulez savoir sur Saoma",
+    "subtitle": "Vous ne trouvez pas votre réponse ? Écrivez-nous à contact@saoma.io, nous répondons sous 24h.",
+    "items": {
+      "pricing": {
+        "q": "Combien coûte Saoma pour un spa d'hôtel ?",
+        "a": "Saoma propose trois formules : Starter à partir de 149 € HT / mois / lieu pour les day spas et spas indépendants, Pro à partir de 299 € HT / mois / lieu pour les hôtels avec intégration PMS, et Enterprise sur devis pour les groupes hôteliers multi-établissements. Tous les plans sont sans engagement, avec facturation Stripe mensuelle et tarif dégressif au-delà de 5 lieux."
+      },
+      "trial": {
+        "q": "Est-ce que je peux essayer Saoma gratuitement ?",
+        "a": "Oui. Le plan Pro inclut un essai gratuit de 14 jours, sans carte bancaire requise. Vous pouvez configurer votre spa, ajouter vos thérapeutes et tester l'intégration PMS sans engagement. À l'issue de la période d'essai, vous choisissez de passer en formule payante ou d'arrêter, sans frais."
+      },
+      "pms": {
+        "q": "Saoma s'intègre-t-il avec Opera Cloud et Mews ?",
+        "a": "Oui, Saoma propose des intégrations natives avec Opera Cloud (Oracle Hospitality) et Mews. Cela permet le room charge automatique des soins sur la note de chambre, la synchronisation des données invités en temps réel, et la facturation post-séjour sans saisie manuelle. Notre équipe configure l'intégration en moins de 48h."
+      },
+      "onboarding": {
+        "q": "Combien de temps faut-il pour déployer Saoma dans mon spa ?",
+        "a": "Le déploiement complet — connexion PMS, formation des équipes, mise en ligne du booking client, déploiement de l'application thérapeute — prend en moyenne 2 semaines. Nous vous accompagnons avec un Customer Success Manager dédié, des sessions de formation pour les concierges et thérapeutes, et un support illimité pendant la phase de lancement."
+      },
+      "therapistApp": {
+        "q": "Mes thérapeutes peuvent-ils utiliser Saoma sur mobile ?",
+        "a": "Oui. L'application thérapeute Saoma est une Progressive Web App (PWA) installable sur iOS et Android. Elle inclut notifications push pour les nouvelles réservations, ajout de soins en séance, gestion de l'agenda personnel, suivi des gains, et paiement Stripe Connect automatique. Aucune installation depuis l'App Store n'est nécessaire."
+      },
+      "roomCharge": {
+        "q": "Comment fonctionne le room charge avec Saoma ?",
+        "a": "Quand un client de l'hôtel réserve un soin via Saoma — depuis un QR code en chambre, le concierge, ou un lien direct — il peut choisir de mettre le soin sur la note de chambre. Saoma communique avec votre PMS (Opera ou Mews), valide le numéro de chambre, et le montant est automatiquement ajouté à la facture du séjour. Le concierge reçoit une notification de confirmation."
+      },
+      "multiVenue": {
+        "q": "Saoma gère-t-il plusieurs spas ou plusieurs hôtels ?",
+        "a": "Oui, Saoma est conçu pour les groupes hôteliers multi-établissements. La formule Enterprise permet de consolider l'agenda, les thérapeutes, la facturation et les rapports sur plusieurs spas, avec branding personnalisé par lieu, hiérarchie utilisateurs (directeur groupe, directeur spa, concierges, thérapeutes), et reporting consolidé."
+      },
+      "data": {
+        "q": "Mes données et celles de mes clients sont-elles sécurisées ?",
+        "a": "Saoma est hébergé en Europe (Supabase / AWS Frankfurt) et conforme RGPD. Toutes les données sont chiffrées au repos et en transit, les paiements sont délégués à Stripe (certifié PCI DSS niveau 1), et nous ne partageons aucune donnée client avec des tiers. Vous restez propriétaire de vos données et pouvez les exporter à tout moment."
+      }
+    }
   },
   "cta": {
     "title": "Prêt à moderniser votre spa ?",
     "subtitle": "Planifiez une démo personnalisée de 30 minutes avec notre équipe. Nous vous montrons la plateforme avec vos soins et votre organisation.",
     "button": "Réserver ma démo",
-    "secondary": "Ou écrivez-nous à hello@saoma.fr"
+    "secondary": "Ou écrivez-nous à contact@saoma.io"
   },
   "footer": {
     "tagline": "Saoma — la plateforme de gestion spa pour hôtels & day spas.",

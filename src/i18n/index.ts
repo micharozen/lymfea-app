@@ -10,6 +10,7 @@ import pwaFR from './locales/fr/pwa.json';
 import adminFR from './locales/fr/admin.json';
 import landingFR from './locales/fr/landing.json';
 import termsFR from './locales/fr/terms.json';
+import privacyFR from './locales/fr/privacy.json';
 
 import commonEN from './locales/en/common.json';
 import clientEN from './locales/en/client.json';
@@ -17,6 +18,7 @@ import pwaEN from './locales/en/pwa.json';
 import adminEN from './locales/en/admin.json';
 import landingEN from './locales/en/landing.json';
 import termsEN from './locales/en/terms.json';
+import privacyEN from './locales/en/privacy.json';
 
 const resources = {
   fr: {
@@ -26,6 +28,7 @@ const resources = {
     admin: adminFR,
     landing: landingFR,
     terms: termsFR,
+    privacy: privacyFR,
   },
   en: {
     common: commonEN,
@@ -34,6 +37,7 @@ const resources = {
     admin: adminEN,
     landing: landingEN,
     terms: termsEN,
+    privacy: privacyEN,
   },
 };
 
@@ -44,7 +48,7 @@ i18n
     resources,
     fallbackLng: 'en',
     defaultNS: 'common',
-    ns: ['common', 'client', 'pwa', 'admin', 'landing', 'terms'],
+    ns: ['common', 'client', 'pwa', 'admin', 'landing', 'terms', 'privacy'],
     
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],

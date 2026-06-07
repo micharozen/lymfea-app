@@ -5,8 +5,8 @@
     "next": "Next",
     "finish": "Done",
     "step1": {
-      "title": "Welcome to Eïa",
-      "body": "Eïa brings your bookings, therapist scheduling and billing into a single workspace. This quick guide walks you through the key areas of the app."
+      "title": "Welcome to Saoma",
+      "body": "Saoma brings your bookings, therapist scheduling and billing into a single workspace. This quick guide walks you through the key areas of the app."
     },
     "step2": {
       "title": "Three essential areas",
@@ -29,7 +29,7 @@
     },
     "step3": {
       "title": "Your feedback matters",
-      "body": "You're testing Eïa: tell us everything. Your input shapes the roadmap.",
+      "body": "You're testing Saoma: tell us everything. Your input shapes the roadmap.",
       "feedback": "Share feedback (5 min)",
       "calendly": "Book a 20-min call",
       "trySwitcher": "Try Venue Management mode",
@@ -363,6 +363,33 @@
     "no": "No"
   },
   "venue": {
+    "branding": {
+      "tab": "Branding",
+      "title": "Visual customization",
+      "description": "Tailor the booking flow's colors and typography to your venue's identity.",
+      "welcomeBg": "Welcome page background",
+      "buttonColor": "“+” button color",
+      "buttonTextColor": "Button text color",
+      "font": "Font",
+      "fontHelp": "Accepted formats: woff2, woff, ttf, otf. Max size 2 MB.",
+      "uploadFont": "Upload a font",
+      "replaceFont": "Replace font",
+      "removeFont": "Remove",
+      "fontUploaded": "Font uploaded",
+      "fontInvalidFormat": "Invalid font format (woff2, woff, ttf, otf)",
+      "fontTooLarge": "File must not exceed 2 MB",
+      "fontFamily": "CSS font-family name",
+      "reset": "Reset",
+      "previewLabel": "Live preview",
+      "enableEdit": "Enable editing"
+    },
+    "organization": {
+      "label": "Organization",
+      "placeholder": "Select an organization",
+      "required": "Please select an organization",
+      "loading": "Loading…",
+      "empty": "No organizations available"
+    },
     "finance": {
       "globalTherapistCommission": "Global therapist commission",
       "globalTherapistCommissionDesc": "Apply the same commission percentage to all therapists",
@@ -601,6 +628,8 @@
     "mewsEnvironment": "Environment",
     "mewsProduction": "Production (api.mews.com)",
     "mewsDemo": "Demo (api.mews-demo.com)",
+    "mewsClientToken": "Client Token",
+    "mewsClientTokenDesc": "Per-property ClientToken from Mews Commander (Connector API)",
     "mewsAccessToken": "Access Token",
     "mewsAccessTokenDesc": "Per-property token provided by the hotel from Mews Commander",
     "mewsServiceId": "Spa Service ID",
@@ -678,7 +707,7 @@
     "pricing": "Pricing",
     "external": "External",
     "internal": "Internal (hotel guest)",
-    "lymfea": "Eïa (treatment client)",
+    "lymfea": "Saoma (treatment client)",
     "includedWithTreatment": "Included with treatment",
     "accessDuration": "Complimentary access duration",
     "free": "Free",
@@ -958,6 +987,133 @@
       "selectTherapist": "Select a therapist",
       "fillClient": "Fill in client information",
       "roomRequired": "Room number required for hotel clients"
+    }
+  },
+  "onboarding": {
+    "title": "Create your Saoma account",
+    "steps": {
+      "account": "Account",
+      "organization": "Organization",
+      "venue": "Venue",
+      "plan": "Plan",
+      "summary": "Review"
+    },
+    "account": {
+      "continueWithGoogle": "Continue with Google",
+      "orDivider": "or",
+      "firstName": { "label": "First name", "placeholder": "Camille", "error": "First name required" },
+      "lastName": { "label": "Last name", "placeholder": "Durand", "error": "Last name required" },
+      "phone": { "label": "Phone", "placeholder": "+33 6 12 34 56 78", "error": "Phone required (min 6 digits)" },
+      "email": { "label": "Email", "placeholder": "camille@example.com", "error": "Invalid email" },
+      "password": {
+        "label": "Password",
+        "placeholder": "Min 8 characters",
+        "error": "Password required (min 8 characters)",
+        "show": "Show password",
+        "hide": "Hide password",
+        "strength": {
+          "veryWeak": "Very weak password",
+          "weak": "Weak password",
+          "fair": "Fair password",
+          "good": "Good password",
+          "strong": "Strong password"
+        }
+      },
+      "confirmPassword": { "label": "Confirm password", "placeholder": "Repeat password", "error": "Passwords do not match", "match": "Passwords match" },
+      "terms": {
+        "label": "I agree to the <tos>Terms of Service</tos>",
+        "error": "You must accept the Terms of Service"
+      },
+      "privacy": {
+        "label": "I agree to the <pp>Privacy Policy</pp>",
+        "error": "You must accept the Privacy Policy"
+      }
+    },
+    "organization": {
+      "name": { "label": "Organization name", "placeholder": "Lumière Spa Group", "error": "Name required (min 2 characters)" },
+      "slugPreview": "URL: {{slug}}",
+      "helper": "This name appears on your invoices and admin workspace."
+    },
+    "venue": {
+      "type": {
+        "label": "Venue type",
+        "hotel": "Hotel",
+        "spa": "Independent spa",
+        "hotelHint": "Spa inside a hotel",
+        "spaHint": "Standalone day spa",
+        "error": "Choose a venue type"
+      },
+      "name": {
+        "label": "Venue name",
+        "placeholder": "Sérénité Spa — Hôtel des Pins",
+        "hint": "Search for your business to pre-fill the address",
+        "error": "Name required"
+      },
+      "address": { "label": "Address", "placeholder": "12 Lilas Street", "error": "Address required" },
+      "postalCode": { "label": "Postal code", "placeholder": "75004" },
+      "city": { "label": "City", "placeholder": "Paris" },
+      "country": { "label": "Country", "placeholder": "France" }
+    },
+    "plan": {
+      "cycle": {
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "yearlyHint": "−2 months"
+      },
+      "unitMonth": "month",
+      "unitYear": "year",
+      "starter": { "tagline": "To get started" },
+      "pro": { "tagline": "For established venues" },
+      "trialNotice": "14-day free trial. Card required, no charge during the trial."
+    },
+    "summary": {
+      "organization": "Your organization",
+      "venue": "Your first venue",
+      "plan": "Your plan",
+      "fields": {
+        "orgName": "Name",
+        "admin": "Administrator",
+        "email": "Email",
+        "phone": "Phone",
+        "type": "Type",
+        "name": "Name",
+        "address": "Address",
+        "cityZip": "City",
+        "country": "Country",
+        "tier": "Plan",
+        "cycle": "Billing"
+      },
+      "trial": "14-day free trial before the first invoice.",
+      "card": "Card required by Stripe — no charge during the trial.",
+      "secure": "Secure payment through Stripe. No card data stored on Saoma.",
+      "goToCheckout": "Continue to checkout"
+    },
+    "emailConfirm": {
+      "title": "Verify your email",
+      "body": "A confirmation link was just sent to {{email}}. Click it to continue your signup.",
+      "hint": "Check your spam folder if you don't see it."
+    },
+    "complete": {
+      "polling": "Activating your subscription…",
+      "creatingVenue": "Creating your venue…",
+      "pleaseWait": "This usually takes a few seconds.",
+      "errorTitle": "Something went wrong",
+      "error": "We couldn't finalize your onboarding.",
+      "timeout": "Your subscription is taking longer than expected to activate.",
+      "retry": "Try again",
+      "goToBilling": "Go to my subscription"
+    },
+    "cta": {
+      "next": "Next",
+      "back": "Back"
+    },
+    "errors": {
+      "signupFailed": "Could not create your account",
+      "oauthFailed": "Google sign-in failed. Please try again.",
+      "orgFailed": "Could not create your organization",
+      "checkoutFailed": "Could not open checkout",
+      "venueFailed": "Could not create your venue",
+      "checkoutCancelled": "Checkout cancelled. You can resume any time."
     }
   }
 }

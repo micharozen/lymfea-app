@@ -114,10 +114,30 @@ const handler = async (req: Request): Promise<Response> => {
       // Notify admins about the quote acceptance via email
       if (resend) {
         try {
-          const { data: admins } = await supabase
+          // Resolve the booking's organization so we only notify admins of that
+          // org. Super-admins (Lymfea staff) are authorized cross-org and keep
+          // receiving every notification; org-admins must not see other tenants.
+          const { data: hotelRow, error: hotelError } = await supabase
+            .from("hotels")
+            .select("organization_id")
+            .eq("id", booking.hotel_id)
+            .single();
+          if (hotelError) {
+            console.error("Error resolving hotel organization:", hotelError);
+          }
+          const organizationId = hotelRow?.organization_id ?? null;
+          if (!organizationId) {
+            console.warn(`No organization_id for hotel ${booking.hotel_id}; notifying super-admins only`);
+          }
+
+          let adminsQuery = supabase
             .from("admins")
             .select("email, first_name")
             .eq("status", "active");
+          adminsQuery = organizationId
+            ? adminsQuery.or(`is_super_admin.eq.true,organization_id.eq.${organizationId}`)
+            : adminsQuery.eq("is_super_admin", true);
+          const { data: admins } = await adminsQuery;
 
           if (admins && admins.length > 0) {
             for (const admin of admins) {
@@ -212,10 +232,29 @@ const handler = async (req: Request): Promise<Response> => {
       // Notify admin about the refusal
       if (resend) {
         try {
-          const { data: admins } = await supabase
+          // Org-scope recipients: super-admins see everything, org-admins only
+          // their own org (prevents cross-tenant notification leak).
+          const { data: hotelRow, error: hotelError } = await supabase
+            .from("hotels")
+            .select("organization_id")
+            .eq("id", booking.hotel_id)
+            .single();
+          if (hotelError) {
+            console.error("Error resolving hotel organization:", hotelError);
+          }
+          const organizationId = hotelRow?.organization_id ?? null;
+          if (!organizationId) {
+            console.warn(`No organization_id for hotel ${booking.hotel_id}; notifying super-admins only`);
+          }
+
+          let adminsQuery = supabase
             .from("admins")
             .select("email, first_name")
             .eq("status", "active");
+          adminsQuery = organizationId
+            ? adminsQuery.or(`is_super_admin.eq.true,organization_id.eq.${organizationId}`)
+            : adminsQuery.eq("is_super_admin", true);
+          const { data: admins } = await adminsQuery;
 
           if (admins && admins.length > 0) {
             for (const admin of admins) {

@@ -46,6 +46,8 @@ import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { getCountryDefaults } from "@/lib/timezones";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { VenueWizardFormValues } from "../VenueWizardDialog";
+import { OrganizationSelectField } from "../OrganizationSelectField";
+import { useUser } from "@/contexts/UserContext";
 import { brand } from "@/config/brand";
 import { slugify } from "@/lib/slugify";
 
@@ -131,6 +133,7 @@ export function VenueGeneralInfoStep({
   triggerCoverImageSelect,
 }: VenueGeneralInfoStepProps) {
   const { t } = useTranslation('common');
+  const { isSuperAdmin } = useUser();
   const uploading = uploadingHotel || uploadingCover;
 
   // Watch venue_type for label changes
@@ -173,6 +176,15 @@ export function VenueGeneralInfoStep({
 
   return (
     <div className="space-y-6">
+      {isSuperAdmin && mode === "add" && (
+        <div className="mb-6 border-b border-border/60 pb-6">
+          <OrganizationSelectField
+            control={form.control}
+            name="organization_id"
+          />
+        </div>
+      )}
+
       {/* Images + Basic Info */}
       <div className="grid grid-cols-[1fr_2fr] gap-6">
         {/* Images Column */}

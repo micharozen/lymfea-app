@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { listHotelsForOrg, listConciergesForOrg } from "@shared/db";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -115,19 +117,21 @@ export default function Concierges() {
     };
     
     fetchUserRole();
-    fetchHotels();
-    fetchConcierges();
   }, []);
 
+  const scope = useOrgScope();
+
+  useEffect(() => {
+    if (!scope) return;
+    fetchHotels();
+    fetchConcierges();
+  }, [scope]);
+
   const fetchHotels = async () => {
+    if (!scope) return;
     try {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name, image")
-        .order("name");
-      
-      if (error) throw error;
-      setHotels(data || []);
+      const data = await listHotelsForOrg(supabase, scope);
+      setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
     } catch (error) {
       console.error("Error fetching hotels:", error);
     }
@@ -138,18 +142,11 @@ export default function Concierges() {
   }, [concierges, searchQuery, hotelFilter, statusFilter]);
 
   const fetchConcierges = async () => {
+    if (!scope) return;
     try {
-      const { data, error } = await supabase
-        .from("concierges")
-        .select(`
-          *,
-          hotels:concierge_hotels(hotel_id)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setConcierges(data || []);
-    } catch (error: any) {
+      const data = await listConciergesForOrg(supabase, scope);
+      setConcierges(data as unknown as Concierge[]);
+    } catch (error: unknown) {
       toast.error("Erreur lors du chargement de l'équipe lieu");
       console.error(error);
     } finally {

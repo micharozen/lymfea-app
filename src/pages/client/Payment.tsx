@@ -138,6 +138,7 @@ export default function Payment() {
               lastName: clientInfo.lastName,
               phone: `${clientInfo.countryCode}${clientInfo.phone}`,
               email: clientInfo.email,
+              pmsVerified: clientInfo.pmsVerified,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
             },
@@ -202,6 +203,7 @@ export default function Payment() {
                 lastName: clientInfo.lastName,
                 phone: `${clientInfo.countryCode}${clientInfo.phone}`,
                 email: clientInfo.email,
+                pmsVerified: clientInfo.pmsVerified,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
                 pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
@@ -246,6 +248,7 @@ export default function Payment() {
                 lastName: clientInfo.lastName,
                 phone: `${clientInfo.countryCode}${clientInfo.phone}`,
                 email: clientInfo.email,
+                pmsVerified: clientInfo.pmsVerified,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
               },
@@ -291,6 +294,7 @@ export default function Payment() {
               lastName: clientInfo.lastName,
               phone: `${clientInfo.countryCode}${clientInfo.phone}`,
               email: clientInfo.email,
+              pmsVerified: clientInfo.pmsVerified,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
               pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
@@ -347,6 +351,7 @@ export default function Payment() {
             lastName: clientInfo.lastName,
             phone: `${clientInfo.countryCode}${clientInfo.phone}`,
             email: clientInfo.email,
+            pmsVerified: clientInfo.pmsVerified,
             roomNumber: clientInfo.roomNumber,
             note: clientInfo.note || '',
             pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
@@ -391,6 +396,7 @@ export default function Payment() {
           lastName: clientInfo.lastName,
           phone: `${clientInfo.countryCode}${clientInfo.phone}`,
           email: clientInfo.email,
+          pmsVerified: clientInfo.pmsVerified,
           roomNumber: clientInfo.roomNumber,
           note: clientInfo.note || '',
           pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
@@ -799,7 +805,7 @@ export default function Payment() {
                   ? "bg-emerald-600 text-white hover:bg-emerald-500"
                   : hasPriceOnRequest
                     ? "bg-amber-500 text-black hover:bg-amber-400"
-                    : "bg-gray-900 text-white hover:bg-gray-800"
+                    : "bg-[var(--venue-button-bg,theme(colors.gray.900))] text-[var(--venue-button-text,#fff)] hover:opacity-90"
           )}
         >
           {(isProcessing || isOffertProcessing) ? (

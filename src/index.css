@@ -446,3 +446,19 @@ All colors MUST be HSL.
     transparent 10px
   );
 }
+
+
+/* Venue branding — applies custom title/body fonts inside the client booking flow.
+   CSS variables (--venue-font-title, --venue-font-body) are injected by VenueThemeProvider
+   when the venue defines custom fonts. Falls back to the project defaults otherwise. */
+.lymfea-client {
+  font-family: var(--venue-font-body, 'Founders Grotesk'), sans-serif;
+}
+.lymfea-client h1,
+.lymfea-client h2,
+.lymfea-client h3,
+.lymfea-client h4,
+.lymfea-client .font-kormelink,
+.lymfea-client .font-serif {
+  font-family: var(--venue-font-title, 'Kormelink'), serif;
+}

@@ -1,16 +1,16 @@
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Boxes, Clock, Link2Off } from "lucide-react";
+import { BarChart3, BellOff, Boxes } from "lucide-react";
 
 const ICONS = {
   fragmented: Boxes,
-  slow: Clock,
-  noPms: Link2Off,
+  followup: BellOff,
+  analytics: BarChart3,
 };
 
 export const ProblemSolution = () => {
   const { t } = useTranslation("landing");
-  const points = ["fragmented", "slow", "noPms"] as const;
+  const points = ["fragmented", "followup", "analytics"] as const;
 
   return (
     <section className="border-y border-border/60 bg-gold-50/50 py-20 md:py-28">

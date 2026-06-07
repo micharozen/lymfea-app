@@ -1,9 +1,9 @@
 {
-  "name": "Eïa - Awaken Your Senses",
-  "short_name": "Eïa",
-  "description": "Plateforme de gestion de spa - Réservez vos soins bien-être",
+  "name": "Saoma — La plateforme de gestion spa pour hôtels",
+  "short_name": "Saoma",
+  "description": "Plateforme tout-en-un pour gérer le spa de votre hôtel : agenda unifié, PMS, app thérapeute, booking client.",
   "id": "/pwa/v2",
-  "theme_color": "#000000",
+  "theme_color": "#C4B07A",
   "background_color": "#ffffff",
   "display": "standalone",
   "orientation": "portrait",
