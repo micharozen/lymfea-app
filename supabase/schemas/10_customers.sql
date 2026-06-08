@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS "public"."customers" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "stripe_customer_id" "text",
+    "date_of_birth" "date",
     "auth_user_id" "uuid",
     "profile_completed" boolean DEFAULT false NOT NULL,
     CONSTRAINT "customers_language_check" CHECK (("language" = ANY (ARRAY['fr'::"text", 'en'::"text"])))
