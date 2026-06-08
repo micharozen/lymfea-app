@@ -94,9 +94,37 @@ export function ConvertToBookingDialog({ inquiry, open, onOpenChange, onConverte
 
   // Re-prime defaults when the dialog opens with a new inquiry.
   useEffect(() => {
-    if (open && inquiry) {
-      form.reset(defaultValuesFromInquiry(inquiry) as FormValues);
-    }
+    if (!open || !inquiry) return;
+    form.reset(defaultValuesFromInquiry(inquiry) as FormValues);
+
+    const variantId = inquiry.parsed_data?.variant_match?.id ?? null;
+    const treatmentId = inquiry.parsed_data?.treatment_match?.id ?? null;
+    if (!variantId && !treatmentId) return;
+
+    let cancelled = false;
+    (async () => {
+      if (variantId) {
+        const { data } = await supabase
+          .from("treatment_variants" as never)
+          .select("duration")
+          .eq("id", variantId)
+          .maybeSingle();
+        const duration = (data as { duration?: number | null } | null)?.duration ?? null;
+        if (!cancelled && duration) form.setValue("duration", duration);
+        return;
+      }
+      if (treatmentId) {
+        const { data } = await supabase
+          .from("treatment_menus" as never)
+          .select("duration")
+          .eq("id", treatmentId)
+          .maybeSingle();
+        const duration = (data as { duration?: number | null } | null)?.duration ?? null;
+        if (!cancelled && duration) form.setValue("duration", duration);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [open, inquiry, form]);
 
   if (!inquiry) return null;

@@ -9,6 +9,11 @@ export interface EmailInquiryParsedTreatmentMatch {
   confidence: number;
 }
 
+export interface EmailInquiryParsedVariantMatch {
+  id: string | null;
+  confidence: number;
+}
+
 export interface EmailInquiryParsedData {
   client_first_name?: string | null;
   client_last_name?: string | null;
@@ -17,6 +22,7 @@ export interface EmailInquiryParsedData {
   requested_date?: string | null;
   requested_time?: string | null;
   treatment_match?: EmailInquiryParsedTreatmentMatch | null;
+  variant_match?: EmailInquiryParsedVariantMatch | null;
   guest_count?: number | null;
   notes?: string | null;
   intent_confidence?: number;

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -34,10 +35,58 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+function useMatchedTreatment(treatmentId: string | null | undefined, variantId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["inbox-match", treatmentId, variantId],
+    enabled: Boolean(treatmentId || variantId),
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      let treatment: { name: string | null; name_en: string | null } | null = null;
+      let variant: { label: string | null; label_en: string | null; duration: number | null; guest_count: number | null } | null = null;
+      if (treatmentId) {
+        const { data } = await supabase
+          .from("treatment_menus" as never)
+          .select("name, name_en")
+          .eq("id", treatmentId)
+          .maybeSingle();
+        treatment = (data as typeof treatment) ?? null;
+      }
+      if (variantId) {
+        const { data } = await supabase
+          .from("treatment_variants" as never)
+          .select("label, label_en, duration, guest_count")
+          .eq("id", variantId)
+          .maybeSingle();
+        variant = (data as typeof variant) ?? null;
+      }
+      return { treatment, variant };
+    },
+  });
+}
+
 function ParsedSummary({ parsed, t }: { parsed: EmailInquiryParsedData; t: (k: string) => string }) {
   const fullName = [parsed.client_first_name, parsed.client_last_name].filter(Boolean).join(" ");
   const dateTime = [parsed.requested_date, parsed.requested_time].filter(Boolean).join(" · ");
   const tm = parsed.treatment_match;
+  const vm = parsed.variant_match;
+  const { data: match } = useMatchedTreatment(tm?.id, vm?.id);
+
+  const treatmentLabel = (() => {
+    if (!tm?.id) return null;
+    const name = match?.treatment?.name ?? match?.treatment?.name_en ?? `${tm.id.slice(0, 8)}…`;
+    return `${name} (${Math.round((tm.confidence ?? 0) * 100)}%)`;
+  })();
+
+  const variantLabel = (() => {
+    if (!vm?.id) return null;
+    const v = match?.variant;
+    const parts: string[] = [];
+    if (v?.label || v?.label_en) parts.push(v.label ?? v.label_en ?? "");
+    if (v?.duration) parts.push(`${v.duration} min`);
+    if (v?.guest_count) parts.push(`${v.guest_count} pers.`);
+    const text = parts.length > 0 ? parts.join(" · ") : `${vm.id.slice(0, 8)}…`;
+    return `${text} (${Math.round((vm.confidence ?? 0) * 100)}%)`;
+  })();
 
   return (
     <div className="space-y-1">
@@ -45,10 +94,8 @@ function ParsedSummary({ parsed, t }: { parsed: EmailInquiryParsedData; t: (k: s
       <Row label={t("inbox.detail.email")} value={parsed.email} />
       <Row label={t("inbox.detail.phone")} value={parsed.phone} />
       <Row label={t("inbox.detail.dateTime")} value={dateTime || null} />
-      <Row
-        label={t("inbox.detail.treatment")}
-        value={tm?.id ? `${tm.id.slice(0, 8)}… (${Math.round((tm.confidence ?? 0) * 100)}%)` : null}
-      />
+      <Row label={t("inbox.detail.treatment")} value={treatmentLabel} />
+      {variantLabel && <Row label={t("inbox.detail.variant", { defaultValue: "Variante" })} value={variantLabel} />}
       <Row label={t("inbox.detail.guests")} value={parsed.guest_count?.toString()} />
       {parsed.notes && (
         <div className="pt-2">

@@ -8,12 +8,23 @@
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-haiku-4-5-20251001";
 
+export interface TreatmentVariantRef {
+  id: string;
+  treatment_id: string;
+  label: string | null;
+  label_en: string | null;
+  duration: number | null;
+  guest_count: number | null;
+  is_default: boolean;
+}
+
 export interface TreatmentRef {
   id: string;
   name: string | null;
   name_en: string | null;
   duration: number | null;
   category: string | null;
+  variants: TreatmentVariantRef[];
 }
 
 export interface ParsedEmail {
@@ -24,6 +35,7 @@ export interface ParsedEmail {
   requested_date: string | null; // ISO YYYY-MM-DD
   requested_time: string | null; // HH:mm
   treatment_match: { id: string | null; confidence: number } | null;
+  variant_match: { id: string | null; confidence: number } | null;
   guest_count: number | null;
   notes: string | null;
   intent_confidence: number; // 0..1
@@ -55,6 +67,7 @@ Rules:
 - requested_date must be ISO YYYY-MM-DD if a specific date is mentioned (resolve relative dates like "demain", "next Friday" to absolute dates using today's date provided in the user message).
 - requested_time must be HH:mm 24h.
 - treatment_match.id must be one of the provided treatment IDs, or null if no clear match. treatment_match.confidence in 0..1 reflects match quality.
+- variant_match.id must be one of the variant IDs listed UNDER the chosen treatment, or null. Pick a variant when the email specifies a duration (e.g. "60 minutes", "1h30") and/or a guest_count (e.g. "pour 2 personnes", "duo"). Match by closest duration AND matching guest_count; prefer the variant whose duration equals the requested duration and whose guest_count matches the requested guest_count. If only one of the two is specified, use the one that's specified and ignore the other. If no variant fits, return null.
 - intent_confidence in 0..1 reflects how confident you are that this email is a genuine booking request (not spam, not a follow-up question, not a thank-you note).
 - detected_language: ISO 639-1 ("fr", "en", ...).
 
@@ -67,6 +80,7 @@ Schema:
   "requested_date": string|null,
   "requested_time": string|null,
   "treatment_match": { "id": string|null, "confidence": number } | null,
+  "variant_match": { "id": string|null, "confidence": number } | null,
   "guest_count": number|null,
   "notes": string|null,
   "intent_confidence": number,
@@ -76,7 +90,14 @@ Schema:
 function buildUserMessage(input: ParseEmailInput): string {
   const today = new Date().toISOString().slice(0, 10);
   const treatmentList = input.treatments
-    .map(t => `- id=${t.id} | name="${t.name ?? ""}" | name_en="${t.name_en ?? ""}" | duration=${t.duration ?? "?"}min | category=${t.category ?? "?"}`)
+    .map(t => {
+      const head = `- id=${t.id} | name="${t.name ?? ""}" | name_en="${t.name_en ?? ""}" | duration=${t.duration ?? "?"}min | category=${t.category ?? "?"}`;
+      if (!t.variants || t.variants.length === 0) return head;
+      const variants = t.variants
+        .map(v => `    · variant_id=${v.id} | label="${v.label ?? ""}" | label_en="${v.label_en ?? ""}" | duration=${v.duration ?? "?"}min | guests=${v.guest_count ?? "?"}${v.is_default ? " | default" : ""}`)
+        .join("\n");
+      return `${head}\n${variants}`;
+    })
     .join("\n");
 
   const body = input.bodyText?.trim()
@@ -191,6 +212,7 @@ function safeParseJson(text: string): ParsedEmail | null {
 
 function normalize(obj: Partial<ParsedEmail>): ParsedEmail {
   const tm = obj.treatment_match;
+  const vm = obj.variant_match;
   const confidence = typeof obj.intent_confidence === "number" ? clamp01(obj.intent_confidence) : 0;
   return {
     client_first_name: stringOrNull(obj.client_first_name),
@@ -203,6 +225,12 @@ function normalize(obj: Partial<ParsedEmail>): ParsedEmail {
       ? {
         id: stringOrNull(tm.id),
         confidence: typeof tm.confidence === "number" ? clamp01(tm.confidence) : 0,
+      }
+      : null,
+    variant_match: vm && typeof vm === "object"
+      ? {
+        id: stringOrNull(vm.id),
+        confidence: typeof vm.confidence === "number" ? clamp01(vm.confidence) : 0,
       }
       : null,
     guest_count: typeof obj.guest_count === "number" && obj.guest_count > 0 ? Math.floor(obj.guest_count) : null,

@@ -14,7 +14,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { parseEmailWithLlm, type TreatmentRef } from "../_shared/llm-parse-email.ts";
+import { parseEmailWithLlm, type TreatmentRef, type TreatmentVariantRef } from "../_shared/llm-parse-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -204,12 +204,44 @@ async function loadVenueAndTreatments(toAddress: string): Promise<{
     return { hotelId: null, venueName: null, treatments: [] };
   }
 
-  const { data: treatmentRows } = await supabaseAdmin
-    .from("treatments")
+  const { data: treatmentRows, error: treatmentsError } = await supabaseAdmin
+    .from("treatment_menus")
     .select("id, name, name_en, duration, category")
     .eq("hotel_id", venue.id)
     .eq("status", "active")
     .limit(100);
+
+  if (treatmentsError) {
+    console.error("Treatments lookup failed:", treatmentsError);
+  }
+
+  const treatmentIds = (treatmentRows ?? []).map(t => String(t.id));
+  let variantsByTreatment = new Map<string, TreatmentVariantRef[]>();
+  if (treatmentIds.length > 0) {
+    const { data: variantRows, error: variantsError } = await supabaseAdmin
+      .from("treatment_variants")
+      .select("id, treatment_id, label, label_en, duration, guest_count, is_default")
+      .in("treatment_id", treatmentIds)
+      .eq("status", "active");
+    if (variantsError) {
+      console.error("Treatment variants lookup failed:", variantsError);
+    }
+    variantsByTreatment = (variantRows ?? []).reduce((acc, v) => {
+      const tid = String(v.treatment_id);
+      const list = acc.get(tid) ?? [];
+      list.push({
+        id: String(v.id),
+        treatment_id: tid,
+        label: (v.label as string | null) ?? null,
+        label_en: (v.label_en as string | null) ?? null,
+        duration: (v.duration as number | null) ?? null,
+        guest_count: (v.guest_count as number | null) ?? null,
+        is_default: Boolean(v.is_default),
+      });
+      acc.set(tid, list);
+      return acc;
+    }, new Map<string, TreatmentVariantRef[]>());
+  }
 
   const treatments: TreatmentRef[] = (treatmentRows ?? []).map(t => ({
     id: String(t.id),
@@ -217,6 +249,7 @@ async function loadVenueAndTreatments(toAddress: string): Promise<{
     name_en: (t.name_en as string | null) ?? null,
     duration: (t.duration as number | null) ?? null,
     category: (t.category as string | null) ?? null,
+    variants: variantsByTreatment.get(String(t.id)) ?? [],
   }));
 
   return { hotelId: venue.id as string, venueName: (venue.name as string | null) ?? null, treatments };
