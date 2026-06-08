@@ -29,7 +29,13 @@ export interface Therapist {
   last_name: string;
 }
 
-export function useBookingData() {
+export interface UseBookingDataOptions {
+  /** ISO date (YYYY-MM-DD). Only bookings with booking_date >= fromDate are fetched. */
+  fromDate?: string;
+}
+
+export function useBookingData(options: UseBookingDataOptions = {}) {
+  const { fromDate } = options;
   const { isSuperAdmin, organizationId, activeOrganizationId, hasChosenActiveOrganization } =
     useUser();
 
@@ -44,12 +50,14 @@ export function useBookingData() {
     return null;
   }, [isSuperAdmin, organizationId, activeOrganizationId, hasChosenActiveOrganization]);
 
+  const filters = useMemo(() => (fromDate ? { fromDate } : {}), [fromDate]);
+
   const { data: bookings, refetch: refetchBookings } = useQuery({
-    queryKey: scope ? bookingKeys.list(scope, {}) : ["bookings", "disabled"],
+    queryKey: scope ? bookingKeys.list(scope, filters) : ["bookings", "disabled"],
     enabled: !!scope,
     refetchOnWindowFocus: true,
     staleTime: 30000,
-    queryFn: () => listBookings(supabase, scope!),
+    queryFn: () => listBookings(supabase, scope!, filters),
   });
 
   const { data: hotels, refetch: refetchHotels } = useQuery({
