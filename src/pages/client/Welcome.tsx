@@ -262,24 +262,18 @@ export default function Welcome() {
         <div className="absolute inset-0">
           <img
             src={hotelBg}
-            className={`h-full w-full object-cover object-[center_20%] animate-hero-zoom ${hotel.welcome_background_color ? '' : 'brightness-[0.4]'}`}
+            className="h-full w-full object-cover object-[center_20%] animate-hero-zoom"
             alt="Ambiance"
           />
-          {/* Hero overlay — uses venue background color when set, otherwise default dark gradient. */}
           <div
-            className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40"
-            style={
-              hotel.welcome_background_color
-                ? {
-                    backgroundImage: 'none',
-                    backgroundColor: hotel.welcome_background_color,
-                    opacity:
-                      hotel.welcome_background_opacity != null
-                        ? Math.max(0, Math.min(100, hotel.welcome_background_opacity)) / 100
-                        : 0.55,
-                  }
-                : undefined
-            }
+            className="absolute inset-0"
+            style={{
+              backgroundColor: hotel.welcome_background_color || '#000000',
+              opacity:
+                hotel.welcome_background_opacity != null
+                  ? Math.max(0, Math.min(100, hotel.welcome_background_opacity)) / 100
+                  : 0.55,
+            }}
           />
         </div>
 
