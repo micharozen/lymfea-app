@@ -77,7 +77,7 @@ export function VenueBrandingTab({
   const combinedIframeKey = iframeKey + previewRefreshKey;
   const identifier = hotelSlug || hotelId;
   const previewUrl = identifier
-    ? `${window.location.origin}/client/${identifier}`
+    ? `${window.location.origin}/client/${identifier}?preview=${combinedIframeKey}`
     : null;
 
   const [
