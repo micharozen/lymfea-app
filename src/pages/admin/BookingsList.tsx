@@ -24,7 +24,18 @@ export default function BookingsList() {
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const [searchParams] = useSearchParams();
 
-  const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();
+  const [periodDays, setPeriodDays] = useState<number>(() => {
+    const stored = Number(localStorage.getItem("bookingsList.periodDays"));
+    return [10, 30, 60].includes(stored) ? stored : 10;
+  });
+
+  const fromDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - periodDays);
+    return d.toISOString().slice(0, 10);
+  }, [periodDays]);
+
+  const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData({ fromDate });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -61,6 +72,12 @@ export default function BookingsList() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
+
+  const handlePeriodDaysChange = (days: number) => {
+    setPeriodDays(days);
+    localStorage.setItem("bookingsList.periodDays", String(days));
+    setCurrentPage(1);
+  };
 
   const { selectedBooking } = useBookingSelection({
     bookings,
@@ -158,6 +175,8 @@ export default function BookingsList() {
           hotels={hotels}
           therapists={therapists}
           hideViewToggle
+          periodDays={periodDays}
+          onPeriodDaysChange={handlePeriodDaysChange}
         />
       </div>
 
