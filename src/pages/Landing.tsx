@@ -2,8 +2,10 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
+import { TrustedBy } from "@/components/landing/TrustedBy";
 import { ProblemSolution } from "@/components/landing/ProblemSolution";
 import { FeaturesGrid } from "@/components/landing/FeaturesGrid";
+import { AiSpotlight } from "@/components/landing/AiSpotlight";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Pricing } from "@/components/landing/Pricing";
 import { Faq } from "@/components/landing/Faq";
@@ -33,8 +35,10 @@ const Landing = () => {
       <Navbar />
       <main>
         <Hero />
+        <TrustedBy />
         <ProblemSolution />
         <FeaturesGrid />
+        <AiSpotlight />
         <HowItWorks />
         <Pricing />
         <Faq />

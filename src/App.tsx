@@ -47,6 +47,7 @@ const TreatmentRooms = lazy(() => import("./pages/admin/TreatmentRooms"));
 const TreatmentRoomDetail = lazy(() => import("./pages/admin/TreatmentRoomDetail"));
 const Concierges = lazy(() => import("./pages/admin/Concierges"));
 const Customers = lazy(() => import("./pages/admin/Customers"));
+const EmailInbox = lazy(() => import("./pages/admin/EmailInbox"));
 const CustomerDetail = lazy(() => import("./pages/admin/CustomerDetail"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
@@ -529,6 +530,7 @@ const App = () => {
                               <Route path="/concierges" element={<Concierges />} />
                               <Route path="/schedule-alerts" element={<ScheduleAlerts />} />
                               <Route path="/customers" element={<Customers />} />
+                              <Route path="/inbox" element={<EmailInbox />} />
                               <Route path="/customers/new" element={<CustomerDetail />} />
                               <Route path="/customers/:id" element={<CustomerDetail />} />
                               <Route path="/cures" element={<Cures />} />

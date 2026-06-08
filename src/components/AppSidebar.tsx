@@ -20,6 +20,7 @@ import {
   DoorOpen,
   UserCog,
   Contact,
+  Inbox,
   Package,
   Truck,
   Wallet,
@@ -77,6 +78,7 @@ const adminPrimaryItems: MenuItem[] = [
   { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
   { title: "Clients", url: "/admin/customers", icon: Contact },
+  { title: "Inbox", url: "/admin/inbox", icon: Inbox },
   { title: "Alertes", url: "/admin/schedule-alerts", icon: Bell, badge: true },
 ];
 
