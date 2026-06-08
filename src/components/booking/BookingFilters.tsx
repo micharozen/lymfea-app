@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
@@ -8,8 +9,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Calendar as CalendarIcon, List, Search, Users } from "lucide-react";
+import { Calendar as CalendarIcon, Check, ChevronsUpDown, List, Search, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { Hotel, Therapist } from "@/hooks/booking";
@@ -34,6 +44,9 @@ interface BookingFiltersProps {
   hideViewToggle?: boolean;
   showAvailability?: boolean;
   onShowAvailabilityChange?: (show: boolean) => void;
+  /** Period filter in days (window: [today - N days, future]). Omit to hide the selector. */
+  periodDays?: number;
+  onPeriodDaysChange?: (days: number) => void;
 }
 
 export function BookingFilters({
@@ -56,8 +69,12 @@ export function BookingFilters({
   hideViewToggle = false,
   showAvailability,
   onShowAvailabilityChange,
+  periodDays,
+  onPeriodDaysChange,
 }: BookingFiltersProps) {
   const { t } = useTranslation("admin");
+  const [hotelPopoverOpen, setHotelPopoverOpen] = useState(false);
+  const [therapistPopoverOpen, setTherapistPopoverOpen] = useState(false);
   return (
     <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
       <div className="relative">
@@ -85,54 +102,148 @@ export function BookingFilters({
         </SelectContent>
       </Select>
 
-      {isAdmin && !hideHotelFilter && (() => {
-        const selectedHotel = hotelFilter !== "all" ? hotels?.find(h => h.id === hotelFilter) : null;
-        return (
-          <Select value={hotelFilter} onValueChange={onHotelChange}>
-            <SelectTrigger className="w-[160px] h-8 text-xs">
-              <div className="flex items-center gap-1.5 truncate">
-                {selectedHotel && (
-                  <span
-                    className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                    style={{ backgroundColor: selectedHotel.calendar_color || '#3b82f6' }}
-                  />
-                )}
-                <SelectValue placeholder="Tous les lieux" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les lieux</SelectItem>
-              {hotels?.map((hotel) => (
-                <SelectItem key={hotel.id} value={hotel.id}>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                      style={{ backgroundColor: hotel.calendar_color || '#3b82f6' }}
-                    />
-                    {hotel.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-      })()}
-
-      {isAdmin && (
-        <Select value={therapistFilter} onValueChange={onTherapistChange}>
-          <SelectTrigger className="w-[160px] h-8 text-xs">
-            <SelectValue placeholder="Thérapeutes" />
+      {periodDays !== undefined && onPeriodDaysChange && (
+        <Select
+          value={String(periodDays)}
+          onValueChange={(v) => onPeriodDaysChange(Number(v))}
+        >
+          <SelectTrigger className="w-[140px] h-8 text-xs">
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous les thérapeutes</SelectItem>
-            {therapists?.map((therapist) => (
-              <SelectItem key={therapist.id} value={therapist.id}>
-                {therapist.first_name} {therapist.last_name}
-              </SelectItem>
-            ))}
+            <SelectItem value="10">10 derniers jours</SelectItem>
+            <SelectItem value="30">30 derniers jours</SelectItem>
+            <SelectItem value="60">60 derniers jours</SelectItem>
           </SelectContent>
         </Select>
       )}
+
+      {isAdmin && !hideHotelFilter && (() => {
+        const selectedHotel = hotelFilter !== "all" ? hotels?.find(h => h.id === hotelFilter) : null;
+        return (
+          <Popover open={hotelPopoverOpen} onOpenChange={setHotelPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={hotelPopoverOpen}
+                className="w-[160px] h-8 px-2 text-xs font-normal justify-between"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  {selectedHotel && (
+                    <span
+                      className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                      style={{ backgroundColor: selectedHotel.calendar_color || '#3b82f6' }}
+                    />
+                  )}
+                  <span className="truncate">
+                    {selectedHotel ? selectedHotel.name : "Tous les lieux"}
+                  </span>
+                </div>
+                <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[220px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Rechercher un lieu..." className="h-8 text-xs" />
+                <CommandList>
+                  <CommandEmpty>Aucun lieu trouvé.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="all tous les lieux"
+                      onSelect={() => {
+                        onHotelChange("all");
+                        setHotelPopoverOpen(false);
+                      }}
+                      className="text-xs"
+                    >
+                      <Check className={cn("mr-2 h-3.5 w-3.5", hotelFilter === "all" ? "opacity-100" : "opacity-0")} />
+                      Tous les lieux
+                    </CommandItem>
+                    {hotels?.map((hotel) => (
+                      <CommandItem
+                        key={hotel.id}
+                        value={hotel.name}
+                        onSelect={() => {
+                          onHotelChange(hotel.id);
+                          setHotelPopoverOpen(false);
+                        }}
+                        className="text-xs"
+                      >
+                        <Check className={cn("mr-2 h-3.5 w-3.5", hotelFilter === hotel.id ? "opacity-100" : "opacity-0")} />
+                        <span
+                          className="w-2.5 h-2.5 rounded-sm flex-shrink-0 mr-1.5"
+                          style={{ backgroundColor: hotel.calendar_color || '#3b82f6' }}
+                        />
+                        {hotel.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        );
+      })()}
+
+      {isAdmin && (() => {
+        const selectedTherapist =
+          therapistFilter !== "all" ? therapists?.find(th => th.id === therapistFilter) : null;
+        return (
+          <Popover open={therapistPopoverOpen} onOpenChange={setTherapistPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={therapistPopoverOpen}
+                className="w-[160px] h-8 px-2 text-xs font-normal justify-between"
+              >
+                <span className="truncate">
+                  {selectedTherapist
+                    ? `${selectedTherapist.first_name} ${selectedTherapist.last_name}`
+                    : "Tous les thérapeutes"}
+                </span>
+                <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[220px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Rechercher un thérapeute..." className="h-8 text-xs" />
+                <CommandList>
+                  <CommandEmpty>Aucun thérapeute trouvé.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="all tous les therapeutes"
+                      onSelect={() => {
+                        onTherapistChange("all");
+                        setTherapistPopoverOpen(false);
+                      }}
+                      className="text-xs"
+                    >
+                      <Check className={cn("mr-2 h-3.5 w-3.5", therapistFilter === "all" ? "opacity-100" : "opacity-0")} />
+                      Tous les thérapeutes
+                    </CommandItem>
+                    {therapists?.map((therapist) => (
+                      <CommandItem
+                        key={therapist.id}
+                        value={`${therapist.first_name} ${therapist.last_name}`}
+                        onSelect={() => {
+                          onTherapistChange(therapist.id);
+                          setTherapistPopoverOpen(false);
+                        }}
+                        className="text-xs"
+                      >
+                        <Check className={cn("mr-2 h-3.5 w-3.5", therapistFilter === therapist.id ? "opacity-100" : "opacity-0")} />
+                        {therapist.first_name} {therapist.last_name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        );
+      })()}
 
       <div className="flex items-center gap-1.5 ml-auto">
         {view === "calendar" && (

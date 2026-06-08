@@ -525,8 +525,7 @@ export default function VenueDetail({
     const payload = {
       hotel_id: targetHotelId,
       welcome_background_color: values.welcome_background_color || null,
-      welcome_background_opacity:
-        values.welcome_background_color ? values.welcome_background_opacity ?? 55 : null,
+      welcome_background_opacity: values.welcome_background_opacity ?? null,
       button_color: values.button_color || null,
       button_text_color: values.button_text_color || null,
       font_title_url: values.font_title_url?.trim() || null,
@@ -534,22 +533,6 @@ export default function VenueDetail({
       font_body_url: values.font_body_url?.trim() || null,
       font_body_family: values.font_body_family?.trim() || null,
     };
-    const allEmpty =
-      !payload.welcome_background_color &&
-      payload.welcome_background_opacity == null &&
-      !payload.button_color &&
-      !payload.button_text_color &&
-      !payload.font_title_url &&
-      !payload.font_title_family &&
-      !payload.font_body_url &&
-      !payload.font_body_family;
-    if (allEmpty) {
-      await supabase
-        .from("venue_branding" as any)
-        .delete()
-        .eq("hotel_id", targetHotelId);
-      return;
-    }
     const { error } = await supabase
       .from("venue_branding" as any)
       .upsert(payload, { onConflict: "hotel_id" });
