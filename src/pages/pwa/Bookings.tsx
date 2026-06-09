@@ -11,6 +11,7 @@ import PwaCalendarView from "@/components/pwa/PwaCalendarView";
 import PwaDayView, { DayViewBooking } from "@/components/pwa/PwaDayView";
 import type { TherapistRates } from "@/lib/therapistEarnings";
 import PwaHeader from "@/components/pwa/Header";
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 interface BookingTreatment {
   treatment_menus: {
@@ -61,6 +62,7 @@ const PwaBookings = () => {
     return new Date();
   });
   const navigate = useNavigate();
+  const isMountedRef = useIsMounted();
 
   useEffect(() => {
     try {
@@ -91,6 +93,8 @@ const PwaBookings = () => {
   }, [bookings, statusFilter]);
 
   const fetchBookings = async () => {
+    if (!isMountedRef.current) return;
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -99,11 +103,15 @@ const PwaBookings = () => {
         return;
       }
 
+      if (!isMountedRef.current) return;
+
       const { data: therapist } = await supabase
         .from("therapists")
         .select("id, rate_45, rate_60, rate_90")
         .eq("user_id", user.id)
         .single();
+
+      if (!isMountedRef.current) return;
 
       if (therapist) {
         setTherapistRates({
@@ -114,7 +122,9 @@ const PwaBookings = () => {
       }
 
       if (!therapist) {
-        toast.error("Profil introuvable");
+        if (isMountedRef.current) {
+          toast.error("Profil introuvable");
+        }
         return;
       }
 
@@ -125,14 +135,20 @@ const PwaBookings = () => {
         .order("booking_date", { ascending: false })
         .order("booking_time", { ascending: false });
 
+      if (!isMountedRef.current) return;
+
       if (error) throw error;
 
       setBookings((data as Booking[]) || []);
     } catch (error) {
       console.error("Error fetching bookings:", error);
-      toast.error("Erreur lors du chargement des réservations");
+      if (isMountedRef.current) {
+        toast.error("Erreur lors du chargement des réservations");
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
