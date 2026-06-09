@@ -15,6 +15,7 @@ import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
 import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import { computeTherapistEarnings } from "@/lib/therapistEarnings";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import {
@@ -175,18 +176,26 @@ const PwaBookingDetail = () => {
   const [myTherapistId, setMyTherapistId] = useState<string | null>(null);
   const isAcceptingRef = useRef(false);
   const isChargingRef = useRef(false);
+  const isMountedRef = useIsMounted();
 
   useEffect(() => {
+    let cancelled = false;
+
     fetchBookingDetail();
     const bookingChannel = supabase
       .channel(`booking-changes-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `id=eq.${id}` }, () => fetchBookingDetail())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `id=eq.${id}` }, () => {
+        if (!cancelled && isMountedRef.current) fetchBookingDetail();
+      })
       .subscribe();
     const therapistsChannel = supabase
       .channel(`booking-therapists-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'booking_therapists', filter: `booking_id=eq.${id}` }, () => fetchBookingDetail())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'booking_therapists', filter: `booking_id=eq.${id}` }, () => {
+        if (!cancelled && isMountedRef.current) fetchBookingDetail();
+      })
       .subscribe();
     return () => {
+      cancelled = true;
       supabase.removeChannel(bookingChannel);
       supabase.removeChannel(therapistsChannel);
     };
@@ -196,7 +205,7 @@ const PwaBookingDetail = () => {
   useEffect(() => {
     const fetchRoomGap = async () => {
       if (!booking?.room_id || !['confirmed', 'ongoing'].includes(booking.status)) {
-        setRoomGap(null);
+        if (isMountedRef.current) setRoomGap(null);
         return;
       }
       const dur = booking.duration || treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0) || 60;
@@ -211,6 +220,8 @@ const PwaBookingDetail = () => {
         _current_booking_id: booking.id,
       });
 
+      if (!isMountedRef.current) return;
+
       if (!error && data && data.length > 0) {
         setRoomGap({ gapMinutes: data[0].gap_minutes });
       } else {
@@ -218,19 +229,25 @@ const PwaBookingDetail = () => {
       }
     };
     fetchRoomGap();
-  }, [booking?.id, booking?.room_id, booking?.status, booking?.duration, treatments.length]);
+  }, [booking?.id, booking?.room_id, booking?.status, booking?.duration, treatments.length, isMountedRef]);
 
   const fetchBookingDetail = async () => {
+    if (!isMountedRef.current) return;
+
     try {
       const { data: bookingData, error: bookingError } = await supabase
         .from("bookings")
         .select("*, booking_therapists(status), booking_payment_infos(payment_status, card_brand, card_last4), customers(first_name, last_name, email, phone)")
         .eq("id", id)
         .single();
+
+      if (!isMountedRef.current) return;
         
       if (bookingError) throw bookingError;
 
       const { data: hotelData } = await supabase.from("hotels").select("*").eq("id", bookingData.hotel_id).single();
+
+      if (!isMountedRef.current) return;
 
       // Toujours charger les taux du thérapeute CONNECTÉ (pas du thérapeute primaire).
       // Pour un soin duo, chaque thérapeute doit voir ses propres revenus.
@@ -245,10 +262,12 @@ const PwaBookingDetail = () => {
           .single();
         if (myT) {
           myTherapistId = myT.id;
-          setMyTherapistId(myT.id);
+          if (isMountedRef.current) setMyTherapistId(myT.id);
           rates = { hr: myT.hourly_rate, r45: myT.rate_45, r60: myT.rate_60, r90: myT.rate_90 };
         }
       }
+
+      if (!isMountedRef.current) return;
 
       const rawPaymentInfos = bookingData.booking_payment_infos as unknown as PaymentInfoResult | PaymentInfoResult[] | null;
       const paymentInfo: PaymentInfoResult | null = Array.isArray(rawPaymentInfos)
@@ -260,6 +279,8 @@ const PwaBookingDetail = () => {
         : (paymentInfo?.payment_status || bookingData.payment_status);
 
       const customer = (bookingData as unknown as { customers: CustomerResult | null }).customers;
+      if (!isMountedRef.current) return;
+
       setBooking({
         ...bookingData,
         client_first_name: customer?.first_name || bookingData.client_first_name,
@@ -284,6 +305,9 @@ const PwaBookingDetail = () => {
       });
 
       const { data: trData } = await supabase.from("booking_treatments").select("*, treatment_menus(*), treatment_variants(id, label, duration, price)").eq("booking_id", id);
+
+      if (!isMountedRef.current) return;
+
       if (trData) setTreatments(trData as Treatment[]);
 
       const { data: btData } = await supabase
@@ -291,6 +315,9 @@ const PwaBookingDetail = () => {
         .select("id, therapist_id")
         .eq("booking_id", id)
         .eq("status", "accepted");
+
+      if (!isMountedRef.current) return;
+
       setAcceptedTherapistCount(btData?.length ?? 0);
       setHasAlreadyAccepted(
         myTherapistId ? (btData?.some((bt) => (bt as { therapist_id: string }).therapist_id === myTherapistId) ?? false) : false
@@ -305,6 +332,8 @@ const PwaBookingDetail = () => {
           .eq("id", bundleUsageId)
           .single();
 
+        if (!isMountedRef.current) return;
+
         if (usageData) {
           const customerBundle = (usageData as unknown as BundleUsageResult).customer_treatment_bundles;
           const bundleName = customerBundle?.treatment_bundles?.name || "";
@@ -318,9 +347,13 @@ const PwaBookingDetail = () => {
 
     } catch (error) {
       console.error(error);
-      toast.error(t('common:errors.generic'));
+      if (isMountedRef.current) {
+        toast.error(t('common:errors.generic'));
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

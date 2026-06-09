@@ -4,12 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
 import { setNotificationClickHandler, getPendingNotificationUrl } from "@/hooks/useOneSignal";
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 const PwaLayout = () => {
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
   const queryClient = useQueryClient();
+  const isMountedRef = useIsMounted();
 
   // Scroll to top on every route change - use useLayoutEffect for immediate execution
   useLayoutEffect(() => {
@@ -130,9 +132,11 @@ const PwaLayout = () => {
   }, [location.pathname, queryClient]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchUnreadCount = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || cancelled) return;
 
       const { count } = await supabase
         .from("notifications")
@@ -140,7 +144,9 @@ const PwaLayout = () => {
         .eq("user_id", user.id)
         .eq("read", false);
 
-      setUnreadCount(count || 0);
+      if (!cancelled && isMountedRef.current) {
+        setUnreadCount(count || 0);
+      }
     };
 
     fetchUnreadCount();
@@ -156,12 +162,15 @@ const PwaLayout = () => {
           table: "notifications",
         },
         () => {
-          fetchUnreadCount();
+          if (!cancelled && isMountedRef.current) {
+            fetchUnreadCount();
+          }
         }
       )
       .subscribe();
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
     };
   }, []);
@@ -170,7 +179,7 @@ const PwaLayout = () => {
   const shouldShowTabBar = !location.pathname.includes('/pwa/booking/') && !location.pathname.includes('/pwa/new-booking');
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-background">
+    <div className="notranslate min-h-[100dvh] flex flex-col bg-background">
       <main 
         className="flex-1 overflow-y-auto overscroll-y-none"
         style={{ 
