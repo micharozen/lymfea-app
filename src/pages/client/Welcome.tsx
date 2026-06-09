@@ -278,14 +278,7 @@ export default function Welcome() {
         </div>
 
         {/* Top Bar */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 pt-safe pb-4 mt-4">
-          {hotel.image && (
-            <img
-              src={hotel.image}
-              alt={hotel.name}
-              className="h-10 w-10 sm:h-12 sm:w-12 object-contain"
-            />
-          )}
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-end px-6 pt-safe pb-4 mt-4">
           <LanguageSwitcher variant="client" />
         </div>
 
@@ -297,10 +290,10 @@ export default function Welcome() {
           {/* Venue Name + Subtitle — centered vertically & horizontally */}
           <div className="text-center">
             <h1
-              className="font-grotesk font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.1] pt-[0.15em] uppercase tracking-wide animate-reveal-text"
+              className="font-grotesk font-light text-2xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.1] pt-[0.15em] uppercase tracking-wide whitespace-nowrap animate-reveal-text"
               style={{
                 animationDelay: '0.5s',
-                color: hotel.button_color || '#ffffff',
+                color: '#ffffff',
               }}
             >
               {localize(hotel.name, hotel.name_en)}
@@ -309,16 +302,14 @@ export default function Welcome() {
               className="w-12 h-px mx-auto mt-4 mb-3 animate-expand-line"
               style={{
                 animationDelay: '1s',
-                backgroundColor: hotel.button_color
-                  ? `${hotel.button_color}66`
-                  : 'rgba(255,255,255,0.4)',
+                backgroundColor: 'rgba(255,255,255,0.4)',
               }}
             />
             <p
               className="font-grotesk font-light italic text-2xl sm:text-3xl md:text-4xl uppercase tracking-wide animate-slide-up-fade"
               style={{
                 animationDelay: '1.3s',
-                color: hotel.button_color || '#ffffff',
+                color: '#ffffff',
               }}
             >
               {subtitle}
