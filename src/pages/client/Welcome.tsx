@@ -264,6 +264,14 @@ export default function Welcome() {
         : venueName.length > 16
           ? 'text-2xl sm:text-4xl md:text-4xl lg:text-5xl'
           : 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl';
+    // Sous-titre toujours un cran sous le titre, aligné sur le même palier
+    // pour qu'il ne paraisse jamais plus gros que le nom du lieu.
+    const venueSubtitleSizeClass =
+      venueName.length > 22
+        ? 'text-base sm:text-xl md:text-2xl lg:text-3xl'
+        : venueName.length > 16
+          ? 'text-base sm:text-2xl md:text-2xl lg:text-3xl'
+          : 'text-lg sm:text-2xl md:text-3xl lg:text-4xl';
 
     return (
       <div className="h-dvh w-full relative overflow-hidden">
@@ -318,7 +326,10 @@ export default function Welcome() {
               }}
             />
             <p
-              className="font-grotesk font-light italic text-2xl sm:text-3xl md:text-4xl uppercase tracking-wide animate-slide-up-fade"
+              className={cn(
+                'font-grotesk font-light italic uppercase tracking-wide animate-slide-up-fade',
+                venueSubtitleSizeClass,
+              )}
               style={{
                 animationDelay: '1.3s',
                 color: '#ffffff',
