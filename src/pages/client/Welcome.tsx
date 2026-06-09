@@ -255,6 +255,15 @@ export default function Welcome() {
   if (isHotel) {
     const hotelBg = hotel.cover_image || welcomeBgHotel;
     const subtitle = (hotel as any)?.landing_subtitle || 'Beauty Services';
+    const venueName = localize(hotel.name, hotel.name_en);
+    // Réduit la taille de police selon la longueur du nom pour éviter la
+    // troncature des noms longs forcés sur une ligne (whitespace-nowrap).
+    const venueNameSizeClass =
+      venueName.length > 22
+        ? 'text-xl sm:text-3xl md:text-4xl lg:text-5xl'
+        : venueName.length > 16
+          ? 'text-2xl sm:text-4xl md:text-4xl lg:text-5xl'
+          : 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl';
 
     return (
       <div className="h-dvh w-full relative overflow-hidden">
@@ -290,13 +299,16 @@ export default function Welcome() {
           {/* Venue Name + Subtitle — centered vertically & horizontally */}
           <div className="text-center">
             <h1
-              className="font-grotesk font-light text-2xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.1] pt-[0.15em] uppercase tracking-wide whitespace-nowrap animate-reveal-text"
+              className={cn(
+                'font-grotesk font-light leading-[1.1] pt-[0.15em] uppercase tracking-wide whitespace-nowrap animate-reveal-text',
+                venueNameSizeClass,
+              )}
               style={{
                 animationDelay: '0.5s',
                 color: '#ffffff',
               }}
             >
-              {localize(hotel.name, hotel.name_en)}
+              {venueName}
             </h1>
             <div
               className="w-12 h-px mx-auto mt-4 mb-3 animate-expand-line"
