@@ -256,22 +256,15 @@ export default function Welcome() {
     const hotelBg = hotel.cover_image || welcomeBgHotel;
     const subtitle = (hotel as any)?.landing_subtitle || 'Beauty Services';
     const venueName = localize(hotel.name, hotel.name_en);
-    // Réduit la taille de police selon la longueur du nom pour éviter la
-    // troncature des noms longs forcés sur une ligne (whitespace-nowrap).
-    const venueNameSizeClass =
-      venueName.length > 22
-        ? 'text-xl sm:text-3xl md:text-4xl lg:text-5xl'
-        : venueName.length > 16
-          ? 'text-2xl sm:text-4xl md:text-4xl lg:text-5xl'
-          : 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl';
-    // Sous-titre toujours un cran sous le titre, aligné sur le même palier
-    // pour qu'il ne paraisse jamais plus gros que le nom du lieu.
-    const venueSubtitleSizeClass =
-      venueName.length > 22
-        ? 'text-base sm:text-xl md:text-2xl lg:text-3xl'
-        : venueName.length > 16
-          ? 'text-base sm:text-2xl md:text-2xl lg:text-3xl'
-          : 'text-lg sm:text-2xl md:text-3xl lg:text-4xl';
+    // Taille de police fluide : on borne la taille « idéale » (responsive via
+    // vw) par la largeur réellement disponible divisée par le nombre de
+    // caractères (via les unités cqw du conteneur). Le facteur ~0.7 approxime
+    // la largeur moyenne d'un glyphe majuscule + tracking-wide. Ainsi le nom
+    // tient toujours sur une ligne sans troncature, quel que soit l'écran.
+    const titleFontSize = `min(clamp(1.5rem, 6vw, 3.75rem), calc(100cqw / (${venueName.length} * 0.7)))`;
+    // Sous-titre : 60% du titre, et borné par sa propre largeur disponible
+    // pour ne jamais déborder ni paraître plus gros que le titre.
+    const subtitleFontSize = `min(calc(var(--title-size) * 0.6), calc(100cqw / (${subtitle.length} * 0.7)))`;
 
     return (
       <div className="h-dvh w-full relative overflow-hidden">
@@ -300,20 +293,24 @@ export default function Welcome() {
         </div>
 
         {/* Content — cinematic sequential reveal */}
-        <div className="absolute inset-0 z-10 flex flex-col items-center px-8 sm:px-12">
+        <div
+          className="absolute inset-0 z-10 flex flex-col items-center px-8 sm:px-12"
+          style={{ containerType: 'inline-size' }}
+        >
           {/* Spacer top */}
           <div className="flex-1" />
 
           {/* Venue Name + Subtitle — centered vertically & horizontally */}
-          <div className="text-center">
+          <div
+            className="text-center"
+            style={{ '--title-size': titleFontSize } as React.CSSProperties}
+          >
             <h1
-              className={cn(
-                'font-grotesk font-light leading-[1.1] pt-[0.15em] uppercase tracking-wide whitespace-nowrap animate-reveal-text',
-                venueNameSizeClass,
-              )}
+              className="font-grotesk font-light leading-[1.1] pt-[0.15em] uppercase tracking-wide whitespace-nowrap animate-reveal-text"
               style={{
                 animationDelay: '0.5s',
                 color: '#ffffff',
+                fontSize: 'var(--title-size)',
               }}
             >
               {venueName}
@@ -326,13 +323,11 @@ export default function Welcome() {
               }}
             />
             <p
-              className={cn(
-                'font-grotesk font-light italic uppercase tracking-wide animate-slide-up-fade',
-                venueSubtitleSizeClass,
-              )}
+              className="font-grotesk font-light italic uppercase tracking-wide whitespace-nowrap animate-slide-up-fade"
               style={{
                 animationDelay: '1.3s',
                 color: '#ffffff',
+                fontSize: subtitleFontSize,
               }}
             >
               {subtitle}
