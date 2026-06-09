@@ -179,20 +179,23 @@ const PwaBookingDetail = () => {
   const isMountedRef = useIsMounted();
 
   useEffect(() => {
+    let cancelled = false;
+
     fetchBookingDetail();
     const bookingChannel = supabase
       .channel(`booking-changes-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `id=eq.${id}` }, () => {
-        if (isMountedRef.current) fetchBookingDetail();
+        if (!cancelled && isMountedRef.current) fetchBookingDetail();
       })
       .subscribe();
     const therapistsChannel = supabase
       .channel(`booking-therapists-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'booking_therapists', filter: `booking_id=eq.${id}` }, () => {
-        if (isMountedRef.current) fetchBookingDetail();
+        if (!cancelled && isMountedRef.current) fetchBookingDetail();
       })
       .subscribe();
     return () => {
+      cancelled = true;
       supabase.removeChannel(bookingChannel);
       supabase.removeChannel(therapistsChannel);
     };

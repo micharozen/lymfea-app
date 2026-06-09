@@ -55,7 +55,7 @@ export default function PushNotificationPrompt() {
         clearTimeout(promptTimeout);
       }
     };
-  }, [isMountedRef]);
+  }, []);
 
   const handleAccept = async () => {
     setShowPrompt(false);

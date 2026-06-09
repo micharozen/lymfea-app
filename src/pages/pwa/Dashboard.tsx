@@ -162,6 +162,8 @@ const PwaDashboard = () => {
   useEffect(() => {
     if (!therapist) return;
 
+    let cancelled = false;
+
     const channel = supabase
       .channel('bookings-updates')
       .on(
@@ -172,7 +174,7 @@ const PwaDashboard = () => {
           table: 'bookings'
         },
         (payload) => {
-          if (!isMountedRef.current) return;
+          if (cancelled || !isMountedRef.current) return;
 
           const newData = payload.new as any;
           const oldData = payload.old as any;
@@ -221,7 +223,7 @@ const PwaDashboard = () => {
           table: 'bookings'
         },
         (_payload) => {
-          if (isMountedRef.current) {
+          if (!cancelled && isMountedRef.current) {
             fetchAllBookings(therapist.id);
           }
         }
@@ -240,7 +242,7 @@ const PwaDashboard = () => {
         (payload) => {
           const newBt = payload.new as { booking_id: string; therapist_id: string; status: string };
           if (newBt.status !== 'accepted') return;
-          if (!isMountedRef.current) return;
+          if (cancelled || !isMountedRef.current) return;
 
           setAllBookings(prev => {
             const idx = prev.findIndex(b => b.id === newBt.booking_id);
@@ -259,6 +261,7 @@ const PwaDashboard = () => {
       .subscribe();
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
     };
   }, [therapist]);

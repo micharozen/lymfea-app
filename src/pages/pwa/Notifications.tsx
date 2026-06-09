@@ -78,6 +78,8 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   }, [queryClient]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const channel = supabase
       .channel('notifications-live')
       .on(
@@ -88,7 +90,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
           table: 'notifications'
         },
         () => {
-          if (isMountedRef.current) {
+          if (!cancelled && isMountedRef.current) {
             fetchNotifications();
           }
         }
@@ -96,9 +98,10 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
       .subscribe();
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [isMountedRef]);
+  }, []);
 
   const fetchNotifications = async () => {
     if (!isMountedRef.current) return;

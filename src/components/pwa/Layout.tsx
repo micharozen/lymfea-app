@@ -132,9 +132,11 @@ const PwaLayout = () => {
   }, [location.pathname, queryClient]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchUnreadCount = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || cancelled) return;
 
       const { count } = await supabase
         .from("notifications")
@@ -142,7 +144,7 @@ const PwaLayout = () => {
         .eq("user_id", user.id)
         .eq("read", false);
 
-      if (isMountedRef.current) {
+      if (!cancelled && isMountedRef.current) {
         setUnreadCount(count || 0);
       }
     };
@@ -160,7 +162,7 @@ const PwaLayout = () => {
           table: "notifications",
         },
         () => {
-          if (isMountedRef.current) {
+          if (!cancelled && isMountedRef.current) {
             fetchUnreadCount();
           }
         }
@@ -168,9 +170,10 @@ const PwaLayout = () => {
       .subscribe();
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [isMountedRef]);
+  }, []);
 
   // Hide TabBar on booking detail pages
   const shouldShowTabBar = !location.pathname.includes('/pwa/booking/') && !location.pathname.includes('/pwa/new-booking');
