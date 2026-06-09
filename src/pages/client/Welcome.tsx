@@ -256,15 +256,12 @@ export default function Welcome() {
     const hotelBg = hotel.cover_image || welcomeBgHotel;
     const subtitle = (hotel as any)?.landing_subtitle || 'Beauty Services';
     const venueName = localize(hotel.name, hotel.name_en);
-    // Taille de police fluide : on borne la taille « idéale » (responsive via
-    // vw) par la largeur réellement disponible divisée par le nombre de
-    // caractères (via les unités cqw du conteneur). Le facteur ~0.7 approxime
-    // la largeur moyenne d'un glyphe majuscule + tracking-wide. Ainsi le nom
-    // tient toujours sur une ligne sans troncature, quel que soit l'écran.
-    const titleFontSize = `min(clamp(1.5rem, 6vw, 3.75rem), calc(100cqw / (${venueName.length} * 0.7)))`;
-    // Sous-titre : 60% du titre, et borné par sa propre largeur disponible
-    // pour ne jamais déborder ni paraître plus gros que le titre.
-    const subtitleFontSize = `min(calc(var(--title-size) * 0.6), calc(100cqw / (${subtitle.length} * 0.7)))`;
+    // Taille de police fluide (vw, sans paliers brusques). Le nom n'est plus
+    // forcé sur une seule ligne : on le laisse passer à la ligne et on
+    // équilibre les lignes (text-wrap: balance) pour obtenir un découpage
+    // naturel — ex. « CAP D'ANTIBES » / « BEACH HÔTEL » — sans troncature.
+    const titleFontSize = 'clamp(2rem, 8vw, 3.75rem)';
+    const subtitleFontSize = 'clamp(1.1rem, 4.5vw, 2.25rem)';
 
     return (
       <div className="h-dvh w-full relative overflow-hidden">
@@ -293,24 +290,18 @@ export default function Welcome() {
         </div>
 
         {/* Content — cinematic sequential reveal */}
-        <div
-          className="absolute inset-0 z-10 flex flex-col items-center px-8 sm:px-12"
-          style={{ containerType: 'inline-size' }}
-        >
+        <div className="absolute inset-0 z-10 flex flex-col items-center px-8 sm:px-12">
           {/* Spacer top */}
           <div className="flex-1" />
 
           {/* Venue Name + Subtitle — centered vertically & horizontally */}
-          <div
-            className="text-center"
-            style={{ '--title-size': titleFontSize } as React.CSSProperties}
-          >
+          <div className="text-center">
             <h1
-              className="font-grotesk font-light leading-[1.1] pt-[0.15em] uppercase tracking-wide whitespace-nowrap animate-reveal-text"
+              className="font-grotesk font-light leading-[1.1] pt-[0.15em] uppercase tracking-wide text-balance animate-reveal-text"
               style={{
                 animationDelay: '0.5s',
                 color: '#ffffff',
-                fontSize: 'var(--title-size)',
+                fontSize: titleFontSize,
               }}
             >
               {venueName}
@@ -323,7 +314,7 @@ export default function Welcome() {
               }}
             />
             <p
-              className="font-grotesk font-light italic uppercase tracking-wide whitespace-nowrap animate-slide-up-fade"
+              className="font-grotesk font-light italic uppercase tracking-wide text-balance animate-slide-up-fade"
               style={{
                 animationDelay: '1.3s',
                 color: '#ffffff',
