@@ -7,6 +7,7 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
@@ -63,17 +64,24 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     triggerFileSelect,
   } = useFileUpload();
 
-  // Fetch assigned therapists (include therapist_venues for the detail dialog)
+  // Fetch assigned therapists (include therapist_venues for the detail dialog
+  // and priority fields for CDI exclusivity).
   const { data: assignedTherapists = [], isLoading: loadingAssigned } = useQuery({
     queryKey: ["venue-therapists", hotelId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("therapist_venues")
-        .select("hotel_id, therapist_id, therapists(*, therapist_venues(hotel_id))")
+        .select("hotel_id, therapist_id, is_priority, priority_exclusivity_minutes, therapists(*, therapist_venues(hotel_id))")
         .eq("hotel_id", hotelId);
       if (error) throw error;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (data || []).map((row: any) => row.therapists).filter(Boolean);
+      return (data || [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((row: any) => row.therapists ? {
+          ...row.therapists,
+          is_priority: row.is_priority,
+          priority_exclusivity_minutes: row.priority_exclusivity_minutes,
+        } : null)
+        .filter(Boolean);
     },
   });
 
@@ -164,6 +172,39 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
       toast.error("Erreur lors de la désassignation");
     },
   });
+
+  // Priority mutation (CDI exclusivity per venue)
+  const priorityMutation = useMutation({
+    mutationFn: async (input: {
+      therapistId: string;
+      is_priority?: boolean;
+      priority_exclusivity_minutes?: number | null;
+    }) => {
+      const patch: Record<string, unknown> = {};
+      if (input.is_priority !== undefined) patch.is_priority = input.is_priority;
+      if (input.priority_exclusivity_minutes !== undefined) {
+        patch.priority_exclusivity_minutes = input.priority_exclusivity_minutes;
+      }
+      const { error } = await supabase
+        .from("therapist_venues")
+        .update(patch)
+        .eq("therapist_id", input.therapistId)
+        .eq("hotel_id", hotelId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateQueries();
+    },
+    onError: () => {
+      toast.error("Erreur lors de la mise à jour de la priorité");
+    },
+  });
+
+  const currentPriorityCount = useMemo(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    () => assignedTherapists.filter((t: any) => t.is_priority).length,
+    [assignedTherapists],
+  );
 
   // Create & assign mutation
   const createMutation = useMutation({
@@ -305,6 +346,63 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                       />
                     </div>
                   )}
+                  <div
+                    className="mt-2 flex flex-wrap items-center gap-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id={`priority-${therapist.id}`}
+                        checked={!!therapist.is_priority}
+                        onCheckedChange={(checked) => {
+                          if (checked && currentPriorityCount >= 1 && !therapist.is_priority) {
+                            toast.warning("Une seule thérapeute peut être prioritaire par lieu");
+                            return;
+                          }
+                          priorityMutation.mutate({
+                            therapistId: therapist.id,
+                            is_priority: checked,
+                          });
+                        }}
+                        disabled={priorityMutation.isPending}
+                      />
+                      <Label htmlFor={`priority-${therapist.id}`} className="text-xs cursor-pointer">
+                        Prioritaire (CDI)
+                      </Label>
+                    </div>
+                    {therapist.is_priority && (
+                      <div className="flex items-center gap-1.5">
+                        <Label
+                          htmlFor={`priority-min-${therapist.id}`}
+                          className="text-xs text-muted-foreground"
+                        >
+                          Exclusivité (min)
+                        </Label>
+                        <Input
+                          id={`priority-min-${therapist.id}`}
+                          type="number"
+                          min={1}
+                          max={120}
+                          defaultValue={therapist.priority_exclusivity_minutes ?? ""}
+                          placeholder="10"
+                          className="h-7 w-20 text-xs"
+                          onBlur={(e) => {
+                            const raw = e.target.value.trim();
+                            const parsed = raw === "" ? null : Number(raw);
+                            const next = parsed === null
+                              ? null
+                              : Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
+                            if (next === (therapist.priority_exclusivity_minutes ?? null)) return;
+                            priorityMutation.mutate({
+                              therapistId: therapist.id,
+                              priority_exclusivity_minutes: next,
+                            });
+                          }}
+                          disabled={priorityMutation.isPending}
+                        />
+                      </div>
+                    )}
+                  </div>
                   {(therapist.skills || []).length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {(therapist.skills || []).map((skill: string) => (

@@ -727,6 +727,9 @@ export type Database = {
           pms_error_message: string | null
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
+          priority_fallback_triggered_at: string | null
+          priority_lock_until: string | null
+          priority_therapist_id: string | null
           quote_token: string | null
           room_id: string | null
           room_number: string | null
@@ -788,6 +791,9 @@ export type Database = {
           pms_error_message?: string | null
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
+          priority_fallback_triggered_at?: string | null
+          priority_lock_until?: string | null
+          priority_therapist_id?: string | null
           quote_token?: string | null
           room_id?: string | null
           room_number?: string | null
@@ -849,6 +855,9 @@ export type Database = {
           pms_error_message?: string | null
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
+          priority_fallback_triggered_at?: string | null
+          priority_lock_until?: string | null
+          priority_therapist_id?: string | null
           quote_token?: string | null
           room_id?: string | null
           room_number?: string | null
@@ -2462,18 +2471,24 @@ export type Database = {
           created_at: string | null
           hotel_id: string
           id: string
+          is_priority: boolean
+          priority_exclusivity_minutes: number | null
           therapist_id: string
         }
         Insert: {
           created_at?: string | null
           hotel_id: string
           id?: string
+          is_priority?: boolean
+          priority_exclusivity_minutes?: number | null
           therapist_id: string
         }
         Update: {
           created_at?: string | null
           hotel_id?: string
           id?: string
+          is_priority?: boolean
+          priority_exclusivity_minutes?: number | null
           therapist_id?: string
         }
         Relationships: [

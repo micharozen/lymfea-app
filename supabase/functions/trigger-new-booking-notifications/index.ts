@@ -10,6 +10,10 @@ const CLIENT_PENDING_BOOKING_TEMPLATE_ID = "c5378102-92c7-48de-834c-db17da702794
 const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
 const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_EN = "6ba59c67-04e3-412e-9a84-246aaa7dc570";
 
+// Fallback exclusivity window for priority (CDI) therapists when
+// therapist_venues.priority_exclusivity_minutes is NULL.
+const DEFAULT_PRIORITY_MINUTES = 10;
+
 function calculateExpirationDate(bookingDate: Date, now: Date): Date {
   const diffInHours = (bookingDate.getTime() - now.getTime()) / (1000 * 60 * 60);
   if (diffInHours > 48) return new Date(bookingDate.getTime() - 24 * 60 * 60 * 1000);
@@ -51,7 +55,7 @@ serve(async (req) => {
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
       .from("bookings")
-      .select("*, hotel_id, booking_date, booking_time, hotel_name, client_type, therapist_gender_preference")
+      .select("*, hotel_id, booking_date, booking_time, hotel_name, client_type, therapist_gender_preference, priority_lock_until, priority_therapist_id")
       .eq("id", bookingId)
       .single();
 
@@ -70,11 +74,14 @@ serve(async (req) => {
       proposedSlots = slots;
     }
 
-    // Get all therapists for this hotel (with gender for preference filtering)
+    // Get all therapists for this hotel (with gender for preference filtering
+    // and priority fields for CDI exclusivity).
     const { data: therapists, error: therapistsError } = await supabaseClient
       .from("therapist_venues")
       .select(`
         therapist_id,
+        is_priority,
+        priority_exclusivity_minutes,
         therapists!inner(
           id,
           user_id,
@@ -155,6 +162,55 @@ serve(async (req) => {
       } else {
         // Phase 2: all priority therapists declined (or none exist) → notify fallback group
         console.log(`[GENDER] No priority therapists left for "${genderPref}", falling back to remaining ${eligibleTherapists.length} therapist(s)`);
+      }
+    }
+
+    // CDI priority exclusivity (only for broadcast/notifyAll flows).
+    // Pattern :
+    //   - First call with no lock yet → set lock + notify priority therapist only.
+    //   - Re-call during active lock → keep notifying only her (idempotent).
+    //   - Lock expired OR she's no longer in the eligible set (declined / blocked)
+    //     → fall through to the rest of the team.
+    if (notifyAll) {
+      const priorityTherapistsForVenue = eligibleTherapists.filter(th => (th as any).is_priority);
+      const lockUntil = (booking as any).priority_lock_until as string | null;
+      const lockedTherapistId = (booking as any).priority_therapist_id as string | null;
+      const lockActive = !!lockUntil && new Date(lockUntil) > new Date();
+
+      if (lockActive && lockedTherapistId) {
+        // Locked phase → only the chosen priority therapist (if still eligible).
+        const stillEligible = eligibleTherapists.filter(th => (th.therapists as any)?.id === lockedTherapistId);
+        if (stillEligible.length > 0) {
+          console.log(`[PRIORITY] Lock active until ${lockUntil} — notifying only CDI therapist ${lockedTherapistId}`);
+          eligibleTherapists = stillEligible;
+        } else {
+          console.log(`[PRIORITY] Lock active but CDI no longer eligible (declined/blocked) — fallback to remaining ${eligibleTherapists.length} therapist(s)`);
+        }
+      } else if (!lockUntil && priorityTherapistsForVenue.length > 0) {
+        // First call & no prior lock → claim the first priority therapist available.
+        const chosen = priorityTherapistsForVenue[0] as any;
+        const chosenTherapistId = chosen.therapists?.id;
+        const minutes = chosen.priority_exclusivity_minutes ?? DEFAULT_PRIORITY_MINUTES;
+        if (priorityTherapistsForVenue.length > 1) {
+          console.warn(`[PRIORITY] ${priorityTherapistsForVenue.length} priority therapists at venue ${booking.hotel_id} — using first one (${chosenTherapistId})`);
+        }
+        const newLockUntil = new Date(Date.now() + minutes * 60_000).toISOString();
+        const { error: lockErr } = await supabaseClient
+          .from("bookings")
+          .update({
+            priority_lock_until: newLockUntil,
+            priority_therapist_id: chosenTherapistId,
+          })
+          .eq("id", bookingId);
+        if (lockErr) {
+          console.error(`[PRIORITY] Failed to set lock — falling back to broadcast:`, lockErr);
+        } else {
+          console.log(`[PRIORITY] CDI ${chosenTherapistId} exclusive lock until ${newLockUntil} (${minutes} min)`);
+          eligibleTherapists = eligibleTherapists.filter(th => (th.therapists as any)?.id === chosenTherapistId);
+        }
+      } else if (lockUntil && !lockActive) {
+        // Lock expired → broadcast to everyone (fallback phase, triggered by cron).
+        console.log(`[PRIORITY] Lock expired at ${lockUntil} — broadcasting to ${eligibleTherapists.length} therapist(s)`);
       }
     }
 
