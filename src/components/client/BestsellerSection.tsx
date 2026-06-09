@@ -201,7 +201,7 @@ export function BestsellerSection({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 rounded-none bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
+                        className="h-6 w-6 rounded-none bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#fff)] hover:opacity-90"
                         onClick={(e) => {
                           e.stopPropagation();
                           const defaultVariant = getDefaultVariant(treatment);

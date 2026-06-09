@@ -17,7 +17,6 @@ import { AddonProposalDrawer } from '@/components/client/AddonProposalDrawer';
 import { useFeasibleAddons } from '@/hooks/client/useFeasibleAddons';
 import { useQuery } from '@tanstack/react-query';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
-import { Switch } from '@/components/ui/switch';
 import { PerItemScheduler } from '@/components/client/PerItemScheduler';
 import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
 import { DatePillsRow } from '@/components/client/scheduler/DatePillsRow';
@@ -92,6 +91,12 @@ export function SchedulePanel({
   // URL wins on cold load — `takenDate` override > URL > empty
   const [selectedDate, setSelectedDate] = useState(takenDate || urlDate || '');
   const [selectedTime, setSelectedTime] = useState(urlTime || '');
+  // When 2+ base treatments are in cart, force an explicit choice between
+  // shared and per-item slots before showing any picker. Deeplinks with a
+  // pre-selected date count as an implicit "shared" choice so links keep working.
+  const [scheduleModeChosen, setScheduleModeChosen] = useState<boolean>(
+    () => Boolean(takenDate || urlDate),
+  );
   const selectedTimeRef = useRef(selectedTime);
   const [showSlotTakenBanner, setShowSlotTakenBanner] = useState(slotTaken);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
@@ -656,26 +661,73 @@ export function SchedulePanel({
         />
       </div>
 
-      {/* Multi-time toggle: only visible when 2+ base treatments are in cart */}
-      {baseItems.length > 1 && (
-        <div className="flex items-start justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
-          <div className="flex-1 min-w-0">
+      {/* Schedule mode chooser: blocking question when 2+ base treatments in cart */}
+      {baseItems.length > 1 && !scheduleModeChosen && (
+        <div className="p-4 rounded-lg border border-gray-200 bg-gray-50 space-y-3">
+          <div>
             <div className="text-sm font-medium text-gray-900">
-              {t('datetime.multiTime.toggle', 'Horaires différents par soin')}
-            </div>
-            <p className="text-xs text-gray-500 mt-0.5">
               {t(
-                'datetime.multiTime.helper',
-                'Choisissez un créneau distinct pour chaque soin du panier.',
+                'datetime.multiTime.question',
+                'Souhaitez-vous réserver ces soins sur le même créneau ?',
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {t(
+                'datetime.multiTime.questionHelper',
+                "Choisissez si vos soins se déroulent simultanément (en couple/duo) ou l'un après l'autre à des horaires distincts.",
               )}
             </p>
           </div>
-          <Switch
-            checked={scheduleMode === 'per_item'}
-            onCheckedChange={(checked) =>
-              setScheduleMode(checked ? 'per_item' : 'shared')
-            }
-          />
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setScheduleMode('shared');
+                setScheduleModeChosen(true);
+              }}
+            >
+              {t('datetime.multiTime.yesShared', 'Oui, même créneau')}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                // Reset shared selection when switching to per-item
+                setSelectedDate('');
+                setSelectedTime('');
+                setUrlDateTime('', '');
+                setScheduleMode('per_item');
+                setScheduleModeChosen(true);
+              }}
+            >
+              {t('datetime.multiTime.noSeparate', 'Non, créneaux séparés')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Recap of chosen schedule mode (with "change" link) */}
+      {baseItems.length > 1 && scheduleModeChosen && (
+        <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+          <p className="text-xs text-gray-600">
+            {scheduleMode === 'per_item'
+              ? t('datetime.multiTime.recapSeparate', 'Un créneau distinct par soin')
+              : t('datetime.multiTime.recapShared', 'Créneau unique pour tous les soins')}
+          </p>
+          <button
+            type="button"
+            className="text-xs font-medium text-gray-900 underline underline-offset-2"
+            onClick={() => {
+              setSelectedDate('');
+              setSelectedTime('');
+              setUrlDateTime('', '');
+              setScheduleMode('shared');
+              setScheduleModeChosen(false);
+            }}
+          >
+            {t('datetime.multiTime.change', 'Modifier')}
+          </button>
         </div>
       )}
 
@@ -690,7 +742,7 @@ export function SchedulePanel({
       )}
 
       {/* Per-item scheduler: one date+time picker per cart item (multi-time mode) */}
-      {scheduleMode === 'per_item' && baseItems.length > 1 && (
+      {scheduleMode === 'per_item' && baseItems.length > 1 && scheduleModeChosen && (
         <>
           <PerItemScheduler
             hotelId={hotelId}
@@ -707,7 +759,7 @@ export function SchedulePanel({
       )}
 
       {/* Date Selection (shared single-slot mode) */}
-      {scheduleMode === 'shared' && (
+      {scheduleMode === 'shared' && (baseItems.length <= 1 || scheduleModeChosen) && (
       <>
       <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.2s' }}>
         <DatePillsRow
