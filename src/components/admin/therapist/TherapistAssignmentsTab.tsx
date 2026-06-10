@@ -90,7 +90,7 @@ export function TherapistAssignmentsTab({
       {/* Venues & Rooms */}
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-normal flex items-center gap-2">
             <Building2 className="h-4 w-4 text-muted-foreground" />
             {t("admin:therapists.venuesAndRooms", "Lieux & Salles")}
           </CardTitle>
@@ -164,7 +164,7 @@ export function TherapistAssignmentsTab({
       {/* Skills */}
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-normal flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-muted-foreground" />
             {t("admin:therapists.specialties", "Spécialités")}
           </CardTitle>
@@ -225,7 +225,7 @@ export function TherapistAssignmentsTab({
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-base font-normal flex items-center gap-2">
                 <Target className="h-4 w-4 text-muted-foreground" />
                 {t("admin:therapists.minimumGuarantee", "Minimum garanti")}
               </CardTitle>

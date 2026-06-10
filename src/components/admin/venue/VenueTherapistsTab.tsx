@@ -71,8 +71,28 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("therapist_venues")
-        .select("hotel_id, therapist_id, is_priority, priority_exclusivity_minutes, therapists(*, therapist_venues(hotel_id))")
-        .eq("hotel_id", hotelId);
+        .select(`
+          hotel_id,
+          therapist_id,
+          is_priority,
+          priority_exclusivity_minutes,
+          therapists(
+            id,
+            first_name,
+            last_name,
+            email,
+            phone,
+            country_code,
+            profile_image,
+            status,
+            skills,
+            minimum_guarantee,
+            trunks,
+            therapist_venues(hotel_id)
+          )
+        `)
+        .eq("hotel_id", hotelId)
+        .order("created_at", { ascending: true });
       if (error) throw error;
       return (data || [])
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -300,7 +320,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     <div className="space-y-6">
       {/* Assigned therapists list */}
       <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3">
+        <h3 className="text-sm text-foreground mb-3">
           Thérapeutes assignés ({assignedTherapists.length})
         </h3>
         {loadingAssigned ? (
@@ -347,60 +367,71 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                     </div>
                   )}
                   <div
-                    className="mt-2 flex flex-wrap items-center gap-3"
+                    className="mt-2"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        id={`priority-${therapist.id}`}
-                        checked={!!therapist.is_priority}
-                        onCheckedChange={(checked) => {
-                          if (checked && currentPriorityCount >= 1 && !therapist.is_priority) {
-                            toast.warning("Une seule thérapeute peut être prioritaire par lieu");
-                            return;
-                          }
-                          priorityMutation.mutate({
-                            therapistId: therapist.id,
-                            is_priority: checked,
-                          });
-                        }}
-                        disabled={priorityMutation.isPending}
-                      />
-                      <Label htmlFor={`priority-${therapist.id}`} className="text-xs cursor-pointer">
-                        Prioritaire
-                      </Label>
-                    </div>
-                    {therapist.is_priority && (
-                      <div className="flex items-center gap-1.5">
-                        <Label
-                          htmlFor={`priority-min-${therapist.id}`}
-                          className="text-xs text-muted-foreground"
-                        >
-                          Exclusivité (min)
-                        </Label>
-                        <Input
-                          id={`priority-min-${therapist.id}`}
-                          type="number"
-                          min={1}
-                          max={120}
-                          defaultValue={therapist.priority_exclusivity_minutes ?? ""}
-                          placeholder="10"
-                          className="h-7 w-20 text-xs"
-                          onBlur={(e) => {
-                            const raw = e.target.value.trim();
-                            const parsed = raw === "" ? null : Number(raw);
-                            const next = parsed === null
-                              ? null
-                              : Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
-                            if (next === (therapist.priority_exclusivity_minutes ?? null)) return;
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id={`priority-${therapist.id}`}
+                          checked={!!therapist.is_priority}
+                          onCheckedChange={(checked) => {
+                            if (checked && currentPriorityCount >= 1 && !therapist.is_priority) {
+                              toast.warning("Une seule thérapeute peut être prioritaire par lieu");
+                              return;
+                            }
                             priorityMutation.mutate({
                               therapistId: therapist.id,
-                              priority_exclusivity_minutes: next,
+                              is_priority: checked,
                             });
                           }}
                           disabled={priorityMutation.isPending}
                         />
+                        <Label htmlFor={`priority-${therapist.id}`} className="text-xs cursor-pointer">
+                          Prioritaire
+                        </Label>
                       </div>
+                      {therapist.is_priority && (
+                        <div className="flex items-center gap-1.5">
+                          <Label
+                            htmlFor={`priority-min-${therapist.id}`}
+                            className="text-xs text-muted-foreground"
+                          >
+                            Exclusivité (min)
+                          </Label>
+                          <Input
+                            id={`priority-min-${therapist.id}`}
+                            type="number"
+                            min={1}
+                            max={120}
+                            defaultValue={therapist.priority_exclusivity_minutes ?? ""}
+                            placeholder="10"
+                            className="h-7 w-20 text-xs"
+                            onBlur={(e) => {
+                              const raw = e.target.value.trim();
+                              const parsed = raw === "" ? null : Number(raw);
+                              const next = parsed === null
+                                ? null
+                                : Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
+                              if (next === (therapist.priority_exclusivity_minutes ?? null)) return;
+                              priorityMutation.mutate({
+                                therapistId: therapist.id,
+                                priority_exclusivity_minutes: next,
+                              });
+                            }}
+                            disabled={priorityMutation.isPending}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {therapist.is_priority && (
+                      <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+                        Toute nouvelle réservation sur ce lieu lui est envoyée
+                        en exclusivité pendant la durée indiquée. Si elle
+                        n'accepte pas dans ce délai (ou si elle décline),
+                        la réservation est rediffusée aux autres thérapeutes
+                        du lieu. Une seule thérapeute prioritaire par lieu.
+                      </p>
                     )}
                   </div>
                   {(therapist.skills || []).length > 0 && (
