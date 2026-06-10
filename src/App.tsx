@@ -15,6 +15,7 @@ import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { StagingBanner } from "@/components/StagingBanner";
 import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
 import { SubscriptionBanner } from "@/components/billing/SubscriptionBanner";
+import { UpdateAvailableBanner } from "@/components/UpdateAvailableBanner";
 import { NotificationsBellButton } from "@/components/admin/NotificationsBellButton";
 import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
@@ -245,6 +246,7 @@ const App = () => {
         <AuthLanguageSync />
         <TooltipProvider>
         <Sonner />
+        <UpdateAvailableBanner />
         <StagingBanner />
         <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
