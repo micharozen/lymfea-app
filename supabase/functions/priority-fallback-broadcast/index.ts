@@ -1,5 +1,5 @@
 // priority-fallback-broadcast
-// Cron-driven (every minute) — re-broadcasts bookings whose CDI priority
+// Cron-driven (every minute) — re-broadcasts bookings whose priority
 // exclusivity window has expired without accept/decline.
 //
 // Pipeline :

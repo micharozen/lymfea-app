@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- Migration : therapist_priority_dispatch
--- Description : Permet de prioriser une thérapeute (typiquement CDI) sur un lieu :
+-- Description : Permet de prioriser une thérapeute sur un lieu :
 --   - therapist_venues.is_priority : flag prioritaire
 --   - therapist_venues.priority_exclusivity_minutes : durée d'exclusivité (min)
 --   - bookings.priority_lock_until : fin de la fenêtre d'exclusivité
@@ -50,7 +50,7 @@ BEGIN
     END IF;
 
     -- Toutes les minutes : invoque l'edge function qui re-broadcaste
-    -- les bookings dont la fenêtre d'exclusivité CDI est expirée.
+    -- les bookings dont la fenêtre d'exclusivité prioritaire est expirée.
     PERFORM cron.schedule(
       'priority-fallback-broadcast-cron',
       '* * * * *',

@@ -65,7 +65,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
   } = useFileUpload();
 
   // Fetch assigned therapists (include therapist_venues for the detail dialog
-  // and priority fields for CDI exclusivity).
+  // and priority fields for priority exclusivity).
   const { data: assignedTherapists = [], isLoading: loadingAssigned } = useQuery({
     queryKey: ["venue-therapists", hotelId],
     queryFn: async () => {
@@ -173,7 +173,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     },
   });
 
-  // Priority mutation (CDI exclusivity per venue)
+  // Priority mutation (exclusivity per venue)
   const priorityMutation = useMutation({
     mutationFn: async (input: {
       therapistId: string;
@@ -367,7 +367,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                         disabled={priorityMutation.isPending}
                       />
                       <Label htmlFor={`priority-${therapist.id}`} className="text-xs cursor-pointer">
-                        Prioritaire (CDI)
+                        Prioritaire
                       </Label>
                     </div>
                     {therapist.is_priority && (

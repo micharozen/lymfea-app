@@ -10,7 +10,7 @@ const CLIENT_PENDING_BOOKING_TEMPLATE_ID = "c5378102-92c7-48de-834c-db17da702794
 const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
 const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_EN = "6ba59c67-04e3-412e-9a84-246aaa7dc570";
 
-// Fallback exclusivity window for priority (CDI) therapists when
+// Fallback exclusivity window for priority therapists when
 // therapist_venues.priority_exclusivity_minutes is NULL.
 const DEFAULT_PRIORITY_MINUTES = 10;
 
@@ -75,7 +75,7 @@ serve(async (req) => {
     }
 
     // Get all therapists for this hotel (with gender for preference filtering
-    // and priority fields for CDI exclusivity).
+    // and priority fields for priority exclusivity).
     const { data: therapists, error: therapistsError } = await supabaseClient
       .from("therapist_venues")
       .select(`
@@ -165,7 +165,7 @@ serve(async (req) => {
       }
     }
 
-    // CDI priority exclusivity (only for broadcast/notifyAll flows).
+    // Priority therapist exclusivity (only for broadcast/notifyAll flows).
     // Pattern :
     //   - First call with no lock yet → set lock + notify priority therapist only.
     //   - Re-call during active lock → keep notifying only her (idempotent).
@@ -181,10 +181,10 @@ serve(async (req) => {
         // Locked phase → only the chosen priority therapist (if still eligible).
         const stillEligible = eligibleTherapists.filter(th => (th.therapists as any)?.id === lockedTherapistId);
         if (stillEligible.length > 0) {
-          console.log(`[PRIORITY] Lock active until ${lockUntil} — notifying only CDI therapist ${lockedTherapistId}`);
+          console.log(`[PRIORITY] Lock active until ${lockUntil} — notifying only priority therapist ${lockedTherapistId}`);
           eligibleTherapists = stillEligible;
         } else {
-          console.log(`[PRIORITY] Lock active but CDI no longer eligible (declined/blocked) — fallback to remaining ${eligibleTherapists.length} therapist(s)`);
+          console.log(`[PRIORITY] Lock active but priority therapist no longer eligible (declined/blocked) — fallback to remaining ${eligibleTherapists.length} therapist(s)`);
         }
       } else if (!lockUntil && priorityTherapistsForVenue.length > 0) {
         // First call & no prior lock → claim the first priority therapist available.
@@ -205,7 +205,7 @@ serve(async (req) => {
         if (lockErr) {
           console.error(`[PRIORITY] Failed to set lock — falling back to broadcast:`, lockErr);
         } else {
-          console.log(`[PRIORITY] CDI ${chosenTherapistId} exclusive lock until ${newLockUntil} (${minutes} min)`);
+          console.log(`[PRIORITY] Therapist ${chosenTherapistId} exclusive lock until ${newLockUntil} (${minutes} min)`);
           eligibleTherapists = eligibleTherapists.filter(th => (th.therapists as any)?.id === chosenTherapistId);
         }
       } else if (lockUntil && !lockActive) {
