@@ -1147,5 +1147,137 @@
       "confirm": "Regenerate",
       "cancel": "Cancel"
     }
+  },
+  "inbox": {
+    "title": "Email inbox",
+    "description": "Booking requests received by email — parsed by AI and ready to validate.",
+    "searchPlaceholder": "Search (sender, venue, subject)…",
+    "refresh": "Refresh",
+    "loading": "Loading…",
+    "empty": "No emails yet.",
+    "unknownVenue": "Unknown venue",
+    "noSubject": "(no subject)",
+    "columns": {
+      "received": "Received",
+      "from": "From",
+      "venue": "Venue",
+      "subject": "Subject",
+      "status": "Status",
+      "confidence": "Confidence"
+    },
+    "status": {
+      "all": "All statuses",
+      "received": "Received",
+      "parsed": "To review",
+      "converted": "Converted",
+      "dismissed": "Dismissed",
+      "failed": "Failed"
+    },
+    "detail": {
+      "parsed": "Extracted data",
+      "confidence": "Confidence",
+      "notParsed": "Not parsed yet.",
+      "client": "Client",
+      "email": "Email",
+      "phone": "Phone",
+      "dateTime": "Date & time",
+      "treatment": "Treatment",
+      "guests": "Guests",
+      "notes": "Notes",
+      "rawBody": "Email body",
+      "noBody": "(empty body)",
+      "errorTitle": "Processing error",
+      "dismissAction": "Dismiss",
+      "dismissed": "Email dismissed.",
+      "convertAction": "Convert to booking",
+      "close": "Close"
+    },
+    "convert": {
+      "title": "Convert to booking",
+      "subtitle": "Create a booking for {{venue}} from the extracted data.",
+      "success": "Booking created and linked to the email.",
+      "cancel": "Cancel",
+      "submit": "Create booking",
+      "fields": {
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email",
+        "phone": "Phone",
+        "date": "Date",
+        "pickDate": "Pick a date",
+        "time": "Time",
+        "duration": "Duration (min)",
+        "notes": "Notes"
+      },
+      "errors": {
+        "firstName": "First name required",
+        "lastName": "Last name required",
+        "email": "Invalid email",
+        "phone": "Phone required",
+        "date": "Date required",
+        "time": "Time required (HH:mm)",
+        "noVenue": "Email not linked to a venue — cannot convert."
+      }
+    },
+    "tab": {
+      "tabLabel": "Email Inbox",
+      "hero": {
+        "title": "Receive bookings by email",
+        "aiBadge": "AI-powered",
+        "paidBadge": "Saoma add-on",
+        "description": "Concierges and guests often prefer email over a booking form. Turn that flow into pre-filled bookings — no behavior change required from your partners."
+      },
+      "activation": {
+        "title": "Feature activation",
+        "bodyActive": "Email Inbox is active for this venue. Share the address below with your concierges and partners.",
+        "bodyLocked": "Email Inbox is a paid option included in select Saoma plans. It is disabled by default.",
+        "contactCopy": "To enable this feature for your venue, please reach out to the Saoma team.",
+        "contactCta": "Contact Saoma",
+        "mailtoSubject": "Email Inbox activation request"
+      },
+      "address": {
+        "label": "Your dedicated email address (preview)",
+        "description": "Your concierges and clients send requests here. Each email is parsed by AI and pre-filled as a booking in your inbox.",
+        "copied": "Address copied.",
+        "copyFailed": "Could not copy."
+      },
+      "benefits": {
+        "title": "Why turn this on",
+        "newChannel": {
+          "title": "A brand-new booking channel",
+          "body": "Hotel receptions and concierges simply forward client requests. No new form, no account to create."
+        },
+        "aiParsing": {
+          "title": "Automatic AI parsing",
+          "body": "Claude Haiku extracts the client, date, time, requested treatment and notes — including from forwarded emails (FR/EN)."
+        },
+        "fewerClicks": {
+          "title": "One-click conversion",
+          "body": "The admin receives a pre-filled request in the Inbox. One click and the booking enters the standard pipeline."
+        },
+        "multilingual": {
+          "title": "Multilingual",
+          "body": "The parser understands French and English requests, formal or casual. Language is detected automatically."
+        },
+        "audit": {
+          "title": "Full audit trail",
+          "body": "Every email is stored with the raw payload and the AI parsing result. You can re-parse or dismiss at any time."
+        }
+      },
+      "flow": {
+        "title": "The process at a glance",
+        "step1": { "label": "Email received", "sub": "Guest or concierge" },
+        "step2": { "label": "Dedicated inbox", "sub": "Secure webhook" },
+        "step3": { "label": "AI parsing", "sub": "Fields extracted" },
+        "step4": { "label": "Booking", "sub": "Ready to confirm" }
+      },
+      "how": {
+        "title": "How it works",
+        "step1": "A concierge or guest sends an email to your dedicated address (auto-generated from the venue name).",
+        "step2": "The email reaches our secure webhook. Our AI extracts: name, contact, date, time, treatment, party size, notes.",
+        "step3": "A new entry shows up in /admin/inbox with a confidence score. Ambiguous requests stay manual.",
+        "step4": "The admin clicks \"Convert to booking\": a booking is created with status 'pending', ready to be assigned to a therapist."
+      }
+    }
   }
 }

@@ -7,7 +7,7 @@ interface AppErrorFallbackProps {
 }
 
 const CHUNK_ERROR_RELOAD_KEY = "eia_chunk_error_reload";
-const RELOAD_MAX_ATTEMPTS = 2;
+const RELOAD_MAX_ATTEMPTS = 3; // Increased from 2 to 3 for better resilience
 
 const isChunkLoadError = (error: Error): boolean => {
   const msg = `${error.name} ${error.message}`.toLowerCase();
@@ -66,7 +66,7 @@ export const AppErrorFallback = ({ error, reset }: AppErrorFallbackProps) => {
   const [reloading, setReloading] = useState(false);
   const chunkError = isChunkLoadError(error);
 
-  // Auto-reload on chunk error (once per session to avoid infinite loops)
+  // Auto-reload on chunk error (with attempt limit to avoid infinite loops)
   useEffect(() => {
     if (chunkError) {
       const attempts = getReloadAttempts();
@@ -74,13 +74,13 @@ export const AppErrorFallback = ({ error, reset }: AppErrorFallbackProps) => {
       if (attempts < RELOAD_MAX_ATTEMPTS) {
         incrementReloadAttempts();
         console.info(
-          `[AppErrorFallback] Chunk load error detected (attempt ${attempts + 1}/${RELOAD_MAX_ATTEMPTS}). Auto-reloading...`
+          `[AppErrorFallback] Chunk load error detected (attempt ${attempts + 1}/${RELOAD_MAX_ATTEMPTS}). Auto-reloading in 500ms...`
         );
         setReloading(true);
-        // Small delay to let the error be logged
+        // Slightly longer delay (500ms) to ensure error is logged and UI is rendered
         setTimeout(() => {
           void hardReload();
-        }, 300);
+        }, 500);
       } else {
         console.warn(
           `[AppErrorFallback] Max chunk reload attempts (${RELOAD_MAX_ATTEMPTS}) reached. Showing manual reload UI.`

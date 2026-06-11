@@ -15,6 +15,7 @@ import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { StagingBanner } from "@/components/StagingBanner";
 import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
 import { SubscriptionBanner } from "@/components/billing/SubscriptionBanner";
+import { UpdateAvailableBanner } from "@/components/UpdateAvailableBanner";
 import { NotificationsBellButton } from "@/components/admin/NotificationsBellButton";
 import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
@@ -47,6 +48,7 @@ const TreatmentRooms = lazy(() => import("./pages/admin/TreatmentRooms"));
 const TreatmentRoomDetail = lazy(() => import("./pages/admin/TreatmentRoomDetail"));
 const Concierges = lazy(() => import("./pages/admin/Concierges"));
 const Customers = lazy(() => import("./pages/admin/Customers"));
+const EmailInbox = lazy(() => import("./pages/admin/EmailInbox"));
 const CustomerDetail = lazy(() => import("./pages/admin/CustomerDetail"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
@@ -246,6 +248,7 @@ const App = () => {
         <AuthLanguageSync />
         <TooltipProvider>
         <Sonner />
+        <UpdateAvailableBanner />
         <StagingBanner />
         <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
@@ -530,6 +533,7 @@ const App = () => {
                               <Route path="/concierges" element={<Concierges />} />
                               <Route path="/schedule-alerts" element={<ScheduleAlerts />} />
                               <Route path="/customers" element={<Customers />} />
+                              <Route path="/inbox" element={<EmailInbox />} />
                               <Route path="/customers/new" element={<CustomerDetail />} />
                               <Route path="/customers/:id" element={<CustomerDetail />} />
                               <Route path="/cures" element={<Cures />} />
