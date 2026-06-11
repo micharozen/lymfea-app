@@ -16,6 +16,11 @@ This endpoint takes **no query parameters** and is **not paginated** — it
 returns the full in-scope list in one call. Cache the result; venue metadata
 changes rarely.
 
+Each venue exposes a `slug` (URL-safe, unique per organization) which you can
+use as the path identifier in any other endpoint — for example
+`/v1/venues/akasha-lutetia/customers` instead of the UUID form. The UUID `id`
+remains stable and accepted everywhere.
+
 ## Response
 
 <ResponseField name="data" type="Venue[]">
@@ -29,12 +34,12 @@ changes rarely.
 
 ```bash curl
 curl https://api.saoma.io/v1/venues \
-  -H "Authorization: Bearer $EIA_API_KEY"
+  -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
 ```javascript Node.js
 const res = await fetch("https://api.saoma.io/v1/venues", {
-  headers: { Authorization: `Bearer ${process.env.EIA_API_KEY}` },
+  headers: { Authorization: `Bearer ${process.env.SAOMA_API_KEY}` },
 });
 const { data } = await res.json();
 ```
@@ -44,7 +49,7 @@ import os, requests
 
 res = requests.get(
     "https://api.saoma.io/v1/venues",
-    headers={"Authorization": f"Bearer {os.environ['EIA_API_KEY']}"},
+    headers={"Authorization": f"Bearer {os.environ['SAOMA_API_KEY']}"},
 )
 data = res.json()["data"]
 ```
@@ -58,6 +63,7 @@ data = res.json()["data"]
   "data": [
     {
       "id": "8f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718",
+      "slug": "akasha-lutetia",
       "name": "Spa Akasha — Hôtel Lutetia",
       "name_en": "Akasha Spa — Hotel Lutetia",
       "image": "https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/venues/akasha.jpg",
@@ -77,5 +83,4 @@ data = res.json()["data"]
 ```
 
 </ResponseExample>
-</content>
-</invoke>
+

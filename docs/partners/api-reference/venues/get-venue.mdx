@@ -15,7 +15,8 @@ Returns the public profile of one venue. Requires the `venues:read` scope.
 ## Path parameters
 
 <ParamField path="venue_id" type="string" required>
-  The venue id.
+  The venue identifier — either the UUID `id` or the human-readable `slug`
+  returned by [`GET /v1/venues`](/api-reference/venues/list-venues).
 </ParamField>
 
 ## Response
@@ -40,13 +41,13 @@ Returns the public profile of one venue. Requires the `venues:read` scope.
 
 ```bash curl
 curl https://api.saoma.io/v1/venues/8f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718 \
-  -H "Authorization: Bearer $EIA_API_KEY"
+  -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
 ```javascript Node.js
 const res = await fetch(
   "https://api.saoma.io/v1/venues/8f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718",
-  { headers: { Authorization: `Bearer ${process.env.EIA_API_KEY}` } }
+  { headers: { Authorization: `Bearer ${process.env.SAOMA_API_KEY}` } }
 );
 const { data } = await res.json();
 ```
@@ -59,6 +60,7 @@ const { data } = await res.json();
 {
   "data": {
     "id": "8f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718",
+    "slug": "akasha-lutetia",
     "name": "Spa Akasha — Hôtel Lutetia",
     "image": "https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/venues/akasha.jpg",
     "cover_image": "https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/venues/akasha-cover.jpg",

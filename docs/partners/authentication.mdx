@@ -1,10 +1,11 @@
 ---
 title: "Authentication"
-description: "Authenticate your requests to the Eïa Partner API with an API key."
+description: "Authenticate your requests to the Saoma Partner API with an API key."
+icon: "key"
 ---
 
 All requests to the Partner API must be authenticated with a secret **API key**
-issued by the Eïa team.
+issued by the Saoma team.
 
 ## API keys
 
@@ -13,17 +14,53 @@ An API key is a long-lived secret that:
 - Identifies your organisation (the partner).
 - Can be scoped to a single venue, or left platform-wide.
 - Carries a set of [scopes](#scopes) that gate which endpoints it can call.
-- Can be revoked at any time.
+- Can be revoked or regenerated at any time.
 
-Keys are generated and stored securely on Eïa's side (the secret is held in an
-encrypted vault and only its prefix is kept in clear for lookup). The Eïa team
-provisions your key and shares it with you once.
+Keys are stored securely on Saoma's side: the secret is held in an encrypted
+vault, and only its public prefix is kept in clear for lookup. Saoma itself
+cannot read the value back — the cleartext is only returned to you, and only
+through the reveal / regenerate actions described below.
 
 <Warning>
   Treat API keys like passwords. Never expose them in client-side code
   (browsers, mobile apps). All calls to the Partner API must originate from
   your server.
 </Warning>
+
+## Generating your key from the admin dashboard
+
+Each organisation has **one** active API key, managed self-service from the
+Saoma admin dashboard.
+
+<Steps>
+  <Step title="Open the API key page">
+    Sign in to the admin dashboard, open the user menu in the top-right corner
+    and click **Clé API** (visible only to users with the `admin` role).
+  </Step>
+  <Step title="Generate a key (first time only)">
+    If no key has been issued for your organisation yet, the page shows a
+    **Generate a key** button. Click it to create one. The full cleartext key is
+    displayed once in a dialog — **copy it immediately**.
+  </Step>
+  <Step title="Reveal an existing key">
+    Once a key exists, the page shows its public prefix masked with dots
+    (e.g. `sk_live_ab12cd34_••••••••••••••••••••••••`). Click the eye icon to
+    reveal the full value, or **Copy** to copy it to your clipboard. You can do
+    this as many times as needed.
+  </Step>
+  <Step title="Regenerate when needed">
+    Click **Regenerate** to revoke the current key and issue a new one in a
+    single step. A confirmation dialog warns you that the previous key stops
+    working immediately. See [Rotation and revocation](#rotation-and-revocation)
+    for the recommended rollout.
+  </Step>
+</Steps>
+
+<Note>
+  Need a different scope or a venue-restricted key for a specific integration?
+  Contact your Saoma account manager — those keys are still provisioned
+  manually for now.
+</Note>
 
 ## Using your key
 
@@ -45,13 +82,13 @@ If both are present, `Authorization: Bearer` takes precedence.
 
 ```bash curl
 curl https://api.saoma.io/v1/venues \
-  -H "Authorization: Bearer $EIA_API_KEY"
+  -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
 ```javascript Node.js
 const res = await fetch("https://api.saoma.io/v1/venues", {
   headers: {
-    Authorization: `Bearer ${process.env.EIA_API_KEY}`,
+    Authorization: `Bearer ${process.env.SAOMA_API_KEY}`,
   },
 });
 const { data } = await res.json();
@@ -62,7 +99,7 @@ import os, requests
 
 res = requests.get(
     "https://api.saoma.io/v1/venues",
-    headers={"Authorization": f"Bearer {os.environ['EIA_API_KEY']}"},
+    headers={"Authorization": f"Bearer {os.environ['SAOMA_API_KEY']}"},
 )
 data = res.json()["data"]
 ```
@@ -79,14 +116,19 @@ API keys follow the pattern `sk_live_{id}_{secret}` where:
 
 ## Rotation and revocation
 
-To rotate a key:
+Rotation is self-service from the [Clé API page](#generating-your-key-from-the-admin-dashboard).
+Because **Regenerate** revokes the active key the moment the new one is issued,
+plan a brief switchover:
 
-1. Request a new key from your Eïa contact.
-2. Deploy the new key to your servers.
-3. Confirm traffic is flowing on the new key.
-4. Ask the Eïa team to revoke the old key.
+1. Open the Clé API page and click **Regenerate**.
+2. Copy the new key from the confirmation dialog.
+3. Deploy it to your servers (environment variable, secret manager, …).
+4. Confirm traffic is flowing on the new key — the old one is already rejected.
 
-A revoked key is rejected immediately with `401`
+If you suspect a key has leaked, regenerate immediately; the previous secret
+becomes unusable at once.
+
+A revoked key is rejected with `401`
 `{ "error": "Invalid or revoked API key" }`.
 
 ## Scopes
@@ -95,9 +137,11 @@ Each API key is tagged with one or more scopes. Calls to an endpoint whose
 scope your key lacks return `403` with
 `{ "error": "Insufficient scope", "missing": ["…"] }`.
 
-| Scope             | Status      | Grants                                                  |
-| ----------------- | ----------- | ------------------------------------------------------- |
-| `venues:read`     | Available   | `GET /v1/venues`, `GET /v1/venues/{id}`                 |
-| `treatments:read` | Available   | `GET /v1/venues/{id}/treatments`                        |
-| `availability:read` | Coming soon | Real-time availability endpoint (not yet released)    |
-| `bookings:write`  | Coming soon | Create / cancel bookings (not yet released)             |
+| Scope               | Status      | Grants                                                            |
+| ------------------- | ----------- | ----------------------------------------------------------------- |
+| `venues:read`       | Available   | `GET /v1/venues`, `GET /v1/venues/{venue_id}`                     |
+| `treatments:read`   | Available   | `GET /v1/venues/{venue_id}/treatments`                            |
+| `customers:read`    | Available   | `GET /v1/venues/{venue_id}/customers`                             |
+| `bookings:read`     | Available   | `GET /v1/venues/{venue_id}/customers/{customer_id}/bookings`      |
+| `availability:read` | Coming soon | Real-time availability endpoint (not yet released)                |
+| `bookings:write`    | Coming soon | Create / cancel bookings (not yet released)                       |

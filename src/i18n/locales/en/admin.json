@@ -1115,5 +1115,37 @@
       "venueFailed": "Could not create your venue",
       "checkoutCancelled": "Checkout cancelled. You can resume any time."
     }
+  },
+  "userMenu": {
+    "apiKey": "API key"
+  },
+  "apiKey": {
+    "title": "API key",
+    "subtitle": "Needed for integrations such as Zapier, Make, or to call api.saoma.io directly",
+    "fieldLabel": "Your API key",
+    "copy": "Copy",
+    "copied": "API key copied",
+    "reveal": "Reveal",
+    "hide": "Hide",
+    "regenerate": "Regenerate",
+    "docsLink": "See API documentation",
+    "loading": "Loading…",
+    "loadError": "Failed to load the API key",
+    "revealError": "Failed to reveal the key",
+    "regenerateError": "Failed to regenerate the key",
+    "regenerateSuccess": "New key generated",
+    "missing": "No API key has been issued for your organization yet.",
+    "generate": "Generate a key",
+    "newKeyDialog": {
+      "title": "Your new API key",
+      "description": "Copy it now — for security reasons you will not be able to see the full value again later (but you can reveal it again from this page at any time).",
+      "close": "I've copied the key"
+    },
+    "regenerateDialog": {
+      "title": "Regenerate the API key?",
+      "description": "The old key will be invalidated immediately. Any integration using it will stop working until you paste the new one.",
+      "confirm": "Regenerate",
+      "cancel": "Cancel"
+    }
   }
 }

@@ -1,6 +1,12 @@
 import { Hono } from "hono";
 import { supabaseAdmin } from "../../lib/supabase";
-import { requireScope, type ApiKeyContext } from "../../middleware/apiKey";
+import { requireScope } from "../../middleware/apiKey";
+import {
+  resolveVenueIdentifier,
+  scopedHotelId,
+  scopedOrgId,
+} from "./_helpers";
+import customers from "./customers";
 
 /**
  * Public external API (v1) for third-party applications.
@@ -16,15 +22,9 @@ const v1 = new Hono();
 
 // Curated, safe subset of venue columns for the list endpoint.
 const VENUE_LIST_FIELDS =
-  "id,name,name_en,image,cover_image,address,postal_code,city,country,currency,venue_type,description,description_en,timezone";
+  "id,slug,name,name_en,image,cover_image,address,postal_code,city,country,currency,venue_type,description,description_en,timezone";
 
-/** Returns the venue the key is restricted to, or null for platform-wide keys. */
-function scopedHotelId(c: { get: (k: string) => unknown }): string | null {
-  const apiKey = c.get("apiKey") as ApiKeyContext | undefined;
-  return apiKey?.hotelId ?? null;
-}
-
-// GET /v1/venues — list active venues (restricted to the key's venue if scoped).
+// GET /v1/venues — list active venues, scoped to the key's organization.
 v1.get("/venues", requireScope("venues:read"), async (c) => {
   let query = supabaseAdmin
     .from("hotels")
@@ -32,8 +32,11 @@ v1.get("/venues", requireScope("venues:read"), async (c) => {
     .ilike("status", "active")
     .order("name");
 
+  const orgId = scopedOrgId(c);
   const hotelId = scopedHotelId(c);
-  if (hotelId) {
+  if (orgId) {
+    query = query.eq("organization_id", orgId);
+  } else if (hotelId) {
     query = query.eq("id", hotelId);
   }
 
@@ -48,15 +51,13 @@ v1.get("/venues", requireScope("venues:read"), async (c) => {
 
 // GET /v1/venues/:id — a single venue's public profile.
 v1.get("/venues/:id", requireScope("venues:read"), async (c) => {
-  const id = c.req.param("id");
+  const id = c.req.param("id") ?? "";
 
-  const hotelId = scopedHotelId(c);
-  if (hotelId && hotelId !== id) {
-    return c.json({ error: "Forbidden" }, 403);
-  }
+  const resolved = await resolveVenueIdentifier(c, id);
+  if (resolved instanceof Response) return resolved;
 
   const { data, error } = await supabaseAdmin.rpc("get_public_hotel_by_id", {
-    _hotel_id: id,
+    _hotel_id: resolved.venueId,
   });
   if (error) {
     console.error("GET /v1/venues/:id error:", error);
@@ -73,15 +74,13 @@ v1.get("/venues/:id", requireScope("venues:read"), async (c) => {
 
 // GET /v1/venues/:id/treatments — the venue's public treatment menu.
 v1.get("/venues/:id/treatments", requireScope("treatments:read"), async (c) => {
-  const id = c.req.param("id");
+  const id = c.req.param("id") ?? "";
 
-  const hotelId = scopedHotelId(c);
-  if (hotelId && hotelId !== id) {
-    return c.json({ error: "Forbidden" }, 403);
-  }
+  const resolved = await resolveVenueIdentifier(c, id);
+  if (resolved instanceof Response) return resolved;
 
   const { data, error } = await supabaseAdmin.rpc("get_public_treatments", {
-    _hotel_id: id,
+    _hotel_id: resolved.venueId,
   });
   if (error) {
     console.error("GET /v1/venues/:id/treatments error:", error);
@@ -90,5 +89,8 @@ v1.get("/venues/:id/treatments", requireScope("treatments:read"), async (c) => {
 
   return c.json({ data });
 });
+
+// Nested customer endpoints.
+v1.route("/venues/:slug/customers", customers);
 
 export default v1;

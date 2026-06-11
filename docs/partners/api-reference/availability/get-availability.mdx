@@ -8,7 +8,7 @@ tag: "Coming soon"
 <Warning>
   **Not yet available.** This endpoint is not implemented in the API yet. The
   specification below is a preview and may change before release. Contact the
-  Eïa team if you need it.
+  Saoma team if you need it.
 </Warning>
 
 The central endpoint for partners. Returns the slots that are currently
@@ -93,7 +93,7 @@ bookable for a venue (or a batch of venues), over a date range of up to
 
 ```bash curl
 curl "https://api.saoma.io/v1/availability?venue_id=hot_lutetia_paris&treatment_id=trt_swedish_60&from=2026-05-12&to=2026-05-14" \
-  -H "Authorization: Bearer $EIA_API_KEY"
+  -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
 ```javascript Node.js
@@ -106,7 +106,7 @@ const params = new URLSearchParams({
 });
 const res = await fetch(
   `https://api.saoma.io/v1/availability?${params}`,
-  { headers: { Authorization: `Bearer ${process.env.EIA_API_KEY}` } }
+  { headers: { Authorization: `Bearer ${process.env.SAOMA_API_KEY}` } }
 );
 const { data } = await res.json();
 ```

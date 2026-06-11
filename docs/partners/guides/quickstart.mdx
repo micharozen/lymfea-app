@@ -1,6 +1,7 @@
 ---
 title: "Quickstart"
-description: "Read venues and treatments from the Eïa Partner API in 5 minutes."
+description: "Read venues and treatments from the Saoma Partner API in 5 minutes."
+icon: "rocket"
 ---
 
 This guide walks through the endpoints available today:
@@ -17,21 +18,21 @@ This guide walks through the endpoints available today:
 
 ## Prerequisites
 
-- An API key provisioned by the Eïa team (`sk_live_…`).
+- An API key provisioned by the Saoma team (`sk_live_…`).
 - Node.js 20+ (examples below use `fetch`, available natively).
 
 Export your key and the base URL once for the whole session:
 
 ```bash
-export EIA_API_KEY="sk_live_..."
-export EIA_BASE="https://api.saoma.io/v1"
+export SAOMA_API_KEY="sk_live_..."
+export SAOMA_BASE="https://api.saoma.io/v1"
 ```
 
 ## 1. List the venues you have access to
 
 ```bash
-curl "$EIA_BASE/venues" \
-  -H "Authorization: Bearer $EIA_API_KEY"
+curl "$SAOMA_BASE/venues" \
+  -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
 Pick a venue and keep its `id` for the next steps. Cache this list — venue
@@ -40,8 +41,8 @@ metadata changes rarely.
 ## 2. Fetch a venue's profile
 
 ```bash
-curl "$EIA_BASE/venues/$VENUE_ID" \
-  -H "Authorization: Bearer $EIA_API_KEY"
+curl "$SAOMA_BASE/venues/$VENUE_ID" \
+  -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
 The detail shape includes the venue's `opening_time` / `closing_time`,
@@ -50,8 +51,8 @@ The detail shape includes the venue's `opening_time` / `closing_time`,
 ## 3. Fetch the treatment catalogue
 
 ```bash
-curl "$EIA_BASE/venues/$VENUE_ID/treatments" \
-  -H "Authorization: Bearer $EIA_API_KEY"
+curl "$SAOMA_BASE/venues/$VENUE_ID/treatments" \
+  -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
 Each treatment carries its `variants` (durations, guest counts, prices).
@@ -61,8 +62,8 @@ Remember prices are **decimal amounts** in the treatment's `currency`
 ## Putting it together (Node.js)
 
 ```javascript
-const BASE = process.env.EIA_BASE;
-const headers = { Authorization: `Bearer ${process.env.EIA_API_KEY}` };
+const BASE = process.env.SAOMA_BASE;
+const headers = { Authorization: `Bearer ${process.env.SAOMA_API_KEY}` };
 
 // 1. List venues
 const { data: venues } = await fetch(`${BASE}/venues`, { headers }).then((r) =>

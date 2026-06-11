@@ -37,13 +37,13 @@ A venue with no active treatments returns `{ "data": [] }`.
 
 ```bash curl
 curl https://api.saoma.io/v1/venues/8f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718/treatments \
-  -H "Authorization: Bearer $EIA_API_KEY"
+  -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
 ```javascript Node.js
 const res = await fetch(
   "https://api.saoma.io/v1/venues/8f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718/treatments",
-  { headers: { Authorization: `Bearer ${process.env.EIA_API_KEY}` } }
+  { headers: { Authorization: `Bearer ${process.env.SAOMA_API_KEY}` } }
 );
 const { data } = await res.json();
 ```

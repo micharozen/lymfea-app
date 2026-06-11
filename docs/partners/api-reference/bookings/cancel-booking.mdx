@@ -8,7 +8,7 @@ tag: "Coming soon"
 <Warning>
   **Not yet available.** This endpoint is not implemented in the API yet. The
   specification below is a preview and may change before release. Contact the
-  Eïa team if you need it.
+  Saoma team if you need it.
 </Warning>
 
 Cancels a booking. The venue's cancellation policy is applied server-side:
@@ -67,7 +67,7 @@ Returns the updated [Booking](/concepts/bookings) object with `status =
 
 ```bash curl
 curl -X POST https://api.saoma.io/v1/bookings/bkg_7f1a9c3b8d4e4f21/cancel \
-  -H "Authorization: Bearer $EIA_API_KEY" \
+  -H "Authorization: Bearer $SAOMA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "reason": "Customer rescheduled through partner app",

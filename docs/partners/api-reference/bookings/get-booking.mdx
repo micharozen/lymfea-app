@@ -8,7 +8,7 @@ tag: "Coming soon"
 <Warning>
   **Not yet available.** This endpoint is not implemented in the API yet. The
   specification below is a preview and may change before release. Contact the
-  Eïa team if you need it.
+  Saoma team if you need it.
 </Warning>
 
 Returns the current state of a booking, including its status, assigned
@@ -39,12 +39,12 @@ Returns the [Booking](/concepts/bookings) object.
 
 ```bash curl
 curl https://api.saoma.io/v1/bookings/bkg_7f1a9c3b8d4e4f21 \
-  -H "Authorization: Bearer $EIA_API_KEY"
+  -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
 ```bash curl (by external_reference)
 curl https://api.saoma.io/v1/bookings/ext:STAYCATION-ABC123 \
-  -H "Authorization: Bearer $EIA_API_KEY"
+  -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
 </RequestExample>

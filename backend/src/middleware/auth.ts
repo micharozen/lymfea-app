@@ -37,11 +37,24 @@ export async function authMiddleware(c: Context, next: Next) {
     return c.json({ error: "Invalid or expired token" }, 401);
   }
 
-  // Attach user to request context
+  // Role lives in the `user_roles` table (admin / concierge / therapist).
+  // `app_metadata.app_role` is a fallback for any legacy users that may
+  // still have it set there.
+  let role: string | undefined = user.app_metadata?.app_role;
+  if (!role) {
+    const { data: roleRow } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .in("role", ["admin", "concierge", "therapist"])
+      .maybeSingle();
+    role = roleRow?.role ?? undefined;
+  }
+
   c.set("user", {
     id: user.id,
     email: user.email,
-    role: user.app_metadata?.app_role,
+    role,
   } satisfies AuthUser);
 
   await next();
