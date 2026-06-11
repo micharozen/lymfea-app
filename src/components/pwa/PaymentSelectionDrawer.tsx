@@ -240,6 +240,7 @@ export const PaymentSelectionDrawer = ({
       } else {
         const { data, error } = await invokeStripe<{ payment_url?: string }>('finalize-payment', {
           booking_id: bookingId,
+          hotelId,
           payment_method: 'card',
           final_amount: totalPrice,
         });

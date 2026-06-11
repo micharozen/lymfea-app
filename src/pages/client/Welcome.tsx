@@ -255,6 +255,13 @@ export default function Welcome() {
   if (isHotel) {
     const hotelBg = hotel.cover_image || welcomeBgHotel;
     const subtitle = (hotel as any)?.landing_subtitle || 'Beauty Services';
+    const venueName = localize(hotel.name, hotel.name_en);
+    // Taille de police fluide (vw, sans paliers brusques). Le nom n'est plus
+    // forcé sur une seule ligne : on le laisse passer à la ligne et on
+    // équilibre les lignes (text-wrap: balance) pour obtenir un découpage
+    // naturel — ex. « CAP D'ANTIBES » / « BEACH HÔTEL » — sans troncature.
+    const titleFontSize = 'clamp(2rem, 8vw, 3.75rem)';
+    const subtitleFontSize = 'clamp(1.1rem, 4.5vw, 2.25rem)';
 
     return (
       <div className="h-dvh w-full relative overflow-hidden">
@@ -262,36 +269,23 @@ export default function Welcome() {
         <div className="absolute inset-0">
           <img
             src={hotelBg}
-            className={`h-full w-full object-cover object-[center_20%] animate-hero-zoom ${hotel.welcome_background_color ? '' : 'brightness-[0.4]'}`}
+            className="h-full w-full object-cover object-[center_20%] animate-hero-zoom"
             alt="Ambiance"
           />
-          {/* Hero overlay — uses venue background color when set, otherwise default dark gradient. */}
           <div
-            className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40"
-            style={
-              hotel.welcome_background_color
-                ? {
-                    backgroundImage: 'none',
-                    backgroundColor: hotel.welcome_background_color,
-                    opacity:
-                      hotel.welcome_background_opacity != null
-                        ? Math.max(0, Math.min(100, hotel.welcome_background_opacity)) / 100
-                        : 0.55,
-                  }
-                : undefined
-            }
+            className="absolute inset-0"
+            style={{
+              backgroundColor: hotel.welcome_background_color || '#000000',
+              opacity:
+                hotel.welcome_background_opacity != null
+                  ? Math.max(0, Math.min(100, hotel.welcome_background_opacity)) / 100
+                  : 0.55,
+            }}
           />
         </div>
 
         {/* Top Bar */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 pt-safe pb-4 mt-4">
-          {hotel.image && (
-            <img
-              src={hotel.image}
-              alt={hotel.name}
-              className="h-10 w-10 sm:h-12 sm:w-12 object-contain"
-            />
-          )}
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-end px-6 pt-safe pb-4 mt-4">
           <LanguageSwitcher variant="client" />
         </div>
 
@@ -303,28 +297,28 @@ export default function Welcome() {
           {/* Venue Name + Subtitle — centered vertically & horizontally */}
           <div className="text-center">
             <h1
-              className="font-grotesk font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.1] pt-[0.15em] uppercase tracking-wide animate-reveal-text"
+              className="font-grotesk font-light leading-[1.1] pt-[0.15em] uppercase tracking-wide text-balance animate-reveal-text"
               style={{
                 animationDelay: '0.5s',
-                color: hotel.button_color || '#ffffff',
+                color: '#ffffff',
+                fontSize: titleFontSize,
               }}
             >
-              {localize(hotel.name, hotel.name_en)}
+              {venueName}
             </h1>
             <div
               className="w-12 h-px mx-auto mt-4 mb-3 animate-expand-line"
               style={{
                 animationDelay: '1s',
-                backgroundColor: hotel.button_color
-                  ? `${hotel.button_color}66`
-                  : 'rgba(255,255,255,0.4)',
+                backgroundColor: 'rgba(255,255,255,0.4)',
               }}
             />
             <p
-              className="font-grotesk font-light italic text-2xl sm:text-3xl md:text-4xl uppercase tracking-wide animate-slide-up-fade"
+              className="font-grotesk font-light italic uppercase tracking-wide text-balance animate-slide-up-fade"
               style={{
                 animationDelay: '1.3s',
-                color: hotel.button_color || '#ffffff',
+                color: '#ffffff',
+                fontSize: subtitleFontSize,
               }}
             >
               {subtitle}

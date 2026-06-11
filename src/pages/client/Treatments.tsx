@@ -545,7 +545,7 @@ export default function Treatments() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 sm:h-11 sm:w-11 bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
+              className="h-10 w-10 sm:h-11 sm:w-11 bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#fff)] hover:opacity-90"
               onClick={(e) => {
                 e.stopPropagation();
                 if (hasMultipleVariants(treatment)) {

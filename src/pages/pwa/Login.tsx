@@ -23,7 +23,21 @@ import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { brand } from "@/config/brand";
 import { logger } from "@/lib/logger";
+import { EdgeFunctionError, invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { isTherapistPending } from "@/hooks/useRoleRedirect";
+
+type OtpErrorBody = {
+  reason?: string;
+  error?: string;
+  retryAfterSeconds?: number;
+};
+
+const asOtpErrorBody = (error: Error | null): OtpErrorBody | undefined => {
+  if (error instanceof EdgeFunctionError && error.body && typeof error.body === "object") {
+    return error.body as OtpErrorBody;
+  }
+  return undefined;
+};
 
 const countryCodes = [
   { code: "+33", name: "France", flag: "🇫🇷" },
@@ -273,28 +287,35 @@ const PwaLogin = () => {
       return;
     }
 
+    const phoneTail = phone.slice(-4);
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("send-otp", {
-        body: {
-          phoneNumber: phone,
-          countryCode: countryCode,
-        },
+      const { data, error } = await invokeEdgeFunction<
+        { phoneNumber: string; countryCode: string },
+        { success?: boolean; reason?: string; error?: string }
+      >("send-otp", {
+        body: { phoneNumber: phone, countryCode },
+        skipAuth: true,
+        logContext: { flow: "pwa-otp-send", phoneTail, countryCode },
       });
 
       if (error) {
-        const { status, body, serverMessage } = await extractEdgeError(error);
-        const phoneTail = phone.slice(-4);
+        const edge = error instanceof EdgeFunctionError ? error : null;
+        const status = edge?.status;
+        const body = asOtpErrorBody(error);
+        const reason = body?.reason;
+        const serverMessage = body?.error ?? error.message;
 
         logger.error("pwa.otp.send_failed", error, {
           status,
+          reason,
           serverMessage,
-          body,
+          requestId: edge?.requestId,
           phoneTail,
           countryCode,
         });
 
-        if (serverMessage && (serverMessage.includes("non trouvé") || serverMessage.includes("not found"))) {
+        if (reason === "THERAPIST_NOT_FOUND") {
           toast.error(
             `Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`,
             { duration: 8000 },
@@ -304,8 +325,8 @@ const PwaLogin = () => {
             "Session expirée ou application obsolète. Fermez complètement l'app et rouvrez-la, ou réinstallez la PWA.",
             { duration: 10000 },
           );
-        } else if (status === 429) {
-          const retryAfter = (body as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
+        } else if (reason === "RATE_LIMITED" || status === 429) {
+          const retryAfter = body?.retryAfterSeconds;
           const minutes = retryAfter ? Math.ceil(retryAfter / 60) : 30;
           toast.error(
             `Trop de tentatives. Réessayez dans ${minutes} minute${minutes > 1 ? "s" : ""}.`,
@@ -326,7 +347,7 @@ const PwaLogin = () => {
         return;
       }
 
-      if (data && (data as any).success === false) {
+      if (data && data.success === false) {
         toast.error(
           `Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`,
           { duration: 8000 },
@@ -339,17 +360,6 @@ const PwaLogin = () => {
       setCanResend(false);
       setIsCodeExpired(false);
       toast.success(t("common:toasts.success"));
-    } catch (error: any) {
-      const { status, body, serverMessage } = await extractEdgeError(error);
-      logger.error("pwa.otp.send_exception", error, {
-        status,
-        body,
-        serverMessage,
-        phoneTail: phone.slice(-4),
-        countryCode,
-      });
-      const errorMsg = serverMessage || t("common:errors.generic");
-      toast.error(`${errorMsg}${status ? ` (code ${status})` : ""}`, { duration: 8000 });
     } finally {
       setLoading(false);
     }
@@ -358,23 +368,31 @@ const PwaLogin = () => {
   const handleResendOtp = async () => {
     if (!canResend) return;
 
+    const phoneTail = phone.slice(-4);
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("send-otp", {
-        body: {
-          phoneNumber: phone,
-          countryCode: countryCode,
-        },
+      const { data, error } = await invokeEdgeFunction<
+        { phoneNumber: string; countryCode: string },
+        { success?: boolean; reason?: string; error?: string }
+      >("send-otp", {
+        body: { phoneNumber: phone, countryCode },
+        skipAuth: true,
+        logContext: { flow: "pwa-otp-resend", phoneTail, countryCode },
       });
 
       if (error) {
-        const { status, body, serverMessage } = await extractEdgeError(error);
+        const edge = error instanceof EdgeFunctionError ? error : null;
+        const status = edge?.status;
+        const body = asOtpErrorBody(error);
+        const reason = body?.reason;
+        const serverMessage = body?.error ?? error.message;
 
         logger.error("pwa.otp.resend_failed", error, {
           status,
+          reason,
           serverMessage,
-          body,
-          phoneTail: phone.slice(-4),
+          requestId: edge?.requestId,
+          phoneTail,
           countryCode,
         });
 
@@ -383,8 +401,8 @@ const PwaLogin = () => {
             "Session expirée ou application obsolète. Fermez complètement l'app et rouvrez-la, ou réinstallez la PWA.",
             { duration: 10000 },
           );
-        } else if (status === 429) {
-          const retryAfter = (body as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
+        } else if (reason === "RATE_LIMITED" || status === 429) {
+          const retryAfter = body?.retryAfterSeconds;
           const minutes = retryAfter ? Math.ceil(retryAfter / 60) : 30;
           toast.error(
             `Trop de tentatives. Réessayez dans ${minutes} minute${minutes > 1 ? "s" : ""}.`,
@@ -405,7 +423,7 @@ const PwaLogin = () => {
         return;
       }
 
-      if (data && (data as any).success === false) {
+      if (data && data.success === false) {
         toast.error(t("common:errors.generic"));
         return;
       }
@@ -416,19 +434,6 @@ const PwaLogin = () => {
       setOtp(["", "", "", "", "", ""]);
       otpRefs.current[0]?.focus();
       toast.success(t("common:toasts.success"));
-    } catch (error: any) {
-      const { status, body, serverMessage } = await extractEdgeError(error);
-      logger.error("pwa.otp.resend_exception", error, {
-        status,
-        body,
-        serverMessage,
-        phoneTail: phone.slice(-4),
-        countryCode,
-      });
-      toast.error(
-        `${serverMessage || t("common:errors.generic")}${status ? ` (code ${status})` : ""}`,
-        { duration: 8000 },
-      );
     } finally {
       setLoading(false);
     }
@@ -444,35 +449,43 @@ const PwaLogin = () => {
 
     if (loading) return;
 
+    const phoneTail = phone.slice(-4);
     setLoading(true);
     await supabase.auth.signOut();
 
     try {
-      const { data, error } = await supabase.functions.invoke("verify-otp", {
-        body: {
-          phoneNumber: phone,
-          countryCode: countryCode,
-          code: fullOtp,
-        },
+      const { data, error } = await invokeEdgeFunction<
+        { phoneNumber: string; countryCode: string; code: string },
+        {
+          success: boolean;
+          reason?: string;
+          error?: string;
+          user?: { id: string };
+          session?: { access_token: string; refresh_token: string };
+        }
+      >("verify-otp", {
+        body: { phoneNumber: phone, countryCode, code: fullOtp },
+        skipAuth: true,
+        logContext: { flow: "pwa-otp-verify", phoneTail, countryCode },
       });
 
       if (error) {
-        const { status, body, serverMessage } = await extractEdgeError(error);
+        const edge = error instanceof EdgeFunctionError ? error : null;
+        const status = edge?.status;
+        const body = asOtpErrorBody(error);
+        const reason = body?.reason;
+        const serverMessage = body?.error ?? error.message;
 
         logger.error("pwa.otp.verify_failed", error, {
           status,
+          reason,
           serverMessage,
-          body,
-          phoneTail: phone.slice(-4),
+          requestId: edge?.requestId,
+          phoneTail,
           countryCode,
         });
 
-        const isExpired =
-          error.message?.includes("404") ||
-          error.message?.includes("not found") ||
-          serverMessage?.toLowerCase().includes("expired");
-
-        if (isExpired) {
+        if (reason === "OTP_EXPIRED") {
           setIsCodeExpired(true);
           toast.error(t("login.expired"), {
             description: t("login.resend"),
@@ -490,14 +503,14 @@ const PwaLogin = () => {
             "Session expirée ou application obsolète. Fermez complètement l'app et rouvrez-la, ou réinstallez la PWA.",
             { duration: 10000 },
           );
-        } else if (status === 429) {
-          const retryAfter = (body as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
+        } else if (reason === "RATE_LIMITED" || status === 429) {
+          const retryAfter = body?.retryAfterSeconds;
           const minutes = retryAfter ? Math.ceil(retryAfter / 60) : 30;
           toast.error(
             `Trop de tentatives. Réessayez dans ${minutes} minute${minutes > 1 ? "s" : ""}.`,
             { duration: 10000 },
           );
-        } else if (status === 400) {
+        } else if (reason === "OTP_INVALID" || status === 400) {
           toast.error("Code incorrect. Vérifiez les chiffres et réessayez.", { duration: 5000 });
         } else if (status && status >= 500) {
           toast.error("Serveur indisponible. Réessayez dans quelques instants.", {
@@ -516,13 +529,14 @@ const PwaLogin = () => {
         return;
       }
 
-      if (!data.success) {
+      if (!data || !data.success || !data.session) {
         logger.warn("pwa.otp.verify_unsuccessful", {
-          serverError: (data as any)?.error,
-          phoneTail: phone.slice(-4),
+          reason: data?.reason,
+          serverError: data?.error,
+          phoneTail,
         });
         toast.error(t("common:errors.generic"), {
-          description: data.error,
+          description: data?.error,
           duration: 4000,
         });
         setOtp(["", "", "", "", "", ""]);
@@ -547,14 +561,15 @@ const PwaLogin = () => {
         await routeAfterLogin(user.id);
       }
     } catch (error: any) {
-      const status: number | undefined = error?.context?.status;
+      const edge = error instanceof EdgeFunctionError ? error : null;
       logger.error("pwa.otp.verify_exception", error, {
-        status,
+        status: edge?.status,
+        requestId: edge?.requestId,
         phoneTail: phone.slice(-4),
         countryCode,
       });
       toast.error(
-        `${error?.message || t("common:errors.generic")}${status ? ` (code ${status})` : ""}`,
+        `${error?.message || t("common:errors.generic")}${edge?.status ? ` (code ${edge.status})` : ""}`,
         { duration: 6000 },
       );
       setOtp(["", "", "", "", "", ""]);

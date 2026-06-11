@@ -1,58 +1,42 @@
 ---
 title: "Rate limits"
 description: "Usage quotas applied per API key."
+icon: "gauge-high"
 ---
 
-Rate limits protect the Eïa platform and your integration from runaway traffic.
-Limits are applied **per API key**, per endpoint category.
+Each API key carries a per-minute rate-limit configuration (`rate_limit_per_min`),
+set by the Saoma team when the key is issued.
 
-## Default limits
+<Warning>
+  Enforcement of these quotas is **not yet active**: the current API does not
+  reject traffic, and responses do **not** include `X-RateLimit-*` headers or
+  return `429`. Treat the limit below as a soft guideline and a preview of the
+  enforced behaviour to come.
+</Warning>
 
-| Category              | Limit          | Example endpoints                                 |
-| --------------------- | -------------- | ------------------------------------------------- |
-| Read endpoints        | 60 req / min   | `GET /v1/venues`, `GET /v1/availability`          |
-| Write endpoints       | 10 req / min   | `POST /v1/bookings`, `POST /.../cancel`           |
+## Guideline limits
 
-<Note>
-  Need higher limits? Contact your Eïa account manager. Quotas can be raised on
-  a case-by-case basis once we understand your traffic profile.
-</Note>
+| Category       | Soft limit   | Endpoints                                                       |
+| -------------- | ------------ | -------------------------------------------------------------- |
+| Read endpoints | 60 req / min | `GET /v1/venues`, `GET /v1/venues/{id}`, `…/treatments`        |
 
-## Rate-limit headers
+Need a higher limit? Contact your Saoma account manager.
 
-Every response includes headers that describe your current usage:
+## Planned behaviour (once enforced)
 
-| Header                  | Description                                          |
-| ----------------------- | ---------------------------------------------------- |
-| `X-RateLimit-Limit`     | Your current quota for the endpoint category        |
-| `X-RateLimit-Remaining` | Requests remaining in the current window            |
-| `X-RateLimit-Reset`     | Unix timestamp (seconds) when the window resets     |
+When enforcement ships, responses will include the following headers, and
+requests over quota will return `429`:
 
-## When you hit the limit
-
-Requests that exceed your quota return `429 RATE_LIMITED`:
-
-```json
-{
-  "error": {
-    "code": "RATE_LIMITED",
-    "message": "You have exceeded the rate limit for read endpoints.",
-    "details": {
-      "retry_after_seconds": 42
-    }
-  }
-}
-```
-
-The response also sets the standard `Retry-After` header. Implement an
-exponential backoff on `429` responses; do not retry tighter than `Retry-After`.
+| Header                  | Description                                       |
+| ----------------------- | ------------------------------------------------- |
+| `X-RateLimit-Limit`     | Your quota for the endpoint category             |
+| `X-RateLimit-Remaining` | Requests remaining in the current window         |
+| `X-RateLimit-Reset`     | Unix timestamp (seconds) when the window resets  |
+| `Retry-After`           | Seconds to wait before retrying (on `429`)       |
 
 ## Best practices
 
-- **Cache venue and treatment data.** Venue metadata (name, images,
-  description) and treatment catalogues change rarely. Refresh them a few
-  times per day, not on every user request.
-- **Batch availability queries.** Use `venue_ids[]` on `GET /v1/availability`
-  to fetch several venues in a single call.
-- **Avoid hot-polling bookings.** Poll `GET /v1/bookings/{id}` at most every
-  30 seconds. Webhook notifications are on the roadmap for v1.1.
+- **Cache venue and treatment data.** Venue metadata and treatment catalogues
+  change rarely. Refresh them a few times per day, not on every user request.
+- **Implement exponential backoff** for `429`/`5xx` responses ahead of
+  enforcement, so your integration is ready when quotas go live.

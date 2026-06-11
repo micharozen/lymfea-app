@@ -111,7 +111,14 @@
     "multiTime": {
       "toggle": "Different times per treatment",
       "helper": "Pick a separate time slot for each treatment in your cart.",
-      "tapToChoose": "Tap to pick a time slot"
+      "tapToChoose": "Tap to pick a time slot",
+      "question": "Would you like to book these treatments at the same time?",
+      "questionHelper": "Choose whether your treatments happen simultaneously (couple/duo) or one after another at different times.",
+      "yesShared": "Yes, same time slot",
+      "noSeparate": "No, separate time slots",
+      "recapShared": "Single time slot for all treatments",
+      "recapSeparate": "Separate time slot per treatment",
+      "change": "Change"
     }
   },
   "info": {

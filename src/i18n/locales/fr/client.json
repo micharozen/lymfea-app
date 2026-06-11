@@ -111,7 +111,14 @@
     "multiTime": {
       "toggle": "Horaires différents par soin",
       "helper": "Choisissez un créneau distinct pour chaque soin du panier.",
-      "tapToChoose": "Toucher pour choisir un créneau"
+      "tapToChoose": "Toucher pour choisir un créneau",
+      "question": "Souhaitez-vous réserver ces soins sur le même créneau ?",
+      "questionHelper": "Choisissez si vos soins se déroulent simultanément (en couple/duo) ou l'un après l'autre à des horaires distincts.",
+      "yesShared": "Oui, même créneau",
+      "noSeparate": "Non, créneaux séparés",
+      "recapShared": "Créneau unique pour tous les soins",
+      "recapSeparate": "Un créneau distinct par soin",
+      "change": "Modifier"
     }
   },
   "info": {

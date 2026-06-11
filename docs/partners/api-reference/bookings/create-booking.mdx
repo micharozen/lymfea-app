@@ -2,9 +2,16 @@
 title: "Create a booking"
 api: "POST /v1/bookings"
 description: "Push a new booking into a venue's agenda."
+tag: "Coming soon"
 ---
 
-Creates a booking at a specific slot. Eïa atomically reserves a treatment
+<Warning>
+  **Not yet available.** This endpoint is not implemented in the API yet. The
+  specification below is a preview and may change before release. Contact the
+  Saoma team if you need it.
+</Warning>
+
+Creates a booking at a specific slot. Saoma atomically reserves a treatment
 room and assigns a therapist; if the slot is still available, the booking is
 created and the customer is notified by email.
 
@@ -95,8 +102,8 @@ for venues that broadcast to their pool.
 <RequestExample>
 
 ```bash curl
-curl -X POST https://api-sandbox.lymfea.com/v1/bookings \
-  -H "Authorization: Bearer $LYMFEA_API_KEY" \
+curl -X POST https://api.saoma.io/v1/bookings \
+  -H "Authorization: Bearer $SAOMA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "venue_id": "hot_lutetia_paris",
@@ -118,10 +125,10 @@ curl -X POST https://api-sandbox.lymfea.com/v1/bookings \
 ```
 
 ```javascript Node.js
-const res = await fetch("https://api-sandbox.lymfea.com/v1/bookings", {
+const res = await fetch("https://api.saoma.io/v1/bookings", {
   method: "POST",
   headers: {
-    Authorization: `Bearer ${process.env.LYMFEA_API_KEY}`,
+    Authorization: `Bearer ${process.env.SAOMA_API_KEY}`,
     "Content-Type": "application/json",
   },
   body: JSON.stringify({

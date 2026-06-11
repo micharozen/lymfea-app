@@ -33,8 +33,10 @@ function buildSteps(status: string, paymentStatus: string): { steps: Step[]; cur
   }
 
   const isPaid = paymentStatus === "paid" || paymentStatus === "charged_to_room";
+  const isCardSaved = paymentStatus === "card_saved";
   const isPending = status === "pending" || status === "waiting_approval" || status === "awaiting_hairdresser_selection";
   const paidSublabel = "Payé";
+  const unpaidSublabel = isCardSaved ? "Carte enregistrée" : "Paiement en attente";
 
   // Two possible paths:
   // A) Payment first:  en attente/pending → en attente/payé → confirmé/payé → terminé
@@ -45,7 +47,7 @@ function buildSteps(status: string, paymentStatus: string): { steps: Step[]; cur
   const paymentFirst = isPending && isPaid;
 
   const steps: Step[] = [
-    { key: "pending_pending", label: "En attente", sublabel: "Paiement en attente" },
+    { key: "pending_pending", label: "En attente", sublabel: unpaidSublabel },
   ];
 
   if (!confirmFirst) {
@@ -55,7 +57,7 @@ function buildSteps(status: string, paymentStatus: string): { steps: Step[]; cur
 
   if (!paymentFirst) {
     // Path B: confirmed while payment still pending
-    steps.push({ key: "confirmed_pending", label: "Confirmé", sublabel: "Paiement en attente" });
+    steps.push({ key: "confirmed_pending", label: "Confirmé", sublabel: unpaidSublabel });
   }
 
   steps.push({ key: "confirmed_paid", label: "Confirmé", sublabel: paidSublabel });

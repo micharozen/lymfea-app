@@ -26,6 +26,7 @@ const PAYMENT_TEXT_LABELS: Record<string, string> = {
   refunded: "Remboursé",
   charged_to_room: "Chambre",
   pending_partner_billing: "Paiement partenaire",
+  card_saved: "Carte enregistrée",
 };
 
 function getPaymentTextLabel(status: string | null | undefined): string {

@@ -15,6 +15,7 @@ import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { StagingBanner } from "@/components/StagingBanner";
 import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
 import { SubscriptionBanner } from "@/components/billing/SubscriptionBanner";
+import { UpdateAvailableBanner } from "@/components/UpdateAvailableBanner";
 import { NotificationsBellButton } from "@/components/admin/NotificationsBellButton";
 import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
@@ -53,6 +54,7 @@ const Products = lazy(() => import("./pages/admin/Products"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
 const Billing = lazy(() => import("./pages/admin/Billing"));
+const ApiKeys = lazy(() => import("./pages/admin/ApiKeys"));
 const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Organizations = lazy(() => import("./pages/admin/Organizations"));
@@ -246,6 +248,7 @@ const App = () => {
         <AuthLanguageSync />
         <TooltipProvider>
         <Sonner />
+        <UpdateAvailableBanner />
         <StagingBanner />
         <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
@@ -540,6 +543,7 @@ const App = () => {
                               <Route path="/orders" element={<Orders />} />
                               <Route path="/finance" element={<Finance />} />
                               <Route path="/billing" element={<Billing />} />
+                              <Route path="/api-keys" element={<ApiKeys />} />
                               <Route path="/transactions" element={<Transactions />} />
                               <Route path="/analytics" element={<Analytics />} />
                               <Route path="/support" element={<SupportTickets />} />

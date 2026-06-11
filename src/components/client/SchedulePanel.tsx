@@ -17,12 +17,30 @@ import { AddonProposalDrawer } from '@/components/client/AddonProposalDrawer';
 import { useFeasibleAddons } from '@/hooks/client/useFeasibleAddons';
 import { useQuery } from '@tanstack/react-query';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
-import { Switch } from '@/components/ui/switch';
 import { PerItemScheduler } from '@/components/client/PerItemScheduler';
 import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
 import { DatePillsRow } from '@/components/client/scheduler/DatePillsRow';
 import { useDateOptions } from '@/components/client/scheduler/useDateOptions';
 import { useTimeSlots } from '@/components/client/scheduler/useTimeSlots';
+import { FunctionsHttpError } from '@supabase/supabase-js';
+
+/** Parse JSON body from a failed edge-function invoke (e.g. 409 hold_disabled). */
+async function parseFunctionErrorBody(error: unknown): Promise<Record<string, unknown> | null> {
+  if (!(error instanceof FunctionsHttpError)) return null;
+  try {
+    const ctx = error.context as Response | undefined;
+    if (ctx && typeof ctx.clone === 'function') {
+      return (await ctx.clone().json()) as Record<string, unknown>;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function isHoldDisabledResponse(body: Record<string, unknown> | null): boolean {
+  return body?.reason === 'hold_disabled' || body?.holdSkipped === true;
+}
 
 interface SchedulePanelProps {
   hotelId: string;
@@ -73,6 +91,12 @@ export function SchedulePanel({
   // URL wins on cold load — `takenDate` override > URL > empty
   const [selectedDate, setSelectedDate] = useState(takenDate || urlDate || '');
   const [selectedTime, setSelectedTime] = useState(urlTime || '');
+  // When 2+ base treatments are in cart, force an explicit choice between
+  // shared and per-item slots before showing any picker. Deeplinks with a
+  // pre-selected date count as an implicit "shared" choice so links keep working.
+  const [scheduleModeChosen, setScheduleModeChosen] = useState<boolean>(
+    () => Boolean(takenDate || urlDate),
+  );
   const selectedTimeRef = useRef(selectedTime);
   const [showSlotTakenBanner, setShowSlotTakenBanner] = useState(slotTaken);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
@@ -90,6 +114,7 @@ export function SchedulePanel({
   const [isAddonDrawerOpen, setIsAddonDrawerOpen] = useState(false);
   const [pendingContinueTime, setPendingContinueTime] = useState<string | null>(null);
   const [addonCheckArmed, setAddonCheckArmed] = useState(false);
+  const proceedAfterAddonsInFlightRef = useRef(false);
 
   const baseItems = useMemo(
     () => items.filter((i) => !i.isAddon && !i.isBundle),
@@ -127,7 +152,7 @@ export function SchedulePanel({
   }, [embedded, trackPageView]);
 
   // Fetch venue opening/closing hours and schedule info
-  const { data: venueData } = useQuery({
+  const { data: venueData, isLoading: loadingVenueData, isError: venueDataError } = useQuery({
     queryKey: ['venue-data', hotelId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -135,6 +160,9 @@ export function SchedulePanel({
 
       if (error) throw error;
       const hotel = data?.[0];
+      if (!hotel) {
+        throw new Error('Venue not found or inactive');
+      }
 
       const baseOpeningMinutes = hotel?.opening_time
         ? parseInt(hotel.opening_time.split(':')[0], 10) * 60 + parseInt(hotel.opening_time.split(':')[1] || '0', 10)
@@ -149,7 +177,17 @@ export function SchedulePanel({
       const maxDaysAhead = isOneTime ? 90 : (isRecurring && daysPerWeek < 5) ? 90 : 90;
 
       const slotInterval = hotel?.slot_interval || 30;
-      const holdEnabled = (hotel as { booking_hold_enabled?: boolean } | undefined)?.booking_hold_enabled ?? true;
+      const holdRaw = (hotel as { booking_hold_enabled?: boolean } | undefined)?.booking_hold_enabled;
+      // Fail-closed in prod when RPC omits booking_hold_enabled (staging safety).
+      // In dev, fall back to true so local DBs behind on migrations stay usable.
+      let holdEnabled: boolean | undefined =
+        typeof holdRaw === 'boolean' ? holdRaw : undefined;
+      if (holdEnabled === undefined && import.meta.env.DEV) {
+        console.warn(
+          '[SchedulePanel] booking_hold_enabled missing from get_public_hotel_by_id — defaulting hold=true in dev. Run: bun run sup:reset',
+        );
+        holdEnabled = true;
+      }
       const holdDurationMinutes = (hotel as { booking_hold_duration_minutes?: number } | undefined)?.booking_hold_duration_minutes ?? 5;
 
       const allowOutOfHours = !!(hotel as { allow_out_of_hours_booking?: boolean } | undefined)?.allow_out_of_hours_booking;
@@ -269,10 +307,13 @@ export function SchedulePanel({
       setLoadingAvailability(true);
       setNoTherapists(false);
       try {
+        const treatmentIds = Array.from(new Set(baseItems.map((item) => item.id)));
         const { data, error } = await supabase.functions.invoke('check-availability', {
           body: {
             hotelId,
             date: selectedDate,
+            ...(treatmentIds.length > 0 ? { treatmentIds } : {}),
+            ...(totalBaseDuration > 0 ? { requestedDuration: totalBaseDuration } : {}),
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
             ...(requiredGuestCount > 1 ? { requiredGuestCount } : {}),
           }
@@ -300,34 +341,39 @@ export function SchedulePanel({
     };
 
     fetchAvailability();
-  }, [selectedDate, hotelId, therapistGenderPreference, requiredGuestCount, t]);
+  }, [selectedDate, hotelId, therapistGenderPreference, requiredGuestCount, baseItems, totalBaseDuration, t]);
 
   /**
    * Creates a draft booking (holds the slot) then navigates forward.
    * When the venue has hold disabled, skips draft creation — the slot will be locked
    * at confirm-setup-intent via the reserve_trunk_atomically fallback path.
+   *
+   * Hold OFF does not invoke create-draft-booking, so any prior draft rows are only
+   * released via priorDraftIds when the client still had a draft id, or by pg_cron
+   * (check-expired-slots) after hold TTL — max ~5 min orphan window.
    */
+  const skipHoldAndContinue = (date: string, time: string) => {
+    flushSync(() => {
+      setDraftBookingId(null);
+      setBookingIds([]);
+      setGroupId(null);
+      setHoldExpiresAt(null);
+      setBookingDateTime({ date, time });
+    });
+    onContinue();
+  };
+
   const executeHoldAndContinue = async (date: string, time: string) => {
-    const holdEnabled = venueData?.holdEnabled ?? true;
-    const holdMinutes = venueData?.holdDurationMinutes ?? 5;
+    if (!venueData) return;
+
+    const holdEnabled = venueData.holdEnabled;
+    const holdMinutes = venueData.holdDurationMinutes ?? 5;
+    const priorDraftIds = draftBookingId ? [draftBookingId] : [];
 
     setIsHolding(true);
     try {
-      if (draftBookingId) {
-        await supabase.from('bookings').delete()
-          .eq('id', draftBookingId)
-          .eq('status', 'awaiting_payment');
-        setDraftBookingId(null);
-        setHoldExpiresAt(null);
-      }
-
       if (!holdEnabled) {
-        flushSync(() => {
-          setDraftBookingId(null);
-          setHoldExpiresAt(null);
-          setBookingDateTime({ date, time });
-        });
-        onContinue();
+        skipHoldAndContinue(date, time);
         return;
       }
 
@@ -342,10 +388,24 @@ export function SchedulePanel({
           })),
           therapistGender: therapistGenderPreference || null,
           ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+          ...(priorDraftIds.length > 0 ? { priorDraftIds } : {}),
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const errBody = await parseFunctionErrorBody(error);
+        if (isHoldDisabledResponse(errBody)) {
+          skipHoldAndContinue(date, time);
+          return;
+        }
+        throw error;
+      }
+
+      if (data?.holdSkipped || data?.reason === 'hold_disabled') {
+        skipHoldAndContinue(date, time);
+        return;
+      }
+
       if (!data?.bookingId) throw new Error('No booking ID returned');
 
       flushSync(() => {
@@ -378,36 +438,20 @@ export function SchedulePanel({
       return;
     }
 
-    const holdEnabled = venueData?.holdEnabled ?? true;
-    const holdMinutes = venueData?.holdDurationMinutes ?? 5;
+    if (!venueData) return;
+
+    const holdEnabled = venueData.holdEnabled;
+    const holdMinutes = venueData.holdDurationMinutes ?? 5;
+    const priorIds = bookingIds.length > 0
+      ? bookingIds
+      : (draftBookingId ? [draftBookingId] : []);
 
     setIsHolding(true);
     try {
-      // Drop any prior drafts (single or multi) before re-holding.
-      const priorIds = bookingIds.length > 0
-        ? bookingIds
-        : (draftBookingId ? [draftBookingId] : []);
-      if (priorIds.length > 0) {
-        await supabase.from('bookings').delete()
-          .in('id', priorIds)
-          .eq('status', 'awaiting_payment');
-        setDraftBookingId(null);
-        setBookingIds([]);
-        setGroupId(null);
-        setHoldExpiresAt(null);
-      }
-
       const firstSlot = { date: items[0].date, time: items[0].time };
 
       if (!holdEnabled) {
-        flushSync(() => {
-          setDraftBookingId(null);
-          setBookingIds([]);
-          setGroupId(null);
-          setHoldExpiresAt(null);
-          setBookingDateTime(firstSlot);
-        });
-        onContinue();
+        skipHoldAndContinue(firstSlot.date, firstSlot.time);
         return;
       }
 
@@ -416,10 +460,24 @@ export function SchedulePanel({
           hotelId,
           items,
           therapistGender: therapistGenderPreference || null,
+          ...(priorIds.length > 0 ? { priorDraftIds: priorIds } : {}),
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const errBody = await parseFunctionErrorBody(error);
+        if (isHoldDisabledResponse(errBody)) {
+          skipHoldAndContinue(firstSlot.date, firstSlot.time);
+          return;
+        }
+        throw error;
+      }
+
+      if (data?.holdSkipped || data?.reason === 'hold_disabled') {
+        skipHoldAndContinue(firstSlot.date, firstSlot.time);
+        return;
+      }
+
       if (!data?.bookingIds || data.bookingIds.length === 0) {
         throw new Error('No booking IDs returned');
       }
@@ -442,11 +500,17 @@ export function SchedulePanel({
   };
 
   const proceedAfterAddons = (time: string) => {
+    if (proceedAfterAddonsInFlightRef.current) return;
+    proceedAfterAddonsInFlightRef.current = true;
     setIsAddonDrawerOpen(false);
     setAddonCheckArmed(false);
     setUrlDateTime(selectedDate, time);
     setTimeout(async () => {
-      await executeHoldAndContinue(selectedDate, time);
+      try {
+        await executeHoldAndContinue(selectedDate, time);
+      } finally {
+        proceedAfterAddonsInFlightRef.current = false;
+      }
     }, 300);
   };
 
@@ -457,9 +521,10 @@ export function SchedulePanel({
     if (!addonCheckArmed || !addonsReady || !pendingContinueTime) return;
     if (feasibleAddons.length > 0) {
       setIsAddonDrawerOpen(true);
-    } else {
-      proceedAfterAddons(pendingContinueTime);
+      return;
     }
+    setAddonCheckArmed(false);
+    proceedAfterAddons(pendingContinueTime);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addonCheckArmed, addonsReady, feasibleAddons.length, pendingContinueTime]);
 
@@ -474,6 +539,8 @@ export function SchedulePanel({
   };
 
   const handleContinue = () => {
+    if (!venueConfigReady) return;
+
     if (scheduleMode === 'per_item') {
       if (!allItemsScheduled) {
         toast.error(t('datetime.selectTime'));
@@ -520,7 +587,15 @@ export function SchedulePanel({
     });
   }, [scheduleMode, baseItems, perItemSchedule]);
 
-  const isBusy = loadingAvailability || isHolding || (addonCheckArmed && !addonsReady);
+  const venueConfigReady =
+    !loadingVenueData && !venueDataError && venueData !== undefined && typeof venueData.holdEnabled === 'boolean';
+  const isBusy = !venueConfigReady || loadingAvailability || isHolding || (addonCheckArmed && !addonsReady);
+
+  useEffect(() => {
+    if (venueDataError) {
+      toast.error(t('common:errors.generic'));
+    }
+  }, [venueDataError, t]);
 
   return (
     <div className={cn(
@@ -586,26 +661,73 @@ export function SchedulePanel({
         />
       </div>
 
-      {/* Multi-time toggle: only visible when 2+ base treatments are in cart */}
-      {baseItems.length > 1 && (
-        <div className="flex items-start justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
-          <div className="flex-1 min-w-0">
+      {/* Schedule mode chooser: blocking question when 2+ base treatments in cart */}
+      {baseItems.length > 1 && !scheduleModeChosen && (
+        <div className="p-4 rounded-lg border border-gray-200 bg-gray-50 space-y-3">
+          <div>
             <div className="text-sm font-medium text-gray-900">
-              {t('datetime.multiTime.toggle', 'Horaires différents par soin')}
-            </div>
-            <p className="text-xs text-gray-500 mt-0.5">
               {t(
-                'datetime.multiTime.helper',
-                'Choisissez un créneau distinct pour chaque soin du panier.',
+                'datetime.multiTime.question',
+                'Souhaitez-vous réserver ces soins sur le même créneau ?',
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {t(
+                'datetime.multiTime.questionHelper',
+                "Choisissez si vos soins se déroulent simultanément (en couple/duo) ou l'un après l'autre à des horaires distincts.",
               )}
             </p>
           </div>
-          <Switch
-            checked={scheduleMode === 'per_item'}
-            onCheckedChange={(checked) =>
-              setScheduleMode(checked ? 'per_item' : 'shared')
-            }
-          />
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setScheduleMode('shared');
+                setScheduleModeChosen(true);
+              }}
+            >
+              {t('datetime.multiTime.yesShared', 'Oui, même créneau')}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                // Reset shared selection when switching to per-item
+                setSelectedDate('');
+                setSelectedTime('');
+                setUrlDateTime('', '');
+                setScheduleMode('per_item');
+                setScheduleModeChosen(true);
+              }}
+            >
+              {t('datetime.multiTime.noSeparate', 'Non, créneaux séparés')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Recap of chosen schedule mode (with "change" link) */}
+      {baseItems.length > 1 && scheduleModeChosen && (
+        <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+          <p className="text-xs text-gray-600">
+            {scheduleMode === 'per_item'
+              ? t('datetime.multiTime.recapSeparate', 'Un créneau distinct par soin')
+              : t('datetime.multiTime.recapShared', 'Créneau unique pour tous les soins')}
+          </p>
+          <button
+            type="button"
+            className="text-xs font-medium text-gray-900 underline underline-offset-2"
+            onClick={() => {
+              setSelectedDate('');
+              setSelectedTime('');
+              setUrlDateTime('', '');
+              setScheduleMode('shared');
+              setScheduleModeChosen(false);
+            }}
+          >
+            {t('datetime.multiTime.change', 'Modifier')}
+          </button>
         </div>
       )}
 
@@ -620,7 +742,7 @@ export function SchedulePanel({
       )}
 
       {/* Per-item scheduler: one date+time picker per cart item (multi-time mode) */}
-      {scheduleMode === 'per_item' && baseItems.length > 1 && (
+      {scheduleMode === 'per_item' && baseItems.length > 1 && scheduleModeChosen && (
         <>
           <PerItemScheduler
             hotelId={hotelId}
@@ -637,7 +759,7 @@ export function SchedulePanel({
       )}
 
       {/* Date Selection (shared single-slot mode) */}
-      {scheduleMode === 'shared' && (
+      {scheduleMode === 'shared' && (baseItems.length <= 1 || scheduleModeChosen) && (
       <>
       <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.2s' }}>
         <DatePillsRow
@@ -708,7 +830,7 @@ export function SchedulePanel({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {t('datetime.securing', 'Sécurisation du créneau…')}
               </>
-            ) : loadingAvailability ? (
+            ) : loadingVenueData || loadingAvailability ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {t('common:loading')}
@@ -736,7 +858,7 @@ export function SchedulePanel({
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {t('datetime.securing', 'Sécurisation du créneau…')}
                 </>
-              ) : loadingAvailability ? (
+              ) : loadingVenueData || loadingAvailability ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {t('common:loading')}

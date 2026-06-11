@@ -174,7 +174,7 @@ VALUES
     '00000000-0000-0000-0000-000000000002',
     'therapist@lymfea.dev',
     'Dev', 'Therapist',
-    '0600000002',
+    '600000002',
     'Actif',
     true,
     '+33',
@@ -188,7 +188,7 @@ VALUES
     '00000000-0000-0000-0000-000000000004',
     'therapist-m@lymfea.dev',
     'Marc', 'Therapist',
-    '0600000004',
+    '600000004',
     'Actif',
     true,
     '+33',
@@ -364,29 +364,15 @@ INSERT INTO public.bookings (
    '00000000-0000-0000-0000-000000000104', 'Marc Therapist',
    95.00, 60, 'card', 'paid', '00000000-0000-0000-0000-000000000031', NULL);
 
--- 14) Booking treatments (link bookings to treatment menus)
-INSERT INTO public.booking_treatments (id, booking_id, treatment_id) VALUES
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000021'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000024'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000043'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000204', '00000000-0000-0000-0000-000000000025'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000205', '00000000-0000-0000-0000-000000000046'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000206', '00000000-0000-0000-0000-000000000027'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000207', '00000000-0000-0000-0000-000000000024'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000208', '00000000-0000-0000-0000-000000000044'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000021'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000210', '00000000-0000-0000-0000-000000000045'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000211', '00000000-0000-0000-0000-000000000026'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000212', '00000000-0000-0000-0000-000000000027'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000213', '00000000-0000-0000-0000-000000000043');
-
--- 15) Treatment variants (durée / nombre de personnes)
+-- 14) Treatment variants (durée / nombre de personnes)
 -- Variant IDs reference (used by email_inquiries below):
 --   Massage relaxant (21):    300 = 60 min solo (default), 301 = 90 min solo, 302 = 60 min duo
 --   Deep tissue (24):         310 = 75 min solo (default)
 --   Soin éclat visage (25):   320 = 45 min solo (default)
 --   Enveloppement détox (27): 330 = 50 min solo (default), 331 = 80 min solo
 --   Massage suédois (43):     340 = 60 min solo (default), 341 = 90 min solo
+-- Plus default-only variants for the remaining seeded treatments (26, 44, 45, 46)
+-- so booking_treatments below can reference a variant_id for every row.
 INSERT INTO public.treatment_variants (id, treatment_id, label, label_en, duration, price, guest_count, is_default, status, sort_order)
 VALUES
   ('00000000-0000-0000-0000-000000000300', '00000000-0000-0000-0000-000000000021', '60 min',           '60 min',          60, 90.00,  1, true,  'active', 1),
@@ -394,12 +380,69 @@ VALUES
   ('00000000-0000-0000-0000-000000000302', '00000000-0000-0000-0000-000000000021', '60 min · duo',     '60 min · couple', 60, 170.00, 2, false, 'active', 3),
   ('00000000-0000-0000-0000-000000000310', '00000000-0000-0000-0000-000000000024', '75 min',           '75 min',          75, 120.00, 1, true,  'active', 1),
   ('00000000-0000-0000-0000-000000000320', '00000000-0000-0000-0000-000000000025', '45 min',           '45 min',          45, 75.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000326', '00000000-0000-0000-0000-000000000026', '30 min',           '30 min',          30, 55.00,  1, true,  'active', 1),
   ('00000000-0000-0000-0000-000000000330', '00000000-0000-0000-0000-000000000027', '50 min',           '50 min',          50, 85.00,  1, true,  'active', 1),
   ('00000000-0000-0000-0000-000000000331', '00000000-0000-0000-0000-000000000027', '80 min',           '80 min',          80, 130.00, 1, false, 'active', 2),
   ('00000000-0000-0000-0000-000000000340', '00000000-0000-0000-0000-000000000043', '60 min',           '60 min',          60, 95.00,  1, true,  'active', 1),
-  ('00000000-0000-0000-0000-000000000341', '00000000-0000-0000-0000-000000000043', '90 min',           '90 min',          90, 135.00, 1, false, 'active', 2);
+  ('00000000-0000-0000-0000-000000000341', '00000000-0000-0000-0000-000000000043', '90 min',           '90 min',          90, 135.00, 1, false, 'active', 2),
+  ('00000000-0000-0000-0000-000000000344', '00000000-0000-0000-0000-000000000044', '90 min',           '90 min',          90, 140.00, 1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000345', '00000000-0000-0000-0000-000000000045', '50 min',           '50 min',          50, 80.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000346', '00000000-0000-0000-0000-000000000046', '45 min',           '45 min',          45, 70.00,  1, true,  'active', 1);
 
--- 16) Fake email_inquiries (inbox)
+-- 15) Booking treatments (link bookings to treatment menus + variants)
+INSERT INTO public.booking_treatments (id, booking_id, treatment_id, variant_id) VALUES
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000300'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000024', '00000000-0000-0000-0000-000000000310'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000043', '00000000-0000-0000-0000-000000000340'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000204', '00000000-0000-0000-0000-000000000025', '00000000-0000-0000-0000-000000000320'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000205', '00000000-0000-0000-0000-000000000046', '00000000-0000-0000-0000-000000000346'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000206', '00000000-0000-0000-0000-000000000027', '00000000-0000-0000-0000-000000000330'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000207', '00000000-0000-0000-0000-000000000024', '00000000-0000-0000-0000-000000000310'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000208', '00000000-0000-0000-0000-000000000044', '00000000-0000-0000-0000-000000000344'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000300'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000210', '00000000-0000-0000-0000-000000000045', '00000000-0000-0000-0000-000000000345'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000211', '00000000-0000-0000-0000-000000000026', '00000000-0000-0000-0000-000000000326'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000212', '00000000-0000-0000-0000-000000000027', '00000000-0000-0000-0000-000000000330'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000213', '00000000-0000-0000-0000-000000000043', '00000000-0000-0000-0000-000000000340');
+
+-- 16) Persistent customer profiles
+-- One row per distinct client in the bookings fixture. Linked back via
+-- bookings.customer_id below so the Partner API (/v1/venues/:slug/customers)
+-- has data to return. UUIDs in the 300-series for readability.
+INSERT INTO public.customers (
+  id, first_name, last_name, email, phone, language, profile_completed
+) VALUES
+  ('00000000-0000-0000-0000-000000000501', 'Sophie',    'Martin',    'sophie.martin@example.com',    '+33612345678', 'fr', true),
+  ('00000000-0000-0000-0000-000000000502', 'Pierre',    'Dubois',    'pierre.dubois@example.com',    '+33623456789', 'fr', true),
+  ('00000000-0000-0000-0000-000000000503', 'Emma',      'Laurent',   'emma.laurent@example.com',     '+33634567890', 'fr', true),
+  ('00000000-0000-0000-0000-000000000504', 'Lucas',     'Bernard',   'lucas.bernard@example.com',    '+33645678901', 'fr', true),
+  ('00000000-0000-0000-0000-000000000505', 'Camille',   'Petit',     'camille.petit@example.com',    '+33656789012', 'fr', true),
+  ('00000000-0000-0000-0000-000000000506', 'Julie',     'Moreau',    'julie.moreau@example.com',     '+33667890123', 'fr', true),
+  ('00000000-0000-0000-0000-000000000507', 'Thomas',    'Roux',      'thomas.roux@example.com',      '+33678901234', 'fr', true),
+  ('00000000-0000-0000-0000-000000000508', 'Marie',     'Lefebvre',  'marie.lefebvre@example.com',   '+33689012345', 'en', true),
+  ('00000000-0000-0000-0000-000000000509', 'Antoine',   'Garcia',    'antoine.garcia@example.com',   '+33690123456', 'fr', true),
+  ('00000000-0000-0000-0000-000000000510', 'Léa',       'Rousseau',  'lea.rousseau@example.com',     '+33601234567', 'fr', false),
+  ('00000000-0000-0000-0000-000000000511', 'Nicolas',   'Vincent',   'nicolas.vincent@example.com',  '+33612340987', 'fr', true),
+  ('00000000-0000-0000-0000-000000000512', 'Charlotte', 'Fournier',  'charlotte.fournier@example.com', '+33623450987', 'fr', true),
+  ('00000000-0000-0000-0000-000000000513', 'Maxime',    'Girard',    'maxime.girard@example.com',    '+33634560987', 'en', true);
+
+-- 17) Backfill bookings.customer_id (booking 2NN -> customer 5NN).
+--     Kept as UPDATEs (rather than inlined in section 13) to minimise diff.
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000501' WHERE id = '00000000-0000-0000-0000-000000000201';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000502' WHERE id = '00000000-0000-0000-0000-000000000202';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000503' WHERE id = '00000000-0000-0000-0000-000000000203';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000504' WHERE id = '00000000-0000-0000-0000-000000000204';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000505' WHERE id = '00000000-0000-0000-0000-000000000205';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000506' WHERE id = '00000000-0000-0000-0000-000000000206';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000507' WHERE id = '00000000-0000-0000-0000-000000000207';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000508' WHERE id = '00000000-0000-0000-0000-000000000208';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000509' WHERE id = '00000000-0000-0000-0000-000000000209';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000510' WHERE id = '00000000-0000-0000-0000-000000000210';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000511' WHERE id = '00000000-0000-0000-0000-000000000211';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000512' WHERE id = '00000000-0000-0000-0000-000000000212';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000513' WHERE id = '00000000-0000-0000-0000-000000000213';
+
+-- 18) Fake email_inquiries (inbox)
 -- Couvre les états de l'UI inbox :
 --   - received       : webhook reçu, pas encore parsé
 --   - parsed (auto)  : tous les critères auto-convert OK (conf >= 0.8, treatment + variant + date + heure)
@@ -560,3 +603,75 @@ INSERT INTO public.email_inquiries (
    E'Hi, is this address active?',
    NULL,
    NULL, NULL, 'failed', NULL, 'Unknown venue alias or unconfigured domain', '<seed-inq-407@example.com>', NOW() - INTERVAL '4 days');
+=======
+-- 14) Treatment variants (one default variant per menu).
+-- The migration that introduced variants (20260322000000_add_treatment_variants.sql)
+-- only backfilled rows present at that time. Seed-created menus arrive later,
+-- so we materialise their default variant here.
+INSERT INTO public.treatment_variants (
+  id, treatment_id, label, duration, price, is_default, sort_order, status
+)
+VALUES
+  ('00000000-0000-0000-0000-000000000421', '00000000-0000-0000-0000-000000000021', '60 min', 60,  90.00, true, 0, 'active'),
+  ('00000000-0000-0000-0000-000000000424', '00000000-0000-0000-0000-000000000024', '75 min', 75, 120.00, true, 0, 'active'),
+  ('00000000-0000-0000-0000-000000000425', '00000000-0000-0000-0000-000000000025', '45 min', 45,  75.00, true, 0, 'active'),
+  ('00000000-0000-0000-0000-000000000426', '00000000-0000-0000-0000-000000000026', '30 min', 30,  55.00, true, 0, 'active'),
+  ('00000000-0000-0000-0000-000000000427', '00000000-0000-0000-0000-000000000027', '50 min', 50,  85.00, true, 0, 'active'),
+  ('00000000-0000-0000-0000-000000000443', '00000000-0000-0000-0000-000000000043', '60 min', 60,  95.00, true, 0, 'active'),
+  ('00000000-0000-0000-0000-000000000444', '00000000-0000-0000-0000-000000000044', '90 min', 90, 140.00, true, 0, 'active'),
+  ('00000000-0000-0000-0000-000000000445', '00000000-0000-0000-0000-000000000045', '50 min', 50,  80.00, true, 0, 'active'),
+  ('00000000-0000-0000-0000-000000000446', '00000000-0000-0000-0000-000000000046', '45 min', 45,  70.00, true, 0, 'active');
+
+-- 15) Booking treatments (link bookings to treatment menus + variants)
+INSERT INTO public.booking_treatments (id, booking_id, treatment_id, variant_id) VALUES
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000421'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000024', '00000000-0000-0000-0000-000000000424'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000043', '00000000-0000-0000-0000-000000000443'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000204', '00000000-0000-0000-0000-000000000025', '00000000-0000-0000-0000-000000000425'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000205', '00000000-0000-0000-0000-000000000046', '00000000-0000-0000-0000-000000000446'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000206', '00000000-0000-0000-0000-000000000027', '00000000-0000-0000-0000-000000000427'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000207', '00000000-0000-0000-0000-000000000024', '00000000-0000-0000-0000-000000000424'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000208', '00000000-0000-0000-0000-000000000044', '00000000-0000-0000-0000-000000000444'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000421'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000210', '00000000-0000-0000-0000-000000000045', '00000000-0000-0000-0000-000000000445'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000211', '00000000-0000-0000-0000-000000000026', '00000000-0000-0000-0000-000000000426'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000212', '00000000-0000-0000-0000-000000000027', '00000000-0000-0000-0000-000000000427'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000213', '00000000-0000-0000-0000-000000000043', '00000000-0000-0000-0000-000000000443');
+
+-- 16) Persistent customer profiles
+-- One row per distinct client in the bookings fixture. Linked back via
+-- bookings.customer_id below so the Partner API (/v1/venues/:slug/customers)
+-- has data to return. UUIDs in the 300-series for readability.
+INSERT INTO public.customers (
+  id, first_name, last_name, email, phone, language, profile_completed
+) VALUES
+  ('00000000-0000-0000-0000-000000000301', 'Sophie',    'Martin',    'sophie.martin@example.com',    '+33612345678', 'fr', true),
+  ('00000000-0000-0000-0000-000000000302', 'Pierre',    'Dubois',    'pierre.dubois@example.com',    '+33623456789', 'fr', true),
+  ('00000000-0000-0000-0000-000000000303', 'Emma',      'Laurent',   'emma.laurent@example.com',     '+33634567890', 'fr', true),
+  ('00000000-0000-0000-0000-000000000304', 'Lucas',     'Bernard',   'lucas.bernard@example.com',    '+33645678901', 'fr', true),
+  ('00000000-0000-0000-0000-000000000305', 'Camille',   'Petit',     'camille.petit@example.com',    '+33656789012', 'fr', true),
+  ('00000000-0000-0000-0000-000000000306', 'Julie',     'Moreau',    'julie.moreau@example.com',     '+33667890123', 'fr', true),
+  ('00000000-0000-0000-0000-000000000307', 'Thomas',    'Roux',      'thomas.roux@example.com',      '+33678901234', 'fr', true),
+  ('00000000-0000-0000-0000-000000000308', 'Marie',     'Lefebvre',  'marie.lefebvre@example.com',   '+33689012345', 'en', true),
+  ('00000000-0000-0000-0000-000000000309', 'Antoine',   'Garcia',    'antoine.garcia@example.com',   '+33690123456', 'fr', true),
+  ('00000000-0000-0000-0000-000000000310', 'Léa',       'Rousseau',  'lea.rousseau@example.com',     '+33601234567', 'fr', false),
+  ('00000000-0000-0000-0000-000000000311', 'Nicolas',   'Vincent',   'nicolas.vincent@example.com',  '+33612340987', 'fr', true),
+  ('00000000-0000-0000-0000-000000000312', 'Charlotte', 'Fournier',  'charlotte.fournier@example.com', '+33623450987', 'fr', true),
+  ('00000000-0000-0000-0000-000000000313', 'Maxime',    'Girard',    'maxime.girard@example.com',    '+33634560987', 'en', true);
+
+-- 17) Backfill bookings.customer_id (booking N -> customer N + 100).
+--     Kept as UPDATEs (rather than inlined in section 13) to minimise diff.
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000301' WHERE id = '00000000-0000-0000-0000-000000000201';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000302' WHERE id = '00000000-0000-0000-0000-000000000202';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000303' WHERE id = '00000000-0000-0000-0000-000000000203';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000304' WHERE id = '00000000-0000-0000-0000-000000000204';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000305' WHERE id = '00000000-0000-0000-0000-000000000205';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000306' WHERE id = '00000000-0000-0000-0000-000000000206';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000307' WHERE id = '00000000-0000-0000-0000-000000000207';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000308' WHERE id = '00000000-0000-0000-0000-000000000208';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000309' WHERE id = '00000000-0000-0000-0000-000000000209';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000310' WHERE id = '00000000-0000-0000-0000-000000000210';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000311' WHERE id = '00000000-0000-0000-0000-000000000211';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000312' WHERE id = '00000000-0000-0000-0000-000000000212';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000313' WHERE id = '00000000-0000-0000-0000-000000000213';
+>>>>>>> 6c4d6bfa0bdd23315ff0d927560bd3bc924663fa
