@@ -143,5 +143,16 @@ export async function handleCompleteOrganizationSignup(
     return json({ error: `Failed to create admin: ${adminErr.message}` }, 500);
   }
 
+  // 4. Seed the org's gateway API key (used to call api.saoma.io/v1/*).
+  // Best-effort: a failure here must not block onboarding — the admin can
+  // regenerate from /admin/api-keys later.
+  const { error: apiKeyErr } = await ctx.supabase.rpc(
+    "gateway_create_org_api_key",
+    { _org_id: org.id },
+  );
+  if (apiKeyErr) {
+    console.error("gateway_create_org_api_key failed:", apiKeyErr);
+  }
+
   return json({ organization_id: org.id, organization_slug: org.slug });
 }

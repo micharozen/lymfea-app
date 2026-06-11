@@ -1,47 +1,51 @@
 ---
 title: "List treatments"
 api: "GET /v1/venues/{venue_id}/treatments"
-description: "List all bookable treatments of a venue."
+description: "List the active treatments of a venue."
 ---
 
-Returns the treatment catalogue of a venue. Use this endpoint when you only
-need the catalogue (e.g. to refresh it on a schedule) without re-fetching
-venue metadata.
+Returns the treatment catalogue of a venue, with each treatment's bookable
+variants. Requires the `treatments:read` scope.
+
+This endpoint takes **no query parameters** — it returns every active
+treatment for the venue, ordered by `sort_order` then `name`.
 
 ## Path parameters
 
 <ParamField path="venue_id" type="string" required>
-  The venue id or slug.
-</ParamField>
-
-## Query parameters
-
-<ParamField query="category" type="string">
-  Keep only treatments in this category.
-</ParamField>
-
-<ParamField query="service_for" type="'women' | 'men' | 'all' | 'couple'">
-  Keep only treatments for this audience.
-</ParamField>
-
-<ParamField query="include_addons" type="boolean" default="false">
-  Include treatments flagged as add-ons (not bookable alone). By default they
-  are filtered out.
+  The venue id.
 </ParamField>
 
 ## Response
 
 <ResponseField name="data" type="Treatment[]">
-  Array of [Treatment](/concepts/treatments) objects (with variants).
+  Array of [Treatment](/concepts/treatments) objects, each with its
+  `variants` array.
 </ResponseField>
+
+## Errors
+
+| HTTP | Body                              | Meaning                              |
+| ---- | --------------------------------- | ------------------------------------ |
+| 403  | `{ "error": "Forbidden" }`        | Your key is scoped to another venue  |
+
+A venue with no active treatments returns `{ "data": [] }`.
 
 ## Example
 
 <RequestExample>
 
 ```bash curl
-curl "https://api-sandbox.lymfea.com/v1/venues/hot_lutetia_paris/treatments?category=massage" \
-  -H "Authorization: Bearer $LYMFEA_API_KEY"
+curl https://api.saoma.io/v1/venues/8f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718/treatments \
+  -H "Authorization: Bearer $SAOMA_API_KEY"
+```
+
+```javascript Node.js
+const res = await fetch(
+  "https://api.saoma.io/v1/venues/8f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718/treatments",
+  { headers: { Authorization: `Bearer ${process.env.SAOMA_API_KEY}` } }
+);
+const { data } = await res.json();
 ```
 
 </RequestExample>
@@ -52,34 +56,48 @@ curl "https://api-sandbox.lymfea.com/v1/venues/hot_lutetia_paris/treatments?cate
 {
   "data": [
     {
-      "id": "trt_swedish_60",
-      "venue_id": "hot_lutetia_paris",
+      "id": "a1c2e3f4-5678-49ab-cdef-0123456789ab",
+      "slug": "massage-suedois",
       "name": "Massage suédois",
       "name_en": "Swedish massage",
+      "description": "Un massage relaxant aux huiles essentielles.",
+      "description_en": "A relaxing massage with essential oils.",
       "category": "massage",
       "service_for": "all",
       "duration": 60,
-      "price": 12000,
+      "price": 120.00,
       "price_on_request": false,
       "lead_time": 120,
+      "image": "https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/treatments/swedish.jpg",
+      "sort_order": 1,
+      "currency": "EUR",
       "is_bestseller": true,
       "is_addon": false,
+      "is_bundle": false,
+      "bundle_id": null,
+      "available_days": [1, 2, 3, 4, 5, 6],
       "variants": [
         {
-          "id": "var_swedish_30",
+          "id": "b2d3f4a5-6789-4abc-def0-123456789abc",
           "label": "30 minutes",
+          "label_en": "30 minutes",
           "duration": 30,
-          "price": 7000,
-          "guest_count": 1,
-          "is_default": false
+          "price": 70.00,
+          "price_on_request": false,
+          "is_default": false,
+          "sort_order": 1,
+          "guest_count": 1
         },
         {
-          "id": "var_swedish_60",
+          "id": "c3e4a5b6-789a-4bcd-ef01-23456789abcd",
           "label": "60 minutes",
+          "label_en": "60 minutes",
           "duration": 60,
-          "price": 12000,
-          "guest_count": 1,
-          "is_default": true
+          "price": 120.00,
+          "price_on_request": false,
+          "is_default": true,
+          "sort_order": 2,
+          "guest_count": 1
         }
       ]
     }

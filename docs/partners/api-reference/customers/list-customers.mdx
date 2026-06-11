@@ -1,0 +1,135 @@
+---
+title: "List customers of a venue"
+api: "GET /v1/venues/{venue_id}/customers"
+description: "Paginated list of the customers who have booked at a venue, with per-venue aggregated stats."
+---
+
+Returns the customers who have at least one booking at the given venue, along
+with aggregated stats computed from that venue's bookings only. Requires the
+`customers:read` scope.
+
+<Note>
+  Customers are de-duplicated by phone (with email fallback). A customer who
+  has booked at two of your venues will appear in both lists, with stats
+  recomputed for each venue.
+</Note>
+
+See the [Customer](/concepts/customers) concept for the full field list and
+the privacy fields that are intentionally excluded.
+
+## Path parameters
+
+<ParamField path="venue_id" type="string" required>
+  The venue identifier — either the UUID `id` or the `slug` returned by
+  [`GET /v1/venues`](/api-reference/venues/list-venues).
+</ParamField>
+
+## Query parameters
+
+<ParamField query="page" type="integer" default="1">
+  1-indexed page number.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="50">
+  Page size, between `1` and `100`.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="Customer[]">
+  Page of [Customer](/concepts/customers) objects, ordered by `last_visit_date`
+  descending (most recent visitors first).
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  <Expandable title="properties">
+    <ResponseField name="page" type="integer">
+      The page that was returned.
+    </ResponseField>
+    <ResponseField name="limit" type="integer">
+      The page size that was applied.
+    </ResponseField>
+    <ResponseField name="total" type="integer">
+      Total number of customers in the venue (across all pages).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Errors
+
+| HTTP | Body                                              | Meaning                                                    |
+| ---- | ------------------------------------------------- | ---------------------------------------------------------- |
+| 401  | `{ "error": "Missing API key" }`                  | No `Authorization: Bearer` or `X-Api-Key` header           |
+| 403  | `{ "error": "Insufficient scope", "missing": […] }` | Your key does not carry `customers:read`                  |
+| 403  | `{ "error": "Forbidden" }`                        | The venue exists but belongs to another organisation      |
+| 404  | `{ "error": "Venue not found" }`                  | Unknown slug / UUID                                       |
+
+## Example
+
+<RequestExample>
+
+```bash curl
+curl "https://api.saoma.io/v1/venues/akasha-lutetia/customers?page=1&limit=20" \
+  -H "Authorization: Bearer $SAOMA_API_KEY"
+```
+
+```javascript Node.js
+const url = new URL(
+  "https://api.saoma.io/v1/venues/akasha-lutetia/customers"
+);
+url.searchParams.set("page", "1");
+url.searchParams.set("limit", "20");
+
+const res = await fetch(url, {
+  headers: { Authorization: `Bearer ${process.env.SAOMA_API_KEY}` },
+});
+const { data, meta } = await res.json();
+```
+
+```python Python
+import os, requests
+
+res = requests.get(
+    "https://api.saoma.io/v1/venues/akasha-lutetia/customers",
+    headers={"Authorization": f"Bearer {os.environ['SAOMA_API_KEY']}"},
+    params={"page": 1, "limit": 20},
+)
+body = res.json()
+data, meta = body["data"], body["meta"]
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "data": [
+    {
+      "id": "c1f4a9d2-3b8e-4c7f-9a01-2f5d6c8e9b3a",
+      "first_name": "Marie",
+      "last_name": "Dupont",
+      "email": "marie.dupont@example.com",
+      "phone": "+33612345678",
+      "language": "fr",
+      "preferred_treatment_type": "massage",
+      "profile_completed": true,
+      "booking_count": 12,
+      "last_visit_date": "2026-05-14",
+      "total_spent": {
+        "amount": "1450.00",
+        "currency": "EUR"
+      },
+      "created_at": "2025-09-03T11:22:33Z",
+      "updated_at": "2026-05-14T08:01:12Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 247
+  }
+}
+```
+
+</ResponseExample>

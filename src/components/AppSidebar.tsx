@@ -35,6 +35,7 @@ import {
   LifeBuoy,
   Globe,
   Network,
+  KeyRound,
   Check,
   type LucideIcon,
 } from "lucide-react";
@@ -476,6 +477,14 @@ export function AppSidebar() {
                     <NavLink to="/admin/billing" className="flex items-center w-full">
                       <CreditCard className="mr-2 h-4 w-4" />
                       <span>Abonnement</span>
+                    </NavLink>
+                  </DropdownMenuItem>
+                )}
+                {isAdminRole && !inVenueManagerView && (
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <NavLink to="/admin/api-keys" className="flex items-center w-full">
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      <span>Clé API</span>
                     </NavLink>
                   </DropdownMenuItem>
                 )}

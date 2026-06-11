@@ -1,8 +1,8 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Eïa Partner API",
-  "description": "Integrate Eïa spa availability and bookings into your platform.",
+  "name": "Saoma API",
+  "description": "Integrate Saoma spa availability and bookings into your platform.",
   "colors": {
     "primary": "#8B7355",
     "light": "#C9A96E",
@@ -10,59 +10,102 @@
   },
   "favicon": "/favicon.svg",
   "navigation": {
-    "tabs": [
+    "versions": [
       {
-        "tab": "Documentation",
-        "groups": [
+        "version": "v1",
+        "default": true,
+        "tabs": [
           {
-            "group": "Get started",
-            "pages": [
-              "introduction",
-              "authentication",
-              "rate-limits",
-              "errors"
+            "tab": "Documentation",
+            "groups": [
+              {
+                "group": "Get started",
+                "icon": "rocket",
+                "pages": [
+                  "introduction",
+                  "authentication",
+                  "rate-limits",
+                  "errors"
+                ]
+              },
+              {
+                "group": "Concepts",
+                "icon": "book-open",
+                "pages": [
+                  "concepts/venues",
+                  "concepts/treatments",
+                  "concepts/availability",
+                  "concepts/bookings",
+                  "concepts/customers"
+                ]
+              },
+              {
+                "group": "Guides",
+                "icon": "graduation-cap",
+                "pages": [
+                  "guides/quickstart"
+                ]
+              }
             ]
           },
           {
-            "group": "Concepts",
-            "pages": [
-              "concepts/venues",
-              "concepts/treatments",
-              "concepts/availability",
-              "concepts/bookings"
-            ]
-          },
-          {
-            "group": "Guides",
-            "pages": [
-              "guides/quickstart"
+            "tab": "API Reference",
+            "groups": [
+              {
+                "group": "Venues",
+                "icon": "building",
+                "pages": [
+                  "api-reference/venues/list-venues",
+                  "api-reference/venues/get-venue"
+                ]
+              },
+              {
+                "group": "Treatments",
+                "icon": "hand-sparkles",
+                "pages": [
+                  "api-reference/venues/list-treatments"
+                ]
+              },
+              {
+                "group": "Availability",
+                "icon": "calendar-days",
+                "pages": [
+                  "api-reference/availability/get-availability"
+                ]
+              },
+              {
+                "group": "Bookings",
+                "icon": "ticket",
+                "pages": [
+                  "api-reference/bookings/create-booking",
+                  "api-reference/bookings/get-booking",
+                  "api-reference/bookings/cancel-booking"
+                ]
+              },
+              {
+                "group": "Customers",
+                "icon": "users",
+                "pages": [
+                  "api-reference/customers/list-customers",
+                  "api-reference/customers/list-customer-bookings"
+                ]
+              }
             ]
           }
         ]
       },
       {
-        "tab": "API Reference",
-        "groups": [
+        "version": "v2",
+        "tabs": [
           {
-            "group": "Venues",
-            "pages": [
-              "api-reference/venues/list-venues",
-              "api-reference/venues/get-venue",
-              "api-reference/venues/list-treatments"
-            ]
-          },
-          {
-            "group": "Availability",
-            "pages": [
-              "api-reference/availability/get-availability"
-            ]
-          },
-          {
-            "group": "Bookings",
-            "pages": [
-              "api-reference/bookings/create-booking",
-              "api-reference/bookings/get-booking",
-              "api-reference/bookings/cancel-booking"
+            "tab": "Documentation",
+            "groups": [
+              {
+                "group": "Coming soon",
+                "pages": [
+                  "introduction"
+                ]
+              }
             ]
           }
         ]
