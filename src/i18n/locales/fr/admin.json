@@ -1116,6 +1116,38 @@
       "checkoutCancelled": "Paiement annulé. Vous pouvez reprendre quand vous le souhaitez."
     }
   },
+  "userMenu": {
+    "apiKey": "Clé API"
+  },
+  "apiKey": {
+    "title": "Clé API",
+    "subtitle": "Nécessaire pour les intégrations comme Zapier, Make, ou pour appeler directement api.saoma.io",
+    "fieldLabel": "Votre clé API",
+    "copy": "Copier",
+    "copied": "Clé API copiée",
+    "reveal": "Afficher",
+    "hide": "Masquer",
+    "regenerate": "Régénérer",
+    "docsLink": "Voir la documentation API",
+    "loading": "Chargement…",
+    "loadError": "Impossible de récupérer la clé API",
+    "revealError": "Impossible d'afficher la clé",
+    "regenerateError": "La régénération a échoué",
+    "regenerateSuccess": "Nouvelle clé générée",
+    "missing": "Aucune clé API n'a été émise pour votre organisation.",
+    "generate": "Générer une clé",
+    "newKeyDialog": {
+      "title": "Votre nouvelle clé API",
+      "description": "Copiez-la dès maintenant — pour des raisons de sécurité, vous ne pourrez plus la voir entièrement par la suite (mais vous pourrez l'afficher de nouveau à tout moment depuis cette page).",
+      "close": "J'ai copié la clé"
+    },
+    "regenerateDialog": {
+      "title": "Régénérer la clé API ?",
+      "description": "L'ancienne clé sera invalidée immédiatement. Toutes les intégrations qui l'utilisent cesseront de fonctionner jusqu'à ce que vous y collez la nouvelle clé.",
+      "confirm": "Régénérer",
+      "cancel": "Annuler"
+    }
+  },
   "inbox": {
     "title": "Inbox emails",
     "description": "Réservations reçues par email — analysées par IA et prêtes à être validées.",

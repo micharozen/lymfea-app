@@ -1,0 +1,119 @@
+---
+title: "Customers"
+description: "End clients of a venue, with their profile and booking history."
+icon: "users"
+---
+
+A **Customer** is the persistent profile of someone who has booked at one of
+your venues. Saoma de-duplicates customers automatically (primarily by phone,
+with email fallback) so that returning clients are merged into a single record
+across bookings.
+
+<Note>
+  **Customers are exposed per venue.** A customer is only visible through a
+  given venue if they have at least one booking at that venue. The same
+  customer booking at two of your venues will appear in both lists, with
+  **venue-scoped stats** (booking count, last visit, amount spent are
+  computed from that venue's bookings only).
+</Note>
+
+## Identification
+
+The `id` field is a stable UUID — use it as the path identifier when fetching
+the customer's booking history at
+`GET /v1/venues/{venue_id}/customers/{customer_id}/bookings`.
+
+## Fields
+
+<ResponseField name="id" type="string">
+  Stable UUID identifier for the customer.
+</ResponseField>
+
+<ResponseField name="first_name" type="string | null">
+  Given name, as supplied at booking time.
+</ResponseField>
+
+<ResponseField name="last_name" type="string | null">
+  Family name, as supplied at booking time.
+</ResponseField>
+
+<ResponseField name="email" type="string | null">
+  Email address. `null` when the customer was booked via a channel that does
+  not collect an email (e.g. some hotel front-desk flows).
+</ResponseField>
+
+<ResponseField name="phone" type="string | null">
+  Phone number in E.164 format.
+</ResponseField>
+
+<ResponseField name="language" type="'fr' | 'en'">
+  Preferred language for outbound communications.
+</ResponseField>
+
+<ResponseField name="preferred_treatment_type" type="string | null">
+  Free-form label for the customer's preferred treatment type, set by staff
+  in the admin dashboard. May be `null`.
+</ResponseField>
+
+<ResponseField name="profile_completed" type="boolean">
+  `true` when the customer record has all required fields filled in. `false`
+  for stub profiles created from minimal booking data.
+</ResponseField>
+
+<ResponseField name="booking_count" type="integer">
+  Total number of bookings at **this venue**.
+</ResponseField>
+
+<ResponseField name="last_visit_date" type="string (ISO date) | null">
+  Date of the customer's most recent booking at this venue, in the venue's
+  local timezone. `null` should not occur in practice (only customers with at
+  least one booking are returned).
+</ResponseField>
+
+<ResponseField name="total_spent" type="object">
+  Sum of `total_price` across **collected** bookings at this venue. Collected
+  means `payment_status` is one of `paid`, `charged_to_room`, or `charged`.
+  Pending, refunded and partner-billed (`pending_partner_billing`) bookings
+  are excluded.
+
+  <Expandable title="properties">
+    <ResponseField name="amount" type="string">
+      Decimal amount as a string with exactly two decimal places, e.g.
+      `"1450.00"`. Returned as a string to avoid floating-point precision
+      loss on the client side — parse with `BigDecimal`, `Decimal.js` or your
+      language's equivalent.
+    </ResponseField>
+    <ResponseField name="currency" type="string">
+      ISO 4217 currency code, taken from the venue (e.g. `EUR`).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="created_at" type="string (ISO 8601)">
+  When the customer record was first created.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string (ISO 8601)">
+  When the customer record was last modified.
+</ResponseField>
+
+## Fields that are intentionally not exposed
+
+For privacy and security reasons, the Partner API does **not** return:
+
+- `health_notes` — health information / allergies / contraindications
+  collected for therapist use. Excluded under GDPR article 9 (special
+  categories of personal data). Contact your Saoma account manager if you
+  have a lawful basis to access this and we will discuss a dedicated scope.
+- `stripe_customer_id` — Stripe identifier for the Saoma platform's own
+  billing.
+- `preferred_therapist_id` — internal therapist preference used by the
+  assignment engine.
+- `auth_user_id` — Saoma customer portal login link.
+
+## Scopes
+
+| Endpoint                                                         | Required scope    |
+| ---------------------------------------------------------------- | ----------------- |
+| `GET /v1/venues/{venue_id}/customers`                            | `customers:read`  |
+| `GET /v1/venues/{venue_id}/customers/{customer_id}/bookings`     | `bookings:read`   |

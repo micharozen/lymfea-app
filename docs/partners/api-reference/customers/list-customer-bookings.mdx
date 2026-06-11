@@ -1,0 +1,245 @@
+---
+title: "List a customer's bookings at a venue"
+api: "GET /v1/venues/{venue_id}/customers/{customer_id}/bookings"
+description: "Paginated history of a single customer's bookings at one venue."
+---
+
+Returns the bookings made by one customer at the given venue, in reverse
+chronological order. Requires the `bookings:read` scope.
+
+<Note>
+  The history is **scoped to the venue in the URL**. Bookings the same
+  customer made at your other venues are not included — query each venue
+  separately.
+</Note>
+
+## Path parameters
+
+<ParamField path="venue_id" type="string" required>
+  The venue identifier — UUID `id` or `slug`.
+</ParamField>
+
+<ParamField path="customer_id" type="string" required>
+  Customer UUID, as returned by
+  [`GET /v1/venues/{venue_id}/customers`](/api-reference/customers/list-customers).
+</ParamField>
+
+## Query parameters
+
+<ParamField query="page" type="integer" default="1">
+  1-indexed page number.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="20">
+  Page size, between `1` and `100`.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="Booking[]">
+  Page of bookings, ordered by date and time descending.
+
+  <Expandable title="Booking fields">
+    <ResponseField name="id" type="string">
+      Booking UUID.
+    </ResponseField>
+    <ResponseField name="booking_number" type="integer">
+      Short, sequential reference printed on invoices and receipts.
+    </ResponseField>
+    <ResponseField name="booking_date" type="string (ISO date)">
+      Day of the appointment, in the venue's local timezone.
+    </ResponseField>
+    <ResponseField name="booking_time" type="string (HH:mm:ss)">
+      Start time of the appointment, in the venue's local timezone.
+    </ResponseField>
+    <ResponseField name="duration" type="integer | null">
+      Duration of the appointment in minutes.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Lifecycle status. One of `pending`, `confirmed`, `ongoing`, `completed`,
+      `cancelled`, `noshow`.
+    </ResponseField>
+    <ResponseField name="payment_method" type="string">
+      How the booking is being paid. One of `room`, `card`, `tap_to_pay`,
+      `offert`, `gift_amount`, `voucher`, `partner_billed`.
+    </ResponseField>
+    <ResponseField name="payment_status" type="string">
+      Current payment state. Values include `pending`, `awaiting_payment`,
+      `paid`, `failed`, `refunded`, `charged`, `charged_to_room`,
+      `card_saved`, `expired`, `pending_partner_billing`,
+      `pending_room_charge`.
+    </ResponseField>
+    <ResponseField name="client_type" type="string">
+      Sales channel for the booking. One of `hotel`, `staycation`,
+      `classpass`, `external`.
+    </ResponseField>
+    <ResponseField name="total_price" type="object">
+      Total amount of the booking — the canonical value stored at booking
+      time. It usually equals the sum of `treatments[].price.amount`, but may
+      diverge when out-of-hours surcharges, vouchers or admin overrides apply.
+      **Use this field for billing reconciliation, not the sum of the
+      treatments.**
+
+      <Expandable title="properties">
+        <ResponseField name="amount" type="string">
+          Decimal amount as a string, two decimal places (e.g. `"120.00"`).
+        </ResponseField>
+        <ResponseField name="currency" type="string">
+          ISO 4217 currency code (e.g. `EUR`).
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="room_number" type="string | null">
+      Hotel room number when the booking was charged to a room.
+    </ResponseField>
+    <ResponseField name="treatments" type="object[]">
+      Treatments included in this booking. A single booking can hold several
+      treatments (e.g. a massage + a facial in the same session). Ordered as
+      they were added to the booking. The array is always present (empty
+      `[]` if no treatment is attached).
+
+      <Expandable title="treatment properties">
+        <ResponseField name="id" type="string | null">
+          Unique identifier of the booked treatment option (the
+          duration/price variant). `null` on legacy bookings created before
+          Saoma's variant model existed.
+        </ResponseField>
+        <ResponseField name="name" type="string">
+          Human-readable treatment name (e.g. `Massage relaxant`). Stable
+          across duration/price changes.
+        </ResponseField>
+        <ResponseField name="label" type="string | null">
+          Short label describing the duration option, e.g. `60 min`.
+        </ResponseField>
+        <ResponseField name="duration" type="integer | null">
+          Duration in minutes.
+        </ResponseField>
+        <ResponseField name="price" type="object | null">
+          Catalogue price for this option. `null` when the option is
+          on-request only.
+
+          <Expandable title="properties">
+            <ResponseField name="amount" type="string">
+              Decimal amount as a string, two decimal places.
+            </ResponseField>
+            <ResponseField name="currency" type="string">
+              ISO 4217 currency code.
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="created_at" type="string (ISO 8601)">
+      When the booking was created.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  <Expandable title="properties">
+    <ResponseField name="page" type="integer">The page that was returned.</ResponseField>
+    <ResponseField name="limit" type="integer">The page size that was applied.</ResponseField>
+    <ResponseField name="total" type="integer">Total bookings the customer has at this venue.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Errors
+
+| HTTP | Body                                                  | Meaning                                                                  |
+| ---- | ----------------------------------------------------- | ------------------------------------------------------------------------ |
+| 401  | `{ "error": "Missing API key" }`                      | No `Authorization: Bearer` or `X-Api-Key` header                         |
+| 403  | `{ "error": "Insufficient scope", "missing": […] }`   | Your key does not carry `bookings:read`                                  |
+| 403  | `{ "error": "Forbidden" }`                            | The venue belongs to another organisation                                |
+| 404  | `{ "error": "Venue not found" }`                      | Unknown venue slug / UUID                                                |
+| 404  | `{ "error": "Customer not found in this venue" }`     | Unknown customer UUID, or the customer has never booked at this venue   |
+
+## Example
+
+<RequestExample>
+
+```bash curl
+curl "https://api.saoma.io/v1/venues/akasha-lutetia/customers/c1f4a9d2-3b8e-4c7f-9a01-2f5d6c8e9b3a/bookings?page=1&limit=10" \
+  -H "Authorization: Bearer $SAOMA_API_KEY"
+```
+
+```javascript Node.js
+const venue = "akasha-lutetia";
+const customer = "c1f4a9d2-3b8e-4c7f-9a01-2f5d6c8e9b3a";
+
+const res = await fetch(
+  `https://api.saoma.io/v1/venues/${venue}/customers/${customer}/bookings?page=1&limit=10`,
+  { headers: { Authorization: `Bearer ${process.env.SAOMA_API_KEY}` } }
+);
+const { data, meta } = await res.json();
+```
+
+```python Python
+import os, requests
+
+venue = "akasha-lutetia"
+customer = "c1f4a9d2-3b8e-4c7f-9a01-2f5d6c8e9b3a"
+
+res = requests.get(
+    f"https://api.saoma.io/v1/venues/{venue}/customers/{customer}/bookings",
+    headers={"Authorization": f"Bearer {os.environ['SAOMA_API_KEY']}"},
+    params={"page": 1, "limit": 10},
+)
+body = res.json()
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "data": [
+    {
+      "id": "b9a4f17e-1d6c-4e9a-9f02-3a8b1c7d6e5f",
+      "booking_number": 4832,
+      "booking_date": "2026-05-14",
+      "booking_time": "10:00:00",
+      "duration": 60,
+      "status": "completed",
+      "payment_method": "room",
+      "payment_status": "charged_to_room",
+      "client_type": "hotel",
+      "total_price": {
+        "amount": "170.00",
+        "currency": "EUR"
+      },
+      "room_number": "412",
+      "treatments": [
+        {
+          "id": "7f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718",
+          "name": "Massage suédois",
+          "label": "60 min",
+          "duration": 60,
+          "price": {
+            "amount": "95.00",
+            "currency": "EUR"
+          }
+        },
+        {
+          "id": "9d2c8f4e-1a3b-4c5d-8e9f-0a1b2c3d4e5f",
+          "name": "Soin éclat visage",
+          "label": "45 min",
+          "duration": 45,
+          "price": {
+            "amount": "75.00",
+            "currency": "EUR"
+          }
+        }
+      ],
+      "created_at": "2026-05-13T18:32:11Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 10,
+    "total": 12
+  }
+}
+```
+
+</ResponseExample>

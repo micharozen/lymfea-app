@@ -54,6 +54,7 @@ const Products = lazy(() => import("./pages/admin/Products"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
 const Billing = lazy(() => import("./pages/admin/Billing"));
+const ApiKeys = lazy(() => import("./pages/admin/ApiKeys"));
 const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Organizations = lazy(() => import("./pages/admin/Organizations"));
@@ -542,6 +543,7 @@ const App = () => {
                               <Route path="/orders" element={<Orders />} />
                               <Route path="/finance" element={<Finance />} />
                               <Route path="/billing" element={<Billing />} />
+                              <Route path="/api-keys" element={<ApiKeys />} />
                               <Route path="/transactions" element={<Transactions />} />
                               <Route path="/analytics" element={<Analytics />} />
                               <Route path="/support" element={<SupportTickets />} />

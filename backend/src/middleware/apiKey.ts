@@ -9,6 +9,8 @@ export interface ApiKeyContext {
   name: string;
   /** When set, the key is scoped to a single venue. NULL = platform-wide. */
   hotelId: string | null;
+  /** When set, the key belongs to an organization — /v1/* reads filter on this. */
+  organizationId: string | null;
   scopes: string[];
 }
 
@@ -55,6 +57,7 @@ export async function apiKeyMiddleware(c: Context, next: Next) {
     id: data.id,
     name: data.name,
     hotelId: data.hotel_id ?? null,
+    organizationId: data.organization_id ?? null,
     scopes: Array.isArray(data.scopes) ? data.scopes : [],
   } satisfies ApiKeyContext);
 
