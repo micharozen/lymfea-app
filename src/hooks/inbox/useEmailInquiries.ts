@@ -2,9 +2,29 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope, orgScopeKey } from "@/hooks/useOrgScope";
 
-export type EmailInquiryStatus = "received" | "parsed" | "converted" | "dismissed" | "failed";
+export type EmailInquiryStatus =
+  | "received"
+  | "parsed"
+  | "converted"
+  | "dismissed"
+  | "failed"
+  | "replied"
+  | "sent";
+
+export type EmailInquiryDirection = "inbound" | "outbound";
 
 export interface EmailInquiryParsedTreatmentMatch {
+  id: string | null;
+  confidence: number;
+}
+
+export interface EmailInquiryParsedTreatmentCandidate {
+  id: string | null;
+  confidence: number;
+  reason?: string | null;
+}
+
+export interface EmailInquiryParsedVariantMatch {
   id: string | null;
   confidence: number;
 }
@@ -17,6 +37,8 @@ export interface EmailInquiryParsedData {
   requested_date?: string | null;
   requested_time?: string | null;
   treatment_match?: EmailInquiryParsedTreatmentMatch | null;
+  treatment_candidates?: EmailInquiryParsedTreatmentCandidate[] | null;
+  variant_match?: EmailInquiryParsedVariantMatch | null;
   guest_count?: number | null;
   notes?: string | null;
   intent_confidence?: number;
@@ -37,6 +59,10 @@ export interface EmailInquiry {
   booking_id: string | null;
   error_message: string | null;
   message_id: string | null;
+  direction: EmailInquiryDirection;
+  parent_inquiry_id: string | null;
+  sent_by: string | null;
+  last_reply_at: string | null;
   created_at: string;
   updated_at: string;
   // joined
@@ -89,10 +115,16 @@ export function useEmailInquiries(opts: UseEmailInquiriesOptions = {}) {
           booking_id,
           error_message,
           message_id,
+          direction,
+          parent_inquiry_id,
+          sent_by,
+          last_reply_at,
           created_at,
           updated_at,
           hotel:hotels(id, name)
         `)
+        .eq("direction", "inbound")
+        .is("parent_inquiry_id", null)
         .order("created_at", { ascending: false })
         .limit(opts.limit ?? 100);
 

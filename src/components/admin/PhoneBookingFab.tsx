@@ -9,8 +9,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const PhoneBookingDialog = lazy(
-  () => import("@/components/booking/PhoneBookingDialog"),
+const BookingModal = lazy(
+  () => import("@/components/booking/BookingModal"),
 );
 
 const STORAGE_KEY = "phone-booking-fab-position";
@@ -198,7 +198,7 @@ export function PhoneBookingFab() {
 
       {open && (
         <Suspense fallback={null}>
-          <PhoneBookingDialog open={open} onOpenChange={setOpen} />
+          <BookingModal open={open} onOpenChange={setOpen} source="phone" />
         </Suspense>
       )}
     </>

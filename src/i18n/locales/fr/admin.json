@@ -914,6 +914,7 @@
   },
   "phoneBooking": {
     "title": "Réservation téléphone",
+    "titleEmail": "Réservation depuis email",
     "fabLabel": "Réservation téléphone",
     "ui": {
       "back": "Retour",
@@ -1169,6 +1170,7 @@
       "all": "Tous les statuts",
       "received": "Reçu",
       "parsed": "À traiter",
+      "replied": "Répondu",
       "converted": "Converti",
       "dismissed": "Ignoré",
       "failed": "Échec"
@@ -1183,14 +1185,31 @@
       "dateTime": "Date & heure",
       "treatment": "Soin",
       "guests": "Personnes",
-      "notes": "Notes",
+      "notes": "Notes IA",
       "rawBody": "Corps de l'email",
       "noBody": "(corps vide)",
+      "conversation": "Conversation",
+      "replyFromVenue": "Réponse envoyée",
       "errorTitle": "Erreur de traitement",
       "dismissAction": "Ignorer",
       "dismissed": "Email ignoré.",
       "convertAction": "Convertir en réservation",
-      "close": "Fermer"
+      "close": "Fermer",
+      "reply": {
+        "replyAction": "Répondre",
+        "composerTitle": "Brouillon de réponse",
+        "checkingAvailability": "Vérification des disponibilités…",
+        "draftingReply": "Rédaction du brouillon…",
+        "draftFailed": "Impossible de générer un brouillon",
+        "subjectLabel": "Sujet",
+        "bodyLabel": "Message",
+        "send": "Envoyer",
+        "cancel": "Annuler",
+        "sent": "Réponse envoyée",
+        "sentWithWarning": "Envoyé mais une étape a échoué : {{warning}}",
+        "missingFields": "Sujet et corps requis",
+        "referencedSlots": "Disponibilités prises en compte : {{slots}}"
+      }
     },
     "convert": {
       "title": "Convertir en réservation",

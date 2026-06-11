@@ -114,7 +114,12 @@
   },
   "footer": {
     "socials": {
-      "website": "https://lymfea.com"
+      "website": "https://saoma.io"
+    }
+  },
+  "seo": {
+    "metatags": {
+      "canonical": "https://docs.saoma.io"
     }
   }
 }

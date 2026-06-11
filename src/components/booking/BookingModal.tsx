@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
@@ -74,9 +74,34 @@ import { ChevronDown } from "lucide-react";
 import { countries, flagEmoji } from "@/lib/countries";
 import { formatPrice } from "@/lib/formatPrice";
 
-interface PhoneBookingDialogProps {
+export interface BookingModalInitialValues {
+  hotelId?: string;
+  treatmentId?: string;
+  variantId?: string | null;
+  clientFirstName?: string;
+  clientLastName?: string;
+  clientEmail?: string;
+  phone?: string;
+  countryCode?: string;
+  date?: Date;
+  time?: string;
+  guestCount?: number;
+  clientNote?: string;
+}
+
+export interface CreatedBookingInfo {
+  id: string;
+  booking_id: number;
+  hotel_name: string;
+}
+
+interface BookingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialValues?: BookingModalInitialValues;
+  source?: string;
+  emailInquiryId?: string;
+  onCreated?: (booking: CreatedBookingInfo) => void;
 }
 
 type Step = "venue" | "slot" | "therapist" | "client" | "confirm" | "done";
@@ -111,31 +136,36 @@ function generateDaySlots(
   return out;
 }
 
-export default function PhoneBookingDialog({
+export default function BookingModal({
   open,
   onOpenChange,
-}: PhoneBookingDialogProps) {
+  initialValues,
+  source,
+  emailInquiryId,
+  onCreated,
+}: BookingModalProps) {
   const { t } = useTranslation("admin");
   const { hotelIds } = useUser();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
 
   const [step, setStep] = useState<Step>("venue");
   const [hotelId, setHotelId] = useState<string>(
-    isConcierge && hotelIds.length > 0 ? hotelIds[0] : "",
+    initialValues?.hotelId ?? (isConcierge && hotelIds.length > 0 ? hotelIds[0] : ""),
   );
-  const [date, setDate] = useState<Date | undefined>();
-  const [time, setTime] = useState<string>("");
+  const [date, setDate] = useState<Date | undefined>(initialValues?.date);
+  const [time, setTime] = useState<string>(initialValues?.time ?? "");
   const [therapistId, setTherapistId] = useState<string>("");
   const [additionalTherapistIds, setAdditionalTherapistIds] = useState<string[]>([]);
   const [therapistChoiceMade, setTherapistChoiceMade] = useState(false);
-  const [clientFirstName, setClientFirstName] = useState("");
-  const [clientLastName, setClientLastName] = useState("");
-  const [countryCode, setCountryCode] = useState("+33");
-  const [phone, setPhone] = useState("");
-  const [clientEmail, setClientEmail] = useState("");
+  const [clientFirstName, setClientFirstName] = useState(initialValues?.clientFirstName ?? "");
+  const [clientLastName, setClientLastName] = useState(initialValues?.clientLastName ?? "");
+  const [countryCode, setCountryCode] = useState(initialValues?.countryCode ?? "+33");
+  const [phone, setPhone] = useState(initialValues?.phone ?? "");
+  const [clientEmail, setClientEmail] = useState(initialValues?.clientEmail ?? "");
   const [roomNumber, setRoomNumber] = useState("");
   const [roomNumberLater, setRoomNumberLater] = useState(false);
   const [clientType, setClientType] = useState<BookingClientType>("external");
+  const [clientNote, setClientNote] = useState(initialValues?.clientNote ?? "");
 
   const [createdBooking, setCreatedBooking] = useState<{
     id: string;
@@ -192,9 +222,11 @@ export default function PhoneBookingDialog({
 
   const requiredGuestCount = useMemo(() => {
     if (!cartDetails.length) return 1;
-    return Math.max(1, ...cartDetails.flatMap((item) => {
-      const variants = (item.treatment as { treatment_variants?: { guest_count?: number }[] } | undefined)?.treatment_variants ?? [];
-      return variants.length > 0 ? variants.map((v) => v.guest_count ?? 1) : [1];
+    return Math.max(1, ...cartDetails.map((item) => {
+      const variants = (item.treatment as { treatment_variants?: { id: string; guest_count?: number }[] } | undefined)?.treatment_variants ?? [];
+      if (!item.variantId) return 1;
+      const selected = variants.find((v) => v.id === item.variantId);
+      return selected?.guest_count ?? 1;
     }));
   }, [cartDetails]);
 
@@ -214,17 +246,36 @@ export default function PhoneBookingDialog({
     therapists: availableTherapists as unknown as Parameters<typeof useCreateBookingMutation>[0]["therapists"],
     onSuccess: (data) => {
       if (!data) return;
-      setCreatedBooking({
+      const created: CreatedBookingInfo = {
         id: data.id,
         booking_id: data.booking_id,
         hotel_name: data.hotel_name || "",
-      });
+      };
+      setCreatedBooking(created);
       setStep("done");
       if (clientType !== "external") {
         setIsNotificationDialogOpen(true);
       }
+      onCreated?.(created);
     },
   });
+
+  // One-shot pre-fill of the cart from initialValues, as soon as the treatments query resolves.
+  const cartPrefilledRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      cartPrefilledRef.current = false;
+      return;
+    }
+    if (cartPrefilledRef.current) return;
+    const tid = initialValues?.treatmentId;
+    if (!tid) return;
+    if (!treatments || treatments.length === 0) return;
+    if (cart.length > 0) return;
+    if (!treatments.some((tr: { id: string }) => tr.id === tid)) return;
+    addToCart(tid, initialValues?.variantId ?? undefined);
+    cartPrefilledRef.current = true;
+  }, [open, treatments, cart.length, initialValues?.treatmentId, initialValues?.variantId, addToCart]);
 
   const resetAll = () => {
     setStep("venue");
@@ -241,6 +292,7 @@ export default function PhoneBookingDialog({
     setRoomNumber("");
     setRoomNumberLater(false);
     setClientType("external");
+    setClientNote("");
     setCart([]);
     setCreatedBooking(null);
   };
@@ -266,6 +318,10 @@ export default function PhoneBookingDialog({
       ...(therapistId ? [therapistId] : []),
       ...additionalTherapistIds.filter(Boolean),
     ];
+    const treatmentsPayload = cart.map(c => ({
+      treatmentId: c.treatmentId,
+      ...(c.variantId ? { variantId: c.variantId } : {}),
+    }));
     mutation.mutate({
       hotelId,
       clientFirstName: clientFirstName.trim(),
@@ -275,7 +331,7 @@ export default function PhoneBookingDialog({
       countryCode,
       roomNumber: roomNumber.trim(),
       clientType,
-      clientNote: "",
+      clientNote: clientNote.trim() || undefined,
       date: format(date, "yyyy-MM-dd"),
       time,
       therapistId: therapistId || "",
@@ -285,12 +341,15 @@ export default function PhoneBookingDialog({
       slot3Date: null,
       slot3Time: null,
       treatmentIds: flatIds,
+      treatments: treatmentsPayload,
       totalPrice,
       totalDuration,
       isAdmin: true,
       isOutOfHours: false,
       surchargeAmount: 0,
       guestCount: requiredGuestCount,
+      source,
+      emailInquiryId,
     });
   };
 
@@ -307,7 +366,7 @@ export default function PhoneBookingDialog({
         <DialogContent className="max-w-xl max-h-[92vh] p-0 gap-0 flex flex-col overflow-hidden">
           <DialogHeader className="px-4 py-3 border-b shrink-0">
             <DialogTitle className="text-lg font-normal">
-              {t("phoneBooking.title")}
+              {t(source === "email" ? "phoneBooking.titleEmail" : "phoneBooking.title")}
             </DialogTitle>
             <DialogDescription className="hidden">
               Réservation manuelle d'un soin
@@ -515,6 +574,7 @@ export default function PhoneBookingDialog({
               {step !== "confirm" ? (
                 <Button
                   type="button"
+                  disabled={step === "therapist" && !therapistChoiceMade}
                   onClick={() => {
                     if (step === "venue") {
                       if (!hotelId) {

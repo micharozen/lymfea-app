@@ -57,6 +57,8 @@ export interface CreateBookingPayload {
   clientType?: BookingClientType;
   payByVoucher?: boolean;
   voucherReference?: string | null;
+  source?: string;
+  emailInquiryId?: string;
 }
 
 interface UseCreateBookingMutationOptions {
@@ -182,6 +184,8 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         payment_method: paymentMethod,
         payment_status: paymentStatus,
         payment_reference: d.voucherReference || null,
+        source: d.source ?? "manual",
+        email_inquiry_id: d.emailInquiryId ?? null,
       } as any).select().single();
 
       if (error) throw error;

@@ -364,6 +364,246 @@ INSERT INTO public.bookings (
    '00000000-0000-0000-0000-000000000104', 'Marc Therapist',
    95.00, 60, 'card', 'paid', '00000000-0000-0000-0000-000000000031', NULL);
 
+-- 14) Treatment variants (durée / nombre de personnes)
+-- Variant IDs reference (used by email_inquiries below):
+--   Massage relaxant (21):    300 = 60 min solo (default), 301 = 90 min solo, 302 = 60 min duo
+--   Deep tissue (24):         310 = 75 min solo (default)
+--   Soin éclat visage (25):   320 = 45 min solo (default)
+--   Enveloppement détox (27): 330 = 50 min solo (default), 331 = 80 min solo
+--   Massage suédois (43):     340 = 60 min solo (default), 341 = 90 min solo
+-- Plus default-only variants for the remaining seeded treatments (26, 44, 45, 46)
+-- so booking_treatments below can reference a variant_id for every row.
+INSERT INTO public.treatment_variants (id, treatment_id, label, label_en, duration, price, guest_count, is_default, status, sort_order)
+VALUES
+  ('00000000-0000-0000-0000-000000000300', '00000000-0000-0000-0000-000000000021', '60 min',           '60 min',          60, 90.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000021', '90 min',           '90 min',          90, 130.00, 1, false, 'active', 2),
+  ('00000000-0000-0000-0000-000000000302', '00000000-0000-0000-0000-000000000021', '60 min · duo',     '60 min · couple', 60, 170.00, 2, false, 'active', 3),
+  ('00000000-0000-0000-0000-000000000310', '00000000-0000-0000-0000-000000000024', '75 min',           '75 min',          75, 120.00, 1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000320', '00000000-0000-0000-0000-000000000025', '45 min',           '45 min',          45, 75.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000326', '00000000-0000-0000-0000-000000000026', '30 min',           '30 min',          30, 55.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000330', '00000000-0000-0000-0000-000000000027', '50 min',           '50 min',          50, 85.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000331', '00000000-0000-0000-0000-000000000027', '80 min',           '80 min',          80, 130.00, 1, false, 'active', 2),
+  ('00000000-0000-0000-0000-000000000340', '00000000-0000-0000-0000-000000000043', '60 min',           '60 min',          60, 95.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000341', '00000000-0000-0000-0000-000000000043', '90 min',           '90 min',          90, 135.00, 1, false, 'active', 2),
+  ('00000000-0000-0000-0000-000000000344', '00000000-0000-0000-0000-000000000044', '90 min',           '90 min',          90, 140.00, 1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000345', '00000000-0000-0000-0000-000000000045', '50 min',           '50 min',          50, 80.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000346', '00000000-0000-0000-0000-000000000046', '45 min',           '45 min',          45, 70.00,  1, true,  'active', 1);
+
+-- 15) Booking treatments (link bookings to treatment menus + variants)
+INSERT INTO public.booking_treatments (id, booking_id, treatment_id, variant_id) VALUES
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000300'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000024', '00000000-0000-0000-0000-000000000310'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000043', '00000000-0000-0000-0000-000000000340'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000204', '00000000-0000-0000-0000-000000000025', '00000000-0000-0000-0000-000000000320'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000205', '00000000-0000-0000-0000-000000000046', '00000000-0000-0000-0000-000000000346'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000206', '00000000-0000-0000-0000-000000000027', '00000000-0000-0000-0000-000000000330'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000207', '00000000-0000-0000-0000-000000000024', '00000000-0000-0000-0000-000000000310'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000208', '00000000-0000-0000-0000-000000000044', '00000000-0000-0000-0000-000000000344'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000300'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000210', '00000000-0000-0000-0000-000000000045', '00000000-0000-0000-0000-000000000345'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000211', '00000000-0000-0000-0000-000000000026', '00000000-0000-0000-0000-000000000326'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000212', '00000000-0000-0000-0000-000000000027', '00000000-0000-0000-0000-000000000330'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000213', '00000000-0000-0000-0000-000000000043', '00000000-0000-0000-0000-000000000340');
+
+-- 16) Persistent customer profiles
+-- One row per distinct client in the bookings fixture. Linked back via
+-- bookings.customer_id below so the Partner API (/v1/venues/:slug/customers)
+-- has data to return. UUIDs in the 300-series for readability.
+INSERT INTO public.customers (
+  id, first_name, last_name, email, phone, language, profile_completed
+) VALUES
+  ('00000000-0000-0000-0000-000000000501', 'Sophie',    'Martin',    'sophie.martin@example.com',    '+33612345678', 'fr', true),
+  ('00000000-0000-0000-0000-000000000502', 'Pierre',    'Dubois',    'pierre.dubois@example.com',    '+33623456789', 'fr', true),
+  ('00000000-0000-0000-0000-000000000503', 'Emma',      'Laurent',   'emma.laurent@example.com',     '+33634567890', 'fr', true),
+  ('00000000-0000-0000-0000-000000000504', 'Lucas',     'Bernard',   'lucas.bernard@example.com',    '+33645678901', 'fr', true),
+  ('00000000-0000-0000-0000-000000000505', 'Camille',   'Petit',     'camille.petit@example.com',    '+33656789012', 'fr', true),
+  ('00000000-0000-0000-0000-000000000506', 'Julie',     'Moreau',    'julie.moreau@example.com',     '+33667890123', 'fr', true),
+  ('00000000-0000-0000-0000-000000000507', 'Thomas',    'Roux',      'thomas.roux@example.com',      '+33678901234', 'fr', true),
+  ('00000000-0000-0000-0000-000000000508', 'Marie',     'Lefebvre',  'marie.lefebvre@example.com',   '+33689012345', 'en', true),
+  ('00000000-0000-0000-0000-000000000509', 'Antoine',   'Garcia',    'antoine.garcia@example.com',   '+33690123456', 'fr', true),
+  ('00000000-0000-0000-0000-000000000510', 'Léa',       'Rousseau',  'lea.rousseau@example.com',     '+33601234567', 'fr', false),
+  ('00000000-0000-0000-0000-000000000511', 'Nicolas',   'Vincent',   'nicolas.vincent@example.com',  '+33612340987', 'fr', true),
+  ('00000000-0000-0000-0000-000000000512', 'Charlotte', 'Fournier',  'charlotte.fournier@example.com', '+33623450987', 'fr', true),
+  ('00000000-0000-0000-0000-000000000513', 'Maxime',    'Girard',    'maxime.girard@example.com',    '+33634560987', 'en', true);
+
+-- 17) Backfill bookings.customer_id (booking 2NN -> customer 5NN).
+--     Kept as UPDATEs (rather than inlined in section 13) to minimise diff.
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000501' WHERE id = '00000000-0000-0000-0000-000000000201';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000502' WHERE id = '00000000-0000-0000-0000-000000000202';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000503' WHERE id = '00000000-0000-0000-0000-000000000203';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000504' WHERE id = '00000000-0000-0000-0000-000000000204';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000505' WHERE id = '00000000-0000-0000-0000-000000000205';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000506' WHERE id = '00000000-0000-0000-0000-000000000206';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000507' WHERE id = '00000000-0000-0000-0000-000000000207';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000508' WHERE id = '00000000-0000-0000-0000-000000000208';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000509' WHERE id = '00000000-0000-0000-0000-000000000209';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000510' WHERE id = '00000000-0000-0000-0000-000000000210';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000511' WHERE id = '00000000-0000-0000-0000-000000000211';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000512' WHERE id = '00000000-0000-0000-0000-000000000212';
+UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000513' WHERE id = '00000000-0000-0000-0000-000000000213';
+
+-- 18) Fake email_inquiries (inbox)
+-- Couvre les états de l'UI inbox :
+--   - received       : webhook reçu, pas encore parsé
+--   - parsed (auto)  : tous les critères auto-convert OK (conf >= 0.8, treatment + variant + date + heure)
+--   - parsed (review): conf basse ou champs manquants → review uniquement
+--   - failed         : LLM/lookup en échec, message d'erreur
+--   - converted      : déjà convertie en booking (référence un booking existant)
+--   - orphan         : reçue sur un alias inconnu, hotel_id NULL
+INSERT INTO public.email_inquiries (
+  id, hotel_id, from_address, to_address, subject, raw_body_text, raw_body_html,
+  parsed_data, confidence_score, status, booking_id, error_message, message_id, created_at
+) VALUES
+  -- A) Auto-convert ready — Hôtel Hana, Massage relaxant 60 min solo
+  ('00000000-0000-0000-0000-000000000400',
+   '00000000-0000-0000-0000-000000000010',
+   'sophie.bernard@example.com',
+   'hotel-hana@booking.eia.fr',
+   'Réservation massage relaxant',
+   E'Bonjour,\n\nJe souhaite réserver un massage relaxant de 60 minutes pour demain à 15h00, pour une personne.\n\nMes coordonnées :\nSophie Bernard\n+33 6 11 22 33 44\nsophie.bernard@example.com\n\nMerci d''avance,\nSophie',
+   NULL,
+   jsonb_build_object(
+     'client_first_name', 'Sophie',
+     'client_last_name', 'Bernard',
+     'email', 'sophie.bernard@example.com',
+     'phone', '+33 6 11 22 33 44',
+     'requested_date', to_char(CURRENT_DATE + INTERVAL '1 day', 'YYYY-MM-DD'),
+     'requested_time', '15:00',
+     'treatment_match', jsonb_build_object('id', '00000000-0000-0000-0000-000000000021', 'confidence', 0.95),
+     'variant_match',   jsonb_build_object('id', '00000000-0000-0000-0000-000000000300', 'confidence', 0.92),
+     'guest_count', 1,
+     'notes', NULL,
+     'intent_confidence', 0.94,
+     'detected_language', 'fr'
+   ),
+   0.94, 'parsed', NULL, NULL, '<seed-inq-400@example.com>', NOW() - INTERVAL '15 minutes'),
+
+  -- B) Auto-convert ready — Spa Nara, Massage suédois 90 min solo
+  ('00000000-0000-0000-0000-000000000401',
+   '00000000-0000-0000-0000-000000000011',
+   'thomas.legrand@example.com',
+   'spa-nara@booking.eia.fr',
+   'Demande de réservation',
+   E'Hello,\n\nI would like to book a 90 minute swedish massage for Saturday at 5pm, for one person.\nMy phone is +33 6 55 44 33 22.\n\nThanks,\nThomas Legrand',
+   NULL,
+   jsonb_build_object(
+     'client_first_name', 'Thomas',
+     'client_last_name', 'Legrand',
+     'email', 'thomas.legrand@example.com',
+     'phone', '+33 6 55 44 33 22',
+     'requested_date', to_char(CURRENT_DATE + INTERVAL '3 days', 'YYYY-MM-DD'),
+     'requested_time', '17:00',
+     'treatment_match', jsonb_build_object('id', '00000000-0000-0000-0000-000000000043', 'confidence', 0.97),
+     'variant_match',   jsonb_build_object('id', '00000000-0000-0000-0000-000000000341', 'confidence', 0.95),
+     'guest_count', 1,
+     'notes', NULL,
+     'intent_confidence', 0.93,
+     'detected_language', 'en'
+   ),
+   0.93, 'parsed', NULL, NULL, '<seed-inq-401@example.com>', NOW() - INTERVAL '1 hour'),
+
+  -- C) Review only — confidence basse (LLM hésite entre 2 soins), variant null
+  ('00000000-0000-0000-0000-000000000402',
+   '00000000-0000-0000-0000-000000000010',
+   'amelie.rousseau@example.com',
+   'hotel-hana@booking.eia.fr',
+   'Question rapide',
+   E'Bonjour,\n\nEst-ce que vous proposez un soin du visage à hydrater ?\nJe serais dispo jeudi prochain.\n\nAmélie',
+   NULL,
+   jsonb_build_object(
+     'client_first_name', 'Amélie',
+     'client_last_name', 'Rousseau',
+     'email', 'amelie.rousseau@example.com',
+     'phone', NULL,
+     'requested_date', to_char(CURRENT_DATE + INTERVAL '4 days', 'YYYY-MM-DD'),
+     'requested_time', NULL,
+     'treatment_match', jsonb_build_object('id', '00000000-0000-0000-0000-000000000025', 'confidence', 0.55),
+     'variant_match',   NULL,
+     'guest_count', 1,
+     'notes', 'Client demande de l''hydratation mais pas de soin précis',
+     'intent_confidence', 0.62,
+     'detected_language', 'fr'
+   ),
+   0.62, 'parsed', NULL, NULL, '<seed-inq-402@example.com>', NOW() - INTERVAL '3 hours'),
+
+  -- D) Review only — date/heure manquantes, mais soin + variante clairs
+  ('00000000-0000-0000-0000-000000000403',
+   '00000000-0000-0000-0000-000000000010',
+   'marc.fontaine@example.com',
+   'hotel-hana@booking.eia.fr',
+   'Réservation enveloppement détox',
+   E'Bonjour,\n\nJe souhaite réserver un enveloppement détox 80 minutes. Quels créneaux avez-vous la semaine prochaine ?\n\nMarc Fontaine\n06 99 88 77 66',
+   NULL,
+   jsonb_build_object(
+     'client_first_name', 'Marc',
+     'client_last_name', 'Fontaine',
+     'email', 'marc.fontaine@example.com',
+     'phone', '06 99 88 77 66',
+     'requested_date', NULL,
+     'requested_time', NULL,
+     'treatment_match', jsonb_build_object('id', '00000000-0000-0000-0000-000000000027', 'confidence', 0.91),
+     'variant_match',   jsonb_build_object('id', '00000000-0000-0000-0000-000000000331', 'confidence', 0.89),
+     'guest_count', 1,
+     'notes', 'Pas de créneau précis — propose la semaine prochaine',
+     'intent_confidence', 0.85,
+     'detected_language', 'fr'
+   ),
+   0.85, 'parsed', NULL, NULL, '<seed-inq-403@example.com>', NOW() - INTERVAL '6 hours'),
+
+  -- E) Received (webhook reçu, parsing pas encore lancé / en cours)
+  ('00000000-0000-0000-0000-000000000404',
+   '00000000-0000-0000-0000-000000000011',
+   'julie.moreau@example.com',
+   'spa-nara@booking.eia.fr',
+   'Disponibilités ce week-end',
+   E'Bonjour, auriez-vous des disponibilités samedi ou dimanche pour un massage ? Merci',
+   NULL,
+   NULL, NULL, 'received', NULL, NULL, '<seed-inq-404@example.com>', NOW() - INTERVAL '2 minutes'),
+
+  -- F) Failed — LLM ou lookup en échec
+  ('00000000-0000-0000-0000-000000000405',
+   '00000000-0000-0000-0000-000000000010',
+   'noreply@spam-network.example',
+   'hotel-hana@booking.eia.fr',
+   'Free vacation winner!!!',
+   E'You have won a free vacation. Click here to claim.',
+   NULL,
+   NULL, NULL, 'failed', NULL, 'Detected as non-booking intent (spam)', '<seed-inq-405@example.com>', NOW() - INTERVAL '1 day'),
+
+  -- G) Converted — déjà liée à un booking existant (212)
+  ('00000000-0000-0000-0000-000000000406',
+   '00000000-0000-0000-0000-000000000010',
+   'charlotte.fournier@example.com',
+   'hotel-hana@booking.eia.fr',
+   'Réservation enveloppement détox',
+   E'Bonjour, je voudrais un enveloppement détox de 50 min pour dans 5 jours à 18h. Merci. Charlotte',
+   NULL,
+   jsonb_build_object(
+     'client_first_name', 'Charlotte',
+     'client_last_name', 'Fournier',
+     'email', 'charlotte.fournier@example.com',
+     'phone', '06 23 45 09 87',
+     'requested_date', to_char(CURRENT_DATE + INTERVAL '5 days', 'YYYY-MM-DD'),
+     'requested_time', '18:00',
+     'treatment_match', jsonb_build_object('id', '00000000-0000-0000-0000-000000000027', 'confidence', 0.96),
+     'variant_match',   jsonb_build_object('id', '00000000-0000-0000-0000-000000000330', 'confidence', 0.94),
+     'guest_count', 1,
+     'notes', NULL,
+     'intent_confidence', 0.95,
+     'detected_language', 'fr'
+   ),
+   0.95, 'converted', '00000000-0000-0000-0000-000000000212', NULL, '<seed-inq-406@example.com>', NOW() - INTERVAL '2 days'),
+
+  -- H) Orphan — alias inconnu (pas de venue), traité comme failed
+  ('00000000-0000-0000-0000-000000000407',
+   NULL,
+   'curious.visitor@example.com',
+   'unknown-venue@booking.eia.fr',
+   'Hello?',
+   E'Hi, is this address active?',
+   NULL,
+   NULL, NULL, 'failed', NULL, 'Unknown venue alias or unconfigured domain', '<seed-inq-407@example.com>', NOW() - INTERVAL '4 days');
+=======
 -- 14) Treatment variants (one default variant per menu).
 -- The migration that introduced variants (20260322000000_add_treatment_variants.sql)
 -- only backfilled rows present at that time. Seed-created menus arrive later,
@@ -434,3 +674,4 @@ UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000310' 
 UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000311' WHERE id = '00000000-0000-0000-0000-000000000211';
 UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000312' WHERE id = '00000000-0000-0000-0000-000000000212';
 UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000313' WHERE id = '00000000-0000-0000-0000-000000000213';
+>>>>>>> 6c4d6bfa0bdd23315ff0d927560bd3bc924663fa
