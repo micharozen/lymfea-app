@@ -14,7 +14,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { parseEmailWithLlm, type TreatmentRef, type TreatmentVariantRef } from "../_shared/llm-parse-email.ts";
+import type { TreatmentRef, TreatmentVariantRef, ParsedEmail } from "../llm-agent/actions/parseEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -353,14 +353,21 @@ const handler = async (req: Request): Promise<Response> => {
     .update({ raw_body_text: bodyText, raw_body_html: bodyHtml })
     .eq("id", inquiry.id);
 
-  const { parsed, error: parseError } = await parseEmailWithLlm({
-    subject,
-    bodyText,
-    bodyHtml,
-    fromAddress,
-    venueName,
-    treatments,
+  const { data: parseData, error: invokeError } = await supabaseAdmin.functions.invoke("llm-agent", {
+    body: {
+      action: "parse-email",
+      subject,
+      bodyText,
+      bodyHtml,
+      fromAddress,
+      venueName,
+      treatments,
+    },
   });
+  const parsed = (parseData as { parsed: ParsedEmail | null } | null)?.parsed ?? null;
+  const parseError = invokeError?.message
+    ?? (parseData as { error: string | null } | null)?.error
+    ?? null;
 
   if (parseError || !parsed) {
     await supabaseAdmin

@@ -914,6 +914,7 @@
   },
   "phoneBooking": {
     "title": "Phone booking",
+    "titleEmail": "Booking from email",
     "fabLabel": "Phone booking",
     "ui": {
       "back": "Back",
@@ -1137,6 +1138,7 @@
       "all": "All statuses",
       "received": "Received",
       "parsed": "To review",
+      "replied": "Replied",
       "converted": "Converted",
       "dismissed": "Dismissed",
       "failed": "Failed"
@@ -1151,14 +1153,31 @@
       "dateTime": "Date & time",
       "treatment": "Treatment",
       "guests": "Guests",
-      "notes": "Notes",
+      "notes": "AI Notes",
       "rawBody": "Email body",
       "noBody": "(empty body)",
+      "conversation": "Conversation",
+      "replyFromVenue": "Reply sent",
       "errorTitle": "Processing error",
       "dismissAction": "Dismiss",
       "dismissed": "Email dismissed.",
       "convertAction": "Convert to booking",
-      "close": "Close"
+      "close": "Close",
+      "reply": {
+        "replyAction": "Reply",
+        "composerTitle": "Reply draft",
+        "checkingAvailability": "Checking availability…",
+        "draftingReply": "Drafting reply…",
+        "draftFailed": "Failed to generate a draft",
+        "subjectLabel": "Subject",
+        "bodyLabel": "Message",
+        "send": "Send",
+        "cancel": "Cancel",
+        "sent": "Reply sent",
+        "sentWithWarning": "Sent, but one step failed: {{warning}}",
+        "missingFields": "Subject and body required",
+        "referencedSlots": "Availability used: {{slots}}"
+      }
     },
     "convert": {
       "title": "Convert to booking",

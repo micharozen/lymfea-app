@@ -1333,15 +1333,19 @@ export type Database = {
           booking_id: string | null
           confidence_score: number | null
           created_at: string
+          direction: string
           error_message: string | null
           from_address: string
           hotel_id: string | null
           id: string
+          last_reply_at: string | null
           message_id: string | null
+          parent_inquiry_id: string | null
           parsed_data: Json | null
           raw_body_html: string | null
           raw_body_text: string | null
           raw_payload: Json | null
+          sent_by: string | null
           status: string
           subject: string | null
           to_address: string
@@ -1351,15 +1355,19 @@ export type Database = {
           booking_id?: string | null
           confidence_score?: number | null
           created_at?: string
+          direction?: string
           error_message?: string | null
           from_address: string
           hotel_id?: string | null
           id?: string
+          last_reply_at?: string | null
           message_id?: string | null
+          parent_inquiry_id?: string | null
           parsed_data?: Json | null
           raw_body_html?: string | null
           raw_body_text?: string | null
           raw_payload?: Json | null
+          sent_by?: string | null
           status?: string
           subject?: string | null
           to_address: string
@@ -1369,15 +1377,19 @@ export type Database = {
           booking_id?: string | null
           confidence_score?: number | null
           created_at?: string
+          direction?: string
           error_message?: string | null
           from_address?: string
           hotel_id?: string | null
           id?: string
+          last_reply_at?: string | null
           message_id?: string | null
+          parent_inquiry_id?: string | null
           parsed_data?: Json | null
           raw_body_html?: string | null
           raw_body_text?: string | null
           raw_payload?: Json | null
+          sent_by?: string | null
           status?: string
           subject?: string | null
           to_address?: string
@@ -1396,6 +1408,13 @@ export type Database = {
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_inquiries_parent_inquiry_id_fkey"
+            columns: ["parent_inquiry_id"]
+            isOneToOne: false
+            referencedRelation: "email_inquiries"
             referencedColumns: ["id"]
           },
         ]

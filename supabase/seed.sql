@@ -379,3 +379,184 @@ INSERT INTO public.booking_treatments (id, booking_id, treatment_id) VALUES
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000211', '00000000-0000-0000-0000-000000000026'),
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000212', '00000000-0000-0000-0000-000000000027'),
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000213', '00000000-0000-0000-0000-000000000043');
+
+-- 15) Treatment variants (durée / nombre de personnes)
+-- Variant IDs reference (used by email_inquiries below):
+--   Massage relaxant (21):    300 = 60 min solo (default), 301 = 90 min solo, 302 = 60 min duo
+--   Deep tissue (24):         310 = 75 min solo (default)
+--   Soin éclat visage (25):   320 = 45 min solo (default)
+--   Enveloppement détox (27): 330 = 50 min solo (default), 331 = 80 min solo
+--   Massage suédois (43):     340 = 60 min solo (default), 341 = 90 min solo
+INSERT INTO public.treatment_variants (id, treatment_id, label, label_en, duration, price, guest_count, is_default, status, sort_order)
+VALUES
+  ('00000000-0000-0000-0000-000000000300', '00000000-0000-0000-0000-000000000021', '60 min',           '60 min',          60, 90.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000021', '90 min',           '90 min',          90, 130.00, 1, false, 'active', 2),
+  ('00000000-0000-0000-0000-000000000302', '00000000-0000-0000-0000-000000000021', '60 min · duo',     '60 min · couple', 60, 170.00, 2, false, 'active', 3),
+  ('00000000-0000-0000-0000-000000000310', '00000000-0000-0000-0000-000000000024', '75 min',           '75 min',          75, 120.00, 1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000320', '00000000-0000-0000-0000-000000000025', '45 min',           '45 min',          45, 75.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000330', '00000000-0000-0000-0000-000000000027', '50 min',           '50 min',          50, 85.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000331', '00000000-0000-0000-0000-000000000027', '80 min',           '80 min',          80, 130.00, 1, false, 'active', 2),
+  ('00000000-0000-0000-0000-000000000340', '00000000-0000-0000-0000-000000000043', '60 min',           '60 min',          60, 95.00,  1, true,  'active', 1),
+  ('00000000-0000-0000-0000-000000000341', '00000000-0000-0000-0000-000000000043', '90 min',           '90 min',          90, 135.00, 1, false, 'active', 2);
+
+-- 16) Fake email_inquiries (inbox)
+-- Couvre les états de l'UI inbox :
+--   - received       : webhook reçu, pas encore parsé
+--   - parsed (auto)  : tous les critères auto-convert OK (conf >= 0.8, treatment + variant + date + heure)
+--   - parsed (review): conf basse ou champs manquants → review uniquement
+--   - failed         : LLM/lookup en échec, message d'erreur
+--   - converted      : déjà convertie en booking (référence un booking existant)
+--   - orphan         : reçue sur un alias inconnu, hotel_id NULL
+INSERT INTO public.email_inquiries (
+  id, hotel_id, from_address, to_address, subject, raw_body_text, raw_body_html,
+  parsed_data, confidence_score, status, booking_id, error_message, message_id, created_at
+) VALUES
+  -- A) Auto-convert ready — Hôtel Hana, Massage relaxant 60 min solo
+  ('00000000-0000-0000-0000-000000000400',
+   '00000000-0000-0000-0000-000000000010',
+   'sophie.bernard@example.com',
+   'hotel-hana@booking.eia.fr',
+   'Réservation massage relaxant',
+   E'Bonjour,\n\nJe souhaite réserver un massage relaxant de 60 minutes pour demain à 15h00, pour une personne.\n\nMes coordonnées :\nSophie Bernard\n+33 6 11 22 33 44\nsophie.bernard@example.com\n\nMerci d''avance,\nSophie',
+   NULL,
+   jsonb_build_object(
+     'client_first_name', 'Sophie',
+     'client_last_name', 'Bernard',
+     'email', 'sophie.bernard@example.com',
+     'phone', '+33 6 11 22 33 44',
+     'requested_date', to_char(CURRENT_DATE + INTERVAL '1 day', 'YYYY-MM-DD'),
+     'requested_time', '15:00',
+     'treatment_match', jsonb_build_object('id', '00000000-0000-0000-0000-000000000021', 'confidence', 0.95),
+     'variant_match',   jsonb_build_object('id', '00000000-0000-0000-0000-000000000300', 'confidence', 0.92),
+     'guest_count', 1,
+     'notes', NULL,
+     'intent_confidence', 0.94,
+     'detected_language', 'fr'
+   ),
+   0.94, 'parsed', NULL, NULL, '<seed-inq-400@example.com>', NOW() - INTERVAL '15 minutes'),
+
+  -- B) Auto-convert ready — Spa Nara, Massage suédois 90 min solo
+  ('00000000-0000-0000-0000-000000000401',
+   '00000000-0000-0000-0000-000000000011',
+   'thomas.legrand@example.com',
+   'spa-nara@booking.eia.fr',
+   'Demande de réservation',
+   E'Hello,\n\nI would like to book a 90 minute swedish massage for Saturday at 5pm, for one person.\nMy phone is +33 6 55 44 33 22.\n\nThanks,\nThomas Legrand',
+   NULL,
+   jsonb_build_object(
+     'client_first_name', 'Thomas',
+     'client_last_name', 'Legrand',
+     'email', 'thomas.legrand@example.com',
+     'phone', '+33 6 55 44 33 22',
+     'requested_date', to_char(CURRENT_DATE + INTERVAL '3 days', 'YYYY-MM-DD'),
+     'requested_time', '17:00',
+     'treatment_match', jsonb_build_object('id', '00000000-0000-0000-0000-000000000043', 'confidence', 0.97),
+     'variant_match',   jsonb_build_object('id', '00000000-0000-0000-0000-000000000341', 'confidence', 0.95),
+     'guest_count', 1,
+     'notes', NULL,
+     'intent_confidence', 0.93,
+     'detected_language', 'en'
+   ),
+   0.93, 'parsed', NULL, NULL, '<seed-inq-401@example.com>', NOW() - INTERVAL '1 hour'),
+
+  -- C) Review only — confidence basse (LLM hésite entre 2 soins), variant null
+  ('00000000-0000-0000-0000-000000000402',
+   '00000000-0000-0000-0000-000000000010',
+   'amelie.rousseau@example.com',
+   'hotel-hana@booking.eia.fr',
+   'Question rapide',
+   E'Bonjour,\n\nEst-ce que vous proposez un soin du visage à hydrater ?\nJe serais dispo jeudi prochain.\n\nAmélie',
+   NULL,
+   jsonb_build_object(
+     'client_first_name', 'Amélie',
+     'client_last_name', 'Rousseau',
+     'email', 'amelie.rousseau@example.com',
+     'phone', NULL,
+     'requested_date', to_char(CURRENT_DATE + INTERVAL '4 days', 'YYYY-MM-DD'),
+     'requested_time', NULL,
+     'treatment_match', jsonb_build_object('id', '00000000-0000-0000-0000-000000000025', 'confidence', 0.55),
+     'variant_match',   NULL,
+     'guest_count', 1,
+     'notes', 'Client demande de l''hydratation mais pas de soin précis',
+     'intent_confidence', 0.62,
+     'detected_language', 'fr'
+   ),
+   0.62, 'parsed', NULL, NULL, '<seed-inq-402@example.com>', NOW() - INTERVAL '3 hours'),
+
+  -- D) Review only — date/heure manquantes, mais soin + variante clairs
+  ('00000000-0000-0000-0000-000000000403',
+   '00000000-0000-0000-0000-000000000010',
+   'marc.fontaine@example.com',
+   'hotel-hana@booking.eia.fr',
+   'Réservation enveloppement détox',
+   E'Bonjour,\n\nJe souhaite réserver un enveloppement détox 80 minutes. Quels créneaux avez-vous la semaine prochaine ?\n\nMarc Fontaine\n06 99 88 77 66',
+   NULL,
+   jsonb_build_object(
+     'client_first_name', 'Marc',
+     'client_last_name', 'Fontaine',
+     'email', 'marc.fontaine@example.com',
+     'phone', '06 99 88 77 66',
+     'requested_date', NULL,
+     'requested_time', NULL,
+     'treatment_match', jsonb_build_object('id', '00000000-0000-0000-0000-000000000027', 'confidence', 0.91),
+     'variant_match',   jsonb_build_object('id', '00000000-0000-0000-0000-000000000331', 'confidence', 0.89),
+     'guest_count', 1,
+     'notes', 'Pas de créneau précis — propose la semaine prochaine',
+     'intent_confidence', 0.85,
+     'detected_language', 'fr'
+   ),
+   0.85, 'parsed', NULL, NULL, '<seed-inq-403@example.com>', NOW() - INTERVAL '6 hours'),
+
+  -- E) Received (webhook reçu, parsing pas encore lancé / en cours)
+  ('00000000-0000-0000-0000-000000000404',
+   '00000000-0000-0000-0000-000000000011',
+   'julie.moreau@example.com',
+   'spa-nara@booking.eia.fr',
+   'Disponibilités ce week-end',
+   E'Bonjour, auriez-vous des disponibilités samedi ou dimanche pour un massage ? Merci',
+   NULL,
+   NULL, NULL, 'received', NULL, NULL, '<seed-inq-404@example.com>', NOW() - INTERVAL '2 minutes'),
+
+  -- F) Failed — LLM ou lookup en échec
+  ('00000000-0000-0000-0000-000000000405',
+   '00000000-0000-0000-0000-000000000010',
+   'noreply@spam-network.example',
+   'hotel-hana@booking.eia.fr',
+   'Free vacation winner!!!',
+   E'You have won a free vacation. Click here to claim.',
+   NULL,
+   NULL, NULL, 'failed', NULL, 'Detected as non-booking intent (spam)', '<seed-inq-405@example.com>', NOW() - INTERVAL '1 day'),
+
+  -- G) Converted — déjà liée à un booking existant (212)
+  ('00000000-0000-0000-0000-000000000406',
+   '00000000-0000-0000-0000-000000000010',
+   'charlotte.fournier@example.com',
+   'hotel-hana@booking.eia.fr',
+   'Réservation enveloppement détox',
+   E'Bonjour, je voudrais un enveloppement détox de 50 min pour dans 5 jours à 18h. Merci. Charlotte',
+   NULL,
+   jsonb_build_object(
+     'client_first_name', 'Charlotte',
+     'client_last_name', 'Fournier',
+     'email', 'charlotte.fournier@example.com',
+     'phone', '06 23 45 09 87',
+     'requested_date', to_char(CURRENT_DATE + INTERVAL '5 days', 'YYYY-MM-DD'),
+     'requested_time', '18:00',
+     'treatment_match', jsonb_build_object('id', '00000000-0000-0000-0000-000000000027', 'confidence', 0.96),
+     'variant_match',   jsonb_build_object('id', '00000000-0000-0000-0000-000000000330', 'confidence', 0.94),
+     'guest_count', 1,
+     'notes', NULL,
+     'intent_confidence', 0.95,
+     'detected_language', 'fr'
+   ),
+   0.95, 'converted', '00000000-0000-0000-0000-000000000212', NULL, '<seed-inq-406@example.com>', NOW() - INTERVAL '2 days'),
+
+  -- H) Orphan — alias inconnu (pas de venue), traité comme failed
+  ('00000000-0000-0000-0000-000000000407',
+   NULL,
+   'curious.visitor@example.com',
+   'unknown-venue@booking.eia.fr',
+   'Hello?',
+   E'Hi, is this address active?',
+   NULL,
+   NULL, NULL, 'failed', NULL, 'Unknown venue alias or unconfigured domain', '<seed-inq-407@example.com>', NOW() - INTERVAL '4 days');

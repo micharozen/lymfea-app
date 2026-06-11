@@ -5,6 +5,7 @@ interface SendEmailWithHtml {
   subject: string;
   from?: string;
   html: string;
+  headers?: Record<string, string>;
   templateId?: never;
   templateVariables?: never;
 }
@@ -14,6 +15,7 @@ interface SendEmailWithTemplate {
   subject?: string;
   from?: string;
   html?: never;
+  headers?: Record<string, string>;
   templateId: string;
   templateVariables?: Record<string, string>;
 }
@@ -56,6 +58,10 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     };
   } else if (options.html) {
     body.html = options.html;
+  }
+
+  if (options.headers && Object.keys(options.headers).length > 0) {
+    body.headers = options.headers;
   }
 
   const response = await fetch("https://api.resend.com/emails", {
