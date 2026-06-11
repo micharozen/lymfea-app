@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
@@ -112,9 +112,14 @@ const PwaDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     checkAuth();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   // Single useEffect to handle initial load - use cache first
@@ -145,8 +150,13 @@ const PwaDashboard = () => {
         if (dateCompare !== 0) return dateCompare;
         return a.booking_time.localeCompare(b.booking_time);
       });
-      setAllBookings(sortedData);
-      setLoading(false);
+      if (isMountedRef.current) {
+
+        setAllBookings(sortedData);
+
+        setLoading(false);
+
+      }
     }
 
     // Always fetch fresh data in background
@@ -170,6 +180,8 @@ const PwaDashboard = () => {
           const newData = payload.new as any;
           const oldData = payload.old as any;
           
+          if (!isMountedRef.current) return;
+          
           setAllBookings(prev => {
             const idx = prev.findIndex(b => b.id === newData.id);
 
@@ -182,7 +194,7 @@ const PwaDashboard = () => {
               const isSecondary = prev[idx].booking_therapists?.some(
                 (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
               );
-              if (!isSecondary) {
+              if (!isSecondary && isMountedRef.current) {
                 toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
               }
             }
@@ -214,7 +226,9 @@ const PwaDashboard = () => {
           table: 'bookings'
         },
         (_payload) => {
-          fetchAllBookings(therapist.id);
+          if (isMountedRef.current) {
+            fetchAllBookings(therapist.id);
+          }
         }
       )
       // Mise à jour du compteur duo en temps réel :
@@ -231,6 +245,8 @@ const PwaDashboard = () => {
         (payload) => {
           const newBt = payload.new as { booking_id: string; therapist_id: string; status: string };
           if (newBt.status !== 'accepted') return;
+          if (!isMountedRef.current) return;
+          
           setAllBookings(prev => {
             const idx = prev.findIndex(b => b.id === newBt.booking_id);
             if (idx === -1) return prev;
@@ -301,6 +317,8 @@ const PwaDashboard = () => {
   const fetchAllBookings = async (therapistId: string, forceRefresh = false) => {
 
 
+    if (!isMountedRef.current) return;
+
     // Clear cache when force refreshing
     if (forceRefresh) {
       queryClient.removeQueries({ queryKey: ["myBookings", therapistId] });
@@ -314,8 +332,10 @@ const PwaDashboard = () => {
 
     if (hotelsError || !affiliatedHotels || affiliatedHotels.length === 0) {
       console.error("❌ Error fetching affiliated hotels:", hotelsError);
+      if (isMountedRef.current) {
       setAllBookings([]);
-      setLoading(false);
+        setLoading(false);
+    }
       return;
     }
 
@@ -494,8 +514,16 @@ const PwaDashboard = () => {
       return a.booking_time.localeCompare(b.booking_time);
     });
 
-    setAllBookings(sortedData);
-    setLoading(false);
+    if (isMountedRef.current) {
+
+
+      setAllBookings(sortedData);
+
+
+      setLoading(false);
+
+
+    }
   };
 
   const handleRefresh = async () => {
@@ -562,6 +590,8 @@ const PwaDashboard = () => {
   const handleAcceptBooking = async (bookingId: string) => {
     if (!therapist) return;
 
+    if (!isMountedRef.current) return;
+
     try {
       const totalPrice = calculateTotalPrice(allBookings.find(b => b.id === bookingId)!);
 
@@ -595,12 +625,15 @@ const PwaDashboard = () => {
         } catch (notifError) {
           console.error("Email notification error (non-blocking):", notifError);
         }
-      }
+      }      if (isMountedRef.current) {
+
 
       toast.success(t('dashboard.bookingAccepted'));
+      }
       fetchAllBookings(therapist.id, true); // Force refresh to get updated data
     } catch (error) {
       console.error("Error accepting booking:", error);
+      if (!isMountedRef.current) return;
       const msg = error instanceof Error ? error.message : '';
       if (msg.includes('already_taken') || msg.includes('already assigned') || msg.includes('déjà assignée')) {
         toast.error(t('dashboard.bookingAlreadyTaken'));
@@ -613,6 +646,8 @@ const PwaDashboard = () => {
 
   const handleDeclineBooking = async (bookingId: string) => {
     if (!therapist) return;
+
+    if (!isMountedRef.current) return;
 
     try {
       const { data: currentBooking } = await supabase
@@ -629,13 +664,17 @@ const PwaDashboard = () => {
         .update({ declined_by: updatedDeclined })
         .eq("id", bookingId);
 
+      if (!isMountedRef.current) return;
+
       if (error) throw error;
 
       toast.success(t('dashboard.bookingDeclined'));
       fetchAllBookings(therapist.id, true); // Force refresh
     } catch (error) {
       console.error("Error declining booking:", error);
+      if (isMountedRef.current) {
       toast.error(t('dashboard.error'));
+      }
     }
   };
 
