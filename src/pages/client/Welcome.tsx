@@ -512,10 +512,19 @@ export default function Welcome() {
         <div className="absolute inset-0 z-0">
           <img
             src={backgroundImage}
-            className="h-full w-full object-cover scale-105 brightness-[0.5]"
+            className="h-full w-full object-cover scale-105"
             alt="Ambiance"
           />
-          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundColor: hotel?.welcome_background_color || '#000000',
+              opacity:
+                hotel?.welcome_background_opacity != null
+                  ? Math.max(0, Math.min(100, hotel.welcome_background_opacity)) / 100
+                  : 0.5,
+            }}
+          />
         </div>
 
         {/* Language Switcher */}
