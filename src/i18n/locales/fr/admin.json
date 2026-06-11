@@ -914,6 +914,7 @@
   },
   "phoneBooking": {
     "title": "Réservation téléphone",
+    "titleEmail": "Réservation depuis email",
     "fabLabel": "Réservation téléphone",
     "ui": {
       "back": "Retour",
@@ -1114,6 +1115,188 @@
       "checkoutFailed": "Impossible d'ouvrir le paiement",
       "venueFailed": "Impossible de créer votre lieu",
       "checkoutCancelled": "Paiement annulé. Vous pouvez reprendre quand vous le souhaitez."
+    }
+  },
+  "userMenu": {
+    "apiKey": "Clé API"
+  },
+  "apiKey": {
+    "title": "Clé API",
+    "subtitle": "Nécessaire pour les intégrations comme Zapier, Make, ou pour appeler directement api.saoma.io",
+    "fieldLabel": "Votre clé API",
+    "copy": "Copier",
+    "copied": "Clé API copiée",
+    "reveal": "Afficher",
+    "hide": "Masquer",
+    "regenerate": "Régénérer",
+    "docsLink": "Voir la documentation API",
+    "loading": "Chargement…",
+    "loadError": "Impossible de récupérer la clé API",
+    "revealError": "Impossible d'afficher la clé",
+    "regenerateError": "La régénération a échoué",
+    "regenerateSuccess": "Nouvelle clé générée",
+    "missing": "Aucune clé API n'a été émise pour votre organisation.",
+    "generate": "Générer une clé",
+    "newKeyDialog": {
+      "title": "Votre nouvelle clé API",
+      "description": "Copiez-la dès maintenant — pour des raisons de sécurité, vous ne pourrez plus la voir entièrement par la suite (mais vous pourrez l'afficher de nouveau à tout moment depuis cette page).",
+      "close": "J'ai copié la clé"
+    },
+    "regenerateDialog": {
+      "title": "Régénérer la clé API ?",
+      "description": "L'ancienne clé sera invalidée immédiatement. Toutes les intégrations qui l'utilisent cesseront de fonctionner jusqu'à ce que vous y collez la nouvelle clé.",
+      "confirm": "Régénérer",
+      "cancel": "Annuler"
+    }
+  },
+  "inbox": {
+    "title": "Inbox emails",
+    "description": "Réservations reçues par email — analysées par IA et prêtes à être validées.",
+    "searchPlaceholder": "Rechercher (expéditeur, lieu, sujet)…",
+    "refresh": "Actualiser",
+    "loading": "Chargement…",
+    "empty": "Aucun email pour le moment.",
+    "unknownVenue": "Lieu inconnu",
+    "noSubject": "(sans sujet)",
+    "columns": {
+      "received": "Reçu",
+      "from": "Expéditeur",
+      "venue": "Lieu",
+      "subject": "Sujet",
+      "status": "Statut",
+      "confidence": "Confiance"
+    },
+    "status": {
+      "all": "Tous les statuts",
+      "received": "Reçu",
+      "parsed": "À traiter",
+      "replied": "Répondu",
+      "converted": "Converti",
+      "dismissed": "Ignoré",
+      "failed": "Échec"
+    },
+    "detail": {
+      "parsed": "Données extraites",
+      "confidence": "Confiance",
+      "notParsed": "Pas encore analysé.",
+      "client": "Client",
+      "email": "Email",
+      "phone": "Téléphone",
+      "dateTime": "Date & heure",
+      "treatment": "Soin",
+      "guests": "Personnes",
+      "notes": "Notes IA",
+      "rawBody": "Corps de l'email",
+      "noBody": "(corps vide)",
+      "conversation": "Conversation",
+      "replyFromVenue": "Réponse envoyée",
+      "errorTitle": "Erreur de traitement",
+      "dismissAction": "Ignorer",
+      "dismissed": "Email ignoré.",
+      "convertAction": "Convertir en réservation",
+      "close": "Fermer",
+      "reply": {
+        "replyAction": "Répondre",
+        "composerTitle": "Brouillon de réponse",
+        "checkingAvailability": "Vérification des disponibilités…",
+        "draftingReply": "Rédaction du brouillon…",
+        "draftFailed": "Impossible de générer un brouillon",
+        "subjectLabel": "Sujet",
+        "bodyLabel": "Message",
+        "send": "Envoyer",
+        "cancel": "Annuler",
+        "sent": "Réponse envoyée",
+        "sentWithWarning": "Envoyé mais une étape a échoué : {{warning}}",
+        "missingFields": "Sujet et corps requis",
+        "referencedSlots": "Disponibilités prises en compte : {{slots}}"
+      }
+    },
+    "convert": {
+      "title": "Convertir en réservation",
+      "subtitle": "Crée une réservation pour {{venue}} à partir des données extraites.",
+      "success": "Réservation créée et liée à l'email.",
+      "cancel": "Annuler",
+      "submit": "Créer la réservation",
+      "fields": {
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "email": "Email",
+        "phone": "Téléphone",
+        "date": "Date",
+        "pickDate": "Choisir une date",
+        "time": "Heure",
+        "duration": "Durée (min)",
+        "notes": "Notes"
+      },
+      "errors": {
+        "firstName": "Prénom requis",
+        "lastName": "Nom requis",
+        "email": "Email invalide",
+        "phone": "Téléphone requis",
+        "date": "Date requise",
+        "time": "Heure requise (HH:mm)",
+        "noVenue": "Email non lié à un lieu — conversion impossible."
+      }
+    },
+    "tab": {
+      "tabLabel": "Inbox email",
+      "hero": {
+        "title": "Recevez vos réservations par email",
+        "aiBadge": "Analysé par IA",
+        "paidBadge": "Option Saoma",
+        "description": "Vos concierges et clients préfèrent souvent l'email à un formulaire de réservation. Activez l'Inbox email pour transformer ce flux en réservations pré-remplies, sans changer leurs habitudes."
+      },
+      "activation": {
+        "title": "Activation de la fonctionnalité",
+        "bodyActive": "L'Inbox email est active sur ce lieu. Communiquez l'adresse ci-dessous à vos concierges et partenaires.",
+        "bodyLocked": "L'Inbox email est une option payante incluse dans certains plans Saoma. Elle est désactivée par défaut.",
+        "contactCopy": "Pour activer cette fonctionnalité sur votre lieu, rapprochez-vous de l'équipe Saoma.",
+        "contactCta": "Contacter Saoma",
+        "mailtoSubject": "Activation Inbox email — demande de mise en service"
+      },
+      "address": {
+        "label": "Votre adresse email dédiée (aperçu)",
+        "description": "Vos concierges et clients enverront leurs demandes ici. Chaque email est analysé par IA et pré-rempli en réservation dans votre Inbox.",
+        "copied": "Adresse copiée.",
+        "copyFailed": "Impossible de copier."
+      },
+      "benefits": {
+        "title": "Pourquoi activer cette option",
+        "newChannel": {
+          "title": "Un nouveau canal de réservation",
+          "body": "Vos partenaires (réceptions d'hôtels, concierges) forwardent simplement les demandes de leurs clients. Pas de formulaire, pas de compte à créer."
+        },
+        "aiParsing": {
+          "title": "Lecture automatique par IA",
+          "body": "Claude Haiku extrait le client, la date, l'heure, le soin demandé et même les notes — y compris dans les emails forwardés (FR/EN)."
+        },
+        "fewerClicks": {
+          "title": "Réservation en 1 clic",
+          "body": "L'admin reçoit une demande pré-remplie dans l'Inbox. Il valide et la réservation entre dans le pipeline standard."
+        },
+        "multilingual": {
+          "title": "Multilingue",
+          "body": "Le parser comprend les demandes en français et en anglais, formelles ou informelles. La langue est détectée automatiquement."
+        },
+        "audit": {
+          "title": "Audit trail complet",
+          "body": "Chaque email est archivé avec son payload brut et le résultat de l'analyse IA. Vous pouvez ré-analyser ou ignorer à tout moment."
+        }
+      },
+      "flow": {
+        "title": "Le processus en un coup d'œil",
+        "step1": { "label": "Email reçu", "sub": "Client ou concierge" },
+        "step2": { "label": "Inbox dédié", "sub": "Webhook sécurisé" },
+        "step3": { "label": "Analyse IA", "sub": "Champs extraits" },
+        "step4": { "label": "Réservation", "sub": "Prête à valider" }
+      },
+      "how": {
+        "title": "Comment ça marche",
+        "step1": "Un concierge ou un client envoie un email à votre adresse dédiée (générée automatiquement à partir du nom du lieu).",
+        "step2": "L'email arrive sur notre webhook sécurisé. Notre IA extrait les champs : nom, contact, date, heure, soin, nombre de personnes, notes.",
+        "step3": "Une nouvelle entrée apparaît dans /admin/inbox avec un score de confiance. Les demandes ambiguës restent à valider à la main.",
+        "step4": "L'admin clique sur \"Convertir en réservation\" : une réservation est créée en statut 'pending', prête à être assignée à un thérapeute."
+      }
     }
   }
 }
