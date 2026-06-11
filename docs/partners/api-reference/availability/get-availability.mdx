@@ -2,7 +2,14 @@
 title: "Get availability"
 api: "GET /v1/availability"
 description: "Fetch real-time bookable slots for one or more venues."
+tag: "Coming soon"
 ---
+
+<Warning>
+  **Not yet available.** This endpoint is not implemented in the API yet. The
+  specification below is a preview and may change before release. Contact the
+  Eïa team if you need it.
+</Warning>
 
 The central endpoint for partners. Returns the slots that are currently
 bookable for a venue (or a batch of venues), over a date range of up to
@@ -85,8 +92,8 @@ bookable for a venue (or a batch of venues), over a date range of up to
 <RequestExample>
 
 ```bash curl
-curl "https://api-sandbox.lymfea.com/v1/availability?venue_id=hot_lutetia_paris&treatment_id=trt_swedish_60&from=2026-05-12&to=2026-05-14" \
-  -H "Authorization: Bearer $LYMFEA_API_KEY"
+curl "https://api.saoma.io/v1/availability?venue_id=hot_lutetia_paris&treatment_id=trt_swedish_60&from=2026-05-12&to=2026-05-14" \
+  -H "Authorization: Bearer $EIA_API_KEY"
 ```
 
 ```javascript Node.js
@@ -98,8 +105,8 @@ const params = new URLSearchParams({
   guests: "1",
 });
 const res = await fetch(
-  `https://api-sandbox.lymfea.com/v1/availability?${params}`,
-  { headers: { Authorization: `Bearer ${process.env.LYMFEA_API_KEY}` } }
+  `https://api.saoma.io/v1/availability?${params}`,
+  { headers: { Authorization: `Bearer ${process.env.EIA_API_KEY}` } }
 );
 const { data } = await res.json();
 ```

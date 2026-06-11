@@ -1,47 +1,26 @@
 ---
 title: "List venues"
 api: "GET /v1/venues"
-description: "List every venue accessible to your API key."
+description: "List every active venue accessible to your API key."
 ---
 
-Returns a paginated list of active venues that are in the scope of your API
-key.
+Returns the active venues that are in scope for your API key. Requires the
+`venues:read` scope.
 
-## Query parameters
+<Note>
+  If your API key is scoped to a single venue, this endpoint returns only that
+  venue. Platform-wide keys receive every active venue, ordered by `name`.
+</Note>
 
-<ParamField query="country" type="string">
-  Filter by ISO 3166-1 alpha-2 country code (e.g. `FR`).
-</ParamField>
-
-<ParamField query="city" type="string">
-  Filter by city name (case-insensitive, exact match).
-</ParamField>
-
-<ParamField query="type" type="'hotel' | 'spa'">
-  Filter by venue type.
-</ParamField>
-
-<ParamField query="has_category" type="string">
-  Keep only venues that offer at least one treatment in this category
-  (e.g. `massage`, `facial`).
-</ParamField>
-
-<ParamField query="cursor" type="string">
-  Cursor from the previous page's `next_cursor`. Omit on the first call.
-</ParamField>
-
-<ParamField query="limit" type="integer" default="50">
-  Page size. Max `100`.
-</ParamField>
+This endpoint takes **no query parameters** and is **not paginated** — it
+returns the full in-scope list in one call. Cache the result; venue metadata
+changes rarely.
 
 ## Response
 
 <ResponseField name="data" type="Venue[]">
-  Array of [Venue](/concepts/venues) objects.
-</ResponseField>
-
-<ResponseField name="next_cursor" type="string | null">
-  Cursor to fetch the next page, or `null` if this is the last page.
+  Array of [Venue](/concepts/venues) objects (list shape — see the Venue
+  concept for the exact fields).
 </ResponseField>
 
 ## Example
@@ -49,16 +28,25 @@ key.
 <RequestExample>
 
 ```bash curl
-curl "https://api-sandbox.lymfea.com/v1/venues?country=FR&type=hotel" \
-  -H "Authorization: Bearer $LYMFEA_API_KEY"
+curl https://api.saoma.io/v1/venues \
+  -H "Authorization: Bearer $EIA_API_KEY"
 ```
 
 ```javascript Node.js
-const params = new URLSearchParams({ country: "FR", type: "hotel" });
-const res = await fetch(`https://api-sandbox.lymfea.com/v1/venues?${params}`, {
-  headers: { Authorization: `Bearer ${process.env.LYMFEA_API_KEY}` },
+const res = await fetch("https://api.saoma.io/v1/venues", {
+  headers: { Authorization: `Bearer ${process.env.EIA_API_KEY}` },
 });
-const { data, next_cursor } = await res.json();
+const { data } = await res.json();
+```
+
+```python Python
+import os, requests
+
+res = requests.get(
+    "https://api.saoma.io/v1/venues",
+    headers={"Authorization": f"Bearer {os.environ['EIA_API_KEY']}"},
+)
+data = res.json()["data"]
 ```
 
 </RequestExample>
@@ -69,22 +57,25 @@ const { data, next_cursor } = await res.json();
 {
   "data": [
     {
-      "id": "hot_lutetia_paris",
-      "slug": "hotel-lutetia-paris",
-      "type": "hotel",
+      "id": "8f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718",
       "name": "Spa Akasha — Hôtel Lutetia",
       "name_en": "Akasha Spa — Hotel Lutetia",
+      "image": "https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/venues/akasha.jpg",
+      "cover_image": "https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/venues/akasha-cover.jpg",
+      "address": "45 Boulevard Raspail",
+      "postal_code": "75006",
       "city": "Paris",
       "country": "FR",
-      "timezone": "Europe/Paris",
       "currency": "EUR",
-      "opening_time": "09:00",
-      "closing_time": "21:00",
-      "slot_interval": 30
+      "venue_type": "hotel",
+      "description": "Un sanctuaire de bien-être au cœur du 6ᵉ arrondissement.",
+      "description_en": "A wellness sanctuary in the heart of the 6th arrondissement.",
+      "timezone": "Europe/Paris"
     }
-  ],
-  "next_cursor": null
+  ]
 }
 ```
 
 </ResponseExample>
+</content>
+</invoke>

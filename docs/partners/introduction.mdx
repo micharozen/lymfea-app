@@ -12,34 +12,33 @@ venue on Eïa and push bookings directly into our system.
 
 <CardGroup cols={2}>
   <Card title="List venues" icon="building">
-    Discover every active spa/hotel connected to Eïa, with their metadata,
-    photos and treatment catalogue.
+    Discover every active spa/hotel connected to Eïa, with their metadata and
+    photos.
   </Card>
-  <Card title="Read availability" icon="calendar">
-    Get real-time available slots for any venue and any treatment over a date
-    range of up to 31 days.
+  <Card title="Retrieve a venue" icon="location-dot">
+    Get a single venue's public profile, including its opening hours and
+    booking policy.
   </Card>
-  <Card title="Create bookings" icon="plus">
-    Push a confirmed booking directly into the venue's agenda. Eïa handles
-    therapist assignment and customer notifications.
+  <Card title="List treatments" icon="spa">
+    Read a venue's treatment catalogue, with prices, durations and variants.
   </Card>
-  <Card title="Manage bookings" icon="arrows-rotate">
-    Read the current status of a booking or cancel it through the Partner API.
+  <Card title="Availability & bookings" icon="calendar">
+    Real-time availability and booking creation are **coming soon** — see the
+    pages tagged _Coming soon_ in the API Reference.
   </Card>
 </CardGroup>
 
 ## Environments
 
 <Note>
-  Base URLs and credentials will be provisioned by the Eïa team during
-  onboarding. The sandbox environment is isolated from production data and is
-  the right place to build and test your integration.
+  Credentials are provisioned by the Eïa team during onboarding. A dedicated
+  sandbox environment is not yet available — contact us if you need isolated
+  test data.
 </Note>
 
-| Environment | Base URL                                      |
-| ----------- | --------------------------------------------- |
-| Sandbox     | `https://api-sandbox.lymfea.com/v1`           |
-| Production  | `https://api.lymfea.com/v1`                   |
+| Environment | Base URL                      |
+| ----------- | ----------------------------- |
+| Production  | `https://api.saoma.io/v1`     |
 
 ## Versioning
 
@@ -53,11 +52,12 @@ commit to:
 
 ## Conventions
 
-- All timestamps are **ISO 8601** in **UTC** (`2026-05-12T14:00:00Z`). The
-  venue's local timezone is exposed on the `Venue` object so you can render
-  times correctly for end users.
-- Money amounts are returned as **integers in the smallest currency unit**
-  (cents for EUR/USD), alongside a `currency` code (ISO 4217).
+- Dates are **ISO 8601** (`YYYY-MM-DD`); times such as `opening_time` are in
+  the venue's local timezone (exposed via the `timezone` field on the venue
+  list shape).
+- Money amounts are **decimal numbers in the venue's currency** (e.g.
+  `120.00` for 120 €), alongside a `currency` code (ISO 4217). They are **not**
+  integer cents.
 - All string IDs are **opaque** — do not parse or assume format stability.
 - Text fields are available in **French** and **English**. Fields suffixed
   `_en` contain the English translation; the primary field holds French.

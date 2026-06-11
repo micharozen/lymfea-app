@@ -4,31 +4,30 @@ description: "Spas and hotel spas connected to Eïa."
 ---
 
 A **Venue** is the physical place where treatments are delivered. There are
-two types of venues on Eïa:
+two types of venues on Eïa (`venue_type`):
 
 - `hotel` — a spa inside a hotel. Guests can charge their booking to their
-  room (the optional `guest.room_number` field applies).
+  room (the room-number field applies).
 - `spa` — an independent day spa. No room charge.
 
-## The Venue object
+<Note>
+  The Venue object comes in two shapes. The **list shape** (returned by
+  `GET /v1/venues`) carries marketing/contact fields. The **detail shape**
+  (returned by `GET /v1/venues/{id}`) carries scheduling and booking-policy
+  fields. The two shapes do not currently expose the exact same set of fields.
+</Note>
+
+## List shape — `GET /v1/venues`
 
 <ResponseField name="id" type="string">
-  Stable, opaque identifier for the venue.
-</ResponseField>
-
-<ResponseField name="slug" type="string">
-  Human-readable identifier (e.g. `hotel-lutetia-paris`). Unique across Eïa.
-</ResponseField>
-
-<ResponseField name="type" type="'hotel' | 'spa'">
-  Whether the venue is a hotel spa or a standalone day spa.
+  Stable, opaque identifier (UUID) for the venue.
 </ResponseField>
 
 <ResponseField name="name" type="string">
   Display name in French.
 </ResponseField>
 
-<ResponseField name="name_en" type="string">
+<ResponseField name="name_en" type="string | null">
   Display name in English.
 </ResponseField>
 
@@ -40,41 +39,32 @@ two types of venues on Eïa:
   Long-form description in English.
 </ResponseField>
 
-<ResponseField name="address" type="string">
+<ResponseField name="address" type="string | null">
   Street address.
 </ResponseField>
 
-<ResponseField name="city" type="string">
-  City.
-</ResponseField>
-
-<ResponseField name="country" type="string">
-  ISO 3166-1 alpha-2 country code (e.g. `FR`).
-</ResponseField>
-
-<ResponseField name="postal_code" type="string">
+<ResponseField name="postal_code" type="string | null">
   Postal or ZIP code.
 </ResponseField>
 
-<ResponseField name="timezone" type="string">
-  IANA timezone (e.g. `Europe/Paris`). Use this to render UTC timestamps in
-  the venue's local time for your users.
+<ResponseField name="city" type="string | null">
+  City.
+</ResponseField>
+
+<ResponseField name="country" type="string | null">
+  ISO 3166-1 alpha-2 country code (e.g. `FR`).
 </ResponseField>
 
 <ResponseField name="currency" type="string">
   ISO 4217 currency code for pricing (e.g. `EUR`).
 </ResponseField>
 
-<ResponseField name="opening_time" type="string">
-  Daily opening time in `HH:mm` format, in the venue's local timezone.
+<ResponseField name="venue_type" type="'hotel' | 'spa'">
+  Whether the venue is a hotel spa or a standalone day spa.
 </ResponseField>
 
-<ResponseField name="closing_time" type="string">
-  Daily closing time in `HH:mm` format, in the venue's local timezone.
-</ResponseField>
-
-<ResponseField name="slot_interval" type="integer">
-  Granularity of bookable slots, in minutes (typically `30`).
+<ResponseField name="timezone" type="string | null">
+  IANA timezone (e.g. `Europe/Paris`).
 </ResponseField>
 
 <ResponseField name="image" type="string | null">
@@ -85,33 +75,74 @@ two types of venues on Eïa:
   Cover image URL, suitable for a hero banner.
 </ResponseField>
 
-## Example
+## Detail shape — `GET /v1/venues/{id}`
 
-```json
-{
-  "id": "hot_lutetia_paris",
-  "slug": "hotel-lutetia-paris",
-  "type": "hotel",
-  "name": "Spa Akasha — Hôtel Lutetia",
-  "name_en": "Akasha Spa — Hotel Lutetia",
-  "description": "Un sanctuaire de bien-être au cœur du 6ᵉ arrondissement.",
-  "description_en": "A wellness sanctuary in the heart of the 6th arrondissement.",
-  "address": "45 Boulevard Raspail",
-  "city": "Paris",
-  "country": "FR",
-  "postal_code": "75006",
-  "timezone": "Europe/Paris",
-  "currency": "EUR",
-  "opening_time": "09:00",
-  "closing_time": "21:00",
-  "slot_interval": 30,
-  "image": "https://cdn.lymfea.com/venues/hot_lutetia_paris/cover.jpg",
-  "cover_image": "https://cdn.lymfea.com/venues/hot_lutetia_paris/hero.jpg"
-}
-```
+Includes `id`, `name`, `image`, `cover_image`, `city`, `country`, `currency`,
+`venue_type`, `description` and `landing_subtitle`, plus the scheduling and
+policy fields below.
+
+<ResponseField name="status" type="string">
+  Lifecycle status (e.g. `active`).
+</ResponseField>
+
+<ResponseField name="vat" type="number">
+  VAT rate applied to prices, as a percentage (e.g. `20`).
+</ResponseField>
+
+<ResponseField name="opening_time" type="string">
+  Daily opening time in `HH:mm:ss`, in the venue's local timezone.
+</ResponseField>
+
+<ResponseField name="closing_time" type="string">
+  Daily closing time in `HH:mm:ss`, in the venue's local timezone.
+</ResponseField>
+
+<ResponseField name="slot_interval" type="integer">
+  Granularity of bookable slots, in minutes (typically `30`).
+</ResponseField>
+
+<ResponseField name="schedule_type" type="string">
+  How the venue's availability is defined (e.g. `recurring`).
+</ResponseField>
+
+<ResponseField name="days_of_week" type="integer[]">
+  Days the venue operates, `0` (Sunday) … `6` (Saturday).
+</ResponseField>
+
+<ResponseField name="recurrence_interval" type="integer | null">
+  Recurrence interval for the schedule.
+</ResponseField>
+
+<ResponseField name="recurring_start_date" type="string (ISO date) | null">
+  First date the recurring schedule applies.
+</ResponseField>
+
+<ResponseField name="recurring_end_date" type="string (ISO date) | null">
+  Last date the recurring schedule applies, or `null` for open-ended.
+</ResponseField>
+
+<ResponseField name="offert" type="boolean">
+  When `true`, the venue currently offers complimentary treatments.
+</ResponseField>
+
+<ResponseField name="booking_hold_enabled" type="boolean">
+  Whether slots are temporarily held while a customer completes payment.
+</ResponseField>
+
+<ResponseField name="booking_hold_duration_minutes" type="integer">
+  How long a slot is held when `booking_hold_enabled` is `true`.
+</ResponseField>
+
+<ResponseField name="allow_out_of_hours_booking" type="boolean">
+  Whether bookings outside opening hours are accepted.
+</ResponseField>
+
+<ResponseField name="out_of_hours_surcharge_percent" type="number">
+  Surcharge applied to out-of-hours bookings, as a percentage.
+</ResponseField>
 
 <Note>
-  Only venues with `status = 'active'` and that are in-scope for your API key
-  are returned by `GET /v1/venues`. Inactive or archived venues are filtered
-  out automatically.
+  Only venues with `status = 'active'` (and in scope for your API key) are
+  returned by `GET /v1/venues`. Inactive or archived venues are filtered out
+  automatically.
 </Note>

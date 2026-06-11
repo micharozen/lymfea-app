@@ -1,6 +1,6 @@
 ---
 title: "Authentication"
-description: "Authenticate your requests to the Eïa Partner API with a bearer token."
+description: "Authenticate your requests to the Eïa Partner API with an API key."
 ---
 
 All requests to the Partner API must be authenticated with a secret **API key**
@@ -11,10 +11,13 @@ issued by the Eïa team.
 An API key is a long-lived secret that:
 
 - Identifies your organisation (the partner).
-- Can be scoped to a subset of venues (e.g. only venues that have opted in to
-  your distribution channel).
-- Carries a rate-limit configuration (see [Rate limits](/rate-limits)).
-- Can be rotated or revoked at any time.
+- Can be scoped to a single venue, or left platform-wide.
+- Carries a set of [scopes](#scopes) that gate which endpoints it can call.
+- Can be revoked at any time.
+
+Keys are generated and stored securely on Eïa's side (the secret is held in an
+encrypted vault and only its prefix is kept in clear for lookup). The Eïa team
+provisions your key and shares it with you once.
 
 <Warning>
   Treat API keys like passwords. Never expose them in client-side code
@@ -24,25 +27,31 @@ An API key is a long-lived secret that:
 
 ## Using your key
 
-Send the API key in the `Authorization` header using the `Bearer` scheme:
+Send the key on every request, using **either** of these headers:
 
 ```http
-Authorization: Bearer lyf_live_sk_1a2b3c4d5e6f...
+Authorization: Bearer sk_live_ab12cd34_0f9e8d7c6b5a4938271605f4e3d2c1b0a9f8e7d6
 ```
+
+```http
+X-Api-Key: sk_live_ab12cd34_0f9e8d7c6b5a4938271605f4e3d2c1b0a9f8e7d6
+```
+
+If both are present, `Authorization: Bearer` takes precedence.
 
 ### Example
 
 <CodeGroup>
 
 ```bash curl
-curl https://api-sandbox.lymfea.com/v1/venues \
-  -H "Authorization: Bearer lyf_sandbox_sk_1a2b3c4d..."
+curl https://api.saoma.io/v1/venues \
+  -H "Authorization: Bearer $EIA_API_KEY"
 ```
 
 ```javascript Node.js
-const res = await fetch("https://api-sandbox.lymfea.com/v1/venues", {
+const res = await fetch("https://api.saoma.io/v1/venues", {
   headers: {
-    Authorization: `Bearer ${process.env.LYMFEA_API_KEY}`,
+    Authorization: `Bearer ${process.env.EIA_API_KEY}`,
   },
 });
 const { data } = await res.json();
@@ -52,8 +61,8 @@ const { data } = await res.json();
 import os, requests
 
 res = requests.get(
-    "https://api-sandbox.lymfea.com/v1/venues",
-    headers={"Authorization": f"Bearer {os.environ['LYMFEA_API_KEY']}"},
+    "https://api.saoma.io/v1/venues",
+    headers={"Authorization": f"Bearer {os.environ['EIA_API_KEY']}"},
 )
 data = res.json()["data"]
 ```
@@ -62,34 +71,33 @@ data = res.json()["data"]
 
 ## Key format
 
-API keys follow the pattern `lyf_{env}_sk_{random}` where:
+API keys follow the pattern `sk_live_{id}_{secret}` where:
 
-- `env` is `live` (production) or `sandbox`.
-- `sk` stands for _secret key_.
-- `random` is a 32+ character URL-safe random string.
-
-Always verify the `env` prefix matches the environment you intend to call.
+- `sk` stands for _secret key_, `live` for the production environment.
+- `id` is a short hex identifier (used for lookup and display).
+- `secret` is a long hex random string — the part you must keep confidential.
 
 ## Rotation and revocation
 
 To rotate a key:
 
-1. Request a new key from your Eïa account manager.
+1. Request a new key from your Eïa contact.
 2. Deploy the new key to your servers.
 3. Confirm traffic is flowing on the new key.
 4. Ask the Eïa team to revoke the old key.
 
-A revoked key returns `401 UNAUTHORIZED` immediately.
+A revoked key is rejected immediately with `401`
+`{ "error": "Invalid or revoked API key" }`.
 
 ## Scopes
 
-Each API key is tagged with one or more scopes. The default scopes for
-distribution partners are:
+Each API key is tagged with one or more scopes. Calls to an endpoint whose
+scope your key lacks return `403` with
+`{ "error": "Insufficient scope", "missing": ["…"] }`.
 
-| Scope               | Description                                               |
-| ------------------- | --------------------------------------------------------- |
-| `venues:read`       | Read venues and their treatments                          |
-| `availability:read` | Read real-time availability                               |
-| `bookings:write`    | Create, read and cancel bookings under your partner tag  |
-
-Calls to endpoints outside your key's scope return `403 FORBIDDEN`.
+| Scope             | Status      | Grants                                                  |
+| ----------------- | ----------- | ------------------------------------------------------- |
+| `venues:read`     | Available   | `GET /v1/venues`, `GET /v1/venues/{id}`                 |
+| `treatments:read` | Available   | `GET /v1/venues/{id}/treatments`                        |
+| `availability:read` | Coming soon | Real-time availability endpoint (not yet released)    |
+| `bookings:write`  | Coming soon | Create / cancel bookings (not yet released)             |

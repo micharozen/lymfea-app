@@ -2,7 +2,14 @@
 title: "Cancel a booking"
 api: "POST /v1/bookings/{booking_id}/cancel"
 description: "Cancel an existing booking."
+tag: "Coming soon"
 ---
+
+<Warning>
+  **Not yet available.** This endpoint is not implemented in the API yet. The
+  specification below is a preview and may change before release. Contact the
+  Eïa team if you need it.
+</Warning>
 
 Cancels a booking. The venue's cancellation policy is applied server-side:
 depending on the timing, a cancellation fee may be recorded for
@@ -59,8 +66,8 @@ Returns the updated [Booking](/concepts/bookings) object with `status =
 <RequestExample>
 
 ```bash curl
-curl -X POST https://api-sandbox.lymfea.com/v1/bookings/bkg_7f1a9c3b8d4e4f21/cancel \
-  -H "Authorization: Bearer $LYMFEA_API_KEY" \
+curl -X POST https://api.saoma.io/v1/bookings/bkg_7f1a9c3b8d4e4f21/cancel \
+  -H "Authorization: Bearer $EIA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "reason": "Customer rescheduled through partner app",

@@ -1,74 +1,49 @@
 ---
 title: "Errors"
-description: "Error format and catalogue of error codes."
+description: "Error format returned by the Partner API."
 ---
 
-The Partner API uses standard HTTP status codes and returns a consistent JSON
-body for every error.
-
-## Error format
+The Partner API uses standard HTTP status codes. On error, the currently
+available endpoints return a **flat JSON body** with a single `error` string:
 
 ```json
 {
-  "error": {
-    "code": "SLOT_TAKEN",
-    "message": "The requested slot is no longer available.",
-    "details": {
-      "venue_id": "hot_paris_01",
-      "start_at": "2026-05-12T14:00:00Z"
-    }
-  }
+  "error": "Invalid or revoked API key"
 }
 ```
 
-| Field     | Type    | Description                                                    |
-| --------- | ------- | -------------------------------------------------------------- |
-| `code`    | string  | Stable machine-readable error code (see catalogue below)      |
-| `message` | string  | Human-readable description. **May change** — do not parse it. |
-| `details` | object? | Contextual fields specific to the error                       |
+The `403 Insufficient scope` response additionally includes the list of
+missing scopes:
+
+```json
+{
+  "error": "Insufficient scope",
+  "missing": ["treatments:read"]
+}
+```
 
 <Tip>
-  Always key your error handling on `error.code`, never on `message` or the
-  HTTP status alone. The code is the contract.
+  Key your handling on the **HTTP status code**. The `error` string is
+  human-readable and may change — do not parse it.
 </Tip>
 
-## Error catalogue
+## Error catalogue (live endpoints)
 
-### Authentication (4xx)
+| HTTP | Example `error`                  | When it happens                                          |
+| ---- | -------------------------------- | -------------------------------------------------------- |
+| 401  | `Missing API key`                | No `Authorization` / `X-Api-Key` header                  |
+| 401  | `Invalid or revoked API key`     | Key is unknown, expired or revoked                       |
+| 403  | `Insufficient scope`             | Key lacks the scope required by the endpoint             |
+| 403  | `Forbidden`                      | Key is scoped to a different venue than the one requested|
+| 404  | `Venue not found`                | Unknown venue id, or the venue is not public             |
+| 500  | _varies_                         | Unexpected server error — retry with backoff             |
 
-| HTTP | Code                    | When it happens                                              |
-| ---- | ----------------------- | ------------------------------------------------------------ |
-| 401  | `UNAUTHORIZED`          | Missing or invalid `Authorization` header                   |
-| 403  | `FORBIDDEN_VENUE`       | Your API key is not scoped to the requested venue           |
-| 403  | `FORBIDDEN_SCOPE`       | Your API key does not have the required scope               |
-| 429  | `RATE_LIMITED`          | Quota exceeded (see [Rate limits](/rate-limits))            |
-
-### Validation (400)
-
-| Code                   | When it happens                                              |
-| ---------------------- | ------------------------------------------------------------ |
-| `VALIDATION_ERROR`     | Malformed body, missing required field, bad type            |
-| `INVALID_GUEST_DATA`   | Guest information is incomplete or inconsistent             |
-| `INVALID_DATE_RANGE`   | `from` / `to` invalid or span larger than 31 days           |
-
-### Business rules (4xx)
-
-| HTTP | Code                       | When it happens                                                          |
-| ---- | -------------------------- | ------------------------------------------------------------------------ |
-| 404  | `VENUE_NOT_FOUND`          | Venue id does not exist or is not visible to your key                   |
-| 404  | `TREATMENT_NOT_FOUND`      | Treatment id does not exist or does not belong to the venue             |
-| 409  | `SLOT_TAKEN`               | Slot was available at query time but was taken before we could book it  |
-| 422  | `TREATMENT_NOT_AVAILABLE`  | Treatment is disabled, or not available on this day                     |
-| 422  | `OUT_OF_OPENING_HOURS`     | Requested start is outside the venue's opening hours                    |
-| 422  | `LEAD_TIME_NOT_MET`        | Requested start violates the treatment's minimum lead time              |
-| 422  | `BOOKING_ALREADY_CANCELLED`| The booking is already cancelled and cannot be modified                 |
-
-### Server (5xx)
-
-| HTTP | Code              | When it happens                            |
-| ---- | ----------------- | ------------------------------------------ |
-| 500  | `INTERNAL_ERROR`  | Unexpected server error — please retry     |
-| 503  | `SERVICE_UNAVAILABLE` | Eïa is temporarily unavailable         |
-
-Retry `500` and `503` with exponential backoff (e.g. 2s, 4s, 8s, max 3
+Retry `500` responses with exponential backoff (e.g. 2s, 4s, 8s, max 3
 retries). Do not retry `4xx` errors without fixing the request.
+
+<Note>
+  A richer, structured error format (`{ "error": { "code", "message",
+  "details" } }`) with machine-readable codes such as `SLOT_TAKEN` will ship
+  alongside the **availability and booking** endpoints. Those pages are tagged
+  _Coming soon_ in the API Reference.
+</Note>

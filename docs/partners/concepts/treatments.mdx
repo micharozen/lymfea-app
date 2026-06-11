@@ -7,21 +7,27 @@ A **Treatment** is a service offered by a venue. Each venue has its own
 catalogue. Treatments can have **variants** (e.g. a "Swedish massage" with
 30/60/90-minute options, or single / couple variants).
 
+<Note>
+  Prices are **decimal amounts in the venue's currency** (e.g. `120.00` for
+  120 €), not integer cents. Pair each price with the treatment's `currency`
+  field.
+</Note>
+
 ## The Treatment object
 
 <ResponseField name="id" type="string">
-  Stable, opaque identifier.
+  Stable, opaque identifier (UUID).
 </ResponseField>
 
-<ResponseField name="venue_id" type="string">
-  The venue this treatment belongs to.
+<ResponseField name="slug" type="string | null">
+  Human-readable identifier for the treatment.
 </ResponseField>
 
 <ResponseField name="name" type="string">
   Display name in French.
 </ResponseField>
 
-<ResponseField name="name_en" type="string">
+<ResponseField name="name_en" type="string | null">
   Display name in English.
 </ResponseField>
 
@@ -33,11 +39,11 @@ catalogue. Treatments can have **variants** (e.g. a "Swedish massage" with
   Description in English.
 </ResponseField>
 
-<ResponseField name="category" type="string">
+<ResponseField name="category" type="string | null">
   High-level grouping (e.g. `massage`, `facial`, `body`, `ritual`).
 </ResponseField>
 
-<ResponseField name="service_for" type="string">
+<ResponseField name="service_for" type="string | null">
   Intended audience: `women`, `men`, `all`, or `couple`.
 </ResponseField>
 
@@ -45,22 +51,30 @@ catalogue. Treatments can have **variants** (e.g. a "Swedish massage" with
   Duration in minutes for the default variant.
 </ResponseField>
 
-<ResponseField name="price" type="integer">
-  Public price for the default variant, in the venue's currency smallest unit
-  (e.g. cents for EUR). `null` if `price_on_request` is `true`.
+<ResponseField name="price" type="number | null">
+  Public price for the default variant, as a decimal amount in `currency`.
+  `null` when `price_on_request` is `true`.
 </ResponseField>
 
 <ResponseField name="price_on_request" type="boolean">
   If `true`, price is not public and the customer must request a quote.
 </ResponseField>
 
-<ResponseField name="lead_time" type="integer">
+<ResponseField name="currency" type="string | null">
+  ISO 4217 currency code for `price` (e.g. `EUR`).
+</ResponseField>
+
+<ResponseField name="lead_time" type="integer | null">
   Minimum number of minutes between "now" and the earliest bookable start.
   Used to prevent last-minute bookings.
 </ResponseField>
 
 <ResponseField name="image" type="string | null">
   Illustration URL.
+</ResponseField>
+
+<ResponseField name="sort_order" type="integer | null">
+  Ordering hint within the catalogue (ascending).
 </ResponseField>
 
 <ResponseField name="is_bestseller" type="boolean">
@@ -72,21 +86,36 @@ catalogue. Treatments can have **variants** (e.g. a "Swedish massage" with
   alone.
 </ResponseField>
 
+<ResponseField name="is_bundle" type="boolean">
+  If `true`, this entry represents a treatment package / cure rather than a
+  single service.
+</ResponseField>
+
+<ResponseField name="bundle_id" type="string | null">
+  When `is_bundle` is `true`, the id of the underlying bundle definition.
+</ResponseField>
+
+<ResponseField name="available_days" type="integer[] | null">
+  Days of the week the treatment is bookable, `0` (Sunday) … `6` (Saturday).
+  `null` means no per-treatment restriction.
+</ResponseField>
+
 <ResponseField name="variants" type="Variant[]">
-  List of bookable variants. Always at least one.
+  List of bookable variants. May be empty if the treatment has no explicit
+  variants.
 </ResponseField>
 
 ## The Variant object
 
 <ResponseField name="id" type="string">
-  Variant identifier. Pass this as `variant_id` when creating a booking.
+  Variant identifier.
 </ResponseField>
 
 <ResponseField name="label" type="string">
   Variant label in French (e.g. `60 minutes`, `Duo`).
 </ResponseField>
 
-<ResponseField name="label_en" type="string">
+<ResponseField name="label_en" type="string | null">
   Variant label in English.
 </ResponseField>
 
@@ -94,8 +123,13 @@ catalogue. Treatments can have **variants** (e.g. a "Swedish massage" with
   Duration in minutes for this variant.
 </ResponseField>
 
-<ResponseField name="price" type="integer | null">
-  Price in the smallest currency unit, or `null` if on request.
+<ResponseField name="price" type="number | null">
+  Price as a decimal amount in the treatment's currency, or `null` if on
+  request.
+</ResponseField>
+
+<ResponseField name="price_on_request" type="boolean">
+  Whether this variant's price is on request.
 </ResponseField>
 
 <ResponseField name="guest_count" type="integer">
@@ -106,12 +140,16 @@ catalogue. Treatments can have **variants** (e.g. a "Swedish massage" with
   Whether this is the variant shown by default.
 </ResponseField>
 
+<ResponseField name="sort_order" type="integer | null">
+  Ordering hint among variants (ascending).
+</ResponseField>
+
 ## Example
 
 ```json
 {
-  "id": "trt_swedish_60",
-  "venue_id": "hot_lutetia_paris",
+  "id": "a1c2e3f4-5678-49ab-cdef-0123456789ab",
+  "slug": "massage-suedois",
   "name": "Massage suédois",
   "name_en": "Swedish massage",
   "description": "Un massage relaxant aux huiles essentielles.",
@@ -119,39 +157,28 @@ catalogue. Treatments can have **variants** (e.g. a "Swedish massage" with
   "category": "massage",
   "service_for": "all",
   "duration": 60,
-  "price": 12000,
+  "price": 120.00,
   "price_on_request": false,
+  "currency": "EUR",
   "lead_time": 120,
-  "image": "https://cdn.lymfea.com/treatments/trt_swedish_60.jpg",
+  "image": "https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/treatments/swedish.jpg",
+  "sort_order": 1,
   "is_bestseller": true,
   "is_addon": false,
+  "is_bundle": false,
+  "bundle_id": null,
+  "available_days": [1, 2, 3, 4, 5, 6],
   "variants": [
     {
-      "id": "var_swedish_30",
-      "label": "30 minutes",
-      "label_en": "30 minutes",
-      "duration": 30,
-      "price": 7000,
-      "guest_count": 1,
-      "is_default": false
-    },
-    {
-      "id": "var_swedish_60",
+      "id": "b2d3f4a5-6789-4abc-def0-123456789abc",
       "label": "60 minutes",
       "label_en": "60 minutes",
       "duration": 60,
-      "price": 12000,
+      "price": 120.00,
+      "price_on_request": false,
       "guest_count": 1,
-      "is_default": true
-    },
-    {
-      "id": "var_swedish_60_duo",
-      "label": "Duo 60 minutes",
-      "label_en": "Couple 60 minutes",
-      "duration": 60,
-      "price": 22000,
-      "guest_count": 2,
-      "is_default": false
+      "is_default": true,
+      "sort_order": 1
     }
   ]
 }
