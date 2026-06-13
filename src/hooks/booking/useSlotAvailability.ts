@@ -28,7 +28,7 @@ export function useSlotAvailability({
       queryKey: ["admin-slot-availability", hotelId, dateStr],
       queryFn: async () => {
         const { data, error } = await supabase.functions.invoke(
-          "check-availability",
+          "get-availability",
           { body: { hotelId, date: dateStr } }
         );
         if (error) throw error;

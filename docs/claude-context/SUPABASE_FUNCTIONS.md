@@ -13,7 +13,7 @@ Code partagé dans `supabase/functions/_shared/` (templates email, helpers Whats
 | Fonction | Description |
 |----------|-------------|
 | `create-client-booking` | Crée une réservation client complète |
-| `check-availability` | Vérifie disponibilité créneau |
+| `get-availability` | Disponibilité d'un lieu — mode date (`{ availableSlots }`) ou plage (`{ daysWithSlots }`). Logique unique dans `_shared/availability-query.ts` |
 | `validate-booking-slot` | Valide un créneau avant confirmation |
 | `check-expired-slots` | Nettoie les réservations de créneaux expirées |
 | `accept-booking` | Thérapeute accepte une réservation |

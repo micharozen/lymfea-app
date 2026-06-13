@@ -131,7 +131,7 @@ export default function Checkout() {
 
       setLoadingAvailability(true);
       try {
-        const { data, error } = await supabase.functions.invoke('check-availability', {
+        const { data, error } = await supabase.functions.invoke('get-availability', {
           body: { hotelId, date: formData.date }
         });
 

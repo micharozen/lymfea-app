@@ -1,8 +1,8 @@
-// Pure, side-effect-free slot availability logic shared between
-// check-availability and check-availability-range edge functions.
+// Pure, side-effect-free slot availability logic used by the get-availability
+// edge function (via _shared/availability-query.ts).
 //
 // Keeping this in one place makes it possible to unit-test the rules and
-// guarantees both endpoints stay in sync with reserve_trunk_atomically (RPC).
+// guarantees availability stays in sync with reserve_trunk_atomically (RPC).
 
 export interface Booking {
   booking_time: string; // "HH:MM:SS" venue-local
@@ -152,3 +152,22 @@ export function isSlotAvailable(input: SlotAvailabilityInput): boolean {
 // surface awaiting_payment bookings.
 export const ACTIVE_BOOKING_STATUS_FILTER =
   '("Annulé","Terminé","cancelled","completed","noshow")';
+
+// Qualification rule: which therapists can perform the requested treatment(s).
+// `requiredCategories` holds the treatment_type slug(s) of the selected
+// treatment(s). A therapist qualifies when:
+//   - no category is required (treatment-agnostic query), or
+//   - they have no skills assigned (backward compat / polyvalent), or
+//   - at least one of their skills matches a required category.
+// Single source of truth shared by every availability path.
+export function filterQualifiedTherapists<T extends { skills: string[] | null }>(
+  therapists: T[],
+  requiredCategories: Set<string>,
+): T[] {
+  if (requiredCategories.size === 0) return therapists;
+  return therapists.filter((t) => {
+    const skills = t.skills;
+    if (!skills || skills.length === 0) return true;
+    return [...requiredCategories].some((cat) => skills.includes(cat));
+  });
+}

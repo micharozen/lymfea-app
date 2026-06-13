@@ -44,7 +44,7 @@ verify_jwt = false
 [functions.verify-otp]
 verify_jwt = false
 
-[functions.check-availability]
+[functions.get-availability]
 verify_jwt = false
 
 [functions.generate-monthly-invoices]
@@ -178,9 +178,6 @@ verify_jwt= false
 verify_jwt = true
 
 [functions.notify-admin-new-booking]
-verify_jwt = false
-
-[functions.check-availability-range]
 verify_jwt = false
 
 [functions.check-expired-slots]
