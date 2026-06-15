@@ -69,6 +69,8 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   postal_code: z.string().optional(),
   city: z.string().min(1, t('errors.validation.cityRequired')),
   country: z.string().min(1, t('errors.validation.countryRequired')),
+  website_url: z.string().optional(),
+  contact_email: z.string().email("Adresse email invalide").optional().or(z.literal("")),
   currency: z.string().default("EUR"),
   vat: z.string().default("20"),
   hotel_commission: z.string().default("0"),

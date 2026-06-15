@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import {
-  CheckCircle, Calendar, MapPin, CreditCard,
+  CheckCircle, Calendar, MapPin,
   AlertCircle, Repeat, ShoppingBag, Package, Gift, Copy, Check, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,16 @@ import { brand, brandLogos } from "@/config/brand";
 export default function Confirmation() {
   const navigate = useNavigate();
   const { bookingId: paramBookingId } = useParams<{ bookingId?: string }>();
-  const { slug, hotelId } = useClientVenue();
+  const { slug, hotelId, venue } = useClientVenue();
   const [searchParams] = useSearchParams();
   const { t, i18n } = useTranslation('client');
   const { changeLanguage, language: currentLanguage } = i18n;
   const dateLocale = currentLanguage === 'fr' ? fr : enUS;
+  const venueName = venue.name || "Eïa";
+  const venueOrganizationName = venue.organization_name || "";
+  const venueWebsite = venue.website_url || "";
+  const venueEmail = venue.contact_email || "";
+  const loadingTagline = [venueOrganizationName || venueName, venueWebsite].filter(Boolean).join(" · ");
 
   const sessionId = searchParams.get('session_id');
   const isPaymentSuccess = searchParams.get('payment') === 'success';
@@ -164,7 +169,7 @@ export default function Confirmation() {
     return (
       <div className="min-h-screen bg-[#FBF7F2] text-[#2C2622] flex flex-col items-center justify-center px-6 py-10">
         <div className="w-full max-w-[440px] flex flex-col items-center text-center">
-          <span className="font-serif italic text-[32px] leading-none tracking-[0.02em] text-[#2C2622]">Eïa</span>
+          <span className="font-serif italic text-[32px] leading-none tracking-[0.02em] text-[#2C2622]">{venueName}</span>
 
           <div className="mt-10 relative h-16 w-16 flex items-center justify-center">
             <span className="absolute inset-0 rounded-full border border-[#E8DFD2]" />
@@ -189,7 +194,7 @@ export default function Confirmation() {
           <div className="mt-10 h-px w-16 bg-[#EFE7DA]" />
 
           <div className="mt-6 text-[10px] tracking-[0.22em] uppercase text-[#8C827B]">
-            {t('confirmation.tagline', 'Eïa · Awaken Your Senses')}
+            {loadingTagline}
           </div>
         </div>
       </div>
@@ -425,7 +430,16 @@ export default function Confirmation() {
     if (names.length > 0) treatmentNames = (names as string[]).join(", ");
   }
 
-  const hotelName = ((booking as Record<string, unknown>)?.hotels as Record<string, unknown>)?.name as string || "Au sein de votre établissement";
+  const hotelDetails = ((booking as Record<string, unknown>)?.hotels as Record<string, unknown>) || {};
+  const hotelName = hotelDetails.name as string || venueName;
+  const organizationName = hotelDetails.organization_name as string || venueOrganizationName;
+  const websiteUrl = hotelDetails.website_url as string || venueWebsite;
+  const contactEmail = hotelDetails.contact_email as string || venueEmail;
+  const addressLine = [
+    hotelDetails.address as string || venue.address,
+    [hotelDetails.postal_code as string || venue.postal_code, hotelDetails.city as string || venue.city].filter(Boolean).join(" "),
+    hotelDetails.country as string || venue.country,
+  ].filter(Boolean).join(", ");
   const bookingStatus = (booking as Record<string, unknown>)?.status as string | undefined;
   const paymentMethod = (booking as Record<string, unknown>)?.payment_method as string | undefined;
   const isPending = bookingStatus === 'pending' || bookingStatus === 'pending_confirmation';
@@ -437,10 +451,10 @@ export default function Confirmation() {
   const bookingTime = bookingRecord?.booking_time as string | undefined;
   const roomNumber = bookingRecord?.room_number as string | undefined;
 
-  const eyebrow = isPending ? t('confirmation.eyebrowPending') : t('confirmation.eyebrowConfirmed');
   const pillLabel = isPending ? t('confirmation.pendingPill') : t('confirmation.confirmedPill');
   const headerMessage = isPending ? t('confirmation.pendingMessage') : t('confirmation.message');
   const venueLine = roomNumber ? `${hotelName} · ${t('confirmation.room')}.${roomNumber}` : hotelName;
+  const footerTagline = [organizationName || hotelName, websiteUrl].filter(Boolean).join(" · ");
   const dateLabel = bookingDate
     ? format(new Date(bookingDate), 'd MMMM yyyy', { locale: dateLocale })
     : '—';
@@ -452,9 +466,14 @@ export default function Confirmation() {
 
         {/* Header */}
         <div className="px-6 sm:px-12 pt-8 sm:pt-9 text-center">
-          <span className="font-serif italic text-[32px] leading-none tracking-[0.02em] text-[#2C2622]">Eïa</span>
-          <div className="mt-4 text-[10px] tracking-[0.28em] uppercase text-[#C96A43] font-medium">
-            {eyebrow}
+          <span className="font-serif text-[32px] leading-none tracking-[0.02em] text-[#2C2622]">{hotelName}</span>
+          {organizationName && (
+            <div className="mt-3 text-[12px] tracking-[0.18em] uppercase text-[#8C827B] font-medium">
+              {organizationName}
+            </div>
+          )}
+          <div className="mt-3 text-[10px] tracking-[0.28em] uppercase text-[#C96A43] font-medium">
+            {t('confirmation.newBooking')}
           </div>
         </div>
 
@@ -542,7 +561,7 @@ export default function Confirmation() {
               {t('confirmation.nextSteps')}
             </div>
             <ol className="space-y-3">
-              {[t('confirmation.step1'), t('confirmation.step2'), t('confirmation.step3')].map((step, i) => (
+              {[t('confirmation.step1'), t('confirmation.step2')].map((step, i) => (
                 <li key={i} className="flex items-start gap-3.5">
                   <span className="font-serif italic text-[13px] text-[#C96A43] pt-0.5 w-6 shrink-0">0{i + 1}</span>
                   <span className="text-[13px] leading-[1.6] text-[#2C2622]">{step}</span>
@@ -605,19 +624,11 @@ export default function Confirmation() {
               <p className="text-xs text-gray-500 leading-relaxed">{t('confirmation.paidOnlineMessage')}</p>
             </div>
           </div>
-        ) : !(booking as Record<string, unknown>)?.bundle_usage_id && (
-          <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
-            <CreditCard className="w-5 h-5 text-gray-900 mt-0.5 flex-shrink-0" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-900">{t('confirmation.onSitePaymentTitle')}</p>
-              <p className="text-xs text-gray-500 leading-relaxed" dangerouslySetInnerHTML={{ __html: t('confirmation.onSitePaymentMessage') }} />
-            </div>
-          </div>
-        )}
+        ) : null}
 
-        <div className="pt-2">
-          <Button onClick={handleReturnHome} className="w-full h-12 bg-[#2C2622] hover:bg-[#2C2622]/90 text-white rounded-sm text-sm font-medium tracking-wide transition-all active:scale-[0.98]">
-            {t('confirmation.backHome')}
+        <div className="pt-2 text-center">
+          <Button onClick={handleReturnHome} className="h-10 px-6 bg-[#2C2622] hover:bg-[#2C2622]/90 text-white rounded-sm text-xs font-medium tracking-[0.16em] uppercase transition-all active:scale-[0.98]">
+            {t('confirmation.bookAgain')}
           </Button>
         </div>
         </div>
@@ -629,12 +640,12 @@ export default function Confirmation() {
 
         {/* Legal */}
         <div className="px-6 sm:px-12 py-7 text-center text-[9px] tracking-[0.28em] uppercase text-[#8C827B] leading-[1.8]">
-          {t('confirmation.legal')}
+          {[addressLine || hotelName, contactEmail].filter(Boolean).join(" · ")}
         </div>
       </div>
 
       <div className="pt-5 text-center text-[10px] tracking-[0.22em] uppercase text-[#8C827B]">
-        {t('confirmation.tagline')}
+        {footerTagline}
       </div>
       <div className="pb-safe" />
     </div>

@@ -367,6 +367,7 @@
       "tab": "Branding",
       "title": "Visual customization",
       "description": "Tailor the booking flow's colors and typography to your venue's identity.",
+      "images": "Venue images",
       "welcomeBg": "Welcome page background",
       "buttonColor": "“+” button color",
       "buttonTextColor": "Button text color",
