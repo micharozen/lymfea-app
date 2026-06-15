@@ -41,13 +41,13 @@ Le fichier `src/lib/supabaseEdgeFunctions.ts` contient une table :
 ```typescript
 const migratedFunctions: Record<string, string> = {
   // Décommenter pour activer :
-  // "check-availability": "/availability/check",
+  // "get-availability": "/availability/check",
   // "finalize-payment": "/payments/finalize",
   // ...
 };
 ```
 
-Quand du code appelle `invokeEdgeFunction('check-availability', ...)` :
+Quand du code appelle `invokeEdgeFunction('get-availability', ...)` :
 - **Ligne commentée** → appel Supabase Edge Function (comme avant)
 - **Ligne décommentée** → appel Hono backend (nouvelle route)
 

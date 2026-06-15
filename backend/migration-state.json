@@ -65,7 +65,7 @@
   },
   "functions": [
     {
-      "name": "check-availability",
+      "name": "get-availability",
       "status": "migrated",
       "route": "/availability/check",
       "target": "src/routes/availability.ts",

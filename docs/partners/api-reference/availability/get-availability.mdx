@@ -1,155 +1,112 @@
 ---
-title: "Get availability"
-api: "GET /v1/availability"
-description: "Fetch real-time bookable slots for one or more venues."
-tag: "Coming soon"
+title: "Get venue availability"
+api: "GET /v1/venues/{venue_id}/availability"
+description: "Real-time bookable slots for a whole venue."
 ---
 
-<Warning>
-  **Not yet available.** This endpoint is not implemented in the API yet. The
-  specification below is a preview and may change before release. Contact the
-  Saoma team if you need it.
-</Warning>
+Returns the currently bookable slots for a venue. Requires the
+`availability:read` scope.
 
-The central endpoint for partners. Returns the slots that are currently
-bookable for a venue (or a batch of venues), over a date range of up to
-31 days.
+Two query modes (mutually exclusive):
+
+- **Single day** — pass `date` to get every free slot of that day.
+- **Date range** — pass `from` and `to` to get the days that have at least one
+  free slot (useful to paint a month calendar). Range is capped at **62 days**.
 
 <Tip>
-  Results reflect live availability at query time. A slot returned here may
-  still be taken by another customer before you call `POST /v1/bookings`.
-  Handle `SLOT_TAKEN` (409) gracefully on the booking call.
+  Results reflect live availability at query time. A slot returned here may be
+  taken by another customer before a booking is made. Treat availability as a
+  hint, not a reservation.
 </Tip>
+
+## Path parameters
+
+<ParamField path="venue_id" type="string" required>
+  The venue id or slug.
+</ParamField>
 
 ## Query parameters
 
-<ParamField query="venue_id" type="string">
-  A single venue id or slug. Mutually exclusive with `venue_ids`.
+<ParamField query="date" type="string (ISO date)">
+  A single day, `YYYY-MM-DD`. Mutually exclusive with `from`/`to`.
 </ParamField>
 
-<ParamField query="venue_ids" type="string[]">
-  Comma-separated list of venue ids (max 20). Use this to fan-out a single
-  availability query across a marketplace page.
+<ParamField query="from" type="string (ISO date)">
+  Start of the range, inclusive, `YYYY-MM-DD`. Requires `to`.
 </ParamField>
 
-<ParamField query="treatment_id" type="string">
-  Restrict to a specific treatment. If omitted, slots are returned for every
-  bookable treatment of the venue(s).
+<ParamField query="to" type="string (ISO date)">
+  End of the range, inclusive, `YYYY-MM-DD`. Max `from + 62 days`.
 </ParamField>
 
-<ParamField query="variant_id" type="string">
-  Restrict to a specific variant. Implies `treatment_id`.
-</ParamField>
-
-<ParamField query="from" type="string (ISO date)" required>
-  Start of the date range, inclusive. Format `YYYY-MM-DD`.
-</ParamField>
-
-<ParamField query="to" type="string (ISO date)" required>
-  End of the date range, inclusive. Max `from + 30 days`.
-</ParamField>
-
-<ParamField query="guests" type="integer" default="1">
-  Number of guests. Used to filter out variants whose `guest_count` does not
-  match.
-</ParamField>
+You must provide **either** `date` **or** both `from` and `to`.
 
 ## Response
 
-<ResponseField name="data" type="VenueAvailability[]">
-  One entry per venue queried.
+In **single-day** mode:
+
+<ResponseField name="data.date" type="string (ISO date)">
+  The requested day.
 </ResponseField>
 
-<ResponseField name="data[].venue_id" type="string" />
-
-<ResponseField name="data[].timezone" type="string">
-  Reminder of the venue's timezone, for display.
+<ResponseField name="data.slots" type="string[]">
+  Bookable start times for that day, in the venue's local time, format `HH:MM`,
+  aligned on the venue's `slot_interval`. See [Availability](/concepts/availability).
 </ResponseField>
 
-<ResponseField name="data[].days" type="DayAvailability[]">
-  One entry per date in the requested range that has at least one available
-  slot. Dates with no availability are omitted.
-</ResponseField>
+In **range** mode:
 
-<ResponseField name="data[].days[].date" type="string (ISO date)">
-  Date in the venue's local timezone.
-</ResponseField>
+<ResponseField name="data.from" type="string (ISO date)" />
+<ResponseField name="data.to" type="string (ISO date)" />
 
-<ResponseField name="data[].days[].slots" type="Slot[]">
-  Array of [Slot](/concepts/availability) objects for that day.
+<ResponseField name="data.days" type="string[]">
+  The dates in the range (venue-local) that have at least one bookable slot.
+  Fully-booked or closed days are omitted.
 </ResponseField>
 
 ## Errors
 
-| Code                  | HTTP | Meaning                                             |
-| --------------------- | ---- | --------------------------------------------------- |
-| `VENUE_NOT_FOUND`     | 404  | One or more venues are unknown                      |
-| `INVALID_DATE_RANGE`  | 400  | `from`/`to` missing, inverted, or > 31 days span    |
-| `TREATMENT_NOT_FOUND` | 404  | `treatment_id` does not belong to the venue         |
+| HTTP | Body                                         | Meaning                                  |
+| ---- | -------------------------------------------- | ---------------------------------------- |
+| 400  | `{ "error": "Provide \`date\` or \`from\`/\`to\`" }` | Missing or conflicting period params     |
+| 400  | `{ "error": "Range must not exceed 62 days" }` | Range too wide / inverted              |
+| 403  | `{ "error": "Forbidden" }`                   | Your key is scoped to another venue/org  |
+| 404  | `{ "error": "Venue not found" }`             | Unknown venue                            |
 
 ## Example
 
 <RequestExample>
 
-```bash curl
-curl "https://api.saoma.io/v1/availability?venue_id=hot_lutetia_paris&treatment_id=trt_swedish_60&from=2026-05-12&to=2026-05-14" \
+```bash Single day
+curl "https://api.saoma.io/v1/venues/lutetia-paris/availability?date=2026-06-20" \
   -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
-```javascript Node.js
-const params = new URLSearchParams({
-  venue_id: "hot_lutetia_paris",
-  treatment_id: "trt_swedish_60",
-  from: "2026-05-12",
-  to: "2026-05-14",
-  guests: "1",
-});
-const res = await fetch(
-  `https://api.saoma.io/v1/availability?${params}`,
-  { headers: { Authorization: `Bearer ${process.env.SAOMA_API_KEY}` } }
-);
-const { data } = await res.json();
+```bash Range
+curl "https://api.saoma.io/v1/venues/lutetia-paris/availability?from=2026-06-20&to=2026-06-30" \
+  -H "Authorization: Bearer $SAOMA_API_KEY"
 ```
 
 </RequestExample>
 
 <ResponseExample>
 
-```json 200
+```json Single day
 {
-  "data": [
-    {
-      "venue_id": "hot_lutetia_paris",
-      "timezone": "Europe/Paris",
-      "days": [
-        {
-          "date": "2026-05-12",
-          "slots": [
-            {
-              "start_at": "2026-05-12T10:00:00Z",
-              "end_at": "2026-05-12T11:00:00Z",
-              "venue_id": "hot_lutetia_paris",
-              "treatment_id": "trt_swedish_60",
-              "variant_id": "var_swedish_60",
-              "duration_minutes": 60
-            },
-            {
-              "start_at": "2026-05-12T12:00:00Z",
-              "end_at": "2026-05-12T13:00:00Z",
-              "venue_id": "hot_lutetia_paris",
-              "treatment_id": "trt_swedish_60",
-              "variant_id": "var_swedish_60",
-              "duration_minutes": 60
-            }
-          ]
-        },
-        {
-          "date": "2026-05-13",
-          "slots": []
-        }
-      ]
-    }
-  ]
+  "data": {
+    "date": "2026-06-20",
+    "slots": ["09:00", "09:30", "10:00", "14:00", "14:30"]
+  }
+}
+```
+
+```json Range
+{
+  "data": {
+    "from": "2026-06-20",
+    "to": "2026-06-30",
+    "days": ["2026-06-20", "2026-06-21", "2026-06-24"]
+  }
 }
 ```
 

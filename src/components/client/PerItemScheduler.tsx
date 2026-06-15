@@ -206,7 +206,7 @@ function ItemSlotCard({
       const today = new Date();
       const endDate = addDays(today, maxDaysAhead);
 
-      const { data, error } = await supabase.functions.invoke('check-availability-range', {
+      const { data, error } = await supabase.functions.invoke('get-availability', {
         body: {
           hotelId,
           startDate: format(today, 'yyyy-MM-dd'),
@@ -249,7 +249,7 @@ function ItemSlotCard({
     setLoadingSlots(true);
     (async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('check-availability', {
+        const { data, error } = await supabase.functions.invoke('get-availability', {
           body: {
             hotelId,
             date,
@@ -268,7 +268,7 @@ function ItemSlotCard({
           onChange({ date, time: '' });
         }
       } catch (err) {
-        console.error('check-availability per-item error:', err);
+        console.error('get-availability per-item error:', err);
         if (!cancelled) setAvailableSlots([]);
       } finally {
         if (!cancelled) setLoadingSlots(false);

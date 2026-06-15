@@ -80,7 +80,7 @@ app.route("/admin/api-keys", adminApiKeys);
 //
 // Edge Function → Hono route mapping:
 //
-//   supabase/functions/check-availability   → /availability/check
+//   supabase/functions/get-availability     → /availability/check
 //   supabase/functions/finalize-payment     → /payments/finalize
 //   supabase/functions/stripe-webhook       → /webhooks/stripe
 //   supabase/functions/send-booking-confirmation → import directly (no HTTP hop)
