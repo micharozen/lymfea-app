@@ -1689,6 +1689,8 @@ export type Database = {
           updated_at: string
           vat: number | null
           venue_type: string | null
+          website_url: string | null
+          contact_email: string | null
         }
         Insert: {
           address?: string | null
@@ -1741,6 +1743,8 @@ export type Database = {
           updated_at?: string
           vat?: number | null
           venue_type?: string | null
+          website_url?: string | null
+          contact_email?: string | null
         }
         Update: {
           address?: string | null
@@ -1793,6 +1797,8 @@ export type Database = {
           updated_at?: string
           vat?: number | null
           venue_type?: string | null
+          website_url?: string | null
+          contact_email?: string | null
         }
         Relationships: [
           {

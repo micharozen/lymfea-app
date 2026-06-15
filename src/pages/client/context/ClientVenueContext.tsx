@@ -5,6 +5,9 @@ export interface PublicHotel {
   slug: string;
   name: string;
   name_en: string | null;
+  organization_name: string | null;
+  website_url: string | null;
+  contact_email: string | null;
   image: string | null;
   cover_image: string | null;
   city: string | null;

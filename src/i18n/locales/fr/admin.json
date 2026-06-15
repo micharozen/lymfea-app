@@ -367,6 +367,7 @@
       "tab": "Branding",
       "title": "Personnalisation visuelle",
       "description": "Adapte les couleurs et la typographie du parcours de réservation à l'identité de ton lieu.",
+      "images": "Images du lieu",
       "welcomeBg": "Fond de la page d'accueil",
       "buttonColor": "Couleur du bouton +",
       "buttonTextColor": "Couleur du texte des boutons",

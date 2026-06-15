@@ -41,13 +41,11 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import {
-  ImageIcon,
-  Camera,
-  Loader2,
   MapPin,
   Wallet,
   Building2,
   Globe,
+  Mail,
   Banknote,
   Percent,
   Settings,
@@ -123,17 +121,6 @@ interface VenueGeneralTabProps {
   mode: 'add' | 'edit';
   disabled?: boolean;
   hotelId?: string;
-  hotelImage: string;
-  coverImage: string;
-  uploadingHotel: boolean;
-  uploadingCover: boolean;
-  hotelImageRef: React.RefObject<HTMLInputElement>;
-  coverImageRef: React.RefObject<HTMLInputElement>;
-  handleHotelImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleCoverImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  triggerHotelImageSelect: () => void;
-  triggerCoverImageSelect: () => void;
-  onRequestEdit?: () => void;
   deploymentState: DeploymentScheduleState;
   onDeploymentStateChange: (state: DeploymentScheduleState) => void;
   blockedSlots: BlockedSlot[];
@@ -150,17 +137,6 @@ export function VenueGeneralTab({
   mode,
   disabled = false,
   hotelId,
-  hotelImage,
-  coverImage,
-  uploadingHotel,
-  uploadingCover,
-  hotelImageRef,
-  coverImageRef,
-  handleHotelImageUpload,
-  handleCoverImageUpload,
-  triggerHotelImageSelect,
-  triggerCoverImageSelect,
-  onRequestEdit,
   deploymentState,
   onDeploymentStateChange,
   blockedSlots,
@@ -169,7 +145,6 @@ export function VenueGeneralTab({
 }: VenueGeneralTabProps) {
   const { t } = useTranslation('common');
   const { isSuperAdmin } = useUser();
-  const uploading = uploadingHotel || uploadingCover;
   const showSection = (id: VenueSectionId) =>
     !restrictedSections || restrictedSections.includes(id);
 
@@ -314,7 +289,7 @@ export function VenueGeneralTab({
                 <Building2 className="h-4 w-4 text-gold-600" />
                 Identité du lieu
               </CardTitle>
-              <CardDescription>Photo, nom et type de lieu</CardDescription>
+              <CardDescription>Nom et type de lieu</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <FormField
@@ -369,84 +344,7 @@ export function VenueGeneralTab({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-[auto_1fr] gap-6">
-            {/* Compact images */}
-            <div className="flex gap-3">
-              {/* Venue photo */}
-              <div className="space-y-1.5 text-center">
-                <div
-                  className="group relative h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors cursor-pointer hover:border-gold-500/50"
-                  onClick={() => {
-                    if (disabled) onRequestEdit?.();
-                    triggerHotelImageSelect();
-                  }}
-                  role="button"
-                  aria-label="Modifier la photo"
-                >
-                  {hotelImage ? (
-                    <img src={hotelImage} className="h-full w-full object-cover" alt="Venue" />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Camera className="h-5 w-5 text-white" />
-                  </div>
-                  {uploadingHotel && (
-                    <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </div>
-                  )}
-                </div>
-                <input
-                  ref={hotelImageRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleHotelImageUpload}
-                  className="hidden"
-                />
-                <p className="text-[10px] text-muted-foreground font-medium">Photo</p>
-              </div>
-
-              {/* Cover image */}
-              <div className="space-y-1.5 text-center">
-                <div
-                  className="group relative h-20 w-32 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors cursor-pointer hover:border-gold-500/50"
-                  onClick={() => {
-                    if (disabled) onRequestEdit?.();
-                    triggerCoverImageSelect();
-                  }}
-                  role="button"
-                  aria-label="Modifier la couverture"
-                >
-                  {coverImage ? (
-                    <img src={coverImage} className="h-full w-full object-cover" alt="Cover" />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Camera className="h-5 w-5 text-white" />
-                  </div>
-                  {uploadingCover && (
-                    <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </div>
-                  )}
-                </div>
-                <input
-                  ref={coverImageRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleCoverImageUpload}
-                  className="hidden"
-                />
-                <p className="text-[10px] text-muted-foreground font-medium">Couverture</p>
-              </div>
-            </div>
-
+          <div>
             {/* Basic Info */}
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 items-end">
@@ -755,6 +653,53 @@ export function VenueGeneralTab({
                   </FormItem>
                 );
               }}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name={"website_url" as keyof VenueWizardFormValues}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                    Site web
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={String(field.value ?? "")}
+                      placeholder="https://exemple.com"
+                      disabled={disabled}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name={"contact_email" as keyof VenueWizardFormValues}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                    Email
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="email"
+                      value={String(field.value ?? "")}
+                      placeholder="contact@exemple.com"
+                      disabled={disabled}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
           </div>
 
