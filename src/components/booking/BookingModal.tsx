@@ -898,11 +898,6 @@ function SlotStep({
             mode="single"
             selected={date}
             onSelect={setDate}
-            disabled={(d) => {
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              return d < today;
-            }}
             locale={fr}
           />
         </div>
