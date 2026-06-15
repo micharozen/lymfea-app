@@ -150,13 +150,22 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         }
       }
 
-      const normalizedPhone = `${d.countryCode}${d.phone}`.replace(/\s/g, '');
-      const { data: customerId } = await supabase.rpc('find_or_create_customer', {
-        _phone: normalizedPhone,
-        _first_name: d.clientFirstName,
-        _last_name: d.clientLastName,
-        _email: d.clientEmail?.trim() || null,
-      });
+      // Phone is optional for admin-created bookings. When absent we store no
+      // phone and skip customer dedup (which is keyed on phone).
+      const hasPhone = d.phone.trim().length > 0;
+      const normalizedPhone = hasPhone
+        ? `${d.countryCode}${d.phone}`.replace(/\s/g, '')
+        : null;
+      let customerId: string | null = null;
+      if (hasPhone) {
+        const { data } = await supabase.rpc('find_or_create_customer', {
+          _phone: normalizedPhone!,
+          _first_name: d.clientFirstName,
+          _last_name: d.clientLastName,
+          _email: d.clientEmail?.trim() || null,
+        });
+        customerId = data ?? null;
+      }
 
       const { data: booking, error } = await supabase.from("bookings").insert({
         hotel_id: d.hotelId,

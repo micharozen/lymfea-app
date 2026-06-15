@@ -309,8 +309,7 @@ export default function BookingModal({
     therapistChoiceMade &&
     cart.length > 0 &&
     clientFirstName.trim().length > 0 &&
-    clientLastName.trim().length > 0 &&
-    phone.trim().length > 0;
+    clientLastName.trim().length > 0;
 
   const handleSubmit = () => {
     if (!canSubmit || !date) return;

@@ -821,7 +821,7 @@ export function BookingInfoStep({
           name="phone"
           render={({ field }) => (
             <FormItem className="space-y-1">
-              <FormLabel className="text-xs">Phone number *</FormLabel>
+              <FormLabel className="text-xs">Phone number</FormLabel>
               <FormControl>
                 <PhoneNumberField
                   value={field.value}
