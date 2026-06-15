@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { oneSignalSubscribe, oneSignalUnsubscribe, isOneSignalSubscribed, isOneSignalReady, getOneSignalDiagnostics } from "@/hooks/useOneSignal";
 import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 interface Notification {
   id: string;
@@ -46,6 +47,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const [pushLoading, setPushLoading] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isMountedRef = useIsMounted();
   
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
 
@@ -63,7 +65,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
       // Check for cached data first - show immediately if available
       const cachedNotifications = queryClient.getQueryData<Notification[]>(["notifications", user.id]);
       
-      if (cachedNotifications) {
+      if (cachedNotifications && isMountedRef.current) {
         setNotifications(cachedNotifications);
         setLoading(false);
       }
@@ -76,6 +78,8 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   }, [queryClient]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const channel = supabase
       .channel('notifications-live')
       .on(
@@ -86,20 +90,27 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
           table: 'notifications'
         },
         () => {
-          fetchNotifications();
+          if (!cancelled && isMountedRef.current) {
+            fetchNotifications();
+          }
         }
       )
       .subscribe();
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
     };
   }, []);
 
   const fetchNotifications = async () => {
+    if (!isMountedRef.current) return;
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      if (!isMountedRef.current) return;
 
       const { data, error } = await supabase
         .from("notifications")
@@ -107,15 +118,21 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
+      if (!isMountedRef.current) return;
+
       if (error) throw error;
       
       queryClient.setQueryData(["notifications", user.id], data);
       setNotifications(data || []);
     } catch (error) {
       console.error("Error fetching notifications:", error);
-      toast.error(t('common:errors.generic'));
+      if (isMountedRef.current) {
+        toast.error(t('common:errors.generic'));
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

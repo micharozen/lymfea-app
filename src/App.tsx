@@ -15,6 +15,7 @@ import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { StagingBanner } from "@/components/StagingBanner";
 import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
 import { SubscriptionBanner } from "@/components/billing/SubscriptionBanner";
+import { UpdateAvailableBanner } from "@/components/UpdateAvailableBanner";
 import { NotificationsBellButton } from "@/components/admin/NotificationsBellButton";
 import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
@@ -47,6 +48,7 @@ const TreatmentRooms = lazy(() => import("./pages/admin/TreatmentRooms"));
 const TreatmentRoomDetail = lazy(() => import("./pages/admin/TreatmentRoomDetail"));
 const Concierges = lazy(() => import("./pages/admin/Concierges"));
 const Customers = lazy(() => import("./pages/admin/Customers"));
+const EmailInbox = lazy(() => import("./pages/admin/EmailInbox"));
 const CustomerDetail = lazy(() => import("./pages/admin/CustomerDetail"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
@@ -80,6 +82,8 @@ const OnboardingComplete = lazy(() => import("./pages/onboarding/Complete"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
 const Landing = lazy(() => import("./pages/Landing"));
+const Compare = lazy(() => import("./pages/Compare"));
+const CompareDetail = lazy(() => import("./pages/CompareDetail"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const RateTherapist = lazy(() => import("./pages/RateTherapist"));
@@ -246,12 +250,15 @@ const App = () => {
         <AuthLanguageSync />
         <TooltipProvider>
         <Sonner />
+        <UpdateAvailableBanner />
         <StagingBanner />
         <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Root - Public marketing landing page */}
             <Route path="/" element={<Landing />} />
+            <Route path="/compare" element={<Compare />} />
+            <Route path="/compare/:slug" element={<CompareDetail />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
 
@@ -530,6 +537,7 @@ const App = () => {
                               <Route path="/concierges" element={<Concierges />} />
                               <Route path="/schedule-alerts" element={<ScheduleAlerts />} />
                               <Route path="/customers" element={<Customers />} />
+                              <Route path="/inbox" element={<EmailInbox />} />
                               <Route path="/customers/new" element={<CustomerDetail />} />
                               <Route path="/customers/:id" element={<CustomerDetail />} />
                               <Route path="/cures" element={<Cures />} />

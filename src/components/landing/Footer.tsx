@@ -1,13 +1,25 @@
 import { useTranslation } from "react-i18next";
 import { BRAND_DEMO_CTA, BRAND_EMAIL } from "./constants";
 import { Wordmark } from "./Wordmark";
+import { COMPETITORS } from "./compare/competitors";
 
 
 export const Footer = () => {
   const { t } = useTranslation("landing");
+  const { t: tc } = useTranslation("compare");
   const year = new Date().getFullYear();
 
   const columns = [
+    {
+      title: tc("hub.eyebrow"),
+      links: [
+        ...COMPETITORS.map((c) => ({
+          label: `Saoma vs ${c.name}`,
+          href: `/compare/saoma-vs-${c.slug}`,
+        })),
+        { label: tc("detail.backToHub"), href: "/compare" },
+      ],
+    },
     {
       title: t("footer.product"),
       links: [
@@ -39,7 +51,7 @@ export const Footer = () => {
   return (
     <footer className="border-t border-border/60 bg-foreground text-background">
       <div className="container mx-auto px-4 py-16 md:px-6">
-        <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div>
             <Wordmark variant="inverted" className="text-3xl md:text-4xl" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-background/70">

@@ -21,6 +21,18 @@
       "customization": "100% customizable booking page"
     }
   },
+  "trustedBy": {
+    "tagline": "Seven houses orchestrate their spa with Saoma",
+    "venues": {
+      "eia": { "name": "EÏA", "address": "Av. Victor Hugo · 75116" },
+      "hanna": { "name": "Hôtel Hanna", "address": "4 Septembre · 75002" },
+      "george": { "name": "Monsieur George", "address": "Washington · 75008" },
+      "soho": { "name": "Soho House", "address": "La Bruyère · 75009" },
+      "buci": { "name": "Hôtel de Buci", "address": "De Buci · 75006" },
+      "holy": { "name": "Studio by Holy", "address": "Guersant · 75017" },
+      "capAntibes": { "name": "Cap d'Antibes Beach Hotel", "address": "Cap d'Antibes · 06160" }
+    }
+  },
   "problem": {
     "title": "Your hotel's spa deserves better",
     "subtitle": "Scattered tools, manual follow-ups, little visibility on bookings: your teams waste time and you lose guests.",
@@ -66,6 +78,39 @@
     "giftcards": {
       "title": "Gift cards & bundles",
       "desc": "Create and sell gift cards, treatment bundles and seasonal offers in a few clicks."
+    }
+  },
+  "aiSpotlight": {
+    "eyebrow": "Beyond the standard",
+    "title": "Email inquiries become bookings",
+    "subtitle": "Where other platforms make you re-type everything, the Saoma AI agent reads, checks availability and schedules. Automatically.",
+    "badge": "Saoma AI Agent",
+    "email": {
+      "label": "Incoming email",
+      "fromLabel": "From:",
+      "fromValue": "sophie.martin@example.com",
+      "subjectLabel": "Subject:",
+      "subjectValue": "Massage booking on Sunday",
+      "body": "Hi, I'd like to book a 60-minute Californian massage for two people on Sunday around 2:30 PM. Is that possible? Thanks!"
+    },
+    "agent": {
+      "label": "Saoma AI Agent",
+      "status": "Analyzing",
+      "step1": "Reading & understanding the email",
+      "step2": "Extracting treatment, slot, client",
+      "step3": "Checking availability"
+    },
+    "booking": {
+      "label": "Booking created",
+      "status": "Pending",
+      "title": "Californian massage · 60 min",
+      "client": "Sophie Martin · 2 people",
+      "slot": "Sunday 2:30 PM"
+    },
+    "bullets": {
+      "extract": "AI extraction of dates, treatments and client details",
+      "create": "Automatic creation of a pending booking",
+      "validate": "Concierge validates in one click"
     }
   },
   "howItWorks": {

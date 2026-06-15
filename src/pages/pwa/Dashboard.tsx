@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,8 +12,10 @@ import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import { Skeleton } from "@/components/ui/skeleton";
 import { setOneSignalExternalUserId } from "@/hooks/useOneSignal";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import PwaHeader from "@/components/pwa/Header";
 import { formatPrice } from "@/lib/formatPrice";
+import { cn } from "@/lib/utils";
 import { brand } from "@/config/brand";
 
 interface Therapist {
@@ -112,14 +114,10 @@ const PwaDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const isMountedRef = useRef(true);
+  const isMountedRef = useIsMounted();
 
   useEffect(() => {
-    isMountedRef.current = true;
     checkAuth();
-    return () => {
-      isMountedRef.current = false;
-    };
   }, []);
 
   // Single useEffect to handle initial load - use cache first
@@ -151,11 +149,8 @@ const PwaDashboard = () => {
         return a.booking_time.localeCompare(b.booking_time);
       });
       if (isMountedRef.current) {
-
         setAllBookings(sortedData);
-
         setLoading(false);
-
       }
     }
 
@@ -167,6 +162,8 @@ const PwaDashboard = () => {
   useEffect(() => {
     if (!therapist) return;
 
+    let cancelled = false;
+
     const channel = supabase
       .channel('bookings-updates')
       .on(
@@ -177,10 +174,10 @@ const PwaDashboard = () => {
           table: 'bookings'
         },
         (payload) => {
+          if (cancelled || !isMountedRef.current) return;
+
           const newData = payload.new as any;
           const oldData = payload.old as any;
-          
-          if (!isMountedRef.current) return;
           
           setAllBookings(prev => {
             const idx = prev.findIndex(b => b.id === newData.id);
@@ -226,7 +223,7 @@ const PwaDashboard = () => {
           table: 'bookings'
         },
         (_payload) => {
-          if (isMountedRef.current) {
+          if (!cancelled && isMountedRef.current) {
             fetchAllBookings(therapist.id);
           }
         }
@@ -245,8 +242,8 @@ const PwaDashboard = () => {
         (payload) => {
           const newBt = payload.new as { booking_id: string; therapist_id: string; status: string };
           if (newBt.status !== 'accepted') return;
-          if (!isMountedRef.current) return;
-          
+          if (cancelled || !isMountedRef.current) return;
+
           setAllBookings(prev => {
             const idx = prev.findIndex(b => b.id === newBt.booking_id);
             if (idx === -1) return prev;
@@ -264,6 +261,7 @@ const PwaDashboard = () => {
       .subscribe();
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
     };
   }, [therapist]);
@@ -272,11 +270,13 @@ const PwaDashboard = () => {
   const checkAuth = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         navigate("/pwa/login");
         return;
       }
+
+      if (!isMountedRef.current) return;
 
       // Set OneSignal external user ID for push notification targeting
       setOneSignalExternalUserId(user.id);
@@ -285,8 +285,10 @@ const PwaDashboard = () => {
       const cachedData = queryClient.getQueryData<any>(["therapist", user.id]);
 
       if (cachedData) {
-        setTherapist(cachedData);
-        setLoading(false);
+        if (isMountedRef.current) {
+          setTherapist(cachedData);
+          setLoading(false);
+        }
         return;
       }
 
@@ -296,8 +298,12 @@ const PwaDashboard = () => {
         .eq("user_id", user.id)
         .single();
 
+      if (!isMountedRef.current) return;
+
       if (error || !therapistData) {
-        toast.error(t('dashboard.profileNotFound'));
+        if (isMountedRef.current) {
+          toast.error(t('dashboard.profileNotFound'));
+        }
         await supabase.auth.signOut();
         navigate("/pwa/login");
         return;
@@ -305,18 +311,20 @@ const PwaDashboard = () => {
 
       // Cache therapist data
       queryClient.setQueryData(["therapist", user.id], therapistData);
-      setTherapist(therapistData);
+      if (isMountedRef.current) {
+        setTherapist(therapistData);
+      }
     } catch (error) {
       console.error("Auth error:", error);
       navigate("/pwa/login");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   const fetchAllBookings = async (therapistId: string, forceRefresh = false) => {
-
-
     if (!isMountedRef.current) return;
 
     // Clear cache when force refreshing
@@ -330,12 +338,14 @@ const PwaDashboard = () => {
       .select("hotel_id")
       .eq("therapist_id", therapistId);
 
+    if (!isMountedRef.current) return;
+
     if (hotelsError || !affiliatedHotels || affiliatedHotels.length === 0) {
       console.error("❌ Error fetching affiliated hotels:", hotelsError);
       if (isMountedRef.current) {
-      setAllBookings([]);
+        setAllBookings([]);
         setLoading(false);
-    }
+      }
       return;
     }
 
@@ -348,6 +358,8 @@ const PwaDashboard = () => {
       .eq("id", therapistId)
       .single();
 
+    if (!isMountedRef.current) return;
+
     // Parse room IDs from therapist's trunks field (comma-separated text or single value)
     const therapistRoomIds: string[] = therapistData?.trunks
       ? therapistData.trunks.split(',').map((t: string) => t.trim()).filter(Boolean)
@@ -358,6 +370,8 @@ const PwaDashboard = () => {
       .from("hotels")
       .select("id, image, currency")
       .in("id", hotelIds);
+
+    if (!isMountedRef.current) return;
 
     const hotelDataMap = new Map(hotelData?.map(h => [h.id, { image: h.image, currency: h.currency }]) || []);
 
@@ -378,6 +392,8 @@ const PwaDashboard = () => {
       .eq("therapist_id", therapistId)
       .in("hotel_id", hotelIds);
 
+    if (!isMountedRef.current) return;
+
     let myBookingsWithImages: Booking[] = [];
     if (myError) {
       console.error('Error fetching my bookings:', myError);
@@ -394,6 +410,8 @@ const PwaDashboard = () => {
         .select("booking_id")
         .eq("therapist_id", therapistId)
         .eq("status", "accepted");
+
+      if (!isMountedRef.current) return;
 
       const primaryIds = new Set((myBookings || []).map(b => b.id));
       const secondaryBookingIds = ((btData as { booking_id: string }[]) || [])
@@ -415,6 +433,8 @@ const PwaDashboard = () => {
             )
           `)
           .in("id", secondaryBookingIds);
+
+        if (!isMountedRef.current) return;
 
         const secondaryWithImages = (secondaryBookings || []).map(b => ({
           ...b,
@@ -444,6 +464,8 @@ const PwaDashboard = () => {
       .in("status", ["pending", "awaiting_hairdresser_selection"]);
 
     const { data: pendingBookings, error: pendingError } = await pendingQuery;
+
+    if (!isMountedRef.current) return;
 
     // Filter pending bookings
     const filteredPendingBookings = pendingBookings?.filter(b => {
@@ -477,6 +499,8 @@ const PwaDashboard = () => {
         .select("booking_id, slot_1_date, slot_1_time, slot_2_date, slot_2_time, slot_3_date, slot_3_time")
         .in("booking_id", awaitingBookingIds);
 
+      if (!isMountedRef.current) return;
+
       if (slotsData) {
         slotsMap = new Map(slotsData.map(s => [s.booking_id, s]));
       }
@@ -500,8 +524,10 @@ const PwaDashboard = () => {
     // Only return if BOTH queries failed
     if (myError && pendingError) {
       console.error('❌ Both queries failed');
-      setAllBookings([]);
-      setLoading(false);
+      if (isMountedRef.current) {
+        setAllBookings([]);
+        setLoading(false);
+      }
       return;
     }
 
@@ -515,23 +541,21 @@ const PwaDashboard = () => {
     });
 
     if (isMountedRef.current) {
-
-
       setAllBookings(sortedData);
-
-
       setLoading(false);
-
-
     }
   };
 
   const handleRefresh = async () => {
     if (!therapist || refreshing) return;
+    if (!isMountedRef.current) return;
+
     setRefreshing(true);
     setShowAllBookings(false); // Reset to show only 3 on refresh
     await fetchAllBookings(therapist.id);
-    setRefreshing(false);
+    if (isMountedRef.current) {
+      setRefreshing(false);
+    }
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -588,9 +612,7 @@ const PwaDashboard = () => {
   };
 
   const handleAcceptBooking = async (bookingId: string) => {
-    if (!therapist) return;
-
-    if (!isMountedRef.current) return;
+    if (!therapist || !isMountedRef.current) return;
 
     try {
       const totalPrice = calculateTotalPrice(allBookings.find(b => b.id === bookingId)!);
@@ -603,18 +625,22 @@ const PwaDashboard = () => {
         _total_price: totalPrice
       });
 
+      if (!isMountedRef.current) return;
+
       if (error) throw error;
 
       const result = data as { success: boolean; error?: string; data?: { status?: string } } | null;
 
       if (result && !result.success) {
         const errCode = result.error;
-        if (errCode === 'already_taken' || errCode === 'fully_staffed') {
-          toast.error(t('dashboard.bookingAlreadyTaken'));
-        } else {
-          toast.error(t('dashboard.acceptError'));
+        if (isMountedRef.current) {
+          if (errCode === 'already_taken' || errCode === 'fully_staffed') {
+            toast.error(t('dashboard.bookingAlreadyTaken'));
+          } else {
+            toast.error(t('dashboard.acceptError'));
+          }
+          fetchAllBookings(therapist.id);
         }
-        fetchAllBookings(therapist.id);
         return;
       }
 
@@ -625,15 +651,16 @@ const PwaDashboard = () => {
         } catch (notifError) {
           console.error("Email notification error (non-blocking):", notifError);
         }
-      }      if (isMountedRef.current) {
+      }
 
+      if (!isMountedRef.current) return;
 
       toast.success(t('dashboard.bookingAccepted'));
-      }
       fetchAllBookings(therapist.id, true); // Force refresh to get updated data
     } catch (error) {
       console.error("Error accepting booking:", error);
       if (!isMountedRef.current) return;
+
       const msg = error instanceof Error ? error.message : '';
       if (msg.includes('already_taken') || msg.includes('already assigned') || msg.includes('déjà assignée')) {
         toast.error(t('dashboard.bookingAlreadyTaken'));
@@ -645,9 +672,7 @@ const PwaDashboard = () => {
   };
 
   const handleDeclineBooking = async (bookingId: string) => {
-    if (!therapist) return;
-
-    if (!isMountedRef.current) return;
+    if (!therapist || !isMountedRef.current) return;
 
     try {
       const { data: currentBooking } = await supabase
@@ -655,6 +680,8 @@ const PwaDashboard = () => {
         .select("declined_by")
         .eq("id", bookingId)
         .single();
+
+      if (!isMountedRef.current) return;
 
       const currentDeclined = currentBooking?.declined_by || [];
       const updatedDeclined = [...currentDeclined, therapist.id];
@@ -673,7 +700,7 @@ const PwaDashboard = () => {
     } catch (error) {
       console.error("Error declining booking:", error);
       if (isMountedRef.current) {
-      toast.error(t('dashboard.error'));
+        toast.error(t('dashboard.error'));
       }
     }
   };
@@ -883,9 +910,12 @@ const PwaDashboard = () => {
               }`}
             >
               {t('dashboard.upcoming')}
-              {activeTab === "upcoming" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
+              <div
+                className={cn(
+                  "absolute bottom-0 left-0 right-0 h-0.5 bg-primary transition-opacity",
+                  activeTab === "upcoming" ? "opacity-100" : "opacity-0"
+                )}
+              />
             </button>
             <button
               onClick={() => setActiveTab("history")}
@@ -896,9 +926,12 @@ const PwaDashboard = () => {
               }`}
             >
               {t('dashboard.history')}
-              {activeTab === "history" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
+              <div
+                className={cn(
+                  "absolute bottom-0 left-0 right-0 h-0.5 bg-primary transition-opacity",
+                  activeTab === "history" ? "opacity-100" : "opacity-0"
+                )}
+              />
             </button>
             <button
               onClick={() => setActiveTab("cancelled")}
@@ -909,9 +942,12 @@ const PwaDashboard = () => {
               }`}
             >
               {t('dashboard.cancelled')}
-              {activeTab === "cancelled" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
+              <div
+                className={cn(
+                  "absolute bottom-0 left-0 right-0 h-0.5 bg-primary transition-opacity",
+                  activeTab === "cancelled" ? "opacity-100" : "opacity-0"
+                )}
+              />
             </button>
           </div>
 

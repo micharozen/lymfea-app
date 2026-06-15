@@ -3,16 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Bell, X } from 'lucide-react';
 import { oneSignalSubscribe, isOneSignalSubscribed, isOneSignalReady } from '@/hooks/useOneSignal';
+import { useIsMounted } from '@/hooks/useIsMounted';
 
 export default function PushNotificationPrompt() {
   const { t } = useTranslation('pwa');
   const [showPrompt, setShowPrompt] = useState(false);
   const checkedRef = useRef(false);
+  const isMountedRef = useIsMounted();
 
   useEffect(() => {
     // Prevent double execution (React StrictMode)
     if (checkedRef.current) return;
     checkedRef.current = true;
+
+    let promptTimeout: ReturnType<typeof setTimeout> | undefined;
 
     const checkAndShowPrompt = async () => {
       const hasSeenPrompt = localStorage.getItem('push-notification-prompt-seen');
@@ -25,7 +29,10 @@ export default function PushNotificationPrompt() {
       while (!isOneSignalReady() && attempts < 50) {
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
+        if (!isMountedRef.current) return;
       }
+
+      if (!isMountedRef.current) return;
 
       // Check if already subscribed
       if (isOneSignalSubscribed()) {
@@ -34,12 +41,20 @@ export default function PushNotificationPrompt() {
       }
 
       // Show prompt after 3 seconds
-      setTimeout(() => {
-        setShowPrompt(true);
+      promptTimeout = setTimeout(() => {
+        if (isMountedRef.current) {
+          setShowPrompt(true);
+        }
       }, 3000);
     };
 
     checkAndShowPrompt();
+
+    return () => {
+      if (promptTimeout) {
+        clearTimeout(promptTimeout);
+      }
+    };
   }, []);
 
   const handleAccept = async () => {

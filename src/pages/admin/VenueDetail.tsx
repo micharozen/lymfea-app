@@ -30,6 +30,7 @@ import { ArrowLeft, Loader2, Save, Pencil, CalendarDays, Eye } from "lucide-reac
 import { startOfMonth, startOfYear, subDays } from "date-fns";
 import { validateCancellationTiers } from "@/lib/cancellationTiers";
 import { VenueBrandingTab } from "@/components/admin/venue/VenueBrandingTab";
+import { VenueInboundEmailTab } from "@/components/admin/venue/VenueInboundEmailTab";
 import { VenueGeneralTab, type VenueSectionId } from "@/components/admin/venue/VenueGeneralTab";
 import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
@@ -62,6 +63,8 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   postal_code: z.string().optional(),
   city: z.string().min(1, t('errors.validation.cityRequired')),
   country: z.string().min(1, t('errors.validation.countryRequired')),
+  website_url: z.string().optional(),
+  contact_email: z.string().email("Adresse email invalide").optional().or(z.literal("")),
   currency: z.string().default("EUR"),
   vat: z.string().default("20"),
   hotel_commission: z.string().default("0"),
@@ -247,6 +250,8 @@ export default function VenueDetail({
       postal_code: "",
       city: "",
       country: "",
+      website_url: "",
+      contact_email: "",
       currency: "EUR",
       vat: "20",
       hotel_commission: "0",
@@ -329,6 +334,8 @@ export default function VenueDetail({
           postal_code: hotel.postal_code || "",
           city: hotel.city || "",
           country: hotel.country || "",
+          website_url: (hotel as any).website_url || "",
+          contact_email: (hotel as any).contact_email || "",
           currency: hotel.currency || "EUR",
           vat: hotel.vat?.toString() || "20",
           hotel_commission: hotel.hotel_commission?.toString() || "0",
@@ -596,6 +603,8 @@ export default function VenueDetail({
         postal_code: values.postal_code || null,
         city: values.city,
         country: values.country,
+        website_url: values.website_url || null,
+        contact_email: values.contact_email || null,
         currency: values.currency,
         vat: parseFloat(values.vat),
         hotel_commission: parseFloat(values.hotel_commission),
@@ -882,6 +891,9 @@ export default function VenueDetail({
               <TabsTrigger value="branding" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 {tAdmin('venue.branding.tab', 'Branding')}
               </TabsTrigger>
+              <TabsTrigger value="inbox-email" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                {tAdmin('inbox.tab.tabLabel', 'Inbox email')}
+              </TabsTrigger>
             </TabsList>
           </div>
           )}
@@ -909,17 +921,6 @@ export default function VenueDetail({
                         mode={isNewMode ? 'add' : 'edit'}
                         disabled={!isEditing}
                         hotelId={effectiveHotelId || undefined}
-                        hotelImage={hotelImage}
-                        coverImage={coverImage}
-                        uploadingHotel={uploadingHotel}
-                        uploadingCover={uploadingCover}
-                        hotelImageRef={hotelImageRef}
-                        coverImageRef={coverImageRef}
-                        handleHotelImageUpload={handleHotelImageUpload}
-                        handleCoverImageUpload={handleCoverImageUpload}
-                        triggerHotelImageSelect={triggerHotelImageSelect}
-                        triggerCoverImageSelect={triggerCoverImageSelect}
-                        onRequestEdit={() => setIsEditingState(true)}
                         deploymentState={deploymentState}
                         onDeploymentStateChange={setDeploymentState}
                         blockedSlots={blockedSlots}
@@ -969,6 +970,14 @@ export default function VenueDetail({
                       disabled={!isEditing}
                       hotelImage={hotelImage}
                       coverImage={coverImage}
+                      uploadingHotel={uploadingHotel}
+                      uploadingCover={uploadingCover}
+                      hotelImageRef={hotelImageRef}
+                      coverImageRef={coverImageRef}
+                      handleHotelImageUpload={handleHotelImageUpload}
+                      handleCoverImageUpload={handleCoverImageUpload}
+                      triggerHotelImageSelect={triggerHotelImageSelect}
+                      triggerCoverImageSelect={triggerCoverImageSelect}
                       hotelName={hotelName || watchedName}
                       onRequestEdit={() => setIsEditingState(true)}
                       hotelId={effectiveHotelId}
@@ -976,6 +985,10 @@ export default function VenueDetail({
                       previewRefreshKey={brandingPreviewKey}
                     />
                   </Form>
+                </TabsContent>
+
+                <TabsContent value="inbox-email" className="mt-0">
+                  <VenueInboundEmailTab hotelId={effectiveHotelId || undefined} />
                 </TabsContent>
               </>
             )}

@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
-import { Loader2, Upload, X, Sparkles, RefreshCw } from "lucide-react";
+import { Loader2, Upload, X, Sparkles, RefreshCw, ImageIcon, Camera } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -25,6 +25,14 @@ interface VenueBrandingTabProps {
   disabled: boolean;
   hotelImage: string;
   coverImage: string;
+  uploadingHotel: boolean;
+  uploadingCover: boolean;
+  hotelImageRef: RefObject<HTMLInputElement>;
+  coverImageRef: RefObject<HTMLInputElement>;
+  handleHotelImageUpload: (e: ChangeEvent<HTMLInputElement>) => void;
+  handleCoverImageUpload: (e: ChangeEvent<HTMLInputElement>) => void;
+  triggerHotelImageSelect: () => void;
+  triggerCoverImageSelect: () => void;
   hotelName: string;
   onRequestEdit: () => void;
   /** Hotel id — used to render the live client preview iframe. */
@@ -64,8 +72,16 @@ function slugifyFontName(name: string): string {
 export function VenueBrandingTab({
   form,
   disabled,
-  hotelImage: _hotelImage,
-  coverImage: _coverImage,
+  hotelImage,
+  coverImage,
+  uploadingHotel,
+  uploadingCover,
+  hotelImageRef,
+  coverImageRef,
+  handleHotelImageUpload,
+  handleCoverImageUpload,
+  triggerHotelImageSelect,
+  triggerCoverImageSelect,
   hotelName: _hotelName,
   onRequestEdit,
   hotelId,
@@ -161,6 +177,85 @@ export function VenueBrandingTab({
             {t("venue.branding.enableEdit", "Activer la modification")}
           </button>
         )}
+
+        <div className="space-y-3">
+          <Label>{t("venue.branding.images", "Images du lieu")}</Label>
+          <div className="flex gap-3">
+            {/* Venue photo */}
+            <div className="space-y-1.5 text-center">
+              <div
+                className="group relative h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors cursor-pointer hover:border-gold-500/50"
+                onClick={() => {
+                  if (disabled) onRequestEdit();
+                  triggerHotelImageSelect();
+                }}
+                role="button"
+                aria-label="Modifier la photo"
+              >
+                {hotelImage ? (
+                  <img src={hotelImage} className="h-full w-full object-cover" alt="Venue" />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera className="h-5 w-5 text-white" />
+                </div>
+                {uploadingHotel && (
+                  <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                )}
+              </div>
+              <input
+                ref={hotelImageRef}
+                type="file"
+                accept="image/*"
+                onChange={handleHotelImageUpload}
+                className="hidden"
+              />
+              <p className="text-[10px] text-muted-foreground font-medium">Photo</p>
+            </div>
+
+            {/* Cover image */}
+            <div className="space-y-1.5 text-center">
+              <div
+                className="group relative h-20 w-32 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors cursor-pointer hover:border-gold-500/50"
+                onClick={() => {
+                  if (disabled) onRequestEdit();
+                  triggerCoverImageSelect();
+                }}
+                role="button"
+                aria-label="Modifier la couverture"
+              >
+                {coverImage ? (
+                  <img src={coverImage} className="h-full w-full object-cover" alt="Cover" />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera className="h-5 w-5 text-white" />
+                </div>
+                {uploadingCover && (
+                  <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                )}
+              </div>
+              <input
+                ref={coverImageRef}
+                type="file"
+                accept="image/*"
+                onChange={handleCoverImageUpload}
+                className="hidden"
+              />
+              <p className="text-[10px] text-muted-foreground font-medium">Couverture</p>
+            </div>
+          </div>
+        </div>
 
         <ColorPickerField
           form={form}

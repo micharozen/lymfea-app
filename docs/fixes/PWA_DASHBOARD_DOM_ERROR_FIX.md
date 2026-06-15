@@ -1,180 +1,77 @@
-# Fix: PWA Dashboard DOM Error (NotFoundError: removeChild)
+# Fix: PWA DOM Error (NotFoundError: removeChild)
 
 **Date:** 2026-06-09  
-**Branch:** `cursor/fix-pwa-dashboard-dom-error-35bd`  
-**Slack Thread:** #saoma_prod - 2026-06-08 18:53 CET
+**Branch:** `fix/pwa-dashboard-dom-error`  
+**Supersedes:** PR #205 (`cursor/fix-pwa-dashboard-dom-error-35bd`)
 
-## Problem Description
+## Problem
 
-Therapists encountered a blocking `ErrorBoundary` crash on `/pwa/dashboard` with the error:
+Therapists hit the global `AppErrorFallback` on `/pwa/dashboard`:
 
 ```
 NotFoundError: Failed to execute 'removeChild' on 'Node'
 ```
 
-This error occurred when React tried to manipulate DOM nodes that were either:
-1. Already removed by external code (Chrome extensions like Google Translate)
-2. Being updated after the component unmounted
-3. Modified during React's reconciliation process
+Likely contributing factors:
 
-## Root Causes Identified
+1. Async `setState` / toasts after component unmount (navigation, realtime callbacks)
+2. Supabase realtime listeners firing after leaving a page
+3. External DOM mutation (Google Translate wrapping text nodes)
+4. Conditional mount/unmount of tab indicators in Dashboard
 
-### 1. **Missing Unmount Protection**
-The Dashboard component (`src/pages/pwa/Dashboard.tsx`) performed state updates without checking if the component was still mounted, unlike the correct pattern used in `NotificationsBellButton.tsx`.
+## Solution
 
-### 2. **Real-time Subscriptions Without Guards**
-Three Supabase real-time subscription callbacks updated state without mount checks:
-- `UPDATE` event on `bookings` table (line 169)
-- `INSERT` event on `bookings` table (line 216)
-- `INSERT` event on `booking_therapists` table (line 231)
+### Shared hook: `useIsMounted`
 
-### 3. **Async Operations Completing After Unmount**
-Functions like `checkAuth`, `fetchAllBookings`, `handleAcceptBooking`, and `handleDeclineBooking` could complete after user navigation, triggering:
-- State updates on unmounted component
-- Toast notifications attempting to render in disconnected DOM tree
-- React reconciliation errors
-
-### 4. **Toast Notifications from Callbacks**
-Toast calls from async callbacks (e.g., line 186: booking taken by another therapist) could fire after the component was unmounted.
-
-## Solution Implemented
-
-### 1. **Added `isMountedRef` Pattern**
+[`src/hooks/useIsMounted.ts`](../../src/hooks/useIsMounted.ts) returns a ref that is `true` while the component is mounted. Use it before any `setState` or `toast` after `await` or in realtime callbacks.
 
 ```typescript
-const isMountedRef = useRef(true);
+const isMountedRef = useIsMounted();
 
-useEffect(() => {
-  isMountedRef.current = true;
-  checkAuth();
-  return () => {
-    isMountedRef.current = false;
-  };
-}, []);
+const data = await fetchSomething();
+if (!isMountedRef.current) return;
+setState(data);
 ```
 
-### 2. **Protected All State Updates**
+### Files modified
 
-**Before:**
-```typescript
-setAllBookings(sortedData);
-setLoading(false);
-```
+| File | Changes |
+|------|---------|
+| `src/hooks/useIsMounted.ts` | New shared hook |
+| `src/pages/pwa/Dashboard.tsx` | Full mount guards; CSS tab indicators (no conditional DOM) |
+| `src/components/PushNotificationPrompt.tsx` | Timeout cleanup + mount guards |
+| `src/components/pwa/Layout.tsx` | Realtime unread count guards; `notranslate` on root |
+| `src/pages/pwa/BookingDetail.tsx` | `fetchBookingDetail` + realtime + `fetchRoomGap` guards |
+| `src/pages/pwa/Bookings.tsx` | `fetchBookings` guards |
+| `src/pages/pwa/Notifications.tsx` | `fetchNotifications` + realtime guards |
 
-**After:**
-```typescript
-if (isMountedRef.current) {
-  setAllBookings(sortedData);
-  setLoading(false);
-}
-```
+### DOM hardening
 
-### 3. **Guarded Real-time Callbacks**
+- **PWA layout:** `className="notranslate"` on the root container to reduce Google Translate DOM interference.
+- **Dashboard tabs:** Tab underline uses opacity CSS instead of conditional `{active && <div />}` mount/unmount.
 
-**Before:**
-```typescript
-.on('postgres_changes', { event: 'UPDATE', ... }, (payload) => {
-  setAllBookings(prev => { /* update */ });
-})
-```
+## Prevention guidelines
 
-**After:**
-```typescript
-.on('postgres_changes', { event: 'UPDATE', ... }, (payload) => {
-  if (!isMountedRef.current) return;
-  setAllBookings(prev => { /* update */ });
-})
-```
+Apply `useIsMounted` to any component with:
 
-### 4. **Protected Toast Calls**
+- Supabase realtime subscriptions
+- Long async fetch chains (`await` + `setState`)
+- Toasts from async/realtime callbacks
+- `setTimeout` / `setInterval` that update state
 
-**Before:**
-```typescript
-if (!isSecondary) {
-  toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
-}
-```
+## Manual test checklist
 
-**After:**
-```typescript
-if (!isSecondary && isMountedRef.current) {
-  toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
-}
-```
-
-### 5. **Early Returns in Async Functions**
-
-```typescript
-const { data } = await supabase.from('bookings').select('*');
-if (!isMountedRef.current) return; // Early exit before state update
-setAllBookings(data);
-```
-
-## Files Modified
-
-- `src/pages/pwa/Dashboard.tsx`
-
-## Changes Summary
-
-1. Added `useRef` import
-2. Created `isMountedRef` ref and lifecycle management
-3. Protected 15+ state update locations
-4. Guarded 3 real-time subscription callbacks
-5. Added early returns in 4 async functions
-6. Protected 9 toast notification calls
-
-## Testing Recommendations
-
-1. **Navigation stress test**: Rapidly navigate away from dashboard during data loading
-2. **Real-time updates**: Accept/decline bookings while navigating between tabs
-3. **Pull-to-refresh**: Trigger refresh and immediately navigate away
-4. **Network delays**: Test with throttled network (slow 3G) to extend async operation duration
-5. **Chrome extensions**: Test with Google Translate enabled (known DOM manipulator)
-
-## Prevention Guidelines
-
-For future components with similar patterns:
-
-1. ✅ **Always use `isMountedRef`** for components with:
-   - Real-time subscriptions
-   - Async data fetching
-   - Toast notifications from callbacks
-
-2. ✅ **Guard all state updates** after async operations:
-   ```typescript
-   const data = await fetchData();
-   if (!isMountedRef.current) return;
-   setState(data);
-   ```
-
-3. ✅ **Check mount status before toasts** in callbacks:
-   ```typescript
-   if (isMountedRef.current) {
-     toast.success('Operation completed');
-   }
-   ```
-
-4. ✅ **Return cleanup functions** from `useEffect`:
-   ```typescript
-   useEffect(() => {
-     isMountedRef.current = true;
-     return () => {
-       isMountedRef.current = false;
-     };
-   }, []);
-   ```
-
-## Related Issues
-
-This pattern should be applied to other PWA pages with real-time subscriptions:
-- `src/pages/pwa/BookingDetail.tsx`
-- `src/pages/pwa/Bookings.tsx`
-- Any component using Supabase real-time channels
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| Fast navigation | Dashboard → booking → back ×10 during load | No ErrorBoundary crash |
+| Realtime | Admin updates booking while therapist on dashboard | List updates, no crash |
+| Pull-to-refresh | Pull refresh then navigate away immediately | No crash |
+| Slow network | DevTools Slow 3G, open dashboard then leave | No crash |
+| Google Translate | Enable auto-translate on `/pwa/dashboard`, switch tabs | No `removeChild` error |
+| Push prompt | Wait for notification prompt on dashboard, navigate away | No crash |
 
 ## References
 
-- Slack thread: #saoma_prod (2026-06-08 18:53 CET)
-- Error: `NotFoundError: Failed to execute 'removeChild' on 'Node'`
+- Slack: #saoma_prod — 2026-06-08 18:53 CET
 - User: `userId=ad1ba09e-a0af-4137-81a2-7f40ce4d3a60`
 - Browser: Chrome 148 on Windows
-- Build: `app-Dk0WLvoC.js`

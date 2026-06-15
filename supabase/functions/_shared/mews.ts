@@ -63,6 +63,15 @@ async function testMewsConnection(config: MewsConfig): Promise<{ connected: bool
 }
 
 // --- Guest Lookup by Room ---
+//
+// Uses Mews Connector API v2023-06-06 for reservations/getAll. The legacy
+// (2017) version was discontinued in May 2025. Notable differences vs legacy:
+// - URL is /reservations/getAll/2023-06-06
+// - Time filter is `CollidingUtc: { StartUtc, EndUtc }` (no top-level StartUtc/EndUtc)
+// - `Limitation` is mandatory
+// - `Extent` no longer exists — customers/resources must be fetched separately
+// - Response uses `AccountId` (with `AccountType`) instead of `CustomerId`
+// - Response splits times into `Scheduled*Utc` and `Actual*Utc`
 
 async function mewsLookupGuestByRoom(
   config: MewsConfig,
@@ -72,15 +81,13 @@ async function mewsLookupGuestByRoom(
     const now = new Date();
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    const response = await mewsFetch(config, 'reservations/getAll', {
-      StartUtc: now.toISOString(),
-      EndUtc: tomorrow.toISOString(),
-      States: ['Started'], // InHouse
-      Extent: {
-        Reservations: true,
-        Customers: true,
-        Resources: true,
+    const response = await mewsFetch(config, 'reservations/getAll/2023-06-06', {
+      CollidingUtc: {
+        StartUtc: now.toISOString(),
+        EndUtc: tomorrow.toISOString(),
       },
+      States: ['Started'], // InHouse
+      Limitation: { Count: 1000 },
     });
 
     if (!response.ok) {
@@ -90,48 +97,95 @@ async function mewsLookupGuestByRoom(
     }
 
     const data = await response.json();
+    const reservations: any[] = data?.Reservations || [];
+    if (reservations.length === 0) return null;
 
-    const reservations = data?.Reservations || [];
-    const customers: Record<string, any> = {};
-    for (const c of data?.Customers || []) {
-      customers[c.Id] = c;
-    }
-    const resources: Record<string, any> = {};
-    for (const r of data?.Resources || []) {
-      resources[r.Id] = r;
-    }
+    // Fetch resources (rooms) referenced by these reservations
+    const resourceIds = Array.from(
+      new Set(reservations.map((r) => r.AssignedResourceId).filter(Boolean)),
+    );
+    const resources = await fetchMewsResources(config, resourceIds);
 
-    // Find reservation matching the room number
-    for (const reservation of reservations) {
-      const resourceId = reservation.AssignedResourceId;
-      const resource = resources[resourceId];
-      if (!resource) continue;
+    // Find reservation whose assigned resource name matches the room number
+    const matched = reservations.find((reservation) => {
+      const resource = resources[reservation.AssignedResourceId];
+      if (!resource) return false;
+      return resource.Name === roomNumber || resource.Name === String(roomNumber);
+    });
 
-      // Match by resource name (= room number/name in Mews)
-      if (resource.Name === roomNumber || resource.Name === roomNumber.toString()) {
-        const customerId = reservation.CustomerId;
-        const customer = customers[customerId];
+    if (!matched) return null;
 
-        if (!customer) continue;
+    // AccountId replaces CustomerId in 2023-06-06; only customer accounts have personal info
+    const accountId: string | undefined = matched.AccountId;
+    const accountType: string | undefined = matched.AccountType;
+    if (!accountId || (accountType && accountType !== 'Customer')) return null;
 
-        return {
-          firstName: customer.FirstName || '',
-          lastName: customer.LastName || '',
-          email: customer.Email || undefined,
-          phone: customer.Phone || undefined,
-          accountId: customerId,
-          reservationId: reservation.Id,
-          checkIn: reservation.StartUtc || undefined,
-          checkOut: reservation.EndUtc || undefined,
-        };
-      }
-    }
+    const customer = await fetchMewsCustomer(config, accountId);
+    if (!customer) return null;
 
-    return null;
+    return {
+      firstName: customer.FirstName || '',
+      lastName: customer.LastName || '',
+      email: customer.Email || undefined,
+      phone: customer.Phone || undefined,
+      accountId,
+      reservationId: matched.Id,
+      checkIn: matched.ActualStartUtc || matched.ScheduledStartUtc || undefined,
+      checkOut: matched.ActualEndUtc || matched.ScheduledEndUtc || undefined,
+    };
   } catch (error) {
     console.error('Mews guest lookup error:', error);
     return null;
   }
+}
+
+// --- Resources lookup (rooms) ---
+
+async function fetchMewsResources(
+  config: MewsConfig,
+  resourceIds: string[],
+): Promise<Record<string, any>> {
+  if (resourceIds.length === 0) return {};
+
+  const response = await mewsFetch(config, 'resources/getAll', {
+    ResourceIds: resourceIds,
+    Limitation: { Count: 1000 },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Mews resources lookup failed:', response.status, errorText);
+    return {};
+  }
+
+  const data = await response.json();
+  const map: Record<string, any> = {};
+  for (const r of data?.Resources || []) {
+    map[r.Id] = r;
+  }
+  return map;
+}
+
+// --- Customer lookup ---
+
+async function fetchMewsCustomer(
+  config: MewsConfig,
+  customerId: string,
+): Promise<any | null> {
+  const response = await mewsFetch(config, 'customers/getAll', {
+    CustomerIds: [customerId],
+    Limitation: { Count: 1 },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Mews customers lookup failed:', response.status, errorText);
+    return null;
+  }
+
+  const data = await response.json();
+  const customers: any[] = data?.Customers || [];
+  return customers[0] || null;
 }
 
 // --- Post Charge ---
@@ -200,7 +254,9 @@ export interface MewsService {
 }
 
 export async function fetchMewsServices(config: MewsConfig): Promise<MewsService[]> {
-  const response = await mewsFetch(config, 'services/getAll', {});
+  const response = await mewsFetch(config, 'services/getAll', {
+    Limitation: { Count: 1000 },
+  });
 
   if (!response.ok) {
     const errorText = await response.text();

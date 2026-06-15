@@ -28,7 +28,26 @@ serve(async (req) => {
 
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('*')
+      .select(`
+        id,
+        booking_id,
+        booking_group_id,
+        booking_date,
+        booking_time,
+        client_first_name,
+        client_last_name,
+        client_email,
+        phone,
+        hotel_id,
+        hotel_name,
+        room_number,
+        therapist_name,
+        therapist_id,
+        total_price,
+        payment_status,
+        short_token,
+        hotels(address, postal_code, city, country, contact_email, organizations(name))
+      `)
       .eq('id', bookingId)
       .single();
 
@@ -86,6 +105,11 @@ serve(async (req) => {
     const treatmentName = treatments.map(t => t.name).join(', ');
     const treatmentPrice = treatments.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
 
+    const venue = (booking as any).hotels;
+    const venueAddress = [venue?.address, venue?.postal_code, venue?.city, venue?.country]
+      .filter(Boolean)
+      .join(', ');
+
     const templateVariables: Record<string, string> = {
       booking_number: String(booking.booking_id ?? ''),
       booking_date: `${formattedDate} ${formattedTime}`.trim(),
@@ -98,6 +122,9 @@ serve(async (req) => {
       total_price: `${booking.total_price ?? 0}€`,
       treatment_name: treatmentName,
       treatment_price: `${treatmentPrice}€`,
+      contact_email: venue?.contact_email ?? '',
+      venue_address: venueAddress,
+      organization_name: venue?.organizations?.name ?? '',
     };
 
     const subject = `✅ #${booking.booking_id} confirmée · ${booking.therapist_name ?? ''}`;
