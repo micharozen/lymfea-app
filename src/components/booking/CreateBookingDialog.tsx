@@ -293,35 +293,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       "hotelId", "clientFirstName", "clientLastName", "phone", "date", "time", "roomNumber",
     ];
     const result = await form.trigger(fields);
-    const now = new Date();
     const values = form.getValues();
-    if (values.date && values.time) {
-      const [h, m] = values.time.split(':').map(Number);
-      const slotDateTime = new Date(values.date);
-      slotDateTime.setHours(h, m, 0, 0);
-      if (slotDateTime <= now) {
-        form.setError("time", { message: "Le créneau doit être dans le futur" });
-        return false;
-      }
-    }
-    if (values.slot2Date && values.slot2Time) {
-      const [h, m] = values.slot2Time.split(':').map(Number);
-      const slotDateTime = new Date(values.slot2Date);
-      slotDateTime.setHours(h, m, 0, 0);
-      if (slotDateTime <= now) {
-        form.setError("slot2Time", { message: "Le créneau doit être dans le futur" });
-        return false;
-      }
-    }
-    if (values.slot3Date && values.slot3Time) {
-      const [h, m] = values.slot3Time.split(':').map(Number);
-      const slotDateTime = new Date(values.slot3Date);
-      slotDateTime.setHours(h, m, 0, 0);
-      if (slotDateTime <= now) {
-        form.setError("slot3Time", { message: "Le créneau doit être dans le futur" });
-        return false;
-      }
-    }
+    // Admins may backdate bookings (e.g. recording a walk-in after the fact),
+    // so no future-date constraint is enforced on the slots here.
     // Duplicate slot validation
     const slot1Key = values.date && values.time ? `${format(values.date, "yyyy-MM-dd")}-${values.time}` : null;
     const slot2Key = values.slot2Date && values.slot2Time ? `${format(values.slot2Date, "yyyy-MM-dd")}-${values.slot2Time}` : null;

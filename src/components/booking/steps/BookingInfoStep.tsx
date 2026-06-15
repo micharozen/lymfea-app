@@ -338,7 +338,6 @@ export function BookingInfoStep({
                           if (selectedDate) handleUnavailableDayWarning(selectedDate);
                           setCalendarOpen(false);
                         }}
-                        disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
                         modifiers={{ unavailable: isDayUnavailableForCart }}
                         modifiersClassNames={{ unavailable: "line-through text-red-500" }}
                         initialFocus
@@ -488,7 +487,7 @@ export function BookingInfoStep({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); if (d) handleUnavailableDayWarning(d); setSlot2CalendarOpen(false); }} disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))} modifiers={{ unavailable: isDayUnavailableForCart }} modifiersClassNames={{ unavailable: "line-through text-red-500" }} initialFocus className="pointer-events-auto" locale={fr} />
+                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); if (d) handleUnavailableDayWarning(d); setSlot2CalendarOpen(false); }} modifiers={{ unavailable: isDayUnavailableForCart }} modifiersClassNames={{ unavailable: "line-through text-red-500" }} initialFocus className="pointer-events-auto" locale={fr} />
                       </PopoverContent>
                     </Popover>
                     <FormMessage className="text-xs" />
@@ -586,7 +585,7 @@ export function BookingInfoStep({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); if (d) handleUnavailableDayWarning(d); setSlot3CalendarOpen(false); }} disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))} modifiers={{ unavailable: isDayUnavailableForCart }} modifiersClassNames={{ unavailable: "line-through text-red-500" }} initialFocus className="pointer-events-auto" locale={fr} />
+                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); if (d) handleUnavailableDayWarning(d); setSlot3CalendarOpen(false); }} modifiers={{ unavailable: isDayUnavailableForCart }} modifiersClassNames={{ unavailable: "line-through text-red-500" }} initialFocus className="pointer-events-auto" locale={fr} />
                       </PopoverContent>
                     </Popover>
                     <FormMessage className="text-xs" />
