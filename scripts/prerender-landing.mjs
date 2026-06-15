@@ -15,8 +15,8 @@
  */
 
 import { createServer } from "node:http";
-import { readFile, writeFile } from "node:fs/promises";
-import { join, extname, resolve } from "node:path";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { join, extname, resolve, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -24,6 +24,22 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const DIST_DIR = resolve(__dirname, "..", "dist");
 const LANDING_FILE = join(DIST_DIR, "landing.html");
 const PORT = 4173;
+
+// Marketing routes to prerender into static HTML. Each renders the landing SPA
+// shell (landing.html → landing-main.tsx), lets React Router resolve the route,
+// then snapshots the DOM into its own file. Keep the comparison slugs in sync
+// with COMPETITORS in src/components/landing/compare/competitors.ts.
+// NOTE: production hosting must serve these files at their paths (like `/` →
+// landing.html). Without that routing, crawlers fall back to the SPA shell.
+const COMPARE_SLUGS = ["book4time", "mindbody", "booker", "zenoti", "fresha", "treatwell"];
+const ROUTES = [
+  { path: "/", out: "landing.html" },
+  { path: "/compare", out: "compare.html" },
+  ...COMPARE_SLUGS.map((slug) => ({
+    path: `/compare/saoma-vs-${slug}`,
+    out: `compare/saoma-vs-${slug}.html`,
+  })),
+];
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -132,28 +148,32 @@ async function prerender() {
       }
     });
 
-    await page.goto(`http://localhost:${PORT}/`, {
-      waitUntil: "domcontentloaded",
-      timeout: 30000,
-    });
+    for (const route of ROUTES) {
+      await page.goto(`http://localhost:${PORT}${route.path}`, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
 
-    // Ensure the Hero H1 is present — sanity check that React mounted.
-    await page.waitForSelector("h1", { timeout: 20000 });
+      // Ensure an H1 is present — sanity check that React mounted & routed.
+      await page.waitForSelector("h1", { timeout: 20000 });
 
-    // Give framer-motion whileInView a head start (harmless if already done).
-    await new Promise((r) => setTimeout(r, 500));
+      // Give framer-motion whileInView a head start (harmless if already done).
+      await new Promise((r) => setTimeout(r, 500));
 
-    const html = await page.content();
+      const html = await page.content();
 
-    // Sanity: bail if the rendered HTML is suspiciously small (React failed).
-    if (html.length < 5000) {
-      throw new Error(
-        `Rendered HTML too small (${html.length} bytes) — likely a hydration error.`,
-      );
+      // Sanity: bail if the rendered HTML is suspiciously small (React failed).
+      if (html.length < 5000) {
+        throw new Error(
+          `[${route.path}] Rendered HTML too small (${html.length} bytes) — likely a hydration error.`,
+        );
+      }
+
+      const outFile = join(DIST_DIR, route.out);
+      await mkdir(dirname(outFile), { recursive: true });
+      await writeFile(outFile, html, "utf8");
+      console.log(`[prerender] ${route.path} → ${route.out} (${html.length} bytes)`);
     }
-
-    await writeFile(LANDING_FILE, html, "utf8");
-    console.log(`[prerender] wrote ${LANDING_FILE} (${html.length} bytes)`);
   } finally {
     await browser.close();
     server.close();

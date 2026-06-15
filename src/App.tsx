@@ -82,6 +82,8 @@ const OnboardingComplete = lazy(() => import("./pages/onboarding/Complete"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
 const Landing = lazy(() => import("./pages/Landing"));
+const Compare = lazy(() => import("./pages/Compare"));
+const CompareDetail = lazy(() => import("./pages/CompareDetail"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const RateTherapist = lazy(() => import("./pages/RateTherapist"));
@@ -255,6 +257,8 @@ const App = () => {
           <Routes>
             {/* Root - Public marketing landing page */}
             <Route path="/" element={<Landing />} />
+            <Route path="/compare" element={<Compare />} />
+            <Route path="/compare/:slug" element={<CompareDetail />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
 

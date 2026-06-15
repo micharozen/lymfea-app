@@ -1,0 +1,69 @@
+{
+  "dimensions": {
+    "pmsHotel": "Hotel PMS integration (Opera Cloud, Mews)",
+    "emailToBookingAi": "AI-powered email-to-booking",
+    "advancedCustomization": "Advanced per-venue branding & customization",
+    "apiAccess": "Data access via API",
+    "staycationIntegration": "Staycation integration",
+    "therapistApp": "Therapist mobile app & payouts",
+    "clientBooking": "Online client booking (QR, no account)",
+    "unifiedAgenda": "Unified multi-venue & room agenda",
+    "payments": "Integrated payments (Stripe Connect)",
+    "giftCards": "Gift cards & vouchers",
+    "autoInvoicing": "Automatic invoicing (hotel & therapist)",
+    "notifications": "Automated reminders & follow-ups",
+    "multilingual": "FR/EN interface & emails",
+    "euCompliance": "EU hosting & GDPR compliance",
+    "transparentPricing": "Transparent pricing, no booking commission"
+  },
+  "categories": {
+    "spaHotel": "Hotel spa",
+    "spaWellness": "Spa & wellness",
+    "marketplace": "Marketplace"
+  },
+  "legend": {
+    "title": "Legend",
+    "yes": "Included",
+    "partial": "Partial / limited",
+    "soon": "Coming soon",
+    "no": "Not offered"
+  },
+  "table": {
+    "feature": "Feature",
+    "ariaValue": "{{feature}} — {{tool}}: {{value}}"
+  },
+  "hub": {
+    "eyebrow": "Comparisons",
+    "title": "Saoma compared to spa management software",
+    "subtitle": "How Saoma stacks up against the leading spa, wellness and marketplace solutions — to help you choose the right tool for your hotel spa.",
+    "tableHeading": "Feature comparison table",
+    "tableNote": "Side-by-side overview. Click a tool for the detailed comparison.",
+    "cardsHeading": "Detailed comparisons",
+    "cardCta": "See the comparison",
+    "bestForLabel": "Best for"
+  },
+  "detail": {
+    "eyebrow": "Comparison",
+    "title": "Saoma vs {{name}}",
+    "subtitlePrefix": "How do {{name}} and Saoma compare for running a hotel spa?",
+    "summaryHeading": "In short",
+    "tableHeading": "Saoma vs {{name}}: feature comparison",
+    "advantagesHeading": "Why spas choose Saoma over {{name}}",
+    "strengthsHeading": "When {{name}} can be the right choice",
+    "faqHeading": "Frequently asked questions",
+    "originLabel": "Origin",
+    "categoryLabel": "Category",
+    "backToHub": "All comparisons"
+  },
+  "cta": {
+    "title": "See Saoma on your spa",
+    "subtitle": "Personalized demo, live in days, transparent pricing.",
+    "button": "Request a demo",
+    "secondary": "See pricing"
+  },
+  "breadcrumb": {
+    "home": "Home",
+    "compare": "Comparisons"
+  },
+  "disclaimer": "Comparison based on publicly available information (updated {{date}}). Trademarks cited belong to their respective owners and are not affiliated with Saoma. Other tools' features change over time; verify details with each vendor."
+}
