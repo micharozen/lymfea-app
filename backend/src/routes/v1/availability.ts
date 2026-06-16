@@ -84,13 +84,7 @@ async function respond(
         available_capacity: s.available_capacity,
       }),
     );
-    return c.json({
-      data: {
-        date: period.date,
-        slots,
-        out_of_hours_surcharge_percent: data?.out_of_hours_surcharge_percent ?? 0,
-      },
-    });
+    return c.json({ data: { date: period.date, slots } });
   }
 
   const { data, error } = await supabaseAdmin.functions.invoke("get-availability", {

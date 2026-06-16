@@ -16,8 +16,9 @@ A **slot** is a bookable start time at a venue. Each slot carries:
 
 - `time` — start time in the venue's **local time**, `HH:MM`, aligned on the
   venue's `slot_interval` (typically every 30 minutes).
-- `out_of_hours` — `true` when the slot starts outside the posted opening hours;
-  booking it applies the venue's `out_of_hours_surcharge_percent`.
+- `out_of_hours` — `true` when the slot starts outside the posted opening hours.
+  Booking it applies the venue's surcharge rate, exposed as
+  `out_of_hours_surcharge_percent` on the [Venue](/concepts/venues) object.
 - `available_capacity` — how many bookings can still start at this slot, i.e.
   `min(free rooms, free qualified therapists)`. A venue with several treatment
   rooms can take several simultaneous bookings on the same slot.
@@ -25,7 +26,6 @@ A **slot** is a bookable start time at a venue. Each slot carries:
 ```json
 {
   "date": "2026-06-20",
-  "out_of_hours_surcharge_percent": 20,
   "slots": [
     { "time": "08:00", "out_of_hours": true,  "available_capacity": 1 },
     { "time": "09:00", "out_of_hours": false, "available_capacity": 3 }

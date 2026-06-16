@@ -46,8 +46,6 @@ export interface VenueAvailabilityResult {
   slotsByDate: Map<string, SlotInfo[]>;
   /** Subset of the requested dates on which the venue is deployed. */
   deployedDates: Set<string>;
-  /** Out-of-hours surcharge rate (%), or 0 when the venue disallows out-of-hours bookings. */
-  surchargePercent: number;
 }
 
 /**
@@ -67,7 +65,7 @@ export async function getVenueAvailability(
   const requiredGuestCount = Math.max(1, opts.requiredGuestCount || 1);
 
   if (dates.length === 0) {
-    return { slotsByDate, deployedDates: new Set(), surchargePercent: 0 };
+    return { slotsByDate, deployedDates: new Set() };
   }
 
   const sorted = [...dates].sort();
@@ -82,13 +80,13 @@ export async function getVenueAvailability(
   if (deployedErr) console.error("get_venue_available_dates error:", deployedErr);
   const deployedDates = new Set<string>((deployed as string[] | null) || []);
   const activeDates = dates.filter((d) => deployedDates.has(d));
-  if (activeDates.length === 0) return { slotsByDate, deployedDates, surchargePercent: 0 };
+  if (activeDates.length === 0) return { slotsByDate, deployedDates };
 
   // 2. Venue config.
   const { data: hotelData } = await supabase
     .from("hotels")
     .select(
-      "opening_time, closing_time, slot_interval, inter_venue_buffer_minutes, room_turnover_buffer_minutes, min_booking_notice_minutes, timezone, allow_out_of_hours_booking, out_of_hours_surcharge_percent",
+      "opening_time, closing_time, slot_interval, inter_venue_buffer_minutes, room_turnover_buffer_minutes, min_booking_notice_minutes, timezone, allow_out_of_hours_booking",
     )
     .eq("id", hotelId)
     .single();
@@ -108,10 +106,6 @@ export async function getVenueAvailability(
   const travelBuffer = hotelData?.inter_venue_buffer_minutes ?? 0;
   const minBookingNotice = hotelData?.min_booking_notice_minutes ?? 0;
   const venueTz = hotelData?.timezone || "UTC";
-  // Surcharge only applies when the venue actually allows out-of-hours bookings.
-  const surchargePercent = allowOutOfHours
-    ? Number(hotelData?.out_of_hours_surcharge_percent ?? 0) || 0
-    : 0;
 
   // 3. Treatments → max lead time, max duration, required skill categories.
   let maxTreatmentLeadTime = 0;
@@ -167,7 +161,7 @@ export async function getVenueAvailability(
   // No rooms or no qualified therapists → every deployed date is empty.
   if (rooms.length === 0 || therapistIds.length === 0) {
     for (const d of activeDates) slotsByDate.set(d, []);
-    return { slotsByDate, deployedDates, surchargePercent };
+    return { slotsByDate, deployedDates };
   }
 
   // 6. Therapist schedules over the range.
@@ -340,7 +334,7 @@ export async function getVenueAvailability(
     slotsByDate.set(date, slots);
   }
 
-  return { slotsByDate, deployedDates, surchargePercent };
+  return { slotsByDate, deployedDates };
 }
 
 /** Enumerate venue-local YYYY-MM-DD dates from `startDate` to `endDate` inclusive. */

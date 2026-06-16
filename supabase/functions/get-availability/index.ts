@@ -64,7 +64,7 @@ serve(async (req) => {
 
     // Single-date mode.
     if (date) {
-      const { slotsByDate, deployedDates, surchargePercent } = await getVenueAvailability(
+      const { slotsByDate, deployedDates } = await getVenueAvailability(
         supabase,
         hotelId,
         [date],
@@ -83,7 +83,6 @@ serve(async (req) => {
           out_of_hours: s.outOfHours,
           available_capacity: s.capacity,
         })),
-        out_of_hours_surcharge_percent: surchargePercent,
       });
     }
 

@@ -60,17 +60,13 @@ In **single-day** mode:
 
 <ResponseField name="data.slots[].out_of_hours" type="boolean">
   `true` when the slot starts outside the venue's posted opening hours. Booking
-  it applies the out-of-hours surcharge (see `out_of_hours_surcharge_percent`).
+  it applies the venue's surcharge rate — see `out_of_hours_surcharge_percent`
+  on the [Venue](/api-reference/venues/get-venue) object.
 </ResponseField>
 
 <ResponseField name="data.slots[].available_capacity" type="integer">
   How many bookings can still start at this slot — i.e. `min(free rooms, free
   qualified therapists)`. Always ≥ 1 for a returned slot.
-</ResponseField>
-
-<ResponseField name="data.out_of_hours_surcharge_percent" type="number">
-  The venue's out-of-hours surcharge rate (%). `0` when the venue does not allow
-  out-of-hours bookings. Applied to `out_of_hours` slots at booking time.
 </ResponseField>
 
 In **range** mode:
@@ -114,7 +110,6 @@ curl "https://api.saoma.io/v1/venues/lutetia-paris/availability?from=2026-06-20&
 {
   "data": {
     "date": "2026-06-20",
-    "out_of_hours_surcharge_percent": 20,
     "slots": [
       { "time": "08:00", "out_of_hours": true,  "available_capacity": 1 },
       { "time": "09:00", "out_of_hours": false, "available_capacity": 3 },
