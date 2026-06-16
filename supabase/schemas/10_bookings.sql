@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS "public"."bookings" (
     "client_type" "text" DEFAULT 'external'::"text" NOT NULL,
     "payment_reference" "text",
     "therapist_gender_preference" "text",
+    "external_reference" "text",
+    "external_id" "text",
     CONSTRAINT "bookings_client_type_check" CHECK (("client_type" = ANY (ARRAY['hotel'::"text", 'staycation'::"text", 'classpass'::"text", 'external'::"text"]))),
     CONSTRAINT "bookings_gift_amount_applied_cents_check" CHECK (("gift_amount_applied_cents" >= 0)),
     CONSTRAINT "bookings_payment_link_language_check" CHECK (("payment_link_language" = ANY (ARRAY['fr'::"text", 'en'::"text"]))),
@@ -103,6 +105,8 @@ CREATE INDEX "idx_bookings_bundle_usage" ON "public"."bookings" USING "btree" ("
 CREATE INDEX "idx_bookings_client_type_month" ON "public"."bookings" USING "btree" ("client_type", "booking_date") WHERE ("client_type" = ANY (ARRAY['hotel'::"text", 'staycation'::"text", 'classpass'::"text"]));
 
 CREATE INDEX "idx_bookings_customer" ON "public"."bookings" USING "btree" ("customer_id") WHERE ("customer_id" IS NOT NULL);
+
+CREATE UNIQUE INDEX "bookings_external_id_per_hotel_uniq" ON "public"."bookings" USING "btree" ("hotel_id", "external_id") WHERE ("external_id" IS NOT NULL);
 
 CREATE INDEX "idx_bookings_hold_expires_at" ON "public"."bookings" USING "btree" ("hold_expires_at") WHERE (("status" = 'awaiting_payment'::"text") AND ("hold_expires_at" IS NOT NULL));
 
