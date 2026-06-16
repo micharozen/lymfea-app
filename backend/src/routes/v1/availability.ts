@@ -9,8 +9,8 @@ import { resolveVenueIdentifier } from "./_helpers";
  * Thin adapter over the `get-availability` edge function (the single source of
  * truth for slot computation). Mounted at `/v1/venues/:id/availability`.
  *
- *   GET /v1/venues/:id/availability                       → whole-venue slots
- *   GET /v1/venues/:id/availability/treatments/:treatmentId → slots for one treatment
+ *   GET /v1/venues/:id/availability                    → whole-venue slots
+ *   GET /v1/venues/:id/availability/variants/:variantId → slots for one variant
  *
  * Both accept either:
  *   ?date=YYYY-MM-DD            → { data: { date, slots: ["09:00", …] } }
@@ -110,54 +110,45 @@ availability.get("/", requireScope("availability:read"), async (c) => {
   return respond(c, resolved.venueId, period);
 });
 
-// GET /v1/venues/:id/availability/treatments/:treatmentId — for one treatment.
-availability.get("/treatments/:treatmentId", requireScope("availability:read"), async (c) => {
+// GET /v1/venues/:id/availability/variants/:variantId — for one bookable variant.
+// A variant belongs to exactly one treatment, so its id is enough: we resolve
+// the treatment from it, assert the treatment belongs to the venue, and use the
+// variant's duration.
+availability.get("/variants/:variantId", requireScope("availability:read"), async (c) => {
   const resolved = await resolveVenueIdentifier(c, c.req.param("id") ?? "");
   if (resolved instanceof Response) return resolved;
 
   const period = parsePeriod(c);
   if ("error" in period) return c.json({ error: period.error }, 400);
 
-  const treatmentId = c.req.param("treatmentId") ?? "";
+  const variantId = c.req.param("variantId") ?? "";
 
-  // The treatment must belong to the resolved venue and be active.
-  const { data: treatment, error: tErr } = await supabaseAdmin
-    .from("treatment_menus")
-    .select("id, hotel_id, status, duration")
-    .eq("id", treatmentId)
-    .maybeSingle();
-  if (tErr) {
-    console.error("treatment lookup error:", tErr);
-    return c.json({ error: "Failed to verify treatment" }, 500);
-  }
-  if (!treatment || treatment.hotel_id !== resolved.venueId || treatment.status !== "active") {
-    return c.json({ error: "Treatment not found" }, 404);
-  }
-
-  // Resolve the overlap duration from the requested (or default) variant.
-  const variantId = c.req.query("variant_id");
-  const { data: variants } = await supabaseAdmin
+  // Resolve the variant + its parent treatment in one go.
+  const { data: variant, error: vErr } = await supabaseAdmin
     .from("treatment_variants")
-    .select("id, duration, is_default")
-    .eq("treatment_id", treatmentId)
-    .eq("status", "active");
+    .select("id, duration, status, treatment:treatment_menus!inner(id, hotel_id, status)")
+    .eq("id", variantId)
+    .maybeSingle();
+  if (vErr) {
+    console.error("variant lookup error:", vErr);
+    return c.json({ error: "Failed to verify variant" }, 500);
+  }
 
-  let requestedDuration = treatment.duration ?? undefined;
-  if (variants && variants.length > 0) {
-    let variant = variants.find((v) => v.is_default) ?? variants[0];
-    if (variantId) {
-      const match = variants.find((v) => v.id === variantId);
-      if (!match) return c.json({ error: "Variant not found" }, 404);
-      variant = match;
-    }
-    requestedDuration = variant.duration;
-  } else if (variantId) {
+  // Supabase types the embedded relation as an array; normalise to a single row.
+  const treatment = Array.isArray(variant?.treatment) ? variant?.treatment[0] : variant?.treatment;
+  const valid =
+    variant &&
+    variant.status === "active" &&
+    treatment &&
+    treatment.hotel_id === resolved.venueId &&
+    treatment.status === "active";
+  if (!valid) {
     return c.json({ error: "Variant not found" }, 404);
   }
 
   return respond(c, resolved.venueId, period, {
-    treatmentIds: [treatmentId],
-    ...(requestedDuration ? { requestedDuration } : {}),
+    treatmentIds: [treatment.id],
+    ...(variant.duration ? { requestedDuration: variant.duration } : {}),
   });
 });
 
