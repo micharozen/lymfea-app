@@ -3,7 +3,7 @@
 // next Thursday for a massage?"). Combines:
 //   - parsed_data (name, requested_date, requested_time, treatment hints)
 //   - the venue's treatment menu
-//   - real-time availability for the requested date (via check-availability)
+//   - real-time availability for the requested date (via get-availability)
 // and asks Claude Haiku to draft a professional, warm reply in the email's language.
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
@@ -316,7 +316,7 @@ async function checkAvailabilitySlots(
     requiredGuestCount: number;
   },
 ): Promise<string[]> {
-  const { data, error } = await supabase.functions.invoke("check-availability", {
+  const { data, error } = await supabase.functions.invoke("get-availability", {
     body,
   });
   if (error || !data) {

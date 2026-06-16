@@ -213,7 +213,7 @@ const ManageBooking = () => {
       const { data, error: invokeError } = await invokeEdgeFunction<
         Record<string, unknown>,
         { availableSlots?: string[] }
-      >("check-availability", {
+      >("get-availability", {
         skipAuth: true,
         body: {
           hotelId: booking.hotel_id,
@@ -225,7 +225,7 @@ const ManageBooking = () => {
 
       if (cancelled) return;
       if (invokeError) {
-        console.error("[ManageBooking] check-availability error:", invokeError);
+        console.error("[ManageBooking] get-availability error:", invokeError);
         setAvailableSlots([]);
       } else {
         setAvailableSlots(data?.availableSlots ?? []);

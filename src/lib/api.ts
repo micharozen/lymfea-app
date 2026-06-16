@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
  * MIGRATION STRATEGY:
  * 1. Start by moving Edge Functions to the backend one by one
  * 2. For each migrated function, change the frontend call from:
- *      invokeEdgeFunction('check-availability', { body: { hotelId, date } })
+ *      invokeEdgeFunction('get-availability', { body: { hotelId, date } })
  *    to:
  *      invokeApi('availability/check', { body: { hotelId, date } })
  * 3. Non-migrated functions continue to use invokeEdgeFunction() as before

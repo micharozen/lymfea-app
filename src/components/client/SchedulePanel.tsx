@@ -244,7 +244,7 @@ export function SchedulePanel({
       const today = new Date();
       const endDate = addDays(today, maxDaysAhead);
 
-      const { data, error } = await supabase.functions.invoke('check-availability-range', {
+      const { data, error } = await supabase.functions.invoke('get-availability', {
         body: {
           hotelId,
           startDate: format(today, 'yyyy-MM-dd'),
@@ -308,7 +308,7 @@ export function SchedulePanel({
       setNoTherapists(false);
       try {
         const treatmentIds = Array.from(new Set(baseItems.map((item) => item.id)));
-        const { data, error } = await supabase.functions.invoke('check-availability', {
+        const { data, error } = await supabase.functions.invoke('get-availability', {
           body: {
             hotelId,
             date: selectedDate,

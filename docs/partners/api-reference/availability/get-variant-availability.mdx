@@ -1,0 +1,92 @@
+---
+title: "Get variant availability"
+api: "GET /v1/venues/{venue_id}/availability/variants/{variant_id}"
+description: "Real-time bookable slots for a specific treatment variant."
+---
+
+Same as [Get venue availability](/api-reference/availability/get-availability),
+but restricted to a single bookable [variant](/concepts/treatments) (a
+duration × price option of a treatment). Slots are computed with that variant's
+duration, and only therapists qualified for its treatment are considered, so the
+result is a subset of the whole-venue availability. Requires the
+`availability:read` scope.
+
+<Tip>
+  A variant belongs to exactly one treatment, so the `variant_id` is all you
+  need — no `treatment_id` is required. Variant ids are returned (with their
+  `duration` and `is_default` flag) by
+  [`GET /v1/venues/{venue_id}/treatments`](/api-reference/venues/list-treatments).
+</Tip>
+
+## Path parameters
+
+<ParamField path="venue_id" type="string" required>
+  The venue id or slug.
+</ParamField>
+
+<ParamField path="variant_id" type="string" required>
+  The variant id. Its parent treatment must belong to the venue.
+</ParamField>
+
+## Query parameters
+
+<ParamField query="date" type="string (ISO date)">
+  A single day, `YYYY-MM-DD`. Mutually exclusive with `from`/`to`.
+</ParamField>
+
+<ParamField query="from" type="string (ISO date)">
+  Start of the range, inclusive. Requires `to`.
+</ParamField>
+
+<ParamField query="to" type="string (ISO date)">
+  End of the range, inclusive. Max `from + 62 days`.
+</ParamField>
+
+You must provide **either** `date` **or** both `from` and `to`.
+
+## Response
+
+Same shape as [Get venue availability](/api-reference/availability/get-availability)
+— `{ data: { date, slots } }` in single-day mode, `{ data: { from, to, days } }`
+in range mode — plus the echoed identifiers `venue_id`, `treatment_id` (the
+variant's parent treatment) and `variant_id`.
+
+## Errors
+
+| HTTP | Body                                  | Meaning                                          |
+| ---- | ------------------------------------- | ------------------------------------------------ |
+| 400  | `{ "error": "Provide \`date\` or \`from\`/\`to\`" }` | Missing or conflicting period params |
+| 403  | `{ "error": "Forbidden" }`            | Your key is scoped to another venue/org          |
+| 404  | `{ "error": "Venue not found" }`      | Unknown venue                                    |
+| 404  | `{ "error": "Variant not found" }`    | Unknown variant, or its treatment is not in the venue |
+
+## Example
+
+<RequestExample>
+
+```bash curl
+curl "https://api.saoma.io/v1/venues/lutetia-paris/availability/variants/b2d3f4a5-6789-4abc-def0-123456789abc?date=2026-06-20" \
+  -H "Authorization: Bearer $SAOMA_API_KEY"
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "data": {
+    "venue_id": "8a276fea-1b85-4189-912c-01c9eea6ce75",
+    "treatment_id": "a1c2e3f4-5678-49ab-cdef-0123456789ab",
+    "variant_id": "b2d3f4a5-6789-4abc-def0-123456789abc",
+    "date": "2026-06-20",
+    "slots": [
+      { "time": "09:00", "out_of_hours": false, "available_capacity": 2 },
+      { "time": "09:30", "out_of_hours": false, "available_capacity": 1 },
+      { "time": "14:00", "out_of_hours": false, "available_capacity": 2 }
+    ]
+  }
+}
+```
+
+</ResponseExample>

@@ -57,7 +57,7 @@ const minutesToTime = (minutes: number): string => {
 /**
  * Determines which add-ons can be chained right after the base slot.
  * Runs two stages: (1) fetch add-on candidates per base item via RPC,
- * (2) for each candidate call `check-availability` and verify a slot ≥ slotEndTime
+ * (2) for each candidate call `get-availability` and verify a slot ≥ slotEndTime
  * exists within 30 minutes tolerance.
  */
 export function useFeasibleAddons({
@@ -133,7 +133,7 @@ export function useFeasibleAddons({
         const checks = await Promise.all(
           Array.from(candidatesByAddon.values()).map(async ({ addon, parent }) => {
             try {
-              const { data, error } = await supabase.functions.invoke('check-availability', {
+              const { data, error } = await supabase.functions.invoke('get-availability', {
                 body: { hotelId, date, treatmentIds: [addon.id] },
               });
               if (error) return null;

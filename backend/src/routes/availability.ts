@@ -4,7 +4,7 @@ import { supabaseAdmin } from "../lib/supabase";
 /**
  * Availability routes — public (no auth required).
  *
- * Migrated from: supabase/functions/check-availability/index.ts
+ * Migrated from: supabase/functions/get-availability/index.ts
  *
  * MIGRATION NOTE:
  * This is a 1:1 port of the Edge Function. The logic is identical.

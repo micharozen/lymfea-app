@@ -7,6 +7,7 @@ import {
   scopedOrgId,
 } from "./_helpers";
 import customers from "./customers";
+import availability from "./availability";
 
 /**
  * Public external API (v1) for third-party applications.
@@ -92,5 +93,8 @@ v1.get("/venues/:id/treatments", requireScope("treatments:read"), async (c) => {
 
 // Nested customer endpoints.
 v1.route("/venues/:slug/customers", customers);
+
+// Nested availability endpoints (whole-venue + per-treatment).
+v1.route("/venues/:id/availability", availability);
 
 export default v1;

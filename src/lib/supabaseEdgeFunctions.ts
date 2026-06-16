@@ -67,7 +67,7 @@ const BACKEND_URL = import.meta.env.VITE_API_URL || "";
 
 const migratedFunctions: Record<string, string> = {
   // Uncomment as you migrate each function:
-  // "check-availability": "/availability/check",
+  // "get-availability": "/availability/check",
   // "finalize-payment": "/payments/finalize",
   // "create-checkout-session": "/payments/checkout",
   // "charge-saved-card": "/payments/charge-card",
@@ -92,8 +92,8 @@ const migratedFunctions: Record<string, string> = {
  * @returns Promise with data and error
  *
  * @example
- * // This call works whether check-availability is on Supabase or Hono:
- * const { data, error } = await invokeEdgeFunction('check-availability', {
+ * // This call works whether get-availability is on Supabase or Hono:
+ * const { data, error } = await invokeEdgeFunction('get-availability', {
  *   body: { hotelId, date },
  *   skipAuth: true
  * });
