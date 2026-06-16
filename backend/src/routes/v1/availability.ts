@@ -77,8 +77,19 @@ async function respond(
       console.error("get-availability invoke error:", error);
       return c.json({ error: "Availability service error" }, 502);
     }
+    const slots = (data?.slots ?? []).map(
+      (s: { time: string; out_of_hours: boolean; available_capacity: number }) => ({
+        time: toHm(s.time),
+        out_of_hours: s.out_of_hours,
+        available_capacity: s.available_capacity,
+      }),
+    );
     return c.json({
-      data: { date: period.date, slots: (data?.availableSlots ?? []).map(toHm) },
+      data: {
+        date: period.date,
+        slots,
+        out_of_hours_surcharge_percent: data?.out_of_hours_surcharge_percent ?? 0,
+      },
     });
   }
 

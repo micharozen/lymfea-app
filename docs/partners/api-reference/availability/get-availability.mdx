@@ -49,9 +49,28 @@ In **single-day** mode:
   The requested day.
 </ResponseField>
 
-<ResponseField name="data.slots" type="string[]">
-  Bookable start times for that day, in the venue's local time, format `HH:MM`,
-  aligned on the venue's `slot_interval`. See [Availability](/concepts/availability).
+<ResponseField name="data.slots" type="Slot[]">
+  Bookable slots for that day. See [Availability](/concepts/availability).
+</ResponseField>
+
+<ResponseField name="data.slots[].time" type="string">
+  Start time in the venue's local time, format `HH:MM`, aligned on the venue's
+  `slot_interval`.
+</ResponseField>
+
+<ResponseField name="data.slots[].out_of_hours" type="boolean">
+  `true` when the slot starts outside the venue's posted opening hours. Booking
+  it applies the out-of-hours surcharge (see `out_of_hours_surcharge_percent`).
+</ResponseField>
+
+<ResponseField name="data.slots[].available_capacity" type="integer">
+  How many bookings can still start at this slot — i.e. `min(free rooms, free
+  qualified therapists)`. Always ≥ 1 for a returned slot.
+</ResponseField>
+
+<ResponseField name="data.out_of_hours_surcharge_percent" type="number">
+  The venue's out-of-hours surcharge rate (%). `0` when the venue does not allow
+  out-of-hours bookings. Applied to `out_of_hours` slots at booking time.
 </ResponseField>
 
 In **range** mode:
@@ -95,7 +114,13 @@ curl "https://api.saoma.io/v1/venues/lutetia-paris/availability?from=2026-06-20&
 {
   "data": {
     "date": "2026-06-20",
-    "slots": ["09:00", "09:30", "10:00", "14:00", "14:30"]
+    "out_of_hours_surcharge_percent": 20,
+    "slots": [
+      { "time": "08:00", "out_of_hours": true,  "available_capacity": 1 },
+      { "time": "09:00", "out_of_hours": false, "available_capacity": 3 },
+      { "time": "09:30", "out_of_hours": false, "available_capacity": 2 },
+      { "time": "14:00", "out_of_hours": false, "available_capacity": 3 }
+    ]
   }
 }
 ```

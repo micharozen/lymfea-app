@@ -74,7 +74,12 @@ curl "https://api.saoma.io/v1/venues/lutetia-paris/availability/treatments/a1c2e
 {
   "data": {
     "date": "2026-06-20",
-    "slots": ["09:00", "09:30", "14:00"]
+    "out_of_hours_surcharge_percent": 20,
+    "slots": [
+      { "time": "09:00", "out_of_hours": false, "available_capacity": 2 },
+      { "time": "09:30", "out_of_hours": false, "available_capacity": 1 },
+      { "time": "14:00", "out_of_hours": false, "available_capacity": 2 }
+    ]
   }
 }
 ```

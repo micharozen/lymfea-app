@@ -12,12 +12,25 @@ a single treatment
 
 ## Slots
 
-A **slot** is a bookable start time at a venue, expressed in the venue's **local
-time** as an `HH:MM` string. Slots are always aligned on the venue's
-`slot_interval` (typically every 30 minutes), starting at the `opening_time`.
+A **slot** is a bookable start time at a venue. Each slot carries:
+
+- `time` — start time in the venue's **local time**, `HH:MM`, aligned on the
+  venue's `slot_interval` (typically every 30 minutes).
+- `out_of_hours` — `true` when the slot starts outside the posted opening hours;
+  booking it applies the venue's `out_of_hours_surcharge_percent`.
+- `available_capacity` — how many bookings can still start at this slot, i.e.
+  `min(free rooms, free qualified therapists)`. A venue with several treatment
+  rooms can take several simultaneous bookings on the same slot.
 
 ```json
-{ "date": "2026-06-20", "slots": ["09:00", "09:30", "10:00"] }
+{
+  "date": "2026-06-20",
+  "out_of_hours_surcharge_percent": 20,
+  "slots": [
+    { "time": "08:00", "out_of_hours": true,  "available_capacity": 1 },
+    { "time": "09:00", "out_of_hours": false, "available_capacity": 3 }
+  ]
+}
 ```
 
 Use the `timezone` field on the parent [Venue](/concepts/venues) to convert a

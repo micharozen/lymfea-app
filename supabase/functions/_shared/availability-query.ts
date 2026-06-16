@@ -13,8 +13,8 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import {
   ACTIVE_BOOKING_STATUS_FILTER,
+  computeSlotCapacity,
   filterQualifiedTherapists,
-  isSlotAvailable,
   timeToMinutes,
   type TherapistShift,
 } from "./availability.ts";
@@ -32,11 +32,22 @@ export interface VenueAvailabilityOptions {
   pendingHolds?: Array<{ date: string; time: string; duration: number }>;
 }
 
+export interface SlotInfo {
+  /** Venue-local start time, "HH:MM:SS". */
+  time: string;
+  /** True when the slot starts outside the venue's posted opening hours (surcharged). */
+  outOfHours: boolean;
+  /** Simultaneous bookings still possible at this slot = min(free rooms, free therapists). */
+  capacity: number;
+}
+
 export interface VenueAvailabilityResult {
-  /** date (YYYY-MM-DD, venue-local) → available slots ("HH:MM:SS"). Only deployed dates appear. */
-  slotsByDate: Map<string, string[]>;
+  /** date (YYYY-MM-DD, venue-local) → available slots. Only deployed dates appear. */
+  slotsByDate: Map<string, SlotInfo[]>;
   /** Subset of the requested dates on which the venue is deployed. */
   deployedDates: Set<string>;
+  /** Out-of-hours surcharge rate (%), or 0 when the venue disallows out-of-hours bookings. */
+  surchargePercent: number;
 }
 
 /**
@@ -52,11 +63,11 @@ export async function getVenueAvailability(
   dates: string[],
   opts: VenueAvailabilityOptions = {},
 ): Promise<VenueAvailabilityResult> {
-  const slotsByDate = new Map<string, string[]>();
+  const slotsByDate = new Map<string, SlotInfo[]>();
   const requiredGuestCount = Math.max(1, opts.requiredGuestCount || 1);
 
   if (dates.length === 0) {
-    return { slotsByDate, deployedDates: new Set() };
+    return { slotsByDate, deployedDates: new Set(), surchargePercent: 0 };
   }
 
   const sorted = [...dates].sort();
@@ -71,13 +82,13 @@ export async function getVenueAvailability(
   if (deployedErr) console.error("get_venue_available_dates error:", deployedErr);
   const deployedDates = new Set<string>((deployed as string[] | null) || []);
   const activeDates = dates.filter((d) => deployedDates.has(d));
-  if (activeDates.length === 0) return { slotsByDate, deployedDates };
+  if (activeDates.length === 0) return { slotsByDate, deployedDates, surchargePercent: 0 };
 
   // 2. Venue config.
   const { data: hotelData } = await supabase
     .from("hotels")
     .select(
-      "opening_time, closing_time, slot_interval, inter_venue_buffer_minutes, room_turnover_buffer_minutes, min_booking_notice_minutes, timezone, allow_out_of_hours_booking",
+      "opening_time, closing_time, slot_interval, inter_venue_buffer_minutes, room_turnover_buffer_minutes, min_booking_notice_minutes, timezone, allow_out_of_hours_booking, out_of_hours_surcharge_percent",
     )
     .eq("id", hotelId)
     .single();
@@ -97,6 +108,10 @@ export async function getVenueAvailability(
   const travelBuffer = hotelData?.inter_venue_buffer_minutes ?? 0;
   const minBookingNotice = hotelData?.min_booking_notice_minutes ?? 0;
   const venueTz = hotelData?.timezone || "UTC";
+  // Surcharge only applies when the venue actually allows out-of-hours bookings.
+  const surchargePercent = allowOutOfHours
+    ? Number(hotelData?.out_of_hours_surcharge_percent ?? 0) || 0
+    : 0;
 
   // 3. Treatments → max lead time, max duration, required skill categories.
   let maxTreatmentLeadTime = 0;
@@ -152,7 +167,7 @@ export async function getVenueAvailability(
   // No rooms or no qualified therapists → every deployed date is empty.
   if (rooms.length === 0 || therapistIds.length === 0) {
     for (const d of activeDates) slotsByDate.set(d, []);
-    return { slotsByDate, deployedDates };
+    return { slotsByDate, deployedDates, surchargePercent };
   }
 
   // 6. Therapist schedules over the range.
@@ -290,14 +305,16 @@ export async function getVenueAvailability(
       }
     }
 
-    const slots = timeSlots.filter((slot) => {
-      if (isSlotInBlockedRange(slot, dow)) return false;
+    const slots: SlotInfo[] = [];
+    for (const slot of timeSlots) {
+      if (isSlotInBlockedRange(slot, dow)) continue;
       const slotMinutes = timeToMinutes(slot);
       // Never offer a slot in the past for today (venue-local).
-      if (date === todayStr && slotMinutes <= nowMinutes) return false;
-      if (earliestSlotMinutes >= 0 && slotMinutes < earliestSlotMinutes) return false;
-      if (slotMinutes + requestedDuration > closingMinutes) return false;
-      return isSlotAvailable({
+      if (date === todayStr && slotMinutes <= nowMinutes) continue;
+      if (earliestSlotMinutes >= 0 && slotMinutes < earliestSlotMinutes) continue;
+      if (slotMinutes + requestedDuration > closingMinutes) continue;
+
+      const { capacity } = computeSlotCapacity({
         slot,
         requestedDuration,
         roomTurnoverBuffer,
@@ -310,11 +327,20 @@ export async function getVenueAvailability(
         travelBuffer,
         requiredGuestCount,
       });
-    });
+      if (capacity < requiredGuestCount) continue;
+
+      slots.push({
+        time: slot,
+        // Out-of-hours = starts outside the venue's posted (non-widened) hours.
+        // Mirrors isOutOfHours() in _shared/surcharge.ts.
+        outOfHours: slotMinutes < baseOpening || slotMinutes >= baseClosing,
+        capacity,
+      });
+    }
     slotsByDate.set(date, slots);
   }
 
-  return { slotsByDate, deployedDates };
+  return { slotsByDate, deployedDates, surchargePercent };
 }
 
 /** Enumerate venue-local YYYY-MM-DD dates from `startDate` to `endDate` inclusive. */
