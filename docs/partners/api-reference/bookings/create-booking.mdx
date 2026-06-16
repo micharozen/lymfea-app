@@ -1,64 +1,61 @@
 ---
 title: "Create a booking"
-api: "POST /v1/bookings"
+api: "POST /v1/venues/{venue_id}/bookings"
 description: "Push a new booking into a venue's agenda."
-tag: "Coming soon"
 ---
 
-<Warning>
-  **Not yet available.** This endpoint is not implemented in the API yet. The
-  specification below is a preview and may change before release. Contact the
-  Saoma team if you need it.
-</Warning>
-
 Creates a booking at a specific slot. Saoma atomically reserves a treatment
-room and assigns a therapist; if the slot is still available, the booking is
-created and the customer is notified by email.
+room; if the slot is still available, the booking is created as `pending` and
+broadcast to the venue's therapists. Requires the `bookings:write` scope.
+
+<Note>
+  The booking is **not confirmed synchronously**. It is created as `pending`
+  and confirmed once a therapist accepts the broadcast. Confirmation will be
+  delivered via webhooks (coming soon); until then, the partner is responsible
+  for tracking the outcome.
+</Note>
 
 <Warning>
-  This call is idempotent on `external_reference`. Sending the same
-  `external_reference` twice returns the original booking instead of
-  creating a duplicate. Always set it to a stable id on your side.
+  This call is idempotent on `external_id`. Sending the same `external_id`
+  twice for the same venue returns the original booking instead of creating a
+  duplicate. Set it to a stable id on your side.
 </Warning>
+
+## Path parameters
+
+<ParamField path="venue_id" type="string" required>
+  The venue id (UUID) or slug.
+</ParamField>
 
 ## Body parameters
 
-<ParamField body="venue_id" type="string" required>
-  Target venue.
-</ParamField>
-
-<ParamField body="treatment_id" type="string" required>
-  Treatment to book.
-</ParamField>
-
-<ParamField body="variant_id" type="string">
-  Specific variant. Defaults to the variant marked `is_default: true`.
+<ParamField body="variant_id" type="string" required>
+  The bookable variant (UUID), as returned by
+  `GET /v1/venues/{venue_id}/treatments`. The parent treatment and the duration
+  are resolved from it.
 </ParamField>
 
 <ParamField body="start_at" type="string (ISO 8601 UTC)" required>
-  Start time of the slot, as returned by `GET /v1/availability`.
+  Start time of the slot, as an absolute instant. Converted to the venue's
+  local time using the venue timezone. Must be in the future.
 </ParamField>
 
 <ParamField body="guest_count" type="integer" default="1">
-  Number of guests. Must match the chosen variant's `guest_count`.
+  Number of guests (1–20).
 </ParamField>
 
 <ParamField body="guest" type="Guest" required>
   <Expandable title="Guest fields">
     <ParamField body="guest.first_name" type="string" required />
     <ParamField body="guest.last_name" type="string" required />
-    <ParamField body="guest.email" type="string" required>
-      Valid email. Used for customer-facing notifications.
+    <ParamField body="guest.email" type="string">
+      Valid email. Optional, used for customer-facing notifications.
     </ParamField>
     <ParamField body="guest.phone" type="string" required>
       Phone in E.164 format (e.g. `+33612345678`).
     </ParamField>
     <ParamField body="guest.language" type="'fr' | 'en'" default="fr">
       Preferred language for notifications.
-    </ParamField>
-    <ParamField body="guest.room_number" type="string">
-      Room number, only valid for venues with `type = 'hotel'`. Ignored
-      otherwise.
     </ParamField>
   </Expandable>
 </ParamField>
@@ -68,47 +65,53 @@ created and the customer is notified by email.
   chars.
 </ParamField>
 
-<ParamField body="external_reference" type="string" required>
-  Your own stable identifier for this booking. Used for idempotency and for
-  reconciliation.
+<ParamField body="external_reference" type="string">
+  Provenance of the booking, formatted `source.XXXX` (e.g.
+  `staycation.ABC123`). The prefix before the `.` is lower-cased and, when it
+  matches a known type (`staycation`, `classpass`, `hotel`), stored as the
+  booking's `client_type`; otherwise `client_type` is `external`.
 </ParamField>
 
-<ParamField body="price_paid" type="Money">
-  Amount charged by the partner to the customer, for reconciliation.
-  `{ amount: integer, currency: "EUR" }`.
+<ParamField body="external_id" type="string">
+  Your own technical reference for this request. Used as the **idempotency
+  key** (unique per venue).
+</ParamField>
+
+<ParamField body="price_paid" type="Money" required>
+  Amount you charged the customer, in **major units** (e.g. `120.00` for €120).
+  Stored as the booking's authoritative `total_price` — it is trusted as-is and
+  may differ from Saoma's own price. `{ amount: number, currency: "EUR" }`. The
+  currency must match the venue currency.
 </ParamField>
 
 ## Response
 
-Returns the created [Booking](/concepts/bookings). Status is typically
-`confirmed` (therapist assigned immediately) but can be `awaiting_therapist`
-for venues that broadcast to their pool.
+Returns the created booking with `status: "pending"`. `total_price` echoes the
+`price_paid` you sent. `payment_method` is `partner_billed` and `payment_status`
+is `paid`.
 
 ## Errors
 
-| Code                      | HTTP | Meaning                                                          |
-| ------------------------- | ---- | ---------------------------------------------------------------- |
-| `VALIDATION_ERROR`        | 400  | Missing or malformed fields                                      |
-| `INVALID_GUEST_DATA`      | 400  | Guest payload inconsistent (e.g. bad email/phone format)        |
-| `VENUE_NOT_FOUND`         | 404  | Unknown `venue_id`                                               |
-| `TREATMENT_NOT_FOUND`     | 404  | Unknown `treatment_id` for this venue                            |
-| `TREATMENT_NOT_AVAILABLE` | 422  | Treatment disabled, or not bookable on that day                  |
-| `OUT_OF_OPENING_HOURS`    | 422  | Slot outside the venue's opening hours                           |
-| `LEAD_TIME_NOT_MET`       | 422  | Slot is too close to "now" for this treatment                    |
-| `SLOT_TAKEN`              | 409  | Slot is no longer available (race condition — retry another slot)|
+| HTTP | Body                                          | Meaning                                                |
+| ---- | --------------------------------------------- | ------------------------------------------------------ |
+| 400  | `{ "error": "…" }`                            | Missing or malformed fields                            |
+| 403  | `{ "error": "Insufficient scope" }`           | Key lacks `bookings:write`                              |
+| 403  | `{ "error": "Forbidden" }`                    | Venue belongs to another organization                  |
+| 404  | `{ "error": "Variant not found" }`            | Unknown variant, or not bookable for this venue        |
+| 409  | `{ "error": "slot_unavailable" }`             | Slot is no longer available (retry another slot)       |
+| 409  | `{ "error": "duplicate_external_id" }`        | Concurrent request with the same `external_id`         |
+| 422  | `{ "error": "price_paid.currency must … " }`  | `price_paid.currency` ≠ venue currency                 |
 
 ## Example
 
 <RequestExample>
 
 ```bash curl
-curl -X POST https://api.saoma.io/v1/bookings \
+curl -X POST https://api.saoma.io/v1/venues/8f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718/bookings \
   -H "Authorization: Bearer $SAOMA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "venue_id": "hot_lutetia_paris",
-    "treatment_id": "trt_swedish_60",
-    "variant_id": "var_swedish_60",
+    "variant_id": "c3e4a5b6-789a-4bcd-ef01-23456789abcd",
     "start_at": "2026-05-12T12:00:00Z",
     "guest_count": 1,
     "guest": {
@@ -119,35 +122,38 @@ curl -X POST https://api.saoma.io/v1/bookings \
       "language": "fr"
     },
     "notes": "Préférence pression moyenne.",
-    "external_reference": "STAYCATION-ABC123",
-    "price_paid": { "amount": 12000, "currency": "EUR" }
+    "external_reference": "staycation.ABC123",
+    "external_id": "STAYCATION-ABC123",
+    "price_paid": { "amount": 120.00, "currency": "EUR" }
   }'
 ```
 
 ```javascript Node.js
-const res = await fetch("https://api.saoma.io/v1/bookings", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${process.env.SAOMA_API_KEY}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    venue_id: "hot_lutetia_paris",
-    treatment_id: "trt_swedish_60",
-    variant_id: "var_swedish_60",
-    start_at: "2026-05-12T12:00:00Z",
-    guest_count: 1,
-    guest: {
-      first_name: "Marie",
-      last_name: "Durand",
-      email: "marie@example.com",
-      phone: "+33612345678",
-      language: "fr",
+const res = await fetch(
+  "https://api.saoma.io/v1/venues/8f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718/bookings",
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.SAOMA_API_KEY}`,
+      "Content-Type": "application/json",
     },
-    external_reference: "STAYCATION-ABC123",
-    price_paid: { amount: 12000, currency: "EUR" },
-  }),
-});
+    body: JSON.stringify({
+      variant_id: "c3e4a5b6-789a-4bcd-ef01-23456789abcd",
+      start_at: "2026-05-12T12:00:00Z",
+      guest_count: 1,
+      guest: {
+        first_name: "Marie",
+        last_name: "Durand",
+        email: "marie@example.com",
+        phone: "+33612345678",
+        language: "fr",
+      },
+      external_reference: "staycation.ABC123",
+      external_id: "STAYCATION-ABC123",
+      price_paid: { amount: 120.0, currency: "EUR" },
+    }),
+  }
+);
 if (!res.ok) throw await res.json();
 const { data: booking } = await res.json();
 ```
@@ -159,46 +165,22 @@ const { data: booking } = await res.json();
 ```json 201
 {
   "data": {
-    "id": "bkg_7f1a9c3b8d4e4f21",
+    "id": "7f1a9c3b-8d4e-4f21-a1b2-c3d4e5f60718",
     "booking_number": 4832,
-    "status": "confirmed",
-    "venue_id": "hot_lutetia_paris",
-    "treatment_id": "trt_swedish_60",
-    "variant_id": "var_swedish_60",
+    "status": "pending",
     "start_at": "2026-05-12T12:00:00Z",
-    "end_at": "2026-05-12T13:00:00Z",
-    "duration": 60,
+    "variant_id": "c3e4a5b6-789a-4bcd-ef01-23456789abcd",
     "guest_count": 1,
-    "guest": {
-      "first_name": "Marie",
-      "last_name": "Durand",
-      "email": "marie@example.com",
-      "phone": "+33612345678",
-      "language": "fr"
-    },
-    "therapist": { "id": "thp_amelie", "assigned_at": "2026-04-22T13:05:12Z" },
-    "notes": "Préférence pression moyenne.",
-    "external_reference": "STAYCATION-ABC123",
-    "price": { "amount": 12000, "currency": "EUR" },
-    "client_type": "partner",
-    "payment_method": "partner_billed",
-    "payment_status": "pending_partner_billing",
-    "created_at": "2026-04-22T13:05:10Z",
-    "confirmation_url": "https://app.lymfea.com/booking/confirmation/bkg_7f1a9c3b8d4e4f21"
+    "external_reference": "staycation.ABC123",
+    "external_id": "STAYCATION-ABC123",
+    "total_price": { "amount": 120.0, "currency": "EUR" }
   }
 }
 ```
 
-```json 409 SLOT_TAKEN
+```json 409
 {
-  "error": {
-    "code": "SLOT_TAKEN",
-    "message": "The requested slot is no longer available.",
-    "details": {
-      "venue_id": "hot_lutetia_paris",
-      "start_at": "2026-05-12T12:00:00Z"
-    }
-  }
+  "error": "slot_unavailable"
 }
 ```
 
