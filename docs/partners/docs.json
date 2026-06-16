@@ -71,7 +71,7 @@
                 "icon": "calendar-days",
                 "pages": [
                   "api-reference/availability/get-availability",
-                  "api-reference/availability/get-treatment-availability"
+                  "api-reference/availability/get-variant-availability"
                 ]
               },
               {

@@ -8,7 +8,7 @@ Availability is computed in real-time from the venue's schedule, staff roster
 and existing bookings. You can query it for a whole venue
 ([Get venue availability](/api-reference/availability/get-availability)) or for
 a single treatment
-([Get treatment availability](/api-reference/availability/get-treatment-availability)).
+([Get variant availability](/api-reference/availability/get-variant-availability)).
 
 ## Slots
 
@@ -53,10 +53,10 @@ A start time is returned as available only if **all** of the following are true:
 6. The slot does not fall inside a **blocked time range** configured by the
    venue (lunch break, maintenance, etc.).
 
-When you query for a whole venue (no treatment), the slot duration defaults to
-the venue's `slot_interval` and the therapist skill filter is not applied. When
-you query for a treatment, its duration (or the selected variant's) and required
-skills are used — so treatment availability is always a subset of the venue's.
+When you query for a whole venue, the slot duration defaults to the venue's
+`slot_interval` and the therapist skill filter is not applied. When you query
+for a specific variant, its duration and the required skills of its treatment
+are used — so variant availability is always a subset of the venue's.
 
 <Note>
   Because availability depends on live data, a slot returned here may be taken by
