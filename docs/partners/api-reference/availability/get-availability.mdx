@@ -43,6 +43,10 @@ You must provide **either** `date` **or** both `from` and `to`.
 
 ## Response
 
+<ResponseField name="data.venue_id" type="string">
+  The canonical venue id, echoed back (even when the request used a slug).
+</ResponseField>
+
 In **single-day** mode:
 
 <ResponseField name="data.date" type="string (ISO date)">
@@ -109,6 +113,7 @@ curl "https://api.saoma.io/v1/venues/lutetia-paris/availability?from=2026-06-20&
 ```json Single day
 {
   "data": {
+    "venue_id": "8a276fea-1b85-4189-912c-01c9eea6ce75",
     "date": "2026-06-20",
     "slots": [
       { "time": "08:00", "out_of_hours": true,  "available_capacity": 1 },
@@ -123,6 +128,7 @@ curl "https://api.saoma.io/v1/venues/lutetia-paris/availability?from=2026-06-20&
 ```json Range
 {
   "data": {
+    "venue_id": "8a276fea-1b85-4189-912c-01c9eea6ce75",
     "from": "2026-06-20",
     "to": "2026-06-30",
     "days": ["2026-06-20", "2026-06-21", "2026-06-24"]

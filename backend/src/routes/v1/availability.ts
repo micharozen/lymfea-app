@@ -68,6 +68,9 @@ async function respond(
   hotelId: string,
   period: Extract<Period, { mode: string }>,
   extra: { treatmentIds?: string[]; requestedDuration?: number } = {},
+  // Identifiers echoed back at the top of `data` so the response is
+  // self-describing (e.g. venue_id, variant_id, treatment_id).
+  meta: Record<string, string> = {},
 ) {
   if (period.mode === "date") {
     const { data, error } = await supabaseAdmin.functions.invoke("get-availability", {
@@ -84,7 +87,7 @@ async function respond(
         available_capacity: s.available_capacity,
       }),
     );
-    return c.json({ data: { date: period.date, slots } });
+    return c.json({ data: { ...meta, date: period.date, slots } });
   }
 
   const { data, error } = await supabaseAdmin.functions.invoke("get-availability", {
@@ -95,7 +98,7 @@ async function respond(
     return c.json({ error: "Availability service error" }, 502);
   }
   return c.json({
-    data: { from: period.from, to: period.to, days: data?.daysWithSlots ?? [] },
+    data: { ...meta, from: period.from, to: period.to, days: data?.daysWithSlots ?? [] },
   });
 }
 
@@ -107,7 +110,7 @@ availability.get("/", requireScope("availability:read"), async (c) => {
   const period = parsePeriod(c);
   if ("error" in period) return c.json({ error: period.error }, 400);
 
-  return respond(c, resolved.venueId, period);
+  return respond(c, resolved.venueId, period, {}, { venue_id: resolved.venueId });
 });
 
 // GET /v1/venues/:id/availability/variants/:variantId — for one bookable variant.
@@ -146,10 +149,16 @@ availability.get("/variants/:variantId", requireScope("availability:read"), asyn
     return c.json({ error: "Variant not found" }, 404);
   }
 
-  return respond(c, resolved.venueId, period, {
-    treatmentIds: [treatment.id],
-    ...(variant.duration ? { requestedDuration: variant.duration } : {}),
-  });
+  return respond(
+    c,
+    resolved.venueId,
+    period,
+    {
+      treatmentIds: [treatment.id],
+      ...(variant.duration ? { requestedDuration: variant.duration } : {}),
+    },
+    { venue_id: resolved.venueId, treatment_id: treatment.id, variant_id: variantId },
+  );
 });
 
 export default availability;

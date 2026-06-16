@@ -46,9 +46,10 @@ You must provide **either** `date` **or** both `from` and `to`.
 
 ## Response
 
-Identical shape to [Get venue availability](/api-reference/availability/get-availability):
-`{ data: { date, slots } }` in single-day mode, `{ data: { from, to, days } }`
-in range mode.
+Same shape as [Get venue availability](/api-reference/availability/get-availability)
+— `{ data: { date, slots } }` in single-day mode, `{ data: { from, to, days } }`
+in range mode — plus the echoed identifiers `venue_id`, `treatment_id` (the
+variant's parent treatment) and `variant_id`.
 
 ## Errors
 
@@ -75,6 +76,9 @@ curl "https://api.saoma.io/v1/venues/lutetia-paris/availability/variants/b2d3f4a
 ```json 200
 {
   "data": {
+    "venue_id": "8a276fea-1b85-4189-912c-01c9eea6ce75",
+    "treatment_id": "a1c2e3f4-5678-49ab-cdef-0123456789ab",
+    "variant_id": "b2d3f4a5-6789-4abc-def0-123456789abc",
     "date": "2026-06-20",
     "slots": [
       { "time": "09:00", "out_of_hours": false, "available_capacity": 2 },
