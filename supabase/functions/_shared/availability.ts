@@ -69,7 +69,20 @@ export const doesBookingBlockSlot = (
   return slotStart < bookingEnd && slotEnd > bookingStart;
 };
 
-export function isSlotAvailable(input: SlotAvailabilityInput): boolean {
+export interface SlotCapacity {
+  /** Free room capacity at the slot, net of overlapping pending holds. */
+  rooms: number;
+  /** Free, scheduled, qualified therapists, net of overlapping pending holds. */
+  therapists: number;
+  /** Simultaneous bookings still possible = min(rooms, therapists), clamped to >= 0. */
+  capacity: number;
+}
+
+// Effective bookable capacity at a slot. A booking needs BOTH a free room and a
+// free therapist, so the number of simultaneous bookings still possible is the
+// min of the two (never over-counts). `isSlotAvailable` is just this compared to
+// the requested guest count — keeping one source of truth for both.
+export function computeSlotCapacity(input: SlotAvailabilityInput): SlotCapacity {
   const {
     slot,
     requestedDuration,
@@ -81,7 +94,6 @@ export function isSlotAvailable(input: SlotAvailabilityInput): boolean {
     scheduleByTherapist,
     crossVenueBookings = [],
     travelBuffer = 0,
-    requiredGuestCount,
   } = input;
 
   const slotStart = timeToMinutes(slot);
@@ -111,10 +123,8 @@ export function isSlotAvailable(input: SlotAvailabilityInput): boolean {
     return slotStart < he && slotEnd > hs;
   }).length;
 
-  if (freeRoomCapacity - overlappingHolds < requiredGuestCount) return false;
-
-  // Therapist check: at least requiredGuestCount therapists must be free,
-  // scheduled in shift, and not blocked by cross-venue travel buffer.
+  // At least one therapist must be free, scheduled in shift, and not blocked by
+  // the cross-venue travel buffer.
   const busyTherapists = new Set(
     blocking
       .map((b) => b.therapist_id)
@@ -143,7 +153,13 @@ export function isSlotAvailable(input: SlotAvailabilityInput): boolean {
     });
   }).length;
 
-  return availableTherapistCount - overlappingHolds >= requiredGuestCount;
+  const freeRooms = Math.max(0, freeRoomCapacity - overlappingHolds);
+  const freeTherapists = Math.max(0, availableTherapistCount - overlappingHolds);
+  return { rooms: freeRooms, therapists: freeTherapists, capacity: Math.min(freeRooms, freeTherapists) };
+}
+
+export function isSlotAvailable(input: SlotAvailabilityInput): boolean {
+  return computeSlotCapacity(input).capacity >= input.requiredGuestCount;
 }
 
 // Statuses that count as "active" for availability purposes. Matches the

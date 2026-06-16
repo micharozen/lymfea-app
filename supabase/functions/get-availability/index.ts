@@ -71,9 +71,19 @@ serve(async (req) => {
         opts,
       );
       if (!deployedDates.has(date)) {
-        return json({ availableSlots: [], reason: "venue_not_deployed" });
+        return json({ availableSlots: [], slots: [], reason: "venue_not_deployed" });
       }
-      return json({ availableSlots: slotsByDate.get(date) ?? [] });
+      const slots = slotsByDate.get(date) ?? [];
+      return json({
+        // Backward-compatible flat list of "HH:MM:SS" times (internal callers).
+        availableSlots: slots.map((s) => s.time),
+        // Rich per-slot details for the partner API.
+        slots: slots.map((s) => ({
+          time: s.time,
+          out_of_hours: s.outOfHours,
+          available_capacity: s.capacity,
+        })),
+      });
     }
 
     // Range mode.
