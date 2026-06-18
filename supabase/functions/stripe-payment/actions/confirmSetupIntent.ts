@@ -2,6 +2,7 @@ import type Stripe from "https://esm.sh/stripe@18.5.0";
 import { computeOutOfHoursSurcharge } from "../../_shared/surcharge.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
 import type { ActionContext } from "../index.ts";
+import { tryMarkCheckoutIntentConverted } from "../../_shared/checkoutIntent.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -351,6 +352,8 @@ export async function handleConfirmSetupIntent(
 
       await triggerBookingNotifications(supabase, slotCreatedIds);
 
+      await tryMarkCheckoutIntentConverted(supabase, meta.checkoutIntentId, slotCreatedIds[0], "[CONFIRM-SETUP]");
+
       return jsonResponse({ success: true, bookingId: slotCreatedIds[0], bookingIds: slotCreatedIds });
     }
 
@@ -399,6 +402,8 @@ export async function handleConfirmSetupIntent(
     }
 
     await triggerBookingNotifications(supabase, multiBookingIds);
+
+    await tryMarkCheckoutIntentConverted(supabase, meta.checkoutIntentId, multiBookingIds[0], "[CONFIRM-SETUP]");
 
     return jsonResponse({
       success: true,
@@ -607,6 +612,8 @@ export async function handleConfirmSetupIntent(
   }
 
   await triggerBookingNotifications(supabase, [bookingId]);
+
+  await tryMarkCheckoutIntentConverted(supabase, meta.checkoutIntentId, bookingId, "[CONFIRM-SETUP]");
 
   return jsonResponse({ success: true, bookingId });
 }

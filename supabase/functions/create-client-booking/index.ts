@@ -6,6 +6,7 @@ import { isInBlockedSlot } from '../_shared/blocked-slots.ts';
 import { computeOutOfHoursSurcharge } from '../_shared/surcharge.ts';
 import { createLogger } from '../_shared/logger.ts';
 import { resolveVerifiedPmsGuest } from '../_shared/pms-verify.ts';
+import { tryMarkCheckoutIntentConverted } from '../_shared/checkoutIntent.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -85,6 +86,7 @@ const multiRequestSchema = z.object({
   paymentMethod: z.enum(['room', 'card', 'cash', 'offert', 'gift_amount']).optional().default('room'),
   totalPrice: z.number().min(0).max(100000),
   therapistGender: z.enum(['female', 'male']).optional(),
+  checkoutIntentId: z.string().uuid().optional(),
 });
 
 const requestSchema = z.object({
@@ -102,6 +104,7 @@ const requestSchema = z.object({
     customerBundleId: z.string().uuid('Invalid customer bundle ID format'),
     amountCents: z.number().int().min(1, 'Amount must be positive'),
   }).optional(),
+  checkoutIntentId: z.string().uuid().optional(),
 });
 
 // Sanitize string to prevent injection
@@ -339,6 +342,8 @@ async function handleMultiBookingConfirm(
   // in multi). We skip sending here; therapist acceptance triggers
   // notify-booking-confirmed which will aggregate the group.
 
+  await tryMarkCheckoutIntentConverted(supabase, data.checkoutIntentId, bookingIds[0], '[create-client-booking]');
+
   return new Response(
     JSON.stringify({ success: true, groupId, bookingIds, bookingNumbers }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -421,7 +426,8 @@ try {
       bundleUsage,
       draftBookingId,
       guestCount,
-      giftAmountUsage
+      giftAmountUsage,
+      checkoutIntentId,
     } = validationResult.data;
 
     const effectiveGuestCount = Math.max(1, guestCount ?? 1);
@@ -1211,6 +1217,8 @@ try {
         }
       }
     }
+
+    await tryMarkCheckoutIntentConverted(supabase, checkoutIntentId, bookingId, '[create-client-booking]');
 
     return new Response(
       JSON.stringify({
