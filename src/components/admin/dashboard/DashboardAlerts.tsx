@@ -14,6 +14,24 @@ interface DashboardAlertsProps {
   alerts: AlertsData;
 }
 
+const getDaysUntilLabel = (daysUntil: number) => {
+  if (daysUntil < 0) return `J+${Math.abs(daysUntil)}`;
+  return `J-${daysUntil}`;
+};
+
+const getDaysUntilClassName = (daysUntil: number) => {
+  if (daysUntil <= 0) {
+    return "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-200 dark:border-red-800";
+  }
+  if (daysUntil <= 1) {
+    return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-200 dark:border-orange-800";
+  }
+  if (daysUntil <= 3) {
+    return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-800";
+  }
+  return "bg-muted text-muted-foreground border-border";
+};
+
 export function DashboardAlerts({ alerts }: DashboardAlertsProps) {
   const { unassigned, pendingPayments, failedPayments } = alerts;
   const [isPendingPaymentsOpen, setIsPendingPaymentsOpen] = useState(false);
@@ -78,7 +96,7 @@ export function DashboardAlerts({ alerts }: DashboardAlertsProps) {
                   onClick={() => openBookingInNewTab(booking.id)}
                   className="w-full rounded-lg border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-h-20 items-stretch justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-foreground">
                         Réservation #{booking.bookingNumber ?? booking.id.slice(0, 8)}
@@ -91,9 +109,14 @@ export function DashboardAlerts({ alerts }: DashboardAlertsProps) {
                         {booking.time ? ` · ${booking.time.slice(0, 5)}` : ""}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 text-right">
-                      <span className="font-medium tabular-nums text-foreground">{booking.amount}</span>
-                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex flex-col items-end justify-between gap-3 text-right">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium tabular-nums text-foreground">{booking.amount}</span>
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${getDaysUntilClassName(booking.daysUntil)}`}>
+                        {getDaysUntilLabel(booking.daysUntil)}
+                      </span>
                     </div>
                   </div>
                 </button>

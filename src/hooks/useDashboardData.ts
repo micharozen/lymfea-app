@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { format, differenceInDays, addDays, subDays, isWithinInterval, parseISO } from "date-fns";
+import { format, differenceInCalendarDays, differenceInDays, addDays, subDays, isWithinInterval, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useExchangeRates } from "@/hooks/useExchangeRates";
@@ -41,6 +41,7 @@ export interface PendingPaymentBooking {
   id: string;
   bookingNumber: number | null;
   date: string;
+  daysUntil: number;
   time: string | null;
   hotelName: string | null;
   amount: string;
@@ -295,14 +296,19 @@ export function useDashboardData(
 
     const pendingPaymentBookings = relevant
       .filter((b) => b.payment_status === "pending" && b.status !== "cancelled")
-      .map((b) => ({
-        id: b.id,
-        bookingNumber: b.booking_id,
-        date: format(parseISO(b.booking_date), "dd/MM/yyyy"),
-        time: b.booking_time,
-        hotelName: b.hotel_name,
-        amount: formatPrice(toEUR(b.total_price, b.hotel_id)),
-      }));
+      .map((b) => {
+        const bookingDate = parseISO(b.booking_date);
+
+        return {
+          id: b.id,
+          bookingNumber: b.booking_id,
+          date: format(bookingDate, "dd/MM/yyyy"),
+          daysUntil: differenceInCalendarDays(bookingDate, new Date()),
+          time: b.booking_time,
+          hotelName: b.hotel_name,
+          amount: formatPrice(toEUR(b.total_price, b.hotel_id)),
+        };
+      });
 
     return {
       unassigned: relevant.filter(
