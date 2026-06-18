@@ -1,15 +1,16 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { Resend } from 'https://esm.sh/resend@4.0.0';
 import { brand } from "../_shared/brand.ts";
 import {
-  getPaymentLinkEmailSubject,
-  getPaymentLinkEmailHtml,
-  getExternalClientPaymentEmailHtml,
   PaymentLinkTemplateData
 } from '../_shared/payment-link-templates.ts';
+import { sendEmail } from '../_shared/send-email.ts';
 import { sendSms } from '../_shared/send-sms.ts';
 import { getStripeForVenue } from '../_shared/stripe-resolver.ts';
+
+// Resend templates "Booking Payment Link" (FR/EN) — same template variables.
+const PAYMENT_LINK_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
+const PAYMENT_LINK_TEMPLATE_EN = "6ba59c67-04e3-412e-9a84-246aaa7dc570";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,37 +39,6 @@ function buildDefaultSmsBody(
     return `Bonjour ${clientFirstName}, votre réservation chez ${hotelName} le ${bookingDate} à ${bookingTime} (${totalText}). Merci de régler via le lien ci-dessous :`;
   }
   return `Hello ${clientFirstName}, your booking at ${hotelName} on ${bookingDate} at ${bookingTime} (${totalText}). Please pay via the link below:`;
-}
-function generateICS(bookingDate: string, bookingTime: string, hotelName: string, durationMinutes: number, timezone: string = 'Europe/Paris'): string {
-  // 1. On sépare manuellement pour éviter que le serveur décale l'heure
-  const [year, month, day] = bookingDate.split('-').map(Number);
-  const [hour, minute] = bookingTime.split(':').map(Number);
-  
-  const start = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
-  const end = new Date(start.getTime() + durationMinutes * 60000);
-
-  // 2. Formatage strict
-  const formatDate = (d: Date) => {
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00`;
-  };
-
-  // 3. Construction du fichier avec le TZID (Timezone ID)
-  const icsContent = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Lymfea//Booking//EN',
-    'BEGIN:VEVENT',
-    `DTSTART;TZID=${timezone}:${formatDate(start)}`, // 👈 C'est ÇA qui fixe le bug
-    `DTEND;TZID=${timezone}:${formatDate(end)}`,
-    `SUMMARY:Soin Lymfea - ${hotelName}`,
-    `LOCATION:${hotelName}`,
-    `DESCRIPTION:Votre moment de bien-être chez ${hotelName}.`,
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n');
-
-  return icsContent;
 }
 
 // Fonction utilitaire pour le calcul de l'expiration selon les règles du ticket
@@ -385,38 +355,41 @@ serve(async (req: Request) => {
 
     if (channels?.includes('email') && email) {
       try {
-        const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
-        
-        // Sélection du template : Luxe pour client externe, Standard pour client hôtel
-        const isExternal = !booking.room_number || 
-                           booking.room_number.trim().toUpperCase() === 'TDB' || 
-                           booking.room_number.trim().toUpperCase() === 'TBD';
-                           
-        const html = isExternal 
-          ? getExternalClientPaymentEmailHtml(language, templateData)
-          : getPaymentLinkEmailHtml(language, templateData);
-
-        // 1. Calcul de la durée totale des soins
+        // Durée totale des soins (pour la variable de template)
         const totalDuration = treatments.reduce((sum: number, t: any) => sum + (t.duration || 60), 0);
-        
-        // 2. Génération du fichier ICS
-        const icsContent = generateICS(booking.booking_date, booking.booking_time, booking.hotel_name, totalDuration, hotelTimezone);
 
-        // 3. Envoi de l'e-mail avec la pièce jointe
-        const emailResult = await resend.emails.send({
-          from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,
-          to: Deno.env.get('IS_LOCAL') === 'true' ? 'romainthierryom@gmail.com' : email,
-          subject: getPaymentLinkEmailSubject(language, templateData),
-          html: html,
-          attachments: [
-            {
-              filename: 'reservation-lymfea.ics',
-              content: icsContent
-            }
-          ]
+        // Variables du template Resend (mêmes clés que trigger-new-booking-notifications)
+        const introText = language === 'fr'
+          ? `Bonjour ${booking.client_first_name}, merci pour votre réservation. Pour la confirmer, veuillez procéder au paiement.`
+          : `Hello ${booking.client_first_name}, thank you for your booking. To confirm it, please complete the payment.`;
+
+        const templateVariables: Record<string, string> = {
+          booking_date: templateData.bookingDate,
+          booking_number: String(booking.booking_id ?? ''),
+          booking_time: templateData.bookingTime,
+          expiry_date: expiresAtText,
+          intro_text: introText,
+          payment_url: templateData.paymentUrl,
+          total_price: `${totalPrice}${currencySymbol}`,
+          treatment_duration: `${totalDuration} min`,
+          treatment_name: treatments.map((t: any) => t.name).filter(Boolean).join(', '),
+          treatment_price: `${totalPrice}${currencySymbol}`,
+        };
+
+        const templateId = language === 'fr' ? PAYMENT_LINK_TEMPLATE_FR : PAYMENT_LINK_TEMPLATE_EN;
+
+        // Pas de subject : on laisse celui défini dans le template Resend.
+        const emailResult = await sendEmail({
+          to: email,
+          templateId,
+          templateVariables,
         });
 
-        console.log("[SEND-PAYMENT-LINK] Email sent:", emailResult);
+        if (emailResult.error) {
+          throw new Error(emailResult.error);
+        }
+
+        console.log("[SEND-PAYMENT-LINK] Email sent via template:", emailResult.id);
         results.email = true;
       } catch (emailError: any) {
         console.error("[SEND-PAYMENT-LINK] Email error:", emailError);
