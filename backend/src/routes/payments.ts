@@ -212,8 +212,24 @@ payments.post("/checkout-success", async (c) => {
   }
 });
 
-// All payment routes below require authentication
-payments.use("/*", authMiddleware);
+// Client/public Stripe routes — no JWT (anonymous booking flow).
+// Mirrors stripe-payment Edge Function: only charge-saved-card checks auth.
+const PUBLIC_PAYMENT_PATHS = new Set([
+  "/checkout-success",
+  "/stripe",
+  "/setup-intent",
+  "/confirm-setup",
+  "/bundle",
+  "/purchase-bundle",
+  "/checkout",
+]);
+
+payments.use("/*", async (c, next) => {
+  if (PUBLIC_PAYMENT_PATHS.has(c.req.path)) {
+    return next();
+  }
+  return authMiddleware(c, next);
+});
 
 /**
  * POST /payments/finalize
@@ -1403,9 +1419,8 @@ payments.post("/checkout", async (c) => {
 // transparently here. Each action is forwarded to the matching route
 // handler by re-dispatching through Hono's internal fetch.
 //
-// Public actions (no auth) are routed to /payments/<route>.
-// Authenticated actions go through /payments/<route> too — auth is
-// enforced by the route's own middleware.
+// Public actions (no auth) skip JWT via PUBLIC_PAYMENT_PATHS above.
+// Authenticated actions (/finalize, /charge-card) require a valid JWT.
 const ACTION_ROUTES: Record<string, string> = {
   "create-setup-intent": "/setup-intent",
   "confirm-setup-intent": "/confirm-setup",

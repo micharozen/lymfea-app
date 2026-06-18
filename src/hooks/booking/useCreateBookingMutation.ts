@@ -193,7 +193,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         payment_method: paymentMethod,
         payment_status: paymentStatus,
         payment_reference: d.voucherReference || null,
-        source: d.source ?? "manual",
+        source: d.source ?? "admin",
         email_inquiry_id: d.emailInquiryId ?? null,
       } as any).select().single();
 
