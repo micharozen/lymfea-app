@@ -46,7 +46,7 @@ serve(async (req) => {
         total_price,
         payment_status,
         short_token,
-        hotels(address, postal_code, city, country, contact_email, organizations(name))
+        hotels(organization_id, address, postal_code, city, country, contact_email, organizations(name))
       `)
       .eq('id', bookingId)
       .single();
@@ -82,6 +82,18 @@ serve(async (req) => {
 
     console.log('[notify-booking-confirmed] Booking found:', booking.booking_id);
 
+    // Org isolation: resolve the organization that owns this booking's venue so
+    // we only notify admins of that org (super-admins keep receiving everything).
+    // Mirrors notify-admin-new-booking to avoid cross-tenant leaks.
+    const organizationId = (booking as any).hotels?.organization_id ?? null;
+    if (!organizationId) {
+      console.warn(`[notify-booking-confirmed] No organization_id for hotel ${booking.hotel_id}; notifying super-admins only`);
+    }
+    const applyAdminOrgFilter = (query: any) =>
+      organizationId
+        ? query.or(`is_super_admin.eq.true,organization_id.eq.${organizationId}`)
+        : query.eq('is_super_admin', true);
+
     const { data: bookingTreatments } = await supabase
       .from('booking_treatments')
       .select('treatment_id, treatment_menus(name, price)')
@@ -100,7 +112,7 @@ serve(async (req) => {
     const formattedTime = booking.booking_time?.substring(0, 5) || '';
 
     const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
-    const bookingDetailsUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
+    const bookingDetailsUrl = `${siteUrl}/admin/bookings/${bookingId}`;
 
     const treatmentName = treatments.map(t => t.name).join(', ');
     const treatmentPrice = treatments.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
@@ -135,11 +147,13 @@ serve(async (req) => {
     // Gate emails behind a secret so staging environments don't spam mailboxes.
     const adminEmailsEnabled = Deno.env.get("ADMIN_EMAIL_NOTIFICATIONS_ENABLED") === "true";
 
-    // 1. Send to admins
-    const { data: admins } = await supabase
-      .from('admins')
-      .select('email, first_name, last_name')
-      .or('status.eq.active,status.eq.Actif');
+    // 1. Send to admins (org-scoped: super-admins + admins of the booking's org)
+    const { data: admins } = await applyAdminOrgFilter(
+      supabase
+        .from('admins')
+        .select('email, first_name, last_name')
+        .or('status.eq.active,status.eq.Actif')
+    );
 
     if (!adminEmailsEnabled) {
       console.log("[notify-booking-confirmed] Admin emails disabled (ADMIN_EMAIL_NOTIFICATIONS_ENABLED !== 'true'); skipping admin emails.");
@@ -309,11 +323,13 @@ serve(async (req) => {
       );
     }
 
-    // 5. Send push + in-app notifications to admins
-    const { data: adminUsers } = await supabase
-      .from('admins')
-      .select('user_id, first_name')
-      .or('status.eq.active,status.eq.Actif');
+    // 5. Send push + in-app notifications to admins (org-scoped, same filter as emails)
+    const { data: adminUsers } = await applyAdminOrgFilter(
+      supabase
+        .from('admins')
+        .select('user_id, first_name')
+        .or('status.eq.active,status.eq.Actif')
+    );
 
     if (adminUsers && adminUsers.length > 0) {
       const adminsWithUserId = adminUsers.filter((a: any) => a.user_id);

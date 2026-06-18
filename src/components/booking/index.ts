@@ -1,6 +1,7 @@
 export { BookingFilters } from "./BookingFilters";
 export { BookingCalendarView } from "./BookingCalendarView";
 export { BookingListView } from "./BookingListView";
+export type { BookingSortKey, SortDirection } from "./BookingListView";
 export { InvoicePreviewDialog } from "./InvoicePreviewDialog";
 export { SendPaymentLinkDialog } from "./SendPaymentLinkDialog";
 export { PaymentLinkForm } from "./PaymentLinkForm";

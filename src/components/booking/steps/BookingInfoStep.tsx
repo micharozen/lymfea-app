@@ -22,11 +22,19 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { AlertTriangle, CalendarIcon, Check, ChevronDown, Clock, Globe, Info, Loader2, Plus, X } from "lucide-react";
+import { AlertTriangle, CalendarIcon, Check, ChevronDown, ChevronsUpDown, Clock, Globe, Info, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentOffset } from "@/lib/timezones";
 import { countries, formatPhoneNumber } from "@/lib/phone";
@@ -84,6 +92,7 @@ export function BookingInfoStep({
   const clientType = form.watch("clientType");
   const isHotelClient = clientType === "hotel";
   const roomNumberLater = form.watch("roomNumberLater");
+  const [hotelPopoverOpen, setHotelPopoverOpen] = useState(false);
 
   const handleRoomLaterChange = (checked: boolean) => {
     form.setValue("roomNumberLater", checked, { shouldDirty: true });
@@ -215,29 +224,71 @@ export function BookingInfoStep({
       <FormField
         control={form.control}
         name="hotelId"
-        render={({ field }) => (
-          <FormItem className="space-y-1">
-            <FormLabel className="text-xs">Hôtel *</FormLabel>
-            <Select value={field.value} onValueChange={field.onChange}>
-              <FormControl>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Sélectionner un hôtel" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {(isConcierge && hotelIds.length > 0
-                  ? hotels?.filter(hotel => hotelIds.includes(hotel.id))
-                  : hotels
-                )?.map((hotel) => (
-                  <SelectItem key={hotel.id} value={hotel.id}>
-                    {hotel.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage className="text-xs" />
-          </FormItem>
-        )}
+        render={({ field }) => {
+          const availableHotels = (isConcierge && hotelIds.length > 0
+            ? hotels?.filter(hotel => hotelIds.includes(hotel.id))
+            : hotels) ?? [];
+          const selectedHotelName = availableHotels.find(h => h.id === field.value)?.name;
+          return (
+            <FormItem className="space-y-1">
+              <FormLabel className="text-xs">Hôtel *</FormLabel>
+              <Popover open={hotelPopoverOpen} onOpenChange={setHotelPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={hotelPopoverOpen}
+                      className={cn(
+                        "h-9 w-full justify-between font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      <span className="truncate">
+                        {selectedHotelName ?? "Sélectionner un hôtel"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0"
+                  align="start"
+                >
+                  <Command>
+                    <CommandInput placeholder="Rechercher un hôtel..." className="h-9 text-xs" />
+                    <CommandList>
+                      <CommandEmpty>Aucun hôtel trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        {availableHotels.map((hotel) => (
+                          <CommandItem
+                            key={hotel.id}
+                            value={hotel.name}
+                            onSelect={() => {
+                              field.onChange(hotel.id);
+                              setHotelPopoverOpen(false);
+                            }}
+                            className="text-xs"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-3.5 w-3.5",
+                                field.value === hotel.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {hotel.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <FormMessage className="text-xs" />
+            </FormItem>
+          );
+        }}
       />
 
       {/* Client type */}

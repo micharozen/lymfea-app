@@ -108,7 +108,7 @@ serve(async (req) => {
             body: `#${booking.booking_id} · ${booking.client_first_name} ${booking.client_last_name} · ${booking.hotel_name || ""}`,
             data: {
               bookingId: booking.id,
-              url: `/admin/booking?bookingId=${booking.id}`,
+              url: `/admin/bookings/${booking.id}`,
             },
           },
         });

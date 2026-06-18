@@ -8,6 +8,7 @@ import {
   buildPaymentLinkTemplateMessage,
 } from "../../_shared/whatsapp-meta.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import type { ActionContext } from "../index.ts";
 
 // Resend templates "Booking Payment Link" (FR/EN) — same template variables.
@@ -313,6 +314,7 @@ export async function handleSendPaymentLink(
           treatment_duration: `${totalDuration} min`,
           treatment_name: treatments.map((t) => t.name).filter(Boolean).join(", "),
           treatment_price: `${totalPrice}${currencySymbol}`,
+          venue_name: templateData.hotelName,
         };
 
         const templateId =
@@ -405,6 +407,49 @@ export async function handleSendPaymentLink(
       throw new Error(
         `Failed to send payment link: ${results.errors.join("; ")}`,
       );
+    }
+
+    // Historique de la réservation : log de l'envoi du lien de paiement
+    try {
+      const authHeader = ctx.req.headers.get("Authorization");
+      let actorUserId: string | null = null;
+      if (authHeader) {
+        const userClient = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+          { global: { headers: { Authorization: authHeader } } },
+        );
+        const { data: userData } = await userClient.auth.getUser();
+        actorUserId = userData?.user?.id ?? null;
+      }
+
+      const sentChannels = channels.filter(
+        (c) =>
+          (c === "email" && results.email) ||
+          (c === "whatsapp" && results.whatsapp),
+      );
+
+      await supabase.from("audit_log").insert({
+        table_name: "bookings",
+        record_id: bookingId,
+        changed_by: actorUserId,
+        change_type: "action",
+        old_values: null,
+        new_values: {
+          action: "payment_link_sent",
+          channels: sentChannels,
+          language,
+          email: results.email ? email : undefined,
+          phone: results.whatsapp ? phone : undefined,
+        },
+        source: "admin",
+        metadata: {
+          booking_id: booking.booking_id,
+          payment_link_url: paymentLink.url,
+        },
+      });
+    } catch (auditError) {
+      console.warn("[SEND-PAYMENT-LINK] Failed to write audit log:", auditError);
     }
 
     return jsonResponse({

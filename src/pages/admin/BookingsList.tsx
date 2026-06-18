@@ -16,6 +16,8 @@ import {
 import {
   BookingFilters,
   BookingListView,
+  type BookingSortKey,
+  type SortDirection,
 } from "@/components/booking";
 
 export default function BookingsList() {
@@ -65,10 +67,51 @@ export default function BookingsList() {
     filteredBookings,
   } = useBookingFilters(bookings);
 
+  const [sortKey, setSortKey] = useState<BookingSortKey>("reservation");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
   const sortedBookings = useMemo<BookingWithTreatments[]>(() => {
     const list = filteredBookings ?? [];
-    return [...list].sort((a, b) => (b.booking_id ?? 0) - (a.booking_id ?? 0));
-  }, [filteredBookings]);
+    const dir = sortDirection === "asc" ? 1 : -1;
+
+    const getValue = (b: BookingWithTreatments): string | number => {
+      switch (sortKey) {
+        case "reservation":
+          return b.booking_id ?? 0;
+        case "date":
+          return `${b.booking_date ?? ""}T${b.booking_time ?? ""}`;
+        case "time":
+          return b.booking_time ?? "";
+        case "duration":
+          return b.totalDuration ?? 0;
+        case "status":
+          return b.status ?? "";
+        case "payment":
+          return b.payment_status ?? "";
+        case "client":
+          return (b.client_last_name ?? b.client_first_name ?? "").toLowerCase();
+        case "treatments":
+          return b.treatments.map((t) => t.name).join(", ").toLowerCase();
+        case "total":
+          return b.total_price ?? 0;
+        case "location":
+          return (getHotelInfo(b.hotel_id)?.name ?? "").toLowerCase();
+        case "therapist":
+          return (b.therapist_name ?? "").toLowerCase();
+        default:
+          return 0;
+      }
+    };
+
+    return [...list].sort((a, b) => {
+      const va = getValue(a);
+      const vb = getValue(b);
+      if (typeof va === "number" && typeof vb === "number") {
+        return (va - vb) * dir;
+      }
+      return String(va).localeCompare(String(vb)) * dir;
+    });
+  }, [filteredBookings, sortKey, sortDirection, getHotelInfo]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
@@ -76,6 +119,16 @@ export default function BookingsList() {
   const handlePeriodDaysChange = (days: number) => {
     setPeriodDays(days);
     localStorage.setItem("bookingsList.periodDays", String(days));
+    setCurrentPage(1);
+  };
+
+  const handleSort = (key: BookingSortKey) => {
+    if (key === sortKey) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("asc");
+    }
     setCurrentPage(1);
   };
 
@@ -196,6 +249,9 @@ export default function BookingsList() {
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
             paymentAsText
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSort={handleSort}
           />
         </div>
       </div>

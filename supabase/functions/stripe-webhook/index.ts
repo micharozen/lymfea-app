@@ -110,6 +110,7 @@ serve(async (req) => {
             .from('bookings')
             .update({
               payment_status: 'paid',
+              payment_method: 'card',
               stripe_invoice_url: session.id
             })
             .eq('id', metadata.booking_id);

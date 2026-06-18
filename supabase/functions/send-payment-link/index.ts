@@ -374,6 +374,7 @@ serve(async (req: Request) => {
           treatment_duration: `${totalDuration} min`,
           treatment_name: treatments.map((t: any) => t.name).filter(Boolean).join(', '),
           treatment_price: `${totalPrice}${currencySymbol}`,
+          venue_name: templateData.hotelName,
         };
 
         const templateId = language === 'fr' ? PAYMENT_LINK_TEMPLATE_FR : PAYMENT_LINK_TEMPLATE_EN;

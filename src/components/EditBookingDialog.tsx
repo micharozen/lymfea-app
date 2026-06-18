@@ -38,6 +38,7 @@ import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, 
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
+import { composePhoneNumber } from "@/lib/phone";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -878,7 +879,7 @@ export default function EditBookingDialog({
       hotel_id: isConcierge ? (booking?.hotel_id || "") : hotelId,
       client_first_name: isConcierge ? (booking?.client_first_name || "") : clientFirstName,
       client_last_name: isConcierge ? (booking?.client_last_name || "") : clientLastName,
-      phone: isConcierge ? (booking?.phone || "") : `${countryCode} ${phone}`,
+      phone: isConcierge ? (booking?.phone || "") : composePhoneNumber(countryCode, phone),
       room_number: isConcierge ? (booking?.room_number || "") : roomNumber,
       booking_date: submittedDate,
       booking_time: submittedTime,

@@ -41,6 +41,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
 import { isOutOfHours } from "@/lib/bookingUtils";
 import { mapCartDetailToTreatmentLine } from "@/lib/bookingCartLine";
+import { composePhoneNumber } from "@/lib/phone";
 import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from "./CreateBookingDialog.schema";
 import { BookingInfoStep } from "./steps/BookingInfoStep";
 import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
@@ -547,7 +548,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         client_first_name: clientFirstName,
         client_last_name: clientLastName,
         client_email: clientEmail || undefined,
-        phone: phone.trim() ? `${countryCode} ${phone}` : "",
+        phone: composePhoneNumber(countryCode, phone),
         room_number: roomNumber || undefined,
         booking_date: date ? format(date, "yyyy-MM-dd") : "",
         booking_time: time,

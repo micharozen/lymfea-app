@@ -67,7 +67,7 @@ serve(async (req) => {
     console.log("[Slack] Sending notification:", payload.type, "for booking:", payload.bookingNumber);
 
     const SITE_URL = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
-    const bookingUrl = `${SITE_URL}/admin/booking?bookingId=${payload.bookingId}`;
+    const bookingUrl = `${SITE_URL}/admin/bookings/${payload.bookingId}`;
 
     // Format date
     const formattedDate = new Date(payload.bookingDate).toLocaleDateString('fr-FR', {

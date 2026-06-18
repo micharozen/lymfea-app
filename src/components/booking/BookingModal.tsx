@@ -73,6 +73,7 @@ import {
 import { ChevronDown } from "lucide-react";
 import { countries, flagEmoji } from "@/lib/countries";
 import { formatPrice } from "@/lib/formatPrice";
+import { composePhoneNumber } from "@/lib/phone";
 
 export interface BookingModalInitialValues {
   hotelId?: string;
@@ -664,7 +665,7 @@ export default function BookingModal({
           client_first_name: clientFirstName,
           client_last_name: clientLastName,
           client_email: clientEmail || undefined,
-          phone: `${countryCode} ${phone}`,
+          phone: composePhoneNumber(countryCode, phone),
           room_number: roomNumber || undefined,
           booking_date: date ? format(date, "yyyy-MM-dd") : "",
           booking_time: time,
@@ -1555,7 +1556,7 @@ function ConfirmStep({
       />
       <Row
         label={t("phoneBooking.client.phone")}
-        value={`${countryCode} ${phone}`}
+        value={composePhoneNumber(countryCode, phone)}
       />
       {clientEmail && (
         <Row label={t("phoneBooking.client.email")} value={clientEmail} />

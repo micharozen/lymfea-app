@@ -518,8 +518,9 @@ const App = () => {
                             <Routes>
                               <Route path="/" element={<Dashboard />} />
                               <Route path="/dashboard" element={<Dashboard />} />
-                              <Route path="/bookings" element={<Bookings />} />
-                              <Route path="/all-bookings" element={<BookingsList />} />
+                              <Route path="/planning" element={<Bookings />} />
+                              <Route path="/bookings" element={<BookingsList />} />
+                              <Route path="/all-bookings" element={<Navigate to="/admin/bookings" replace />} />
                               <Route path="/bookings/:id" element={<BookingDetail />} />
                               <Route path="/therapists" element={<Therapists />} />
                               <Route path="/therapists/new" element={<TherapistDetail />} />

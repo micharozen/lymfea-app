@@ -76,7 +76,7 @@ serve(async (req) => {
 
     // Deep link URL for booking details
     const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
-    const bookingDetailsUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
+    const bookingDetailsUrl = `${siteUrl}/admin/bookings/${bookingId}`;
 
     // Informative email - NO billing info - WITH CTA BUTTON
     const createInfoEmailHtml = () => `

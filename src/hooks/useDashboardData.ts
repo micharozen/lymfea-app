@@ -32,7 +32,18 @@ interface RoomRow {
 
 export interface AlertsData {
   unassigned: number;
+  pendingPayments: number;
+  pendingPaymentBookings: PendingPaymentBooking[];
   failedPayments: number;
+}
+
+export interface PendingPaymentBooking {
+  id: string;
+  bookingNumber: number | null;
+  date: string;
+  time: string | null;
+  hotelName: string | null;
+  amount: string;
 }
 
 export interface OccupancyData {
@@ -56,6 +67,7 @@ export interface StatusSlice {
 export interface ChartPoint {
   date: string;
   sales: number;
+  prestations: number;
 }
 
 export interface HourlyOccupancyPoint {
@@ -76,6 +88,7 @@ export interface ForecastPoint {
 export interface HotelOverviewRow {
   name: string;
   totalSales: string;
+  totalSalesValue: number;
   totalBookings: number;
   totalSessions: number;
   totalCancelled: number;
@@ -280,15 +293,28 @@ export function useDashboardData(
       ? bookings
       : bookings.filter((b) => b.hotel_id === selectedHotel);
 
+    const pendingPaymentBookings = relevant
+      .filter((b) => b.payment_status === "pending" && b.status !== "cancelled")
+      .map((b) => ({
+        id: b.id,
+        bookingNumber: b.booking_id,
+        date: format(parseISO(b.booking_date), "dd/MM/yyyy"),
+        time: b.booking_time,
+        hotelName: b.hotel_name,
+        amount: formatPrice(toEUR(b.total_price, b.hotel_id)),
+      }));
+
     return {
       unassigned: relevant.filter(
         (b) => b.status === "pending" && b.booking_date >= todayStr
       ).length,
+      pendingPayments: pendingPaymentBookings.length,
+      pendingPaymentBookings,
       failedPayments: relevant.filter(
         (b) => b.payment_status === "failed"
       ).length,
     };
-  }, [bookings, selectedHotel]);
+  }, [bookings, selectedHotel, rates]);
 
   const roomOccupancy = useMemo<OccupancyData>(() => {
     const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -401,6 +427,9 @@ export function useDashboardData(
     const days = differenceInDays(endDate, startDate);
     if (filteredBookings.length === 0) return [];
 
+    const prestationCount = (b: (typeof filteredBookings)[number]) =>
+      (b.booking_treatments || []).length;
+
     if (days === 0) {
       return Array.from({ length: 8 }, (_, i) => {
         const hour = 9 + i * 2;
@@ -411,21 +440,26 @@ export function useDashboardData(
         return {
           date: `${hour}h`,
           sales: hourBookings.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0),
+          prestations: hourBookings.reduce((s, b) => s + prestationCount(b), 0),
         };
       });
     }
 
     const salesByDate: Record<string, number> = {};
+    const prestationsByDate: Record<string, number> = {};
     for (let i = 0; i <= days; i++) {
-      salesByDate[format(addDays(startDate, i), "yyyy-MM-dd")] = 0;
+      const key = format(addDays(startDate, i), "yyyy-MM-dd");
+      salesByDate[key] = 0;
+      prestationsByDate[key] = 0;
     }
     filteredBookings.forEach((b) => {
       if (Object.prototype.hasOwnProperty.call(salesByDate, b.booking_date)) {
         salesByDate[b.booking_date] += toEUR(b.total_price, b.hotel_id);
+        prestationsByDate[b.booking_date] += prestationCount(b);
       }
     });
 
-    const allDates = Object.entries(salesByDate).sort((a, b) => a[0].localeCompare(b[0]));
+    const allDates = Object.keys(salesByDate).sort((a, b) => a.localeCompare(b));
     const maxPoints = 15;
 
     const sampled =
@@ -436,9 +470,10 @@ export function useDashboardData(
             return allDates.filter((_, i) => i % interval === 0 || i === allDates.length - 1);
           })();
 
-    return sampled.map(([dateStr, sales]) => ({
+    return sampled.map((dateStr) => ({
       date: format(parseISO(dateStr), "dd MMM", { locale: fr }),
-      sales,
+      sales: salesByDate[dateStr],
+      prestations: prestationsByDate[dateStr],
     }));
   }, [filteredBookings, startDate, endDate, rates]);
 
@@ -532,6 +567,7 @@ export function useDashboardData(
         return {
           name: hotel.name,
           totalSales: formatPrice(totalSales),
+          totalSalesValue: totalSales,
           totalBookings: hb.length,
           totalSessions: hb.filter((b) => b.status === "completed").length,
           totalCancelled: hb.filter((b) => b.status === "cancelled").length,
