@@ -12,12 +12,14 @@ import { getStripeForVenue, getGlobalStripe } from "../_shared/stripe-resolver.t
 import { createLogger } from "../_shared/logger.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 
-// Resend templates for a paid-but-not-yet-accepted booking (payment received,
-// awaiting therapist assignment). The CONFIRMED template (e2a8e114) is sent
-// only on acceptance — admin assign (trigger-new-booking-notifications) or
-// therapist PWA accept (notify-booking-confirmed), never at payment time.
+// Resend templates for the client payment-link flow.
+// - PENDING: booking paid but no therapist assigned yet (awaiting acceptance).
+// - BOOKING_CONFIRMED: booking already confirmed (a therapist is assigned) but
+//   not yet paid at creation — the operator sent a payment link manually, so the
+//   confirmation email is held back until payment lands here.
 const CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR = "c5378102-92c7-48de-834c-db17da702794";
 const CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN = "4d48ce0b-92c3-4ef7-8685-4f3905e34820";
+const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
 
 serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
@@ -98,9 +100,11 @@ serve(async (req) => {
               status,
               hotel_id,
               hotel_name,
+              therapist_name,
               payment_status,
               payment_link_language,
-              payment_link_channels
+              payment_link_channels,
+              hotels(currency, contact_email, address, postal_code, city, country, organizations(name))
             `)
             .eq('id', metadata.booking_id)
             .single();
@@ -163,25 +167,34 @@ serve(async (req) => {
           const wasWhatsAppUsed = booking.payment_link_channels?.includes('whatsapp');
           const clientPhone = booking.phone;
           
-          let currency = 'EUR';
-          if (booking.hotel_id) {
-            const { data: hotel } = await supabase
-              .from('hotels')
-              .select('currency')
-              .eq('id', booking.hotel_id)
-              .single();
-            if (hotel?.currency) currency = hotel.currency.toUpperCase();
-          }
+          // Venue fields resolved from the embed on the booking fetch above.
+          const venue = (booking as any).hotels as {
+            currency?: string | null;
+            contact_email?: string | null;
+            address?: string | null;
+            postal_code?: string | null;
+            city?: string | null;
+            country?: string | null;
+            organizations?: { name?: string | null } | null;
+          } | null;
+          const currency = (venue?.currency || 'EUR').toUpperCase();
+          const venueContactEmail = venue?.contact_email || brand.legal.contactEmail;
+          const venueOrganizationName = venue?.organizations?.name || brand.name;
+          const venueAddress = [venue?.address, venue?.postal_code, venue?.city, venue?.country]
+            .filter(Boolean)
+            .join(', ');
 
           const { data: bookingTreatments } = await supabase
             .from('booking_treatments')
-            .select('treatment_menus (name)')
+            .select('treatment_menus (name, price)')
             .eq('booking_id', booking.id);
 
-          const treatmentsList = bookingTreatments
-            ?.map(bt => bt.treatment_menus?.name)
-            .filter(Boolean)
-            .join(', ') || 'Service bien-être';
+          const treatmentRows = (bookingTreatments ?? []).map(bt => {
+            const menu = bt.treatment_menus as any;
+            return { name: menu?.name || '', price: Number(menu?.price) || 0 };
+          });
+          const treatmentsList = treatmentRows.map(t => t.name).filter(Boolean).join(', ') || 'Service bien-être';
+          const treatmentPrice = treatmentRows.reduce((sum, t) => sum + t.price, 0);
 
           if (wasWhatsAppUsed && clientPhone) {
             try {
@@ -210,9 +223,9 @@ serve(async (req) => {
 
           // The booking is now paid but a therapist may not be assigned yet, so
           // we send the PENDING template (payment received, awaiting therapist).
-          // The CONFIRMED template is sent later on acceptance. If the booking is
-          // already confirmed at payment time, the confirmation email has already
-          // been sent by the acceptance flow — skip to avoid a stale/duplicate.
+          // If the booking is already confirmed at payment time, it means a
+          // therapist was assigned at creation but the confirmation email was held
+          // back (unpaid) — send BOOKING_CONFIRMED now that payment has landed.
           if (booking.client_email && booking.status === 'pending') {
             try {
               const clientLanguage: 'fr' | 'en' = booking.payment_link_language === 'en' ? 'en' : 'fr';
@@ -235,6 +248,7 @@ serve(async (req) => {
                   booking_time: formattedTime,
                   first_name: booking.client_first_name ?? '',
                   hotel_name: booking.hotel_name ?? '',
+                  venue_name: booking.hotel_name ?? '',
                   room_number: booking.room_number ? String(booking.room_number) : '',
                   treatment_name: treatmentsList,
                 },
@@ -248,8 +262,53 @@ serve(async (req) => {
             } catch (emailError) {
               console.error('[STRIPE-WEBHOOK] Payment Link Email error:', emailError);
             }
+          } else if (booking.client_email && booking.status === 'confirmed') {
+            // Confirmed-at-creation booking whose confirmation email was held back
+            // because payment wasn't engaged. Payment has now landed → send it.
+            try {
+              const clientLanguage: 'fr' | 'en' = booking.payment_link_language === 'en' ? 'en' : 'fr';
+              const formattedDate = new Date(booking.booking_date).toLocaleDateString(
+                clientLanguage === 'en' ? 'en-US' : 'fr-FR',
+                { weekday: 'short', day: 'numeric', month: 'short' },
+              );
+              const formattedTime = booking.booking_time?.substring(0, 5) || '';
+              const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
+              const clientName = `${booking.client_first_name ?? ''} ${booking.client_last_name ?? ''}`.trim();
+
+              const emailResult = await sendEmail({
+                to: booking.client_email,
+                subject: `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
+                templateId: BOOKING_CONFIRMED_TEMPLATE_ID,
+                templateVariables: {
+                  booking_date: formattedDate,
+                  booking_number: String(booking.booking_id ?? ''),
+                  booking_time: formattedTime,
+                  booking_url: `${siteUrl}/booking/manage/${booking.id}`,
+                  client_name: clientName,
+                  client_phone: booking.phone ?? '',
+                  contact_email: venueContactEmail,
+                  hotel_name: booking.hotel_name ?? '',
+                  organization_name: venueOrganizationName,
+                  venue_address: venueAddress,
+                  venue_name: booking.hotel_name ?? '',
+                  room_number: booking.room_number ? String(booking.room_number) : '',
+                  therapist_name: (booking as any).therapist_name ?? '',
+                  total_price: `${booking.total_price ?? 0}€`,
+                  treatment_name: treatmentsList,
+                  treatment_price: `${treatmentPrice}€`,
+                },
+              });
+
+              if (emailResult.error) {
+                console.error('[STRIPE-WEBHOOK] Payment Link confirmed email error:', emailResult.error);
+              } else {
+                console.log('[STRIPE-WEBHOOK] Confirmed booking email sent to client (Payment Link)');
+              }
+            } catch (emailError) {
+              console.error('[STRIPE-WEBHOOK] Payment Link confirmed email exception:', emailError);
+            }
           } else if (booking.client_email) {
-            console.log('[STRIPE-WEBHOOK] Booking already confirmed — confirmation handled by acceptance flow, skipping payment email');
+            console.log('[STRIPE-WEBHOOK] Booking status not pending/confirmed — skipping payment email:', booking.status);
           }
 
           return new Response(JSON.stringify({ received: true }), { status: 200 });

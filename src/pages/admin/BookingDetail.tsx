@@ -15,7 +15,7 @@ import {
   Calendar, Clock, Building2, HandHeart,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
-  FileText
+  FileText, CreditCard
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
@@ -218,6 +218,19 @@ export default function BookingDetail() {
   const paymentLabel = cardSavedToCharge
     ? "Carte enregistrée à débiter"
     : (PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending);
+
+  // Payment breakdown for the "Paiement" card. total_price already includes the
+  // out-of-hours surcharge, which is also stored separately on surcharge_amount.
+  const surchargeAmount = booking.is_out_of_hours ? (booking.surcharge_amount ?? 0) : 0;
+  const subtotal = Math.max(displayPrice - surchargeAmount, 0);
+  const surchargePercent = subtotal > 0 ? Math.round((surchargeAmount / subtotal) * 100) : 0;
+  const hasSurcharge = surchargeAmount > 0;
+  const giftPaid = ((booking as any).gift_amount_applied_cents ?? 0) / 100;
+  const paidAmount = isPaid ? displayPrice : Math.min(giftPaid, displayPrice);
+  const remainingDue = Math.max(displayPrice - paidAmount, 0);
+  const methodLabel = booking.payment_method
+    ? (PAYMENT_METHOD_LABELS[booking.payment_method] || booking.payment_method)
+    : "À définir";
 
   const handleSignatureConfirm = async (signatureData: string) => {
     setSigningLoading(true);
@@ -569,68 +582,114 @@ export default function BookingDetail() {
               </div>
             </section>
 
-            <section className="bg-gray-900 text-white rounded-xl p-6 shadow-lg">
-              <p className="text-xs opacity-70 uppercase mb-1">Montant Total</p>
-              <p className="text-3xl font-bold">{formatPrice(displayPrice, currency)}</p>
+            <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+              <div className="flex items-center gap-2.5 mb-5">
+                <CreditCard className="h-5 w-5 text-gray-400" />
+                <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Paiement</span>
+              </div>
 
-              {showEarnings && (
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <p className="text-xs opacity-70 uppercase mb-1">Gain thérapeute</p>
-                  {ratesComplete && therapistEarnings != null ? (
-                    <p className="text-xl font-semibold">{formatPrice(therapistEarnings, currency)}</p>
-                  ) : (
-                    <p className="text-xs text-amber-300">Tarifs thérapeute incomplets — gain non calculable</p>
-                  )}
+              <p className="text-sm text-gray-400 mb-1">Méthode</p>
+              <p className="text-lg font-bold text-gray-900 capitalize">{methodLabel}</p>
+              {(booking as any).payment_reference && (
+                <p className="mt-1 font-mono text-[11px] text-gray-400">
+                  Réf. voucher : {(booking as any).payment_reference}
+                </p>
+              )}
+
+              <div className="border-t border-gray-100 my-4" />
+
+              <div className="flex justify-between items-center text-base">
+                <span className="text-gray-500">Sous-total</span>
+                <span className="text-gray-500">{formatPrice(subtotal, currency)}</span>
+              </div>
+
+              {hasSurcharge && (
+                <div className="flex justify-between items-center mt-3 text-base font-semibold text-amber-600">
+                  <span className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 shrink-0" />
+                    Majoration hors horaires ({surchargePercent}%)
+                  </span>
+                  <span className="whitespace-nowrap">+{formatPrice(surchargeAmount, currency)}</span>
                 </div>
               )}
 
-              {isDuo && acceptedTherapists.length > 0 && hotelCommission && (
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <p className="text-xs opacity-70 uppercase mb-2">Répartition des gains</p>
-                  {acceptedTherapists.map((therapist) => {
-                    let earnings: number | null;
-                    if (!hotelCommission.global_therapist_commission) {
-                      earnings = computeTherapistEarnings(therapistRatesMap[therapist.id] ?? null, totalDuration);
-                    } else {
-                      const pricePerTherapist = displayPrice / guestCount;
-                      earnings = Math.round(pricePerTherapist * (hotelCommission.therapist_commission / 100) * 100) / 100;
-                    }
-                    return (
-                      <div key={therapist.id} className="flex justify-between items-center mb-1.5">
-                        <p className="text-xs opacity-80">{therapist.first_name} {therapist.last_name}</p>
-                        {earnings != null ? (
-                          <p className="text-sm font-semibold">{formatPrice(earnings, currency)}</p>
-                        ) : (
-                          <p className="text-xs text-amber-300">Tarifs incomplets</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {hotelCommission.global_therapist_commission && (() => {
-                    const totalTherapistEarnings = acceptedTherapists.reduce((sum) => {
-                      const pricePerTherapist = displayPrice / guestCount;
-                      return sum + Math.round(pricePerTherapist * (hotelCommission.therapist_commission / 100) * 100) / 100;
-                    }, 0);
-                    const hotelShare = Math.round((displayPrice - totalTherapistEarnings) * 100) / 100;
-                    return (
-                      <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/10">
-                        <p className="text-xs opacity-60">Part établissement</p>
-                        <p className="text-sm font-semibold opacity-80">{formatPrice(hotelShare, currency)}</p>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
+              <div className="border-t border-gray-100 my-4" />
 
-              <div className="mt-4 pt-4 border-t border-white/10 text-xs opacity-70">
-                Méthode : {booking.payment_method ? (PAYMENT_METHOD_LABELS[booking.payment_method] || booking.payment_method) : "À définir"}
-                {(booking as any).payment_reference && (
-                  <div className="mt-1 font-mono text-[10px] opacity-80">
-                    Réf. voucher : {(booking as any).payment_reference}
-                  </div>
-                )}
+              <div className="flex justify-between items-baseline">
+                <span className="text-lg text-gray-500">Total</span>
+                <span className="text-3xl font-extrabold text-gray-900">{formatPrice(displayPrice, currency)}</span>
+              </div>
+
+              <div className="border-t border-gray-100 my-4" />
+
+              <div className="flex justify-between items-baseline">
+                <span className="text-gray-500">Payé</span>
+                <span className="text-base">
+                  <span className="font-bold text-gray-900">{formatPrice(paidAmount, currency)}</span>
+                  <span className="text-gray-400"> / {formatPrice(displayPrice, currency)}</span>
+                </span>
+              </div>
+
+              <div className="flex justify-between items-baseline mt-3">
+                <span className="text-gray-500">Reste dû</span>
+                <span className={`text-lg font-bold ${remainingDue > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                  {formatPrice(remainingDue, currency)}
+                </span>
               </div>
             </section>
+
+            {(showEarnings || (isDuo && acceptedTherapists.length > 0 && hotelCommission)) && (
+              <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                {showEarnings && (
+                  <div>
+                    <p className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase mb-2">Gain thérapeute</p>
+                    {ratesComplete && therapistEarnings != null ? (
+                      <p className="text-xl font-bold text-gray-900">{formatPrice(therapistEarnings, currency)}</p>
+                    ) : (
+                      <p className="text-xs text-amber-600">Tarifs thérapeute incomplets — gain non calculable</p>
+                    )}
+                  </div>
+                )}
+
+                {isDuo && acceptedTherapists.length > 0 && hotelCommission && (
+                  <div className={showEarnings ? "mt-4 pt-4 border-t border-gray-100" : undefined}>
+                    <p className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase mb-2">Répartition des gains</p>
+                    {acceptedTherapists.map((therapist) => {
+                      let earnings: number | null;
+                      if (!hotelCommission.global_therapist_commission) {
+                        earnings = computeTherapistEarnings(therapistRatesMap[therapist.id] ?? null, totalDuration);
+                      } else {
+                        const pricePerTherapist = displayPrice / guestCount;
+                        earnings = Math.round(pricePerTherapist * (hotelCommission.therapist_commission / 100) * 100) / 100;
+                      }
+                      return (
+                        <div key={therapist.id} className="flex justify-between items-center mb-1.5">
+                          <p className="text-sm text-gray-500">{therapist.first_name} {therapist.last_name}</p>
+                          {earnings != null ? (
+                            <p className="text-sm font-semibold text-gray-900">{formatPrice(earnings, currency)}</p>
+                          ) : (
+                            <p className="text-xs text-amber-600">Tarifs incomplets</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {hotelCommission.global_therapist_commission && (() => {
+                      const totalTherapistEarnings = acceptedTherapists.reduce((sum) => {
+                        const pricePerTherapist = displayPrice / guestCount;
+                        return sum + Math.round(pricePerTherapist * (hotelCommission.therapist_commission / 100) * 100) / 100;
+                      }, 0);
+                      const hotelShare = Math.round((displayPrice - totalTherapistEarnings) * 100) / 100;
+                      return (
+                        <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
+                          <p className="text-sm text-gray-400">Part établissement</p>
+                          <p className="text-sm font-semibold text-gray-500">{formatPrice(hotelShare, currency)}</p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         </div>
 
