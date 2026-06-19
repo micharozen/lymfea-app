@@ -6,7 +6,8 @@ import { sendSms } from "../_shared/send-sms.ts";
 import { getStripeForVenue } from "../_shared/stripe-resolver.ts";
 
 const CLIENT_NEW_BOOKING_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
-const CLIENT_PENDING_BOOKING_TEMPLATE_ID = "c5378102-92c7-48de-834c-db17da702794";
+const CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR = "c5378102-92c7-48de-834c-db17da702794";
+const CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN = "4d48ce0b-92c3-4ef7-8685-4f3905e34820";
 const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
 const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_EN = "6ba59c67-04e3-412e-9a84-246aaa7dc570";
 
@@ -490,12 +491,20 @@ serve(async (req) => {
                 treatment_price: `${treatmentPrice}€`,
               };
 
+          const clientLanguage: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';
+          const pendingTemplateId = clientLanguage === 'en'
+            ? CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN
+            : CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR;
+          const pendingSubject = clientLanguage === 'en'
+            ? `Booking request #${booking.booking_id} · ${booking.hotel_name ?? ''}`
+            : `Demande de réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`;
+
           const clientEmailResult = await sendEmail({
             to: clientEmail,
             subject: isPending
-              ? `Demande de réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`
+              ? pendingSubject
               : `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
-            templateId: isPending ? CLIENT_PENDING_BOOKING_TEMPLATE_ID : CLIENT_NEW_BOOKING_TEMPLATE_ID,
+            templateId: isPending ? pendingTemplateId : CLIENT_NEW_BOOKING_TEMPLATE_ID,
             templateVariables,
           });
 

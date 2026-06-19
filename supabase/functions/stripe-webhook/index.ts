@@ -10,6 +10,14 @@ import { brand } from "../_shared/brand.ts";
 import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
 import { getStripeForVenue, getGlobalStripe } from "../_shared/stripe-resolver.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { sendEmail } from "../_shared/send-email.ts";
+
+// Resend templates for a paid-but-not-yet-accepted booking (payment received,
+// awaiting therapist assignment). The CONFIRMED template (e2a8e114) is sent
+// only on acceptance — admin assign (trigger-new-booking-notifications) or
+// therapist PWA accept (notify-booking-confirmed), never at payment time.
+const CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR = "c5378102-92c7-48de-834c-db17da702794";
+const CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN = "4d48ce0b-92c3-4ef7-8685-4f3905e34820";
 
 serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
@@ -87,6 +95,7 @@ serve(async (req) => {
               booking_date,
               booking_time,
               total_price,
+              status,
               hotel_id,
               hotel_name,
               payment_status,
@@ -199,40 +208,48 @@ serve(async (req) => {
             }
           }
 
-          if (booking.client_email) {
+          // The booking is now paid but a therapist may not be assigned yet, so
+          // we send the PENDING template (payment received, awaiting therapist).
+          // The CONFIRMED template is sent later on acceptance. If the booking is
+          // already confirmed at payment time, the confirmation email has already
+          // been sent by the acceptance flow — skip to avoid a stale/duplicate.
+          if (booking.client_email && booking.status === 'pending') {
             try {
-              const { data: bookingTreatmentsEmail } = await supabase
-                .from('booking_treatments')
-                .select('treatment_id, treatment_menus(name, price, price_on_request)')
-                .eq('booking_id', booking.id);
+              const clientLanguage: 'fr' | 'en' = booking.payment_link_language === 'en' ? 'en' : 'fr';
+              const formattedDate = new Date(booking.booking_date).toLocaleDateString(
+                clientLanguage === 'en' ? 'en-US' : 'fr-FR',
+                { weekday: 'short', day: 'numeric', month: 'short' },
+              );
+              const formattedTime = booking.booking_time?.substring(0, 5) || '';
 
-              const treatmentsForEmail = (bookingTreatmentsEmail || []).map((bt: any) => ({
-                name: bt.treatment_menus?.name,
-                price: bt.treatment_menus?.price,
-                isPriceOnRequest: !!bt.treatment_menus?.price_on_request,
-              }));
-
-              await supabase.functions.invoke('send-booking-confirmation', {
-                body: {
-                  email: booking.client_email,
-                  bookingId: booking.id,
-                  bookingNumber: booking.booking_id.toString(),
-                  clientName: `${booking.client_first_name} ${booking.client_last_name || ''}`.trim(),
-                  hotelName: booking.hotel_name,
-                  roomNumber: booking.room_number,
-                  bookingDate: booking.booking_date,
-                  bookingTime: booking.booking_time,
-                  treatments: treatmentsForEmail,
-                  totalPrice: booking.total_price,
-                  currency: currency,
-                  siteUrl: Deno.env.get("SITE_URL") || "https://lymfea.fr",
-                  language: booking.payment_link_language || 'fr',
+              const emailResult = await sendEmail({
+                to: booking.client_email,
+                subject: clientLanguage === 'en'
+                  ? `Booking request #${booking.booking_id} · ${booking.hotel_name ?? ''}`
+                  : `Demande de réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
+                templateId: clientLanguage === 'en'
+                  ? CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN
+                  : CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR,
+                templateVariables: {
+                  booking_date: formattedDate,
+                  booking_time: formattedTime,
+                  first_name: booking.client_first_name ?? '',
+                  hotel_name: booking.hotel_name ?? '',
+                  room_number: booking.room_number ? String(booking.room_number) : '',
+                  treatment_name: treatmentsList,
                 },
               });
-              console.log('[STRIPE-WEBHOOK] Confirmation email sent to client (Payment Link)');
+
+              if (emailResult.error) {
+                console.error('[STRIPE-WEBHOOK] Payment Link pending email error:', emailResult.error);
+              } else {
+                console.log('[STRIPE-WEBHOOK] Pending booking email sent to client (Payment Link)');
+              }
             } catch (emailError) {
               console.error('[STRIPE-WEBHOOK] Payment Link Email error:', emailError);
             }
+          } else if (booking.client_email) {
+            console.log('[STRIPE-WEBHOOK] Booking already confirmed — confirmation handled by acceptance flow, skipping payment email');
           }
 
           return new Response(JSON.stringify({ received: true }), { status: 200 });
