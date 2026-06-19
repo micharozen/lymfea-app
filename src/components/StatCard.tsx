@@ -1,5 +1,5 @@
 import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface StatCardProps {
   title: string;
@@ -16,9 +16,16 @@ export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
   return (
     <Card className="border border-border bg-card">
       <CardContent className="p-5 flex flex-col h-full">
-        <p className="text-xs font-medium text-muted-foreground mb-3 tracking-wide">
-          {title}
-        </p>
+        <div className="flex items-center gap-2 mb-3">
+          {Icon && (
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Icon className="h-4 w-4" strokeWidth={2.25} />
+            </span>
+          )}
+          <p className="text-sm font-medium text-muted-foreground tracking-wide">
+            {title}
+          </p>
+        </div>
         <p className="text-xl md:text-2xl font-medium text-foreground mb-3 tracking-tight whitespace-nowrap">
           {value}
         </p>

@@ -28,6 +28,36 @@ interface SalesChartProps {
   data: ChartPoint[];
 }
 
+function SalesTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: ChartPoint }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+  return (
+    <div
+      style={{
+        backgroundColor: "hsl(var(--card))",
+        border: "1px solid hsl(var(--border))",
+        borderRadius: "8px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+        padding: "8px 12px",
+      }}
+    >
+      <p className="text-sm font-bold mb-1">{label}</p>
+      <p className="text-sm">{point.sales.toFixed(2)} €</p>
+      <p className="text-xs text-muted-foreground">
+        {point.prestations} prestation{point.prestations > 1 ? "s" : ""}
+      </p>
+    </div>
+  );
+}
+
 export function SalesChart({ data }: SalesChartProps) {
   if (data.length === 0) {
     return (
@@ -56,16 +86,7 @@ export function SalesChart({ data }: SalesChartProps) {
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
             <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#666" />
             <YAxis tick={{ fontSize: 12 }} stroke="#666" tickFormatter={(v) => `${v} €`} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              }}
-              labelStyle={{ fontWeight: "bold", marginBottom: "4px" }}
-              formatter={(value: number) => [`${value.toFixed(2)} €`, "Ventes"]}
-            />
+            <Tooltip content={<SalesTooltip />} />
             <Area
               type="monotone"
               dataKey="sales"

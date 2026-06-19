@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useUser } from "@/contexts/UserContext";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
@@ -22,6 +23,8 @@ import { DashboardAlerts } from "@/components/admin/dashboard/DashboardAlerts";
 import { SalesChart, StatusDonut, WeekForecast, RoomOccupancyChart } from "@/components/admin/dashboard/DashboardCharts";
 import { DashboardRankings } from "@/components/admin/dashboard/DashboardRankings";
 import { DashboardOverview } from "@/components/admin/dashboard/DashboardOverview";
+import { DashboardKpiRow } from "@/components/admin/dashboard/DashboardKpiRow";
+import { Ban, BedDouble, CalendarCheck, CalendarDays } from "lucide-react";
 
 export default function Dashboard() {
   const { hotelIds } = useUser();
@@ -100,29 +103,33 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Alerts */}
-        <DashboardAlerts alerts={data.alerts} />
+        <Tabs defaultValue="dashboard">
+          {!isConcierge && (
+            <TabsList className="mb-4">
+              <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
+              <TabsTrigger value="overview">Vue d&apos;ensemble</TabsTrigger>
+            </TabsList>
+          )}
+
+          <TabsContent value="dashboard" className="mt-0">
+            {/* Alerts */}
+            <DashboardAlerts alerts={data.alerts} />
+
+        {/* KPI row — admins only (CA / Panier moyen / Vente Retail) */}
+        {!isConcierge && (
+          <DashboardKpiRow
+            totalSales={stats.totalSales}
+            salesTrend={stats.salesTrend}
+            averageBasket={stats.averageBasket}
+          />
+        )}
 
         {/* Stat Cards */}
-        <div className={`grid grid-cols-2 sm:grid-cols-3 ${isConcierge ? "lg:grid-cols-5" : "lg:grid-cols-7"} gap-3 mb-6`}>
-          {!isConcierge && (
-            <StatCard
-              title="Ventes totales"
-              value={stats.totalSales === "0.00" ? "0 €" : `${stats.totalSales} €`}
-              trend={
-                stats.salesTrend !== 0
-                  ? {
-                      value: `${Math.abs(stats.salesTrend)}%`,
-                      isPositive: stats.salesTrend > 0,
-                      periodLabel: "vs période précédente",
-                    }
-                  : undefined
-              }
-            />
-          )}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
           <StatCard
             title="Réservations"
             value={stats.totalBookings}
+            icon={CalendarCheck}
             trend={
               stats.bookingsTrend !== 0
                 ? {
@@ -133,41 +140,12 @@ export default function Dashboard() {
                 : undefined
             }
           />
-          <StatCard title="Aujourd'hui" value={stats.todayBookings} />
-          <StatCard title="Attente paiement" value={stats.pendingPayment} />
-          <StatCard title="Chambres à renseigner" value={stats.missingRoomNumber} />
-          <StatCard title="Taux annulation" value={`${stats.cancellationRate}%`} />
-          {!isConcierge && (
-            <StatCard
-              title="Panier moyen"
-              value={stats.averageBasket === "0.00" ? "0 €" : `${stats.averageBasket} €`}
-            />
-          )}
+          <StatCard title="Aujourd'hui" value={stats.todayBookings} icon={CalendarDays} />
+          <StatCard title="Taux annulation" value={`${stats.cancellationRate}%`} icon={Ban} />
         </div>
 
         {/* Operational gauges */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <Card className="border border-border bg-card shadow-sm">
-            <CardContent className="p-5">
-              <p className="text-xs font-medium text-muted-foreground mb-2 tracking-wide">
-                Occupation salles aujourd'hui
-              </p>
-              <div className="flex items-baseline gap-2 mb-3">
-                <span className="text-2xl font-medium text-foreground tabular-nums">
-                  {data.roomOccupancy.used}/{data.roomOccupancy.total}
-                </span>
-                <span className="text-sm text-muted-foreground">salles</span>
-              </div>
-              <Progress
-                value={
-                  data.roomOccupancy.total > 0
-                    ? (data.roomOccupancy.used / data.roomOccupancy.total) * 100
-                    : 0
-                }
-                className="h-2"
-              />
-            </CardContent>
-          </Card>
+        <div className="mb-6 max-w-md">
           <Card className="border border-border bg-card shadow-sm">
             <CardContent className="p-5">
               <p className="text-xs font-medium text-muted-foreground mb-2 tracking-wide">
@@ -215,16 +193,28 @@ export default function Dashboard() {
           <WeekForecast data={data.weekForecast} />
         </div>
 
-        {/* Rankings */}
-        <DashboardRankings
-          topVenues={data.topVenues}
-          topTherapists={data.topTherapists}
-          topTreatments={data.topTreatments}
-          isSingleVenue={isSingleVenue}
-        />
+        {stats.missingRoomNumber > 0 && (
+          <div className="mb-6 max-w-sm">
+            <StatCard title="Chambres à renseigner" value={stats.missingRoomNumber} icon={BedDouble} />
+          </div>
+        )}
 
-        {/* Overview table — admins only (comparative view across all venues) */}
-        {!isConcierge && <DashboardOverview hotelData={data.hotelData} />}
+            {/* Rankings */}
+            <DashboardRankings
+              topVenues={data.topVenues}
+              topTherapists={data.topTherapists}
+              topTreatments={data.topTreatments}
+              isSingleVenue={isSingleVenue}
+            />
+          </TabsContent>
+
+          {/* Overview tab — admins only (comparative view across all venues) */}
+          {!isConcierge && (
+            <TabsContent value="overview" className="mt-0">
+              <DashboardOverview hotelData={data.hotelData} />
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
 
       <WelcomeDialog open={welcome.shouldShow} onClose={welcome.dismiss} />

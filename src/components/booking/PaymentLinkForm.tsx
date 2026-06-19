@@ -4,7 +4,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Loader2,
   Mail,
@@ -217,48 +216,6 @@ export function PaymentLinkForm({
     }
   };
 
-  const formattedDate = new Date(booking.booking_date).toLocaleDateString(
-    language === "fr" ? "fr-FR" : "en-US",
-    { weekday: "long", day: "numeric", month: "long", year: "numeric" }
-  );
-
-  const getEmailPreview = (): string => {
-    const clientName = `${booking.client_first_name} ${booking.client_last_name}`;
-    const treatmentsList = booking.treatments?.map(t => `• ${t.name} - ${formatPrice(t.price, booking.currency || 'EUR')}`).join("\n") || "";
-
-    if (language === "fr") {
-      return `Bonjour ${clientName} !
-
-Votre réservation bien-être est confirmée.
-
-${booking.room_number ? `Un professionnel viendra directement dans votre chambre ${booking.room_number} à ${booking.hotel_name || "l'hôtel"}.` : `Rendez-vous chez ${booking.hotel_name || "l'établissement"}.`}
-
-${formattedDate} à ${booking.booking_time}
-Réservation #${booking.booking_id}
-
-${treatmentsList}
-
-Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
-
-[Lien de paiement sera généré]`;
-    }
-
-    return `Hello ${clientName}!
-
-Your wellness booking is confirmed.
-
-${booking.room_number ? `A professional will come directly to your room ${booking.room_number} at ${booking.hotel_name || "the hotel"}.` : `See you at ${booking.hotel_name || "the venue"}.`}
-
-${formattedDate} at ${booking.booking_time}
-Booking #${booking.booking_id}
-
-${treatmentsList}
-
-Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
-
-[Payment link will be generated]`;
-  };
-
   if (result?.success) {
     return (
       <div className="py-6 text-center">
@@ -453,20 +410,6 @@ Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
           )}
         </div>
       </div>
-
-      {sendEmail && (
-        <div className="space-y-2">
-          <Label>Aperçu du message email</Label>
-          <ScrollArea className="h-40 border rounded-lg p-3 bg-muted/30">
-            <pre className="text-xs whitespace-pre-wrap font-sans">
-              {getEmailPreview()}
-            </pre>
-          </ScrollArea>
-          <p className="text-[11px] text-muted-foreground">
-            Aperçu indicatif — le mail final utilise un template HTML.
-          </p>
-        </div>
-      )}
 
       <div className="flex gap-2 justify-end">
         {showSkipButton && (

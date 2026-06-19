@@ -10,9 +10,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, Layers, Package, Users, X } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, ChevronUp, Clock, Layers, Package, Users, X } from "lucide-react";
 import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowDownNarrowWide, ArrowUpNarrowWide } from "lucide-react";
 import { TablePagination } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -34,6 +42,35 @@ function getPaymentTextLabel(status: string | null | undefined): string {
   return PAYMENT_TEXT_LABELS[status.toLowerCase()] ?? status;
 }
 
+export type BookingSortKey =
+  | "reservation"
+  | "date"
+  | "time"
+  | "duration"
+  | "status"
+  | "payment"
+  | "client"
+  | "treatments"
+  | "total"
+  | "location"
+  | "therapist";
+
+export type SortDirection = "asc" | "desc";
+
+const SORT_OPTIONS: { key: BookingSortKey; label: string }[] = [
+  { key: "reservation", label: "Réservation" },
+  { key: "date", label: "Date" },
+  { key: "time", label: "Heure" },
+  { key: "duration", label: "Durée" },
+  { key: "status", label: "Statut" },
+  { key: "payment", label: "Paiement" },
+  { key: "client", label: "Client" },
+  { key: "treatments", label: "Prestations" },
+  { key: "total", label: "Total" },
+  { key: "location", label: "Lieu" },
+  { key: "therapist", label: "Thérapeute" },
+];
+
 interface BookingListViewProps {
   paginatedBookings: BookingWithTreatments[];
   filteredBookingsCount: number;
@@ -50,6 +87,9 @@ interface BookingListViewProps {
   onPageChange: (page: number) => void;
   paymentAsText?: boolean;
   onRequestCancel?: (booking: BookingWithTreatments) => void;
+  sortKey?: BookingSortKey;
+  sortDirection?: SortDirection;
+  onSort?: (key: BookingSortKey) => void;
 }
 
 export function BookingListView({
@@ -68,9 +108,40 @@ export function BookingListView({
   onPageChange,
   paymentAsText = false,
   onRequestCancel,
+  sortKey,
+  sortDirection,
+  onSort,
 }: BookingListViewProps) {
   const { t } = useTranslation("common");
   const navigate = useNavigate();
+
+  const renderSortableHead = (
+    key: BookingSortKey,
+    label: string,
+    className: string,
+    align: "left" | "center" = "left"
+  ) => {
+    if (!onSort) {
+      return <TableHead className={className}>{label}</TableHead>;
+    }
+    const isActive = sortKey === key;
+    return (
+      <TableHead className={className}>
+        <button
+          type="button"
+          onClick={() => onSort(key)}
+          className={`flex items-center gap-1 hover:text-foreground transition-colors ${
+            align === "center" ? "mx-auto" : ""
+          } ${isActive ? "text-foreground" : ""}`}
+        >
+          <span className="truncate">{label}</span>
+          {!isActive && <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-40" />}
+          {isActive && sortDirection === "asc" && <ChevronUp className="h-3 w-3 shrink-0" />}
+          {isActive && sortDirection === "desc" && <ChevronDown className="h-3 w-3 shrink-0" />}
+        </button>
+      </TableHead>
+    );
+  };
 
   const canShowCancel = (booking: BookingWithTreatments) =>
     !!onRequestCancel &&
@@ -101,6 +172,39 @@ export function BookingListView({
 
   return (
     <div className="h-full flex flex-col min-w-0">
+      {/* ── Mobile sort bar (<md) ──────────────────────────── */}
+      {onSort && sortKey && (
+        <div className="flex md:hidden items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
+          <span className="text-xs text-muted-foreground shrink-0">Trier par</span>
+          <Select value={sortKey} onValueChange={(v) => onSort(v as BookingSortKey)}>
+            <SelectTrigger className="h-8 flex-1 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.filter((o) => o.key !== "location" || !isConcierge).map((o) => (
+                <SelectItem key={o.key} value={o.key} className="text-xs">
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => onSort(sortKey)}
+            title={sortDirection === "asc" ? "Croissant" : "Décroissant"}
+          >
+            {sortDirection === "asc" ? (
+              <ArrowUpNarrowWide className="h-4 w-4" />
+            ) : (
+              <ArrowDownNarrowWide className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      )}
+
       {/* ── Mobile card view (<md) ─────────────────────────── */}
       <div className="flex flex-col md:hidden flex-1 overflow-y-auto divide-y divide-border">
         {paginatedBookings.length === 0 && (
@@ -242,19 +346,18 @@ export function BookingListView({
           </colgroup>
           <TableHeader>
             <TableRow className="border-b h-8 bg-muted/20">
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Réservation</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Date</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Heure</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Durée</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center">Paiement</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Client</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prestations</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Total</TableHead>
-              {!isConcierge && (
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Lieu</TableHead>
-              )}
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Thérapeute</TableHead>
+              {renderSortableHead("reservation", "Réservation", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
+              {renderSortableHead("date", "Date", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
+              {renderSortableHead("time", "Heure", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
+              {renderSortableHead("duration", "Durée", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
+              {renderSortableHead("status", "Statut", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
+              {renderSortableHead("payment", "Paiement", "font-medium text-muted-foreground text-xs py-1.5 px-2 text-center", "center")}
+              {renderSortableHead("client", "Client", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
+              {renderSortableHead("treatments", "Prestations", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
+              {renderSortableHead("total", "Total", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
+              {!isConcierge &&
+                renderSortableHead("location", "Lieu", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
+              {renderSortableHead("therapist", "Thérapeute", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
             </TableRow>
           </TableHeader>
 

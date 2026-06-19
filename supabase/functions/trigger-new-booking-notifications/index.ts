@@ -40,7 +40,7 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { bookingId, notifyAll } = await req.json();
+    const { bookingId, notifyAll, sendPaymentLink } = await req.json();
 
     if (!bookingId) {
       throw new Error("Booking ID is required");
@@ -320,7 +320,12 @@ serve(async (req) => {
           .maybeSingle();
         const hasPaymentMethod = !!existingPaymentInfo;
 
-        if (isExternal && !hasPaymentMethod) {
+        if (isExternal && !hasPaymentMethod && sendPaymentLink === false) {
+          // Admin-created bookings (sendPaymentLink === false): do NOT auto-send
+          // the Stripe payment link. The operator sends it manually from the
+          // payment tab (FAB → SendPaymentLinkDialog). No client email here.
+          console.log('[trigger-new-booking-notifications] sendPaymentLink=false → skipping auto payment-link for external booking:', bookingId);
+        } else if (isExternal && !hasPaymentMethod) {
           // External clients: create a Stripe payment link and send the
           // payment-required email template instead of the standard confirmation.
           const language: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';

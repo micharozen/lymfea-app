@@ -88,7 +88,7 @@ serve(async (req) => {
     
     // Deep link URL for booking details
     const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
-    const bookingDetailsUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
+    const bookingDetailsUrl = `${siteUrl}/admin/bookings/${bookingId}`;
 
     const formattedTime = booking.booking_time?.substring(0, 5) || '';
     const totalAmount = booking.total_price || 0;

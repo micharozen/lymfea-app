@@ -55,6 +55,21 @@ export const countries: CountryOption[] = [
   { code: "+84", label: "Vietnam", flag: "🇻🇳" },
 ];
 
+/**
+ * Combine un indicatif pays et un numéro saisi en un seul numéro normalisé.
+ *
+ * Si le numéro saisi commence déjà par "+", il est considéré comme étant
+ * au format international complet et l'indicatif n'est PAS ajouté — cela
+ * évite les doublons type "+33 +336090134" quand l'utilisateur colle un
+ * numéro avec son indicatif. Sinon, l'indicatif est préfixé avec un espace.
+ */
+export const composePhoneNumber = (countryCode: string, phone: string): string => {
+  const trimmed = (phone ?? "").trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("+")) return trimmed;
+  return `${countryCode} ${trimmed}`;
+};
+
 export const formatPhoneNumber = (value: string, countryCode: string): string => {
   const numbers = value.replace(/\D/g, '');
   switch (countryCode) {
