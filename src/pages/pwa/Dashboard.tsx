@@ -6,7 +6,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, CheckCircle2, ChevronRight, Clock, Euro, XCircle, Users } from "lucide-react";
+import { CalendarDays, Check, CheckCircle2, ChevronRight, Clock, Euro, Loader2, X, XCircle, Users } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -111,6 +111,8 @@ const PwaDashboard = () => {
   const [pullDistance, setPullDistance] = useState(0);
   const [startY, setStartY] = useState(0);
   const [showAllBookings, setShowAllBookings] = useState(false);
+  const [processing, setProcessing] = useState<{ id: string; action: "accept" | "decline" } | null>(null);
+  const processingBookingId = processing?.id ?? null;
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -351,20 +353,6 @@ const PwaDashboard = () => {
 
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
 
-    // Fetch therapist's treatment room assignments
-    const { data: therapistData } = await supabase
-      .from("therapists")
-      .select("trunks")
-      .eq("id", therapistId)
-      .single();
-
-    if (!isMountedRef.current) return;
-
-    // Parse room IDs from therapist's trunks field (comma-separated text or single value)
-    const therapistRoomIds: string[] = therapistData?.trunks
-      ? therapistData.trunks.split(',').map((t: string) => t.trim()).filter(Boolean)
-      : [];
-
     // Fetch hotel images and currency separately (no FK relationship)
     const { data: hotelData } = await supabase
       .from("hotels")
@@ -476,12 +464,10 @@ const PwaDashboard = () => {
         );
         return !alreadyAccepted;
       }
-      // Solo pending bookings: must be unassigned (assigned ones come from myBookings)
+      // Solo pending bookings: must be unassigned (assigned ones come from myBookings).
+      // Visible to all therapists of the venue, regardless of treatment room.
       if (b.status === "pending") {
-        if (b.therapist_id !== null) return false;
-        if (therapistRoomIds.length === 0) return true;
-        if (!b.room_id) return true;
-        return therapistRoomIds.includes(b.room_id);
+        return b.therapist_id === null;
       }
       return false;
     }) || [];
@@ -612,8 +598,9 @@ const PwaDashboard = () => {
   };
 
   const handleAcceptBooking = async (bookingId: string) => {
-    if (!therapist || !isMountedRef.current) return;
+    if (!therapist || !isMountedRef.current || processingBookingId) return;
 
+    setProcessing({ id: bookingId, action: "accept" });
     try {
       const totalPrice = calculateTotalPrice(allBookings.find(b => b.id === bookingId)!);
 
@@ -668,12 +655,15 @@ const PwaDashboard = () => {
       } else {
         toast.error(t('dashboard.acceptError'));
       }
+    } finally {
+      if (isMountedRef.current) setProcessing(null);
     }
   };
 
   const handleDeclineBooking = async (bookingId: string) => {
-    if (!therapist || !isMountedRef.current) return;
+    if (!therapist || !isMountedRef.current || processingBookingId) return;
 
+    setProcessing({ id: bookingId, action: "decline" });
     try {
       const { data: currentBooking } = await supabase
         .from("bookings")
@@ -702,6 +692,8 @@ const PwaDashboard = () => {
       if (isMountedRef.current) {
         toast.error(t('dashboard.error'));
       }
+    } finally {
+      if (isMountedRef.current) setProcessing(null);
     }
   };
 
@@ -889,14 +881,14 @@ const PwaDashboard = () => {
       )}
 
       {/* Content - no scroll, parent handles it */}
-      <div 
-        className="flex-1 min-h-0 pb-2"
+      <div
+        className="flex flex-col flex-1 min-h-0 pb-2"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         {/* My Bookings Section */}
-        <div className="px-4 pt-3">
+        <div className="order-2 px-4 pt-3">
           <h2 className="text-[10px] font-bold uppercase tracking-wider mb-2 text-foreground">{t('dashboard.myBookings')}</h2>
           
           {/* Tabs - Compact */}
@@ -1011,8 +1003,9 @@ const PwaDashboard = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0">
+                        <span className="font-semibold text-xs text-muted-foreground flex-shrink-0">#{booking.booking_id}</span>
                         <h3 className="font-semibold text-xs text-foreground truncate">{booking.hotel_name}</h3>
-                        
+
                         {/* NOUVEAU BADGE SOIN DUO */}
                         {(booking.guest_count || 1) > 1 && (
                           <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 bg-blue-100 text-blue-700 border-blue-200 gap-0.5 flex-shrink-0 flex items-center">
@@ -1069,7 +1062,7 @@ const PwaDashboard = () => {
         </div>
 
         {/* Pending Requests Section - Compact */}
-        <div className="px-4 pt-3 pb-2">
+        <div className="order-1 px-4 pt-3 pb-2">
           <div className="flex items-center gap-1.5 mb-2">
             <h2 className="text-[10px] font-bold uppercase tracking-wider text-foreground">{t('dashboard.pendingRequests')}</h2>
             <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center">
@@ -1131,8 +1124,9 @@ const PwaDashboard = () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-xs text-muted-foreground flex-shrink-0">#{booking.booking_id}</span>
                               <h3 className="font-semibold text-xs text-foreground truncate">{booking.hotel_name}</h3>
-                              
+
                               {/* NOUVEAU BADGE SOIN DUO */}
                               {(booking.guest_count || 1) > 1 && (
                                 <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 bg-blue-100 text-blue-700 border-blue-200 gap-0.5 flex-shrink-0 flex items-center">
@@ -1146,6 +1140,15 @@ const PwaDashboard = () => {
                                   {t('dashboard.slots', { count: [true, !!booking.proposed_slots.slot_2_date, !!booking.proposed_slots.slot_3_date].filter(Boolean).length })}
                                 </Badge>
                               )}
+
+                              {(() => {
+                                const paymentBadge = getPaymentStatusBadge(booking.payment_status, booking.payment_method, t);
+                                return paymentBadge ? (
+                                  <Badge className={`text-[8px] px-1 py-0 h-3 flex-shrink-0 ${paymentBadge.className}`}>
+                                    {paymentBadge.label}
+                                  </Badge>
+                                ) : null;
+                              })()}
                             </div>
                             <p className="text-[11px] text-muted-foreground truncate">
                               {booking.booking_treatments?.map(bt => bt.treatment_menus?.name).filter(Boolean).join(', ') || ''}
@@ -1165,7 +1168,40 @@ const PwaDashboard = () => {
                               </p>
                             )}
                           </div>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <button
+                              type="button"
+                              aria-label={t('dashboard.accept')}
+                              disabled={processingBookingId !== null}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAcceptBooking(booking.id);
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700 transition-colors hover:bg-green-200 disabled:opacity-50"
+                            >
+                              {processing?.id === booking.id && processing.action === "accept" ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Check className="h-4 w-4" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={t('dashboard.decline')}
+                              disabled={processingBookingId !== null}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeclineBooking(booking.id);
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-700 transition-colors hover:bg-red-200 disabled:opacity-50"
+                            >
+                              {processing?.id === booking.id && processing.action === "decline" ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <X className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
                         </div>
                         {index < bookings.length - 1 && (
                           <div className="h-px bg-muted mt-1" />

@@ -497,6 +497,7 @@
       "email": "Email",
       "language": "Language",
       "preferredTherapist": "Preferred Therapist",
+      "bookings": "Bookings",
       "createdAt": "Created"
     },
     "identity": "Identity",

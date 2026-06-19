@@ -216,9 +216,17 @@ serve(async (req) => {
 
     await delay(600);
 
-    // 3. Send to client
+    // Garde paiement : on ne notifie le client (email + SMS) que si le paiement
+    // est engagé (paid/charged/charged_to_room/card_saved) ou facturé par un
+    // partenaire (Staycation/ClassPass). Un booking confirmé par un thérapeute
+    // mais non payé reste muet côté client — l'email de confirmation sera envoyé
+    // par stripe-webhook au moment du paiement (Gate status === 'confirmed').
+    const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing'];
+    const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
+
+    // 3. Send to client (only once payment is engaged)
     let clientEmailOk = false;
-    if (booking.client_email) {
+    if (booking.client_email && isPaidEnough) {
       const { error: emailError } = await sendEmail({
         to: booking.client_email,
         subject: `✅ Votre RDV est confirmé · ${formattedDate}`,
@@ -232,15 +240,16 @@ serve(async (req) => {
         emailsSent.push(`client:${booking.client_email}`);
         clientEmailOk = true;
       }
+    } else {
+      console.log('[notify-booking-confirmed] Client confirmation email skipped', {
+        hasEmail: !!booking.client_email,
+        isPaidEnough,
+        payment_status: (booking as any).payment_status,
+      });
     }
 
     // 3bis. Send SMS to client when booking transitions to confirmed
-    // (therapist accepted). Garde : on n'envoie le SMS de confirmation que si
-    // le client a engagé son paiement (paid/charged/charged_to_room/card_saved)
-    // ou si le partenaire facture (Staycation/ClassPass). Un booking confirmé
-    // par un thérapeute mais non payé reste muet côté client.
-    const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing'];
-    const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
+    // (therapist accepted). Même garde de paiement que l'email ci-dessus.
     const clientPhone: string = (booking as any).phone ?? (booking as any).client_phone ?? '';
     if (clientPhone && clientEmailOk && isPaidEnough) {
       try {

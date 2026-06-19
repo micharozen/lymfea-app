@@ -57,6 +57,7 @@ interface Customer {
   preferred_treatment_type: string | null;
   health_notes: string | null;
   created_at: string;
+  booking_count: number;
   preferred_therapist?: {
     id: string;
     first_name: string;
@@ -148,6 +149,7 @@ export default function Customers() {
       switch (column) {
         case "name": return `${customer.first_name} ${customer.last_name || ""}`;
         case "email": return customer.email || "";
+        case "bookings": return customer.booking_count;
         case "created_at": return customer.created_at;
         default: return null;
       }
@@ -161,7 +163,7 @@ export default function Customers() {
 
   useOverflowControl(!loading && needsPagination);
 
-  const columnCount = isAdmin ? 7 : 6;
+  const columnCount = isAdmin ? 8 : 7;
 
   const handleDelete = async () => {
     if (!deleteCustomerId) return;
@@ -251,6 +253,9 @@ export default function Customers() {
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
                       {t("customers.columns.preferredTherapist")}
                     </TableHead>
+                    <SortableTableHead column="bookings" sortDirection={getSortDirection("bookings")} onSort={toggleSort} align="right" className="w-[90px]">
+                      {t("customers.columns.bookings")}
+                    </SortableTableHead>
                     <SortableTableHead column="created_at" sortDirection={getSortDirection("created_at")} onSort={toggleSort}>
                       {t("customers.columns.createdAt")}
                     </SortableTableHead>
@@ -303,6 +308,11 @@ export default function Customers() {
                             {customer.preferred_therapist
                               ? `${customer.preferred_therapist.first_name} ${customer.preferred_therapist.last_name}`
                               : "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-right">
+                          <span className="block text-foreground tabular-nums">
+                            {customer.booking_count}
                           </span>
                         </TableCell>
                         <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
