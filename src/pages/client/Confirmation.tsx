@@ -50,6 +50,7 @@ export default function Confirmation() {
       if (hasConfirmed.current) return;
       hasConfirmed.current = true;
 
+      console.log("[Confirmation] Starting bundle purchase confirmation");
       try {
         if (!sessionId) throw new Error("Identifiant de session manquant.");
 
@@ -60,9 +61,11 @@ export default function Confirmation() {
           throw new Error("Aucune cure trouvée.");
         }
 
+        console.log("[Confirmation] Bundle purchase confirmed successfully");
         setBundleData(data.customerBundles);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Une erreur est survenue.";
+        console.error("[Confirmation] Bundle purchase failed:", msg);
         setError(msg);
       } finally {
         setIsLoading(false);
@@ -73,6 +76,7 @@ export default function Confirmation() {
       if (hasConfirmed.current) return;
       hasConfirmed.current = true;
 
+      console.log("[Confirmation] Starting booking confirmation");
       try {
         let finalBookingId = paramBookingId;
 
@@ -87,6 +91,7 @@ export default function Confirmation() {
           throw new Error("Identifiant de réservation invalide.");
         }
 
+        console.log("[Confirmation] Fetching booking summary for:", finalBookingId);
         const { data, error: dbError } = await supabase.rpc('get_booking_summary', {
           _booking_id: finalBookingId
         });
@@ -95,6 +100,7 @@ export default function Confirmation() {
         if (!data) throw new Error("Votre réservation est introuvable.");
 
         const bookingData = data as Record<string, unknown>;
+        console.log("[Confirmation] Booking confirmed successfully, status:", bookingData.status);
         setBooking(bookingData);
 
         // Apply language from payment link if the client arrived via a payment link
