@@ -169,11 +169,25 @@ export function initErrorTracking() {
     ) {
       return;
     }
-    logger.error('window.error', event.error ?? event.message, {
+    
+    // Enhanced error context for debugging cross-origin script errors
+    const errorContext: Record<string, unknown> = {
       filename: event.filename,
       lineno: event.lineno,
       colno: event.colno,
-    });
+      message: event.message,
+      // Add more context to help identify "Script error." issues
+      isCrossOriginError: event.message === 'Script error.' && !event.filename,
+      userAgent: navigator.userAgent,
+      pathname: window.location.pathname,
+    };
+    
+    // If it's a cross-origin error, add a note
+    if (errorContext.isCrossOriginError) {
+      errorContext.note = 'Cross-origin error - check CORS and crossorigin attribute on script tags';
+    }
+    
+    logger.error('window.error', event.error ?? event.message, errorContext);
   });
 
   window.addEventListener('unhandledrejection', (event) => {
