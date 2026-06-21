@@ -779,7 +779,7 @@ export default function EditBookingDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!hotelId || !clientFirstName || !clientLastName || !phone || !date || !time) {
+    if (!hotelId || !clientFirstName || !clientLastName || !date || !time) {
       toast({
         title: "Champs requis",
         description: "Veuillez remplir tous les champs obligatoires.",
@@ -879,7 +879,7 @@ export default function EditBookingDialog({
       hotel_id: isConcierge ? (booking?.hotel_id || "") : hotelId,
       client_first_name: isConcierge ? (booking?.client_first_name || "") : clientFirstName,
       client_last_name: isConcierge ? (booking?.client_last_name || "") : clientLastName,
-      phone: isConcierge ? (booking?.phone || "") : composePhoneNumber(countryCode, phone),
+      phone: isConcierge ? (booking?.phone || null) : (composePhoneNumber(countryCode, phone) || null),
       room_number: isConcierge ? (booking?.room_number || "") : roomNumber,
       booking_date: submittedDate,
       booking_time: submittedTime,
