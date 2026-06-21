@@ -38,6 +38,7 @@ import {
   getCartLineUnitPrice,
   getCartLineUnitDuration,
 } from "@/lib/bookingCartLine";
+import { computeOutOfHoursSurcharge } from "@/lib/surcharge";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -552,6 +553,8 @@ export default function EditBookingDialog({
           therapist_id: bookingData.therapist_id || null,
           therapist_name: bookingData.therapist_id && therapist ? `${therapist.first_name} ${therapist.last_name}` : null,
           total_price: bookingData.total_price,
+          surcharge_amount: bookingData.surcharge_amount,
+          is_out_of_hours: bookingData.is_out_of_hours,
           status: newStatus,
           assigned_at: assignedAt,
           client_note: bookingData.client_note ?? null,
@@ -895,6 +898,11 @@ export default function EditBookingDialog({
         ? (therapistIds.find(id => !!id) || null)
         : (therapistId === "none" ? null : therapistId);
 
+    // Reconcile the out-of-hours surcharge against the (possibly edited) time and
+    // subtotal. total_price stores the surcharge-inclusive amount; surcharge_amount
+    // and is_out_of_hours are kept in sync so the Paiement card stays consistent.
+    const surcharge = computeOutOfHoursSurcharge(submittedTime, totalPrice, selectedHotel);
+
     updateMutation.mutate({
       hotel_id: isConcierge ? (booking?.hotel_id || "") : hotelId,
       client_first_name: isConcierge ? (booking?.client_first_name || "") : clientFirstName,
@@ -904,7 +912,9 @@ export default function EditBookingDialog({
       booking_date: submittedDate,
       booking_time: submittedTime,
       therapist_id: primaryTherapistId,
-      total_price: totalPrice,
+      total_price: surcharge.totalWithSurcharge,
+      surcharge_amount: surcharge.surchargeAmount,
+      is_out_of_hours: surcharge.isOutOfHours,
       treatments: submittedTreatments,
       status: status,
       client_note: isConcierge
