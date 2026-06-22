@@ -17,6 +17,8 @@ import PwaHeader from "@/components/pwa/Header";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
 import { brand } from "@/config/brand";
+import { useScheduleCompleteness, fetchTherapistUnavailableDates } from "@/hooks/pwa/useScheduleCompleteness";
+import { ScheduleReminderBanner } from "@/components/pwa/schedule/ScheduleReminderBanner";
 
 interface Therapist {
   id: string;
@@ -113,10 +115,33 @@ const PwaDashboard = () => {
   const [showAllBookings, setShowAllBookings] = useState(false);
   const [processing, setProcessing] = useState<{ id: string; action: "accept" | "decline" } | null>(null);
   const processingBookingId = processing?.id ?? null;
+  const [unavailableDates, setUnavailableDates] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const isMountedRef = useIsMounted();
+  const { data: scheduleCompleteness } = useScheduleCompleteness(therapist?.id);
+
+  useEffect(() => {
+    if (!therapist) return;
+
+    const pendingDates = allBookings
+      .filter(
+        (b) =>
+          b.status === "pending" ||
+          b.status === "awaiting_hairdresser_selection"
+      )
+      .map((b) => b.booking_date);
+
+    if (pendingDates.length === 0) {
+      setUnavailableDates(new Set());
+      return;
+    }
+
+    fetchTherapistUnavailableDates(therapist.id, pendingDates).then(
+      setUnavailableDates
+    );
+  }, [therapist, allBookings]);
 
   useEffect(() => {
     checkAuth();
@@ -728,6 +753,8 @@ const PwaDashboard = () => {
       const hasDeclined = therapist && b.declined_by?.includes(therapist.id);
       if (hasDeclined) return false;
 
+      if (unavailableDates.has(b.booking_date)) return false;
+
       if (b.status === "awaiting_hairdresser_selection") {
         // Duo booking: show unless current therapist already accepted
         const alreadyAccepted = b.booking_therapists?.some(
@@ -831,6 +858,12 @@ const PwaDashboard = () => {
           </Avatar>
         }
       />
+
+      {scheduleCompleteness?.isIncomplete && (
+        <div className="px-4 pt-3">
+          <ScheduleReminderBanner incomplete />
+        </div>
+      )}
 
       {/* Today's KPI banner */}
       <div className="px-4 pt-3">

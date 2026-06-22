@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Calendar, Clock, List, CalendarClock } from "lucide-react";
@@ -12,6 +13,8 @@ import PwaDayView, { DayViewBooking } from "@/components/pwa/PwaDayView";
 import type { TherapistRates } from "@/lib/therapistEarnings";
 import PwaHeader from "@/components/pwa/Header";
 import { useIsMounted } from "@/hooks/useIsMounted";
+import { ScheduleReminderBanner } from "@/components/pwa/schedule/ScheduleReminderBanner";
+import { useScheduleCompleteness } from "@/hooks/pwa/useScheduleCompleteness";
 
 interface BookingTreatment {
   treatment_menus: {
@@ -43,7 +46,9 @@ const VIEW_STORAGE_KEY = "pwa-bookings-view";
 const SELECTED_DATE_STORAGE_KEY = "pwa-calendar-date";
 
 const PwaBookings = () => {
+  const { t } = useTranslation("pwa");
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [therapistId, setTherapistId] = useState<string | null>(null);
   const [therapistRates, setTherapistRates] = useState<TherapistRates | null>(null);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +68,26 @@ const PwaBookings = () => {
   });
   const navigate = useNavigate();
   const isMountedRef = useIsMounted();
+  const { data: scheduleCompleteness } = useScheduleCompleteness(therapistId);
+
+  useEffect(() => {
+    const loadTherapist = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("therapists")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (data?.id) setTherapistId(data.id);
+    };
+
+    loadTherapist();
+  }, []);
 
   useEffect(() => {
     try {
@@ -179,7 +204,7 @@ const PwaBookings = () => {
   return (
     <div className="flex flex-1 flex-col bg-background">
       <PwaHeader
-        title="Agenda"
+        title={t("bookings.title")}
         rightSlot={
           <div className="flex gap-0.5 bg-muted rounded-lg p-0.5">
             <button
@@ -207,8 +232,14 @@ const PwaBookings = () => {
         }
       />
 
+      <div className="px-4 pt-3 pb-1">
+        <ScheduleReminderBanner
+          incomplete={scheduleCompleteness?.isIncomplete ?? false}
+        />
+      </div>
+
       <div className="flex-1 min-h-0 flex flex-col">
-        <div className="p-4 pb-2">
+        <div className="p-4 pb-2 pt-2">
           <Tabs value={statusFilter} onValueChange={setStatusFilter}>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="all">Toutes</TabsTrigger>

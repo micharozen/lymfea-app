@@ -292,6 +292,10 @@
         "heading": "Check your schedule",
         "subtitle": "Your upcoming appointments are grouped by day in the Agenda. You can see the venue, the treatment room and the client at a glance."
       },
+      "schedule": {
+        "heading": "Declare your availability",
+        "subtitle": "From the Agenda tab, tap \"Update my availability\" to set your weekly pattern and block time off."
+      },
       "addTreatment": {
         "heading": "Add a treatment on the go",
         "subtitle": "During a session, you can propose an extra treatment from the booking detail. The client is charged automatically and the new treatment shows up in your agenda."
@@ -342,6 +346,11 @@
     "wallet": "Wallet",
     "agenda": "Schedule",
     "stats": "Stats"
+  },
+  "bookings": {
+    "title": "Schedule",
+    "editSchedule": "Update my availability",
+    "scheduleIncomplete": "Your availability is not up to date"
   },
   "statistics": {
     "title": "Statistics",
@@ -562,7 +571,19 @@
     "confirmDelete": "Yes, delete",
     "upcoming": "Upcoming",
     "past": "Past",
-    "blocked": "Blocked"
+    "blocked": "Blocked",
+    "actionBanner": {
+      "noTemplateTitle": "Set up your weekly template",
+      "noTemplateDesc": "Define your usual days and time slots to receive the right bookings.",
+      "configureTemplate": "Configure weekly template",
+      "applyTitle": "Apply your template to {{month}}",
+      "applyDesc": "Your template is ready but not yet applied to the coming weeks.",
+      "applyNow": "Apply now",
+      "reviewTemplate": "Review weekly template",
+      "partialTitle": "{{count}}/{{total}} upcoming days declared",
+      "complete": "Complete",
+      "updateAvailability": "Update my availability"
+    }
   },
   "bundleSession": "Package session",
   "bundleUsed": "Paid via package",

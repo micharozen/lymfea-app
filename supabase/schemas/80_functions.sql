@@ -2560,6 +2560,39 @@ BEGIN
         END IF;
       END IF;
 
+      -- Therapist schedule: skip explicitly unavailable days
+      IF EXISTS (
+        SELECT 1 FROM therapist_availability ta
+        WHERE ta.therapist_id = _therapist_id
+          AND ta.date = _booking_date
+          AND ta.is_available = false
+      ) THEN
+        CONTINUE;
+      END IF;
+
+      -- Therapist schedule: skip when shifts exist but booking time is outside all shifts
+      IF EXISTS (
+        SELECT 1 FROM therapist_availability ta
+        WHERE ta.therapist_id = _therapist_id
+          AND ta.date = _booking_date
+          AND ta.is_available = true
+          AND ta.shifts IS NOT NULL
+          AND jsonb_array_length(ta.shifts) > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM jsonb_array_elements(ta.shifts) AS shift
+            WHERE _new_start >= (
+              (split_part(shift->>'start', ':', 1)::int * 60)
+              + COALESCE(NULLIF(split_part(shift->>'start', ':', 2), '')::int, 0)
+            )
+            AND _new_start < (
+              (split_part(shift->>'end', ':', 1)::int * 60)
+              + COALESCE(NULLIF(split_part(shift->>'end', ':', 2), '')::int, 0)
+            )
+          )
+      ) THEN
+        CONTINUE;
+      END IF;
+
       SELECT EXISTS(
         SELECT 1 FROM bookings b
         LEFT JOIN hotels h ON h.id = b.hotel_id

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { addMonths, subMonths, startOfMonth, format, endOfMonth } from "date-fns";
@@ -10,6 +11,9 @@ import { MonthCalendar } from "@/components/pwa/schedule/MonthCalendar";
 import { DayEditorDrawer } from "@/components/pwa/schedule/DayEditorDrawer";
 import { WeeklyTemplateEditor } from "@/components/pwa/schedule/WeeklyTemplateEditor";
 import { AbsencesList } from "@/components/pwa/schedule/AbsencesList";
+import { ScheduleActionBanner } from "@/components/pwa/schedule/ScheduleActionBanner";
+import { useScheduleCompleteness } from "@/hooks/pwa/useScheduleCompleteness";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface Shift {
@@ -47,10 +51,18 @@ type Tab = "monthly" | "template" | "absences";
 export default function PwaSchedule() {
   const { t } = useTranslation("pwa");
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(true);
   const [therapistId, setTherapistId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("monthly");
+  const [defaultTabSet, setDefaultTabSet] = useState(false);
+
+  const { data: scheduleCompleteness } = useScheduleCompleteness(therapistId);
+
+  const invalidateCompleteness = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["scheduleCompleteness", therapistId] });
+  }, [queryClient, therapistId]);
 
   // Monthly view state
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
@@ -137,6 +149,14 @@ export default function PwaSchedule() {
     loadAbsences();
   }, [loadAbsences]);
 
+  useEffect(() => {
+    if (!scheduleCompleteness || defaultTabSet) return;
+    if (scheduleCompleteness.status === "no_template") {
+      setActiveTab("template");
+    }
+    setDefaultTabSet(true);
+  }, [scheduleCompleteness, defaultTabSet]);
+
   // Load availability for current month
   const loadAvailability = useCallback(async () => {
     if (!therapistId) return;
@@ -190,7 +210,8 @@ export default function PwaSchedule() {
     }
 
     toast.success(t("schedule.templateSaved"));
-  }, [therapistId, t]);
+    invalidateCompleteness();
+  }, [therapistId, t, invalidateCompleteness]);
 
   // Apply template to month
   const handleApplyToMonth = useCallback(async (year: number, month: number) => {
@@ -220,7 +241,18 @@ export default function PwaSchedule() {
     if (format(appliedMonth, "yyyy-MM") === format(currentMonth, "yyyy-MM")) {
       loadAvailability();
     }
-  }, [therapistId, weeklyPattern, currentMonth, loadAvailability, t]);
+    invalidateCompleteness();
+  }, [therapistId, weeklyPattern, currentMonth, loadAvailability, t, invalidateCompleteness]);
+
+  const handleApplyFromBanner = useCallback(async () => {
+    const nextMonth = addMonths(startOfMonth(new Date()), 1);
+    await handleApplyToMonth(
+      nextMonth.getFullYear(),
+      nextMonth.getMonth() + 1
+    );
+    setCurrentMonth(nextMonth);
+    setActiveTab("monthly");
+  }, [handleApplyToMonth]);
 
   // Save a single day
   const handleSaveDay = useCallback(async (date: string, isAvailable: boolean, shifts: Shift[]) => {
@@ -250,7 +282,8 @@ export default function PwaSchedule() {
     toast.success(t("schedule.daySaved"));
     setDrawerOpen(false);
     loadAvailability();
-  }, [therapistId, loadAvailability, t]);
+    invalidateCompleteness();
+  }, [therapistId, loadAvailability, t, invalidateCompleteness]);
 
   // Open day editor
   const handleDayPress = (date: string) => {
@@ -266,7 +299,7 @@ export default function PwaSchedule() {
       <PwaPageLoader
         title={t("schedule.title")}
         showBack
-        backPath="/pwa/profile"
+        backPath="/pwa/bookings"
       />
     );
   }
@@ -276,11 +309,26 @@ export default function PwaSchedule() {
       <PwaHeader
         title={t("schedule.title")}
         showBack
-        backPath="/pwa/profile"
+        backPath="/pwa/bookings"
       />
 
+      <div className="flex-1 overflow-y-auto px-4 py-4 pb-24">
+        {scheduleCompleteness && (
+          <ScheduleActionBanner
+            completeness={scheduleCompleteness}
+            onGoToTemplate={() => setActiveTab("template")}
+            onGoToMonthly={() => setActiveTab("monthly")}
+            onApplyTemplate={
+              scheduleCompleteness.status === "template_not_applied"
+                ? handleApplyFromBanner
+                : undefined
+            }
+            applyingTemplate={applyingTemplate}
+          />
+        )}
+
       {/* Tabs */}
-      <div className="flex border-b border-border px-4">
+      <div className="flex border-b border-border -mx-4 px-4 mb-4">
         <button
           onClick={() => setActiveTab("monthly")}
           className={cn(
@@ -319,8 +367,6 @@ export default function PwaSchedule() {
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
         {activeTab === "monthly" ? (
           <div>
             <MonthCalendar
@@ -332,8 +378,7 @@ export default function PwaSchedule() {
               absences={absences}
             />
 
-            {/* Empty state */}
-            {availability.length === 0 && !loading && (
+            {availability.length === 0 && !loading && scheduleCompleteness?.status === "complete" && (
               <div className="text-center mt-8 space-y-2">
                 <p className="text-sm text-muted-foreground">{t("schedule.noScheduleYet")}</p>
                 <p className="text-xs text-muted-foreground">{t("schedule.noScheduleDesc")}</p>
@@ -355,11 +400,27 @@ export default function PwaSchedule() {
               onAbsenceChanged={() => {
                 loadAvailability();
                 loadAbsences();
+                invalidateCompleteness();
               }}
             />
           )
         )}
       </div>
+
+      {scheduleCompleteness?.isIncomplete && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-[max(env(safe-area-inset-bottom),12px)]">
+          <Button
+            className="w-full shadow-lg"
+            onClick={() =>
+              setActiveTab(
+                scheduleCompleteness.status === "no_template" ? "template" : "monthly"
+              )
+            }
+          >
+            {t("schedule.actionBanner.updateAvailability")}
+          </Button>
+        </div>
+      )}
 
       {/* Day editor drawer */}
       <DayEditorDrawer
