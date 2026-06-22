@@ -86,7 +86,9 @@
     "slots": "{{count}} créneaux",
     "todayAppointments": "RDV aujourd'hui",
     "todayHours": "Heures aujourd'hui",
-    "todayEarnings": "Gains aujourd'hui"
+    "todayEarnings": "Gains aujourd'hui",
+    "scheduleReminderTitle": "Déclarez vos disponibilités",
+    "scheduleReminderDesc": "Pour que l'équipe sache qui peut accepter vos prochaines demandes."
   },
   "booking": {
     "details": "Détails de la réservation",
@@ -294,7 +296,7 @@
       },
       "schedule": {
         "heading": "Déclarez vos disponibilités",
-        "subtitle": "Depuis l'agenda, appuyez sur « Mettre à jour mes disponibilités » pour configurer votre semaine type et bloquer vos absences."
+        "subtitle": "Depuis l'agenda, appuyez sur « Mes disponibilités » pour configurer votre semaine type et bloquer vos absences."
       },
       "addTreatment": {
         "heading": "Ajoutez un soin pendant un rendez-vous",
@@ -349,8 +351,8 @@
   },
   "bookings": {
     "title": "Agenda",
-    "editSchedule": "Mettre à jour mes disponibilités",
-    "scheduleIncomplete": "Vos disponibilités ne sont pas à jour"
+    "editSchedule": "Mes disponibilités",
+    "scheduleIncomplete": "Mettez à jour vos dispos pour les 2 prochaines semaines"
   },
   "statistics": {
     "title": "Statistiques",
@@ -574,14 +576,16 @@
     "blocked": "Bloqué",
     "actionBanner": {
       "noTemplateTitle": "Configurez votre semaine type",
-      "noTemplateDesc": "Définissez vos jours et créneaux habituels pour recevoir les bonnes réservations.",
+      "noTemplateDesc": "Définissez vos jours et créneaux habituels pour que l'équipe sache quand vous pouvez accepter des demandes.",
       "configureTemplate": "Configurer mon modèle hebdomadaire",
       "applyTitle": "Appliquez votre modèle à {{month}}",
       "applyDesc": "Votre modèle est prêt mais pas encore appliqué aux prochaines semaines.",
       "applyNow": "Appliquer maintenant",
       "reviewTemplate": "Voir le modèle hebdomadaire",
       "partialTitle": "{{count}}/{{total}} prochains jours déclarés",
+      "partialDesc": "Le modèle hebdo doit être appliqué au calendrier pour remplir vos jours de travail.",
       "complete": "Compléter",
+      "reviewMonthly": "Voir le calendrier",
       "updateAvailability": "Mettre à jour mes disponibilités"
     }
   },

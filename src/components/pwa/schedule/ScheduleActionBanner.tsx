@@ -10,7 +10,9 @@ interface ScheduleActionBannerProps {
   onGoToTemplate: () => void;
   onGoToMonthly: () => void;
   onApplyTemplate?: () => void;
+  onCompletePartial?: () => void;
   applyingTemplate?: boolean;
+  completingPartial?: boolean;
 }
 
 export function ScheduleActionBanner({
@@ -18,7 +20,9 @@ export function ScheduleActionBanner({
   onGoToTemplate,
   onGoToMonthly,
   onApplyTemplate,
+  onCompletePartial,
   applyingTemplate = false,
+  completingPartial = false,
 }: ScheduleActionBannerProps) {
   const { t } = useTranslation("pwa");
 
@@ -97,32 +101,51 @@ export function ScheduleActionBanner({
     );
   }
 
+  const targetTotal =
+    completeness.expectedDaysCount > 0
+      ? completeness.expectedDaysCount
+      : completeness.horizonDays;
   const progressPercent = Math.round(
-    (completeness.declaredDaysCount / completeness.horizonDays) * 100
+    (completeness.declaredDaysCount / targetTotal) * 100
   );
 
   return (
     <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
+        <div>
           <p className="text-sm font-semibold text-foreground">
             {t("schedule.actionBanner.partialTitle", {
               count: completeness.declaredDaysCount,
-              total: completeness.horizonDays,
+              total: targetTotal,
             })}
           </p>
-          <button
-            type="button"
-            onClick={onGoToMonthly}
-            className={cn(
-              "text-xs font-medium text-primary flex items-center gap-0.5 shrink-0"
-            )}
-          >
-            {t("schedule.actionBanner.complete")}
-            <ChevronRight className="h-3.5 w-3.5" />
-          </button>
+          <p className="text-xs text-muted-foreground mt-1">
+            {t("schedule.actionBanner.partialDesc")}
+          </p>
         </div>
         <Progress value={progressPercent} className="h-2" />
+        {onCompletePartial && (
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={onCompletePartial}
+            disabled={completingPartial || applyingTemplate}
+          >
+            {completingPartial
+              ? t("common:loading")
+              : t("schedule.actionBanner.applyNow")}
+          </Button>
+        )}
+        <button
+          type="button"
+          onClick={onGoToMonthly}
+          className={cn(
+            "text-xs font-medium text-primary flex items-center gap-0.5"
+          )}
+        >
+          {t("schedule.actionBanner.reviewMonthly")}
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   );

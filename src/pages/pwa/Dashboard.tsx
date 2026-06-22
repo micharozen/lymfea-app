@@ -861,7 +861,7 @@ const PwaDashboard = () => {
 
       {scheduleCompleteness?.isIncomplete && (
         <div className="px-4 pt-3">
-          <ScheduleReminderBanner incomplete />
+          <ScheduleReminderBanner incomplete variant="dashboard" />
         </div>
       )}
 

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { addMonths, subMonths, startOfMonth, format, endOfMonth } from "date-fns";
+import { addMonths, subMonths, startOfMonth, format, endOfMonth, addDays } from "date-fns";
 import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { MonthCalendar } from "@/components/pwa/schedule/MonthCalendar";
@@ -108,24 +108,10 @@ export default function PwaSchedule() {
     loadTherapist();
   }, [navigate, t]);
 
-  // Load template
   useEffect(() => {
-    if (!therapistId) return;
-
-    const loadTemplate = async () => {
-      const { data } = await supabase
-        .from("therapist_schedule_templates")
-        .select("weekly_pattern")
-        .eq("therapist_id", therapistId)
-        .single();
-
-      if (data?.weekly_pattern) {
-        setWeeklyPattern(data.weekly_pattern as DayPattern[]);
-      }
-    };
-
-    loadTemplate();
-  }, [therapistId]);
+    if (!scheduleCompleteness?.weeklyPattern) return;
+    setWeeklyPattern(scheduleCompleteness.weeklyPattern);
+  }, [scheduleCompleteness?.weeklyPattern]);
 
   // Load absences
   const loadAbsences = useCallback(async () => {
@@ -190,14 +176,18 @@ export default function PwaSchedule() {
   // Save template
   const handleSaveTemplate = useCallback(async (pattern: DayPattern[]) => {
     if (!therapistId) return;
-    setWeeklyPattern(pattern);
+    const normalizedPattern = pattern.map((day) => ({
+      ...day,
+      shifts: day.enabled ? day.shifts : [],
+    }));
+    setWeeklyPattern(normalizedPattern);
     setSavingTemplate(true);
 
     const { error } = await supabase
       .from("therapist_schedule_templates")
       .upsert({
         therapist_id: therapistId,
-        weekly_pattern: pattern as unknown as Record<string, unknown>,
+        weekly_pattern: normalizedPattern as unknown as Record<string, unknown>,
         updated_at: new Date().toISOString(),
       }, { onConflict: "therapist_id" });
 
@@ -236,23 +226,46 @@ export default function PwaSchedule() {
 
     toast.success(t("schedule.applied", { count: data ?? 0 }));
 
-    // Reload if we're looking at the applied month
     const appliedMonth = startOfMonth(new Date(year, month - 1));
-    if (format(appliedMonth, "yyyy-MM") === format(currentMonth, "yyyy-MM")) {
-      loadAvailability();
-    }
+    setCurrentMonth(appliedMonth);
+    setActiveTab("monthly");
     invalidateCompleteness();
-  }, [therapistId, weeklyPattern, currentMonth, loadAvailability, t, invalidateCompleteness]);
+  }, [therapistId, weeklyPattern, t, invalidateCompleteness]);
 
   const handleApplyFromBanner = useCallback(async () => {
-    const nextMonth = addMonths(startOfMonth(new Date()), 1);
-    await handleApplyToMonth(
-      nextMonth.getFullYear(),
-      nextMonth.getMonth() + 1
-    );
-    setCurrentMonth(nextMonth);
+    const today = new Date();
+    const current = startOfMonth(today);
+    const horizonEnd = addDays(today, 13);
+
+    await handleApplyToMonth(current.getFullYear(), current.getMonth() + 1);
+
+    if (format(horizonEnd, "yyyy-MM") !== format(current, "yyyy-MM")) {
+      const next = addMonths(current, 1);
+      await handleApplyToMonth(next.getFullYear(), next.getMonth() + 1);
+      setCurrentMonth(next);
+    } else {
+      setCurrentMonth(current);
+    }
+
     setActiveTab("monthly");
   }, [handleApplyToMonth]);
+
+  const handleCompletePartial = useCallback(async () => {
+    const today = new Date();
+    const current = startOfMonth(today);
+    const horizonEnd = addDays(today, 13);
+
+    await handleApplyToMonth(current.getFullYear(), current.getMonth() + 1);
+
+    if (format(horizonEnd, "yyyy-MM") !== format(current, "yyyy-MM")) {
+      const next = addMonths(current, 1);
+      await handleApplyToMonth(next.getFullYear(), next.getMonth() + 1);
+    }
+
+    setCurrentMonth(current);
+    setActiveTab("monthly");
+    loadAvailability();
+  }, [handleApplyToMonth, loadAvailability]);
 
   // Save a single day
   const handleSaveDay = useCallback(async (date: string, isAvailable: boolean, shifts: Shift[]) => {
@@ -323,7 +336,13 @@ export default function PwaSchedule() {
                 ? handleApplyFromBanner
                 : undefined
             }
+            onCompletePartial={
+              scheduleCompleteness.status === "partial"
+                ? handleCompletePartial
+                : undefined
+            }
             applyingTemplate={applyingTemplate}
+            completingPartial={applyingTemplate}
           />
         )}
 
@@ -407,15 +426,21 @@ export default function PwaSchedule() {
         )}
       </div>
 
-      {scheduleCompleteness?.isIncomplete && (
+      {scheduleCompleteness && scheduleCompleteness.status !== "complete" && (
         <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-[max(env(safe-area-inset-bottom),12px)]">
           <Button
             className="w-full shadow-lg"
-            onClick={() =>
-              setActiveTab(
-                scheduleCompleteness.status === "no_template" ? "template" : "monthly"
-              )
-            }
+            onClick={() => {
+              if (scheduleCompleteness.status === "no_template") {
+                setActiveTab("template");
+              } else if (scheduleCompleteness.status === "template_not_applied") {
+                void handleApplyFromBanner();
+              } else if (scheduleCompleteness.status === "partial") {
+                void handleCompletePartial();
+              } else {
+                setActiveTab("monthly");
+              }
+            }}
           >
             {t("schedule.actionBanner.updateAvailability")}
           </Button>

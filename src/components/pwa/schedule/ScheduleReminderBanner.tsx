@@ -5,15 +5,29 @@ import { cn } from "@/lib/utils";
 
 interface ScheduleReminderBannerProps {
   incomplete: boolean;
+  variant?: "dashboard" | "agenda";
   className?: string;
 }
 
 export function ScheduleReminderBanner({
   incomplete,
+  variant = "agenda",
   className,
 }: ScheduleReminderBannerProps) {
   const { t } = useTranslation("pwa");
   const navigate = useNavigate();
+
+  const title =
+    variant === "dashboard" && incomplete
+      ? t("dashboard.scheduleReminderTitle")
+      : t("bookings.editSchedule");
+
+  const description =
+    variant === "dashboard" && incomplete
+      ? t("dashboard.scheduleReminderDesc")
+      : incomplete
+        ? t("bookings.scheduleIncomplete")
+        : null;
 
   return (
     <button
@@ -41,13 +55,9 @@ export function ScheduleReminderBanner({
         />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground">
-          {t("bookings.editSchedule")}
-        </p>
-        {incomplete && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {t("bookings.scheduleIncomplete")}
-          </p>
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        {description && (
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
         )}
       </div>
       <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />

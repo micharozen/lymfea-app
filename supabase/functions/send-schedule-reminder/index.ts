@@ -1,58 +1,19 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
-const HORIZON_DAYS = 14;
-
-interface DayPattern {
-  enabled?: boolean;
-  shifts?: { start: string; end: string }[];
-}
+const REMINDER_TYPE = "biweekly";
+const DEDUP_DAYS = 14;
 
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-function formatMonth(d: Date): string {
-  return d.toISOString().slice(0, 7);
-}
-
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setUTCDate(result.getUTCDate() + days);
+function mondayOfWeek(d: Date): Date {
+  const result = new Date(d);
+  const day = result.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  result.setUTCDate(result.getUTCDate() + diff);
   return result;
-}
-
-function addMonths(date: Date, months: number): Date {
-  const result = new Date(date);
-  result.setUTCMonth(result.getUTCMonth() + months);
-  return result;
-}
-
-function hasEnabledTemplate(pattern: DayPattern[] | null | undefined): boolean {
-  if (!pattern || !Array.isArray(pattern)) return false;
-  return pattern.some((day) => day.enabled && (day.shifts?.length ?? 0) > 0);
-}
-
-function isDeclaredAvailableDay(row: {
-  is_available: boolean;
-  shifts: unknown;
-}): boolean {
-  if (!row.is_available) return false;
-  const shifts = Array.isArray(row.shifts) ? row.shifts : [];
-  return shifts.length > 0;
-}
-
-function isScheduleIncomplete(
-  weeklyPattern: DayPattern[] | null | undefined,
-  availabilityRows: { is_available: boolean; shifts: unknown }[]
-): boolean {
-  const hasTemplate = hasEnabledTemplate(weeklyPattern ?? undefined);
-  const declaredDaysCount = availabilityRows.filter(isDeclaredAvailableDay).length;
-
-  if (!hasTemplate) return true;
-  if (declaredDaysCount === 0) return true;
-  if (declaredDaysCount < HORIZON_DAYS) return true;
-  return false;
 }
 
 serve(async (req: Request) => {
@@ -62,127 +23,80 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    let reminderType: "weekly" | "monthly" = "weekly";
-    try {
-      const body = await req.json();
-      if (body?.reminderType === "monthly" || body?.reminderType === "weekly") {
-        reminderType = body.reminderType;
-      }
-    } catch {
-      // empty body is fine for cron
-    }
-
     const now = new Date();
-    const targetPeriod =
-      reminderType === "monthly"
-        ? formatMonth(addMonths(now, 1))
-        : formatDate(now);
+    const targetPeriod = formatDate(mondayOfWeek(now));
 
     console.log(
-      `[CRON] send-schedule-reminder type=${reminderType} period=${targetPeriod}`
+      `[CRON] send-schedule-reminder type=${REMINDER_TYPE} period=${targetPeriod}`
     );
 
-    const { data: venueLinks, error: venueError } = await supabase
-      .from("therapist_venues")
-      .select("therapist_id");
+    const { data: incompleteIds, error: incompleteError } = await supabase.rpc(
+      "get_incomplete_schedule_therapist_ids",
+      {
+        p_dedup_days: DEDUP_DAYS,
+        p_reminder_type: REMINDER_TYPE,
+      }
+    );
 
-    if (venueError) throw venueError;
+    if (incompleteError) throw incompleteError;
 
-    const therapistIds = [
-      ...new Set((venueLinks ?? []).map((row) => row.therapist_id)),
-    ];
+    const therapistIds = (incompleteIds ?? []) as string[];
 
     if (therapistIds.length === 0) {
-      return new Response(JSON.stringify({ message: "No affiliated therapists" }), {
-        status: 200,
-      });
+      return new Response(
+        JSON.stringify({
+          reminderType: REMINDER_TYPE,
+          targetPeriod,
+          sent: 0,
+          skipped: 0,
+          checked: 0,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const { data: therapists, error: therapistsError } = await supabase
       .from("therapists")
-      .select("id, user_id, first_name, status")
+      .select("id, user_id, first_name")
       .in("id", therapistIds)
       .not("user_id", "is", null);
 
     if (therapistsError) throw therapistsError;
-    if (!therapists || therapists.length === 0) {
-      return new Response(JSON.stringify({ message: "No therapists found" }), {
-        status: 200,
-      });
-    }
 
-    const activeTherapists = therapists.filter((row) => {
-      const status = (row.status ?? "").toLowerCase();
-      return status === "active" || status === "actif";
-    });
+    const skipPush =
+      Deno.env.get("IS_LOCAL") === "true" ||
+      !Deno.env.get("ONESIGNAL_APP_ID");
 
-    const startDate = formatDate(now);
-    const endDate = formatDate(addDays(now, HORIZON_DAYS - 1));
     let sent = 0;
     let skipped = 0;
 
-    for (const therapist of activeTherapists) {
-      if (!therapist.user_id) continue;
-
-      const { data: existingLog } = await supabase
-        .from("schedule_reminder_logs")
-        .select("id")
-        .eq("therapist_id", therapist.id)
-        .eq("reminder_type", reminderType)
-        .eq("target_month", targetPeriod)
-        .maybeSingle();
-
-      if (existingLog) {
+    for (const therapist of therapists ?? []) {
+      if (!therapist.user_id) {
         skipped++;
         continue;
       }
-
-      const [templateResult, availabilityResult] = await Promise.all([
-        supabase
-          .from("therapist_schedule_templates")
-          .select("weekly_pattern")
-          .eq("therapist_id", therapist.id)
-          .maybeSingle(),
-        supabase
-          .from("therapist_availability")
-          .select("is_available, shifts")
-          .eq("therapist_id", therapist.id)
-          .gte("date", startDate)
-          .lte("date", endDate),
-      ]);
-
-      const weeklyPattern = templateResult.data?.weekly_pattern as
-        | DayPattern[]
-        | undefined;
-      const availabilityRows = availabilityResult.data ?? [];
-
-      if (!isScheduleIncomplete(weeklyPattern, availabilityRows)) {
-        skipped++;
-        continue;
-      }
-
-      const monthLabel =
-        reminderType === "monthly"
-          ? new Date(`${targetPeriod}-01T12:00:00Z`).toLocaleDateString("fr-FR", {
-              month: "long",
-              year: "numeric",
-            })
-          : null;
 
       const title = "📅 Planning à mettre à jour";
       const body =
-        reminderType === "monthly" && monthLabel
-          ? `Pensez à déclarer vos disponibilités pour ${monthLabel}.`
-          : "Pensez à mettre à jour vos disponibilités pour les prochaines semaines.";
+        "Pensez à mettre à jour vos disponibilités pour les 2 prochaines semaines.";
 
       const { error: logError } = await supabase.from("schedule_reminder_logs").insert({
         therapist_id: therapist.id,
-        reminder_type: reminderType,
+        reminder_type: REMINDER_TYPE,
         target_month: targetPeriod,
       });
 
       if (logError) {
         console.error(`Dedup insert failed for ${therapist.id}:`, logError);
+        skipped++;
+        continue;
+      }
+
+      if (skipPush) {
+        sent++;
+        console.log(
+          `[LOCAL] Schedule reminder logged (push skipped) for ${therapist.first_name ?? therapist.id}`
+        );
         continue;
       }
 
@@ -207,8 +121,9 @@ serve(async (req: Request) => {
           .from("schedule_reminder_logs")
           .delete()
           .eq("therapist_id", therapist.id)
-          .eq("reminder_type", reminderType)
+          .eq("reminder_type", REMINDER_TYPE)
           .eq("target_month", targetPeriod);
+        skipped++;
         continue;
       }
 
@@ -218,11 +133,11 @@ serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({
-        reminderType,
+        reminderType: REMINDER_TYPE,
         targetPeriod,
         sent,
         skipped,
-        checked: activeTherapists.length,
+        checked: therapistIds.length,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
