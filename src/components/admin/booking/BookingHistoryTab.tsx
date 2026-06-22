@@ -101,9 +101,7 @@ function isAction(entry: BookingAuditEntry) {
 
 function hasEmailPreview(entry: BookingAuditEntry): boolean {
   const newVals = (entry.new_values ?? {}) as Record<string, unknown>;
-  // Both plain "email_sent" rows and "payment_link_sent" rows (whose email is a
-  // Resend template) can carry a previewable body.
-  if (newVals.action !== "email_sent" && newVals.action !== "payment_link_sent") return false;
+  if (newVals.action !== "email_sent") return false;
   // has_preview covers both stored HTML and Resend-backed template emails;
   // has_html kept for rows written before the hybrid change.
   return newVals.has_preview === true || newVals.has_html === true;
