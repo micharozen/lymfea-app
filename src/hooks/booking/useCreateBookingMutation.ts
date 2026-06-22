@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
-import { composePhoneNumber } from "@/lib/phone";
+import { composePhoneNumber, languageFromCountryCode } from "@/lib/phone";
 
 interface Hotel {
   id: string;
@@ -36,6 +36,9 @@ export interface CreateBookingPayload {
   clientEmail?: string;
   phone: string;
   countryCode: string;
+  /** Communication language for client SMS/emails. Defaults to the value
+   *  derived from the country code (+33 → 'fr', otherwise 'en') when omitted. */
+  language?: "fr" | "en";
   roomNumber: string;
   clientNote?: string;
   date: string;
@@ -157,6 +160,10 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       const normalizedPhone = hasPhone
         ? composePhoneNumber(d.countryCode, d.phone).replace(/\s/g, '')
         : null;
+      // La langue des SMS/emails de confirmation. L'opérateur peut la choisir
+      // dans le formulaire ; à défaut on la déduit de l'indicatif (+33 →
+      // français, tout autre pays → anglais).
+      const language = d.language ?? languageFromCountryCode(d.countryCode);
       let customerId: string | null = null;
       if (hasPhone) {
         const { data } = await supabase.rpc('find_or_create_customer', {
@@ -164,6 +171,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           _first_name: d.clientFirstName,
           _last_name: d.clientLastName,
           _email: d.clientEmail?.trim() || null,
+          _language: language,
         });
         customerId = data ?? null;
       }
@@ -196,6 +204,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         payment_reference: d.voucherReference || null,
         source: d.source ?? "admin",
         email_inquiry_id: d.emailInquiryId ?? null,
+        language,
       } as any).select().single();
 
       if (error) throw error;

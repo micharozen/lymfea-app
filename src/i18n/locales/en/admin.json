@@ -966,7 +966,8 @@
       "email": "Email",
       "emailHint": "needed for the payment link",
       "room": "Room number",
-      "clientType": "Client type"
+      "clientType": "Client type",
+      "language": "Client message language (SMS / email)"
     },
     "confirm": {
       "venue": "Venue",

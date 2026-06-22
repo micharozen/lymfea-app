@@ -75,6 +75,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientLastName: "",
       phone: "",
       countryCode: "+33",
+      language: "fr",
       roomNumber: "",
       roomNumberLater: false,
       clientNote: "",
@@ -272,15 +273,19 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           booking_id: data.booking_id,
           hotel_name: data.hotel_name || '',
         });
-        // Partner-billed clients (hotel/staycation/classpass) and voucher
-        // payments don't need a Stripe link — open the confirmation dialog
-        // (email + SMS) instead of routing to the payment tab.
         const ct = form.getValues("clientType");
         const byVoucher = form.getValues("payByVoucher");
         const skipStripe = ct !== "external" || byVoucher;
-        if (skipStripe || isConcierge) {
+        if (isConcierge) {
+          // Concierge: booking is broadcast to therapists (pending), no automatic
+          // client email — the operator sends the notification manually.
           setIsNotificationDialogOpen(true);
+        } else if (skipStripe) {
+          // Admin partner-billed/voucher: trigger-new-booking-notifications already
+          // sent the client confirmation email + SMS. Avoid a duplicate — just close.
+          handleClose();
         } else {
+          // Admin external: route to the Stripe payment link flow.
           setActiveTab("payment");
         }
       } else {
@@ -334,6 +339,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientEmail: values.clientEmail || undefined,
       phone: values.phone,
       countryCode: values.countryCode,
+      language: values.language,
       roomNumber: values.roomNumber,
       clientNote: values.clientNote,
       date: values.date ? format(values.date, "yyyy-MM-dd") : "",
@@ -396,6 +402,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientLastName: "",
       phone: "",
       countryCode: "+33",
+      language: "fr",
       roomNumber: "",
       roomNumberLater: false,
       clientNote: "",
@@ -416,7 +423,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     <>
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleRequestClose(); }}>
       <DialogContent
-        className="max-h-[92vh] max-w-xl p-0 gap-0 flex flex-col overflow-hidden"
+        className="max-h-[92vh] max-w-3xl p-0 gap-0 flex flex-col overflow-hidden"
         onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
       >

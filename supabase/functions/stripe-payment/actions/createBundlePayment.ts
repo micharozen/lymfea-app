@@ -137,6 +137,7 @@ export async function handleCreateBundlePayment(
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
+    locale: language === 'en' ? 'en' : 'fr',
     customer: stripeCustomerId,
     payment_method_types: ["card"],
     line_items: lineItems,
