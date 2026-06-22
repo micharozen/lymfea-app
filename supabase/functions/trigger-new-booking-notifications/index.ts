@@ -5,8 +5,9 @@ import { sendEmail } from "../_shared/send-email.ts";
 import { sendSms } from "../_shared/send-sms.ts";
 import { getStripeForVenue } from "../_shared/stripe-resolver.ts";
 
-const CLIENT_NEW_BOOKING_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
-const CLIENT_PENDING_BOOKING_TEMPLATE_ID = "c5378102-92c7-48de-834c-db17da702794";
+const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
+const CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR = "c5378102-92c7-48de-834c-db17da702794";
+const CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN = "4d48ce0b-92c3-4ef7-8685-4f3905e34820";
 const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
 const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_EN = "6ba59c67-04e3-412e-9a84-246aaa7dc570";
 
@@ -40,7 +41,7 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { bookingId, notifyAll } = await req.json();
+    const { bookingId, notifyAll, sendPaymentLink } = await req.json();
 
     if (!bookingId) {
       throw new Error("Booking ID is required");
@@ -51,13 +52,44 @@ serve(async (req) => {
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
       .from("bookings")
-      .select("*, hotel_id, booking_date, booking_time, hotel_name, client_type, therapist_gender_preference")
+      .select("*, hotel_id, booking_date, booking_time, hotel_name, client_type, therapist_gender_preference, hotels(currency, contact_email, address, postal_code, city, country, organizations(name))")
       .eq("id", bookingId)
       .single();
 
     if (bookingError || !booking) {
       throw new Error("Booking not found");
     }
+
+    // Shared lookups used across the email + Slack branches below. Fetched
+    // once here so each branch reuses them instead of re-querying.
+    const venueRow = (booking as any).hotels as {
+      currency?: string | null;
+      contact_email?: string | null;
+      address?: string | null;
+      postal_code?: string | null;
+      city?: string | null;
+      country?: string | null;
+      organizations?: { name?: string | null } | null;
+    } | null;
+    const venueCurrency = (venueRow?.currency || 'eur').toLowerCase();
+    const venueContactEmail = venueRow?.contact_email || brand.legal.contactEmail;
+    const venueOrganizationName = venueRow?.organizations?.name || brand.name;
+    const venueAddress = [venueRow?.address, venueRow?.postal_code, venueRow?.city, venueRow?.country]
+      .filter(Boolean)
+      .join(', ');
+
+    const { data: bookingTreatmentRows } = await supabaseClient
+      .from('booking_treatments')
+      .select('treatment_id, treatment_menus(name, price, duration)')
+      .eq('booking_id', bookingId);
+    const treatments = (bookingTreatmentRows ?? []).map(bt => {
+      const menu = bt.treatment_menus as any;
+      return {
+        name: menu?.name || '',
+        price: Number(menu?.price) || 0,
+        duration: Number(menu?.duration) || 0,
+      };
+    });
 
     // Check if this booking has proposed slots (concierge multi-slot flow)
     let proposedSlots: any = null;
@@ -272,20 +304,6 @@ serve(async (req) => {
         || undefined;
 
       if (clientEmail) {
-        const { data: bookingTreatments } = await supabaseClient
-          .from('booking_treatments')
-          .select('treatment_id, treatment_menus(name, price, duration)')
-          .eq('booking_id', bookingId);
-
-        const treatmentsForEmail = bookingTreatments?.map(bt => {
-          const menu = bt.treatment_menus as any;
-          return {
-            name: menu?.name || '',
-            price: Number(menu?.price) || 0,
-            duration: Number(menu?.duration) || 0,
-          };
-        }) || [];
-
         const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
           weekday: 'short',
           day: 'numeric',
@@ -296,9 +314,9 @@ serve(async (req) => {
         const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
         const clientBookingUrl = `${siteUrl}/booking/manage/${bookingId}`;
 
-        const treatmentName = treatmentsForEmail.map(t => t.name).filter(Boolean).join(', ');
-        const treatmentPrice = treatmentsForEmail.reduce((sum, t) => sum + t.price, 0);
-        const treatmentDuration = treatmentsForEmail.reduce((sum, t) => sum + t.duration, 0);
+        const treatmentName = treatments.map(t => t.name).filter(Boolean).join(', ');
+        const treatmentPrice = treatments.reduce((sum, t) => sum + t.price, 0);
+        const treatmentDuration = treatments.reduce((sum, t) => sum + t.duration, 0);
 
         const firstName = customer?.first_name ?? booking.client_first_name ?? '';
         const lastName = customer?.last_name ?? booking.client_last_name ?? '';
@@ -320,17 +338,17 @@ serve(async (req) => {
           .maybeSingle();
         const hasPaymentMethod = !!existingPaymentInfo;
 
-        if (isExternal && !hasPaymentMethod) {
+        if (isExternal && !hasPaymentMethod && sendPaymentLink === false) {
+          // Admin-created bookings (sendPaymentLink === false): do NOT auto-send
+          // the Stripe payment link. The operator sends it manually from the
+          // payment tab (FAB → SendPaymentLinkDialog). No client email here.
+          console.log('[trigger-new-booking-notifications] sendPaymentLink=false → skipping auto payment-link for external booking:', bookingId);
+        } else if (isExternal && !hasPaymentMethod) {
           // External clients: create a Stripe payment link and send the
           // payment-required email template instead of the standard confirmation.
           const language: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';
 
-          const { data: hotelRow } = await supabaseClient
-            .from('hotels')
-            .select('currency')
-            .eq('id', booking.hotel_id)
-            .maybeSingle();
-          const currency = ((hotelRow as any)?.currency || 'eur').toLowerCase();
+          const currency = venueCurrency;
           const currencySymbol = currency === 'eur' ? '€' : currency.toUpperCase();
 
           const totalPrice = Number(booking.total_price ?? treatmentPrice) || 0;
@@ -461,12 +479,20 @@ serve(async (req) => {
               }, { onConflict: 'booking_id' });
           }
         } else {
+          // contact_email is a required variable in the Resend client templates
+          // (shown in the email footer); resolved once at the top of the function.
+          const contactEmail = venueContactEmail;
+
           const templateVariables: Record<string, string> = isPending
             ? {
                 booking_date: formattedDate,
                 booking_time: formattedTime,
+                contact_email: contactEmail,
                 first_name: firstName,
                 hotel_name: booking.hotel_name ?? '',
+                organization_name: venueOrganizationName,
+                venue_address: venueAddress,
+                venue_name: booking.hotel_name ?? '',
                 room_number: booking.room_number ? String(booking.room_number) : '',
                 treatment_name: treatmentName,
               }
@@ -477,7 +503,11 @@ serve(async (req) => {
                 booking_url: clientBookingUrl,
                 client_name: clientName,
                 client_phone: clientPhone,
+                contact_email: contactEmail,
                 hotel_name: booking.hotel_name ?? '',
+                organization_name: venueOrganizationName,
+                venue_address: venueAddress,
+                venue_name: booking.hotel_name ?? '',
                 room_number: booking.room_number ? String(booking.room_number) : '',
                 therapist_name: booking.therapist_name ?? '',
                 total_price: `${booking.total_price ?? 0}€`,
@@ -485,52 +515,69 @@ serve(async (req) => {
                 treatment_price: `${treatmentPrice}€`,
               };
 
-          const clientEmailResult = await sendEmail({
-            to: clientEmail,
-            subject: isPending
-              ? `Demande de réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`
-              : `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
-            templateId: isPending ? CLIENT_PENDING_BOOKING_TEMPLATE_ID : CLIENT_NEW_BOOKING_TEMPLATE_ID,
-            templateVariables,
-          });
+          const clientLanguage: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';
+          const pendingTemplateId = clientLanguage === 'en'
+            ? CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN
+            : CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR;
+          const pendingSubject = clientLanguage === 'en'
+            ? `Booking request #${booking.booking_id} · ${booking.hotel_name ?? ''}`
+            : `Demande de réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`;
 
-          if (clientEmailResult.error) {
-            console.error('[trigger-new-booking-notifications] Client email error:', clientEmailResult.error);
+          // Payment gate: a confirmed booking whose payment is not yet engaged
+          // must NOT receive the confirmation email. The operator sends a payment
+          // link manually; the confirmed email (CLIENT_NEW_BOOKING) is then sent
+          // by the Stripe webhook once paid. Pending bookings still get the
+          // pending template regardless of payment.
+          const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing'];
+          const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
+
+          if (!isPending && !isPaidEnough) {
+            console.log('[trigger-new-booking-notifications] Confirmed booking not paid yet → skipping client email:', bookingId);
           } else {
-            console.log('[trigger-new-booking-notifications] Client email sent:', clientEmailResult.id);
+            const clientEmailResult = await sendEmail({
+              to: clientEmail,
+              subject: isPending
+                ? pendingSubject
+                : `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
+              templateId: isPending ? pendingTemplateId : BOOKING_CONFIRMED_TEMPLATE_ID,
+              templateVariables,
+            });
 
-            // SMS de confirmation : uniquement quand le booking est confirmed
-            // au moment de la création (cas admin direct-assign). Les bookings
-            // pending qui passent à confirmed plus tard via acceptation
-            // thérapeute déclenchent notify-booking-confirmed qui envoie le SMS.
-            // Garde supplémentaire : pas de SMS tant que le client n'a pas
-            // engagé son paiement (paid/charged/card_saved/partner_billing).
-            const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing'];
-            const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
-            if (!isPending && booking.status === 'confirmed' && isPaidEnough) {
-              if (clientPhone) {
-                try {
-                  const language: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';
-                  // SMS court (1 segment GSM-7 = 160 chars). Pas d'accents,
-                  // pas de lien manage (l'email contient deja l'URL).
-                  const shortToken = (booking as any).short_token;
-                  const smsManageUrl = shortToken
-                    ? `${siteUrl}/m/${shortToken}`
-                    : clientBookingUrl;
-                  const smsBody = language === 'fr'
-                    ? `Bonjour ${firstName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${smsManageUrl}`
-                    : `Hello ${firstName}, your treatment at ${booking.hotel_name ?? ''} on ${formattedDate} at ${formattedTime} is confirmed. Manage: ${smsManageUrl}`;
-                  const smsResult = await sendSms({ to: clientPhone, body: smsBody });
-                  if (smsResult.error) {
-                    console.error('[trigger-new-booking-notifications][sms] Confirmation SMS error:', smsResult.error);
-                  } else {
-                    console.log('[trigger-new-booking-notifications][sms] Confirmation SMS sent:', smsResult.sid);
+            if (clientEmailResult.error) {
+              console.error('[trigger-new-booking-notifications] Client email error:', clientEmailResult.error);
+            } else {
+              console.log('[trigger-new-booking-notifications] Client email sent:', clientEmailResult.id);
+
+              // SMS de confirmation : uniquement quand le booking est confirmed
+              // au moment de la création (cas admin direct-assign). Les bookings
+              // pending qui passent à confirmed plus tard via acceptation
+              // thérapeute déclenchent notify-booking-confirmed qui envoie le SMS.
+              // isPaidEnough est déjà garanti ici (sinon on n'envoie rien).
+              if (!isPending && booking.status === 'confirmed') {
+                if (clientPhone) {
+                  try {
+                    const language: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';
+                    // SMS court (1 segment GSM-7 = 160 chars). Pas d'accents,
+                    // pas de lien manage (l'email contient deja l'URL).
+                    const shortToken = (booking as any).short_token;
+                    const smsManageUrl = shortToken
+                      ? `${siteUrl}/m/${shortToken}`
+                      : clientBookingUrl;
+                    const smsBody = language === 'fr'
+                      ? `Bonjour ${firstName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${smsManageUrl}`
+                      : `Hello ${firstName}, your treatment at ${booking.hotel_name ?? ''} on ${formattedDate} at ${formattedTime} is confirmed. Manage: ${smsManageUrl}`;
+                    const smsResult = await sendSms({ to: clientPhone, body: smsBody });
+                    if (smsResult.error) {
+                      console.error('[trigger-new-booking-notifications][sms] Confirmation SMS error:', smsResult.error);
+                    } else {
+                      console.log('[trigger-new-booking-notifications][sms] Confirmation SMS sent:', smsResult.sid);
+                    }
+                  } catch (smsErr) {
+                    console.error('[trigger-new-booking-notifications][sms] Confirmation SMS exception:', smsErr);
                   }
-                } catch (smsErr) {
-                  console.error('[trigger-new-booking-notifications][sms] Confirmation SMS exception:', smsErr);
+                } else {
+                  console.log('[trigger-new-booking-notifications][sms] No phone on customer/booking, skipping confirmation SMS');
                 }
-              } else {
-                console.log('[trigger-new-booking-notifications][sms] No phone on customer/booking, skipping confirmation SMS');
               }
             }
           }
@@ -544,16 +591,8 @@ serve(async (req) => {
 
     // Send Slack notification for new booking
     try {
-      // Get treatments for Slack message
-      const { data: bookingTreatments } = await supabaseClient
-        .from('booking_treatments')
-        .select('treatment_id, treatment_menus(name)')
-        .eq('booking_id', bookingId);
-
-      const treatments = bookingTreatments?.map(bt => {
-        const menu = bt.treatment_menus as any;
-        return menu?.name || '';
-      }).filter(Boolean) || [];
+      // Reuse the treatments fetched once at the top of the function.
+      const treatmentNames = treatments.map(t => t.name).filter(Boolean);
 
       // Get assigned therapist name if any
       let therapistName = null;
@@ -579,7 +618,7 @@ serve(async (req) => {
           therapistName: therapistName || booking.therapist_name,
           totalPrice: booking.total_price,
           currency: '€',
-          treatments: treatments,
+          treatments: treatmentNames,
         },
         headers: {
           Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,

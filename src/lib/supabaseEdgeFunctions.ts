@@ -151,16 +151,13 @@ export type StripeAction =
   | "check-expired-payment-links";
 
 // Actions already migrated to the Hono backend. Once an action ships
-// here, the frontend transparently routes it through the backend.
-const BACKEND_STRIPE_ACTIONS: ReadonlySet<StripeAction> = new Set([
-  "create-setup-intent",
-  "confirm-setup-intent",
-  "charge-saved-card",
-  "create-bundle-payment",
-  "purchase-bundle",
-  "create-checkout-session",
-  "handle-checkout-success",
-]);
+// here, add it to route through the backend transparently.
+//
+// NOTE: The Stripe migration to Hono is NOT done yet. Even though
+// VITE_API_URL is set (to exercise other backend routes), Stripe must
+// keep going through the Supabase Edge Function `stripe-payment`.
+// Keep this set EMPTY until each action is actually live on the backend.
+const BACKEND_STRIPE_ACTIONS: ReadonlySet<StripeAction> = new Set([]);
 
 export async function invokeStripe<TResponse = unknown>(
   action: StripeAction,

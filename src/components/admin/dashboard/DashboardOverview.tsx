@@ -3,17 +3,29 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableTableHead } from "@/components/table/SortableTableHead";
+import { useTableSort } from "@/hooks/useTableSort";
 import type { HotelOverviewRow } from "@/hooks/useDashboardData";
 
 interface DashboardOverviewProps {
   hotelData: HotelOverviewRow[];
 }
 
+type OverviewColumn = "name" | "totalSales" | "totalBookings" | "totalSessions" | "totalCancelled";
+
+const headClassName =
+  "text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3";
+
 export function DashboardOverview({ hotelData }: DashboardOverviewProps) {
+  const { getSortDirection, toggleSort, sortItems } = useTableSort<OverviewColumn>();
+
+  const sortedData = sortItems(hotelData, (row, column) =>
+    column === "totalSales" ? row.totalSalesValue : row[column]
+  );
+
   return (
     <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden">
       <CardHeader className="pb-2">
@@ -25,25 +37,54 @@ export function DashboardOverview({ hotelData }: DashboardOverviewProps) {
             <Table>
               <TableHeader>
                 <TableRow className="border-b border-border/50 hover:bg-transparent">
-                  <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3">
+                  <SortableTableHead
+                    column="name"
+                    sortDirection={getSortDirection("name")}
+                    onSort={(c) => toggleSort(c as OverviewColumn)}
+                    className={headClassName}
+                  >
                     Lieu
-                  </TableHead>
-                  <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3 text-right">
+                  </SortableTableHead>
+                  <SortableTableHead
+                    column="totalSales"
+                    sortDirection={getSortDirection("totalSales")}
+                    onSort={(c) => toggleSort(c as OverviewColumn)}
+                    align="right"
+                    className={headClassName}
+                  >
                     Ventes
-                  </TableHead>
-                  <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3 text-right">
+                  </SortableTableHead>
+                  <SortableTableHead
+                    column="totalBookings"
+                    sortDirection={getSortDirection("totalBookings")}
+                    onSort={(c) => toggleSort(c as OverviewColumn)}
+                    align="right"
+                    className={headClassName}
+                  >
                     Réservations
-                  </TableHead>
-                  <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3 text-right">
+                  </SortableTableHead>
+                  <SortableTableHead
+                    column="totalSessions"
+                    sortDirection={getSortDirection("totalSessions")}
+                    onSort={(c) => toggleSort(c as OverviewColumn)}
+                    align="right"
+                    className={headClassName}
+                  >
                     Sessions
-                  </TableHead>
-                  <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3 text-right">
+                  </SortableTableHead>
+                  <SortableTableHead
+                    column="totalCancelled"
+                    sortDirection={getSortDirection("totalCancelled")}
+                    onSort={(c) => toggleSort(c as OverviewColumn)}
+                    align="right"
+                    className={headClassName}
+                  >
                     Annulations
-                  </TableHead>
+                  </SortableTableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {hotelData.map((hotel, i) => (
+                {sortedData.map((hotel, i) => (
                   <TableRow key={i} className="border-b border-border/30 last:border-0">
                     <TableCell className="py-4 px-6 whitespace-nowrap">
                       <span className="font-medium text-base text-foreground">{hotel.name}</span>

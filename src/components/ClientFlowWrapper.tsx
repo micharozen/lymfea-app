@@ -79,7 +79,10 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
     if (!hotelId) return;
     const existingSession = getSession();
     if (!existingSession || existingSession.hotelId !== hotelId) {
+      console.log('[ClientFlow] Initializing client session for venue:', hotelId);
       initSession(hotelId);
+    } else {
+      console.log('[ClientFlow] Using existing client session for venue:', hotelId);
     }
   }, [hotelId]);
 

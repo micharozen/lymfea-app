@@ -1025,10 +1025,11 @@ try {
       isPriceOnRequest: t.price_on_request || false,
     })) || [];
 
-    // Send confirmation email — skip when booking is still pending (awaiting therapist assignment).
-    // Quote bookings (bookingStatus === 'quote_pending') still get the quote-requested template.
-    const shouldSendConfirmationEmail =
-      wasAutoValidated || bookingStatus === 'quote_pending';
+    // Send the quote-requested email only for quote_pending bookings (no other
+    // email path covers them). Auto-validated bookings are confirmed below via
+    // notify-booking-confirmed (template e2a8e114), so sending the legacy
+    // send-booking-confirmation here too would duplicate the client email.
+    const shouldSendConfirmationEmail = bookingStatus === 'quote_pending';
 
     if (sanitizedClientData.email && shouldSendConfirmationEmail) {
       try {

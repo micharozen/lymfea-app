@@ -194,9 +194,10 @@ export default function Welcome() {
   useEffect(() => {
     if (!hasTrackedPageView.current && hotel?.name) {
       hasTrackedPageView.current = true;
+      console.log('[ClientFlow] Welcome page loaded for venue:', hotel.name, 'slug:', slug);
       trackPageView('welcome', { hotelName: hotel.name });
     }
-  }, [hotel?.name, trackPageView]);
+  }, [hotel?.name, trackPageView, hotel, slug]);
 
 
   const handleAddToBasket = (treatment: Treatment) => {

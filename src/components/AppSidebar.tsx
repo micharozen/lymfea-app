@@ -73,8 +73,8 @@ interface MenuItem {
 
 const adminPrimaryItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-  { title: "Planning", url: "/admin/bookings", icon: CalendarDays },
-  { title: "Réservations", url: "/admin/all-bookings", icon: ListChecks },
+  { title: "Planning", url: "/admin/planning", icon: CalendarDays },
+  { title: "Réservations", url: "/admin/bookings", icon: ListChecks },
   { title: "Lieux", url: "/admin/places", icon: Building2 },
   { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
@@ -94,8 +94,8 @@ const adminSecondaryItems: MenuItem[] = [
 
 const venueManagerPrimaryItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-  { title: "Planning", url: "/admin/bookings", icon: CalendarDays },
-  { title: "Réservations", url: "/admin/all-bookings", icon: ListChecks },
+  { title: "Planning", url: "/admin/planning", icon: CalendarDays },
+  { title: "Réservations", url: "/admin/bookings", icon: ListChecks },
   { title: "Clients", url: "/admin/customers", icon: Contact },
   { title: "Mon lieu", url: "/admin/my-venue", icon: Building2 },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
@@ -138,6 +138,7 @@ export function AppSidebar() {
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
+          .in('role', ['admin', 'concierge'])
           .maybeSingle();
         
         if (roleData) {

@@ -30,14 +30,23 @@ import {
   treatmentKeys,
   listHotelsForOrg,
   listTreatmentMenusForOrg,
+  listActiveTreatmentsForHotel,
 } from "@shared/db";
+import type { CartItem } from "@/components/booking/CreateBookingDialog.schema";
+import {
+  getCartLineDisplayName,
+  getCartLineUnitPrice,
+  getCartLineUnitDuration,
+} from "@/lib/bookingCartLine";
+import { computeOutOfHoursSurcharge } from "@/lib/surcharge";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil } from "lucide-react";
+import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil, Search } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
+import { composePhoneNumber } from "@/lib/phone";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -176,13 +185,14 @@ export default function EditBookingDialog({
   const [time, setTime] = useState("");
   const [status, setStatus] = useState("En attente");
   const [therapistId, setTherapistId] = useState("");
-  const [cart, setCart] = useState<{ treatmentId: string; quantity: number }[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"view" | "edit" | "quote">("view");
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
+  const [treatmentSearch, setTreatmentSearch] = useState("");
   const [therapistIds, setTherapistIds] = useState<string[]>([]);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
@@ -203,6 +213,7 @@ export default function EditBookingDialog({
   useEffect(() => {
     if (booking && open) {
       setViewMode(initialMode);
+      setTreatmentSearch("");
       setHotelId(booking.hotel_id || "");
       setClientFirstName(booking.client_first_name || "");
       setClientLastName(booking.client_last_name || "");
@@ -338,8 +349,8 @@ export default function EditBookingDialog({
       
       const calcDuration = cart.reduce((sum, item) => {
         const treatment = treatments?.find(t => t.id === item.treatmentId);
-        return sum + (treatment?.duration || 0) * item.quantity;
-      }, 0) || 60; 
+        return sum + getCartLineUnitDuration(treatment, item.variantId) * item.quantity;
+      }, 0) || 60;
       
       const [hours, minutes] = time.split(':').map(Number);
       const startTime = hours * 60 + minutes;
@@ -402,12 +413,12 @@ export default function EditBookingDialog({
   });
 
   const { data: treatments } = useQuery({
-    queryKey: treatmentKeys.list(scope),
-    enabled: !!scope,
-    queryFn: async () => {
-      const all = await listTreatmentMenusForOrg(supabase, scope!, { includeNullHotel: true });
-      return all.filter((t) => t.status === "active");
-    },
+    queryKey: hotelId ? treatmentKeys.forHotel(hotelId) : treatmentKeys.list(scope),
+    enabled: hotelId ? true : !!scope,
+    queryFn: () =>
+      hotelId
+        ? listActiveTreatmentsForHotel(supabase, hotelId)
+        : listTreatmentMenusForOrg(supabase, scope!, { includeNullHotel: true }),
   });
 
   const { data: existingTreatments } = useQuery({
@@ -416,7 +427,7 @@ export default function EditBookingDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("booking_treatments")
-        .select("treatment_id")
+        .select("treatment_id, variant_id")
         .eq("booking_id", booking!.id);
       if (error) throw error;
       return data;
@@ -452,11 +463,14 @@ export default function EditBookingDialog({
 
   useEffect(() => {
     if (existingTreatments) {
-      const treatmentCounts: Record<string, number> = {};
+      const counts: Record<string, CartItem> = {};
       existingTreatments.forEach(t => {
-        treatmentCounts[t.treatment_id] = (treatmentCounts[t.treatment_id] || 0) + 1;
+        const variantId = t.variant_id ?? null;
+        const key = `${t.treatment_id}|${variantId ?? ""}`;
+        if (!counts[key]) counts[key] = { treatmentId: t.treatment_id, variantId, quantity: 0 };
+        counts[key].quantity += 1;
       });
-      setCart(Object.entries(treatmentCounts).map(([treatmentId, quantity]) => ({ treatmentId, quantity })));
+      setCart(Object.values(counts));
     }
   }, [existingTreatments]);
 
@@ -467,8 +481,8 @@ export default function EditBookingDialog({
       cart.forEach(item => {
         const treatment = treatments.find(t => t.id === item.treatmentId);
         if (treatment) {
-          price += (treatment.price || 0) * item.quantity;
-          duration += (treatment.duration || 0) * item.quantity;
+          price += getCartLineUnitPrice(treatment, item.variantId) * item.quantity;
+          duration += getCartLineUnitDuration(treatment, item.variantId) * item.quantity;
         }
       });
       setTotalPrice(price);
@@ -539,6 +553,8 @@ export default function EditBookingDialog({
           therapist_id: bookingData.therapist_id || null,
           therapist_name: bookingData.therapist_id && therapist ? `${therapist.first_name} ${therapist.last_name}` : null,
           total_price: bookingData.total_price,
+          surcharge_amount: bookingData.surcharge_amount,
+          is_out_of_hours: bookingData.is_out_of_hours,
           status: newStatus,
           assigned_at: assignedAt,
           client_note: bookingData.client_note ?? null,
@@ -555,10 +571,13 @@ export default function EditBookingDialog({
       if (deleteTreatmentsError) throw deleteTreatmentsError;
 
       if (bookingData.treatments && bookingData.treatments.length > 0) {
-        const treatmentInserts = bookingData.treatments.map((treatmentId: string) => ({
-          booking_id: booking.id,
-          treatment_id: treatmentId,
-        }));
+        const treatmentInserts = bookingData.treatments.map(
+          (t: { treatmentId: string; variantId?: string | null }) => ({
+            booking_id: booking.id,
+            treatment_id: t.treatmentId,
+            variant_id: t.variantId ?? null,
+          })
+        );
 
         const { error: treatmentsError } = await supabase
           .from("booking_treatments")
@@ -778,7 +797,7 @@ export default function EditBookingDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!hotelId || !clientFirstName || !clientLastName || !phone || !date || !time) {
+    if (!hotelId || !clientFirstName || !clientLastName || !date || !time) {
       toast({
         title: "Champs requis",
         description: "Veuillez remplir tous les champs obligatoires.",
@@ -865,8 +884,13 @@ export default function EditBookingDialog({
       ? (booking?.booking_time || "")
       : time;
     const submittedTreatments = isConcierge && !conciergeCanEditTreatments
-      ? (existingTreatments?.map(t => t.treatment_id) || [])
-      : cart.flatMap(item => Array(item.quantity).fill(item.treatmentId));
+      ? (existingTreatments?.map(t => ({ treatmentId: t.treatment_id, variantId: t.variant_id ?? null })) || [])
+      : cart.flatMap(item =>
+          Array.from({ length: item.quantity }, () => ({
+            treatmentId: item.treatmentId,
+            variantId: item.variantId ?? null,
+          }))
+        );
 
     const primaryTherapistId = isConcierge
       ? (booking?.therapist_id || null)
@@ -874,16 +898,23 @@ export default function EditBookingDialog({
         ? (therapistIds.find(id => !!id) || null)
         : (therapistId === "none" ? null : therapistId);
 
+    // Reconcile the out-of-hours surcharge against the (possibly edited) time and
+    // subtotal. total_price stores the surcharge-inclusive amount; surcharge_amount
+    // and is_out_of_hours are kept in sync so the Paiement card stays consistent.
+    const surcharge = computeOutOfHoursSurcharge(submittedTime, totalPrice, selectedHotel);
+
     updateMutation.mutate({
       hotel_id: isConcierge ? (booking?.hotel_id || "") : hotelId,
       client_first_name: isConcierge ? (booking?.client_first_name || "") : clientFirstName,
       client_last_name: isConcierge ? (booking?.client_last_name || "") : clientLastName,
-      phone: isConcierge ? (booking?.phone || "") : `${countryCode} ${phone}`,
+      phone: isConcierge ? (booking?.phone || null) : (composePhoneNumber(countryCode, phone) || null),
       room_number: isConcierge ? (booking?.room_number || "") : roomNumber,
       booking_date: submittedDate,
       booking_time: submittedTime,
       therapist_id: primaryTherapistId,
-      total_price: totalPrice,
+      total_price: surcharge.totalWithSurcharge,
+      surcharge_amount: surcharge.surchargeAmount,
+      is_out_of_hours: surcharge.isOutOfHours,
       treatments: submittedTreatments,
       status: status,
       client_note: isConcierge
@@ -897,30 +928,53 @@ export default function EditBookingDialog({
     onOpenChange(false);
   };
 
-  const addToCart = (treatmentId: string) => {
+  // Variant-aware cart helpers (mirrors useBookingCart): each (treatmentId, variantId)
+  // pair is a distinct line, so e.g. 1 Solo + 1 Duo of the same treatment can coexist.
+  const addToCart = (treatmentId: string, variantId?: string | null) => {
+    const treatment = treatments?.find(x => x.id === treatmentId);
+    const resolvedVariantId = variantId !== undefined
+      ? variantId
+      : (treatment?.treatment_variants?.find(v => v.is_default)
+          ?? treatment?.treatment_variants?.[0])?.id ?? null;
+
     setCart(prev => {
-      const existing = prev.find(x => x.treatmentId === treatmentId);
-      return existing 
-        ? prev.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity + 1 } : x)
-        : [...prev, { treatmentId, quantity: 1 }];
+      const existing = prev.find(x => x.treatmentId === treatmentId && x.variantId === resolvedVariantId);
+      if (existing) return prev.map(x =>
+        x.treatmentId === treatmentId && x.variantId === resolvedVariantId
+          ? { ...x, quantity: x.quantity + 1 }
+          : x
+      );
+      return [...prev, { treatmentId, quantity: 1, variantId: resolvedVariantId }];
     });
   };
 
-  const incrementCart = (treatmentId: string) => {
-    setCart(prev => prev.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity + 1 } : x));
-  };
-
-  const decrementCart = (treatmentId: string) => {
+  const incrementCart = (treatmentId: string, variantId?: string | null) => {
     setCart(prev => {
-      const existing = prev.find(x => x.treatmentId === treatmentId);
-      return existing && existing.quantity <= 1
-        ? prev.filter(x => x.treatmentId !== treatmentId)
-        : prev.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity - 1 } : x);
+      const target = variantId !== undefined
+        ? prev.find(x => x.treatmentId === treatmentId && x.variantId === variantId)
+        : prev.find(x => x.treatmentId === treatmentId);
+      if (!target) return prev;
+      return prev.map(x => x === target ? { ...x, quantity: x.quantity + 1 } : x);
     });
   };
 
-  const getCartQuantity = (treatmentId: string) => {
-    return cart.find(x => x.treatmentId === treatmentId)?.quantity || 0;
+  const decrementCart = (treatmentId: string, variantId?: string | null) => {
+    setCart(prev => {
+      const target = variantId !== undefined
+        ? prev.find(x => x.treatmentId === treatmentId && x.variantId === variantId)
+        : prev.find(x => x.treatmentId === treatmentId);
+      if (!target) return prev;
+      if (target.quantity <= 1) return prev.filter(x => x !== target);
+      return prev.map(x => x === target ? { ...x, quantity: x.quantity - 1 } : x);
+    });
+  };
+
+  // Without variantId: total across all variants of that treatment. With: that exact pair.
+  const getCartQuantity = (treatmentId: string, variantId?: string | null) => {
+    if (variantId !== undefined) {
+      return cart.find(x => x.treatmentId === treatmentId && x.variantId === variantId)?.quantity || 0;
+    }
+    return cart.filter(x => x.treatmentId === treatmentId).reduce((sum, x) => sum + x.quantity, 0);
   };
 
   const cartDetails = cart.map(item => ({
@@ -1631,14 +1685,32 @@ export default function EditBookingDialog({
                 ))}
               </div>
 
+              <div className="relative shrink-0 mb-2">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={treatmentSearch}
+                  onChange={(e) => setTreatmentSearch(e.target.value)}
+                  placeholder="Rechercher un soin…"
+                  className="h-8 pl-8 text-xs"
+                />
+              </div>
+
               <div className="flex-1 min-h-0 overflow-y-auto">
                 {(() => {
-                  const filtered = treatments?.filter(t => 
-                    treatmentFilter === "female" 
-                      ? (t.service_for === "Female" || t.service_for === "All")
-                      : (t.service_for === "Male" || t.service_for === "All")
-                  ) || [];
-                  
+                  const q = treatmentSearch.trim().toLowerCase();
+                  const filtered = (treatments ?? []).filter((t) => {
+                    const matchesGender =
+                      treatmentFilter === "female"
+                        ? (t.service_for === "Female" || t.service_for === "All")
+                        : (t.service_for === "Male" || t.service_for === "All");
+                    if (!matchesGender) return false;
+                    if (!q) return true;
+                    return (
+                      (t.name?.toLowerCase().includes(q)) ||
+                      (t.category?.toLowerCase().includes(q))
+                    );
+                  });
+
                   const grouped: Record<string, typeof filtered> = {};
                   filtered.forEach(t => {
                     const c = t.category || "Autres";
@@ -1662,10 +1734,79 @@ export default function EditBookingDialog({
                       
                       <div>
                         {items.map((treatment) => {
-                          const qty = getCartQuantity(treatment.id);
+                          const variants = treatment.treatment_variants ?? [];
+                          const hasVariantChoice = variants.length >= 2;
+                          const totalQty = getCartQuantity(treatment.id);
+
+                          // Treatment with multiple variants → menu header + one row per variant.
+                          if (hasVariantChoice) {
+                            return (
+                              <div key={treatment.id} className="border-b border-border/10 last:border-0">
+                                <div className="flex items-center gap-1.5 py-1.5">
+                                  <span className="font-medium text-foreground text-xs truncate flex-1">
+                                    {treatment.name}
+                                  </span>
+                                  {totalQty > 0 && (
+                                    <span className="shrink-0 text-[9px] font-bold text-muted-foreground">×{totalQty}</span>
+                                  )}
+                                </div>
+                                {variants.map((v, vi) => {
+                                  const variantQty = getCartQuantity(treatment.id, v.id);
+                                  const label = v.label || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
+                                  const displayPrice = v.price ?? treatment.price;
+                                  const displayDuration = v.duration ?? treatment.duration;
+                                  return (
+                                    <div key={v.id} className={cn("flex items-center justify-between pl-2 pb-1", vi === variants.length - 1 && "pb-2")}>
+                                      <div className="flex flex-col flex-1 pr-2 min-w-0">
+                                        <span className="text-[10px] font-medium text-foreground">{label}</span>
+                                        <span className="text-[10px] text-muted-foreground">
+                                          {displayPrice}€ • {displayDuration} min
+                                        </span>
+                                      </div>
+                                      {variantQty > 0 ? (
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                          <button
+                                            type="button"
+                                            onClick={() => decrementCart(treatment.id, v.id)}
+                                            disabled={treatmentsDisabled}
+                                            className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                          >
+                                            <Minus className="h-2.5 w-2.5" />
+                                          </button>
+                                          <span className="text-xs font-bold w-4 text-center">{variantQty}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => incrementCart(treatment.id, v.id)}
+                                            disabled={treatmentsDisabled}
+                                            className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                          >
+                                            <Plus className="h-2.5 w-2.5" />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => addToCart(treatment.id, v.id)}
+                                          disabled={treatmentsDisabled}
+                                          className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-foreground"
+                                        >
+                                          Ajouter
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          }
+
+                          // Treatment with 0-1 variant → single row (default variant resolved by addToCart).
+                          const selectedVariant = variants[0] ?? null;
+                          const displayPrice = selectedVariant?.price ?? treatment.price;
+                          const displayDuration = selectedVariant?.duration ?? treatment.duration;
                           return (
-                            <div 
-                              key={treatment.id} 
+                            <div
+                              key={treatment.id}
                               className="flex items-center justify-between py-1.5 border-b border-border/10 last:border-0"
                             >
                               <div className="flex flex-col flex-1 pr-2 min-w-0">
@@ -1673,11 +1814,11 @@ export default function EditBookingDialog({
                                   {treatment.name}
                                 </span>
                                 <span className="text-[10px] text-muted-foreground">
-                                  {treatment.price}€ • {treatment.duration} min
+                                  {displayPrice}€ • {displayDuration} min
                                 </span>
                               </div>
 
-                              {qty > 0 ? (
+                              {totalQty > 0 ? (
                                 <div className="flex items-center gap-1.5 shrink-0">
                                   <button
                                     type="button"
@@ -1687,7 +1828,7 @@ export default function EditBookingDialog({
                                   >
                                     <Minus className="h-2.5 w-2.5" />
                                   </button>
-                                  <span className="text-xs font-bold w-4 text-center">{qty}</span>
+                                  <span className="text-xs font-bold w-4 text-center">{totalQty}</span>
                                   <button
                                     type="button"
                                     onClick={() => incrementCart(treatment.id)}
@@ -1721,9 +1862,9 @@ export default function EditBookingDialog({
                   <div className="flex-1 min-w-0">
                     {cart.length > 0 ? (
                       <div className="flex items-center gap-1.5 overflow-x-auto">
-                        {cartDetails.slice(0, 3).map(({ treatmentId, quantity, treatment }) => (
-                          <div key={treatmentId} className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 shrink-0">
-                            <span className="text-[9px] font-medium truncate max-w-[60px]">{treatment!.name}</span>
+                        {cartDetails.slice(0, 3).map(({ treatmentId, variantId, quantity, treatment }) => (
+                          <div key={`${treatmentId}-${variantId ?? 'base'}`} className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 shrink-0">
+                            <span className="text-[9px] font-medium truncate max-w-[60px]">{getCartLineDisplayName(treatment, variantId)}</span>
                             <span className="text-[9px] font-bold">×{quantity}</span>
                           </div>
                         ))}

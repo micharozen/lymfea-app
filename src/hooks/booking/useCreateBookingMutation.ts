@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
+import { composePhoneNumber } from "@/lib/phone";
 
 interface Hotel {
   id: string;
@@ -154,7 +155,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       // phone and skip customer dedup (which is keyed on phone).
       const hasPhone = d.phone.trim().length > 0;
       const normalizedPhone = hasPhone
-        ? `${d.countryCode}${d.phone}`.replace(/\s/g, '')
+        ? composePhoneNumber(d.countryCode, d.phone).replace(/\s/g, '')
         : null;
       let customerId: string | null = null;
       if (hasPhone) {
@@ -278,7 +279,9 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
             // on diffuse à tous les thérapeutes de l'hôtel comme en mode concierge.
             await invokeEdgeFunction('dispatch-booking-therapist', { body: { bookingId: booking.id } });
           } else {
-            await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
+            // Admin-created bookings: never auto-send the payment link. The
+            // operator sends it manually from the payment tab (FAB → modal).
+            await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id, sendPaymentLink: false } });
           }
         } else {
           await invokeEdgeFunction('dispatch-booking-therapist', { body: { bookingId: booking.id } });

@@ -104,7 +104,7 @@ serve(async (req) => {
             body: `${therapistName || 'Thérapeute'} · #${booking.booking_id} · ${booking.hotel_name || ""}`,
             data: {
               bookingId: booking.id,
-              url: `/admin/booking?bookingId=${booking.id}`,
+              url: `/admin/bookings/${booking.id}`,
             },
           },
         });

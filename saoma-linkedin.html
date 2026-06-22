@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fiche LinkedIn — Saoma</title>
+<style>
+  :root{
+    --teal:#03bfac; --dark:#1b1b1b; --bg:#f6f8f8; --card:#fff;
+    --line:#e3e8e8; --muted:#5b6666;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--dark);line-height:1.55}
+  header{background:linear-gradient(135deg,var(--dark),#0c2e2b);color:#fff;padding:40px 24px}
+  .wrap{max-width:860px;margin:0 auto;padding:0 24px}
+  header .wrap{padding:0}
+  h1{margin:0 0 6px;font-size:30px}
+  header p{margin:0;color:#9fd9d2;font-size:15px}
+  .badge{display:inline-block;background:var(--teal);color:#04302c;font-weight:700;
+    font-size:12px;padding:4px 10px;border-radius:20px;margin-bottom:16px;letter-spacing:.04em}
+  section{margin:28px 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-bottom:18px}
+  h2{font-size:19px;margin:0 0 14px;display:flex;align-items:center;gap:8px}
+  h2 .n{background:var(--teal);color:#04302c;width:26px;height:26px;border-radius:8px;
+    display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800}
+  table{width:100%;border-collapse:collapse}
+  td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:top;font-size:15px}
+  td.k{color:var(--muted);width:38%;font-weight:600}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+  .copybox{position:relative;background:#f3f7f6;border:1px solid var(--line);border-radius:10px;
+    padding:16px 16px;font-size:14.5px;white-space:pre-wrap;margin-top:10px}
+  .copybox .bullet{display:block}
+  button.copy{position:absolute;top:10px;right:10px;background:var(--teal);border:0;color:#04302c;
+    font-weight:700;font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer}
+  button.copy:active{transform:translateY(1px)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .chip{background:#eaf6f4;color:#075b53;border:1px solid #c9ece7;border-radius:20px;
+    padding:5px 12px;font-size:13px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:640px){.two{grid-template-columns:1fr}td.k{width:46%}}
+  ul.notes{margin:6px 0 0;padding-left:18px}
+  ul.notes li{margin:6px 0;font-size:14.5px}
+  footer{color:var(--muted);font-size:13px;text-align:center;padding:30px 0 50px}
+  code{background:#eef3f2;padding:1px 6px;border-radius:5px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <span class="badge">FICHE ENTREPRISE LINKEDIN</span>
+    <h1>Saoma</h1>
+    <p>Contenu prêt à coller — LinkedIn → Admin de la page → Modifier la page</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section class="card">
+    <h2><span class="n">1</span> Champs d'identité</h2>
+    <table>
+      <tr><td class="k">Nom</td><td>Saoma</td></tr>
+      <tr><td class="k">Slogan (max 120 car.)</td><td>Le logiciel tout-en-un de gestion de spa pour les hôtels et instituts de bien-être.</td></tr>
+      <tr><td class="k">Site web</td><td>https://saoma.io</td></tr>
+      <tr><td class="k">Secteur</td><td>Wellness and Fitness Services</td></tr>
+      <tr><td class="k">Taille</td><td>1-10 employés</td></tr>
+      <tr><td class="k">Type d'entreprise</td><td>Société privée (Privately Held)</td></tr>
+      <tr><td class="k">Année de fondation</td><td>2025</td></tr>
+      <tr><td class="k">Siège social</td><td>Paris, Île-de-France, France</td></tr>
+      <tr><td class="k">Téléphone (option.)</td><td>+33 1 88 60 94 96</td></tr>
+      <tr><td class="k">Lieu (onglet Lieux)</td><td>71 av. Victor Hugo, 75116 Paris — siège principal</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">2</span> Spécialités (champ « Specialties »)</h2>
+    <div class="chips">
+      <span class="chip">Spa management software</span>
+      <span class="chip">Hotel spa software</span>
+      <span class="chip">Logiciel de gestion de spa</span>
+      <span class="chip">Booking system</span>
+      <span class="chip">Réservation en ligne</span>
+      <span class="chip">Therapist scheduling</span>
+      <span class="chip">PMS integration</span>
+      <span class="chip">Opera Cloud</span>
+      <span class="chip">Mews</span>
+      <span class="chip">Stripe Connect</span>
+      <span class="chip">Online booking</span>
+      <span class="chip">Gift cards</span>
+      <span class="chip">Treatment room management</span>
+      <span class="chip">Wellness SaaS</span>
+      <span class="chip">Spa hôtelier</span>
+      <span class="chip">RGPD</span>
+    </div>
+    <div class="copybox" id="spec">Spa management software, Hotel spa software, Logiciel de gestion de spa, Booking system, Réservation en ligne, Therapist scheduling, PMS integration, Opera Cloud, Mews, Stripe Connect, Online booking, Gift cards, Treatment room management, Wellness SaaS, Spa hôtelier, RGPD<button class="copy" data-target="spec">Copier</button></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">3</span> Description « À propos » — Français</h2>
+    <div class="copybox" id="frdesc">Saoma est le logiciel tout-en-un de gestion de spa, pensé pour les spas d'hôtel et les instituts de bien-être indépendants.
+
+De la réservation en ligne au paiement des thérapeutes, Saoma centralise toute l'activité d'un spa dans une seule plateforme : agenda multi-établissements et multi-cabines, réservation client sans compte (QR code ou lien), application mobile pour les thérapeutes, facturation automatique, cartes cadeaux et relances automatisées.
+
+Ce qui distingue Saoma :
+• Intégration PMS hôtelière (Opera Cloud, Mews) pour le room charge et la synchronisation des données client
+• Réservation par e-mail transformée automatiquement en booking grâce à l'IA
+• Personnalisation complète par établissement — marque, couleurs, langues FR/EN
+• Paiements intégrés et reversements thérapeutes via Stripe Connect
+• Hébergement européen et conformité RGPD
+• Tarification transparente, sans commission sur les réservations
+
+Conçu à Paris pour les professionnels du bien-être qui veulent offrir une expérience client haut de gamme, sans la complexité opérationnelle.
+
+En savoir plus : https://saoma.io<button class="copy" data-target="frdesc">Copier</button></div>
+    <div class="hint">Reste sous la limite de 2000 caractères de LinkedIn.</div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">4</span> Description « À propos » — English (page bilingue)</h2>
+    <div class="copybox" id="endesc">Saoma is the all-in-one spa management software built for hotel spas and independent wellness venues.
+
+From online booking to therapist payouts, Saoma brings the entire spa operation into a single platform: a unified multi-venue and multi-room agenda, account-free client booking (QR code or link), a mobile app for therapists, automatic invoicing, gift cards and automated reminders.
+
+What sets Saoma apart:
+• Hotel PMS integration (Opera Cloud, Mews) for room charge and guest data sync
+• AI-powered email-to-booking conversion
+• Full per-venue customization — branding, colors, FR/EN languages
+• Integrated payments and therapist payouts via Stripe Connect
+• EU hosting and GDPR compliance
+• Transparent pricing, no commission on bookings
+
+Built in Paris for wellness professionals who want to deliver a premium guest experience without the operational complexity.
+
+Learn more: https://saoma.io<button class="copy" data-target="endesc">Copier</button></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">5</span> Visuels à préparer</h2>
+    <table>
+      <tr><td class="k">Logo</td><td>300×300 px (carré) — depuis <code>public/assets/</code> ou export de la landing</td></tr>
+      <tr><td class="k">Image de couverture</td><td>1128×191 px — reprendre l'OG image de la landing</td></tr>
+      <tr><td class="k">Bouton CTA</td><td>« Visiter le site web » → https://saoma.io</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">6</span> À ne pas oublier</h2>
+    <ul class="notes">
+      <li><strong>Cohérence de marque :</strong> tout doit dire « Saoma » (pas Eïa / Lymfea). Un profil LinkedIn actif aide aussi Google à dissocier « Saoma » de « Soma ».</li>
+      <li><strong>Maillage :</strong> ajouter le lien LinkedIn dans le footer du site saoma.io.</li>
+      <li><strong>Amorçage :</strong> post de lancement + un post par page de comparaison (Saoma vs Mindbody, Zenoti, Fresha…).</li>
+    </ul>
+  </section>
+
+</div>
+
+<footer>Saoma · Paris · https://saoma.io</footer>
+
+<script>
+  document.querySelectorAll('button.copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var el = document.getElementById(btn.getAttribute('data-target')).cloneNode(true);
+      var b = el.querySelector('button'); if(b) b.remove();
+      var text = el.textContent.trim();
+      navigator.clipboard.writeText(text).then(function(){
+        var old = btn.textContent; btn.textContent = 'Copié ✓';
+        setTimeout(function(){ btn.textContent = old; }, 1500);
+      });
+    });
+  });
+</script>
+</body>
+</html>

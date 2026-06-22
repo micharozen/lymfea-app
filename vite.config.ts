@@ -26,6 +26,27 @@ function brandPlugin(): Plugin {
   };
 }
 
+// Adds crossorigin="anonymous" to all script tags for proper error reporting
+function crossoriginPlugin(): Plugin {
+  return {
+    name: 'crossorigin-inject',
+    transformIndexHtml(html: string) {
+      // Add crossorigin to script tags that don't already have it
+      return html.replace(
+        /<script\s+([^>]*?)(?<!crossorigin\s*=\s*"[^"]*")\s*>/gi,
+        (match, attrs) => {
+          // Skip if already has crossorigin
+          if (/crossorigin\s*=/i.test(attrs)) {
+            return match;
+          }
+          // Add crossorigin="anonymous" before the closing >
+          return `<script ${attrs.trim()} crossorigin="anonymous">`;
+        }
+      );
+    }
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -73,6 +94,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     brandPlugin(),
+    crossoriginPlugin(),
     react(),
     mode === "development" && componentTagger(),
     VitePWA({

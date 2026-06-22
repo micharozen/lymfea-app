@@ -135,7 +135,7 @@ serve(async (req) => {
     console.log("Sending admin notification for booking:", bookingId, groupId ? `(group ${groupId})` : '');
 
     const siteUrl = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
-    const dashboardUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
+    const dashboardUrl = `${siteUrl}/admin/bookings/${bookingId}`;
 
     // Group mode: fetch every sibling booking sharing this group_id.
     let groupBookings: any[] | null = null;
