@@ -86,6 +86,17 @@ export const normalizeTherapistPhone = (raw: string): string | null => {
   return digits.length >= 2 ? digits : null;
 };
 
+/**
+ * Déduit la langue de communication du client à partir de l'indicatif pays.
+ *
+ * Règle métier : un numéro français (+33) reçoit ses SMS/emails en français,
+ * tout autre indicatif les reçoit en anglais. La valeur est ensuite stockée
+ * sur le client (`customers.language`) et la réservation (`bookings.language`)
+ * pour piloter le choix de template dans les edge functions de notification.
+ */
+export const languageFromCountryCode = (countryCode: string): "fr" | "en" =>
+  (countryCode ?? "").trim() === "+33" ? "fr" : "en";
+
 export const formatPhoneNumber = (value: string, countryCode: string): string => {
   const numbers = value.replace(/\D/g, '');
   switch (countryCode) {

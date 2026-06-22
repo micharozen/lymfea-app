@@ -241,6 +241,7 @@ export async function handleCreateSetupIntent(
 
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
+    locale: language === "en" ? "en" : "fr",
     customer: stripeCustomerId,
     payment_method_types: ["card"],
     success_url: `${origin}/client/${hotel.slug ?? hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,

@@ -17,6 +17,9 @@ export const createFormSchema = (t: TFunction) => z.object({
   clientEmail: z.string().email(t('errors.validation.emailInvalid')).optional().or(z.literal('')), 
   phone: z.string().default(""),
   countryCode: z.string().default("+33"),
+  // Communication language for client SMS/emails. Pre-filled from the phone
+  // country code (+33 → 'fr', otherwise 'en'), but operator-editable.
+  language: z.enum(['fr', 'en']).default('fr'),
   roomNumber: z.string().default(""),
   roomNumberLater: z.boolean().default(false),
   clientNote: z.string().default(""),

@@ -75,6 +75,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientLastName: "",
       phone: "",
       countryCode: "+33",
+      language: "fr",
       roomNumber: "",
       roomNumberLater: false,
       clientNote: "",
@@ -338,6 +339,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientEmail: values.clientEmail || undefined,
       phone: values.phone,
       countryCode: values.countryCode,
+      language: values.language,
       roomNumber: values.roomNumber,
       clientNote: values.clientNote,
       date: values.date ? format(values.date, "yyyy-MM-dd") : "",
@@ -400,6 +402,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientLastName: "",
       phone: "",
       countryCode: "+33",
+      language: "fr",
       roomNumber: "",
       roomNumberLater: false,
       clientNote: "",
@@ -420,7 +423,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     <>
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleRequestClose(); }}>
       <DialogContent
-        className="max-h-[92vh] max-w-xl p-0 gap-0 flex flex-col overflow-hidden"
+        className="max-h-[92vh] max-w-3xl p-0 gap-0 flex flex-col overflow-hidden"
         onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
       >

@@ -48,6 +48,7 @@ serve(async (req) => {
         payment_status,
         short_token,
         customer_id,
+        language,
         hotels(organization_id, address, postal_code, city, country, contact_email, organizations(name))
       `)
       .eq('id', bookingId)
@@ -107,16 +108,32 @@ serve(async (req) => {
     }) || [];
 
     // Client language drives which confirmation template (FR/EN) is sent to the
-    // client. Admin/concierge emails stay in French.
+    // client. Admin/concierge emails stay in French. The booking-level language
+    // (operator's explicit per-booking choice) takes precedence over the
+    // customer's stored default.
     let clientLanguage: 'fr' | 'en' = 'fr';
+    let customerLanguage: string | null = null;
     if ((booking as any).customer_id) {
       const { data: customer } = await supabase
         .from('customers')
         .select('language')
         .eq('id', (booking as any).customer_id)
         .single();
-      if ((customer as any)?.language === 'en') clientLanguage = 'en';
+      customerLanguage = (customer as any)?.language ?? null;
     }
+    const bookingLanguage = (booking as any).language;
+    if (bookingLanguage === 'en' || bookingLanguage === 'fr') {
+      clientLanguage = bookingLanguage;
+    } else if (customerLanguage === 'en') {
+      clientLanguage = 'en';
+    }
+    console.log('[notify-booking-confirmed] language resolution', {
+      bookingId,
+      booking_language: bookingLanguage ?? null,
+      customer_id: (booking as any).customer_id ?? null,
+      customer_language: customerLanguage,
+      resolved: clientLanguage,
+    });
 
     const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
       weekday: 'short',
@@ -284,7 +301,9 @@ serve(async (req) => {
         const clientManageUrl = shortToken
           ? `${siteUrl}/m/${shortToken}`
           : `${siteUrl}/booking/manage/${bookingId}`;
-        const smsBody = `Bonjour ${firstName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${clientManageUrl}`;
+        const smsBody = clientLanguage === 'en'
+          ? `Hello ${firstName}, your treatment at ${booking.hotel_name ?? ''} on ${formattedDate} at ${formattedTime} is confirmed. Manage: ${clientManageUrl}`
+          : `Bonjour ${firstName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${clientManageUrl}`;
         const smsResult = await sendSms({ to: clientPhone, body: smsBody });
         if (smsResult.error) {
           console.error('[notify-booking-confirmed][sms] Confirmation SMS error:', smsResult.error);

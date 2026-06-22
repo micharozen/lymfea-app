@@ -3606,6 +3606,7 @@ export type Database = {
         Args: {
           _email?: string
           _first_name: string
+          _language?: string
           _last_name?: string
           _phone: string
         }

@@ -287,15 +287,32 @@ serve(async (req) => {
     // Send confirmation email to the client (Resend template)
     try {
       // Prefer customer record (created upstream by find_or_create_customer) over booking columns
-      let customer: { email?: string | null; phone?: string | null; first_name?: string | null; last_name?: string | null } | null = null;
+      let customer: { email?: string | null; phone?: string | null; first_name?: string | null; last_name?: string | null; language?: string | null } | null = null;
       if ((booking as any).customer_id) {
         const { data: customerRow } = await supabaseClient
           .from('customers')
-          .select('email, phone, first_name, last_name')
+          .select('email, phone, first_name, last_name, language')
           .eq('id', (booking as any).customer_id)
           .maybeSingle();
         customer = customerRow ?? null;
       }
+
+      // Resolve the client communication language. The booking-level value is
+      // the operator's explicit per-booking choice (set at creation from the
+      // phone country code, but editable) and takes precedence over the
+      // customer's stored default.
+      const bookingLanguage = (booking as any).language;
+      const resolvedLanguage: 'fr' | 'en' =
+        bookingLanguage === 'en' || bookingLanguage === 'fr'
+          ? bookingLanguage
+          : ((customer as any)?.language === 'en' ? 'en' : 'fr');
+      console.log('[trigger-new-booking-notifications] language resolution', {
+        bookingId,
+        booking_language: bookingLanguage ?? null,
+        customer_id: (booking as any).customer_id ?? null,
+        customer_language: (customer as any)?.language ?? null,
+        resolved: resolvedLanguage,
+      });
 
       // Prefer the email captured on the booking itself (it reflects the
       // latest value typed by the operator in the FAB, which may override a
@@ -347,7 +364,8 @@ serve(async (req) => {
         } else if (isExternal && !hasPaymentMethod) {
           // External clients: create a Stripe payment link and send the
           // payment-required email template instead of the standard confirmation.
-          const language: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';
+          const language: 'fr' | 'en' = resolvedLanguage;
+          console.log('[trigger-new-booking-notifications] external payment-link branch', { bookingId, language });
 
           const currency = venueCurrency;
           const currencySymbol = currency === 'eur' ? '€' : currency.toUpperCase();
@@ -517,7 +535,8 @@ serve(async (req) => {
                 treatment_price: `${treatmentPrice}€`,
               };
 
-          const clientLanguage: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';
+          const clientLanguage: 'fr' | 'en' = resolvedLanguage;
+          console.log('[trigger-new-booking-notifications] standard branch', { bookingId, clientLanguage, isPending });
           const pendingTemplateId = clientLanguage === 'en'
             ? CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN
             : CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR;
@@ -563,7 +582,7 @@ serve(async (req) => {
               if (!isPending && booking.status === 'confirmed') {
                 if (clientPhone) {
                   try {
-                    const language: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';
+                    const language: 'fr' | 'en' = resolvedLanguage;
                     // SMS court (1 segment GSM-7 = 160 chars). Pas d'accents,
                     // pas de lien manage (l'email contient deja l'URL).
                     const shortToken = (booking as any).short_token;

@@ -266,6 +266,7 @@ export default function Payment() {
                 customerBundleId: selectedBundle.customerBundleId,
                 amountCents: selectedBundle.amountToUseCents,
               },
+              language: i18n.language === 'en' ? 'en' : 'fr',
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           }, { skipAuth: true });
 
@@ -361,6 +362,7 @@ export default function Payment() {
           treatmentIds: items.map(item => item.id),
           treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId })),
           totalPrice: total,
+          language: i18n.language === 'en' ? 'en' : 'fr',
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
           ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),

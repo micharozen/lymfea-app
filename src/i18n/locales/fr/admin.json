@@ -966,7 +966,8 @@
       "email": "Email",
       "emailHint": "nécessaire pour le lien de paiement",
       "room": "Numéro de chambre",
-      "clientType": "Type de client"
+      "clientType": "Type de client",
+      "language": "Langue des messages client (SMS / email)"
     },
     "confirm": {
       "venue": "Lieu",
