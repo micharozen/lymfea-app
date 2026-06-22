@@ -20,6 +20,7 @@ import { sendEmail } from "../_shared/send-email.ts";
 const CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR = "c5378102-92c7-48de-834c-db17da702794";
 const CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN = "4d48ce0b-92c3-4ef7-8685-4f3905e34820";
 const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
+const BOOKING_CONFIRMED_TEMPLATE_ID_EN = "c73fa801-c20f-40ef-834a-4d3eb2d7d96c";
 
 serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
@@ -277,8 +278,12 @@ serve(async (req) => {
 
               const emailResult = await sendEmail({
                 to: booking.client_email,
-                subject: `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
-                templateId: BOOKING_CONFIRMED_TEMPLATE_ID,
+                subject: clientLanguage === 'en'
+                  ? `Booking #${booking.booking_id} · ${booking.hotel_name ?? ''}`
+                  : `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
+                templateId: clientLanguage === 'en'
+                  ? BOOKING_CONFIRMED_TEMPLATE_ID_EN
+                  : BOOKING_CONFIRMED_TEMPLATE_ID,
                 templateVariables: {
                   booking_date: formattedDate,
                   booking_number: String(booking.booking_id ?? ''),

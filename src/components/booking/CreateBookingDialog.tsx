@@ -272,15 +272,19 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           booking_id: data.booking_id,
           hotel_name: data.hotel_name || '',
         });
-        // Partner-billed clients (hotel/staycation/classpass) and voucher
-        // payments don't need a Stripe link — open the confirmation dialog
-        // (email + SMS) instead of routing to the payment tab.
         const ct = form.getValues("clientType");
         const byVoucher = form.getValues("payByVoucher");
         const skipStripe = ct !== "external" || byVoucher;
-        if (skipStripe || isConcierge) {
+        if (isConcierge) {
+          // Concierge: booking is broadcast to therapists (pending), no automatic
+          // client email — the operator sends the notification manually.
           setIsNotificationDialogOpen(true);
+        } else if (skipStripe) {
+          // Admin partner-billed/voucher: trigger-new-booking-notifications already
+          // sent the client confirmation email + SMS. Avoid a duplicate — just close.
+          handleClose();
         } else {
+          // Admin external: route to the Stripe payment link flow.
           setActiveTab("payment");
         }
       } else {

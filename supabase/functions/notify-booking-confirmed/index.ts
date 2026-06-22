@@ -5,6 +5,7 @@ import { sendEmail } from "../_shared/send-email.ts";
 import { sendSms } from "../_shared/send-sms.ts";
 
 const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
+const BOOKING_CONFIRMED_TEMPLATE_ID_EN = "c73fa801-c20f-40ef-834a-4d3eb2d7d96c";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -46,6 +47,7 @@ serve(async (req) => {
         total_price,
         payment_status,
         short_token,
+        customer_id,
         hotels(organization_id, address, postal_code, city, country, contact_email, organizations(name))
       `)
       .eq('id', bookingId)
@@ -104,11 +106,27 @@ serve(async (req) => {
       return { name: menu?.name || 'Unknown', price: menu?.price || 0 };
     }) || [];
 
+    // Client language drives which confirmation template (FR/EN) is sent to the
+    // client. Admin/concierge emails stay in French.
+    let clientLanguage: 'fr' | 'en' = 'fr';
+    if ((booking as any).customer_id) {
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('language')
+        .eq('id', (booking as any).customer_id)
+        .single();
+      if ((customer as any)?.language === 'en') clientLanguage = 'en';
+    }
+
     const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
     });
+    const clientFormattedDate = new Date(booking.booking_date).toLocaleDateString(
+      clientLanguage === 'en' ? 'en-US' : 'fr-FR',
+      { weekday: 'short', day: 'numeric', month: 'short' },
+    );
     const formattedTime = booking.booking_time?.substring(0, 5) || '';
 
     const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
@@ -229,9 +247,16 @@ serve(async (req) => {
     if (booking.client_email && isPaidEnough) {
       const { error: emailError } = await sendEmail({
         to: booking.client_email,
-        subject: `✅ Votre RDV est confirmé · ${formattedDate}`,
-        templateId: BOOKING_CONFIRMED_TEMPLATE_ID,
-        templateVariables,
+        subject: clientLanguage === 'en'
+          ? `✅ Your appointment is confirmed · ${clientFormattedDate}`
+          : `✅ Votre RDV est confirmé · ${clientFormattedDate}`,
+        templateId: clientLanguage === 'en'
+          ? BOOKING_CONFIRMED_TEMPLATE_ID_EN
+          : BOOKING_CONFIRMED_TEMPLATE_ID,
+        templateVariables: {
+          ...templateVariables,
+          booking_date: `${clientFormattedDate} ${formattedTime}`.trim(),
+        },
       });
 
       if (emailError) {

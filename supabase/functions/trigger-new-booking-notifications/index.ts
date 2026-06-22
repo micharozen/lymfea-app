@@ -6,6 +6,7 @@ import { sendSms } from "../_shared/send-sms.ts";
 import { getStripeForVenue } from "../_shared/stripe-resolver.ts";
 
 const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
+const BOOKING_CONFIRMED_TEMPLATE_ID_EN = "c73fa801-c20f-40ef-834a-4d3eb2d7d96c";
 const CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR = "c5378102-92c7-48de-834c-db17da702794";
 const CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN = "4d48ce0b-92c3-4ef7-8685-4f3905e34820";
 const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
@@ -534,12 +535,16 @@ serve(async (req) => {
           if (!isPending && !isPaidEnough) {
             console.log('[trigger-new-booking-notifications] Confirmed booking not paid yet → skipping client email:', bookingId);
           } else {
+            const confirmedSubject = clientLanguage === 'en'
+              ? `Booking #${booking.booking_id} · ${booking.hotel_name ?? ''}`
+              : `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`;
+            const confirmedTemplateId = clientLanguage === 'en'
+              ? BOOKING_CONFIRMED_TEMPLATE_ID_EN
+              : BOOKING_CONFIRMED_TEMPLATE_ID;
             const clientEmailResult = await sendEmail({
               to: clientEmail,
-              subject: isPending
-                ? pendingSubject
-                : `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
-              templateId: isPending ? pendingTemplateId : BOOKING_CONFIRMED_TEMPLATE_ID,
+              subject: isPending ? pendingSubject : confirmedSubject,
+              templateId: isPending ? pendingTemplateId : confirmedTemplateId,
               templateVariables,
             });
 

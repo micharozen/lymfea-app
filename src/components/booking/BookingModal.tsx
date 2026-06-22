@@ -58,7 +58,6 @@ import {
   type AvailableTherapist,
 } from "@/hooks/booking/useAvailableTherapistsForSlot";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
-import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import {
   BOOKING_CLIENT_TYPES,
@@ -254,9 +253,10 @@ export default function BookingModal({
       };
       setCreatedBooking(created);
       setStep("done");
-      if (clientType !== "external") {
-        setIsNotificationDialogOpen(true);
-      }
+      // Partner-billed bookings: trigger-new-booking-notifications (invoked by the
+      // mutation with isAdmin) already sent the client confirmation email + SMS.
+      // No manual confirmation here — it would duplicate. External bookings still
+      // get a payment-link button on the done step.
       onCreated?.(created);
     },
   });
@@ -684,6 +684,8 @@ export default function BookingModal({
           setIsNotificationDialogOpen(false);
           handleClose();
         };
+        // Only external clients open a dialog here (manual payment link).
+        // Partner-billed clients are confirmed automatically by the backend.
         return clientType === "external" ? (
           <SendPaymentLinkDialog
             open={isNotificationDialogOpen}
@@ -691,14 +693,7 @@ export default function BookingModal({
             booking={sharedBooking}
             onSuccess={handleSuccessAndClose}
           />
-        ) : (
-          <SendBookingNotificationDialog
-            open={isNotificationDialogOpen}
-            onOpenChange={setIsNotificationDialogOpen}
-            booking={sharedBooking}
-            onSuccess={handleSuccessAndClose}
-          />
-        );
+        ) : null;
       })()}
     </>
   );
@@ -1612,16 +1607,18 @@ function DoneStep({
         </p>
       </div>
       <div className="flex flex-col gap-2 w-full max-w-xs">
-        <Button
-          type="button"
-          onClick={onSendPaymentLink}
-          className="bg-foreground text-background hover:bg-foreground/90"
-        >
-          <Send className="h-4 w-4 mr-2" />
-          {clientType === "external"
-            ? t("phoneBooking.done.sendLink")
-            : t("phoneBooking.done.sendNotification")}
-        </Button>
+        {/* Partner-billed clients are already notified automatically by the
+            backend; only external clients need a manual payment-link send. */}
+        {clientType === "external" && (
+          <Button
+            type="button"
+            onClick={onSendPaymentLink}
+            className="bg-foreground text-background hover:bg-foreground/90"
+          >
+            <Send className="h-4 w-4 mr-2" />
+            {t("phoneBooking.done.sendLink")}
+          </Button>
+        )}
         <Button type="button" variant="outline" onClick={onClose}>
           {t("phoneBooking.ui.close")}
         </Button>
