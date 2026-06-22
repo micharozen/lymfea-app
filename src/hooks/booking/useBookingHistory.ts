@@ -54,6 +54,38 @@ async function resolveUserNames(userIds: string[]): Promise<Record<string, strin
   return names;
 }
 
+/** Resolve therapists.id (UUID) → "First Last" for therapist_id values in the audit log. */
+async function resolveTherapistNames(therapistIds: string[]): Promise<Record<string, string>> {
+  if (therapistIds.length === 0) return {};
+
+  const { data } = await supabase
+    .from("therapists")
+    .select("id, first_name, last_name")
+    .in("id", therapistIds);
+
+  const names: Record<string, string> = {};
+  for (const t of data ?? []) {
+    if (t.id) names[t.id] = `${t.first_name} ${t.last_name}`.trim();
+  }
+  return names;
+}
+
+/**
+ * The audit trigger stores `therapist_name` next to `therapist_id`, but it can be
+ * null if the booking's name column wasn't populated at change time. Backfill the
+ * name from the therapists table so the history never shows a raw UUID.
+ */
+function backfillTherapistName(
+  vals: Record<string, unknown> | null,
+  names: Record<string, string>,
+): Record<string, unknown> | null {
+  if (!vals) return vals;
+  const id = vals.therapist_id;
+  if (typeof id !== "string" || !id || vals.therapist_name) return vals;
+  const resolved = names[id];
+  return resolved ? { ...vals, therapist_name: resolved } : vals;
+}
+
 export function useBookingHistory(bookingId: string | undefined, enabled: boolean) {
   return useQuery<BookingAuditEntry[]>({
     queryKey: ["booking-history", bookingId],
@@ -71,10 +103,25 @@ export function useBookingHistory(bookingId: string | undefined, enabled: boolea
 
       // Resolve user names in one batch
       const userIds = [...new Set(entries.map((e) => e.changed_by).filter(Boolean))] as string[];
-      const nameMap = await resolveUserNames(userIds);
+
+      // Collect therapist UUIDs that lack a resolved name in the audit values
+      const therapistIds = new Set<string>();
+      for (const e of entries) {
+        for (const vals of [e.old_values, e.new_values]) {
+          const id = vals?.therapist_id;
+          if (typeof id === "string" && id && !vals?.therapist_name) therapistIds.add(id);
+        }
+      }
+
+      const [nameMap, therapistNames] = await Promise.all([
+        resolveUserNames(userIds),
+        resolveTherapistNames([...therapistIds]),
+      ]);
 
       return entries.map((entry) => ({
         ...entry,
+        old_values: backfillTherapistName(entry.old_values, therapistNames),
+        new_values: backfillTherapistName(entry.new_values, therapistNames),
         changed_by_name: entry.changed_by ? nameMap[entry.changed_by] ?? null : null,
       }));
     },
