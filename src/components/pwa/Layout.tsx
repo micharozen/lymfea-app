@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
 import { setNotificationClickHandler, getPendingNotificationUrl } from "@/hooks/useOneSignal";
 import { useIsMounted } from "@/hooks/useIsMounted";
+import { isTherapistPending } from "@/hooks/useRoleRedirect";
 
 const PwaLayout = () => {
   const navigate = useNavigate();
@@ -17,6 +18,34 @@ const PwaLayout = () => {
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
+
+  // Therapists who have a session but haven't finished onboarding (pending status or
+  // no password set) must complete it first. This covers users who reach the PWA shell
+  // directly via the installed start_url (/pwa) — e.g. an admin who is ALSO a therapist
+  // and whose therapist setup is still pending — instead of landing on an empty dashboard.
+  useEffect(() => {
+    let cancelled = false;
+
+    const ensureOnboarded = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+
+      const { data: therapist } = await supabase
+        .from("therapists")
+        .select("status, password_set")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!cancelled && isTherapistPending(therapist)) {
+        navigate("/pwa/onboarding", { replace: true });
+      }
+    };
+
+    ensureOnboarded();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   // Set up notification click handler for push notifications
   useEffect(() => {
