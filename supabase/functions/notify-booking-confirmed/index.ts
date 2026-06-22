@@ -229,10 +229,17 @@ serve(async (req) => {
     if (booking.client_email && isPaidEnough) {
       const { error: emailError } = await sendEmail({
         to: booking.client_email,
-        subject: `✅ Votre RDV est confirmé · ${formattedDate}`,
-        templateId: BOOKING_CONFIRMED_TEMPLATE_ID,
-        templateVariables,
-        audit: { bookingId, emailType: 'booking_confirmed', metadata: { booking_number: booking.booking_id } },
+        subject: clientLanguage === 'en'
+          ? `✅ Your appointment is confirmed · ${clientFormattedDate}`
+          : `✅ Votre RDV est confirmé · ${clientFormattedDate}`,
+        templateId: clientLanguage === 'en'
+          ? BOOKING_CONFIRMED_TEMPLATE_ID_EN
+          : BOOKING_CONFIRMED_TEMPLATE_ID,
+        templateVariables: {
+          ...templateVariables,
+          booking_date: `${clientFormattedDate} ${formattedTime}`.trim(),
+        },
+        audit: { bookingId: booking.id, emailType: 'booking_confirmed', metadata: { booking_number: booking.booking_id } },
       });
 
       if (emailError) {
