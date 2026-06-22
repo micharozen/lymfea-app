@@ -252,6 +252,7 @@ serve(async (req) => {
                   room_number: booking.room_number ? String(booking.room_number) : '',
                   treatment_name: treatmentsList,
                 },
+                audit: { bookingId: booking.id, emailType: 'new_booking_notifications', metadata: { booking_number: booking.booking_id } },
               });
 
               if (emailResult.error) {
@@ -297,6 +298,7 @@ serve(async (req) => {
                   treatment_name: treatmentsList,
                   treatment_price: `${treatmentPrice}€`,
                 },
+                audit: { bookingId: booking.id, emailType: 'booking_confirmed', metadata: { booking_number: booking.booking_id } },
               });
 
               if (emailResult.error) {
