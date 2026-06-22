@@ -75,9 +75,26 @@ function isAction(entry: BookingAuditEntry) {
   return entry.change_type === "action";
 }
 
+const EMAIL_TYPE_LABELS: Record<string, string> = {
+  booking_confirmation: "Email de confirmation envoyé au client",
+  booking_confirmed: "Email de confirmation de réservation envoyé",
+  booking_notification: "Email de notification envoyé",
+  new_booking_notifications: "Email de nouvelle réservation envoyé",
+  payment_reminder: "Email de rappel de paiement envoyé",
+  booking_cancelled: "Email d'annulation envoyé",
+  payment_link_expired: "Email d'expiration du lien de paiement envoyé",
+};
+
 function renderActionLabel(entry: BookingAuditEntry): string | null {
   const newVals = (entry.new_values ?? {}) as Record<string, unknown>;
   const action = typeof newVals.action === "string" ? newVals.action : null;
+
+  if (action === "email_sent") {
+    const emailType = typeof newVals.email_type === "string" ? newVals.email_type : "";
+    const base = EMAIL_TYPE_LABELS[emailType] ?? "Email envoyé";
+    const recipients = Array.isArray(newVals.recipients) ? (newVals.recipients as string[]) : [];
+    return recipients.length ? `${base} (${recipients.join(", ")})` : base;
+  }
 
   if (action === "payment_link_sent") {
     const channels = Array.isArray(newVals.channels) ? newVals.channels as string[] : [];

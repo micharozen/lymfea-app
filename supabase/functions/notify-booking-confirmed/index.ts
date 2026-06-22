@@ -257,6 +257,7 @@ serve(async (req) => {
           ...templateVariables,
           booking_date: `${clientFormattedDate} ${formattedTime}`.trim(),
         },
+        audit: { bookingId: booking.id, emailType: 'booking_confirmed', metadata: { booking_number: booking.booking_id } },
       });
 
       if (emailError) {

@@ -1,4 +1,20 @@
 import { brand } from "./brand.ts";
+import { supabaseAdmin } from "./supabase-admin.ts";
+
+/**
+ * When provided to `sendEmail`, a successful send is recorded as a line in the
+ * booking history (audit_log, change_type='action', action='email_sent').
+ */
+export interface EmailAuditInfo {
+  /** bookings.id (uuid) — used as audit_log.record_id */
+  bookingId: string;
+  /** Stable email identifier, e.g. 'booking_confirmation' */
+  emailType: string;
+  /** Admin/user who triggered the send; null for system/cron sends */
+  actorUserId?: string | null;
+  /** Extra context stored on the audit row's metadata */
+  metadata?: Record<string, unknown>;
+}
 
 interface SendEmailWithHtml {
   to: string | string[];
@@ -6,6 +22,7 @@ interface SendEmailWithHtml {
   from?: string;
   html: string;
   headers?: Record<string, string>;
+  audit?: EmailAuditInfo;
   templateId?: never;
   templateVariables?: never;
 }
@@ -16,6 +33,7 @@ interface SendEmailWithTemplate {
   from?: string;
   html?: never;
   headers?: Record<string, string>;
+  audit?: EmailAuditInfo;
   templateId: string;
   templateVariables?: Record<string, string>;
 }
@@ -38,9 +56,8 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   }
 
   const isLocal = Deno.env.get("IS_LOCAL") === "true";
-  const to = isLocal
-    ? ["romainthierryom@gmail.com"]
-    : Array.isArray(options.to) ? options.to : [options.to];
+  const intendedRecipients = Array.isArray(options.to) ? options.to : [options.to];
+  const to = isLocal ? ["romainthierryom@gmail.com"] : intendedRecipients;
   const from = isLocal
     ? "onboarding@resend.dev"
     : (options.from ?? brand.emails.from.default);
@@ -81,5 +98,35 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     return { error: errorMsg };
   }
 
+  // Record a booking-history line for each successfully sent email.
+  if (options.audit) {
+    await logBookingEmail(options.audit, intendedRecipients);
+  }
+
   return { id: data.id };
+}
+
+/**
+ * Insert a `email_sent` action into the booking history. Never throws — a
+ * logging failure must not break the email flow.
+ */
+async function logBookingEmail(audit: EmailAuditInfo, recipients: string[]): Promise<void> {
+  try {
+    await supabaseAdmin.from("audit_log").insert({
+      table_name: "bookings",
+      record_id: audit.bookingId,
+      changed_by: audit.actorUserId ?? null,
+      change_type: "action",
+      old_values: null,
+      new_values: {
+        action: "email_sent",
+        email_type: audit.emailType,
+        recipients,
+      },
+      source: audit.actorUserId ? "admin" : "system",
+      metadata: audit.metadata ?? {},
+    });
+  } catch (err) {
+    console.error("[send-email] Failed to write booking history:", err);
+  }
 }

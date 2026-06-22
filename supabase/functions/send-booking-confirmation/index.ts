@@ -306,6 +306,7 @@ serve(async (req) => {
       to: email,
       subject: `${subjectPrefix} #${bookingNumber} - ${hotelName}`,
       html,
+      audit: { bookingId, emailType: 'booking_confirmation', metadata: { booking_number: bookingNumber } },
     });
 
     if (clientResult.error) {
