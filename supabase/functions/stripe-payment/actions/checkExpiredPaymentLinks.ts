@@ -162,6 +162,7 @@ export async function handleCheckExpiredPaymentLinks(
               bookingDate: formattedBookingDate,
               bookingUrl,
             }),
+            audit: { bookingId: item.booking_id, emailType: 'payment_link_expired' },
           });
         } catch (e) {
           console.error(

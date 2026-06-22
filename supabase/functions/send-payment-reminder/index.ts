@@ -145,6 +145,7 @@ serve(async (_req: Request) => {
           ? `Rappel : confirmez votre réservation du ${formattedBookingDate}`
           : `Reminder: confirm your booking on ${formattedBookingDate}`,
         html: getPaymentReminderEmailHtml(lang, templateData),
+        audit: { bookingId: b.id, emailType: 'payment_reminder', metadata: { reminder_count: reminderCount + 1 } },
       });
 
       if (emailResult.error) {

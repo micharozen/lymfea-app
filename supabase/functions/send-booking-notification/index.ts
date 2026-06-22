@@ -275,7 +275,7 @@ serve(async (req: Request) => {
         const subject = language === "fr"
           ? `Confirmation de votre réservation #${booking.booking_id}`
           : `Your booking confirmation #${booking.booking_id}`;
-        const result = await sendEmail({ to, subject, html });
+        const result = await sendEmail({ to, subject, html, audit: { bookingId, emailType: 'booking_notification', metadata: { booking_number: booking.booking_id } } });
         if (result.error) {
           errors.push(`Email: ${result.error}`);
         } else {
