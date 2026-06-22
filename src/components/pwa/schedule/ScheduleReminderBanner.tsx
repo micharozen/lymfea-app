@@ -6,28 +6,47 @@ import { cn } from "@/lib/utils";
 interface ScheduleReminderBannerProps {
   incomplete: boolean;
   variant?: "dashboard" | "agenda";
+  /** Shown on the right when status is partial (e.g. 7/10) */
+  partialProgress?: { count: number; total: number };
   className?: string;
 }
 
 export function ScheduleReminderBanner({
   incomplete,
   variant = "agenda",
+  partialProgress,
   className,
 }: ScheduleReminderBannerProps) {
   const { t } = useTranslation("pwa");
   const navigate = useNavigate();
+  const isCompact = variant === "dashboard";
 
-  const title =
-    variant === "dashboard" && incomplete
-      ? t("dashboard.scheduleReminderTitle")
-      : t("bookings.editSchedule");
+  if (isCompact) {
+    return (
+      <button
+        type="button"
+        onClick={() => navigate("/pwa/schedule")}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-muted/50 active:scale-[0.99]",
+          className
+        )}
+      >
+        <CalendarClock className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="text-sm font-medium text-foreground">
+          {t("bookings.editSchedule")}
+        </span>
+        {partialProgress && (
+          <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+            {partialProgress.count}/{partialProgress.total}
+          </span>
+        )}
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      </button>
+    );
+  }
 
-  const description =
-    variant === "dashboard" && incomplete
-      ? t("dashboard.scheduleReminderDesc")
-      : incomplete
-        ? t("bookings.scheduleIncomplete")
-        : null;
+  const title = t("bookings.editSchedule");
+  const description = incomplete ? t("bookings.scheduleIncomplete") : null;
 
   return (
     <button

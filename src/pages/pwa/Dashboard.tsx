@@ -859,9 +859,23 @@ const PwaDashboard = () => {
         }
       />
 
-      {scheduleCompleteness?.isIncomplete && (
+      {scheduleCompleteness && (
         <div className="px-4 pt-3">
-          <ScheduleReminderBanner incomplete variant="dashboard" />
+          <ScheduleReminderBanner
+            incomplete={scheduleCompleteness.isIncomplete}
+            variant="dashboard"
+            partialProgress={
+              scheduleCompleteness.status === "partial"
+                ? {
+                    count: scheduleCompleteness.declaredDaysCount,
+                    total:
+                      scheduleCompleteness.expectedDaysCount > 0
+                        ? scheduleCompleteness.expectedDaysCount
+                        : scheduleCompleteness.horizonDays,
+                  }
+                : undefined
+            }
+          />
         </div>
       )}
 
