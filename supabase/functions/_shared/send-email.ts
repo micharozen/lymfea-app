@@ -100,7 +100,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
 
   // Record a booking-history line for each successfully sent email.
   if (options.audit) {
-    await logBookingEmail(options.audit, intendedRecipients);
+    await logBookingEmail(options.audit, intendedRecipients, options.html ?? null, data.id ?? null);
   }
 
   return { id: data.id };
@@ -109,8 +109,18 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
 /**
  * Insert a `email_sent` action into the booking history. Never throws — a
  * logging failure must not break the email flow.
+ *
+ * Two preview sources are recorded: the rendered `html` for raw-HTML sends
+ * (stored locally, permanent), and the Resend `resendId` for template sends
+ * (the body lives at Resend and is fetched on demand). `has_preview` lets the
+ * history list show a preview button without fetching the body.
  */
-async function logBookingEmail(audit: EmailAuditInfo, recipients: string[]): Promise<void> {
+async function logBookingEmail(
+  audit: EmailAuditInfo,
+  recipients: string[],
+  html: string | null,
+  resendId: string | null,
+): Promise<void> {
   try {
     await supabaseAdmin.from("audit_log").insert({
       table_name: "bookings",
@@ -122,9 +132,12 @@ async function logBookingEmail(audit: EmailAuditInfo, recipients: string[]): Pro
         action: "email_sent",
         email_type: audit.emailType,
         recipients,
+        has_preview: html != null || resendId != null,
       },
       source: audit.actorUserId ? "admin" : "system",
       metadata: audit.metadata ?? {},
+      email_html: html,
+      resend_email_id: resendId,
     });
   } catch (err) {
     console.error("[send-email] Failed to write booking history:", err);

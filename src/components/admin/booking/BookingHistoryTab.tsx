@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Loader2, History } from "lucide-react";
+import { Loader2, History, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useBookingHistory, type BookingAuditEntry } from "@/hooks/booking/useBookingHistory";
+import { EmailPreviewDialog } from "./EmailPreviewDialog";
 
 const FIELD_LABELS: Record<string, string> = {
   status: "Statut",
@@ -18,10 +21,28 @@ const FIELD_LABELS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "En attente",
+  awaiting_payment: "En attente de paiement",
+  awaiting_hairdresser_selection: "En attente de thérapeute",
+  waiting_approval: "En attente d'approbation",
+  quote_pending: "Devis en attente",
+  alternative_proposed: "Alternative proposée",
+  accepted: "Accepté",
+  rejected: "Refusé",
   confirmed: "Confirmé",
+  ongoing: "En cours",
   completed: "Terminé",
   cancelled: "Annulé",
   no_show: "No-show",
+  expired: "Expiré",
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  card: "Carte",
+  tap_to_pay: "Tap to Pay",
+  cash: "Espèces",
+  room: "Facturé chambre",
+  bundle: "Forfait",
+  gift_amount: "Carte cadeau",
 };
 
 const PAYMENT_STATUS_LABELS: Record<string, string> = {
@@ -39,6 +60,7 @@ function formatValue(field: string, value: unknown): string {
 
   if (field === "status") return STATUS_LABELS[value as string] ?? String(value);
   if (field === "payment_status") return PAYMENT_STATUS_LABELS[value as string] ?? String(value);
+  if (field === "payment_method") return PAYMENT_METHOD_LABELS[value as string] ?? String(value);
   if (field === "total_price") return `${Number(value).toFixed(2)} €`;
   if (field === "duration") return `${value} min`;
   if (field === "booking_time" && typeof value === "string") return value.substring(0, 5);
@@ -57,12 +79,14 @@ function getChangedFields(entry: BookingAuditEntry) {
   return Array.from(allKeys)
     .filter((key) => key in FIELD_LABELS)
     .map((key) => {
+      // For therapist_id, display the resolved name only — never fall back to the
+      // raw UUID (shows "—" if the name couldn't be resolved).
       const displayKey = key === "therapist_id" ? "therapist_name" : key;
       return {
         field: key,
         label: FIELD_LABELS[key],
-        oldValue: formatValue(displayKey, oldVals[displayKey] ?? oldVals[key]),
-        newValue: formatValue(displayKey, newVals[displayKey] ?? newVals[key]),
+        oldValue: formatValue(displayKey, oldVals[displayKey]),
+        newValue: formatValue(displayKey, newVals[displayKey]),
       };
     });
 }
@@ -73,6 +97,14 @@ function isInsert(entry: BookingAuditEntry) {
 
 function isAction(entry: BookingAuditEntry) {
   return entry.change_type === "action";
+}
+
+function hasEmailPreview(entry: BookingAuditEntry): boolean {
+  const newVals = (entry.new_values ?? {}) as Record<string, unknown>;
+  if (newVals.action !== "email_sent") return false;
+  // has_preview covers both stored HTML and Resend-backed template emails;
+  // has_html kept for rows written before the hybrid change.
+  return newVals.has_preview === true || newVals.has_html === true;
 }
 
 const EMAIL_TYPE_LABELS: Record<string, string> = {
@@ -122,6 +154,7 @@ interface BookingHistoryTabProps {
 
 export function BookingHistoryTab({ bookingId, enabled }: BookingHistoryTabProps) {
   const { data: entries, isLoading } = useBookingHistory(bookingId, enabled);
+  const [previewAuditId, setPreviewAuditId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -170,7 +203,20 @@ export function BookingHistoryTab({ bookingId, enabled }: BookingHistoryTabProps
                 {isInsert(entry) ? (
                   <p className="text-sm text-green-600 font-medium">Réservation créée</p>
                 ) : isAction(entry) ? (
-                  <p className="text-sm text-blue-600 font-medium">{renderActionLabel(entry) ?? "Action"}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm text-blue-600 font-medium">{renderActionLabel(entry) ?? "Action"}</p>
+                    {hasEmailPreview(entry) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => setPreviewAuditId(entry.id)}
+                      >
+                        <Eye className="h-3.5 w-3.5 mr-1.5" />
+                        Aperçu
+                      </Button>
+                    )}
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     {fields.map(({ field, label, oldValue, newValue }) => (
@@ -189,6 +235,14 @@ export function BookingHistoryTab({ bookingId, enabled }: BookingHistoryTabProps
           );
         })}
       </div>
+
+      <EmailPreviewDialog
+        auditId={previewAuditId}
+        open={previewAuditId !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewAuditId(null);
+        }}
+      />
     </div>
   );
 }
