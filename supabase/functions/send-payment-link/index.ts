@@ -321,6 +321,9 @@ serve(async (req: Request) => {
     };
 
     const results: { email?: boolean; sms?: boolean; errors: string[] } = { errors: [] };
+    // Resend id of the payment-link email, stored on the history row so the
+    // "Aperçu" button can fetch the rendered template body on demand.
+    let resendEmailId: string | null = null;
 
     // En mode 'generate', on persiste le lien et on retourne sans envoyer
     if (mode === 'generate') {
@@ -392,6 +395,7 @@ serve(async (req: Request) => {
 
         console.log("[SEND-PAYMENT-LINK] Email sent via template:", emailResult.id);
         results.email = true;
+        resendEmailId = emailResult.id ?? null;
       } catch (emailError: any) {
         console.error("[SEND-PAYMENT-LINK] Email error:", emailError);
         results.errors.push(`Email: ${emailError instanceof Error ? emailError.message : 'Unknown error'}`);
@@ -498,12 +502,15 @@ serve(async (req: Request) => {
           language,
           email: results.email ? email : undefined,
           phone: results.sms ? phone : undefined,
+          // Template email body lives at Resend; flag drives the "Aperçu" button.
+          has_preview: resendEmailId != null,
         },
         source: 'admin',
         metadata: {
           booking_id: booking.booking_id,
           payment_link_url: paymentLink.url,
         },
+        resend_email_id: resendEmailId,
       });
     } catch (auditError) {
       console.warn('[SEND-PAYMENT-LINK] Failed to write audit log:', auditError);
