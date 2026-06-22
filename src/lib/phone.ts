@@ -70,6 +70,22 @@ export const composePhoneNumber = (countryCode: string, phone: string): string =
   return `${countryCode} ${trimmed}`;
 };
 
+/**
+ * Normalise un numéro vers la forme canonique stockée dans `therapists.phone`.
+ *
+ * La DB impose `CHECK (phone IS NULL OR phone ~ '^[1-9][0-9]+$')`
+ * (migration 20260606210000_renormalize_therapist_phones.sql) : chiffres
+ * uniquement, sans 0 initial (l'indicatif est stocké à part). Tout autre
+ * format (espaces, 0 initial, "+", ".", "-") provoque une violation 23514.
+ *
+ * Retire tout caractère non numérique puis tous les zéros initiaux. Renvoie
+ * null s'il ne reste rien d'exploitable (la branche NULL du CHECK s'applique).
+ */
+export const normalizeTherapistPhone = (raw: string): string | null => {
+  const digits = (raw ?? "").replace(/[^0-9]/g, "").replace(/^0+/, "");
+  return digits.length >= 2 ? digits : null;
+};
+
 export const formatPhoneNumber = (value: string, countryCode: string): string => {
   const numbers = value.replace(/\D/g, '');
   switch (countryCode) {

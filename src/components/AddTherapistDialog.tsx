@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 import { getSpecialtySelectOptions } from "@/lib/specialtyTypes";
+import { normalizeTherapistPhone } from "@/lib/phone";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { listHotelsForOrg, listTreatmentRoomsForOrgDropdown } from "@shared/db";
@@ -158,7 +159,7 @@ export default function AddTherapistDialog({
         last_name: formData.last_name,
         email: formData.email,
         country_code: formData.country_code,
-        phone: formData.phone,
+        phone: normalizeTherapistPhone(formData.phone),
         trunks: selectedRooms.join(", ") || null,
         status: formData.status,
         skills: selectedSkills,
