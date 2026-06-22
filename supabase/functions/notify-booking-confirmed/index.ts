@@ -232,6 +232,7 @@ serve(async (req) => {
         subject: `✅ Votre RDV est confirmé · ${formattedDate}`,
         templateId: BOOKING_CONFIRMED_TEMPLATE_ID,
         templateVariables,
+        audit: { bookingId, emailType: 'booking_confirmed', metadata: { booking_number: booking.booking_id } },
       });
 
       if (emailError) {

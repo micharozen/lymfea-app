@@ -425,6 +425,7 @@ serve(async (req) => {
             subject,
             templateId,
             templateVariables,
+            audit: { bookingId, emailType: 'new_booking_notifications', metadata: { booking_number: booking.booking_id } },
           });
 
           if (clientEmailResult.error) {
@@ -541,6 +542,7 @@ serve(async (req) => {
                 : `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
               templateId: isPending ? pendingTemplateId : BOOKING_CONFIRMED_TEMPLATE_ID,
               templateVariables,
+              audit: { bookingId, emailType: 'new_booking_notifications', metadata: { booking_number: booking.booking_id } },
             });
 
             if (clientEmailResult.error) {

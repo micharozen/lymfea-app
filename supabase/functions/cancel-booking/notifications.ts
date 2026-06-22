@@ -135,6 +135,7 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
           buttonText: msg.emailButton,
           buttonUrl: siteUrl,
         }),
+        audit: { bookingId: resolvedBookingId, emailType: 'booking_cancelled', metadata: { booking_number: booking.booking_id } },
       });
     } catch (emailErr) {
       console.error("[cancel-booking] Client email error:", emailErr);
