@@ -23,13 +23,14 @@ import { fr } from 'date-fns/locale';
 import { HoldBanner } from '@/components/client/HoldBanner';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
 import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
+import { checkoutIntentFields } from '@/lib/client/checkoutIntentFields';
 import i18n from '@/i18n';
 
 export default function Payment() {
   const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
-  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles, giftInfo, scheduleMode, perItemSchedule, groupId, bookingIds } = useClientFlow();
+  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles, giftInfo, scheduleMode, perItemSchedule, groupId, bookingIds, checkoutIntentId } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
 
   useEffect(() => {
@@ -227,6 +228,7 @@ export default function Payment() {
               totalPrice: 0,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
+              ...(checkoutIntentFields(checkoutIntentId)),
               ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
             },
             skipAuth: true,
@@ -267,6 +269,7 @@ export default function Payment() {
                 amountCents: selectedBundle.amountToUseCents,
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(checkoutIntentFields(checkoutIntentId)),
           }, { skipAuth: true });
 
           if (error) throw error;
@@ -318,6 +321,7 @@ export default function Payment() {
             totalPrice: 0,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
             ...(draftBookingId ? { draftBookingId } : {}),
+            ...(checkoutIntentFields(checkoutIntentId)),
             ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
           },
           skipAuth: true,
@@ -363,6 +367,7 @@ export default function Payment() {
           totalPrice: total,
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
+          ...(checkoutIntentFields(checkoutIntentId)),
           ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
           isMulti,
           ...(isMulti ? { groupId, bookingIds } : {}),
@@ -413,6 +418,7 @@ export default function Payment() {
               paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
               totalPrice: fixedTotal,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(checkoutIntentFields(checkoutIntentId)),
             }
           : {
               hotelId,
@@ -423,6 +429,7 @@ export default function Payment() {
               totalPrice: fixedTotal,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
+              ...(checkoutIntentFields(checkoutIntentId)),
               ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
             };
 
