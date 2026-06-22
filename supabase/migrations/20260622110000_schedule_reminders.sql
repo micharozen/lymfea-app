@@ -202,7 +202,7 @@ AS $$
     FROM therapists t
     INNER JOIN therapist_venues tv ON tv.therapist_id = t.id
     WHERE t.user_id IS NOT NULL
-      AND LOWER(COALESCE(t.status, '')) IN ('active', 'actif')
+      AND COALESCE(t.status, '') IN ('Active', 'Actif', 'active')
   ),
   recently_reminded AS (
     SELECT DISTINCT srl.therapist_id

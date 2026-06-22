@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -703,6 +703,8 @@ export type Database = {
           declined_by: string[] | null
           duration: number | null
           email_inquiry_id: string | null
+          external_id: string | null
+          external_reference: string | null
           gift_amount_applied_cents: number
           guest_count: number
           hold_expires_at: string | null
@@ -721,7 +723,7 @@ export type Database = {
           payment_method: string | null
           payment_reference: string | null
           payment_status: string | null
-          phone: string
+          phone: string | null
           pms_charge_id: string | null
           pms_charge_status: string | null
           pms_error_message: string | null
@@ -764,6 +766,8 @@ export type Database = {
           declined_by?: string[] | null
           duration?: number | null
           email_inquiry_id?: string | null
+          external_id?: string | null
+          external_reference?: string | null
           gift_amount_applied_cents?: number
           guest_count?: number
           hold_expires_at?: string | null
@@ -782,7 +786,7 @@ export type Database = {
           payment_method?: string | null
           payment_reference?: string | null
           payment_status?: string | null
-          phone: string
+          phone?: string | null
           pms_charge_id?: string | null
           pms_charge_status?: string | null
           pms_error_message?: string | null
@@ -825,6 +829,8 @@ export type Database = {
           declined_by?: string[] | null
           duration?: number | null
           email_inquiry_id?: string | null
+          external_id?: string | null
+          external_reference?: string | null
           gift_amount_applied_cents?: number
           guest_count?: number
           hold_expires_at?: string | null
@@ -843,7 +849,7 @@ export type Database = {
           payment_method?: string | null
           payment_reference?: string | null
           payment_status?: string | null
-          phone?: string
+          phone?: string | null
           pms_charge_id?: string | null
           pms_charge_status?: string | null
           pms_error_message?: string | null
@@ -1652,6 +1658,7 @@ export type Database = {
           client_cancellation_cutoff_hours: number | null
           closing_time: string | null
           company_offered: boolean | null
+          contact_email: string | null
           country: string | null
           country_code: string | null
           cover_image: string | null
@@ -1690,7 +1697,6 @@ export type Database = {
           vat: number | null
           venue_type: string | null
           website_url: string | null
-          contact_email: string | null
         }
         Insert: {
           address?: string | null
@@ -1706,6 +1712,7 @@ export type Database = {
           client_cancellation_cutoff_hours?: number | null
           closing_time?: string | null
           company_offered?: boolean | null
+          contact_email?: string | null
           country?: string | null
           country_code?: string | null
           cover_image?: string | null
@@ -1744,7 +1751,6 @@ export type Database = {
           vat?: number | null
           venue_type?: string | null
           website_url?: string | null
-          contact_email?: string | null
         }
         Update: {
           address?: string | null
@@ -1760,6 +1766,7 @@ export type Database = {
           client_cancellation_cutoff_hours?: number | null
           closing_time?: string | null
           company_offered?: boolean | null
+          contact_email?: string | null
           country?: string | null
           country_code?: string | null
           cover_image?: string | null
@@ -1798,7 +1805,6 @@ export type Database = {
           vat?: number | null
           venue_type?: string | null
           website_url?: string | null
-          contact_email?: string | null
         }
         Relationships: [
           {
@@ -2174,6 +2180,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      schedule_reminder_logs: {
+        Row: {
+          id: string
+          reminder_type: string
+          sent_at: string
+          target_month: string
+          therapist_id: string
+        }
+        Insert: {
+          id?: string
+          reminder_type: string
+          sent_at?: string
+          target_month: string
+          therapist_id: string
+        }
+        Update: {
+          id?: string
+          reminder_type?: string
+          sent_at?: string
+          target_month?: string
+          therapist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_reminder_logs_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "therapists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subscriptions: {
         Row: {
@@ -3354,6 +3392,8 @@ export type Database = {
           declined_by: string[] | null
           duration: number | null
           email_inquiry_id: string | null
+          external_id: string | null
+          external_reference: string | null
           gift_amount_applied_cents: number
           guest_count: number
           hold_expires_at: string | null
@@ -3372,7 +3412,7 @@ export type Database = {
           payment_method: string | null
           payment_reference: string | null
           payment_status: string | null
-          phone: string
+          phone: string | null
           pms_charge_id: string | null
           pms_charge_status: string | null
           pms_error_message: string | null
@@ -3430,6 +3470,8 @@ export type Database = {
           declined_by: string[] | null
           duration: number | null
           email_inquiry_id: string | null
+          external_id: string | null
+          external_reference: string | null
           gift_amount_applied_cents: number
           guest_count: number
           hold_expires_at: string | null
@@ -3448,7 +3490,7 @@ export type Database = {
           payment_method: string | null
           payment_reference: string | null
           payment_status: string | null
-          phone: string
+          phone: string | null
           pms_charge_id: string | null
           pms_charge_status: string | null
           pms_error_message: string | null
@@ -3620,6 +3662,18 @@ export type Database = {
         }
         Returns: Json
       }
+      gateway_create_org_api_key: { Args: { _org_id: string }; Returns: Json }
+      gateway_get_org_api_key: {
+        Args: { _org_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          key_prefix: string
+          last_used_at: string
+          rate_limit_per_min: number
+          scopes: string[]
+        }[]
+      }
       gateway_list_api_keys: {
         Args: never
         Returns: {
@@ -3634,7 +3688,53 @@ export type Database = {
           scopes: string[]
         }[]
       }
+      gateway_list_customer_bookings: {
+        Args: {
+          _customer_id: string
+          _hotel_id: string
+          _limit?: number
+          _offset?: number
+        }
+        Returns: {
+          booking_date: string
+          booking_number: number
+          booking_time: string
+          client_type: string
+          created_at: string
+          currency: string
+          duration: number
+          id: string
+          payment_method: string
+          payment_status: string
+          room_number: string
+          status: string
+          total_count: number
+          total_price: string
+          treatments: Json
+        }[]
+      }
+      gateway_list_venue_customers: {
+        Args: { _hotel_id: string; _limit?: number; _offset?: number }
+        Returns: {
+          booking_count: number
+          created_at: string
+          currency: string
+          email: string
+          first_name: string
+          id: string
+          language: string
+          last_name: string
+          last_visit_date: string
+          phone: string
+          preferred_treatment_type: string
+          profile_completed: boolean
+          total_count: number
+          total_spent_amount: string
+          updated_at: string
+        }[]
+      }
       gateway_reveal_api_key: { Args: { _id: string }; Returns: string }
+      gateway_reveal_org_api_key: { Args: { _org_id: string }; Returns: string }
       gateway_revoke_api_key: { Args: { _id: string }; Returns: undefined }
       gateway_verify_api_key: { Args: { _key: string }; Returns: Json }
       gen_booking_short_token: { Args: never; Returns: string }
@@ -3698,6 +3798,10 @@ export type Database = {
           total_sessions: number
         }[]
       }
+      get_incomplete_schedule_therapist_ids: {
+        Args: { p_dedup_days?: number; p_reminder_type?: string }
+        Returns: string[]
+      }
       get_organization_features: { Args: { _org: string }; Returns: Json }
       get_payment_adyen_secrets: { Args: { p_hotel_id: string }; Returns: Json }
       get_payment_stripe_secrets: {
@@ -3734,11 +3838,14 @@ export type Database = {
         Args: { _identifier: string }
         Returns: {
           address: string
+          booking_hold_duration_minutes: number
+          booking_hold_enabled: boolean
           button_color: string
           button_text_color: string
           city: string
           closing_time: string
           company_offered: boolean
+          contact_email: string
           contact_phone: string
           country: string
           cover_image: string
@@ -3758,6 +3865,7 @@ export type Database = {
           name_en: string
           offert: boolean
           opening_time: string
+          organization_name: string
           pms_guest_lookup_enabled: boolean
           postal_code: string
           recurrence_interval: number
@@ -3769,6 +3877,7 @@ export type Database = {
           status: string
           vat: number
           venue_type: string
+          website_url: string
           welcome_background_color: string
           welcome_background_opacity: number
         }[]
@@ -3777,11 +3886,14 @@ export type Database = {
         Args: { _hotel_id: string }
         Returns: {
           address: string
+          booking_hold_duration_minutes: number
+          booking_hold_enabled: boolean
           button_color: string
           button_text_color: string
           city: string
           closing_time: string
           company_offered: boolean
+          contact_email: string
           contact_phone: string
           country: string
           cover_image: string
@@ -3801,6 +3913,7 @@ export type Database = {
           name_en: string
           offert: boolean
           opening_time: string
+          organization_name: string
           pms_guest_lookup_enabled: boolean
           postal_code: string
           recurrence_interval: number
@@ -3812,6 +3925,7 @@ export type Database = {
           status: string
           vat: number
           venue_type: string
+          website_url: string
           welcome_background_color: string
           welcome_background_opacity: number
         }[]
@@ -3892,6 +4006,10 @@ export type Database = {
           gap_minutes: number
           next_booking_time: string
         }[]
+      }
+      get_schedule_completeness: {
+        Args: { p_therapist_id: string }
+        Returns: Json
       }
       get_sessions_by_hotel: {
         Args: { _end_date?: string; _start_date?: string }

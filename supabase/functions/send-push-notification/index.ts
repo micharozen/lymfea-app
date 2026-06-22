@@ -62,7 +62,7 @@ serve(async (req) => {
       throw new Error("OneSignal credentials not configured");
     }
 
-    const { userId, title, body, data } = await req.json();
+    const { userId, title, body, titleFr, bodyFr, data } = await req.json();
 
     console.log("[OneSignal] Sending notification to user:", userId);
     console.log("[OneSignal] Title:", title);
@@ -75,8 +75,14 @@ serve(async (req) => {
     // Send notification via OneSignal REST API
     const notificationPayload = {
       app_id: ONESIGNAL_APP_ID,
-      headings: { en: title || brand.name },
-      contents: { en: body || "Nouvelle notification" },
+      headings: {
+        en: title || brand.name,
+        fr: titleFr || title || brand.name,
+      },
+      contents: {
+        en: body || "New notification",
+        fr: bodyFr || body || "Nouvelle notification",
+      },
       // Primary URL for notification click (OneSignal REST API uses 'url')
       url: clickUrl,
       // Include URL in data as backup for SDK click handler

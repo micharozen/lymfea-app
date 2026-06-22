@@ -4,6 +4,13 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 const REMINDER_TYPE = "biweekly";
 const DEDUP_DAYS = 14;
 
+const PUSH_COPY = {
+  titleEn: "📅 Schedule update needed",
+  titleFr: "📅 Planning à mettre à jour",
+  bodyEn: "Remember to update your availability for the next 2 weeks.",
+  bodyFr: "Pensez à mettre à jour vos disponibilités pour les 2 prochaines semaines.",
+} as const;
+
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -76,10 +83,6 @@ serve(async (req: Request) => {
         continue;
       }
 
-      const title = "📅 Planning à mettre à jour";
-      const body =
-        "Pensez à mettre à jour vos disponibilités pour les 2 prochaines semaines.";
-
       const { error: logError } = await supabase.from("schedule_reminder_logs").insert({
         therapist_id: therapist.id,
         reminder_type: REMINDER_TYPE,
@@ -105,8 +108,10 @@ serve(async (req: Request) => {
         {
           body: {
             userId: therapist.user_id,
-            title,
-            body,
+            title: PUSH_COPY.titleEn,
+            titleFr: PUSH_COPY.titleFr,
+            body: PUSH_COPY.bodyEn,
+            bodyFr: PUSH_COPY.bodyFr,
             data: { url: "/pwa/schedule" },
           },
           headers: {
