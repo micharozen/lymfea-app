@@ -88,8 +88,13 @@ export default function GuestInfo() {
   const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation('client');
-  const { cancelHold,canProceedToStep, setClientInfo, clientInfo, bookingDateTime, isBundleOnlyPurchase, setGiftInfo, giftInfo, setAuthBundles, authBundles } = useClientFlow();
-  const { items, itemCount, isBundleOnly } = useBasket();
+  const {
+    cancelHold, canProceedToStep, setClientInfo, clientInfo, bookingDateTime,
+    isBundleOnlyPurchase, setGiftInfo, giftInfo, setAuthBundles, authBundles,
+    setCheckoutIntentId, therapistGenderPreference, scheduleMode, perItemSchedule,
+    draftBookingId, bookingIds, groupId,
+  } = useClientFlow();
+  const { items, itemCount, total, isBundleOnly } = useBasket();
   const { createOffertBooking, isCreating } = useCreateOffertBooking(hotelId);
   const isDesktop = useIsDesktop();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -280,18 +285,18 @@ export default function GuestInfo() {
         pmsVerified = true;
       }
 
-      setClientInfo({
+      const savedClientInfo = {
         firstName: data.firstName,
         lastName: data.lastName,
         countryCode: data.countryCode,
-        // Verified hotel guests don't enter email/phone — resolved server-side from the PMS.
         email: pmsVerified ? '' : (data.email ?? ''),
         phone: pmsVerified ? '' : (data.phone ?? ''),
         roomNumber: data.roomNumber ?? '',
         note: data.note,
         isExternalGuest: !isHotelGuest,
         pmsVerified,
-      });
+      };
+      setClientInfo(savedClientInfo);
 
       // Save gift info to flow context
       if (isGiftCardBundle) {
@@ -306,6 +311,63 @@ export default function GuestInfo() {
         });
       } else {
         setGiftInfo(null);
+      }
+
+      const shouldTrackCheckoutIntent =
+        !isOffert &&
+        !isCompanyOffered &&
+        !isBundleOnlyPurchase &&
+        !pmsVerified &&
+        !!savedClientInfo.email &&
+        !!savedClientInfo.phone;
+
+      if (shouldTrackCheckoutIntent && hotelId) {
+        const phone = `${savedClientInfo.countryCode}${savedClientInfo.phone}`.replace(/\s/g, '');
+        const lang = i18n.language === 'en' ? 'en' : 'fr';
+        const bookingDate = scheduleMode === 'shared' ? bookingDateTime?.date ?? null : null;
+        const bookingTime = scheduleMode === 'shared' ? bookingDateTime?.time ?? null : null;
+        const currency = items.find((i) => i.currency)?.currency ?? 'EUR';
+
+        try {
+          const { data: intentId, error } = await supabase.rpc('sync_guest_checkout', {
+            _phone: phone,
+            _first_name: savedClientInfo.firstName,
+            _last_name: savedClientInfo.lastName,
+            _client_email: savedClientInfo.email,
+            _hotel_id: hotelId,
+            _language: lang,
+            _booking_date: bookingDate,
+            _booking_time: bookingTime,
+            _room_number: savedClientInfo.roomNumber || null,
+            _cart_snapshot: {
+              items: items.map((item) => ({
+                treatmentId: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                variantId: item.variantId,
+                variantLabel: item.variantLabel,
+                guestCount: item.guestCount,
+                price: item.price,
+                isPriceOnRequest: item.isPriceOnRequest,
+                isBundle: item.isBundle,
+              })),
+              total,
+              currency,
+              itemCount,
+              scheduleMode,
+              bookingDateTime,
+              perItemSchedule,
+              draftBookingId,
+              bookingIds,
+              groupId,
+              therapistGenderPreference,
+            },
+          });
+          if (error) throw error;
+          if (intentId) setCheckoutIntentId(intentId);
+        } catch (error) {
+          console.error('Checkout intent error:', error);
+        }
       }
 
       if (isDesktop) {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,7 +37,7 @@ import { fr } from "date-fns/locale";
 import { AlertTriangle, CalendarIcon, Check, ChevronDown, ChevronsUpDown, Clock, Globe, Info, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentOffset } from "@/lib/timezones";
-import { countries, formatPhoneNumber } from "@/lib/phone";
+import { countries, formatPhoneNumber, languageFromCountryCode } from "@/lib/phone";
 import { BookingFormValues } from "../CreateBookingDialog.schema";
 import { usePmsGuestLookup } from "@/hooks/usePmsGuestLookup";
 import { toast } from "sonner";
@@ -92,6 +92,16 @@ export function BookingInfoStep({
   const clientType = form.watch("clientType");
   const isHotelClient = clientType === "hotel";
   const roomNumberLater = form.watch("roomNumberLater");
+
+  // Communication language is pre-filled from the phone country code (+33 → fr,
+  // otherwise en). Once the operator picks a value manually (or we load it from
+  // an existing customer), we stop auto-deriving so their choice sticks.
+  const languageManuallySet = useRef(false);
+  useEffect(() => {
+    if (languageManuallySet.current) return;
+    form.setValue("language", languageFromCountryCode(countryCode));
+  }, [countryCode, form]);
+
   const [hotelPopoverOpen, setHotelPopoverOpen] = useState(false);
 
   const handleRoomLaterChange = (checked: boolean) => {
@@ -148,7 +158,7 @@ export function BookingInfoStep({
     queryFn: async () => {
       let q = supabase
         .from("customers")
-        .select("id, first_name, last_name, phone, email")
+        .select("id, first_name, last_name, phone, email, language")
         .limit(5);
       if (isPhoneSearch) {
         const normalized = trimmedCustomerSearch.replace(/\s/g, "");
@@ -159,15 +169,19 @@ export function BookingInfoStep({
         );
       }
       const { data } = await q;
-      return (data as Array<{ id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null }>) || [];
+      return (data as Array<{ id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null }>) || [];
     },
   });
 
-  const handleSelectCustomer = (c: { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null }) => {
+  const handleSelectCustomer = (c: { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null }) => {
     setSelectedCustomerId(c.id);
     if (c.first_name) form.setValue("clientFirstName", c.first_name);
     if (c.last_name) form.setValue("clientLastName", c.last_name);
     if (c.email) form.setValue("clientEmail", c.email);
+    if (c.language === "fr" || c.language === "en") {
+      languageManuallySet.current = true;
+      form.setValue("language", c.language);
+    }
     if (c.phone) {
       const sorted = [...countries].sort((a, b) => b.code.length - a.code.length);
       const match = sorted.find((cc) => c.phone!.startsWith(cc.code));
@@ -221,6 +235,7 @@ export function BookingInfoStep({
   return (
     <div className="flex flex-col min-h-0 flex-1">
       <div className="flex-1 overflow-y-auto space-y-3 px-4 py-4">
+      <div className="grid grid-cols-2 gap-2">
       <FormField
         control={form.control}
         name="hotelId"
@@ -334,6 +349,7 @@ export function BookingInfoStep({
           </FormItem>
         )}
       />
+      </div>
 
       {/* Concierge info banner */}
       {!isAdmin && (
@@ -849,23 +865,24 @@ export function BookingInfoStep({
         />
       </div>
 
-      <FormField
-        control={form.control}
-        name="clientEmail"
-        render={({ field }) => (
-          <FormItem className="space-y-1">
-            <FormLabel className="text-xs">
-              Email <span className="text-muted-foreground font-normal">(optionnel)</span>
-            </FormLabel>
-            <FormControl>
-              <Input {...field} type="email" className="h-9" placeholder="client@email.com" />
-            </FormControl>
-            <FormMessage className="text-xs" />
-          </FormItem>
-        )}
-      />
+      {/* Email + Phone on one row */}
+      <div className="grid grid-cols-2 gap-2">
+        <FormField
+          control={form.control}
+          name="clientEmail"
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormLabel className="text-xs">
+                Email <span className="text-muted-foreground font-normal">(optionnel)</span>
+              </FormLabel>
+              <FormControl>
+                <Input {...field} type="email" className="h-9" placeholder="client@email.com" />
+              </FormControl>
+              <FormMessage className="text-xs" />
+            </FormItem>
+          )}
+        />
 
-      <div className={cn("grid gap-2", pmsLookupEnabled ? "grid-cols-1" : "grid-cols-2")}>
         <FormField
           control={form.control}
           name="phone"
@@ -888,8 +905,38 @@ export function BookingInfoStep({
             </FormItem>
           )}
         />
+      </div>
 
-        {/* Room number AFTER phone when PMS disabled and hotel client */}
+      <FormField
+        control={form.control}
+        name="language"
+        render={({ field }) => (
+          <FormItem className="space-y-1">
+            <FormLabel className="text-xs">Langue des messages client (SMS / email)</FormLabel>
+            <Select
+              value={field.value}
+              onValueChange={(value) => {
+                languageManuallySet.current = true;
+                field.onChange(value);
+              }}
+            >
+              <FormControl>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="fr">🇫🇷 Français</SelectItem>
+                <SelectItem value="en">🇬🇧 English</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage className="text-xs" />
+          </FormItem>
+        )}
+      />
+
+      <div className="grid gap-2 grid-cols-2">
+        {/* Room number when PMS disabled and hotel client */}
         {!pmsLookupEnabled && isHotelClient && (
           <div className="space-y-2">
             <FormField

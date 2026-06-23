@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Calendar, Clock, List, CalendarClock } from "lucide-react";
+import { Calendar, Clock, List, CalendarClock, DoorOpen, User } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { getBookingStatusConfig } from "@/utils/statusStyles";
 import PwaCalendarView from "@/components/pwa/PwaCalendarView";
 import PwaDayView, { DayViewBooking } from "@/components/pwa/PwaDayView";
 import type { TherapistRates } from "@/lib/therapistEarnings";
@@ -33,14 +34,18 @@ interface Booking {
   client_last_name: string;
   hotel_name: string;
   room_number: string;
+  room_id?: string | null;
+  room_name?: string | null;
   status: string;
   phone: string;
   duration?: number;
   total_price?: number | null;
   booking_treatments?: BookingTreatment[];
+  therapistName?: string | null;
 }
 
 type BookingsView = "day" | "calendar" | "list";
+type BookingsScope = "mine" | "venue";
 
 const VIEW_STORAGE_KEY = "pwa-bookings-view";
 const SELECTED_DATE_STORAGE_KEY = "pwa-calendar-date";
@@ -50,9 +55,10 @@ const PwaBookings = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [therapistId, setTherapistId] = useState<string | null>(null);
   const [therapistRates, setTherapistRates] = useState<TherapistRates | null>(null);
-  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isConcierge, setIsConcierge] = useState(false);
+  const [conciergeHotelIds, setConciergeHotelIds] = useState<string[]>([]);
+  const [scope, setScope] = useState<BookingsScope>("mine");
   const [view, setView] = useState<BookingsView>(() => {
     const stored = typeof window !== "undefined" ? sessionStorage.getItem(VIEW_STORAGE_KEY) : null;
     if (stored === "day" || stored === "calendar" || stored === "list") return stored;
@@ -107,15 +113,8 @@ const PwaBookings = () => {
 
   useEffect(() => {
     fetchBookings();
-  }, []);
-
-  useEffect(() => {
-    if (statusFilter === "all") {
-      setFilteredBookings(bookings);
-    } else {
-      setFilteredBookings(bookings.filter((b) => b.status === statusFilter));
-    }
-  }, [bookings, statusFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope]);
 
   const fetchBookings = async () => {
     if (!isMountedRef.current) return;
@@ -153,10 +152,51 @@ const PwaBookings = () => {
         return;
       }
 
-      const { data, error } = await supabase
+      // A user can be both a therapist and a concierge. When they manage a venue,
+      // they may switch the planning to show every booking of that venue.
+      const { data: conciergeRole } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "concierge")
+        .maybeSingle();
+
+      let conciergeHotels: string[] = [];
+      if (conciergeRole) {
+        const { data: concierge } = await supabase
+          .from("concierges")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (concierge) {
+          const { data: ch } = await supabase
+            .from("concierge_hotels")
+            .select("hotel_id")
+            .eq("concierge_id", concierge.id);
+          conciergeHotels = ch?.map((h) => h.hotel_id) ?? [];
+        }
+      }
+
+      if (!isMountedRef.current) return;
+
+      setIsConcierge(conciergeHotels.length > 0);
+      setConciergeHotelIds(conciergeHotels);
+
+      const venueScope = scope === "venue" && conciergeHotels.length > 0;
+
+      let query = supabase
         .from("bookings")
-        .select("*, booking_treatments(treatment_menus(name, price, duration))")
-        .eq("therapist_id", therapist.id)
+        .select(
+          venueScope
+            ? "*, treatment_rooms(name), therapists(first_name, last_name), booking_treatments(treatment_menus(name, price, duration))"
+            : "*, treatment_rooms(name), booking_treatments(treatment_menus(name, price, duration))",
+        );
+
+      query = venueScope
+        ? query.in("hotel_id", conciergeHotels)
+        : query.eq("therapist_id", therapist.id);
+
+      const { data, error } = await query
         .order("booking_date", { ascending: false })
         .order("booking_time", { ascending: false });
 
@@ -164,7 +204,23 @@ const PwaBookings = () => {
 
       if (error) throw error;
 
-      setBookings((data as Booking[]) || []);
+      const rows = (data ?? []) as Array<
+        Booking & {
+          treatment_rooms?: { name: string | null } | null;
+          therapists?: { first_name: string; last_name: string } | null;
+          therapist_name?: string | null;
+        }
+      >;
+      const mapped: Booking[] = rows.map((b) => ({
+        ...b,
+        room_name: b.treatment_rooms?.name ?? null,
+        therapistName: venueScope
+          ? b.therapists
+            ? `${b.therapists.first_name} ${b.therapists.last_name}`.trim()
+            : b.therapist_name ?? null
+          : null,
+      }));
+      setBookings(mapped);
     } catch (error) {
       console.error("Error fetching bookings:", error);
       if (isMountedRef.current) {
@@ -177,7 +233,7 @@ const PwaBookings = () => {
     }
   };
 
-  const dayViewBookings: DayViewBooking[] = filteredBookings.map((b) => ({
+  const dayViewBookings: DayViewBooking[] = bookings.map((b) => ({
     id: b.id,
     booking_id: b.booking_id,
     booking_date: b.booking_date,
@@ -186,12 +242,18 @@ const PwaBookings = () => {
     client_last_name: b.client_last_name,
     hotel_name: b.hotel_name,
     room_number: b.room_number,
+    room_name: b.room_name,
     status: b.status,
     phone: b.phone,
     duration: b.duration,
     total_price: b.total_price,
     booking_treatments: b.booking_treatments,
+    therapistName: b.therapistName,
   }));
+
+  const venueMode = scope === "venue";
+
+  const legendStatuses = Array.from(new Set(bookings.map((b) => b.status)));
 
   if (loading) {
     return (
@@ -205,6 +267,14 @@ const PwaBookings = () => {
     <div className="flex flex-1 flex-col bg-background">
       <PwaHeader
         title={t("bookings.title")}
+        showBack
+        onBack={() => {
+          if (window.history.length > 1) {
+            navigate(-1);
+          } else {
+            navigate("/pwa/dashboard");
+          }
+        }}
         rightSlot={
           <div className="flex gap-0.5 bg-muted rounded-lg p-0.5">
             <button
@@ -239,14 +309,41 @@ const PwaBookings = () => {
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col">
-        <div className="p-4 pb-2 pt-2">
-          <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="all">Toutes</TabsTrigger>
-              <TabsTrigger value="pending">En attente</TabsTrigger>
-              <TabsTrigger value="completed">Terminées</TabsTrigger>
-            </TabsList>
-          </Tabs>
+        <div className="p-4 pb-2 space-y-3">
+          {isConcierge && (
+            <div className="inline-flex w-full rounded-full bg-muted p-1">
+              {(["mine", "venue"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setScope(s)}
+                  className={cn(
+                    "flex-1 rounded-full py-1.5 text-xs font-semibold transition-colors",
+                    scope === s
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {s === "mine" ? "Mes RDV" : "Tout le lieu"}
+                </button>
+              ))}
+            </div>
+          )}
+          {legendStatuses.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              {legendStatuses.map((s) => {
+                const cfg = getBookingStatusConfig(s);
+                return (
+                  <span key={s} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: cfg.hexColor }}
+                    />
+                    {cfg.label}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {view === "day" ? (
@@ -257,28 +354,30 @@ const PwaBookings = () => {
               onDateChange={setSelectedDate}
               onBookingClick={(booking) => navigate(`/pwa/booking/${booking.id}`)}
               onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
-              therapistRates={therapistRates}
+              therapistRates={venueMode ? null : therapistRates}
+              hideEarnings={venueMode}
             />
           </div>
         ) : view === "calendar" ? (
           <div className="flex-1 min-h-0">
             <PwaCalendarView
-              bookings={filteredBookings}
+              bookings={bookings}
               onBookingClick={(booking) => navigate(`/pwa/booking/${booking.id}`)}
               onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
             />
           </div>
         ) : (
           <div className="flex-1 overflow-auto px-4 pb-4 space-y-3">
-            {filteredBookings.length === 0 ? (
+            {bookings.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground">
                 Aucune réservation trouvée
               </Card>
             ) : (
-              filteredBookings.map((booking) => (
+              bookings.map((booking) => (
                 <Card
                   key={booking.id}
-                  className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                  className="p-4 cursor-pointer hover:bg-muted/50 transition-colors border-l-4"
+                  style={{ borderLeftColor: getBookingStatusConfig(booking.status).hexColor }}
                   onClick={() => navigate(`/pwa/booking/${booking.id}`)}
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -290,27 +389,8 @@ const PwaBookings = () => {
                         Réservation #{booking.booking_id}
                       </div>
                     </div>
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${
-                        booking.status === "completed"
-                          ? "bg-green-500/10 text-green-700"
-                          : booking.status === "confirmed"
-                          ? "bg-blue-500/10 text-blue-700"
-                          : booking.status === "ongoing"
-                          ? "bg-blue-600/10 text-blue-600 animate-pulse"
-                          : booking.status === "noshow"
-                          ? "bg-purple-700/10 text-purple-800"
-                          : booking.status === "cancelled"
-                          ? "bg-red-500/10 text-red-700"
-                          : "bg-orange-500/10 text-orange-700"
-                      }`}
-                    >
-                      {booking.status === "pending" ? "En attente" :
-                       booking.status === "confirmed" ? "Confirmé" :
-                       booking.status === "ongoing" ? "En cours" :
-                       booking.status === "completed" ? "Terminé" :
-                       booking.status === "cancelled" ? "Annulé" :
-                       booking.status === "noshow" ? "No-show" : booking.status}
+                    <span className={cn("px-2 py-1 rounded text-xs font-medium", getBookingStatusConfig(booking.status).badgeClass)}>
+                      {getBookingStatusConfig(booking.status).label}
                     </span>
                   </div>
 
@@ -327,6 +407,18 @@ const PwaBookings = () => {
                       {booking.hotel_name}
                       {booking.room_number && ` - Chambre ${booking.room_number}`}
                     </div>
+                    {booking.room_name && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <DoorOpen className="h-4 w-4" />
+                        {booking.room_name}
+                      </div>
+                    )}
+                    {booking.therapistName && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <User className="h-4 w-4" />
+                        {booking.therapistName}
+                      </div>
+                    )}
                   </div>
                 </Card>
               ))

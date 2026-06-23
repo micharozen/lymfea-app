@@ -15,6 +15,7 @@ export type BookingListItem = BookingRow & {
   treatmentsTotalDuration: number;
   treatmentsTotalPrice: number;
   treatments: BookingTreatment[];
+  room_name: string | null;
   booking_therapists?: { status: string; therapist_id: string }[];
   booking_payment_infos?: { payment_status: string | null; stripe_payment_method_id: string | null } | null;
 };
@@ -46,6 +47,7 @@ type RawBookingRow = BookingRow & {
     | { payment_status: string | null; stripe_payment_method_id: string | null }
     | Array<{ payment_status: string | null; stripe_payment_method_id: string | null }>
     | null;
+  treatment_rooms?: { name: string | null } | null;
 };
 
 function computeBookingItem(row: RawBookingRow): BookingListItem {
@@ -80,13 +82,14 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
     ? row.booking_payment_infos[0] ?? null
     : row.booking_payment_infos ?? null;
 
-  const { booking_treatments: _drop, booking_payment_infos: _pi, ...booking } = row;
+  const { booking_treatments: _drop, booking_payment_infos: _pi, treatment_rooms: roomJoin, ...booking } = row;
   return {
     ...(booking as BookingRow),
     totalDuration,
     treatmentsTotalDuration,
     treatmentsTotalPrice,
     treatments,
+    room_name: roomJoin?.name ?? null,
     booking_payment_infos: paymentInfos,
   };
 }
@@ -110,6 +113,7 @@ export async function listBookings(
       ),
       booking_therapists(status, therapist_id),
       booking_payment_infos(payment_status, stripe_payment_method_id),
+      treatment_rooms(name),
       hotels!inner(id, organization_id)
     `,
     )

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, User, Users, Phone,
-  Calendar, Clock, Building2, HandHeart,
+  Calendar, Clock, Building2, HandHeart, DoorOpen,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
   FileText, CreditCard
@@ -24,6 +24,12 @@ import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { formatPrice } from "@/lib/formatPrice";
@@ -70,6 +76,9 @@ export default function BookingDetail() {
   const [activeTab, setActiveTab] = useState("details");
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
+  const [isMarkPaidOpen, setIsMarkPaidOpen] = useState(false);
+  const [markPaidMethod, setMarkPaidMethod] = useState<string>("");
+  const [markPaidLoading, setMarkPaidLoading] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
@@ -231,6 +240,26 @@ export default function BookingDetail() {
   const methodLabel = booking.payment_method
     ? (PAYMENT_METHOD_LABELS[booking.payment_method] || booking.payment_method)
     : "À définir";
+
+  const handleMarkAsPaid = async () => {
+    if (!booking || !markPaidMethod) return;
+    setMarkPaidLoading(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ payment_status: "paid", payment_method: markPaidMethod })
+        .eq("id", booking.id);
+      if (error) throw error;
+      toast.success("Paiement enregistré.");
+      setIsMarkPaidOpen(false);
+      refetch();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erreur lors de l'enregistrement du paiement.");
+    } finally {
+      setMarkPaidLoading(false);
+    }
+  };
 
   const handleSignatureConfirm = async (signatureData: string) => {
     setSigningLoading(true);
@@ -398,32 +427,33 @@ export default function BookingDetail() {
           </TabsList>
 
           <TabsContent value="details" className="space-y-4 mt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {isPaid ? (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 text-green-800">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-green-800">
+            <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
             <span className="font-medium text-sm">Le paiement a été réalisé avec succès.</span>
           </div>
         ) : isPartnerBilled ? (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center gap-3 text-indigo-800">
-            <CheckCircle2 className="h-5 w-5 text-indigo-600" />
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-indigo-800">
+            <CheckCircle2 className="h-4 w-4 text-indigo-600 flex-shrink-0" />
             <span className="font-medium text-sm">Paiement géré par le partenaire (facturation mensuelle).</span>
           </div>
         ) : (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 text-amber-800">
-            <AlertCircle className="h-5 w-5 text-amber-600" />
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-amber-800">
+            <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
             <span className="font-medium text-sm">En attente de règlement.</span>
           </div>
         )}
 
         {isSigned ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-3 text-blue-800">
-            <div className="flex items-center gap-3 min-w-0">
-              <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
-              <span className="font-medium text-sm truncate">Document de décharge signé.</span>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 text-blue-800">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <CheckCircle2 className="h-4 w-4 text-blue-600 flex-shrink-0" />
+              <span className="font-medium text-sm truncate">Décharge signée</span>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
-              <span className="text-xs opacity-70 hidden sm:inline">
-                Le {format(new Date(booking.signed_at), "d MMMM à HH:mm", { locale: fr })}
+              <span className="text-xs opacity-70 hidden lg:inline">
+                Le {format(new Date(booking.signed_at), "d MMM à HH:mm", { locale: fr })}
               </span>
               {!isConcierge && (
                 <Tooltip>
@@ -447,10 +477,10 @@ export default function BookingDetail() {
             </div>
           </div>
         ) : (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3 text-red-800">
-            <div className="flex items-center gap-3 min-w-0">
-              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-              <span className="font-medium text-sm">Décharge non signée : signature obligatoire avant le soin.</span>
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 text-red-800">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+              <span className="font-medium text-sm truncate">Décharge non signée</span>
             </div>
             {!isConcierge && (
               <Button
@@ -464,12 +494,13 @@ export default function BookingDetail() {
             )}
           </div>
         )}
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
           
-          <div className="md:col-span-2 space-y-6">
-            
-            <section 
+          <div className="space-y-6">
+
+            <section
               onClick={() => (booking as any).customer_id && navigate(`/admin/customers/${(booking as any).customer_id}`)}
               className={`bg-white rounded-xl border p-6 shadow-sm transition-all duration-200 ${(booking as any).customer_id ? 'cursor-pointer hover:border-primary/50 hover:shadow-md group' : ''}`}
             >
@@ -554,9 +585,9 @@ export default function BookingDetail() {
               
               <div className="space-y-3">
                 {booking.treatments?.map((t, i) => (
-                  <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <div key={i} className="flex flex-col gap-1 p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm font-medium">{t.name} ({t.duration} min)</span>
-                    <span className="font-semibold">{formatPrice(t.price || 0, currency)}</span>
+                    <span className="font-semibold whitespace-nowrap">{formatPrice(t.price || 0, currency)}</span>
                   </div>
                 ))}
               </div>
@@ -565,7 +596,7 @@ export default function BookingDetail() {
 
           <div className="space-y-6">
             <section className="bg-white rounded-xl border p-6 shadow-sm">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4">Organisation</h3>
+              <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4">Date/Horaire/Lieu</h3>
               <div className="space-y-4 text-sm">
                 <div className="flex items-center gap-3">
                   <Calendar className="h-4 w-4 text-gray-400" />
@@ -579,9 +610,17 @@ export default function BookingDetail() {
                   <Building2 className="h-4 w-4 text-gray-400" />
                   <span>{hotelInfo?.name || "-"}</span>
                 </div>
+                {booking.room_name && (
+                  <div className="flex items-center gap-3">
+                    <DoorOpen className="h-4 w-4 text-gray-400" />
+                    <span>{booking.room_name}</span>
+                  </div>
+                )}
               </div>
             </section>
+          </div>
 
+          <div className="space-y-6">
             <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
               <div className="flex items-center gap-2.5 mb-5">
                 <CreditCard className="h-5 w-5 text-gray-400" />
@@ -636,6 +675,17 @@ export default function BookingDetail() {
                   {formatPrice(remainingDue, currency)}
                 </span>
               </div>
+
+              {!isPaid && !isConcierge && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-5"
+                  onClick={() => { setMarkPaidMethod(booking.payment_method ?? ""); setIsMarkPaidOpen(true); }}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" /> Marquer comme payé
+                </Button>
+              )}
             </section>
 
             {(showEarnings || (isDuo && acceptedTherapists.length > 0 && hotelCommission)) && (
@@ -709,11 +759,35 @@ export default function BookingDetail() {
         onSuccess={() => setTherapistRefreshKey(k => k + 1)}
       />
       
-      <SendPaymentLinkDialog 
-        open={isPaymentLinkOpen} 
-        onOpenChange={setIsPaymentLinkOpen} 
-        booking={booking} 
+      <SendPaymentLinkDialog
+        open={isPaymentLinkOpen}
+        onOpenChange={setIsPaymentLinkOpen}
+        booking={booking}
       />
+
+      <Dialog open={isMarkPaidOpen} onOpenChange={setIsMarkPaidOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Marquer comme payé</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm text-gray-500">Méthode de paiement</label>
+            <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
+              <SelectTrigger><SelectValue placeholder="Choisir une méthode" /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMarkPaidOpen(false)}>Annuler</Button>
+            <Button onClick={handleMarkAsPaid} disabled={!markPaidMethod || markPaidLoading}>
+              {markPaidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Confirmer le paiement
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <InvoicePreviewDialog
         open={isInvoicePreviewOpen}

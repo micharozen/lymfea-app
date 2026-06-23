@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronDown, ChevronsUpDown, ChevronUp, Clock, Layers, Package, Users, X } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, ChevronUp, Clock, DoorOpen, Layers, Package, Users, X } from "lucide-react";
 import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
 import { Button } from "@/components/ui/button";
 import {
@@ -316,6 +316,12 @@ export function BookingListView({
                     {!isConcierge && hotel && (
                       <span className="truncate">{hotel.name}</span>
                     )}
+                    {booking.room_name && (
+                      <span className="truncate flex items-center gap-1">
+                        <DoorOpen className="h-3 w-3 shrink-0" />
+                        {booking.room_name}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -469,6 +475,12 @@ export function BookingListView({
                 {!isConcierge && (
                   <TableCell className="text-foreground py-3 px-2 truncate">
                     <HotelCell hotel={getHotelInfo(booking.hotel_id)} />
+                    {booking.room_name && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground leading-tight truncate">
+                        <DoorOpen className="h-3 w-3 shrink-0" />
+                        {booking.room_name}
+                      </span>
+                    )}
                   </TableCell>
                 )}
                 <TableCell className="text-foreground py-3 px-2 truncate">

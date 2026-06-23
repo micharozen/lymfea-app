@@ -11,6 +11,12 @@ secret = "env(AUTH_GOOGLE_SECRET)"
 redirect_uri = ""
 skip_nonce_check = false
 
+[functions.get-email-html]
+verify_jwt = false
+
+[functions.send-payment-link]
+verify_jwt = false
+
 [functions.get-therapist-earnings]
 verify_jwt = false
 

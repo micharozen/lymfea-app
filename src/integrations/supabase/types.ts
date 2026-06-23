@@ -1081,6 +1081,82 @@ export type Database = {
           },
         ]
       }
+      checkout_intents: {
+        Row: {
+          booking_date: string | null
+          booking_id: string | null
+          booking_time: string | null
+          cart_snapshot: Json
+          client_email: string
+          client_first_name: string
+          client_last_name: string | null
+          converted_at: string | null
+          created_at: string
+          customer_id: string
+          hotel_id: string
+          id: string
+          language: string
+          room_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          booking_date?: string | null
+          booking_id?: string | null
+          booking_time?: string | null
+          cart_snapshot: Json
+          client_email: string
+          client_first_name: string
+          client_last_name?: string | null
+          converted_at?: string | null
+          created_at?: string
+          customer_id: string
+          hotel_id: string
+          id?: string
+          language?: string
+          room_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          booking_date?: string | null
+          booking_id?: string | null
+          booking_time?: string | null
+          cart_snapshot?: Json
+          client_email?: string
+          client_first_name?: string
+          client_last_name?: string | null
+          converted_at?: string | null
+          created_at?: string
+          customer_id?: string
+          hotel_id?: string
+          id?: string
+          language?: string
+          room_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkout_intents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_intents_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_intents_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       concierges: {
         Row: {
           country_code: string
@@ -3648,8 +3724,43 @@ export type Database = {
         Args: {
           _email?: string
           _first_name: string
+          _language?: string
           _last_name?: string
           _phone: string
+        }
+        Returns: string
+      }
+      mark_checkout_intent_converted: {
+        Args: { _booking_id: string; _intent_id: string }
+        Returns: undefined
+      }
+      sync_guest_checkout: {
+        Args: {
+          _booking_date?: string | null
+          _booking_time?: string | null
+          _cart_snapshot?: Json
+          _client_email: string
+          _first_name: string
+          _hotel_id: string
+          _language?: string
+          _last_name?: string | null
+          _phone: string
+          _room_number?: string | null
+        }
+        Returns: string
+      }
+      upsert_checkout_intent: {
+        Args: {
+          _booking_date?: string | null
+          _booking_time?: string | null
+          _cart_snapshot?: Json
+          _client_email: string
+          _client_first_name: string
+          _client_last_name?: string | null
+          _customer_id: string
+          _hotel_id: string
+          _language?: string
+          _room_number?: string | null
         }
         Returns: string
       }

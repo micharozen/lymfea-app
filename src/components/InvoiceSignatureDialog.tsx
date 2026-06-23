@@ -21,6 +21,7 @@ interface InvoiceSignatureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (signatureData: string) => void;
+  onSkip?: () => void;
   loading?: boolean;
   treatments: Treatment[];
   vatRate?: number;
@@ -34,6 +35,7 @@ export const InvoiceSignatureDialog = ({
   open,
   onOpenChange,
   onConfirm,
+  onSkip,
   loading = false,
   treatments,
   vatRate = 20,
@@ -214,17 +216,29 @@ export const InvoiceSignatureDialog = ({
             </Tabs>
           </div>
 
-          {/* Footer (Visible uniquement sur l'onglet Photo papier) */}
-          {activeTab === 'paper' && (
-            <div className="flex-shrink-0 border-t border-border p-4 pb-safe">
-              <Button
-                onClick={handleConfirm}
-                disabled={!photoData || loading}
-                className="w-full rounded-full h-12 font-bold"
-              >
-                {loading ? "Enregistrement..." : "Valider la photo"}
-                {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-              </Button>
+          {/* Footer */}
+          {(activeTab === 'paper' || onSkip) && (
+            <div className="flex-shrink-0 border-t border-border p-4 pb-safe space-y-2">
+              {activeTab === 'paper' && (
+                <Button
+                  onClick={handleConfirm}
+                  disabled={!photoData || loading}
+                  className="w-full rounded-full h-12 font-bold"
+                >
+                  {loading ? "Enregistrement..." : "Valider la photo"}
+                  {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                </Button>
+              )}
+              {onSkip && (
+                <Button
+                  variant="ghost"
+                  onClick={onSkip}
+                  disabled={loading}
+                  className="w-full rounded-full h-12 font-medium text-muted-foreground"
+                >
+                  Passer et terminer la prestation
+                </Button>
+              )}
             </div>
           )}
         </div>

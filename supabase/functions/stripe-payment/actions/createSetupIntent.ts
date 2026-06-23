@@ -35,6 +35,7 @@ export async function handleCreateSetupIntent(
     groupId,
     bookingIds,
     slots,
+    checkoutIntentId,
   } = body as Record<string, any>;
 
   type SlotPayload = { date: string; time: string; treatmentId: string; variantId?: string | null; duration?: number; quantity?: number; guestCount?: number };
@@ -241,6 +242,7 @@ export async function handleCreateSetupIntent(
 
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
+    locale: language === "en" ? "en" : "fr",
     customer: stripeCustomerId,
     payment_method_types: ["card"],
     success_url: `${origin}/client/${hotel.slug ?? hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,
@@ -260,6 +262,7 @@ export async function handleCreateSetupIntent(
       language: language || "fr",
       therapistGender: therapistGender || "",
       draftBookingId: draftBookingId || "",
+      checkoutIntentId: checkoutIntentId || "",
       guestCount: guestCount ? String(guestCount) : "1",
       ...(giftAmountUsage
         ? {

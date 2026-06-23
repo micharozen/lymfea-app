@@ -58,7 +58,6 @@ import {
   type AvailableTherapist,
 } from "@/hooks/booking/useAvailableTherapistsForSlot";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
-import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import {
   BOOKING_CLIENT_TYPES,
@@ -73,7 +72,7 @@ import {
 import { ChevronDown } from "lucide-react";
 import { countries, flagEmoji } from "@/lib/countries";
 import { formatPrice } from "@/lib/formatPrice";
-import { composePhoneNumber } from "@/lib/phone";
+import { composePhoneNumber, languageFromCountryCode } from "@/lib/phone";
 
 export interface BookingModalInitialValues {
   hotelId?: string;
@@ -163,6 +162,20 @@ export default function BookingModal({
   const [countryCode, setCountryCode] = useState(initialValues?.countryCode ?? "+33");
   const [phone, setPhone] = useState(initialValues?.phone ?? "");
   const [clientEmail, setClientEmail] = useState(initialValues?.clientEmail ?? "");
+  const [language, setLanguage] = useState<"fr" | "en">(
+    languageFromCountryCode(initialValues?.countryCode ?? "+33"),
+  );
+  // Pre-fill the client message language from the country code until the
+  // operator (or a loaded customer) sets it explicitly.
+  const languageManuallySet = useRef(false);
+  useEffect(() => {
+    if (languageManuallySet.current) return;
+    setLanguage(languageFromCountryCode(countryCode));
+  }, [countryCode]);
+  const setLanguageManual = (value: "fr" | "en") => {
+    languageManuallySet.current = true;
+    setLanguage(value);
+  };
   const [roomNumber, setRoomNumber] = useState("");
   const [roomNumberLater, setRoomNumberLater] = useState(false);
   const [clientType, setClientType] = useState<BookingClientType>("external");
@@ -254,9 +267,10 @@ export default function BookingModal({
       };
       setCreatedBooking(created);
       setStep("done");
-      if (clientType !== "external") {
-        setIsNotificationDialogOpen(true);
-      }
+      // Partner-billed bookings: trigger-new-booking-notifications (invoked by the
+      // mutation with isAdmin) already sent the client confirmation email + SMS.
+      // No manual confirmation here — it would duplicate. External bookings still
+      // get a payment-link button on the done step.
       onCreated?.(created);
     },
   });
@@ -290,6 +304,8 @@ export default function BookingModal({
     setClientLastName("");
     setPhone("");
     setClientEmail("");
+    languageManuallySet.current = false;
+    setLanguage(languageFromCountryCode("+33"));
     setRoomNumber("");
     setRoomNumberLater(false);
     setClientType("external");
@@ -329,6 +345,7 @@ export default function BookingModal({
       clientEmail: clientEmail.trim() || undefined,
       phone: phone.trim(),
       countryCode,
+      language,
       roomNumber: roomNumber.trim(),
       clientType,
       clientNote: clientNote.trim() || undefined,
@@ -508,6 +525,8 @@ export default function BookingModal({
                 setPhone={setPhone}
                 clientEmail={clientEmail}
                 setClientEmail={setClientEmail}
+                language={language}
+                setLanguage={setLanguageManual}
                 roomNumber={roomNumber}
                 setRoomNumber={setRoomNumber}
                 roomNumberLater={roomNumberLater}
@@ -684,6 +703,8 @@ export default function BookingModal({
           setIsNotificationDialogOpen(false);
           handleClose();
         };
+        // Only external clients open a dialog here (manual payment link).
+        // Partner-billed clients are confirmed automatically by the backend.
         return clientType === "external" ? (
           <SendPaymentLinkDialog
             open={isNotificationDialogOpen}
@@ -691,14 +712,7 @@ export default function BookingModal({
             booking={sharedBooking}
             onSuccess={handleSuccessAndClose}
           />
-        ) : (
-          <SendBookingNotificationDialog
-            open={isNotificationDialogOpen}
-            onOpenChange={setIsNotificationDialogOpen}
-            booking={sharedBooking}
-            onSuccess={handleSuccessAndClose}
-          />
-        );
+        ) : null;
       })()}
     </>
   );
@@ -1217,6 +1231,8 @@ interface ClientStepProps {
   setPhone: (v: string) => void;
   clientEmail: string;
   setClientEmail: (v: string) => void;
+  language: "fr" | "en";
+  setLanguage: (v: "fr" | "en") => void;
   roomNumber: string;
   setRoomNumber: (v: string) => void;
   roomNumberLater: boolean;
@@ -1231,6 +1247,7 @@ interface CustomerResult {
   last_name: string | null;
   phone: string | null;
   email: string | null;
+  language: string | null;
 }
 
 function ClientStep({
@@ -1245,6 +1262,8 @@ function ClientStep({
   setPhone,
   clientEmail,
   setClientEmail,
+  language,
+  setLanguage,
   roomNumber,
   setRoomNumber,
   roomNumberLater,
@@ -1265,7 +1284,7 @@ function ClientStep({
     queryFn: async (): Promise<CustomerResult[]> => {
       let q = supabase
         .from("customers")
-        .select("id, first_name, last_name, phone, email")
+        .select("id, first_name, last_name, phone, email, language")
         .limit(5);
 
       if (isPhone) {
@@ -1287,6 +1306,7 @@ function ClientStep({
     if (c.first_name) setClientFirstName(c.first_name);
     if (c.last_name) setClientLastName(c.last_name);
     if (c.email) setClientEmail(c.email);
+    if (c.language === "fr" || c.language === "en") setLanguage(c.language);
     if (c.phone) {
       const sorted = [...countries].sort((a, b) => b.code.length - a.code.length);
       const match = sorted.find((cc) => c.phone!.startsWith(cc.code));
@@ -1397,6 +1417,18 @@ function ClientStep({
           value={clientEmail}
           onChange={(e) => setClientEmail(e.target.value)}
         />
+      </div>
+      <div>
+        <Label>{t("phoneBooking.client.language")}</Label>
+        <Select value={language} onValueChange={(v) => setLanguage(v as "fr" | "en")}>
+          <SelectTrigger className="mt-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fr">🇫🇷 Français</SelectItem>
+            <SelectItem value="en">🇬🇧 English</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div>
         <Label>{t("phoneBooking.client.clientType")}</Label>
@@ -1612,16 +1644,18 @@ function DoneStep({
         </p>
       </div>
       <div className="flex flex-col gap-2 w-full max-w-xs">
-        <Button
-          type="button"
-          onClick={onSendPaymentLink}
-          className="bg-foreground text-background hover:bg-foreground/90"
-        >
-          <Send className="h-4 w-4 mr-2" />
-          {clientType === "external"
-            ? t("phoneBooking.done.sendLink")
-            : t("phoneBooking.done.sendNotification")}
-        </Button>
+        {/* Partner-billed clients are already notified automatically by the
+            backend; only external clients need a manual payment-link send. */}
+        {clientType === "external" && (
+          <Button
+            type="button"
+            onClick={onSendPaymentLink}
+            className="bg-foreground text-background hover:bg-foreground/90"
+          >
+            <Send className="h-4 w-4 mr-2" />
+            {t("phoneBooking.done.sendLink")}
+          </Button>
+        )}
         <Button type="button" variant="outline" onClick={onClose}>
           {t("phoneBooking.ui.close")}
         </Button>

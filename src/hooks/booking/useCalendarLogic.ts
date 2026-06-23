@@ -1,12 +1,14 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { format, addDays, startOfWeek, startOfDay } from "date-fns";
-import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
+import { getBookingStatusConfig, getPaymentStatusConfig, getCalendarFlowStage } from "@/utils/statusStyles";
 import type { BookingWithTreatments } from "./useBookingData";
 
 export const CALENDAR_CONSTANTS = {
   START_HOUR: 7,
   END_HOUR: 24,
-  HOUR_HEIGHT: 72,
+  // Slightly taller rows so a 50-min booking (~67px) fits its key info on the
+  // card without clicking: time + therapist name, client, treatments, room.
+  HOUR_HEIGHT: 80,
 } as const;
 
 interface UseCalendarLogicOptions {
@@ -216,18 +218,11 @@ export function useCalendarLogic({ filteredBookings, activeTimezone, dayCount = 
   }, []);
 
   const getCalendarCardColor = useCallback((status: string, paymentStatus?: string | null) => {
-    if (paymentStatus === 'pending' && status !== 'cancelled') {
-      return 'bg-blue-50 text-blue-900 dark:bg-blue-900/20 dark:text-blue-100';
-    }
-    const config = getBookingStatusConfig(status);
-    return config.calendarCardClass || config.cardClass;
+    return getCalendarFlowStage(status, paymentStatus).cardClass;
   }, []);
 
   const getCombinedStatusLabel = useCallback((status: string, paymentStatus?: string | null) => {
-    if (paymentStatus === 'pending' && status !== 'cancelled') {
-      return "€ Paiement";
-    }
-    return getBookingStatusConfig(status).label;
+    return getCalendarFlowStage(status, paymentStatus).label;
   }, []);
 
   const getPaymentStatusBadge = useCallback((paymentStatus?: string | null) => {

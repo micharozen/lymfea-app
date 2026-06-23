@@ -2,10 +2,18 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, Loader2, Sparkles, Users } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Check, Loader2, Sparkles, Users, DoorOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import type { CartItem } from "../CreateBookingDialog.schema";
+import type { AvailableRoom } from "@/hooks/booking/useAvailableRooms";
 
 interface Therapist {
   id: string;
@@ -38,7 +46,13 @@ interface BookingTherapistStepProps {
   cartDetails: Array<CartItem & { treatment: Treatment | undefined }>;
   finalPriceWithSurcharge: number;
   currency: string;
+  rooms: AvailableRoom[];
+  occupiedRoomIds: Set<string>;
+  roomId: string;
+  onRoomChange: (id: string) => void;
 }
+
+const AUTO_ROOM_VALUE = "__auto__";
 
 function getInitials(first: string, last: string) {
   return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
@@ -197,6 +211,10 @@ export function BookingTherapistStep({
   cartDetails,
   finalPriceWithSurcharge,
   currency,
+  rooms,
+  occupiedRoomIds,
+  roomId,
+  onRoomChange,
 }: BookingTherapistStepProps) {
   const broadcast = duoMode === "broadcast";
   const isDuo = isAdmin && requiredGuestCount > 1;
@@ -237,7 +255,35 @@ export function BookingTherapistStep({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-2">
+      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-2 space-y-4">
+        {/* Salle de soin — pré-sélection auto, modifiable selon la dispo. */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium flex items-center gap-1.5">
+            <DoorOpen className="h-3.5 w-3.5" />
+            Salle de soin
+          </Label>
+          <Select
+            value={roomId || AUTO_ROOM_VALUE}
+            onValueChange={(value) => onRoomChange(value === AUTO_ROOM_VALUE ? "" : value)}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Automatique" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={AUTO_ROOM_VALUE}>Automatique</SelectItem>
+              {rooms.map((room) => {
+                const occupied = occupiedRoomIds.has(room.id) && room.id !== roomId;
+                return (
+                  <SelectItem key={room.id} value={room.id} disabled={occupied}>
+                    {room.name}
+                    {occupied && " — Occupée"}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+
         {isDuo ? (
           <div className="space-y-4">
             <div className="rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 p-3 text-xs text-violet-800 dark:text-violet-300">

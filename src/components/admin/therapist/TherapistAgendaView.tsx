@@ -46,7 +46,7 @@ import {
   type Hotel,
   type Therapist,
 } from "@/hooks/booking";
-import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
+import { getBookingStatusConfig, getPaymentStatusConfig, getCalendarFlowStage } from "@/utils/statusStyles";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 
@@ -230,11 +230,7 @@ export function TherapistAgendaView({ hotelFilter = "all" }: TherapistAgendaView
 
   const getCalendarCardColor = useCallback(
     (status: string, paymentStatus?: string | null) => {
-      if (paymentStatus === "pending" && status !== "cancelled") {
-        return "bg-yellow-50 text-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-100";
-      }
-      const config = getBookingStatusConfig(status);
-      return config.calendarCardClass || config.cardClass;
+      return getCalendarFlowStage(status, paymentStatus).cardClass;
     },
     []
   );
