@@ -45,6 +45,7 @@ import { composePhoneNumber } from "@/lib/phone";
 import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from "./CreateBookingDialog.schema";
 import { BookingInfoStep } from "./steps/BookingInfoStep";
 import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
+import { useAvailableRooms } from "@/hooks/booking/useAvailableRooms";
 import { BookingPrestationsStep } from "./steps/BookingPrestationsStep";
 import { BookingTherapistStep } from "./steps/BookingTherapistStep";
 import { BookingPaymentStep } from "./steps/BookingPaymentStep";
@@ -78,6 +79,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       language: "fr",
       roomNumber: "",
       roomNumberLater: false,
+      roomId: "",
       clientNote: "",
       payByVoucher: false,
       voucherReference: "",
@@ -98,6 +100,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const clientType = form.watch("clientType");
   const payByVoucher = form.watch("payByVoucher");
   const voucherReference = form.watch("voucherReference");
+  const roomId = form.watch("roomId");
+
+  // Salles de soin disponibles au créneau choisi (pré-sélection auto + override).
+  const dateStr = date ? format(date, "yyyy-MM-dd") : undefined;
+  const { rooms, occupiedRoomIds } = useAvailableRooms(hotelId, dateStr, time);
 
   // Clear roomNumber when clientType switches away from 'hotel'
   // and reset voucher when moving to partner client types.
@@ -345,6 +352,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       date: values.date ? format(values.date, "yyyy-MM-dd") : "",
       time: values.time,
       therapistId: values.therapistId,
+      roomId: values.roomId || undefined,
       slot2Date: values.slot2Date ? format(values.slot2Date, "yyyy-MM-dd") : null,
       slot2Time: values.slot2Time || null,
       slot3Date: values.slot3Date ? format(values.slot3Date, "yyyy-MM-dd") : null,
@@ -405,6 +413,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       language: "fr",
       roomNumber: "",
       roomNumberLater: false,
+      roomId: "",
       clientNote: "",
       payByVoucher: false,
       voucherReference: "",
@@ -524,6 +533,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   cartDetails={cartDetails}
                   finalPriceWithSurcharge={finalPriceWithSurcharge}
                   currency={selectedHotel?.currency || 'EUR'}
+                  rooms={rooms}
+                  occupiedRoomIds={occupiedRoomIds}
+                  roomId={roomId}
+                  onRoomChange={(id) => form.setValue("roomId", id)}
                 />
             </TabsContent>
 

@@ -167,6 +167,7 @@
     "arrivedAt": "Arrivé(e) à {{time}}",
     "arrivedSuccess": "Arrivée signalée",
     "roomNumber": "Chambre {{number}}",
+    "treatmentRoom": "Salle de massage : {{name}}",
     "duoService": "Soin pour {{count}} personnes",
     "duoAccepted": "{{accepted}}/{{total}} acceptés",
     "duoTherapistsJoined": "{{accepted}}/{{total}} thérapeute(s) ont rejoint le soin",

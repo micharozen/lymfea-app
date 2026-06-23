@@ -22,6 +22,8 @@ export const createFormSchema = (t: TFunction) => z.object({
   language: z.enum(['fr', 'en']).default('fr'),
   roomNumber: z.string().default(""),
   roomNumberLater: z.boolean().default(false),
+  // Salle de soin. "" = assignation automatique (1ère salle libre côté serveur).
+  roomId: z.string().default(""),
   clientNote: z.string().default(""),
   payByVoucher: z.boolean().default(false),
   voucherReference: z.string().default(""),

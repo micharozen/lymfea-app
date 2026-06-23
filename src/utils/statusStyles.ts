@@ -229,6 +229,144 @@ export function getEntityStatusConfig(status: string): StatusConfig {
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Calendar flow stages
+// Single source of truth for the planning/calendar cards AND the legend.
+// Combines booking status + payment status into the reservation-flow stages
+// shown on the bookings page (e.g. "awaiting therapist + payment").
+// ─────────────────────────────────────────────────────────────────────────
+
+export type CalendarFlowStageKey =
+  | 'awaiting_therapist_payment'
+  | 'awaiting_therapist'
+  | 'payment_pending'
+  | 'confirmed'
+  | 'ongoing'
+  | 'completed'
+  | 'quote'
+  | 'cancelled'
+  | 'noshow';
+
+interface CalendarFlowStage {
+  key: CalendarFlowStageKey;
+  label: string; // FR
+  labelEn: string;
+  swatchClass: string; // solid color for the legend swatch
+  cardClass: string; // pastel background for the calendar card
+}
+
+// Ordered following the reservation lifecycle (used as-is by the legend).
+export const calendarFlowStages: Record<CalendarFlowStageKey, CalendarFlowStage> = {
+  awaiting_therapist_payment: {
+    key: 'awaiting_therapist_payment',
+    label: 'Attente thérapeute + paiement',
+    labelEn: 'Awaiting therapist + payment',
+    swatchClass: 'bg-amber-500',
+    cardClass: 'bg-amber-50 text-amber-900 dark:bg-amber-900/20 dark:text-amber-100',
+  },
+  awaiting_therapist: {
+    key: 'awaiting_therapist',
+    label: 'Attente thérapeute',
+    labelEn: 'Awaiting therapist',
+    swatchClass: 'bg-violet-500',
+    cardClass: 'bg-violet-50 text-violet-900 dark:bg-violet-900/20 dark:text-violet-100',
+  },
+  payment_pending: {
+    key: 'payment_pending',
+    label: 'Paiement en attente',
+    labelEn: 'Payment pending',
+    swatchClass: 'bg-blue-500',
+    cardClass: 'bg-blue-50 text-blue-900 dark:bg-blue-900/20 dark:text-blue-100',
+  },
+  confirmed: {
+    key: 'confirmed',
+    label: 'Confirmé',
+    labelEn: 'Confirmed',
+    swatchClass: 'bg-emerald-500',
+    cardClass: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-100',
+  },
+  ongoing: {
+    key: 'ongoing',
+    label: 'En cours',
+    labelEn: 'Ongoing',
+    swatchClass: 'bg-indigo-500',
+    cardClass: 'bg-indigo-50 text-indigo-900 dark:bg-indigo-900/20 dark:text-indigo-100',
+  },
+  completed: {
+    key: 'completed',
+    label: 'Terminé',
+    labelEn: 'Completed',
+    swatchClass: 'bg-emerald-300',
+    cardClass: 'bg-emerald-50/60 text-emerald-800 dark:bg-emerald-900/10 dark:text-emerald-200',
+  },
+  quote: {
+    key: 'quote',
+    label: 'Devis / Proposé',
+    labelEn: 'Quote / Proposed',
+    swatchClass: 'bg-fuchsia-500',
+    cardClass: 'bg-fuchsia-50 text-fuchsia-900 dark:bg-fuchsia-900/20 dark:text-fuchsia-100',
+  },
+  cancelled: {
+    key: 'cancelled',
+    label: 'Annulé',
+    labelEn: 'Cancelled',
+    swatchClass: 'bg-cancelled-stripes border border-gray-300',
+    cardClass: 'bg-cancelled-stripes text-red-700 dark:text-red-300 line-through',
+  },
+  noshow: {
+    key: 'noshow',
+    label: 'No-show',
+    labelEn: 'No-show',
+    swatchClass: 'bg-rose-600',
+    cardClass: 'bg-rose-50 text-rose-900 dark:bg-rose-900/20 dark:text-rose-100',
+  },
+};
+
+// Stages in lifecycle order — drives the calendar legend.
+export const calendarFlowStageOrder: CalendarFlowStageKey[] = [
+  'awaiting_therapist_payment',
+  'awaiting_therapist',
+  'payment_pending',
+  'confirmed',
+  'ongoing',
+  'completed',
+  'quote',
+  'cancelled',
+  'noshow',
+];
+
+const QUOTE_STATUSES = new Set(['quote_pending', 'waiting_approval', 'alternative_proposed']);
+const AWAITING_THERAPIST_STATUSES = new Set(['pending', 'awaiting_hairdresser_selection']);
+// Empty/null payment, on-site pending, or a locked Stripe pre-reservation all
+// mean "not yet paid". Partner billing, card-saved, paid, charged-to-room are settled.
+const AWAITING_PAYMENT_STATUSES = new Set(['pending', 'awaiting_payment']);
+
+/**
+ * Resolve the reservation-flow stage for a calendar card from its booking +
+ * payment status. Mirrors the dual badges shown on the bookings page.
+ */
+export function getCalendarFlowStage(
+  status: string,
+  paymentStatus?: string | null
+): CalendarFlowStage {
+  const s = (status || '').toLowerCase().trim();
+  const p = (paymentStatus || '').toLowerCase().trim();
+
+  if (s === 'cancelled') return calendarFlowStages.cancelled;
+  if (s === 'noshow') return calendarFlowStages.noshow;
+  if (s === 'completed') return calendarFlowStages.completed;
+  if (QUOTE_STATUSES.has(s)) return calendarFlowStages.quote;
+
+  const awaitingPayment = p === '' || AWAITING_PAYMENT_STATUSES.has(p);
+  const awaitingTherapist = AWAITING_THERAPIST_STATUSES.has(s);
+
+  if (awaitingTherapist && awaitingPayment) return calendarFlowStages.awaiting_therapist_payment;
+  if (awaitingTherapist) return calendarFlowStages.awaiting_therapist;
+  if (s === 'ongoing') return calendarFlowStages.ongoing;
+  if (awaitingPayment) return calendarFlowStages.payment_pending;
+  return calendarFlowStages.confirmed;
+}
+
 // Email color helper - returns hex color for status
 export function getStatusHexColor(status: string, type: 'booking' | 'payment' | 'entity' = 'booking'): string {
   switch (type) {

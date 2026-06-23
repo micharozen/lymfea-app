@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { calendarFlowStages, calendarFlowStageOrder } from "@/utils/statusStyles";
 import type { Hotel } from "@/hooks/booking";
 
 interface CalendarLegendProps {
@@ -8,53 +9,15 @@ interface CalendarLegendProps {
   className?: string;
 }
 
-interface StatusEntry {
-  key: string;
-  label: string;
-  swatchClass: string;
-}
-
-function useStatusEntries(): StatusEntry[] {
-  const { i18n } = useTranslation();
-  const fr = i18n.language?.startsWith("fr");
-  return [
-    {
-      key: "pending",
-      label: fr ? "Pré-réservation" : "Pre-booking",
-      swatchClass: "bg-orange-500",
-    },
-    {
-      key: "confirmed",
-      label: fr ? "Confirmé" : "Confirmed",
-      swatchClass: "bg-emerald-500",
-    },
-    {
-      key: "payment_pending",
-      label: fr ? "Paiement en attente" : "Payment pending",
-      swatchClass: "bg-blue-500",
-    },
-    {
-      key: "cancelled",
-      label: fr ? "Annulé" : "Cancelled",
-      swatchClass: "bg-cancelled-stripes border border-gray-300",
-    },
-    {
-      key: "completed",
-      label: fr ? "Terminé" : "Completed",
-      swatchClass: "bg-emerald-300",
-    },
-    {
-      key: "quote_pending",
-      label: fr ? "Devis / Proposé" : "Quote / Proposed",
-      swatchClass: "bg-violet-500",
-    },
-  ];
-}
-
 export function CalendarLegend({ hotels, hotelFilter, className }: CalendarLegendProps) {
   const { i18n } = useTranslation();
   const fr = i18n.language?.startsWith("fr");
-  const statusEntries = useStatusEntries();
+  // Built from the same flow stages used to color the cards, so the legend
+  // always matches what's shown on the planning.
+  const statusEntries = calendarFlowStageOrder.map((key) => {
+    const stage = calendarFlowStages[key];
+    return { key, label: fr ? stage.label : stage.labelEn, swatchClass: stage.swatchClass };
+  });
 
   const visibleHotels =
     hotelFilter && hotelFilter !== "all"
