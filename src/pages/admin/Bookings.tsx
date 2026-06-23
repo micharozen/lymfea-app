@@ -234,41 +234,9 @@ useEffect(() => {
   };
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
-      {/* Header & Filters */}
+    <div className="h-full min-h-0 bg-background flex flex-col overflow-hidden">
+      {/* Header & Filters — single toolbar row to maximize planning space */}
       <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-3 md:pt-4">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
-            Planning
-          </h1>
-          <div className="flex items-center gap-2">
-            {showSidebar && (
-              <CalendarSidebarMobile
-                entries={calendarEntries}
-                visibleCalendars={visibleCalendars}
-                onToggle={handleCalendarToggle}
-                onShowAll={handleShowAll}
-                onHideAll={handleHideAll}
-                hotels={hotels}
-                hotelFilter={hotelFilter}
-              />
-            )}
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              title="Refresh"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </Button>
-            <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="h-8 text-xs">
-              {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
-            </Button>
-          </div>
-        </div>
-
         <BookingFilters
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -285,6 +253,39 @@ useEffect(() => {
           isAdmin={isAdmin}
           hotels={hotels}
           therapists={therapists}
+          hideSearch
+          groupFiltersRight
+          leading={
+            <h1 className="text-lg font-medium text-foreground mr-1">Planning</h1>
+          }
+          trailing={
+            <>
+              {showSidebar && (
+                <CalendarSidebarMobile
+                  entries={calendarEntries}
+                  visibleCalendars={visibleCalendars}
+                  onToggle={handleCalendarToggle}
+                  onShowAll={handleShowAll}
+                  onHideAll={handleHideAll}
+                  hotels={hotels}
+                  hotelFilter={hotelFilter}
+                />
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title="Refresh"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="h-8 text-xs">
+                {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
+              </Button>
+            </>
+          }
         />
       </div>
 
