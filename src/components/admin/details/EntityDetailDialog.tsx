@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { Pencil, Copy } from "lucide-react";
+import { Pencil, Copy, Send, Loader2 } from "lucide-react";
 import { ReactNode } from "react";
 
 export type EntityStatus = "active" | "inactive" | "pending" | "maintenance" | string;
@@ -19,6 +19,8 @@ interface EntityDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   onEdit?: () => void;
   onDuplicate?: () => void;
+  onResendInvite?: () => void;
+  isResendingInvite?: boolean;
   // Header props
   title: string;
   subtitle?: string;
@@ -49,6 +51,8 @@ export function EntityDetailDialog({
   onOpenChange,
   onEdit,
   onDuplicate,
+  onResendInvite,
+  isResendingInvite,
   title,
   subtitle,
   image,
@@ -103,6 +107,20 @@ export function EntityDetailDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fermer
           </Button>
+          {onResendInvite && (
+            <Button
+              variant="outline"
+              onClick={onResendInvite}
+              disabled={isResendingInvite}
+            >
+              {isResendingInvite ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
+              Renvoyer l'invitation
+            </Button>
+          )}
           {onDuplicate && (
             <Button
               variant="outline"
