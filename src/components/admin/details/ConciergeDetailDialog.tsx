@@ -30,6 +30,8 @@ interface ConciergeDetailDialogProps {
   concierge: Concierge | null;
   hotels: Hotel[];
   onEdit?: () => void;
+  onResendInvite?: () => void;
+  isResendingInvite?: boolean;
 }
 
 export function ConciergeDetailDialog({
@@ -38,6 +40,8 @@ export function ConciergeDetailDialog({
   concierge,
   hotels,
   onEdit,
+  onResendInvite,
+  isResendingInvite,
 }: ConciergeDetailDialogProps) {
   if (!concierge) return null;
 
@@ -52,6 +56,8 @@ export function ConciergeDetailDialog({
       open={open}
       onOpenChange={onOpenChange}
       onEdit={onEdit}
+      onResendInvite={onResendInvite}
+      isResendingInvite={isResendingInvite}
       title={fullName}
       image={concierge.profile_image}
       status={concierge.status}
