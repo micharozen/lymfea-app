@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { listHotelsForOrg, listConciergesForOrg } from "@shared/db";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -71,6 +72,7 @@ export default function Concierges() {
   const [hotelFilter, setHotelFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
 
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
@@ -207,6 +209,31 @@ export default function Concierges() {
     } catch (error: any) {
       toast.error("Erreur lors de la suppression du membre");
       console.error(error);
+    }
+  };
+
+  const handleResendInvite = async (concierge: Concierge) => {
+    setResendingInviteId(concierge.id);
+    try {
+      const hotelIds = (concierge.hotels ?? []).map((h) => h.hotel_id);
+      const { error } = await invokeEdgeFunction("invite-concierge", {
+        body: {
+          conciergeId: concierge.id,
+          email: concierge.email,
+          firstName: concierge.first_name,
+          lastName: concierge.last_name,
+          phone: concierge.phone,
+          countryCode: concierge.country_code,
+          hotelIds,
+        },
+      });
+      if (error) throw error;
+      toast.success("Invitation renvoyée avec succès");
+    } catch (error) {
+      toast.error("Erreur lors du renvoi de l'invitation");
+      console.error(error);
+    } finally {
+      setResendingInviteId(null);
     }
   };
 
@@ -432,6 +459,12 @@ export default function Concierges() {
         onOpenChange={(open) => !open && closeView()}
         concierge={viewedConcierge}
         hotels={hotels}
+        onResendInvite={
+          userRole === "admin" && viewedConcierge && viewedConcierge.status !== "active"
+            ? () => handleResendInvite(viewedConcierge)
+            : undefined
+        }
+        isResendingInvite={!!viewedConcierge && resendingInviteId === viewedConcierge.id}
         onEdit={() => {
           if (viewConciergeId) {
             closeView();
