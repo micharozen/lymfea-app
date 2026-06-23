@@ -130,6 +130,9 @@ export function BookingInfoStep({
     if (result?.found && result.guest) {
       form.setValue('clientFirstName', result.guest.firstName);
       form.setValue('clientLastName', result.guest.lastName);
+      if (result.guest.email) {
+        form.setValue('clientEmail', result.guest.email);
+      }
       if (result.guest.phone) {
         const matchedCountry = countries.find(c => result.guest!.phone!.startsWith(c.code));
         if (matchedCountry) {
