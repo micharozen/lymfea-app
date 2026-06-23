@@ -70,6 +70,7 @@ interface Booking {
   therapist_rate_90?: number | null;
   hotel_currency?: string;
   room_id?: string | null;
+  room_name?: string | null;
   duration?: number | null;
   therapist_checked_in_at?: string | null;
   guest_count?: number | null;
@@ -237,7 +238,7 @@ const PwaBookingDetail = () => {
     try {
       const { data: bookingData, error: bookingError } = await supabase
         .from("bookings")
-        .select("*, booking_therapists(status), booking_payment_infos(payment_status, card_brand, card_last4), customers(first_name, last_name, email, phone)")
+        .select("*, booking_therapists(status), booking_payment_infos(payment_status, card_brand, card_last4), customers(first_name, last_name, email, phone), treatment_rooms!bookings_trunk_id_fkey(name)")
         .eq("id", id)
         .single();
 
@@ -279,10 +280,12 @@ const PwaBookingDetail = () => {
         : (paymentInfo?.payment_status || bookingData.payment_status);
 
       const customer = (bookingData as unknown as { customers: CustomerResult | null }).customers;
+      const treatmentRoom = (bookingData as unknown as { treatment_rooms: { name: string } | null }).treatment_rooms;
       if (!isMountedRef.current) return;
 
       setBooking({
         ...bookingData,
+        room_name: treatmentRoom?.name || null,
         client_first_name: customer?.first_name || bookingData.client_first_name,
         client_last_name: customer?.last_name || bookingData.client_last_name,
         client_email: customer?.email || bookingData.client_email,
@@ -364,6 +367,23 @@ const PwaBookingDetail = () => {
       const { error } = await supabase.from("bookings").update({
         client_signature: signatureData,
         signed_at: new Date().toISOString(),
+        status: "completed",
+      }).eq("id", booking.id);
+      if (error) throw error;
+      toast.success(t('bookingDetail.completed'));
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : t('common:errors.generic'));
+    } finally {
+      setSigningLoading(false);
+    }
+  };
+
+  const handleSkipSignature = async () => {
+    if (!booking) return;
+    setSigningLoading(true);
+    try {
+      const { error } = await supabase.from("bookings").update({
         status: "completed",
       }).eq("id", booking.id);
       if (error) throw error;
@@ -752,6 +772,12 @@ const PwaBookingDetail = () => {
                 <span className="text-xs text-muted-foreground">{t('bookingDetail.roomNumber', { number: booking.room_number })}</span>
               </div>
             )}
+            {booking.room_name && (
+              <div className="flex items-center gap-2.5">
+                <MapPin className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">{t('bookingDetail.treatmentRoom', { name: booking.room_name })}</span>
+              </div>
+            )}
             {booking.client_note && (
               <div className="flex items-center gap-2.5">
                 <MessageSquare className="w-4 h-4 text-muted-foreground" />
@@ -931,7 +957,9 @@ const PwaBookingDetail = () => {
                   </button>
                 ) : !['paid', 'charged_to_room', 'pending_partner_billing'].includes(booking.effective_payment_status || '') ? (
                   <button onClick={() => setShowPaymentSelection(true)} className="w-full h-12 bg-primary text-white rounded-full font-bold">Finaliser la prestation</button>
-                ) : null}
+                ) : (
+                  <button onClick={() => setShowSignatureDialog(true)} className="w-full h-12 bg-primary text-white rounded-full font-bold">Terminer la prestation</button>
+                )}
               </div>
             )}
           </>
@@ -976,10 +1004,11 @@ const PwaBookingDetail = () => {
         totalPrice={totalPrice}
         isAlreadyPaid={true}
       />
-      <InvoiceSignatureDialog 
-        open={showSignatureDialog} 
-        onOpenChange={setShowSignatureDialog} 
-        onConfirm={handleSignatureConfirm} 
+      <InvoiceSignatureDialog
+        open={showSignatureDialog}
+        onOpenChange={setShowSignatureDialog}
+        onConfirm={handleSignatureConfirm}
+        onSkip={handleSkipSignature}
         signatureToken={booking.signature_token}
         loading={signingLoading} 
         treatments={treatments.map(t => ({ name: (t.treatment_menus?.name || "") + (t.treatment_variants?.label ? ` · ${t.treatment_variants.label}` : ""), duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0, price: t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0 }))} 

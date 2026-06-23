@@ -44,6 +44,9 @@ export interface CreateBookingPayload {
   date: string;
   time: string;
   therapistId: string;
+  /** Salle de soin choisie par l'admin. Si omis, assignation automatique
+   *  (1ère salle libre au créneau). */
+  roomId?: string;
   therapistIds?: string[];
   slot2Date: string | null;
   slot2Time: string | null;
@@ -127,14 +130,16 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         paymentStatus = "pending";
       }
 
-      let roomId: string | null = null;
+      // Si l'admin a explicitement choisi une salle, on la respecte.
+      // Sinon, on auto-assigne la 1ère salle libre au créneau.
+      let roomId: string | null = d.roomId?.trim() ? d.roomId.trim() : null;
       const { data: treatmentRooms } = await supabase
         .from("treatment_rooms")
         .select("id")
         .eq("hotel_id", d.hotelId)
         .eq("status", "active");
 
-      if (treatmentRooms && treatmentRooms.length > 0) {
+      if (!roomId && treatmentRooms && treatmentRooms.length > 0) {
         const { data: bookingsWithRooms } = await supabase
           .from("bookings")
           .select("room_id")

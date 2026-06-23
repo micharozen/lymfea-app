@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink, DoorOpen } from "lucide-react";
 import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities, cn } from "@/lib/utils";
 import { AvailabilityOverlay } from "./AvailabilityOverlay";
@@ -596,14 +596,13 @@ function BookingCard({
         <div
           className={cn(
             "absolute rounded text-sm cursor-pointer overflow-hidden z-10 border-l-4 group",
-            // When hotel has a configured color, skip the status-based background class
-            // so the hotel color can tint the background consistently across all statuses
-            !hotelInfo?.calendar_color && getCalendarCardColor(booking.status, booking.payment_status)
+            // Background always reflects the reservation-flow stage (status + payment).
+            // The venue color (if any) is shown as the left bar only — see below.
+            getCalendarCardColor(booking.status, booking.payment_status)
           )}
           style={{
             ...(hotelInfo?.calendar_color && {
               borderLeftColor: hotelInfo.calendar_color,
-              backgroundColor: hotelInfo.calendar_color + '20',
             }),
             top: `${top}px`,
             height: `${height}px`,
@@ -653,14 +652,23 @@ function BookingCard({
                       <ExternalLink className="h-2.5 w-2.5" />
                     </button>
                   )}
-                  {/* Therapist badge OR "À assigner" alert */}
+                  {/* Therapist: full name (text) on regular cards, initials on tiny ones */}
                   {hasTherapist ? (
-                    <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-foreground/10 text-foreground/70"
-                      title={booking.therapist_name || ""}
-                    >
-                      {therapistInitials}
-                    </div>
+                    height >= 56 ? (
+                      <span
+                        className="max-w-[110px] truncate text-[11px] font-medium leading-tight text-foreground/80 flex-shrink"
+                        title={booking.therapist_name || ""}
+                      >
+                        {booking.therapist_name}
+                      </span>
+                    ) : (
+                      <div
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-foreground/10 text-foreground/70"
+                        title={booking.therapist_name || ""}
+                      >
+                        {therapistInitials}
+                      </div>
+                    )
                   ) : (
                     <div
                       className="px-1.5 h-4 rounded-[3px] flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800 shadow-sm"
@@ -673,7 +681,7 @@ function BookingCard({
               )}
             </div>
             {/* Client name on its own line when card is tall enough */}
-            {height >= 56 && (
+            {height >= 56 && (booking.client_first_name || booking.client_last_name) && (
               <div
                 className="truncate text-[11px] opacity-90 font-medium leading-tight"
                 title={`${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim()}
@@ -681,13 +689,23 @@ function BookingCard({
                 {booking.client_first_name} {booking.client_last_name}
               </div>
             )}
-            {/* Treatments */}
-            {height >= 76 && treatments.length > 0 && (
+            {/* Treatments (soins) — visible from 50-min cards */}
+            {height >= 56 && treatments.length > 0 && (
               <div
-                className="truncate text-[10px] opacity-70 leading-tight"
+                className="truncate text-[11px] opacity-80 leading-tight"
                 title={treatments.map((t) => t.name).join(", ")}
               >
                 {treatments.map((t) => t.name).join(", ")}
+              </div>
+            )}
+            {/* Treatment room name (priority info, visible from 50-min cards) */}
+            {height >= 56 && booking.room_name && (
+              <div
+                className="flex items-center gap-1 text-[11px] font-medium opacity-90 leading-tight truncate"
+                title={booking.room_name}
+              >
+                <DoorOpen className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{booking.room_name}</span>
               </div>
             )}
             {/* Duration */}
@@ -718,6 +736,13 @@ function BookingCard({
           {booking.room_number && (
             <div className="text-xs">
               Chambre: {decodeHtmlEntities(booking.room_number)}
+            </div>
+          )}
+
+          {booking.room_name && (
+            <div className="flex items-center gap-2 text-xs">
+              <DoorOpen className="h-3 w-3" />
+              <span>Salle : {booking.room_name}</span>
             </div>
           )}
 

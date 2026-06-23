@@ -14,9 +14,11 @@ interface Booking {
   client_last_name: string;
   hotel_name: string;
   room_number: string;
+  room_name?: string | null;
   status: string;
   phone: string;
   duration?: number;
+  therapistName?: string | null;
 }
 
 interface PwaCalendarViewProps {
@@ -298,9 +300,19 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
                               {booking.client_first_name}
                             </div>
                           )}
-                          {height >= 48 && (
+                          {height >= 48 && booking.room_name && (
+                            <div className="truncate text-[8px] opacity-80 font-medium">
+                              {booking.room_name}
+                            </div>
+                          )}
+                          {height >= 48 && !booking.room_name && (
                             <div className="truncate text-[8px] opacity-75">
                               {booking.hotel_name}
+                            </div>
+                          )}
+                          {height >= 64 && booking.therapistName && (
+                            <div className="truncate text-[8px] opacity-75">
+                              {booking.therapistName}
                             </div>
                           )}
                         </div>

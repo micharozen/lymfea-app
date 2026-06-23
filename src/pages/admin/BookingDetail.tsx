@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, User, Users, Phone,
-  Calendar, Clock, Building2, HandHeart,
+  Calendar, Clock, Building2, HandHeart, DoorOpen,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
   FileText, CreditCard
@@ -610,6 +610,12 @@ export default function BookingDetail() {
                   <Building2 className="h-4 w-4 text-gray-400" />
                   <span>{hotelInfo?.name || "-"}</span>
                 </div>
+                {booking.room_name && (
+                  <div className="flex items-center gap-3">
+                    <DoorOpen className="h-4 w-4 text-gray-400" />
+                    <span>{booking.room_name}</span>
+                  </div>
+                )}
               </div>
             </section>
           </div>

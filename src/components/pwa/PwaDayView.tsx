@@ -3,7 +3,7 @@ import { format, addDays, subDays, isToday, addMinutes, parse } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, Euro, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, Euro, Check, DoorOpen, User } from "lucide-react";
 import { getBookingStatusConfig } from "@/utils/statusStyles";
 import { formatPrice } from "@/lib/formatPrice";
 import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
@@ -25,12 +25,14 @@ export interface DayViewBooking {
   client_last_name: string;
   hotel_name: string;
   room_number: string;
+  room_name?: string | null;
   status: string;
   phone: string;
   duration?: number;
   isUnassigned?: boolean;
   total_price?: number | null;
   booking_treatments?: BookingTreatment[];
+  therapistName?: string | null;
 }
 
 interface PwaDayViewProps {
@@ -41,6 +43,7 @@ interface PwaDayViewProps {
   onSlotClick?: (date: string, time: string) => void;
   onAcceptBooking?: (booking: DayViewBooking) => void;
   therapistRates?: TherapistRates | null;
+  hideEarnings?: boolean;
 }
 
 const HOUR_HEIGHT = 80;
@@ -80,6 +83,7 @@ export function PwaDayView({
   onSlotClick,
   onAcceptBooking,
   therapistRates,
+  hideEarnings,
 }: PwaDayViewProps) {
   const { t, i18n } = useTranslation("pwa");
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -247,7 +251,7 @@ export function PwaDayView({
         </Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 px-3 py-2.5 border-b bg-muted/20">
+      <div className={`grid ${hideEarnings ? "grid-cols-2" : "grid-cols-3"} gap-2 px-3 py-2.5 border-b bg-muted/20`}>
         <div className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 shadow-sm">
           <CalendarDays className="h-4 w-4 text-primary shrink-0" />
           <div className="min-w-0">
@@ -266,17 +270,19 @@ export function PwaDayView({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 shadow-sm">
-          <Euro className="h-4 w-4 text-primary shrink-0" />
-          <div className="min-w-0">
-            <div className="text-sm font-bold">
-              {formatPrice(Math.round(daySummary.totalEarnings), "EUR", { decimals: 0 })}
-            </div>
-            <div className="text-[10px] text-muted-foreground truncate">
-              {t("calendar.estimatedEarnings", "Revenus estimés")}
+        {!hideEarnings && (
+          <div className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 shadow-sm">
+            <Euro className="h-4 w-4 text-primary shrink-0" />
+            <div className="min-w-0">
+              <div className="text-sm font-bold">
+                {formatPrice(Math.round(daySummary.totalEarnings), "EUR", { decimals: 0 })}
+              </div>
+              <div className="text-[10px] text-muted-foreground truncate">
+                {t("calendar.estimatedEarnings", "Revenus estimés")}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto" ref={scrollRef}>
@@ -376,26 +382,44 @@ export function PwaDayView({
                             )}
                           </>
                         ) : (
-                          <>
-                            <div className="font-bold text-[13px] leading-tight">
-                              {booking.booking_time?.substring(0, 5)} - {endTime}
+                          <div className="flex justify-between gap-1.5 min-w-0">
+                            <div className="min-w-0 flex flex-col">
+                              <div className="font-bold text-[13px] leading-tight">
+                                {booking.booking_time?.substring(0, 5)} - {endTime}
+                              </div>
+                              <div className="font-medium text-[12px] truncate">
+                                {booking.isUnassigned
+                                  ? booking.client_first_name || t("calendar.toConfirm", "À confirmer")
+                                  : `${booking.client_first_name} ${booking.client_last_name}`}
+                              </div>
+                              {treatmentNames && (
+                                <div className="text-[11px] opacity-85 truncate">
+                                  {treatmentNames}
+                                </div>
+                              )}
+                              {height >= 80 && (
+                                <div className="text-[10px] opacity-70 truncate">
+                                  {booking.hotel_name}
+                                </div>
+                              )}
                             </div>
-                            <div className="font-medium text-[12px] truncate">
-                              {booking.isUnassigned
-                                ? booking.client_first_name || t("calendar.toConfirm", "À confirmer")
-                                : `${booking.client_first_name} ${booking.client_last_name}`}
-                            </div>
-                            {treatmentNames && (
-                              <div className="text-[11px] opacity-85 truncate">
-                                {treatmentNames}
+                            {(booking.therapistName || booking.room_name) && (
+                              <div className="flex flex-col items-end text-right shrink-0 max-w-[45%] gap-0.5">
+                                {booking.therapistName && (
+                                  <span className="flex items-center gap-0.5 text-[10px] font-medium opacity-80 min-w-0 max-w-full">
+                                    <User className="h-2.5 w-2.5 shrink-0" />
+                                    <span className="truncate">{booking.therapistName}</span>
+                                  </span>
+                                )}
+                                {booking.room_name && (
+                                  <span className="flex items-center gap-0.5 text-[10px] font-medium opacity-90 min-w-0 max-w-full">
+                                    <DoorOpen className="h-2.5 w-2.5 shrink-0" />
+                                    <span className="truncate">{booking.room_name}</span>
+                                  </span>
+                                )}
                               </div>
                             )}
-                            {height >= 80 && (
-                              <div className="text-[10px] opacity-70 truncate">
-                                {booking.hotel_name}
-                              </div>
-                            )}
-                          </>
+                          </div>
                         )}
                       </div>
 
