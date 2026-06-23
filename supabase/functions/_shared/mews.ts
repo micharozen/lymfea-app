@@ -174,6 +174,11 @@ async function fetchMewsCustomer(
 ): Promise<any | null> {
   const response = await mewsFetch(config, 'customers/getAll', {
     CustomerIds: [customerId],
+    // Restrict to base customer data. The default extent includes `Documents`
+    // (passport/ID scans), a sensitive permission most integrations lack —
+    // requesting it makes Mews reject the whole call with 401. We only need
+    // name/email/phone.
+    Extent: { Customers: true },
     Limitation: { Count: 1 },
   });
 
