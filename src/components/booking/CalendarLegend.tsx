@@ -10,7 +10,7 @@ interface CalendarLegendProps {
 }
 
 export function CalendarLegend({ hotels, hotelFilter, className }: CalendarLegendProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("admin");
   const fr = i18n.language?.startsWith("fr");
   // Built from the same flow stages used to color the cards, so the legend
   // always matches what's shown on the planning.
@@ -28,7 +28,7 @@ export function CalendarLegend({ hotels, hotelFilter, className }: CalendarLegen
     <div className={cn("flex flex-col gap-3 px-3 py-3 text-xs", className)}>
       <div>
         <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-          {fr ? "Statuts" : "Statuses"}
+          {t("calendar.statuses", "Statuts")}
         </div>
         <ul className="space-y-1">
           {statusEntries.map((s) => (
@@ -48,7 +48,7 @@ export function CalendarLegend({ hotels, hotelFilter, className }: CalendarLegen
       {visibleHotels.length > 0 && (
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-            {fr ? "Lieux" : "Venues"}
+            {t("calendar.venues", "Lieux")}
           </div>
           <ul className="space-y-1">
             {visibleHotels.map((hotel) => (
@@ -62,7 +62,7 @@ export function CalendarLegend({ hotels, hotelFilter, className }: CalendarLegen
             ))}
           </ul>
           <p className="mt-1.5 text-[10px] text-muted-foreground italic">
-            {fr ? "Barre verticale sur la carte" : "Vertical bar on card"}
+            {t("calendar.verticalBarHint", "Barre verticale sur la carte")}
           </p>
         </div>
       )}

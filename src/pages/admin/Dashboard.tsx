@@ -130,6 +130,7 @@ export default function Dashboard() {
             title="Réservations"
             value={stats.totalBookings}
             icon={CalendarCheck}
+            alignRight
             trend={
               stats.bookingsTrend !== 0
                 ? {
@@ -140,8 +141,8 @@ export default function Dashboard() {
                 : undefined
             }
           />
-          <StatCard title="Aujourd'hui" value={stats.todayBookings} icon={CalendarDays} />
-          <StatCard title="Taux annulation" value={`${stats.cancellationRate}%`} icon={Ban} />
+          <StatCard title="Aujourd'hui" value={stats.todayBookings} icon={CalendarDays} alignRight />
+          <StatCard title="Taux annulation" value={`${stats.cancellationRate}%`} icon={Ban} alignRight />
         </div>
 
         {/* Operational gauges */}
