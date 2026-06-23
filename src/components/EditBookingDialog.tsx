@@ -25,6 +25,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useOrgScope } from "@/hooks/useOrgScope";
+import { useAvailableRooms } from "@/hooks/booking/useAvailableRooms";
 import {
   hotelKeys,
   treatmentKeys,
@@ -42,7 +43,7 @@ import { computeOutOfHoursSurcharge } from "@/lib/surcharge";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil, Search } from "lucide-react";
+import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil, Search, DoorOpen } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
@@ -141,6 +142,8 @@ interface Booking {
   client_last_name: string;
   phone: string;
   room_number: string | null;
+  room_id?: string | null;
+  room_name?: string | null;
   booking_date: string;
   booking_time: string;
   status: string;
@@ -185,13 +188,13 @@ export default function EditBookingDialog({
   const [time, setTime] = useState("");
   const [status, setStatus] = useState("En attente");
   const [therapistId, setTherapistId] = useState("");
+  const [roomId, setRoomId] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"view" | "edit" | "quote">("view");
-  const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
   const [treatmentSearch, setTreatmentSearch] = useState("");
   const [therapistIds, setTherapistIds] = useState<string[]>([]);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -233,6 +236,7 @@ export default function EditBookingDialog({
       setTime(booking.booking_time || "");
       setStatus(booking.status || "En attente");
       setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapist_id : "");
+      setRoomId(booking.room_id || "");
 
       const guestCount = booking.guest_count ?? 1;
       setTherapistIds(guestCount > 1 ? Array(guestCount).fill('') : []);
@@ -284,7 +288,15 @@ export default function EditBookingDialog({
   const hotelTimezone = selectedHotel?.timezone || "Europe/Paris";
 
   const queryHotelId = hotelId || booking?.hotel_id;
-  
+
+  // Salles de soin disponibles au créneau (la salle actuelle reste sélectionnable).
+  const { rooms, occupiedRoomIds } = useAvailableRooms(
+    queryHotelId,
+    date ? format(date, "yyyy-MM-dd") : undefined,
+    time,
+    booking?.id,
+  );
+
   const { data: therapists } = useQuery({
     queryKey: ["therapists", queryHotelId],
     enabled: !!queryHotelId,
@@ -548,6 +560,7 @@ export default function EditBookingDialog({
           client_last_name: bookingData.client_last_name,
           phone: bookingData.phone,
           room_number: bookingData.room_number,
+          room_id: bookingData.room_id ?? null,
           booking_date: bookingData.booking_date,
           booking_time: bookingData.booking_time,
           therapist_id: bookingData.therapist_id || null,
@@ -909,6 +922,7 @@ export default function EditBookingDialog({
       client_last_name: isConcierge ? (booking?.client_last_name || "") : clientLastName,
       phone: isConcierge ? (booking?.phone || null) : (composePhoneNumber(countryCode, phone) || null),
       room_number: isConcierge ? (booking?.room_number || "") : roomNumber,
+      room_id: isConcierge ? (booking?.room_id ?? null) : (roomId || null),
       booking_date: submittedDate,
       booking_time: submittedTime,
       therapist_id: primaryTherapistId,
@@ -1415,6 +1429,39 @@ export default function EditBookingDialog({
                   </p>
                 </div>
                 )}
+
+                <div className="space-y-1">
+                  <Label htmlFor="edit-room" className="text-xs flex items-center gap-1.5">
+                    <DoorOpen className="h-3.5 w-3.5" />
+                    Salle de soin
+                  </Label>
+                  <Select
+                    value={roomId || "__auto__"}
+                    onValueChange={(value) => setRoomId(value === "__auto__" ? "" : value)}
+                    disabled={clientFieldsDisabled}
+                  >
+                    <SelectTrigger id="edit-room" className="h-9">
+                      <SelectValue placeholder="Automatique" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg">
+                      <SelectItem value="__auto__">Automatique</SelectItem>
+                      {roomId && !rooms.find((r) => r.id === roomId) && (
+                        <SelectItem value={roomId}>
+                          {booking?.room_name || "Salle actuelle"}
+                        </SelectItem>
+                      )}
+                      {rooms.map((room) => {
+                        const occupied = occupiedRoomIds.has(room.id) && room.id !== roomId;
+                        return (
+                          <SelectItem key={room.id} value={room.id} disabled={occupied}>
+                            {room.name}
+                            {occupied && " — Occupée"}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {isDuo && (
@@ -1667,23 +1714,6 @@ export default function EditBookingDialog({
                   </AlertDescription>
                 </Alert>
               )}
-              <div className="flex items-center gap-4 border-b border-border/50 shrink-0 mb-2">
-                {(["female", "male"] as const).map(f => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setTreatmentFilter(f)}
-                    className={cn(
-                      "pb-1.5 text-[9px] font-bold uppercase tracking-widest transition-colors",
-                      treatmentFilter === f 
-                        ? "text-foreground border-b-2 border-foreground" 
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {f === "female" ? "WOMEN'S MENU" : "MEN'S MENU"}
-                  </button>
-                ))}
-              </div>
 
               <div className="relative shrink-0 mb-2">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -1699,11 +1729,6 @@ export default function EditBookingDialog({
                 {(() => {
                   const q = treatmentSearch.trim().toLowerCase();
                   const filtered = (treatments ?? []).filter((t) => {
-                    const matchesGender =
-                      treatmentFilter === "female"
-                        ? (t.service_for === "Female" || t.service_for === "All")
-                        : (t.service_for === "Male" || t.service_for === "All");
-                    if (!matchesGender) return false;
                     if (!q) return true;
                     return (
                       (t.name?.toLowerCase().includes(q)) ||

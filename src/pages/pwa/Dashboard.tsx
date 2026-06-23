@@ -6,7 +6,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Check, CheckCircle2, ChevronRight, Clock, Euro, Loader2, X, XCircle, Users } from "lucide-react";
+import { CalendarDays, Check, CheckCircle2, ChevronRight, Clock, Euro, Loader2, X, XCircle, Users, DoorOpen } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -37,6 +37,7 @@ interface Booking {
   hotel_name: string;
   hotel_id: string;
   room_number: string;
+  room_name?: string | null;
   status: string;
   total_price: number | null;
   therapist_id: string | null;
@@ -368,6 +369,7 @@ const PwaDashboard = () => {
       .from("bookings")
       .select(`
         *,
+        treatment_rooms ( name ),
         booking_therapists ( status, therapist_id ),
         booking_treatments (
           treatment_menus (
@@ -388,6 +390,7 @@ const PwaDashboard = () => {
     } else {
       myBookingsWithImages = (myBookings || []).map(b => ({
         ...b,
+        room_name: (b as { treatment_rooms?: { name: string | null } | null }).treatment_rooms?.name ?? null,
         hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
       }));
 
@@ -426,6 +429,7 @@ const PwaDashboard = () => {
 
         const secondaryWithImages = (secondaryBookings || []).map(b => ({
           ...b,
+          room_name: (b as { treatment_rooms?: { name: string | null } | null }).treatment_rooms?.name ?? null,
           hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
         }));
         myBookingsWithImages = [...myBookingsWithImages, ...secondaryWithImages];
@@ -439,6 +443,7 @@ const PwaDashboard = () => {
       .from("bookings")
       .select(`
         *,
+        treatment_rooms ( name ),
         booking_therapists ( status, therapist_id ),
         booking_treatments (
           treatment_menus (
@@ -495,6 +500,7 @@ const PwaDashboard = () => {
     // Add hotel images and proposed slots to pending bookings
     const pendingBookingsWithImages = filteredPendingBookings.map(b => ({
       ...b,
+      room_name: (b as { treatment_rooms?: { name: string | null } | null }).treatment_rooms?.name ?? null,
       hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null },
       proposed_slots: slotsMap.get(b.id) || null,
     }));
@@ -1034,6 +1040,12 @@ const PwaDashboard = () => {
                       <p className="text-[11px] text-muted-foreground">
                         {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
                       </p>
+                      {booking.room_name && (
+                        <p className="flex items-center gap-1 text-[11px] text-muted-foreground truncate">
+                          <DoorOpen className="h-3 w-3 shrink-0" />
+                          {booking.room_name}
+                        </p>
+                      )}
                     </div>
                     <ChevronRight className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
                   </div>
