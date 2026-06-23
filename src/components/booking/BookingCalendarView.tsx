@@ -49,13 +49,21 @@ interface BookingCalendarViewProps {
   onAmenityBookingClick?: (booking: AmenityBookingForCalendar) => void;
 }
 
-function getTherapistInitials(name: string | null | undefined): string {
-  if (!name) return "?";
+function formatTherapistShort(name: string | null | undefined): string {
+  if (!name) return "";
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return `${parts[0][0].toUpperCase()}.${parts.slice(1).join(" ")}`;
   }
-  return parts[0].substring(0, 2).toUpperCase();
+  return parts[0];
+}
+
+function addMinutesToTime(time: string, minutes: number): string {
+  const [h, m] = time.split(":").map(Number);
+  const total = h * 60 + m + minutes;
+  const eh = Math.floor(total / 60) % 24;
+  const em = total % 60;
+  return `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
 }
 
 export function BookingCalendarView({
@@ -584,8 +592,17 @@ function BookingCard({
     ? booking.total_price
     : (booking.treatmentsTotalPrice || 0);
 
-  const therapistInitials = getTherapistInitials(booking.therapist_name);
+  const therapistShort = formatTherapistShort(booking.therapist_name);
   const hasTherapist = !!booking.therapist_id && !!booking.therapist_name;
+  const clientName = `${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim();
+
+  // Show each detail row only when it fully fits, so nothing is half-clipped.
+  // Rows are tight (~13px each) on top of the time row + padding.
+  const showTherapistRow = hasTherapist && height >= 40;
+  const showClientRow = !!clientName && height >= 54;
+  const showRoomRow = !!booking.room_name && height >= 68;
+  // When the client doesn't get its own row, keep it visible inline next to the time.
+  const showInlineClient = !!clientName && !showClientRow;
 
   const column = layoutInfo?.column ?? 0;
   const totalColumns = layoutInfo?.totalColumns ?? 1;
@@ -615,102 +632,65 @@ function BookingCard({
             onBookingClick(booking);
           }}
         >
-          <div className="p-1 h-full flex flex-col relative">
-            {/* Top row: time (+ inline client on short cards) + therapist badge */}
-            <div className="flex items-start justify-between gap-1">
-              <div className="flex items-baseline gap-1 min-w-0 flex-1">
-                <span className="font-bold text-[13px] leading-tight flex-shrink-0">
-                  {booking.booking_time?.substring(0, 5)}
+          <div className="p-1 h-full flex flex-col gap-px relative leading-none">
+            {/* Time range (+ out-of-hours indicator, + inline client on short cards) */}
+            <div className="flex items-center gap-1 min-w-0">
+              <span className="font-bold text-[13px] flex-shrink-0 whitespace-nowrap">
+                {booking.booking_time
+                  ? `${booking.booking_time.substring(0, 5)} – ${addMinutesToTime(booking.booking_time, duration)}`
+                  : ""}
+              </span>
+              {booking.is_out_of_hours && (
+                <span className="flex items-center flex-shrink-0" title="Hors horaires">
+                  <Clock className="h-2.5 w-2.5 text-amber-500" />
                 </span>
-                {height < 56 && (booking.client_first_name || booking.client_last_name) && (
-                  <span
-                    className="truncate text-[11px] opacity-90 font-medium leading-tight min-w-0"
-                    title={`${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim()}
-                  >
-                    {booking.client_first_name} {booking.client_last_name}
-                  </span>
-                )}
-              </div>
-              {height >= 28 && (
-                <div className="flex items-center gap-0.5 flex-shrink-0">
-                  {/* Out-of-hours indicator */}
-                  {booking.is_out_of_hours && (
-                    <div className="w-4 h-4 flex items-center justify-center flex-shrink-0" title="Hors horaires">
-                      <Clock className="h-2.5 w-2.5 text-amber-500" />
-                    </div>
-                  )}
-                  {/* Link to therapist on hover */}
-                  {hasTherapist && (
-                    <button
-                      className="opacity-0 group-hover:opacity-100 transition-opacity h-4 w-4 flex items-center justify-center rounded-full hover:bg-foreground/10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/admin/therapists/${booking.therapist_id}`);
-                      }}
-                      title="Voir la fiche thérapeute"
-                    >
-                      <ExternalLink className="h-2.5 w-2.5" />
-                    </button>
-                  )}
-                  {/* Therapist: full name (text) on regular cards, initials on tiny ones */}
-                  {hasTherapist ? (
-                    height >= 56 ? (
-                      <span
-                        className="max-w-[110px] truncate text-[11px] font-medium leading-tight text-foreground/80 flex-shrink"
-                        title={booking.therapist_name || ""}
-                      >
-                        {booking.therapist_name}
-                      </span>
-                    ) : (
-                      <div
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-foreground/10 text-foreground/70"
-                        title={booking.therapist_name || ""}
-                      >
-                        {therapistInitials}
-                      </div>
-                    )
-                  ) : (
-                    <div
-                      className="px-1.5 h-4 rounded-[3px] flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800 shadow-sm"
-                      title="Aucun thérapeute assigné"
-                    >
-                      À ASSIGNER
-                    </div>
-                  )}
-                </div>
+              )}
+              {showInlineClient && (
+                <span className="truncate text-[11px] opacity-90 font-medium min-w-0" title={clientName}>
+                  {clientName}
+                </span>
               )}
             </div>
-            {/* Client name on its own line when card is tall enough */}
-            {height >= 56 && (booking.client_first_name || booking.client_last_name) && (
-              <div
-                className="truncate text-[11px] opacity-90 font-medium leading-tight"
-                title={`${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim()}
-              >
-                {booking.client_first_name} {booking.client_last_name}
+            {/* Stacked details (therapist · client · room), each with its icon.
+                Each row renders only when it fully fits (see flags above). */}
+            {showTherapistRow && (
+              <div className="flex items-center gap-1 text-[11px] font-medium text-foreground/80 min-w-0">
+                <Users className="h-2.5 w-2.5 flex-shrink-0" />
+                <span className="truncate" title={booking.therapist_name || ""}>
+                  {therapistShort}
+                </span>
+                <button
+                  className="opacity-0 group-hover:opacity-100 transition-opacity h-4 w-4 flex items-center justify-center rounded-full hover:bg-foreground/10 flex-shrink-0 ml-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/admin/therapists/${booking.therapist_id}`);
+                  }}
+                  title="Voir la fiche thérapeute"
+                >
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </button>
               </div>
             )}
-            {/* Treatments (soins) — visible from 50-min cards */}
-            {height >= 56 && treatments.length > 0 && (
-              <div
-                className="truncate text-[11px] opacity-80 leading-tight"
-                title={treatments.map((t) => t.name).join(", ")}
-              >
-                {treatments.map((t) => t.name).join(", ")}
+            {showClientRow && (
+              <div className="flex items-center gap-1 text-[11px] font-medium opacity-90 min-w-0" title={clientName}>
+                <User className="h-2.5 w-2.5 flex-shrink-0" />
+                <span className="truncate">{clientName}</span>
               </div>
             )}
-            {/* Treatment room name (priority info, visible from 50-min cards) */}
-            {height >= 56 && booking.room_name && (
-              <div
-                className="flex items-center gap-1 text-[11px] font-medium opacity-90 leading-tight truncate"
-                title={booking.room_name}
-              >
-                <DoorOpen className="h-3 w-3 flex-shrink-0" />
+            {showRoomRow && (
+              <div className="flex items-center gap-1 text-[11px] font-medium opacity-90 min-w-0" title={booking.room_name || ""}>
+                <DoorOpen className="h-2.5 w-2.5 flex-shrink-0" />
                 <span className="truncate">{booking.room_name}</span>
               </div>
             )}
-            {/* Duration */}
-            {height >= 96 && (
-              <div className="text-[10px] opacity-60 mt-auto">{durationFormatted}</div>
+            {/* Unassigned badge — bottom-right corner */}
+            {!hasTherapist && (
+              <div
+                className="absolute bottom-1 right-1 px-1.5 h-4 rounded-[3px] flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800 shadow-sm"
+                title="Aucun thérapeute assigné"
+              >
+                À ASSIGNER
+              </div>
             )}
           </div>
         </div>
