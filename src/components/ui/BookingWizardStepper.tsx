@@ -3,22 +3,15 @@ import { cn } from "@/lib/utils";
 
 interface BookingWizardStepperProps {
   currentStep: 1 | 2 | 3;
-  hidePayment?: boolean;
 }
 
-const ADMIN_STEPS = [
+const STEPS = [
   { id: 1, label: "Informations" },
   { id: 2, label: "Prestations" },
   { id: 3, label: "Affectation" },
-];
+] as const;
 
-const CONCIERGE_STEPS = [
-  { id: 1, label: "Informations" },
-  { id: 2, label: "Prestations" },
-];
-
-export function BookingWizardStepper({ currentStep, hidePayment }: BookingWizardStepperProps) {
-  const STEPS = hidePayment ? CONCIERGE_STEPS : ADMIN_STEPS;
+export function BookingWizardStepper({ currentStep }: BookingWizardStepperProps) {
 
   return (
     <div className="flex items-center justify-center gap-2 py-4">

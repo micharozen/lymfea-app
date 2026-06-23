@@ -42,6 +42,7 @@ import { BookingFormValues } from "../CreateBookingDialog.schema";
 import { usePmsGuestLookup } from "@/hooks/usePmsGuestLookup";
 import { toast } from "sonner";
 import { BOOKING_CLIENT_TYPES, CLIENT_TYPE_META } from "@/lib/clientTypeMeta";
+import { LEGACY_BOOKING_MINUTES, STAFF_BOOKING_MINUTES } from "@/lib/bookingTimeOptions";
 import { useTranslation } from "react-i18next";
 
 interface BookingInfoStepProps {
@@ -62,6 +63,8 @@ interface BookingInfoStepProps {
   isAvailabilityLoading?: (date: Date | undefined) => boolean;
   slotInterval?: number;
   cartAvailableDays?: number[] | null;
+  /** Staff (admin/concierge) can pick any 5-min slot, ignoring venue slot_interval grid. */
+  staffTimePicker?: boolean;
   onValidateAndNext: () => Promise<void>;
   onCancel: () => void;
 }
@@ -84,9 +87,11 @@ export function BookingInfoStep({
   isAvailabilityLoading,
   slotInterval = 30,
   cartAvailableDays,
+  staffTimePicker = false,
   onValidateAndNext,
   onCancel,
 }: BookingInfoStepProps) {
+  const minuteOptions = staffTimePicker ? STAFF_BOOKING_MINUTES : LEGACY_BOOKING_MINUTES;
   const { t } = useTranslation('admin');
   const { lookupGuest, guestData, isLoading: isLookingUpGuest } = usePmsGuestLookup(hotelId);
   const clientType = form.watch("clientType");
@@ -216,19 +221,19 @@ export function BookingInfoStep({
   };
 
   const isHourUnavailable = (date: Date | undefined, hour: string) => {
-    if (!isSlotAvailable) return false;
-    return ['00', '10', '20', '30', '40', '50'].every(
+    if (staffTimePicker || !isSlotAvailable) return false;
+    return minuteOptions.every(
       m => !isSlotAvailable(date, `${hour}:${m}`, slotInterval)
     );
   };
 
   const isMinuteUnavailable = (date: Date | undefined, hour: string, minute: string) => {
-    if (!isSlotAvailable) return false;
+    if (staffTimePicker || !isSlotAvailable) return false;
     return !isSlotAvailable(date, `${hour}:${minute}`, slotInterval);
   };
 
   const isSelectedTimeUnavailable = (date: Date | undefined, time: string) => {
-    if (!isSlotAvailable || !date || !time || !time.includes(':')) return false;
+    if (staffTimePicker || !isSlotAvailable || !date || !time || !time.includes(':')) return false;
     return !isSlotAvailable(date, time, slotInterval);
   };
 
@@ -472,7 +477,7 @@ export function BookingInfoStep({
                       <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
                         <ScrollArea className="h-40 touch-pan-y">
                           <div>
-                            {['00', '10', '20', '30', '40', '50'].map(m => (
+                            {minuteOptions.map(m => (
                               <button
                                 key={m}
                                 type="button"
@@ -601,7 +606,7 @@ export function BookingInfoStep({
                         <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start">
                           <ScrollArea className="h-40 touch-pan-y">
                             <div>
-                              {['00','10','20','30','40','50'].map(m => (
+                              {minuteOptions.map(m => (
                                 <button key={m} type="button" onClick={() => { field.onChange(`${field.value?.split(':')[0] || '09'}:${m}`); setSlot2MinuteOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[1] === m && "bg-muted", isMinuteUnavailable(form.getValues("slot2Date"), field.value?.split(':')[0] || '09', m) && "opacity-40 text-muted-foreground")}>{m}</button>
                               ))}
                             </div>
@@ -699,7 +704,7 @@ export function BookingInfoStep({
                         <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start">
                           <ScrollArea className="h-40 touch-pan-y">
                             <div>
-                              {['00','10','20','30','40','50'].map(m => (
+                              {minuteOptions.map(m => (
                                 <button key={m} type="button" onClick={() => { field.onChange(`${field.value?.split(':')[0] || '09'}:${m}`); setSlot3MinuteOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[1] === m && "bg-muted", isMinuteUnavailable(form.getValues("slot3Date"), field.value?.split(':')[0] || '09', m) && "opacity-40 text-muted-foreground")}>{m}</button>
                               ))}
                             </div>
