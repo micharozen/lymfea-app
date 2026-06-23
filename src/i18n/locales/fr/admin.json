@@ -724,7 +724,11 @@
     "treatments": "Soins",
     "calendars": "Calendriers",
     "showAll": "Tout",
-    "hideAll": "Rien"
+    "hideAll": "Rien",
+    "cleanupBuffer": "Remise en état",
+    "statuses": "Statuts",
+    "venues": "Lieux",
+    "verticalBarHint": "Barre verticale sur la carte"
   },
   "cures": {
     "title": "Cures",

@@ -5,6 +5,7 @@ interface StatCardProps {
   title: string;
   value: string | number;
   icon?: LucideIcon;
+  alignRight?: boolean;
   trend?: {
     value: string;
     isPositive: boolean;
@@ -12,7 +13,7 @@ interface StatCardProps {
   };
 }
 
-export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
+export function StatCard({ title, value, icon: Icon, alignRight, trend }: StatCardProps) {
   return (
     <Card className="border border-border bg-card">
       <CardContent className="p-5 flex flex-col h-full">
@@ -26,7 +27,11 @@ export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
             {title}
           </p>
         </div>
-        <p className="text-xl md:text-2xl font-medium text-foreground mb-3 tracking-tight whitespace-nowrap">
+        <p
+          className={`text-xl md:text-2xl font-medium text-foreground mb-3 tracking-tight whitespace-nowrap${
+            alignRight ? " text-right tabular-nums" : ""
+          }`}
+        >
           {value}
         </p>
         <div className="mt-auto">

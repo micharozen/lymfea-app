@@ -724,7 +724,11 @@
     "treatments": "Treatments",
     "calendars": "Calendars",
     "showAll": "All",
-    "hideAll": "None"
+    "hideAll": "None",
+    "cleanupBuffer": "Cleanup",
+    "statuses": "Statuses",
+    "venues": "Venues",
+    "verticalBarHint": "Vertical bar on card"
   },
   "cures": {
     "title": "Treatment Packages",

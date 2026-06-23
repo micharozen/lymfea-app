@@ -153,9 +153,9 @@ export const InvoiceSignatureDialog = ({
 
             {/* Signature Section avec Onglets */}
             <Tabs defaultValue="digital" value={activeTab} onValueChange={setActiveTab} className="mb-4">
-              <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/50 p-1">
-                <TabsTrigger value="digital" className="rounded-lg text-xs font-medium">Sur écran</TabsTrigger>
-                <TabsTrigger value="paper" className="rounded-lg text-xs font-medium">Photo papier</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="digital" className="text-xs font-medium">Sur écran</TabsTrigger>
+                <TabsTrigger value="paper" className="text-xs font-medium">Photo papier</TabsTrigger>
               </TabsList>
 
               {/* ONGLET 1 : Lien vers la vraie décharge numérique */}

@@ -47,6 +47,7 @@ import {
   type Therapist,
 } from "@/hooks/booking";
 import { getBookingStatusConfig, getPaymentStatusConfig, getCalendarFlowStage } from "@/utils/statusStyles";
+import { CleanupBufferZone } from "@/components/booking/CleanupBufferZone";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 
@@ -501,6 +502,16 @@ function AgendaBookingCard({
       : booking.treatmentsTotalPrice || 0;
 
   return (
+    <>
+      {booking.status !== "cancelled" && (
+        <CleanupBufferZone
+          bufferMinutes={hotelInfo?.room_turnover_buffer_minutes ?? 0}
+          bookingTop={top}
+          bookingHeight={height}
+          roomName={booking.room_name}
+          style={{ left: "2px", right: "2px" }}
+        />
+      )}
     <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
         <div
@@ -523,7 +534,7 @@ function AgendaBookingCard({
         >
           <div className="p-1 h-full flex flex-col">
             {/* Time */}
-            <div className="font-bold text-[11px] leading-tight">
+            <div className="font-medium text-[11px] leading-tight">
               {booking.booking_time?.substring(0, 5)}
             </div>
             {/* Client name */}
@@ -624,5 +635,6 @@ function AgendaBookingCard({
         </div>
       </TooltipContent>
     </Tooltip>
+    </>
   );
 }

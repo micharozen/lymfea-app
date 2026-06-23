@@ -11,6 +11,7 @@ import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, 
 import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities, cn } from "@/lib/utils";
 import { AvailabilityOverlay } from "./AvailabilityOverlay";
+import { CleanupBufferZone } from "./CleanupBufferZone";
 import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar } from "@/hooks/booking";
 import { getAmenityType } from "@/lib/amenityTypes";
 
@@ -168,8 +169,8 @@ export function BookingCalendarView({
     return `${format(currentWeekStart, "d MMM", { locale: fr })} - ${format(endDate, "d MMM yyyy", { locale: fr })}`;
   }, [currentWeekStart, dayCount]);
 
-  const gridTemplateColumns = `60px repeat(${dayCount}, 1fr)`;
-  const gridTemplateColumnsMd = `80px repeat(${dayCount}, 1fr)`;
+  const gridTemplateColumns = `48px repeat(${dayCount}, 1fr)`;
+  const gridTemplateColumnsMd = `52px repeat(${dayCount}, 1fr)`;
 
   return (
     <div className="p-2 md:p-3 flex flex-col h-full overflow-hidden">
@@ -340,10 +341,10 @@ export function BookingCalendarView({
                 {hours.map((hour) => (
                   <div
                     key={hour}
-                    className="border-b border-border p-1 flex items-start"
+                    className="border-b border-border p-0.5 flex items-start justify-center"
                     style={{ height: `${hourHeight}px` }}
                   >
-                    <span className="text-[10px] font-medium text-muted-foreground">
+                    <span className="text-xs font-semibold text-muted-foreground">
                       {hour.toString().padStart(2, '0')}:00
                     </span>
                   </div>
@@ -444,14 +445,14 @@ export function BookingCalendarView({
             {/* Time slots grid - Mobile */}
             <div className="grid md:hidden" style={{ gridTemplateColumns }}>
               {/* Hours column */}
-              <div className="border-r border-border bg-muted/20 w-[60px]">
+              <div className="border-r border-border bg-muted/20 w-[48px]">
                 {hours.map((hour) => (
                   <div
                     key={hour}
-                    className="border-b border-border p-1 flex items-start"
+                    className="border-b border-border p-0.5 flex items-start justify-center"
                     style={{ height: `${hourHeight}px` }}
                   >
-                    <span className="text-[10px] font-medium text-muted-foreground">
+                    <span className="text-xs font-semibold text-muted-foreground">
                       {hour.toString().padStart(2, '0')}:00
                     </span>
                   </div>
@@ -607,7 +608,23 @@ function BookingCard({
   const column = layoutInfo?.column ?? 0;
   const totalColumns = layoutInfo?.totalColumns ?? 1;
 
+  // Horizontal placement shared by the booking card and its cleanup buffer zone.
+  const horizontalStyle = {
+    left: `calc(${(column / totalColumns) * 100}% + 2px)`,
+    width: `calc(${(1 / totalColumns) * 100}% - 4px)`,
+  };
+
   return (
+    <>
+      {booking.status !== 'cancelled' && (
+        <CleanupBufferZone
+          bufferMinutes={hotelInfo?.room_turnover_buffer_minutes ?? 0}
+          bookingTop={top}
+          bookingHeight={height}
+          roomName={booking.room_name}
+          style={horizontalStyle}
+        />
+      )}
     <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
         <div
@@ -624,8 +641,7 @@ function BookingCard({
             top: `${top}px`,
             height: `${height}px`,
             minHeight: '20px',
-            left: `calc(${(column / totalColumns) * 100}% + 2px)`,
-            width: `calc(${(1 / totalColumns) * 100}% - 4px)`,
+            ...horizontalStyle,
           }}
           onClick={(e) => {
             e.stopPropagation();
@@ -635,7 +651,7 @@ function BookingCard({
           <div className="p-1 h-full flex flex-col gap-px relative leading-none">
             {/* Time range (+ out-of-hours indicator, + inline client on short cards) */}
             <div className="flex items-center gap-1 min-w-0">
-              <span className="font-bold text-[13px] flex-shrink-0 whitespace-nowrap">
+              <span className="font-medium text-[13px] flex-shrink-0 whitespace-nowrap">
                 {booking.booking_time
                   ? `${booking.booking_time.substring(0, 5)} – ${addMinutesToTime(booking.booking_time, duration)}`
                   : ""}
@@ -797,6 +813,7 @@ function BookingCard({
         </div>
       </TooltipContent>
     </Tooltip>
+    </>
   );
 }
 

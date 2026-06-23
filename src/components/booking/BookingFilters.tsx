@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
@@ -42,11 +42,18 @@ interface BookingFiltersProps {
   therapists: Therapist[] | undefined;
   hideHotelFilter?: boolean;
   hideViewToggle?: boolean;
+  hideSearch?: boolean;
+  /** Push the filter selects to the right so they sit next to the view controls. */
+  groupFiltersRight?: boolean;
   showAvailability?: boolean;
   onShowAvailabilityChange?: (show: boolean) => void;
   /** Period filter in days (window: [today - N days, future]). Omit to hide the selector. */
   periodDays?: number;
   onPeriodDaysChange?: (days: number) => void;
+  /** Optional content rendered at the start of the toolbar (e.g. page title). */
+  leading?: ReactNode;
+  /** Optional content rendered at the end of the toolbar, after the view toggle (e.g. action buttons). */
+  trailing?: ReactNode;
 }
 
 export function BookingFilters({
@@ -67,28 +74,36 @@ export function BookingFilters({
   therapists,
   hideHotelFilter = false,
   hideViewToggle = false,
+  hideSearch = false,
+  groupFiltersRight = false,
   showAvailability,
   onShowAvailabilityChange,
   periodDays,
   onPeriodDaysChange,
+  leading,
+  trailing,
 }: BookingFiltersProps) {
   const { t } = useTranslation("admin");
   const [hotelPopoverOpen, setHotelPopoverOpen] = useState(false);
   const [therapistPopoverOpen, setTherapistPopoverOpen] = useState(false);
   return (
     <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
-      <div className="relative">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <Input
-          placeholder="Rechercher..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-8 h-8 w-[160px] text-xs"
-        />
-      </div>
+      {leading}
+
+      {!hideSearch && (
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-8 h-8 w-[160px] text-xs"
+          />
+        </div>
+      )}
 
       <Select value={statusFilter} onValueChange={onStatusChange}>
-        <SelectTrigger className="w-[160px] h-8 text-xs">
+        <SelectTrigger className={cn("w-[160px] h-8 text-xs", groupFiltersRight && "ml-auto")}>
           <SelectValue placeholder="Tous les statuts" />
         </SelectTrigger>
         <SelectContent>
@@ -324,6 +339,8 @@ export function BookingFilters({
             </Tooltip>
           </ButtonGroup>
         )}
+
+        {trailing}
       </div>
     </div>
   );
