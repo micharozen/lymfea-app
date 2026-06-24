@@ -219,10 +219,10 @@
     "phoneRequired": "Phone is required",
     "finance": "Finance",
     "financeDesc": "Rate per treatment duration, used when the venue does not apply a global commission",
-    "rate45Label": "45 min",
-    "rate60Label": "1 hour",
+    "rate60Label": "1h00",
+    "rate75Label": "1h15",
     "rate90Label": "1h30",
-    "rateHint": "Fixed amount paid to the therapist per treatment. For non-standard durations, proportional calculation based on the 1-hour rate.",
+    "rateHint": "Fixed amount paid to the therapist per treatment. For off-tier durations, proportional calculation between configured tiers.",
     "billing": "Billing",
     "billingTab": {
       "title": "Invoices",

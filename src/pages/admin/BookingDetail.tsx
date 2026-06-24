@@ -170,12 +170,12 @@ export default function BookingDetail() {
       if (acceptedTherapists.length === 0) { setTherapistRatesMap({}); return; }
       supabase
         .from("therapists")
-        .select("id, rate_45, rate_60, rate_90")
+        .select("id, rate_60, rate_75, rate_90")
         .in("id", acceptedTherapists.map((t) => t.id))
         .then(({ data }) => {
           const map: Record<string, TherapistRates> = {};
           (data || []).forEach((t: any) => {
-            map[t.id] = { rate_45: t.rate_45, rate_60: t.rate_60, rate_90: t.rate_90 };
+            map[t.id] = { rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90 };
           });
           setTherapistRatesMap(map);
         });
@@ -184,11 +184,11 @@ export default function BookingDetail() {
       if (!therapistId) { setTherapistRatesMap({}); return; }
       supabase
         .from("therapists")
-        .select("id, rate_45, rate_60, rate_90")
+        .select("id, rate_60, rate_75, rate_90")
         .eq("id", therapistId)
         .single()
         .then(({ data }) => {
-          if (data) setTherapistRatesMap({ [data.id]: { rate_45: data.rate_45, rate_60: data.rate_60, rate_90: data.rate_90 } });
+          if (data) setTherapistRatesMap({ [data.id]: { rate_60: data.rate_60, rate_75: data.rate_75, rate_90: data.rate_90 } });
           else setTherapistRatesMap({});
         });
     }
