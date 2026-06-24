@@ -39,7 +39,7 @@ interface BookingTherapistStepProps {
   onAdditionalTherapistIdsChange: (ids: string[]) => void;
   duoMode: "assign" | "broadcast";
   onDuoModeChange: (mode: "assign" | "broadcast") => void;
-  isAdmin: boolean;
+  isConcierge?: boolean;
   isPending: boolean;
   onBack: () => void;
   cart: CartItem[];
@@ -204,7 +204,7 @@ export function BookingTherapistStep({
   onAdditionalTherapistIdsChange,
   duoMode,
   onDuoModeChange,
-  isAdmin,
+  isConcierge = false,
   isPending,
   onBack,
   cart,
@@ -217,7 +217,7 @@ export function BookingTherapistStep({
   onRoomChange,
 }: BookingTherapistStepProps) {
   const broadcast = duoMode === "broadcast";
-  const isDuo = isAdmin && requiredGuestCount > 1;
+  const isDuo = requiredGuestCount > 1;
 
   const handleToggleBroadcast = () => {
     if (broadcast) {
@@ -414,7 +414,7 @@ export function BookingTherapistStep({
             size="sm"
             className="h-7 text-xs px-3 shrink-0 bg-foreground text-background hover:bg-foreground/90"
           >
-            {isPending ? "Création..." : "Créer"}
+            {isPending ? "Création..." : isConcierge && broadcast ? "Envoyer la demande" : isConcierge ? "Confirmer" : "Créer"}
             {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
           </Button>
         </div>

@@ -55,6 +55,7 @@ import type { AmenityAccessPayload } from "@/hooks/booking/useCreateBookingMutat
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
   const { hotelIds, isAdmin } = useUserContext();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
+  const canAssignTherapist = isAdmin || isConcierge;
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"info" | "prestations" | "therapist" | "payment">("info");
   const [visibleSlots, setVisibleSlots] = useState(1);
@@ -148,6 +149,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     hotelId,
     dates: [date, slot2Date, slot3Date],
     slotInterval: venueSlotInterval,
+    enabled: !canAssignTherapist,
   });
 
   const { data: therapists } = useQuery({
@@ -284,9 +286,14 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         const byVoucher = form.getValues("payByVoucher");
         const skipStripe = ct !== "external" || byVoucher;
         if (isConcierge) {
-          // Concierge: booking is broadcast to therapists (pending), no automatic
-          // client email — the operator sends the notification manually.
-          setIsNotificationDialogOpen(true);
+          const isExternal = ct === "external" && !byVoucher;
+          const isBroadcastBooking = data.status === "pending";
+          // External clients or broadcast: operator sends client comms manually.
+          if (isExternal || isBroadcastBooking) {
+            setIsNotificationDialogOpen(true);
+          } else {
+            handleClose();
+          }
         } else if (skipStripe) {
           // Admin partner-billed/voucher: trigger-new-booking-notifications already
           // sent the client confirmation email + SMS. Avoid a duplicate — just close.
@@ -335,10 +342,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       return;
     }
     const values = form.getValues();
-    if (isAdmin && !values.therapistId && duoMode !== "broadcast") {
+    if (canAssignTherapist && !values.therapistId && duoMode !== "broadcast") {
       toast({ title: "Veuillez sélectionner un thérapeute ou diffuser", variant: "destructive" });
       return;
     }
+    const isBroadcast = duoMode === "broadcast" || !values.therapistId;
     mutation.mutate({
       hotelId: values.hotelId,
       clientFirstName: values.clientFirstName,
@@ -374,6 +382,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       payByVoucher: values.payByVoucher,
       voucherReference: values.voucherReference?.trim() || null,
       guestCount: requiredGuestCount,
+      isBroadcast,
       ...(requiredGuestCount > 1 && duoMode === "assign" && additionalTherapistIds.length > 0
         ? { therapistIds: [values.therapistId, ...additionalTherapistIds].filter(Boolean) }
         : {}),
@@ -423,7 +432,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setCustomDuration("");
     setSelectedAmenityIds([]);
     setAdditionalTherapistIds([]);
-    setDuoMode("broadcast");
+    setDuoMode("assign");
     setCreatedBooking(null);
     onOpenChange(false);
   };
@@ -442,7 +451,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           </DialogTitle>
           <BookingWizardStepper
             currentStep={activeTab === "info" ? 1 : activeTab === "prestations" ? 2 : 3}
-            hidePayment={isConcierge}
           />
         </DialogHeader>
 
@@ -467,6 +475,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   isSlotAvailable={isSlotAvailable}
                   isAvailabilityLoading={isAvailabilityLoading}
                   slotInterval={venueSlotInterval}
+                  staffTimePicker={canAssignTherapist}
                   cartAvailableDays={cartAvailableDays}
                   onValidateAndNext={async () => { if (await validateInfo()) setActiveTab("prestations"); }}
                   onCancel={handleClose}
@@ -498,7 +507,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   finalPriceWithSurcharge={finalPriceWithSurcharge}
                   isPending={mutation.isPending}
                   onBack={() => setActiveTab("info")}
-                  onNext={isAdmin ? () => {
+                  onNext={canAssignTherapist ? () => {
                     if (!cart.length) {
                       toast({ title: "Sélectionnez une prestation", variant: "destructive" });
                       return;
@@ -526,7 +535,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   onAdditionalTherapistIdsChange={setAdditionalTherapistIds}
                   duoMode={duoMode}
                   onDuoModeChange={handleDuoModeChange}
-                  isAdmin={isAdmin}
+                  isConcierge={isConcierge}
                   isPending={mutation.isPending}
                   onBack={() => setActiveTab("prestations")}
                   cart={cart}
