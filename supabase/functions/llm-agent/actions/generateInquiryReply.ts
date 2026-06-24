@@ -6,7 +6,7 @@
 //   - real-time availability for the requested date (via get-availability)
 // and asks Claude Haiku to draft a professional, warm reply in the email's language.
 
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.2";
 import { callAnthropic, safeParseJsonObject } from "../../_shared/anthropic-client.ts";
 
 interface InquiryRow {

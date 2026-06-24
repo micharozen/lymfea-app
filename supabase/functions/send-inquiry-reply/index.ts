@@ -9,7 +9,7 @@
 //   5. Mark the root as status='replied' + last_reply_at=now().
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { sendEmail } from "../_shared/send-email.ts";
 
 const corsHeaders = {
