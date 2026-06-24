@@ -3,6 +3,7 @@ import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
+import { reloadWithCacheBust } from '@/lib/reload';
 
 interface ClientErrorFallbackProps {
   error: Error;
@@ -36,7 +37,7 @@ const hardReload = async () => {
   } catch {
     // Ignore — we still reload below
   }
-  window.location.reload();
+  reloadWithCacheBust();
 };
 
 const getReloadAttempts = (): number => {
