@@ -81,6 +81,11 @@ async function insertPaymentInfo(
   });
 }
 
+function metaGuestCount(meta: Record<string, string>): number {
+  const n = parseInt(meta.guestCount || "1", 10);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
 async function atomicReserveSingle(
   supabase: ActionContext["supabase"],
   meta: Record<string, string>,
@@ -110,6 +115,7 @@ async function atomicReserveSingle(
     _therapist_gender: meta.therapistGender || null,
     _total_price: verifiedPrice,
     _treatment_ids: treatmentIds,
+    _guest_count: metaGuestCount(meta),
   });
 }
 
@@ -480,6 +486,7 @@ export async function handleConfirmSetupIntent(
       bookingId = fallbackId;
       await supabase.from("bookings").update({
         therapist_id: null,
+        guest_count: metaGuestCount(meta),
         is_out_of_hours: surcharge.isOutOfHours,
         surcharge_amount: surcharge.surchargeAmount,
         payment_status: "card_saved",
@@ -500,6 +507,7 @@ export async function handleConfirmSetupIntent(
           total_price: verifiedPrice,
           customer_id: customerId,
           therapist_id: null,
+          guest_count: metaGuestCount(meta),
           is_out_of_hours: surcharge.isOutOfHours,
           surcharge_amount: surcharge.surchargeAmount,
         })
@@ -534,6 +542,7 @@ export async function handleConfirmSetupIntent(
     bookingId = newBookingId;
     await supabase.from("bookings").update({
       therapist_id: null,
+      guest_count: metaGuestCount(meta),
       is_out_of_hours: surcharge.isOutOfHours,
       surcharge_amount: surcharge.surchargeAmount,
       payment_status: "card_saved",

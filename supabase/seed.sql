@@ -179,7 +179,7 @@ VALUES
     true,
     '+33',
     '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}',
-    '{"Massage","Soin du visage","Soin du corps",barber,beauty}', -- Skills harmonisés
+    '{"relaxing_massage","deep_tissue","facial","body_treatment","body_scrub","body_wrap",barber,beauty}',
     'female',
     '00000000-0000-0000-0000-000000000030'
   ),
@@ -193,7 +193,7 @@ VALUES
     true,
     '+33',
     '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}',
-    '{"Massage","Soin du visage","Soin du corps",barber,beauty}', -- Skills harmonisés
+    '{"relaxing_massage","deep_tissue","facial","body_treatment","body_scrub","body_wrap",barber,beauty}',
     'male',
     '00000000-0000-0000-0000-000000000031'
   );
@@ -240,6 +240,12 @@ VALUES
   ('00000000-0000-0000-0000-000000000025', 'Soin éclat visage', 'Soin du visage', '00000000-0000-0000-0000-000000000010', 'All', 45, 75.00, 'EUR', 'active', 'Nettoyage, gommage et masque pour un teint lumineux', true),
   ('00000000-0000-0000-0000-000000000026', 'Gommage corps', 'Soin du corps', '00000000-0000-0000-0000-000000000010', 'All', 30, 55.00, 'EUR', 'active', 'Exfoliation douce au sel marin et huile d''argan', false),
   ('00000000-0000-0000-0000-000000000027', 'Enveloppement détox', 'Soin du corps', '00000000-0000-0000-0000-000000000010', 'All', 50, 85.00, 'EUR', 'active', 'Enveloppement aux algues pour purifier et revitaliser', true);
+
+UPDATE public.treatment_menus SET treatment_type = 'relaxing_massage' WHERE category = 'Massage' AND treatment_type IS NULL;
+UPDATE public.treatment_menus SET treatment_type = 'facial' WHERE category = 'Soin du visage' AND treatment_type IS NULL;
+UPDATE public.treatment_menus SET treatment_type = 'body_treatment' WHERE category = 'Soin du corps' AND treatment_type IS NULL;
+UPDATE public.treatment_menus SET treatment_type = 'body_scrub' WHERE LOWER(name) LIKE '%gommage%' AND treatment_type IS NULL;
+UPDATE public.treatment_menus SET treatment_type = 'body_wrap' WHERE LOWER(name) LIKE '%enveloppement%' AND treatment_type IS NULL;
 
 -- 9b) Treatment categories + treatments for Spa Nara
 INSERT INTO public.treatment_categories (id, name, hotel_id, sort_order)

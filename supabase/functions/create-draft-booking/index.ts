@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = {
@@ -145,21 +145,30 @@ serve(async (req: Request) => {
       if (legacy) {
         // Legacy mode: sum across all treatments for the single slot.
         for (const t of legacy) {
-          const row: any = t.variantId ? variantMap.get(t.variantId) : menuMap.get(t.id);
-          if (!row) continue;
-          totalPrice += (row.price || 0) * t.quantity;
-          totalDuration += (row.duration || 0) * t.quantity;
+          const row: any = t.variantId
+            ? (variantMap.get(t.variantId) ?? menuMap.get(t.id))
+            : menuMap.get(t.id);
+          const unitDuration = row?.duration || 0;
+          const unitPrice = row?.price || 0;
+          totalPrice += unitPrice * t.quantity;
+          totalDuration += unitDuration * t.quantity;
         }
         treatmentIdsForRpc = legacy.map((t) => t.id);
       } else {
-        const row: any = item.variantId ? variantMap.get(item.variantId) : menuMap.get(item.treatmentId);
+        const row: any = item.variantId
+          ? (variantMap.get(item.variantId) ?? menuMap.get(item.treatmentId))
+          : menuMap.get(item.treatmentId);
+        const unitDuration = row?.duration || item.duration || 0;
         if (row) {
           totalPrice += (row.price || 0) * item.quantity;
-          totalDuration += (row.duration || 0) * item.quantity;
+          totalDuration += unitDuration * item.quantity;
+        } else if (item.duration) {
+          totalDuration += item.duration * (item.quantity || 1);
         }
-        if (item.duration && totalDuration === 0) totalDuration = item.duration;
         treatmentIdsForRpc = [item.treatmentId];
       }
+
+      if (totalDuration < 1) totalDuration = 30;
 
       const { data: newBookingId, error: rpcError } = await supabase.rpc('reserve_trunk_atomically', {
         _hotel_id: hotelId,
@@ -184,17 +193,21 @@ serve(async (req: Request) => {
       });
 
       if (rpcError) {
-        if (rpcError.message?.includes("NO_TRUNK_AVAILABLE")) {
+        const msg = rpcError.message ?? "";
+        if (msg.includes("NO_ROOM_AVAILABLE") || msg.includes("NO_TRUNK_AVAILABLE")) {
           log.warn("rpc.reserve.no_slot", {
             date: item.date,
             time: item.time,
           });
-        } else {
-          log.error("rpc.reserve.failed", rpcError, {
-            date: item.date,
-            time: item.time,
-          });
+          return new Response(
+            JSON.stringify({ error: "SLOT_TAKEN", reason: "no_room_available" }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
         }
+        log.error("rpc.reserve.failed", rpcError, {
+          date: item.date,
+          time: item.time,
+        });
         throw rpcError;
       }
       if (!newBookingId) {
