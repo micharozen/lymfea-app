@@ -103,7 +103,12 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'service-worker.js', 'manifest.webmanifest'],
       manifest: false, 
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,webmanifest}'],
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+        // Do not precache app-shell build assets. Hash-named JS/CSS/HTML can
+        // become stale across deploys and trigger dynamic import failures.
+        globPatterns: ['**/*.{ico,png,svg,woff,woff2,webmanifest}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallbackDenylist: [
           /\.js$/,

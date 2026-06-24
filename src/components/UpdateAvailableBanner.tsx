@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, RefreshCw } from 'lucide-react';
 import { useVersionCheck } from '@/hooks/useVersionCheck';
+import { reloadWithCacheBust } from '@/lib/reload';
 
 /**
  * Displays a non-intrusive banner at the top of the screen when a new version
@@ -32,7 +33,7 @@ export function UpdateAvailableBanner() {
     } catch {
       // Ignore storage errors
     }
-    window.location.reload();
+    reloadWithCacheBust();
   };
 
   const handleDismiss = () => {
