@@ -441,8 +441,8 @@ export function BookingPrestationsStep({
             )}
           </div>
 
-          {/* Admin: go to therapist step — Concierge: submit directly */}
-          {isAdmin && onNext ? (
+          {/* Staff: go to therapist step — otherwise submit from prestations */}
+          {onNext ? (
             <Button
               type="button"
               disabled={cart.length === 0}

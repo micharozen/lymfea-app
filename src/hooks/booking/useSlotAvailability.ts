@@ -7,12 +7,14 @@ interface UseSlotAvailabilityParams {
   hotelId: string;
   dates: (Date | undefined)[];
   slotInterval?: number;
+  enabled?: boolean;
 }
 
 export function useSlotAvailability({
   hotelId,
   dates,
   slotInterval = 30,
+  enabled = true,
 }: UseSlotAvailabilityParams) {
   // Deduplicate dates into unique date strings
   const uniqueDateStrings = useMemo(() => {
@@ -36,7 +38,7 @@ export function useSlotAvailability({
       },
       staleTime: 60_000,
       gcTime: 5 * 60_000,
-      enabled: !!hotelId,
+      enabled: enabled && !!hotelId,
     })),
   });
 
