@@ -82,8 +82,8 @@ serve(async (req) => {
         therapists(
           first_name,
           last_name,
-          rate_45,
           rate_60,
+          rate_75,
           rate_90
         )
       `)
@@ -139,8 +139,8 @@ serve(async (req) => {
     const earned = therapist
       ? computeTherapistEarnings(
           {
-            rate_45: therapist.rate_45 ?? null,
             rate_60: therapist.rate_60 ?? null,
+            rate_75: therapist.rate_75 ?? null,
             rate_90: therapist.rate_90 ?? null,
           },
           bookingDuration,

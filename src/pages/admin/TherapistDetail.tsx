@@ -28,7 +28,7 @@ const createFormSchema = (t: TFunction) =>
     phone: z.string().min(1, t("admin:therapists.phoneRequired", "Le téléphone est requis")),
     status: z.string().default("En attente"),
     gender: z.enum(["female", "male", ""]).optional().default(""),
-    rate_45: z
+    rate_75: z
       .string()
       .min(1, t("admin:therapists.rateRequired", "Tarif requis"))
       .refine((v) => parseFloat(v) > 0, t("admin:therapists.rateMustBePositive", "Le tarif doit être > 0")),
@@ -115,7 +115,7 @@ export default function TherapistDetail() {
           phone: therapist.phone || "",
           status: therapist.status || "En attente",
           gender: therapist.gender || "",
-          rate_45: therapist.rate_45?.toString() || "",
+          rate_75: therapist.rate_75?.toString() || "",
           rate_60: therapist.rate_60?.toString() || "",
           rate_90: therapist.rate_90?.toString() || "",
         });
@@ -176,7 +176,7 @@ export default function TherapistDetail() {
         minimum_guarantee:
           Object.keys(minimumGuarantee).length > 0 ? minimumGuarantee : null,
         minimum_guarantee_active: minimumGuaranteeActive,
-        rate_45: parseFloat(values.rate_45),
+        rate_75: parseFloat(values.rate_75),
         rate_60: parseFloat(values.rate_60),
         rate_90: parseFloat(values.rate_90),
       };
