@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { bookingHasSavedCard } from "../_shared/client-booking-summary.ts";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 import { sendSms } from "../_shared/send-sms.ts";
@@ -46,10 +47,11 @@ serve(async (req) => {
         therapist_id,
         total_price,
         payment_status,
+        client_type,
         short_token,
         customer_id,
         language,
-        hotels(organization_id, address, postal_code, city, country, contact_email, organizations(name))
+        hotels(organization_id, address, postal_code, city, country, contact_email, currency, organizations(name))
       `)
       .eq('id', bookingId)
       .single();
@@ -258,23 +260,43 @@ serve(async (req) => {
     // par stripe-webhook au moment du paiement (Gate status === 'confirmed').
     const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing'];
     const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
+    const hasSavedCard = await bookingHasSavedCard(supabase, bookingId);
+    const isExternal = (booking as any).client_type === 'external';
+    const paymentPending = ['pending', 'awaiting_payment'].includes((booking as any).payment_status);
+    const clientPaymentEngaged = isPaidEnough || hasSavedCard;
 
     // 3. Send to client (only once payment is engaged)
     let clientEmailOk = false;
-    if (booking.client_email && isPaidEnough) {
-      const { error: emailError } = await sendEmail({
-        to: booking.client_email,
-        subject: clientLanguage === 'en'
-          ? `✅ Your appointment is confirmed · ${clientFormattedDate}`
-          : `✅ Votre RDV est confirmé · ${clientFormattedDate}`,
-        templateId: clientLanguage === 'en'
-          ? BOOKING_CONFIRMED_TEMPLATE_ID_EN
-          : BOOKING_CONFIRMED_TEMPLATE_ID,
-        templateVariables: {
-          ...templateVariables,
-          booking_date: `${clientFormattedDate} ${formattedTime}`.trim(),
+    if (!booking.client_email) {
+      console.log('[notify-booking-confirmed] Client confirmation email skipped — no email');
+    } else if (isExternal && (booking as any).payment_status === 'paid') {
+      console.log('[notify-booking-confirmed] Client confirmation email skipped — external already paid (webhook sent)');
+    } else if (isExternal && paymentPending && !hasSavedCard) {
+      console.log('[notify-booking-confirmed] Client confirmation email skipped — external unpaid, admin will send payment link');
+    } else if (clientPaymentEngaged) {
+      const venueCurrency = ((venue as any)?.currency || 'eur').toUpperCase();
+      const { error: emailError } = await supabase.functions.invoke('send-booking-confirmation', {
+        body: {
+          email: booking.client_email,
+          bookingId: booking.id,
+          bookingNumber: String(booking.booking_id ?? ''),
+          clientName: `${booking.client_first_name ?? ''} ${booking.client_last_name ?? ''}`.trim(),
+          hotelName: booking.hotel_name ?? '',
+          roomNumber: booking.room_number ? String(booking.room_number) : '',
+          bookingDate: booking.booking_date,
+          bookingTime: formattedTime,
+          treatments: treatments.map((t) => ({
+            name: t.name,
+            price: Number(t.price) || 0,
+            isPriceOnRequest: false,
+          })),
+          totalPrice: Number(booking.total_price) || treatmentPrice,
+          currency: venueCurrency,
+          siteUrl,
+          isQuotePending: false,
+          isPendingBooking: false,
+          language: clientLanguage,
         },
-        audit: { bookingId: booking.id, emailType: 'booking_confirmed', metadata: { booking_number: booking.booking_id } },
       });
 
       if (emailError) {
@@ -287,6 +309,7 @@ serve(async (req) => {
       console.log('[notify-booking-confirmed] Client confirmation email skipped', {
         hasEmail: !!booking.client_email,
         isPaidEnough,
+        hasSavedCard,
         payment_status: (booking as any).payment_status,
       });
     }
@@ -294,7 +317,7 @@ serve(async (req) => {
     // 3bis. Send SMS to client when booking transitions to confirmed
     // (therapist accepted). Même garde de paiement que l'email ci-dessus.
     const clientPhone: string = (booking as any).phone ?? (booking as any).client_phone ?? '';
-    if (clientPhone && clientEmailOk && isPaidEnough) {
+    if (clientPhone && clientEmailOk && clientPaymentEngaged) {
       try {
         const firstName = booking.client_first_name ?? '';
         const shortToken = (booking as any).short_token;
@@ -318,7 +341,7 @@ serve(async (req) => {
       }
     } else {
       console.log('[notify-booking-confirmed][sms] SMS skipped', {
-        hasPhone: !!clientPhone, clientEmailOk, isPaidEnough,
+        hasPhone: !!clientPhone, clientEmailOk, clientPaymentEngaged,
         payment_status: (booking as any).payment_status,
       });
     }

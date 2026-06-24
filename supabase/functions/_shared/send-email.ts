@@ -55,7 +55,13 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     return { error: "RESEND_API_KEY is not configured" };
   }
 
-  const isLocal = Deno.env.get("IS_LOCAL") === "true";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const siteUrl = Deno.env.get("SITE_URL") ?? "";
+  const isLocal =
+    Deno.env.get("IS_LOCAL") === "true" ||
+    /kong|127\.0\.0\.1|localhost/.test(supabaseUrl) ||
+    /localhost|127\.0\.0\.1/.test(siteUrl) ||
+    (Deno.env.get("SUPABASE_ANON_KEY") ?? "").includes("supabase-demo");
   const intendedRecipients = Array.isArray(options.to) ? options.to : [options.to];
   const to = isLocal ? ["romainthierryom@gmail.com"] : intendedRecipients;
   const from = isLocal

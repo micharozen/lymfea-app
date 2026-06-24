@@ -25,8 +25,10 @@ type IncomingTreatment =
 const i18n = {
   fr: {
     statusConfirmed: 'RÉSERVATION CONFIRMÉE',
+    statusPending: 'DEMANDE ENREGISTRÉE',
     statusQuote: 'DEVIS DEMANDÉ',
     greetingConfirmed: `Votre expérience bien-être a bien été confirmée. Nous avons hâte de vous accueillir.`,
+    greetingPending: `Nous avons bien reçu votre demande de réservation. Un thérapeute confirmera votre créneau sous peu.`,
     greetingQuote: `Nous avons bien reçu votre demande et vous enverrons un devis personnalisé très prochainement.`,
     yourReservation: 'Votre réservation',
     labelDate: 'Date',
@@ -41,8 +43,10 @@ const i18n = {
   },
   en: {
     statusConfirmed: 'BOOKING CONFIRMED',
+    statusPending: 'REQUEST RECEIVED',
     statusQuote: 'QUOTE REQUESTED',
     greetingConfirmed: `Your wellness experience has been successfully confirmed. We look forward to welcoming you.`,
+    greetingPending: `We've received your booking request. A therapist will confirm your slot shortly.`,
     greetingQuote: `We've received your request and will send you a personalised quote very soon.`,
     yourReservation: 'Your reservation',
     labelDate: 'Date',
@@ -70,6 +74,7 @@ function generateBookingConfirmationHtml({
   currency,
   siteUrl,
   isQuotePending,
+  isPendingBooking = false,
   language = 'fr',
   venueType = 'hotel'
 }: {
@@ -85,6 +90,7 @@ function generateBookingConfirmationHtml({
   currency: string;
   siteUrl: string;
   isQuotePending: boolean;
+  isPendingBooking?: boolean;
   language?: 'fr' | 'en';
   venueType?: 'hotel' | 'coworking' | 'enterprise';
 }) {
@@ -95,8 +101,12 @@ function generateBookingConfirmationHtml({
   const safeCurrency = (currency || 'EUR').toUpperCase();
   const hasOnQuoteItems = treatments.some(tr => tr.isPriceOnRequest);
 
-  const statusLabel = isQuotePending ? t.statusQuote : t.statusConfirmed;
-  const greeting = isQuotePending ? t.greetingQuote : t.greetingConfirmed;
+  const statusLabel = isPendingBooking
+    ? t.statusPending
+    : (isQuotePending ? t.statusQuote : t.statusConfirmed);
+  const greeting = isPendingBooking
+    ? t.greetingPending
+    : (isQuotePending ? t.greetingQuote : t.greetingConfirmed);
 
   const treatmentsRows = treatments.map(tr => {
     const name = tr?.name || 'Service';
@@ -245,13 +255,14 @@ serve(async (req) => {
       currency,
       siteUrl: siteUrlFromBody,
       isQuotePending = false,
+      isPendingBooking = false,
       language = 'fr',
       venueType = 'hotel'
     } = await req.json();
 
     const lang: 'fr' | 'en' = language === 'en' ? 'en' : 'fr';
 
-    console.log('Sending booking confirmation email to:', email, '| isQuotePending:', isQuotePending, '| language:', lang);
+    console.log('Sending booking confirmation email to:', email, '| isQuotePending:', isQuotePending, '| isPendingBooking:', isPendingBooking, '| language:', lang);
 
     // Prefer the app URL coming from the checkout metadata/webhook, fallback to env
     const siteUrl =
@@ -294,13 +305,14 @@ serve(async (req) => {
       currency: normalizedCurrency,
       siteUrl,
       isQuotePending,
+      isPendingBooking,
       language: lang,
       venueType,
     });
 
     const subjectPrefix = lang === 'fr'
-      ? (isQuotePending ? 'Demande de devis' : 'Réservation confirmée')
-      : (isQuotePending ? 'Quote Request' : 'Booking Confirmed');
+      ? (isPendingBooking ? 'Demande de réservation' : (isQuotePending ? 'Demande de devis' : 'Réservation confirmée'))
+      : (isPendingBooking ? 'Booking request' : (isQuotePending ? 'Quote Request' : 'Booking Confirmed'));
 
     const clientResult = await sendEmail({
       to: email,

@@ -525,7 +525,7 @@ export default function EditBookingDialog({
 
   const updateMutation = useMutation({
     mutationFn: async (bookingData: any) => {
-      if (!booking?.id) return { wasAssigned: false };
+      if (!booking?.id) return { wasAssigned: false, therapistChanged: false, becameConfirmed: false };
 
       const therapist = therapists?.find((h) => h.id === bookingData.therapist_id);
 
@@ -540,6 +540,8 @@ export default function EditBookingDialog({
         newStatus = "confirmed";
         assignedAt = new Date().toISOString();
       }
+
+      const becameConfirmed = booking.status === "pending" && newStatus === "confirmed";
 
       if (bookingData.therapist_id && booking.therapist_id &&
           bookingData.therapist_id !== booking.therapist_id &&
@@ -615,16 +617,23 @@ export default function EditBookingDialog({
         }
       }
 
-      return { wasAssigned, therapistChanged };
+      return { wasAssigned, therapistChanged, becameConfirmed };
     },
     onSuccess: async (result) => {
-      if ((result?.wasAssigned || result?.therapistChanged) && booking?.id) {
+      if (booking?.id) {
         try {
-          await invokeEdgeFunction('trigger-new-booking-notifications', {
-            body: { bookingId: booking.id }
-          });
+          if (result?.becameConfirmed) {
+            // Mirrors PWA accept: client + admin emails, SMS, push to all duo therapists.
+            await invokeEdgeFunction('notify-booking-confirmed', {
+              body: { bookingId: booking.id },
+            });
+          } else if (result?.wasAssigned || result?.therapistChanged) {
+            await invokeEdgeFunction('trigger-new-booking-notifications', {
+              body: { bookingId: booking.id },
+            });
+          }
         } catch (notifError) {
-          console.error("Error sending push notification:", notifError);
+          console.error("Error sending notification:", notifError);
         }
       }
 
