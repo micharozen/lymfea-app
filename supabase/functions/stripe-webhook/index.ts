@@ -390,7 +390,7 @@ serve(async (req) => {
         const { data: therapistRow } = booking.therapist_id
           ? await supabase
               .from('therapists')
-              .select('rate_45, rate_60, rate_90')
+              .select('rate_60, rate_75, rate_90')
               .eq('id', booking.therapist_id)
               .maybeSingle()
           : { data: null };
@@ -422,7 +422,7 @@ serve(async (req) => {
           const therapistEarned = computeTherapistEarnings(
             therapistRow
               ? {
-                  rate_45: therapistRow.rate_45 ?? null,
+                  rate_75: therapistRow.rate_75 ?? null,
                   rate_60: therapistRow.rate_60 ?? null,
                   rate_90: therapistRow.rate_90 ?? null,
                 }
@@ -511,7 +511,7 @@ serve(async (req) => {
           .from('bookings')
           .select(`
             *,
-            therapist:therapists(id, stripe_account_id, rate_45, rate_60, rate_90),
+            therapist:therapists(id, stripe_account_id, rate_60, rate_75, rate_90),
             hotel:hotels(vat),
             booking_treatments(treatment_menus(duration))
           `)
@@ -533,7 +533,7 @@ serve(async (req) => {
         const earnedAmount = computeTherapistEarnings(
           booking.therapist
             ? {
-                rate_45: booking.therapist.rate_45 ?? null,
+                rate_75: booking.therapist.rate_75 ?? null,
                 rate_60: booking.therapist.rate_60 ?? null,
                 rate_90: booking.therapist.rate_90 ?? null,
               }

@@ -270,26 +270,26 @@ export function TherapistGeneralTab({
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Wallet className="h-4 w-4 text-emerald-500" />
-            Finance
+            {t("admin:therapists.finance", "Finance")}
           </CardTitle>
           <CardDescription>
-            Taux par durée de soin, utilisé quand le lieu n'applique pas de commission globale
+            {t("admin:therapists.financeDesc", "Taux par durée de soin, utilisé quand le lieu n'applique pas de commission globale")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {([
-            { name: "rate_45" as const, label: "45 min" },
-            { name: "rate_60" as const, label: "1 heure" },
-            { name: "rate_90" as const, label: "1h30" },
-          ]).map(({ name, label }) => (
+            { name: "rate_60" as const, labelKey: "admin:therapists.rate60Label" as const, fallback: "1h00" },
+            { name: "rate_75" as const, labelKey: "admin:therapists.rate75Label" as const, fallback: "1h15" },
+            { name: "rate_90" as const, labelKey: "admin:therapists.rate90Label" as const, fallback: "1h30" },
+          ]).map(({ name, labelKey, fallback }) => (
             <FormField
               key={name}
               control={form.control}
               name={name}
               render={({ field }) => (
                 <FormItem className="flex items-center gap-3">
-                  <FormLabel className="w-16 text-sm text-muted-foreground shrink-0 mt-2">
-                    {label}
+                  <FormLabel className="w-20 text-sm text-muted-foreground shrink-0 mt-2">
+                    {t(labelKey, fallback)}
                   </FormLabel>
                   <FormControl>
                     <div className="relative w-32">
@@ -312,7 +312,7 @@ export function TherapistGeneralTab({
             />
           ))}
           <p className="text-xs text-muted-foreground pt-1">
-            Montant fixe versé au thérapeute par soin. Pour les durées hors palier, calcul proportionnel depuis le taux 1 heure.
+            {t("admin:therapists.rateHint", "Montant fixe versé au thérapeute par soin. Pour les durées hors palier, calcul proportionnel entre les paliers configurés.")}
           </p>
         </CardContent>
       </Card>

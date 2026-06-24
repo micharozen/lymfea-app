@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -2533,7 +2533,7 @@ export type Database = {
           password_set: boolean | null
           phone: string
           profile_image: string | null
-          rate_45: number | null
+          rate_75: number | null
           rate_60: number | null
           rate_90: number | null
           skills: string[] | null
@@ -2558,7 +2558,7 @@ export type Database = {
           password_set?: boolean | null
           phone: string
           profile_image?: string | null
-          rate_45?: number | null
+          rate_75?: number | null
           rate_60?: number | null
           rate_90?: number | null
           skills?: string[] | null
@@ -2583,7 +2583,7 @@ export type Database = {
           password_set?: boolean | null
           phone?: string
           profile_image?: string | null
-          rate_45?: number | null
+          rate_75?: number | null
           rate_60?: number | null
           rate_90?: number | null
           skills?: string[] | null

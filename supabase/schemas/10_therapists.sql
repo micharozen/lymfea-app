@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS "public"."therapists" (
     "minimum_guarantee" "jsonb" DEFAULT '{}'::"jsonb",
     "minimum_guarantee_active" boolean DEFAULT false,
     "hourly_rate" numeric(8,2) DEFAULT NULL::numeric,
-    "rate_45" numeric,
     "rate_60" numeric,
+    "rate_75" numeric,
     "rate_90" numeric,
     "gender" "text",
     CONSTRAINT "therapists_gender_check" CHECK (("gender" = ANY (ARRAY['female'::"text", 'male'::"text"])))
@@ -27,9 +27,9 @@ CREATE TABLE IF NOT EXISTS "public"."therapists" (
 
 ALTER TABLE "public"."therapists" OWNER TO "postgres";
 
-COMMENT ON COLUMN "public"."therapists"."rate_45" IS 'Fixed therapist payout for a 45-minute treatment';
-
 COMMENT ON COLUMN "public"."therapists"."rate_60" IS 'Fixed therapist payout for a 60-minute treatment';
+
+COMMENT ON COLUMN "public"."therapists"."rate_75" IS 'Fixed therapist payout for a 75-minute treatment';
 
 COMMENT ON COLUMN "public"."therapists"."rate_90" IS 'Fixed therapist payout for a 90-minute treatment';
 

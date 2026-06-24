@@ -64,8 +64,7 @@ interface Booking {
   payment_method?: string | null;
   therapist_commission?: number;
   global_therapist_commission?: boolean;
-  therapist_hourly_rate?: number | null;
-  therapist_rate_45?: number | null;
+  therapist_rate_75?: number | null;
   therapist_rate_60?: number | null;
   therapist_rate_90?: number | null;
   hotel_currency?: string;
@@ -253,18 +252,18 @@ const PwaBookingDetail = () => {
       // Toujours charger les taux du thérapeute CONNECTÉ (pas du thérapeute primaire).
       // Pour un soin duo, chaque thérapeute doit voir ses propres revenus.
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      let rates = { hr: null as number | null, r45: null as number | null, r60: null as number | null, r90: null as number | null };
+      let therapistRates = { rate_60: null as number | null, rate_75: null as number | null, rate_90: null as number | null };
       let myTherapistId: string | null = null;
       if (authUser) {
         const { data: myT } = await supabase
           .from("therapists")
-          .select("id, hourly_rate, rate_45, rate_60, rate_90")
+          .select("id, rate_60, rate_75, rate_90")
           .eq("user_id", authUser.id)
           .single();
         if (myT) {
           myTherapistId = myT.id;
           if (isMountedRef.current) setMyTherapistId(myT.id);
-          rates = { hr: myT.hourly_rate, r45: myT.rate_45, r60: myT.rate_60, r90: myT.rate_90 };
+          therapistRates = { rate_60: myT.rate_60, rate_75: myT.rate_75, rate_90: myT.rate_90 };
         }
       }
 
@@ -296,10 +295,9 @@ const PwaBookingDetail = () => {
         hotel_vat: hotelData?.vat || 20,
         therapist_commission: hotelData?.therapist_commission || 70,
         global_therapist_commission: hotelData?.global_therapist_commission === true,
-        therapist_hourly_rate: rates.hr,
-        therapist_rate_45: rates.r45,
-        therapist_rate_60: rates.r60,
-        therapist_rate_90: rates.r90,
+        therapist_rate_75: therapistRates.rate_75,
+        therapist_rate_60: therapistRates.rate_60,
+        therapist_rate_90: therapistRates.rate_90,
         hotel_currency: hotelData?.currency || 'EUR',
         venue_type: hotelData?.venue_type || null,
         card_brand: paymentInfo?.card_brand || null,
@@ -633,7 +631,7 @@ const PwaBookingDetail = () => {
   const estimatedEarnings = (() => {
     if (booking.global_therapist_commission === false) {
       return computeTherapistEarnings(
-        { rate_45: booking.therapist_rate_45 ?? null, rate_60: booking.therapist_rate_60 ?? null, rate_90: booking.therapist_rate_90 ?? null },
+        { rate_60: booking.therapist_rate_60 ?? null, rate_75: booking.therapist_rate_75 ?? null, rate_90: booking.therapist_rate_90 ?? null },
         totalDuration,
       ) ?? 0;
     }

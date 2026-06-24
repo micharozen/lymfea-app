@@ -255,7 +255,7 @@ payments.post("/finalize", async (c) => {
       hotels(name, vat, hotel_commission, currency, venue_type),
       therapists(
         first_name, last_name, stripe_account_id,
-        hourly_rate, rate_45, rate_60, rate_90
+        rate_60, rate_75, rate_90
       )
     `
     )
