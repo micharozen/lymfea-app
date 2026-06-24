@@ -6,13 +6,35 @@ import TabBar from "./TabBar";
 import { setNotificationClickHandler, getPendingNotificationUrl } from "@/hooks/useOneSignal";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { isTherapistPending } from "@/hooks/useRoleRedirect";
+import { useScheduleCompleteness } from "@/hooks/pwa/useScheduleCompleteness";
 
 const PwaLayout = () => {
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [therapistId, setTherapistId] = useState<string | null>(null);
   const location = useLocation();
   const queryClient = useQueryClient();
   const isMountedRef = useIsMounted();
+  const { data: scheduleCompleteness } = useScheduleCompleteness(therapistId);
+
+  useEffect(() => {
+    const loadTherapistId = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("therapists")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (data?.id) setTherapistId(data.id);
+    };
+
+    loadTherapistId();
+  }, []);
 
   // Scroll to top on every route change - use useLayoutEffect for immediate execution
   useLayoutEffect(() => {
@@ -220,7 +242,12 @@ const PwaLayout = () => {
         <Outlet />
       </main>
       
-      {shouldShowTabBar && <TabBar unreadCount={unreadCount} />}
+      {shouldShowTabBar && (
+        <TabBar
+          unreadCount={unreadCount}
+          scheduleIncomplete={scheduleCompleteness?.isIncomplete ?? false}
+        />
+      )}
     </div>
   );
 };

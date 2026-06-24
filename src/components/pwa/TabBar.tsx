@@ -4,9 +4,10 @@ import { Home, BarChart3, Bell, Plus, Calendar } from "lucide-react";
 
 interface TabBarProps {
   unreadCount?: number;
+  scheduleIncomplete?: boolean;
 }
 
-const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
+const TabBar = ({ unreadCount = 0, scheduleIncomplete = false }: TabBarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation('pwa');
@@ -62,12 +63,17 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
 
           <button
             onClick={() => handleNavigation("/pwa/bookings")}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
+            className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all relative"
           >
-            <Calendar
-              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/bookings") ? "text-primary" : "text-muted-foreground"}`}
-              strokeWidth={isActive("/pwa/bookings") ? 2.5 : 1.5}
-            />
+            <div className="relative">
+              <Calendar
+                className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/bookings") ? "text-primary" : "text-muted-foreground"}`}
+                strokeWidth={isActive("/pwa/bookings") ? 2.5 : 1.5}
+              />
+              {scheduleIncomplete && (
+                <span className="absolute -top-1 -right-1.5 bg-amber-500 rounded-full w-2 h-2" />
+              )}
+            </div>
             <span className={`text-[10px] transition-colors ${isActive("/pwa/bookings") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
               {t('tabs.agenda')}
             </span>

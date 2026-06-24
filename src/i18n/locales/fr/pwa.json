@@ -86,7 +86,9 @@
     "slots": "{{count}} créneaux",
     "todayAppointments": "RDV aujourd'hui",
     "todayHours": "Heures aujourd'hui",
-    "todayEarnings": "Gains aujourd'hui"
+    "todayEarnings": "Gains aujourd'hui",
+    "scheduleReminderTitle": "Déclarez vos disponibilités",
+    "scheduleReminderDesc": "Pour que l'équipe sache qui peut accepter vos prochaines demandes."
   },
   "booking": {
     "details": "Détails de la réservation",
@@ -293,6 +295,10 @@
         "heading": "Consultez votre agenda",
         "subtitle": "Vos prochains rendez-vous sont regroupés par jour dans l'agenda. Vous voyez d'un coup d'œil le lieu, la salle de soin et le client."
       },
+      "schedule": {
+        "heading": "Déclarez vos disponibilités",
+        "subtitle": "Depuis l'agenda, appuyez sur « Mes disponibilités » pour configurer votre semaine type et bloquer vos absences."
+      },
       "addTreatment": {
         "heading": "Ajoutez un soin pendant un rendez-vous",
         "subtitle": "Pendant une prestation, vous pouvez proposer un soin supplémentaire depuis le détail de la réservation. Le client est débité automatiquement et le nouveau soin apparaît dans votre agenda."
@@ -343,6 +349,11 @@
     "wallet": "Wallet",
     "agenda": "Agenda",
     "stats": "Stats"
+  },
+  "bookings": {
+    "title": "Agenda",
+    "editSchedule": "Mes disponibilités",
+    "scheduleIncomplete": "Mettez à jour vos dispos pour les 2 prochaines semaines"
   },
   "statistics": {
     "title": "Statistiques",
@@ -563,7 +574,21 @@
     "confirmDelete": "Oui, supprimer",
     "upcoming": "À venir",
     "past": "Passées",
-    "blocked": "Bloqué"
+    "blocked": "Bloqué",
+    "actionBanner": {
+      "noTemplateTitle": "Configurez votre semaine type",
+      "noTemplateDesc": "Définissez vos jours et créneaux habituels pour que l'équipe sache quand vous pouvez accepter des demandes.",
+      "configureTemplate": "Configurer mon modèle hebdomadaire",
+      "applyTitle": "Appliquez votre modèle à {{month}}",
+      "applyDesc": "Votre modèle est prêt mais pas encore appliqué aux prochaines semaines.",
+      "applyNow": "Appliquer maintenant",
+      "reviewTemplate": "Voir le modèle hebdomadaire",
+      "partialTitle": "{{count}}/{{total}} prochains jours déclarés",
+      "partialDesc": "Le modèle hebdo doit être appliqué au calendrier pour remplir vos jours de travail.",
+      "complete": "Compléter",
+      "reviewMonthly": "Voir le calendrier",
+      "updateAvailability": "Mettre à jour mes disponibilités"
+    }
   },
   "bundleSession": "Séance cure",
   "bundleUsed": "Payé via cure",

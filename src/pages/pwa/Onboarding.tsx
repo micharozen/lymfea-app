@@ -16,6 +16,7 @@ import {
   CalendarDays,
   Sparkles,
   Inbox,
+  CalendarClock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { brand, brandLogos } from "@/config/brand";
@@ -28,9 +29,10 @@ type Step =
   | "notifications"
   | "tour-bookings"
   | "tour-agenda"
+  | "tour-schedule"
   | "tour-addTreatment";
 
-const TOTAL_STEPS = 6; // password, photo, notifications, 3 tour slides
+const TOTAL_STEPS = 7; // password, photo, notifications, 4 tour slides
 
 const STEP_NUMBER: Record<Step, number> = {
   welcome: 0,
@@ -39,7 +41,8 @@ const STEP_NUMBER: Record<Step, number> = {
   notifications: 3,
   "tour-bookings": 4,
   "tour-agenda": 5,
-  "tour-addTreatment": 6,
+  "tour-schedule": 6,
+  "tour-addTreatment": 7,
 };
 
 const PwaOnboarding = () => {
@@ -491,6 +494,20 @@ const PwaOnboarding = () => {
         subtitle={t("onboarding.tour.agenda.subtitle")}
         progress={<ProgressIndicator />}
         onBack={() => setStep("tour-bookings")}
+        onNext={() => setStep("tour-schedule")}
+        nextLabel={t("onboarding.tour.next")}
+      />
+    );
+  }
+
+  if (step === "tour-schedule") {
+    return (
+      <TourSlide
+        icon={<CalendarClock className="h-10 w-10 text-primary" />}
+        title={t("onboarding.tour.schedule.heading")}
+        subtitle={t("onboarding.tour.schedule.subtitle")}
+        progress={<ProgressIndicator />}
+        onBack={() => setStep("tour-agenda")}
         onNext={() => setStep("tour-addTreatment")}
         nextLabel={t("onboarding.tour.next")}
       />
@@ -504,7 +521,7 @@ const PwaOnboarding = () => {
       title={t("onboarding.tour.addTreatment.heading")}
       subtitle={t("onboarding.tour.addTreatment.subtitle")}
       progress={<ProgressIndicator />}
-      onBack={() => setStep("tour-agenda")}
+      onBack={() => setStep("tour-schedule")}
       onNext={handleFinish}
       nextLabel={t("onboarding.tour.finish")}
     />
