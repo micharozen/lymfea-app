@@ -3,6 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
 import { initErrorTracking } from "./lib/logger";
+import { reloadWithCacheBust } from "./lib/reload";
 
 initErrorTracking();
 
@@ -59,8 +60,8 @@ const handleChunkError = (source: string) => {
     lastTime: now
   }));
   
-  // Hard reload
-  window.location.reload();
+  // Safari iOS can reuse stale module responses on a plain reload.
+  reloadWithCacheBust();
 };
 
 // Listen for Vite preload errors
