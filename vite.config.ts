@@ -109,6 +109,7 @@ export default defineConfig(({ mode }) => ({
         // Do not precache app-shell build assets. Hash-named JS/CSS/HTML can
         // become stale across deploys and trigger dynamic import failures.
         globPatterns: ['**/*.{ico,png,svg,woff,woff2,webmanifest}'],
+        navigateFallback: null,
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallbackDenylist: [
           /\.js$/,
