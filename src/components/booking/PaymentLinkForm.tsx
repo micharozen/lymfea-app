@@ -13,7 +13,7 @@ import {
   AlertCircle,
   Copy,
 } from "lucide-react";
-import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
+import { invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/formatPrice";
 
@@ -95,11 +95,12 @@ export function PaymentLinkForm({
       setIsGenerating(true);
       setGenerateError(null);
       try {
-        const { data, error } = await invokeEdgeFunction<
-          { bookingId: string; language: Language; mode: 'generate' },
+        const { data, error } = await invokeStripe<
           { success: boolean; paymentLinkUrl: string }
         >("send-payment-link", {
-          body: { bookingId: booking.id, language: 'fr', mode: 'generate' },
+          bookingId: booking.id,
+          language: "fr",
+          mode: "generate",
         });
         if (cancelled) return;
         if (error) {
@@ -155,9 +156,9 @@ export function PaymentLinkForm({
     setIsSending(true);
     setResult(null);
 
-    const channels: ("email" | "sms")[] = [];
+    const channels: ("email" | "whatsapp")[] = [];
     if (sendEmail) channels.push("email");
-    if (sendSms) channels.push("sms");
+    if (sendSms) channels.push("whatsapp");
 
     try {
       const { data, error } = await invokeStripe<{
@@ -185,7 +186,7 @@ export function PaymentLinkForm({
         setResult({
           success: true,
           emailSent: data.emailSent,
-          smsSent: data.smsSent,
+          smsSent: data.whatsappSent,
           paymentLinkUrl: data.paymentLinkUrl,
         });
         toast({

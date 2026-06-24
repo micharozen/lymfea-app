@@ -1,19 +1,16 @@
 import { brand } from "../../_shared/brand.ts";
+import { ensurePaymentLinkForBooking } from "../../_shared/client-booking-summary.ts";
+import { sendPaymentLinkEmail } from "../../_shared/payment-link-email.ts";
 import {
   PaymentLinkTemplateData,
 } from "../../_shared/payment-link-templates.ts";
-import { sendEmail } from "../../_shared/send-email.ts";
 import {
   sendWhatsAppTemplate,
   buildPaymentLinkTemplateMessage,
 } from "../../_shared/whatsapp-meta.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import type { ActionContext } from "../index.ts";
-
-// Resend templates "Booking Payment Link" (FR/EN) — same template variables.
-const PAYMENT_LINK_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
-const PAYMENT_LINK_TEMPLATE_EN = "6ba59c67-04e3-412e-9a84-246aaa7dc570";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,9 +28,11 @@ function jsonResponse(body: unknown, status = 200): Response {
 interface SendPaymentLinkBody {
   bookingId: string;
   language: "fr" | "en";
-  channels: ("email" | "whatsapp")[];
+  channels?: ("email" | "whatsapp")[];
   clientEmail?: string;
   clientPhone?: string;
+  mode?: "generate" | "send";
+  forceResend?: boolean;
 }
 
 function calculateExpirationDate(bookingDate: Date, now: Date): Date {
@@ -60,12 +59,15 @@ export async function handleSendPaymentLink(
   const { body, supabase, stripe: defaultStripe } = ctx;
 
   try {
-    const { bookingId, language, channels, clientEmail, clientPhone } =
+    const { bookingId, language, channels, clientEmail, clientPhone, mode = "send", forceResend } =
       body as SendPaymentLinkBody;
 
-    if (!bookingId || !language || !channels || channels.length === 0) {
+    if (!bookingId || !language) {
+      throw new Error("Missing required fields: bookingId and language");
+    }
+    if (mode === "send" && (!channels || channels.length === 0)) {
       throw new Error(
-        "Missing required fields: bookingId, language, and at least one channel required",
+        "Missing required fields: at least one channel required when mode=send",
       );
     }
     if (!["fr", "en"].includes(language)) {
@@ -89,6 +91,8 @@ export async function handleSendPaymentLink(
         payment_status,
         status,
         payment_method,
+        client_type,
+        payment_link_sent_at,
         hotel_id,
         hotel_name,
         therapist_name
@@ -108,6 +112,24 @@ export async function handleSendPaymentLink(
       const resolved = await getStripeForVenue(supabase, booking.hotel_id);
       stripe = resolved.client;
     }
+
+    if (mode === "generate") {
+      const linkResult = await ensurePaymentLinkForBooking(
+        supabase,
+        bookingId,
+        stripe,
+        language,
+      );
+      if ("error" in linkResult) {
+        throw new Error(linkResult.error);
+      }
+      return jsonResponse({
+        success: true,
+        paymentLinkUrl: linkResult.paymentLinkUrl,
+      });
+    }
+
+    const sendChannels = channels ?? [];
 
     let hotelCurrency = "eur";
     const contactEmail = brand.emails.from.default;
@@ -174,10 +196,10 @@ export async function handleSendPaymentLink(
         .eq("id", bookingId);
     }
 
-    if (channels.includes("email") && !email) {
+    if (sendChannels.includes("email") && !email) {
       throw new Error("Email address required for email channel");
     }
-    if (channels.includes("whatsapp") && !phone) {
+    if (sendChannels.includes("whatsapp") && !phone) {
       throw new Error("Phone number required for WhatsApp channel");
     }
 
@@ -213,41 +235,19 @@ export async function handleSendPaymentLink(
         : `${datePart} at ${timePart}`;
     })();
 
-    const siteUrl = Deno.env.get("SITE_URL") || brand.website;
-    const treatmentNames = treatments.map((t) => t.name).join(", ");
+    const linkResult = await ensurePaymentLinkForBooking(
+      supabase,
+      bookingId,
+      stripe,
+      language,
+    );
+    if ("error" in linkResult) {
+      throw new Error(linkResult.error);
+    }
+    const paymentLinkUrl = email
+      ? `${linkResult.paymentLinkUrl}?prefilled_email=${encodeURIComponent(email)}`
+      : linkResult.paymentLinkUrl;
 
-    const paymentLink = await stripe.paymentLinks.create({
-      line_items: [
-        {
-          price_data: {
-            currency,
-            product_data: {
-              name:
-                language === "fr"
-                  ? `Prestations bien-être ${brand.name}`
-                  : `${brand.name} Wellness Services`,
-              ...(treatmentNames.trim() ? { description: treatmentNames } : {}),
-            },
-            unit_amount: Math.round(totalPrice * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: {
-        booking_id: booking.id,
-        booking_number: booking.booking_id.toString(),
-        hotel_id: booking.hotel_id,
-        source: "payment_link",
-      },
-      after_completion: {
-        type: "redirect",
-        redirect: {
-          url: `${siteUrl}/client/${booking.hotel_id}/confirmation/${booking.id}?payment=success`,
-        },
-      },
-    });
-
-    const stripePaymentLinkId = paymentLink.id;
     const bookingDate = new Date(booking.booking_date);
     const formattedDate =
       language === "fr"
@@ -276,9 +276,7 @@ export async function handleSendPaymentLink(
       bookingNumber: booking.booking_id,
       treatments,
       totalPrice,
-      paymentUrl: email
-        ? `${paymentLink.url}?prefilled_email=${encodeURIComponent(email)}`
-        : paymentLink.url,
+      paymentUrl: paymentLinkUrl,
       currency: currencySymbol,
       expiresAtText,
       contactPhone,
@@ -289,52 +287,33 @@ export async function handleSendPaymentLink(
     const results: { email?: boolean; whatsapp?: boolean; errors: string[] } = {
       errors: [],
     };
-    // Resend id of the payment-link email, stored on the history row so the
-    // "Aperçu" button can fetch the rendered template body on demand.
-    let resendEmailId: string | null = null;
 
-    if (channels.includes("email") && email) {
+    if (sendChannels.includes("email") && email) {
       try {
-        const totalDuration = treatments.reduce(
-          (sum, t) => sum + (t.duration || 60),
-          0,
-        );
-
-        // Variables du template Resend (mêmes clés que trigger-new-booking-notifications)
-        const introText =
-          language === "fr"
-            ? `Bonjour ${booking.client_first_name}, merci pour votre réservation. Pour la confirmer, veuillez procéder au paiement.`
-            : `Hello ${booking.client_first_name}, thank you for your booking. To confirm it, please complete the payment.`;
-
-        const templateVariables: Record<string, string> = {
-          booking_date: templateData.bookingDate,
-          booking_number: String(booking.booking_id ?? ""),
-          booking_time: templateData.bookingTime,
-          expiry_date: expiresAtText,
-          intro_text: introText,
-          payment_url: templateData.paymentUrl,
-          total_price: `${totalPrice}${currencySymbol}`,
-          treatment_duration: `${totalDuration} min`,
-          treatment_name: treatments.map((t) => t.name).filter(Boolean).join(", "),
-          treatment_price: `${totalPrice}${currencySymbol}`,
-          venue_name: templateData.hotelName,
-        };
-
-        const templateId =
-          language === "fr" ? PAYMENT_LINK_TEMPLATE_FR : PAYMENT_LINK_TEMPLATE_EN;
-
-        // Pas de subject : on laisse celui défini dans le template Resend.
-        const emailResult = await sendEmail({
-          to: email,
-          templateId,
-          templateVariables,
+        const emailResult = await sendPaymentLinkEmail({
+          supabase,
+          bookingId,
+          language,
+          forceResend: !!forceResend,
+          clientEmail: email,
+          prepared: {
+            paymentLinkUrl: linkResult.paymentLinkUrl,
+            templateData,
+            isExternal: booking.client_type === "external",
+            paymentLinkSentAt: booking.payment_link_sent_at,
+          },
         });
 
-        if (emailResult.error) {
-          throw new Error(emailResult.error);
+        if (!emailResult.success) {
+          throw new Error(emailResult.error || emailResult.skipped || "Email failed");
         }
-        results.email = true;
-        resendEmailId = emailResult.id ?? null;
+        if (emailResult.skipped === "payment_link_already_sent" && !forceResend) {
+          results.email = true;
+        } else if (emailResult.emailSent) {
+          results.email = true;
+        } else if (emailResult.skipped === "already_paid") {
+          throw new Error("Booking is already paid");
+        }
       } catch (emailError) {
         const msg =
           emailError instanceof Error ? emailError.message : "Unknown error";
@@ -342,7 +321,7 @@ export async function handleSendPaymentLink(
       }
     }
 
-    if (channels.includes("whatsapp") && phone) {
+    if (sendChannels.includes("whatsapp") && phone) {
       try {
         const treatmentsList = treatments.map((t) => t.name).join(", ");
         const therapistName =
@@ -361,7 +340,7 @@ export async function handleSendPaymentLink(
           templateData.bookingNumber,
           treatmentsList,
           `${totalPrice}${currencySymbol}`,
-          paymentLink.url,
+          linkResult.paymentLinkUrl,
         );
 
         const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
@@ -383,28 +362,31 @@ export async function handleSendPaymentLink(
       }
     }
 
-    await supabase
-      .from("bookings")
-      .update({
-        payment_link_url: paymentLink.url,
-        payment_link_sent_at: new Date().toISOString(),
-        payment_link_channels: channels.filter(
-          (c) =>
-            (c === "email" && results.email) ||
-            (c === "whatsapp" && results.whatsapp),
-        ),
-        payment_link_language: language,
-      })
-      .eq("id", bookingId);
-
-    await supabase.from("booking_payment_infos").upsert(
-      {
-        booking_id: bookingId,
-        payment_link_stripe_id: stripePaymentLinkId,
-        payment_link_expires_at: expiresAt.toISOString(),
-      },
-      { onConflict: "booking_id" },
+    const sentChannels = sendChannels.filter(
+      (c) =>
+        (c === "email" && results.email) ||
+        (c === "whatsapp" && results.whatsapp),
     );
+
+    if (sentChannels.length > 0) {
+      await supabase
+        .from("bookings")
+        .update({
+          payment_link_url: linkResult.paymentLinkUrl,
+          payment_link_sent_at: new Date().toISOString(),
+          payment_link_channels: sentChannels,
+          payment_link_language: language,
+        })
+        .eq("id", bookingId);
+
+      await supabase.from("booking_payment_infos").upsert(
+        {
+          booking_id: bookingId,
+          payment_link_expires_at: expiresAt.toISOString(),
+        },
+        { onConflict: "booking_id" },
+      );
+    }
 
     const atLeastOneSuccess = results.email || results.whatsapp;
     if (!atLeastOneSuccess) {
@@ -427,7 +409,7 @@ export async function handleSendPaymentLink(
         actorUserId = userData?.user?.id ?? null;
       }
 
-      const sentChannels = channels.filter(
+      const sentChannels = sendChannels.filter(
         (c) =>
           (c === "email" && results.email) ||
           (c === "whatsapp" && results.whatsapp),
@@ -445,15 +427,14 @@ export async function handleSendPaymentLink(
           language,
           email: results.email ? email : undefined,
           phone: results.whatsapp ? phone : undefined,
-          // Template email body lives at Resend; flag drives the "Aperçu" button.
-          has_preview: resendEmailId != null,
+          has_preview: results.email === true,
         },
         source: "admin",
         metadata: {
           booking_id: booking.booking_id,
-          payment_link_url: paymentLink.url,
+          payment_link_url: linkResult.paymentLinkUrl,
         },
-        resend_email_id: resendEmailId,
+        resend_email_id: null,
       });
     } catch (auditError) {
       console.warn("[SEND-PAYMENT-LINK] Failed to write audit log:", auditError);
@@ -461,7 +442,7 @@ export async function handleSendPaymentLink(
 
     return jsonResponse({
       success: true,
-      paymentLinkUrl: paymentLink.url,
+      paymentLinkUrl: linkResult.paymentLinkUrl,
       emailSent: results.email || false,
       whatsappSent: results.whatsapp || false,
       expiresAt: expiresAt.toISOString(),
