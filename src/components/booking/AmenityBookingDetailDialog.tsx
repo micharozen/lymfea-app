@@ -81,7 +81,7 @@ export function AmenityBookingDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" overlayClassName="bg-black/40 backdrop-blur-sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {Icon && <Icon className="h-5 w-5" style={{ color: booking.amenity_color }} />}

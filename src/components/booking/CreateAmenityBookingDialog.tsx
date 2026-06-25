@@ -384,10 +384,7 @@ export function CreateAmenityBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-2xl max-h-[90vh] overflow-y-auto"
-        overlayClassName="bg-black/40 backdrop-blur-sm"
-      >
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditMode ? "Modifier la réservation" : "Réservation commodité"}</DialogTitle>
         </DialogHeader>
