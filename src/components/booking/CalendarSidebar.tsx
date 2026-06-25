@@ -28,6 +28,8 @@ interface CalendarSidebarProps {
   onHideAll: () => void;
   hotels?: Hotel[];
   hotelFilter?: string;
+  showCancelled?: boolean;
+  onToggleCancelled?: () => void;
 }
 
 function SidebarContent({
@@ -38,6 +40,8 @@ function SidebarContent({
   onHideAll,
   hotels,
   hotelFilter,
+  showCancelled,
+  onToggleCancelled,
 }: CalendarSidebarProps) {
   const hasCalendarList = entries.length > 1;
   return (
@@ -114,6 +118,8 @@ function SidebarContent({
         <CalendarLegend
           hotels={hotels}
           hotelFilter={hotelFilter}
+          showCancelled={showCancelled}
+          onToggleCancelled={onToggleCancelled}
           className={hasCalendarList ? "border-t mt-2" : ""}
         />
       </div>
