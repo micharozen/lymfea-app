@@ -37,7 +37,7 @@ import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities"
 
 const formSchema = z.object({
   venue_amenity_id: z.string().min(1, "Sélectionnez une commodité"),
-  client_type: z.enum(["external", "internal", "lymfea"]),
+  client_type: z.enum(["external", "internal", "lymfea", "sezame"]),
   first_name: z.string().min(1, "Prénom requis"),
   last_name: z.string().optional(),
   phone: z.string().min(1, "Téléphone requis"),
@@ -413,6 +413,7 @@ export function CreateAmenityBookingDialog({
                         <SelectItem value="internal">Interne (hôtel)</SelectItem>
                       )}
                       <SelectItem value="lymfea">Eïa (client soin)</SelectItem>
+                      <SelectItem value="sezame">Sezame</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
