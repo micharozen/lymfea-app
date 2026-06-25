@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Users, Euro, User, X } from "lucide-react";
+import { Clock, Users, Euro, User, X, Pencil } from "lucide-react";
 import { formatPrice } from "@/lib/formatPrice";
 import { getAmenityType, getClientTypeLabel } from "@/lib/amenityTypes";
 import type { AmenityBookingForCalendar } from "@/hooks/booking";
@@ -18,12 +18,15 @@ interface AmenityBookingDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   booking: AmenityBookingForCalendar | null;
+  /** Called when the user chooses to edit this booking. */
+  onEdit?: (booking: AmenityBookingForCalendar) => void;
 }
 
 export function AmenityBookingDetailDialog({
   open,
   onOpenChange,
   booking,
+  onEdit,
 }: AmenityBookingDetailDialogProps) {
   const queryClient = useQueryClient();
 
@@ -78,7 +81,7 @@ export function AmenityBookingDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" overlayClassName="bg-black/40 backdrop-blur-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {Icon && <Icon className="h-5 w-5" style={{ color: booking.amenity_color }} />}
@@ -163,25 +166,37 @@ export function AmenityBookingDetailDialog({
 
           {/* Actions */}
           {isActive && (
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => cancelMutation.mutate(booking.id)}
-                disabled={cancelMutation.isPending}
-                className="text-destructive hover:text-destructive"
-              >
-                <X className="h-3.5 w-3.5 mr-1" />
-                Annuler
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => completeMutation.mutate(booking.id)}
-                disabled={completeMutation.isPending}
-                className="bg-foreground text-background hover:bg-foreground/90"
-              >
-                Terminer
-              </Button>
+            <div className="flex items-center gap-2 pt-2 border-t">
+              {onEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onEdit(booking)}
+                >
+                  <Pencil className="h-3.5 w-3.5 mr-1" />
+                  Modifier
+                </Button>
+              )}
+              <div className="ml-auto flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cancelMutation.mutate(booking.id)}
+                  disabled={cancelMutation.isPending}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Annuler
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => completeMutation.mutate(booking.id)}
+                  disabled={completeMutation.isPending}
+                  className="bg-foreground text-background hover:bg-foreground/90"
+                >
+                  Terminer
+                </Button>
+              </div>
             </div>
           )}
         </div>

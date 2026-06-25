@@ -16,7 +16,7 @@ export interface AmenityBookingForCalendar {
   booking_time: string;
   duration: number;
   end_time: string;
-  client_type: "external" | "internal" | "lymfea";
+  client_type: "external" | "internal" | "lymfea" | "sezame";
   customer: {
     first_name: string;
     last_name: string | null;

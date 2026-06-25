@@ -264,9 +264,9 @@ export function BookingFilters({
         {view === "calendar" && (
           <ButtonGroup>
             {[
-              { count: 1, label: "Jour" },
-              { count: 3, label: "3j" },
-              { count: 7, label: "Semaine" },
+              { count: 1, label: "1J" },
+              { count: 3, label: "3J" },
+              { count: 7, label: "7J" },
             ].map((opt) => (
               <Button
                 key={opt.count}

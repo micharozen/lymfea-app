@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { RefreshCw, Plus } from "lucide-react";
+import { RefreshCw, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -65,6 +65,7 @@ export default function Booking() {
   const [isAmenityCreateOpen, setIsAmenityCreateOpen] = useState(false);
   const [isAmenityDetailOpen, setIsAmenityDetailOpen] = useState(false);
   const [viewedAmenityBooking, setViewedAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
+  const [editingAmenityBooking, setEditingAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
 
   // --- LOGIQUE DE REDIRECTION (ADAPTÉE À LA NOUVELLE PAGE) ---
 useEffect(() => {
@@ -318,13 +319,17 @@ useEffect(() => {
               </Button>
               <Button
                 size="sm"
-                className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700 text-white"
+                className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700 text-white transition-transform duration-100 active:scale-90"
                 onClick={() => setIsAmenityCreateOpen(true)}
               >
-                <Plus className="h-3.5 w-3.5" />
                 Commodité
+                <Waves className="h-3.5 w-3.5 ml-1" />
               </Button>
-              <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="h-8 text-xs">
+              <Button
+                onClick={() => setIsCreateDialogOpen(true)}
+                size="sm"
+                className="h-8 text-xs transition-transform duration-100 active:scale-90"
+              >
                 {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
               </Button>
             </>
@@ -434,10 +439,24 @@ useEffect(() => {
         preselectedTime={selectedTime}
       />
 
+      {/* Edit an existing amenity booking (reuses the create dialog in edit mode) */}
+      <CreateAmenityBookingDialog
+        open={!!editingAmenityBooking}
+        onOpenChange={(o) => {
+          if (!o) setEditingAmenityBooking(null);
+        }}
+        hotelId={editingAmenityBooking?.hotel_id}
+        editBooking={editingAmenityBooking}
+      />
+
       <AmenityBookingDetailDialog
         open={isAmenityDetailOpen}
         onOpenChange={setIsAmenityDetailOpen}
         booking={viewedAmenityBooking}
+        onEdit={(booking) => {
+          setIsAmenityDetailOpen(false);
+          setEditingAmenityBooking(booking);
+        }}
       />
 
       {cancelBooking && (

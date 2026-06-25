@@ -34,6 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Users, Search, Globe, Hotel, Sparkles, KeyRound } from "lucide-react";
 import { getAmenityLabel, getAmenityType, type AmenityClientType } from "@/lib/amenityTypes";
 import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities";
+import type { AmenityBookingForCalendar } from "@/hooks/booking";
 
 const formSchema = z.object({
   venue_amenity_id: z.string().min(1, "Sélectionnez une commodité"),
@@ -75,6 +76,8 @@ interface CreateAmenityBookingDialogProps {
   hotels?: { id: string; name: string }[];
   preselectedDate?: Date;
   preselectedTime?: string;
+  /** When provided, the dialog edits this existing booking instead of creating one. */
+  editBooking?: AmenityBookingForCalendar | null;
 }
 
 export function CreateAmenityBookingDialog({
@@ -86,12 +89,33 @@ export function CreateAmenityBookingDialog({
   hotels,
   preselectedDate,
   preselectedTime,
+  editBooking,
 }: CreateAmenityBookingDialogProps) {
+  const isEditMode = !!editBooking;
   const queryClient = useQueryClient();
 
   // Venue resolution: either a fixed venue (hotelId + venueAmenities) or a picker.
   const hasFixedVenue = !!hotelId && !!venueAmenities;
-  const showVenuePicker = !hasFixedVenue && !!hotels && hotels.length > 0;
+  const isPickerMode = !hasFixedVenue && !!hotels && hotels.length > 0;
+
+  // In picker mode, only offer venues that actually have at least one enabled amenity.
+  const { data: amenityHotelIds } = useQuery({
+    queryKey: ["hotels-with-enabled-amenities"],
+    enabled: isPickerMode,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("venue_amenities")
+        .select("hotel_id")
+        .eq("is_enabled", true);
+      if (error) throw error;
+      return new Set((data ?? []).map((r) => r.hotel_id as string));
+    },
+  });
+  const amenityHotels = amenityHotelIds
+    ? (hotels ?? []).filter((h) => amenityHotelIds.has(h.id))
+    : [];
+  const showVenuePicker = isPickerMode && amenityHotels.length > 0;
   const [pickedHotelId, setPickedHotelId] = useState(hotelId ?? "");
   const effectiveHotelId = hotelId || pickedHotelId;
 
@@ -135,6 +159,23 @@ export function CreateAmenityBookingDialog({
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
+      if (editBooking) {
+        setPickedHotelId(editBooking.hotel_id);
+        form.reset({
+          venue_amenity_id: editBooking.venue_amenity_id,
+          client_type: editBooking.client_type,
+          first_name: editBooking.customer?.first_name ?? "",
+          last_name: editBooking.customer?.last_name ?? "",
+          phone: editBooking.customer?.phone ?? "",
+          email: "",
+          room_number: editBooking.room_number ?? "",
+          num_guests: editBooking.num_guests,
+          booking_date: editBooking.booking_date,
+          booking_time: editBooking.booking_time?.substring(0, 5) || "",
+          notes: editBooking.notes ?? "",
+        });
+        return;
+      }
       setPickedHotelId(hotelId ?? "");
       form.reset({
         venue_amenity_id: enabledAmenities.length === 1 ? enabledAmenities[0].id : "",
@@ -155,7 +196,7 @@ export function CreateAmenityBookingDialog({
   // When the chosen venue changes (picker mode) or its amenities load, keep the
   // amenity selection valid: auto-select if there's exactly one, else clear it.
   useEffect(() => {
-    if (!open) return;
+    if (!open || isEditMode) return;
     form.setValue("venue_amenity_id", enabledAmenities.length === 1 ? enabledAmenities[0].id : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveHotelId, enabledAmenities.length, open]);
@@ -250,8 +291,18 @@ export function CreateAmenityBookingDialog({
     enabled: !!selectedAmenityId && !!bookingDate && !!bookingTime,
   });
 
+  // When editing the same amenity/slot, the occupancy already counts this
+  // booking's guests — credit them back so the booking can keep its places.
+  const ownGuestsInSlot =
+    isEditMode &&
+    editBooking!.venue_amenity_id === selectedAmenityId &&
+    editBooking!.booking_date === bookingDate &&
+    editBooking!.booking_time?.substring(0, 5) === bookingTime
+      ? editBooking!.num_guests
+      : 0;
+
   const remainingCapacity = selectedAmenity
-    ? selectedAmenity.capacity_per_slot - (currentOccupancy || 0)
+    ? selectedAmenity.capacity_per_slot - (currentOccupancy || 0) + ownGuestsInSlot
     : 0;
 
   const createMutation = useMutation({
@@ -279,7 +330,7 @@ export function CreateAmenityBookingDialog({
 
       const endTime = computeEndTime(values.booking_time, amenity.slot_duration);
 
-      const { error } = await supabase.from("amenity_bookings").insert({
+      const payload = {
         hotel_id: effectiveHotelId,
         venue_amenity_id: values.venue_amenity_id,
         booking_date: values.booking_date,
@@ -292,18 +343,30 @@ export function CreateAmenityBookingDialog({
         num_guests: values.num_guests,
         price: computedPrice * values.num_guests,
         payment_status: computedPrice === 0 ? "offert" : "pending",
-        status: "confirmed",
         notes: values.notes || null,
-      });
+      };
+
+      if (isEditMode) {
+        const { error } = await supabase
+          .from("amenity_bookings")
+          .update(payload)
+          .eq("id", editBooking!.id);
+        if (error) throw error;
+        return;
+      }
+
+      const { error } = await supabase
+        .from("amenity_bookings")
+        .insert({ ...payload, status: "confirmed" });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["amenity-bookings"] });
-      toast.success("Réservation créée");
+      toast.success(isEditMode ? "Réservation mise à jour" : "Réservation créée");
       onOpenChange(false);
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Erreur lors de la création");
+      toast.error(err?.message || (isEditMode ? "Erreur lors de la mise à jour" : "Erreur lors de la création"));
     },
   });
 
@@ -326,7 +389,7 @@ export function CreateAmenityBookingDialog({
         overlayClassName="bg-black/40 backdrop-blur-sm"
       >
         <DialogHeader>
-          <DialogTitle>Réservation commodité</DialogTitle>
+          <DialogTitle>{isEditMode ? "Modifier la réservation" : "Réservation commodité"}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -346,7 +409,7 @@ export function CreateAmenityBookingDialog({
                     <SelectValue placeholder="Sélectionner un lieu" />
                   </SelectTrigger>
                   <SelectContent>
-                    {hotels!.map((h) => (
+                    {amenityHotels.map((h) => (
                       <SelectItem key={h.id} value={h.id}>
                         {h.name}
                       </SelectItem>
@@ -686,7 +749,7 @@ export function CreateAmenityBookingDialog({
                 {createMutation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Réserver
+                {isEditMode ? "Enregistrer" : "Réserver"}
               </Button>
             </div>
           </form>
