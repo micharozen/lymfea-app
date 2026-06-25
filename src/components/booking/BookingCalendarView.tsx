@@ -44,6 +44,9 @@ interface BookingCalendarViewProps {
     hourAvailability: Map<string, HourAvailability[]>;
   };
   showAvailability?: boolean;
+  // Draw the "remise en état" (room turnover) buffer zone under each booking.
+  // Hidden when viewing all venues at once to keep the planning readable.
+  showCleanupBuffer?: boolean;
   // Amenity bookings (optional — multi-calendar support)
   amenityBookings?: AmenityBookingForCalendar[];
   visibleCalendars?: Record<string, boolean>;
@@ -103,6 +106,7 @@ export function BookingCalendarView({
   hotelFilter,
   availabilityData,
   showAvailability,
+  showCleanupBuffer = true,
   amenityBookings,
   visibleCalendars,
   onAmenityBookingClick,
@@ -421,6 +425,7 @@ export function BookingCalendarView({
                             getHotelInfo={getHotelInfo}
                             onBookingClick={onBookingClick}
                             navigate={navigate}
+                            showCleanupBuffer={showCleanupBuffer}
                           />
                         ))}
                       </TooltipProvider>
@@ -527,6 +532,7 @@ export function BookingCalendarView({
                             getHotelInfo={getHotelInfo}
                             onBookingClick={onBookingClick}
                             navigate={navigate}
+                            showCleanupBuffer={showCleanupBuffer}
                           />
                         ))}
                       </TooltipProvider>
@@ -575,6 +581,7 @@ function BookingCard({
   getHotelInfo,
   onBookingClick,
   navigate,
+  showCleanupBuffer = true,
 }: {
   booking: BookingWithTreatments;
   layoutInfo?: { column: number; totalColumns: number };
@@ -585,6 +592,7 @@ function BookingCard({
   getHotelInfo: (hotelId: string | null) => Hotel | null;
   onBookingClick: (booking: BookingWithTreatments) => void;
   navigate: ReturnType<typeof useNavigate>;
+  showCleanupBuffer?: boolean;
 }) {
   const { top, height } = getBookingPosition(booking);
   const hotelInfo = getHotelInfo(booking.hotel_id);
@@ -627,7 +635,7 @@ function BookingCard({
 
   return (
     <>
-      {booking.status !== 'cancelled' && (
+      {showCleanupBuffer && booking.status !== 'cancelled' && (
         <CleanupBufferZone
           bufferMinutes={hotelInfo?.room_turnover_buffer_minutes ?? 0}
           bookingTop={top}
