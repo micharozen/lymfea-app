@@ -59,6 +59,17 @@ function formatTherapistShort(name: string | null | undefined): string {
   return parts[0];
 }
 
+// Display the client as "Prénom L." — full first name + initial of last name.
+function formatClientShort(
+  firstName: string | null | undefined,
+  lastName: string | null | undefined,
+): string {
+  const first = (firstName ?? "").trim();
+  const last = (lastName ?? "").trim();
+  const lastInitial = last ? `${last[0].toUpperCase()}.` : "";
+  return [first, lastInitial].filter(Boolean).join(" ");
+}
+
 function addMinutesToTime(time: string, minutes: number): string {
   const [h, m] = time.split(":").map(Number);
   const total = h * 60 + m + minutes;
@@ -595,7 +606,7 @@ function BookingCard({
 
   const therapistShort = formatTherapistShort(booking.therapist_name);
   const hasTherapist = !!booking.therapist_id && !!booking.therapist_name;
-  const clientName = `${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim();
+  const clientName = formatClientShort(booking.client_first_name, booking.client_last_name);
 
   // Show each detail row only when it fully fits, so nothing is half-clipped.
   // Rows are tight (~13px each) on top of the time row + padding.
@@ -745,7 +756,7 @@ function BookingCard({
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs font-medium">
               <User className="h-3 w-3" />
-              <span>{booking.client_first_name} {booking.client_last_name}</span>
+              <span>{formatClientShort(booking.client_first_name, booking.client_last_name)}</span>
             </div>
             {booking.phone && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
