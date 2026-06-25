@@ -6,7 +6,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Check, CheckCircle2, ChevronRight, Clock, Euro, Loader2, X, XCircle, Users, DoorOpen } from "lucide-react";
+import { CalendarDays, Check, CheckCircle2, ChevronRight, Clock, Euro, Loader2, X, Users, DoorOpen } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -109,7 +109,7 @@ const PwaDashboard = () => {
   const [therapist, setTherapist] = useState<Therapist | null>(null);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"upcoming" | "history" | "cancelled">("upcoming");
+  const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [startY, setStartY] = useState(0);
@@ -405,7 +405,8 @@ const PwaDashboard = () => {
         )
       `)
       .eq("therapist_id", therapistId)
-      .in("hotel_id", hotelIds);
+      .in("hotel_id", hotelIds)
+      .neq("status", "cancelled");
 
     if (!isMountedRef.current) return;
 
@@ -448,7 +449,8 @@ const PwaDashboard = () => {
               )
             )
           `)
-          .in("id", secondaryBookingIds);
+          .in("id", secondaryBookingIds)
+          .neq("status", "cancelled");
 
         if (!isMountedRef.current) return;
 
@@ -618,12 +620,9 @@ const PwaDashboard = () => {
         return isAssignedToMe &&
                booking.status !== "pending" &&
                booking.status !== "completed" &&
-               booking.status !== "cancelled" &&
                bookingDate >= today;
-      } else if (activeTab === "history") {
-        return booking.status === "completed" && isAssignedToMe;
       } else {
-        return booking.status === "cancelled" && isAssignedToMe;
+        return booking.status === "completed" && isAssignedToMe;
       }
     });
   };
@@ -978,22 +977,6 @@ const PwaDashboard = () => {
                 )}
               />
             </button>
-            <button
-              onClick={() => setActiveTab("cancelled")}
-              className={`pb-2 text-xs font-medium transition-colors relative ${
-                activeTab === "cancelled"
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {t('dashboard.cancelled')}
-              <div
-                className={cn(
-                  "absolute bottom-0 left-0 right-0 h-0.5 bg-primary transition-opacity",
-                  activeTab === "cancelled" ? "opacity-100" : "opacity-0"
-                )}
-              />
-            </button>
           </div>
 
           {/* Bookings List - Compact */}
@@ -1016,21 +999,15 @@ const PwaDashboard = () => {
                 <div className="mb-2 flex justify-center">
                   {activeTab === "upcoming" ? (
                     <CalendarDays className="h-8 w-8 text-muted-foreground" />
-                  ) : activeTab === "history" ? (
-                    <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
                   ) : (
-                    <XCircle className="h-8 w-8 text-muted-foreground" />
+                    <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
                   )}
                 </div>
                 <h3 className="text-sm font-medium text-foreground mb-1">
-                  {activeTab === "upcoming" ? t('dashboard.noUpcoming') : 
-                   activeTab === "history" ? t('dashboard.noHistory') : 
-                   t('dashboard.noCancelled')}
+                  {activeTab === "upcoming" ? t('dashboard.noUpcoming') : t('dashboard.noHistory')}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  {activeTab === "upcoming" ? t('dashboard.upcomingWillAppear') : 
-                   activeTab === "history" ? t('dashboard.historyWillAppear') : 
-                   t('dashboard.cancelledWillAppear')}
+                  {activeTab === "upcoming" ? t('dashboard.upcomingWillAppear') : t('dashboard.historyWillAppear')}
                 </p>
               </div>
             ) : (
