@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -121,6 +121,26 @@ useEffect(() => {
 
   // Amenity data
   const hasVenueFilter = hotelFilter && hotelFilter !== "all";
+
+  // Calendar-only visibility of cancelled bookings (toggled via the legend).
+  // Reset to hidden whenever we leave a single-venue view.
+  const [showCancelled, setShowCancelled] = useState(false);
+  useEffect(() => {
+    if (!hasVenueFilter) setShowCancelled(false);
+  }, [hasVenueFilter]);
+
+  // Bookings shown on the calendar (planning) only — the list view keeps the
+  // full filteredBookings set. No venue: hide cancelled + no-show. Venue
+  // filtered: hide cancelled unless the user re-enabled them via the legend.
+  const calendarBookings = useMemo(() => {
+    return filteredBookings?.filter((b) => {
+      if (!hasVenueFilter) {
+        return b.status !== "cancelled" && b.status !== "noshow";
+      }
+      return showCancelled || b.status !== "cancelled";
+    });
+  }, [filteredBookings, hasVenueFilter, showCancelled]);
+
   const { amenities: venueAmenities } = useVenueAmenities(hasVenueFilter ? hotelFilter : "");
   const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({
     hotelFilter: hasVenueFilter ? hotelFilter : undefined,
@@ -160,7 +180,7 @@ useEffect(() => {
 
   // Calendar logic
   const calendar = useCalendarLogic({
-    filteredBookings,
+    filteredBookings: calendarBookings,
     activeTimezone,
     dayCount,
   });
@@ -282,6 +302,8 @@ useEffect(() => {
                   onHideAll={handleHideAll}
                   hotels={hotels}
                   hotelFilter={hotelFilter}
+                  showCancelled={showCancelled}
+                  onToggleCancelled={() => setShowCancelled((v) => !v)}
                 />
               )}
               <Button
@@ -322,6 +344,8 @@ useEffect(() => {
               onHideAll={handleHideAll}
               hotels={hotels}
               hotelFilter={hotelFilter}
+              showCancelled={showCancelled}
+              onToggleCancelled={() => setShowCancelled((v) => !v)}
             />
           )}
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -349,6 +373,7 @@ useEffect(() => {
               getHotelInfo={getHotelInfo}
               hotels={hotels}
               hotelFilter={hotelFilter}
+              showCleanupBuffer={!!hasVenueFilter}
               amenityBookings={amenityBookings}
               visibleCalendars={hasVenueFilter ? visibleCalendars : undefined}
               onAmenityBookingClick={handleAmenityBookingClick}
