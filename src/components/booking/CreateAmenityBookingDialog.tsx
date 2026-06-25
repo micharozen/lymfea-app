@@ -31,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Users, Search } from "lucide-react";
+import { Loader2, Users, Search, Globe, Hotel, Sparkles, KeyRound } from "lucide-react";
 import { getAmenityLabel, getAmenityType, type AmenityClientType } from "@/lib/amenityTypes";
 import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities";
 
@@ -408,12 +408,32 @@ export function CreateAmenityBookingDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="external">Externe</SelectItem>
+                      <SelectItem value="external">
+                        <span className="flex items-center gap-2">
+                          <Globe className="h-4 w-4" />
+                          Externe
+                        </span>
+                      </SelectItem>
                       {effectiveVenueType === "hotel" && (
-                        <SelectItem value="internal">Interne (hôtel)</SelectItem>
+                        <SelectItem value="internal">
+                          <span className="flex items-center gap-2">
+                            <Hotel className="h-4 w-4" />
+                            Interne (hôtel)
+                          </span>
+                        </SelectItem>
                       )}
-                      <SelectItem value="lymfea">Eïa (client soin)</SelectItem>
-                      <SelectItem value="sezame">Sezame</SelectItem>
+                      <SelectItem value="lymfea">
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          Eïa (client soin)
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="sezame">
+                        <span className="flex items-center gap-2">
+                          <KeyRound className="h-4 w-4" />
+                          Sezame
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -649,8 +669,8 @@ export function CreateAmenityBookingDialog({
               )}
             />
 
-            {/* Submit */}
-            <div className="flex justify-end gap-2 pt-2">
+            {/* Submit — footer collant en bas du dialogue */}
+            <div className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex justify-end gap-2 border-t bg-background/95 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
               <Button
                 type="button"
                 variant="outline"
