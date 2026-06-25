@@ -56,6 +56,15 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
+import { BOOKING_CLIENT_TYPES, type BookingClientType } from "@/lib/clientTypeMeta";
+import { derivePaymentForClientType, isPaymentStatusLocked } from "@/lib/clientTypePayment";
+
+const CLIENT_TYPE_LABELS: Record<BookingClientType, string> = {
+  hotel: "Client hôtel",
+  staycation: "Staycation",
+  classpass: "ClassPass",
+  external: "Client externe",
+};
 
 const countries = [
   { code: "+27", label: "Afrique du Sud", flag: "🇿🇦" },
@@ -159,6 +168,7 @@ interface Booking {
   signed_at?: string | null;
   client_note?: string | null;
   guest_count?: number | null;
+  client_type?: string | null;
 }
 
 interface EditBookingDialogProps {
@@ -184,6 +194,7 @@ export default function EditBookingDialog({
   const [countryCode, setCountryCode] = useState("+33");
   const [roomNumber, setRoomNumber] = useState("");
   const [clientNote, setClientNote] = useState("");
+  const [clientType, setClientType] = useState<BookingClientType>("external");
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("");
   const [status, setStatus] = useState("En attente");
@@ -232,6 +243,7 @@ export default function EditBookingDialog({
       
       setRoomNumber(booking.room_number || "");
       setClientNote(booking.client_note || "");
+      setClientType((booking.client_type as BookingClientType) ?? "external");
       setDate(booking.booking_date ? new Date(booking.booking_date) : undefined);
       setTime(booking.booking_time || "");
       setStatus(booking.status || "En attente");
@@ -552,6 +564,16 @@ export default function EditBookingDialog({
         assignedAt = null;
       }
 
+      // Changement de type de client : recalcule payment_status/method, sauf si le
+      // paiement est déjà abouti (paid/refunded) — on ne l'écrase jamais.
+      const clientTypeChanged = bookingData.client_type !== booking.client_type;
+      const canRecalcPayment =
+        clientTypeChanged && !isPaymentStatusLocked(booking.payment_status);
+      const derivedPayment = canRecalcPayment
+        ? derivePaymentForClientType(bookingData.client_type as BookingClientType)
+        : null;
+      const becameHotelRoomCharge = derivedPayment?.paymentStatus === "charged_to_room";
+
       const { error: bookingError } = await supabase
         .from("bookings")
         .update({
@@ -571,6 +593,13 @@ export default function EditBookingDialog({
           status: newStatus,
           assigned_at: assignedAt,
           client_note: bookingData.client_note ?? null,
+          client_type: bookingData.client_type,
+          ...(derivedPayment
+            ? {
+                payment_status: derivedPayment.paymentStatus,
+                payment_method: derivedPayment.paymentMethod,
+              }
+            : {}),
         })
         .eq("id", booking.id);
 
@@ -615,9 +644,21 @@ export default function EditBookingDialog({
         }
       }
 
-      return { wasAssigned, therapistChanged };
+      return { wasAssigned, therapistChanged, becameHotelRoomCharge };
     },
     onSuccess: async (result) => {
+      // Passage en facturation chambre : pousser l'order vers le PMS si le lieu en a un.
+      // pms-post-charge est idempotent et skippe proprement si aucun PMS n'est configuré.
+      if (result?.becameHotelRoomCharge && booking?.id) {
+        try {
+          await invokeEdgeFunction('pms-post-charge', {
+            body: { bookingId: booking.id },
+          });
+        } catch (pmsError) {
+          console.error("Error posting PMS room charge:", pmsError);
+        }
+      }
+
       if ((result?.wasAssigned || result?.therapistChanged) && booking?.id) {
         try {
           await invokeEdgeFunction('trigger-new-booking-notifications', {
@@ -934,6 +975,7 @@ export default function EditBookingDialog({
       client_note: isConcierge
         ? (booking?.client_note ?? null)
         : (clientNote.trim() ? clientNote.trim() : null),
+      client_type: clientType,
       therapistIds: isDuo ? therapistIds : undefined,
     });
   };
@@ -1377,6 +1419,25 @@ export default function EditBookingDialog({
                       {hotels?.map((hotel) => (
                         <SelectItem key={hotel.id} value={hotel.id}>
                           {hotel.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="edit-client-type" className="text-xs">Type de client</Label>
+                  <Select
+                    value={clientType}
+                    onValueChange={(value) => setClientType(value as BookingClientType)}
+                  >
+                    <SelectTrigger id="edit-client-type" className="h-9">
+                      <SelectValue placeholder="Type de client" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg">
+                      {BOOKING_CLIENT_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {CLIENT_TYPE_LABELS[type]}
                         </SelectItem>
                       ))}
                     </SelectContent>
