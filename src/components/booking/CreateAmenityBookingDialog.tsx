@@ -31,9 +31,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Users } from "lucide-react";
+import { Loader2, Users, Search } from "lucide-react";
 import { getAmenityLabel, getAmenityType, type AmenityClientType } from "@/lib/amenityTypes";
-import type { VenueAmenity } from "@/hooks/useVenueAmenities";
+import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities";
 
 const formSchema = z.object({
   venue_amenity_id: z.string().min(1, "Sélectionnez une commodité"),
@@ -66,9 +66,13 @@ const TIME_OPTIONS = (() => {
 interface CreateAmenityBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  hotelId: string;
+  /** Fixed venue. Omit to let the user pick a venue via `hotels`. */
+  hotelId?: string;
   venueType?: string;
-  venueAmenities: VenueAmenity[];
+  /** Amenities for the fixed venue. Omitted in picker mode (fetched per chosen venue). */
+  venueAmenities?: VenueAmenity[];
+  /** Venues the user can pick from when no fixed `hotelId` is provided. */
+  hotels?: { id: string; name: string }[];
   preselectedDate?: Date;
   preselectedTime?: string;
 }
@@ -79,11 +83,37 @@ export function CreateAmenityBookingDialog({
   hotelId,
   venueType,
   venueAmenities,
+  hotels,
   preselectedDate,
   preselectedTime,
 }: CreateAmenityBookingDialogProps) {
   const queryClient = useQueryClient();
-  const enabledAmenities = venueAmenities.filter((a) => a.is_enabled);
+
+  // Venue resolution: either a fixed venue (hotelId + venueAmenities) or a picker.
+  const hasFixedVenue = !!hotelId && !!venueAmenities;
+  const showVenuePicker = !hasFixedVenue && !!hotels && hotels.length > 0;
+  const [pickedHotelId, setPickedHotelId] = useState(hotelId ?? "");
+  const effectiveHotelId = hotelId || pickedHotelId;
+
+  // In picker mode, fetch the chosen venue's amenities and type ourselves.
+  const { amenities: fetchedAmenities } = useVenueAmenities(hasFixedVenue ? "" : effectiveHotelId);
+  const amenities = venueAmenities ?? fetchedAmenities;
+  const enabledAmenities = amenities.filter((a) => a.is_enabled);
+
+  const { data: fetchedVenueType } = useQuery({
+    queryKey: ["hotel-venue-type", effectiveHotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hotels")
+        .select("venue_type")
+        .eq("id", effectiveHotelId)
+        .single();
+      if (error) throw error;
+      return data.venue_type as string;
+    },
+    enabled: !venueType && !!effectiveHotelId,
+  });
+  const effectiveVenueType = venueType ?? fetchedVenueType;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -105,6 +135,7 @@ export function CreateAmenityBookingDialog({
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
+      setPickedHotelId(hotelId ?? "");
       form.reset({
         venue_amenity_id: enabledAmenities.length === 1 ? enabledAmenities[0].id : "",
         client_type: "external",
@@ -120,6 +151,69 @@ export function CreateAmenityBookingDialog({
       });
     }
   }, [open]);
+
+  // When the chosen venue changes (picker mode) or its amenities load, keep the
+  // amenity selection valid: auto-select if there's exactly one, else clear it.
+  useEffect(() => {
+    if (!open) return;
+    form.setValue("venue_amenity_id", enabledAmenities.length === 1 ? enabledAmenities[0].id : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveHotelId, enabledAmenities.length, open]);
+
+  // Existing-customer search (mirrors BookingInfoStep)
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const trimmedCustomerSearch = customerSearch.trim();
+  const isPhoneSearch = /^\+?\d[\d\s]{2,}$/.test(trimmedCustomerSearch);
+
+  useEffect(() => {
+    if (open) {
+      setCustomerSearch("");
+      setSelectedCustomerId(null);
+    }
+  }, [open]);
+
+  const { data: customerResults = [], isFetching: isSearchingCustomers } = useQuery({
+    queryKey: ["amenity-customer-search", trimmedCustomerSearch],
+    enabled: trimmedCustomerSearch.length >= 3 && !selectedCustomerId,
+    staleTime: 30_000,
+    queryFn: async () => {
+      let q = supabase
+        .from("customers")
+        .select("id, first_name, last_name, phone, email")
+        .limit(5);
+      if (isPhoneSearch) {
+        q = q.ilike("phone", `%${trimmedCustomerSearch.replace(/\s/g, "")}%`);
+      } else {
+        q = q.or(
+          `first_name.ilike.%${trimmedCustomerSearch}%,last_name.ilike.%${trimmedCustomerSearch}%`,
+        );
+      }
+      const { data } = await q;
+      return (data as Array<{
+        id: string;
+        first_name: string | null;
+        last_name: string | null;
+        phone: string | null;
+        email: string | null;
+      }>) || [];
+    },
+  });
+
+  const handleSelectCustomer = (c: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    phone: string | null;
+    email: string | null;
+  }) => {
+    setSelectedCustomerId(c.id);
+    if (c.first_name) form.setValue("first_name", c.first_name);
+    if (c.last_name) form.setValue("last_name", c.last_name);
+    if (c.phone) form.setValue("phone", c.phone);
+    if (c.email) form.setValue("email", c.email);
+    setCustomerSearch(`${c.first_name || ""} ${c.last_name || ""}`.trim());
+  };
 
   const selectedAmenityId = form.watch("venue_amenity_id");
   const selectedClientType = form.watch("client_type") as AmenityClientType;
@@ -165,14 +259,20 @@ export function CreateAmenityBookingDialog({
       const amenity = enabledAmenities.find((a) => a.id === values.venue_amenity_id);
       if (!amenity) throw new Error("Amenity not found");
 
-      // Find or create customer
+      // Find or create customer. `_language` is passed to disambiguate the
+      // overloaded RPC (a 5-arg variant with _language exists). Default to
+      // French unless the phone carries a non-FR international prefix.
+      const normalizedPhone = values.phone.replace(/\s/g, "");
+      const language =
+        normalizedPhone.startsWith("+") && !normalizedPhone.startsWith("+33") ? "en" : "fr";
       const { data: customerId, error: customerError } = await supabase.rpc(
         "find_or_create_customer",
         {
-          _phone: values.phone,
+          _phone: normalizedPhone,
           _first_name: values.first_name,
           _last_name: values.last_name || null,
           _email: values.email || null,
+          _language: language,
         }
       );
       if (customerError) throw customerError;
@@ -180,7 +280,7 @@ export function CreateAmenityBookingDialog({
       const endTime = computeEndTime(values.booking_time, amenity.slot_duration);
 
       const { error } = await supabase.from("amenity_bookings").insert({
-        hotel_id: hotelId,
+        hotel_id: effectiveHotelId,
         venue_amenity_id: values.venue_amenity_id,
         booking_date: values.booking_date,
         booking_time: values.booking_time,
@@ -208,6 +308,10 @@ export function CreateAmenityBookingDialog({
   });
 
   const onSubmit = (values: FormValues) => {
+    if (!effectiveHotelId) {
+      toast.error("Sélectionnez un lieu");
+      return;
+    }
     if (numGuests > remainingCapacity) {
       toast.error(`Capacité insuffisante (${remainingCapacity} places restantes)`);
       return;
@@ -217,13 +321,41 @@ export function CreateAmenityBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="sm:max-w-2xl max-h-[90vh] overflow-y-auto"
+        overlayClassName="bg-black/40 backdrop-blur-sm"
+      >
         <DialogHeader>
           <DialogTitle>Réservation commodité</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Venue selection (picker mode only) */}
+            {showVenuePicker && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Lieu</label>
+                <Select
+                  value={pickedHotelId}
+                  onValueChange={(v) => {
+                    setPickedHotelId(v);
+                    form.setValue("venue_amenity_id", "");
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un lieu" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hotels!.map((h) => (
+                      <SelectItem key={h.id} value={h.id}>
+                        {h.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Amenity selection */}
             <FormField
               control={form.control}
@@ -252,6 +384,11 @@ export function CreateAmenityBookingDialog({
                       })}
                     </SelectContent>
                   </Select>
+                  {effectiveHotelId && enabledAmenities.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Aucune commodité activée pour ce lieu.
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -272,7 +409,7 @@ export function CreateAmenityBookingDialog({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="external">Externe</SelectItem>
-                      {venueType === "hotel" && (
+                      {effectiveVenueType === "hotel" && (
                         <SelectItem value="internal">Interne (hôtel)</SelectItem>
                       )}
                       <SelectItem value="lymfea">Eïa (client soin)</SelectItem>
@@ -282,6 +419,51 @@ export function CreateAmenityBookingDialog({
                 </FormItem>
               )}
             />
+
+            {/* Existing customer search */}
+            <div className="relative">
+              <label className="flex items-center gap-1.5 mb-1 text-sm font-medium">
+                <Search className="h-3.5 w-3.5" />
+                Rechercher un client existant
+              </label>
+              <Input
+                value={customerSearch}
+                onChange={(e) => {
+                  setCustomerSearch(e.target.value);
+                  setSelectedCustomerId(null);
+                }}
+                placeholder="Nom, prénom ou téléphone…"
+                className="h-9"
+              />
+              {trimmedCustomerSearch.length >= 3 && !selectedCustomerId && (
+                <div className="absolute z-10 left-0 right-0 mt-1 rounded-lg border bg-popover shadow-md">
+                  {isSearchingCustomers ? (
+                    <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Recherche…
+                    </div>
+                  ) : customerResults.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">Aucun client trouvé</div>
+                  ) : (
+                    customerResults.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleSelectCustomer(c)}
+                        className="w-full flex flex-col items-start px-3 py-2 text-sm text-left hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg"
+                      >
+                        <span className="font-medium">
+                          {[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {[c.phone, c.email].filter(Boolean).join(" · ")}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Client info */}
             <div className="grid grid-cols-2 gap-3">

@@ -883,7 +883,7 @@ function AmenityBookingCard({
         >
           <div className="p-1 h-full flex flex-col">
             <div className="flex items-start justify-between gap-0.5">
-              <div className="font-bold text-[11px] leading-tight" style={{ color: booking.amenity_color }}>
+              <div className="font-bold text-[13px] leading-tight" style={{ color: booking.amenity_color }}>
                 {booking.booking_time?.substring(0, 5)}
               </div>
               <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -903,7 +903,7 @@ function AmenityBookingCard({
               </div>
             )}
             {height >= 48 && (
-              <div className="flex items-center gap-1 text-[7px] opacity-60">
+              <div className="flex items-center gap-1 text-[12px] font-semibold opacity-80">
                 <span>{durationFormatted}</span>
                 <span>·</span>
                 <span>{booking.num_guests}/{booking.capacity_total}</span>
