@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
+import { derivePaymentForClientType } from "@/lib/clientTypePayment";
 import { composePhoneNumber, languageFromCountryCode } from "@/lib/phone";
 
 interface Hotel {
@@ -120,21 +121,9 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         resolveAssignment(allTherapistIds, guestCount, therapists);
 
       const clientType: BookingClientType = d.clientType ?? "external";
-      let paymentMethod: string | null = null;
-      let paymentStatus: string | null = null;
-      
-      if (d.payByVoucher && (clientType === "hotel" || clientType === "external")) {
-        paymentMethod = "voucher";
-        paymentStatus = "paid";
-      } else if (clientType === "hotel") {
-        paymentMethod = "room";
-        paymentStatus = "charged_to_room";
-      } else if (clientType === "staycation" || clientType === "classpass") {
-        paymentMethod = "partner_billed";
-        paymentStatus = "pending_partner_billing";
-      } else {
-        paymentStatus = "pending";
-      }
+      const { paymentMethod, paymentStatus } = derivePaymentForClientType(clientType, {
+        payByVoucher: d.payByVoucher,
+      });
 
       // Si l'admin a explicitement choisi une salle, on la respecte.
       // Sinon, on auto-assigne la 1ère salle libre au créneau.
