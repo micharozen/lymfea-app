@@ -350,8 +350,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       return;
     }
     const isBroadcast = duoMode === "broadcast" || !values.therapistId;
-    const comboParams = comboDuoEnabled ? buildComboDuoBookingParams(sessions) : null;
-    const treatments = comboParams?.treatments ?? cart.flatMap(item =>
+    const treatments = cart.flatMap(item =>
       Array.from({ length: item.quantity }, () => ({
         treatmentId: item.treatmentId,
         variantId: item.variantId || undefined,
@@ -388,8 +387,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       payByVoucher: values.payByVoucher,
       voucherReference: values.voucherReference?.trim() || null,
       isOffert: offered,
-      guestCount: comboDuoEnabled ? comboParams!.guestCount : requiredGuestCount,
-      comboDuo: comboDuoEnabled,
+      guestCount: requiredGuestCount,
       isBroadcast,
       ...(requiredGuestCount > 1 && duoMode === "assign" && additionalTherapistIds.length > 0
         ? { therapistIds: [values.therapistId, ...additionalTherapistIds].filter(Boolean) }
@@ -534,10 +532,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   }}
                   voucherReference={voucherReference}
                   onVoucherReferenceChange={(v) => form.setValue("voucherReference", v)}
-                  comboDuoEligible={comboDuoEligible}
-                  comboDuoEnabled={comboDuoEnabled}
-                  onComboDuoChange={setComboDuoEnabled}
-                  sessionCount={sessionCount}
                   variantDuoInCart={requiredGuestCount > 1}
                   canOffer={canAssignTherapist}
                   isOffert={isOffert}
