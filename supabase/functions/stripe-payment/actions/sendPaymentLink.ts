@@ -4,11 +4,8 @@ import { sendPaymentLinkEmail } from "../../_shared/payment-link-email.ts";
 import {
   PaymentLinkTemplateData,
 } from "../../_shared/payment-link-templates.ts";
-import {
-  sendWhatsAppTemplate,
-  buildPaymentLinkTemplateMessage,
-} from "../../_shared/whatsapp-meta.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
+import { sendSms } from "../../_shared/send-sms.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import type { ActionContext } from "../index.ts";
 
@@ -28,11 +25,26 @@ function jsonResponse(body: unknown, status = 200): Response {
 interface SendPaymentLinkBody {
   bookingId: string;
   language: "fr" | "en";
-  channels?: ("email" | "whatsapp")[];
+  channels?: ("email" | "sms")[];
   clientEmail?: string;
   clientPhone?: string;
+  smsBody?: string;
   mode?: "generate" | "send";
   forceResend?: boolean;
+}
+
+function buildDefaultSmsBody(
+  language: "fr" | "en",
+  clientFirstName: string,
+  hotelName: string,
+  bookingDate: string,
+  bookingTime: string,
+  totalText: string,
+): string {
+  if (language === "fr") {
+    return `Bonjour ${clientFirstName}, votre réservation chez ${hotelName} le ${bookingDate} à ${bookingTime} (${totalText}). Merci de régler via le lien ci-dessous :`;
+  }
+  return `Hello ${clientFirstName}, your booking at ${hotelName} on ${bookingDate} at ${bookingTime} (${totalText}). Please pay via the link below:`;
 }
 
 function calculateExpirationDate(bookingDate: Date, now: Date): Date {
@@ -59,7 +71,7 @@ export async function handleSendPaymentLink(
   const { body, supabase, stripe: defaultStripe } = ctx;
 
   try {
-    const { bookingId, language, channels, clientEmail, clientPhone, mode = "send", forceResend } =
+    const { bookingId, language, channels, clientEmail, clientPhone, smsBody, mode = "send", forceResend } =
       body as SendPaymentLinkBody;
 
     if (!bookingId || !language) {
@@ -199,8 +211,8 @@ export async function handleSendPaymentLink(
     if (sendChannels.includes("email") && !email) {
       throw new Error("Email address required for email channel");
     }
-    if (sendChannels.includes("whatsapp") && !phone) {
-      throw new Error("Phone number required for WhatsApp channel");
+    if (sendChannels.includes("sms") && !phone) {
+      throw new Error("Phone number required for SMS channel");
     }
 
     const now = new Date();
@@ -284,7 +296,7 @@ export async function handleSendPaymentLink(
       urgency,
     };
 
-    const results: { email?: boolean; whatsapp?: boolean; errors: string[] } = {
+    const results: { email?: boolean; sms?: boolean; errors: string[] } = {
       errors: [],
     };
 
@@ -321,51 +333,37 @@ export async function handleSendPaymentLink(
       }
     }
 
-    if (sendChannels.includes("whatsapp") && phone) {
+    if (sendChannels.includes("sms") && phone) {
       try {
-        const treatmentsList = treatments.map((t) => t.name).join(", ");
-        const therapistName =
-          booking.therapist_name ||
-          (language === "fr"
-            ? `Votre professionnel ${brand.name}`
-            : `Your ${brand.name} professional`);
-
-        const template = buildPaymentLinkTemplateMessage(
-          language,
-          templateData.clientName,
-          therapistName,
-          templateData.hotelName,
-          templateData.bookingDate,
-          templateData.bookingTime,
-          templateData.bookingNumber,
-          treatmentsList,
-          `${totalPrice}${currencySymbol}`,
-          linkResult.paymentLinkUrl,
-        );
-
         const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
-        const whatsappResult = await sendWhatsAppTemplate(
-          formattedPhone,
-          template,
-        );
-
-        if (!whatsappResult.success) {
-          throw new Error(whatsappResult.error || "Failed to send WhatsApp");
+        const totalText = `${totalPrice}${currencySymbol}`;
+        const baseBody = (smsBody && smsBody.trim().length > 0)
+          ? smsBody.trim()
+          : buildDefaultSmsBody(
+            language,
+            booking.client_first_name,
+            templateData.hotelName,
+            templateData.bookingDate,
+            templateData.bookingTime,
+            totalText,
+          );
+        const finalBody = `${baseBody}\n${linkResult.paymentLinkUrl}`;
+        const smsResult = await sendSms({ to: formattedPhone, body: finalBody });
+        if (smsResult.error) {
+          throw new Error(smsResult.error);
         }
-        results.whatsapp = true;
-      } catch (whatsappError) {
+        results.sms = true;
+      } catch (smsError) {
         const msg =
-          whatsappError instanceof Error
-            ? whatsappError.message
-            : "Unknown error";
-        results.errors.push(`WhatsApp: ${msg}`);
+          smsError instanceof Error ? smsError.message : "Unknown error";
+        results.errors.push(`SMS: ${msg}`);
       }
     }
 
     const sentChannels = sendChannels.filter(
       (c) =>
         (c === "email" && results.email) ||
-        (c === "whatsapp" && results.whatsapp),
+        (c === "sms" && results.sms),
     );
 
     if (sentChannels.length > 0) {
@@ -388,7 +386,7 @@ export async function handleSendPaymentLink(
       );
     }
 
-    const atLeastOneSuccess = results.email || results.whatsapp;
+    const atLeastOneSuccess = results.email || results.sms;
     if (!atLeastOneSuccess) {
       throw new Error(
         `Failed to send payment link: ${results.errors.join("; ")}`,
@@ -412,7 +410,7 @@ export async function handleSendPaymentLink(
       const sentChannels = sendChannels.filter(
         (c) =>
           (c === "email" && results.email) ||
-          (c === "whatsapp" && results.whatsapp),
+          (c === "sms" && results.sms),
       );
 
       await supabase.from("audit_log").insert({
@@ -426,7 +424,7 @@ export async function handleSendPaymentLink(
           channels: sentChannels,
           language,
           email: results.email ? email : undefined,
-          phone: results.whatsapp ? phone : undefined,
+          phone: results.sms ? phone : undefined,
           has_preview: results.email === true,
         },
         source: "admin",
@@ -444,7 +442,7 @@ export async function handleSendPaymentLink(
       success: true,
       paymentLinkUrl: linkResult.paymentLinkUrl,
       emailSent: results.email || false,
-      whatsappSent: results.whatsapp || false,
+      smsSent: results.sms || false,
       expiresAt: expiresAt.toISOString(),
       errors: results.errors.length > 0 ? results.errors : undefined,
     });

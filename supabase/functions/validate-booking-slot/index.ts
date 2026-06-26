@@ -140,16 +140,19 @@ serve(async (req) => {
 
     console.log(`[VALIDATE-SLOT] Booking ${bookingId} confirmed with slot ${slotNumber} (${selectedDate} ${selectedTime}) by ${therapistName}`);
 
-    // Send payment link to client
+    // Send payment link to client (SMS; email if address present)
+    const linkLanguage: "fr" | "en" =
+      booking.language === "en" || booking.payment_link_language === "en" ? "en" : "fr";
+    const channels: ("email" | "sms")[] = booking.client_email ? ["email", "sms"] : ["sms"];
     try {
       await supabase.functions.invoke("stripe-payment", {
         body: {
           action: "send-payment-link",
           bookingId: booking.id,
-          language: "en",
-          channels: ["whatsapp"],
+          language: linkLanguage,
+          channels,
           clientPhone: booking.phone,
-          clientEmail: booking.client_email,
+          clientEmail: booking.client_email ?? undefined,
         },
         headers: {
           Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,

@@ -36,6 +36,7 @@ export interface BookingData {
   hotel_name?: string;
   treatments?: Treatment[];
   currency?: string;
+  language?: Language;
 }
 
 interface PaymentLinkFormProps {
@@ -76,12 +77,16 @@ export function PaymentLinkForm({
   onSkip,
   showSkipButton = false,
 }: PaymentLinkFormProps) {
-  const [language, setLanguage] = useState<Language>("fr");
+  const [language, setLanguage] = useState<Language>(
+    booking.language === "en" ? "en" : "fr",
+  );
   const [sendEmail, setSendEmail] = useState(true);
   const [sendSms, setSendSms] = useState(false);
   const [clientEmail, setClientEmail] = useState(booking.client_email || "");
   const [clientPhone, setClientPhone] = useState(booking.phone || "");
-  const [smsBody, setSmsBody] = useState(() => buildDefaultSmsBody("fr", booking));
+  const [smsBody, setSmsBody] = useState(() =>
+    buildDefaultSmsBody(booking.language === "en" ? "en" : "fr", booking),
+  );
   const smsEditedRef = useRef(false);
   const [isSending, setIsSending] = useState(false);
   const [result, setResult] = useState<SendResult | null>(null);
@@ -99,7 +104,7 @@ export function PaymentLinkForm({
           { success: boolean; paymentLinkUrl: string }
         >("send-payment-link", {
           bookingId: booking.id,
-          language: "fr",
+          language,
           mode: "generate",
         });
         if (cancelled) return;
@@ -117,7 +122,13 @@ export function PaymentLinkForm({
       }
     })();
     return () => { cancelled = true; };
-  }, [booking.id]);
+  }, [booking.id, language]);
+
+  useEffect(() => {
+    if (booking.language === "en" || booking.language === "fr") {
+      setLanguage(booking.language);
+    }
+  }, [booking.language]);
 
   const handleCopyGeneratedLink = async () => {
     if (!paymentLinkUrl) return;
@@ -156,16 +167,16 @@ export function PaymentLinkForm({
     setIsSending(true);
     setResult(null);
 
-    const channels: ("email" | "whatsapp")[] = [];
+    const channels: ("email" | "sms")[] = [];
     if (sendEmail) channels.push("email");
-    if (sendSms) channels.push("whatsapp");
+    if (sendSms) channels.push("sms");
 
     try {
       const { data, error } = await invokeStripe<{
         success: boolean;
         paymentLinkUrl: string;
         emailSent: boolean;
-        whatsappSent: boolean;
+        smsSent: boolean;
         errors?: string[];
       }>("send-payment-link", {
         bookingId: booking.id,
@@ -173,6 +184,7 @@ export function PaymentLinkForm({
         channels,
         clientEmail: sendEmail ? clientEmail : undefined,
         clientPhone: sendSms ? clientPhone : undefined,
+        smsBody: sendSms ? smsBody : undefined,
       });
 
       if (error) {
@@ -186,7 +198,7 @@ export function PaymentLinkForm({
         setResult({
           success: true,
           emailSent: data.emailSent,
-          smsSent: data.whatsappSent,
+          smsSent: data.smsSent,
           paymentLinkUrl: data.paymentLinkUrl,
         });
         toast({

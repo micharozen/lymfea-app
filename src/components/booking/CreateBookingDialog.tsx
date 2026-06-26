@@ -106,6 +106,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const phone = form.watch("phone");
   const roomNumber = form.watch("roomNumber");
   const clientType = form.watch("clientType");
+  const language = form.watch("language");
   const payByVoucher = form.watch("payByVoucher");
   const voucherReference = form.watch("voucherReference");
   const roomId = form.watch("roomId");
@@ -635,6 +636,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           price: (item.treatment?.price || 0) * item.quantity,
         })),
         currency: selectedHotel?.currency || 'EUR',
+        language: language === "en" ? "en" : "fr",
       };
       const handleSuccessAndClose = () => {
         setIsNotificationDialogOpen(false);

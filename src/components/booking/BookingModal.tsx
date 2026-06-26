@@ -757,6 +757,7 @@ export default function BookingModal({
             };
           }),
           currency: selectedHotel?.currency || "EUR",
+          language,
         };
         const handleSuccessAndClose = () => {
           setIsNotificationDialogOpen(false);

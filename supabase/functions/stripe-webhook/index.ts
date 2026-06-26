@@ -154,6 +154,8 @@ serve(async (req) => {
             console.error('[STRIPE-WEBHOOK] Failed to deactivate payment link:', deactivateError);
           }
 
+          // Legacy: WhatsApp confirmation for bookings sent before SMS migration.
+          // New payment links use SMS; post-payment confirmation is via send-booking-confirmation below.
           const wasWhatsAppUsed = booking.payment_link_channels?.includes('whatsapp');
           const clientPhone = booking.phone;
           
