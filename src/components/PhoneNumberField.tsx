@@ -17,6 +17,7 @@ type PhoneNumberFieldProps = {
   countries: CountryOption[];
   placeholder?: string;
   disabled?: boolean;
+  inputClassName?: string;
 };
 
 export function PhoneNumberField({
@@ -28,6 +29,7 @@ export function PhoneNumberField({
   countries,
   placeholder,
   disabled,
+  inputClassName,
 }: PhoneNumberFieldProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -56,6 +58,7 @@ export function PhoneNumberField({
             className={cn(
               "h-full rounded-none border-r border-input px-2 font-normal text-sm",
               "hover:bg-muted hover:text-foreground",
+              inputClassName,
             )}
             aria-expanded={open}
           >
@@ -133,7 +136,10 @@ export function PhoneNumberField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="h-full flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
+        className={cn(
+          "h-full flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none",
+          inputClassName,
+        )}
       />
     </div>
   );

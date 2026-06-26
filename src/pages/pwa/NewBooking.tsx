@@ -81,6 +81,12 @@ const PwaNewBooking = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [treatmentsLoading, setTreatmentsLoading] = useState(false);
 
+  // Assignation à un autre thérapeute
+  const [assignToOther, setAssignToOther] = useState(false);
+  const [venueTherapists, setVenueTherapists] = useState<Therapist[]>([]);
+  const [selectedTherapistId, setSelectedTherapistId] = useState("");
+  const [venueTherapistsLoading, setVenueTherapistsLoading] = useState(false);
+
   // Réservation offerte (gratuite)
   const [isOffert, setIsOffert] = useState(false);
 
@@ -163,6 +169,33 @@ const PwaNewBooking = () => {
     fetchTreatments();
   }, [selectedHotelId]);
 
+  // Fetch venue therapists when "assign to other" is enabled
+  useEffect(() => {
+    if (!assignToOther || !selectedHotelId) {
+      setVenueTherapists([]);
+      return;
+    }
+    const fetchVenueTherapists = async () => {
+      setVenueTherapistsLoading(true);
+      const { data, error } = await supabase.rpc("get_venue_therapists", {
+        _hotel_id: selectedHotelId,
+      });
+      if (!error && data) {
+        // Exclure le thérapeute connecté (réservation par défaut sur lui)
+        setVenueTherapists(
+          (data as Therapist[]).filter((tp) => tp.id !== therapist?.id)
+        );
+      }
+      setVenueTherapistsLoading(false);
+    };
+    fetchVenueTherapists();
+  }, [assignToOther, selectedHotelId, therapist?.id]);
+
+  // Reset selected therapist when venue changes or assignment is turned off
+  useEffect(() => {
+    setSelectedTherapistId("");
+  }, [selectedHotelId, assignToOther]);
+
   const selectedHotel = hotels.find((h) => h.id === selectedHotelId);
   const currency = selectedHotel?.currency || "EUR";
 
@@ -228,10 +261,20 @@ const PwaNewBooking = () => {
     [cart]
   );
 
+  // Thérapeute effectivement associé à la réservation
+  const effectiveTherapistId =
+    assignToOther && selectedTherapistId ? selectedTherapistId : therapist?.id;
+
+  // Liste passée à la mutation pour résoudre le nom du thérapeute assigné
+  const therapistsForMutation = useMemo(
+    () => [therapist, ...venueTherapists].filter(Boolean) as Therapist[],
+    [therapist, venueTherapists]
+  );
+
   // Mutation
   const createBooking = useCreateBookingMutation({
     hotels,
-    therapists: therapist ? [therapist] : [],
+    therapists: therapistsForMutation,
     onSuccess: (data) => {
       setCreatedBooking(data);
       setDirection("forward");
@@ -264,6 +307,10 @@ const PwaNewBooking = () => {
         toast.error("Veuillez sélectionner une heure");
         return;
       }
+      if (assignToOther && !selectedTherapistId) {
+        toast.error("Veuillez sélectionner un thérapeute");
+        return;
+      }
       setDirection("forward");
       setStep(2);
     } else if (step === 2) {
@@ -286,7 +333,7 @@ const PwaNewBooking = () => {
   };
 
   const handleCreate = () => {
-    if (!therapist || !selectedDate) return;
+    if (!therapist || !selectedDate || !effectiveTherapistId) return;
 
     createBooking.mutate({
       hotelId: selectedHotelId,
@@ -297,7 +344,7 @@ const PwaNewBooking = () => {
       roomNumber,
       date: format(selectedDate, "yyyy-MM-dd"),
       time: selectedTime,
-      therapistId: therapist.id,
+      therapistId: effectiveTherapistId,
       slot2Date: null,
       slot2Time: null,
       slot3Date: null,
@@ -366,6 +413,12 @@ const PwaNewBooking = () => {
               hotels={hotels}
               selectedHotelId={selectedHotelId}
               setSelectedHotelId={setSelectedHotelId}
+              assignToOther={assignToOther}
+              setAssignToOther={setAssignToOther}
+              venueTherapists={venueTherapists}
+              venueTherapistsLoading={venueTherapistsLoading}
+              selectedTherapistId={selectedTherapistId}
+              setSelectedTherapistId={setSelectedTherapistId}
               clientFirstName={clientFirstName}
               setClientFirstName={setClientFirstName}
               clientLastName={clientLastName}

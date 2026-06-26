@@ -343,7 +343,15 @@
     "lastName": "Nom",
     "phone": "Téléphone",
     "room": "Chambre",
-    "time": "Heure"
+    "time": "Heure",
+    "searchClient": "Rechercher un client existant",
+    "searchClientPlaceholder": "Nom, prénom ou téléphone…",
+    "searching": "Recherche…",
+    "noClientFound": "Aucun client trouvé",
+    "assignToOther": "L'associer à un autre thérapeute",
+    "selectTherapist": "Sélectionner un thérapeute",
+    "loadingTherapists": "Chargement…",
+    "noOtherTherapist": "Aucun autre thérapeute"
   },
   "tabs": {
     "home": "Accueil",

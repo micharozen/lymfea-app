@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { Plus, Minus } from "lucide-react";
 
@@ -52,16 +50,9 @@ export function TreatmentStep({
   onBack,
 }: TreatmentStepProps) {
   const { t } = useTranslation("pwa");
-  const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
-
-  const filteredTreatments = treatments.filter((t) =>
-    treatmentFilter === "female"
-      ? t.service_for === "Female" || t.service_for === "All"
-      : t.service_for === "Male" || t.service_for === "All"
-  );
 
   const groupedTreatments: Record<string, Treatment[]> = {};
-  filteredTreatments.forEach((t) => {
+  treatments.forEach((t) => {
     const c = t.category || "Autres";
     if (!groupedTreatments[c]) groupedTreatments[c] = [];
     groupedTreatments[c].push(t);
@@ -79,32 +70,13 @@ export function TreatmentStep({
 
   return (
     <div className="flex-1 flex flex-col px-4 py-4">
-      {/* Gender Tabs */}
-      <div className="flex items-center gap-4 border-b border-primary/20 shrink-0 mb-3">
-        {(["female", "male"] as const).map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setTreatmentFilter(f)}
-            className={cn(
-              "pb-1.5 text-[9px] font-bold uppercase tracking-widest transition-colors",
-              treatmentFilter === f
-                ? "text-primary border-b-2 border-primary"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {f === "female" ? "WOMEN'S MENU" : "MEN'S MENU"}
-          </button>
-        ))}
-      </div>
-
       {/* Treatment list */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {treatmentsLoading ? (
           <div className="py-8 text-center text-sm text-muted-foreground">
             Chargement...
           </div>
-        ) : !filteredTreatments.length ? (
+        ) : !treatments.length ? (
           <div className="py-8 text-center text-sm text-muted-foreground">
             Aucune prestation disponible
           </div>

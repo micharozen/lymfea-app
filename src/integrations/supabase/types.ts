@@ -4063,6 +4063,15 @@ export type Database = {
           skills: string[]
         }[]
       }
+      get_venue_therapists: {
+        Args: { _hotel_id: string }
+        Returns: {
+          first_name: string
+          id: string
+          last_name: string
+          profile_image: string
+        }[]
+      }
       get_public_treatment_addons: {
         Args: { _parent_id: string }
         Returns: {
