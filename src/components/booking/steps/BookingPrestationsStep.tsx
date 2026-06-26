@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Minus, Loader2, Clock, Ticket } from "lucide-react";
+import { Plus, Minus, Loader2, Clock, Ticket, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
@@ -76,6 +76,10 @@ interface BookingPrestationsStepProps {
   onComboDuoChange?: (enabled: boolean) => void;
   sessionCount?: number;
   variantDuoInCart?: boolean;
+  // Offert (gratuit) — réservé admin/concierge
+  canOffer: boolean;
+  isOffert: boolean;
+  onIsOffertChange: (value: boolean) => void;
 }
 
 export function BookingPrestationsStep({
@@ -116,6 +120,9 @@ export function BookingPrestationsStep({
   onComboDuoChange,
   sessionCount = 0,
   variantDuoInCart = false,
+  canOffer,
+  isOffert,
+  onIsOffertChange,
 }: BookingPrestationsStepProps) {
   const { t } = useTranslation('admin');
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
@@ -452,6 +459,28 @@ export function BookingPrestationsStep({
           </p>
         )}
 
+        {/* Offert (gratuit) — admin / concierge, tous types de client */}
+        {canOffer && (
+          <label className="flex items-start gap-2 cursor-pointer rounded-md border border-border px-2.5 py-2">
+            <Checkbox
+              checked={isOffert}
+              onCheckedChange={(checked) => onIsOffertChange(!!checked)}
+              className="mt-0.5"
+            />
+            <div className="flex-1 min-w-0">
+              <span className="flex items-center gap-1.5 text-xs font-medium">
+                <Gift className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                {t('bookings.offert.label')}
+              </span>
+              {isOffert && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {t('bookings.offert.helper')}
+                </p>
+              )}
+            </div>
+          </label>
+        )}
+
         <div className="flex items-center justify-between gap-3">
           {/* Back button */}
           <Button
@@ -479,7 +508,11 @@ export function BookingPrestationsStep({
                 {cartDetails.length > 3 && (
                   <span className="text-[9px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
                 )}
-                <span className="font-bold text-sm shrink-0 ml-1">{formatPrice(finalPriceWithSurcharge ?? finalPrice, selectedHotel?.currency || 'EUR')}</span>
+                <span className="font-bold text-sm shrink-0 ml-1">
+                  {isOffert
+                    ? t('bookings.offert.tag')
+                    : formatPrice(finalPriceWithSurcharge ?? finalPrice, selectedHotel?.currency || 'EUR')}
+                </span>
               </div>
             ) : (
               <span className="text-[10px] text-muted-foreground">Aucun service</span>

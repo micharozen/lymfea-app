@@ -54,6 +54,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   charged_to_room: "Facturé chambre",
   pending_partner_billing: "Paiement partenaire",
   card_saved: "Carte enregistrée",
+  offert: "Offert",
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -204,9 +205,14 @@ export default function BookingDetail() {
   const hotelInfo = getHotelInfo(booking.hotel_id);
   const currency = hotelInfo?.currency || 'EUR';
   
-  const displayPrice = booking.total_price && booking.total_price > 0
-    ? booking.total_price
-    : booking.treatmentsTotalPrice;
+  // Réservation offerte : prix forcé à 0 (sinon le fallback ci-dessous
+  // réafficherait le prix réel des soins).
+  const isOffert = booking.payment_status === "offert";
+  const displayPrice = isOffert
+    ? 0
+    : (booking.total_price && booking.total_price > 0
+      ? booking.total_price
+      : booking.treatmentsTotalPrice);
 
   const totalDuration = booking.totalDuration || booking.treatmentsTotalDuration || 0;
   const guestCount = (booking as any)?.guest_count ?? 1;

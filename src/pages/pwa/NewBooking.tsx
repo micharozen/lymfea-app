@@ -81,6 +81,9 @@ const PwaNewBooking = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [treatmentsLoading, setTreatmentsLoading] = useState(false);
 
+  // Réservation offerte (gratuite)
+  const [isOffert, setIsOffert] = useState(false);
+
   // Created booking
   const [createdBooking, setCreatedBooking] = useState<any>(null);
 
@@ -300,9 +303,10 @@ const PwaNewBooking = () => {
       slot3Date: null,
       slot3Time: null,
       treatmentIds,
-      totalPrice,
+      totalPrice: isOffert ? 0 : totalPrice,
       totalDuration,
       isAdmin: true,
+      isOffert,
     });
   };
 
@@ -325,7 +329,7 @@ const PwaNewBooking = () => {
         room_number: roomNumber,
         booking_date: format(selectedDate!, "yyyy-MM-dd"),
         booking_time: selectedTime,
-        total_price: totalPrice,
+        total_price: isOffert ? 0 : totalPrice,
         hotel_name: selectedHotel?.name,
         currency,
         treatments: cartDetails
@@ -420,6 +424,8 @@ const PwaNewBooking = () => {
               totalPrice={totalPrice}
               totalDuration={totalDuration}
               currency={currency}
+              isOffert={isOffert}
+              onIsOffertChange={setIsOffert}
               isPending={createBooking.isPending}
               onCreate={handleCreate}
               onBack={handleBack}
@@ -432,6 +438,7 @@ const PwaNewBooking = () => {
               bookingId={createdBooking?.booking_id}
               clientFirstName={clientFirstName}
               clientLastName={clientLastName}
+              isOffert={isOffert}
             />
           )}
         </StepTransition>
