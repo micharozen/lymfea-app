@@ -1,8 +1,8 @@
-﻿/**
+/**
  * Admin payment-link email — uses existing HTML templates (payment-link-templates.ts).
  * Idempotent: skips if payment_link_sent_at unless forceResend.
  */
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.2";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import type Stripe from "https://esm.sh/stripe@18.5.0";
 import { ensurePaymentLinkForBooking } from "./client-booking-summary.ts";
 import {

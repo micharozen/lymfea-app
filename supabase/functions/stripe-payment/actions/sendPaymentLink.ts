@@ -9,7 +9,7 @@ import {
   buildPaymentLinkTemplateMessage,
 } from "../../_shared/whatsapp-meta.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import type { ActionContext } from "../index.ts";
 
 const corsHeaders = {

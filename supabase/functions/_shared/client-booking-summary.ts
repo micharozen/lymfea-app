@@ -1,7 +1,7 @@
-﻿/**
+/**
  * Stripe payment link helpers for admin payment-link emails.
  */
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.2";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import type Stripe from "https://esm.sh/stripe@18.5.0";
 import { brand } from "./brand.ts";
 import { getStripeForVenue } from "./stripe-resolver.ts";

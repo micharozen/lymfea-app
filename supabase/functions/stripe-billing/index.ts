@@ -10,7 +10,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import type Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { getBillingStripe } from "../_shared/stripe-billing.ts";
 import { createLogger } from "../_shared/logger.ts";
