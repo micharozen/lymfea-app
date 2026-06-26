@@ -344,6 +344,10 @@ serve(async (req) => {
 
         const isExternal = (booking as any).client_type === 'external';
         const isPending = booking.status === 'pending';
+        // 'offert' = nothing to collect: never route to the payment-link branch,
+        // let it fall through to the standard branch so the confirmation email
+        // (or pending template) is sent like an already-paid booking.
+        const isOffert = (booking as any).payment_status === 'offert';
 
         // If a payment method has already been registered for this booking
         // (e.g. client paid via SetupIntent in the client flow), skip the
@@ -357,12 +361,12 @@ serve(async (req) => {
           .maybeSingle();
         const hasPaymentMethod = !!existingPaymentInfo;
 
-        if (isExternal && !hasPaymentMethod && sendPaymentLink === false) {
+        if (isExternal && !hasPaymentMethod && !isOffert && sendPaymentLink === false) {
           // Admin-created bookings (sendPaymentLink === false): do NOT auto-send
           // the Stripe payment link. The operator sends it manually from the
           // payment tab (FAB → SendPaymentLinkDialog). No client email here.
           console.log('[trigger-new-booking-notifications] sendPaymentLink=false → skipping auto payment-link for external booking:', bookingId);
-        } else if (isExternal && !hasPaymentMethod) {
+        } else if (isExternal && !hasPaymentMethod && !isOffert) {
           // External clients: create a Stripe payment link and send the
           // payment-required email template instead of the standard confirmation.
           const language: 'fr' | 'en' = resolvedLanguage;
