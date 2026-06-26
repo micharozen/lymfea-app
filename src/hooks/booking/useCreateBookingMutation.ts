@@ -64,8 +64,6 @@ export interface CreateBookingPayload {
   source?: string;
   emailInquiryId?: string;
   isBroadcast?: boolean;
-  /** admin-combo-duo: N solo treatments booked as one duo booking */
-  comboDuo?: boolean;
 }
 
 function resolveAssignment(

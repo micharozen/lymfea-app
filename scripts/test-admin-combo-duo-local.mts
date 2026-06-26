@@ -90,6 +90,15 @@ function runModuleTests() {
   const sessionsDuoVar = expandCartToSessions(cartDuoVariant);
   assert("variant duo NOT combo-eligible", isComboDuoEligible(sessionsDuoVar) === false);
 
+  const cartSoloPlusDuo = [
+    { treatmentId: MASSAGE_ID, variantId: VARIANT_SOLO_60, quantity: 1, treatment: massage },
+    { treatmentId: MASSAGE_ID, variantId: VARIANT_DUO_60, quantity: 1, treatment: massage },
+  ];
+  assert(
+    "explicit solo + duo variants NOT combo-eligible",
+    isComboDuoEligible(expandCartToSessions(cartSoloPlusDuo)) === false,
+  );
+
   const cart3 = [
     { treatmentId: MASSAGE_ID, variantId: VARIANT_SOLO_60, quantity: 1, treatment: massage },
     { treatmentId: DEEP_TISSUE_ID, variantId: VARIANT_DEEP, quantity: 1, treatment: deep },

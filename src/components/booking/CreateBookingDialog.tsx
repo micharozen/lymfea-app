@@ -416,7 +416,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       payByVoucher: values.payByVoucher,
       voucherReference: values.voucherReference?.trim() || null,
       guestCount: comboDuoEnabled ? comboParams!.guestCount : requiredGuestCount,
-      comboDuo: comboDuoEnabled,
       isBroadcast,
       ...(staffingCount > 1 && duoMode === "assign"
         ? { therapistIds: [values.therapistId, ...additionalTherapistIds].filter(Boolean) }

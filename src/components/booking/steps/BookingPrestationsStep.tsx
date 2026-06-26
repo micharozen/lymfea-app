@@ -12,6 +12,7 @@ import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
 import type { VenueAmenity } from "@/hooks/useVenueAmenities";
 import { CartItem } from "../CreateBookingDialog.schema";
 import { getCartLineDisplayName } from "@/lib/bookingCartLine";
+import { getVariantLabel } from "@/components/booking/TreatmentVariantCartLines";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
 
 interface Treatment {
@@ -196,7 +197,7 @@ export function BookingPrestationsStep({
                         </div>
                         {variants.map((v, vi) => {
                           const variantQty = getCartQuantity(treatment.id, v.id);
-                          const label = v.label || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
+                          const label = getVariantLabel(v);
                           const displayPrice = v.price ?? treatment.price;
                           const displayDuration = v.duration ?? treatment.duration;
                           return (

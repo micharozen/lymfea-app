@@ -80,6 +80,7 @@ import {
   getSessionCount,
   isComboDuoEligible,
 } from "@/features/admin-combo-duo";
+import { TreatmentVariantCartLines } from "@/components/booking/TreatmentVariantCartLines";
 
 export interface BookingModalInitialValues {
   hotelId?: string;
@@ -423,7 +424,6 @@ export default function BookingModal({
       isOutOfHours: false,
       surchargeAmount: 0,
       guestCount: comboDuoEnabled ? comboParams!.guestCount : requiredGuestCount,
-      comboDuo: comboDuoEnabled,
       source,
       emailInquiryId,
     });
@@ -493,13 +493,12 @@ export default function BookingModal({
                 }}
                 isConcierge={isConcierge}
                 treatments={treatments || []}
-                cart={cart}
                 addToCart={addToCart}
                 incrementCart={incrementCart}
                 decrementCart={decrementCart}
                 getCartQuantity={getCartQuantity}
                 totalPrice={totalPrice}
-                totalDuration={totalDuration}
+                summaryDuration={comboDuoEnabled ? effectiveDuration : totalDuration}
                 currency={selectedHotel?.currency || "EUR"}
                 comboDuoEligible={comboDuoEligible}
                 comboDuoEnabled={comboDuoEnabled}
@@ -790,14 +789,21 @@ interface VenueTreatmentStepProps {
     name?: string;
     price?: number | null;
     duration?: number | null;
+    price_on_request?: boolean | null;
+    treatment_variants?: Array<{
+      id: string;
+      label?: string | null;
+      price?: number | null;
+      duration?: number | null;
+      guest_count?: number;
+    }>;
   }>;
-  cart: Array<{ treatmentId: string; quantity: number }>;
-  addToCart: (id: string) => void;
-  incrementCart: (id: string) => void;
-  decrementCart: (id: string) => void;
-  getCartQuantity: (id: string) => number;
+  addToCart: (id: string, variantId?: string | null) => void;
+  incrementCart: (id: string, variantId?: string | null) => void;
+  decrementCart: (id: string, variantId?: string | null) => void;
+  getCartQuantity: (id: string, variantId?: string | null) => number;
   totalPrice: number;
-  totalDuration: number;
+  summaryDuration: number;
   currency: string;
   comboDuoEligible?: boolean;
   comboDuoEnabled?: boolean;
@@ -818,7 +824,7 @@ function VenueTreatmentStep({
   decrementCart,
   getCartQuantity,
   totalPrice,
-  totalDuration,
+  summaryDuration,
   currency,
   comboDuoEligible = false,
   comboDuoEnabled = false,
@@ -873,59 +879,14 @@ function VenueTreatmentStep({
               />
             </div>
             <ScrollArea className="h-[280px] pr-2">
-              <div className="space-y-2">
-                {filteredTreatments.map((tr) => {
-                  const qty = getCartQuantity(tr.id);
-                  return (
-                    <div
-                      key={tr.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border p-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm truncate">{tr.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {tr.duration || 0} min ·{" "}
-                          {formatPrice(tr.price || 0, currency)}
-                        </p>
-                      </div>
-                      {qty === 0 ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => addToCart(tr.id)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8"
-                            onClick={() => decrementCart(tr.id)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-6 text-center text-sm font-medium">
-                            {qty}
-                          </span>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8"
-                            onClick={() => incrementCart(tr.id)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <TreatmentVariantCartLines
+                treatments={filteredTreatments}
+                currency={currency}
+                getCartQuantity={getCartQuantity}
+                addToCart={addToCart}
+                incrementCart={incrementCart}
+                decrementCart={decrementCart}
+              />
             </ScrollArea>
             </>
           )}
@@ -935,7 +896,7 @@ function VenueTreatmentStep({
       {totalPrice > 0 && (
         <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
           <span className="text-muted-foreground">
-            {t("phoneBooking.treatment.summary")} · {totalDuration} min
+            {t("phoneBooking.treatment.summary")} · {summaryDuration} min
           </span>
           <span className="font-semibold">
             {formatPrice(totalPrice, currency)}
