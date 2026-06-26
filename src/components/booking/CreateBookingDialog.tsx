@@ -562,7 +562,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   onBack={() => setActiveTab("prestations")}
                   cart={cart}
                   cartDetails={cartDetails}
-                  finalPriceWithSurcharge={finalPriceWithSurcharge}
+                  finalPriceWithSurcharge={isOffert ? 0 : finalPriceWithSurcharge}
                   currency={selectedHotel?.currency || 'EUR'}
                   rooms={rooms}
                   occupiedRoomIds={occupiedRoomIds}
