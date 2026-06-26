@@ -136,9 +136,9 @@ export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
   },
   offert: {
     label: 'Offert',
-    badgeClass: 'bg-emerald-100 text-emerald-700',
-    cardClass: 'bg-emerald-500 text-white',
-    hexColor: '#10b981',
+    badgeClass: 'bg-amber-100 text-amber-700',
+    cardClass: 'bg-amber-500 text-white',
+    hexColor: '#f59e0b',
   },
 };
 
