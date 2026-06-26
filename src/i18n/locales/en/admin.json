@@ -95,6 +95,7 @@
     "noBookings": "No bookings",
     "filters": "Filters",
     "searchPlaceholder": "Search by client, hotel...",
+    "searchTreatment": "Search a treatment…",
     "clientType": {
       "label": "Client type",
       "hotel": "Hotel",
