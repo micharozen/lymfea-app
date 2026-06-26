@@ -451,7 +451,7 @@ export default function EditBookingDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("booking_treatments")
-        .select("treatment_id, variant_id")
+        .select("treatment_id, variant_id, price_override")
         .eq("booking_id", booking!.id);
       if (error) throw error;
       return data;
@@ -466,6 +466,7 @@ export default function EditBookingDialog({
         .from("booking_treatments")
         .select(`
           treatment_id,
+          price_override,
           treatment_menus (
             id,
             name,
@@ -477,7 +478,12 @@ export default function EditBookingDialog({
         `)
         .eq("booking_id", booking!.id);
       if (error) throw error;
-      return data?.map((bt: any) => bt.treatment_menus).filter(Boolean) || [];
+      // Surface the per-line override as the effective price so view-mode lines
+      // match the override-aware total.
+      return data?.map((bt: any) => bt.treatment_menus
+        ? { ...bt.treatment_menus, price: bt.price_override ?? bt.treatment_menus.price }
+        : null
+      ).filter(Boolean) || [];
     },
   });
 
@@ -491,7 +497,14 @@ export default function EditBookingDialog({
       existingTreatments.forEach(t => {
         const variantId = t.variant_id ?? null;
         const key = `${t.treatment_id}|${variantId ?? ""}`;
-        if (!counts[key]) counts[key] = { treatmentId: t.treatment_id, variantId, quantity: 0 };
+        if (!counts[key]) {
+          counts[key] = {
+            treatmentId: t.treatment_id,
+            variantId,
+            quantity: 0,
+            priceOverride: (t as { price_override?: number | null }).price_override ?? null,
+          };
+        }
         counts[key].quantity += 1;
       });
       setCart(Object.values(counts));
@@ -505,7 +518,7 @@ export default function EditBookingDialog({
       cart.forEach(item => {
         const treatment = treatments.find(t => t.id === item.treatmentId);
         if (treatment) {
-          price += getCartLineUnitPrice(treatment, item.variantId) * item.quantity;
+          price += getCartLineUnitPrice(treatment, item.variantId, item.priceOverride) * item.quantity;
           duration += getCartLineUnitDuration(treatment, item.variantId) * item.quantity;
         }
       });
@@ -615,10 +628,11 @@ export default function EditBookingDialog({
 
       if (bookingData.treatments && bookingData.treatments.length > 0) {
         const treatmentInserts = bookingData.treatments.map(
-          (t: { treatmentId: string; variantId?: string | null }) => ({
+          (t: { treatmentId: string; variantId?: string | null; priceOverride?: number | null }) => ({
             booking_id: booking.id,
             treatment_id: t.treatmentId,
             variant_id: t.variantId ?? null,
+            price_override: t.priceOverride ?? null,
           })
         );
 
@@ -939,11 +953,16 @@ export default function EditBookingDialog({
       ? (booking?.booking_time || "")
       : time;
     const submittedTreatments = isConcierge && !conciergeCanEditTreatments
-      ? (existingTreatments?.map(t => ({ treatmentId: t.treatment_id, variantId: t.variant_id ?? null })) || [])
+      ? (existingTreatments?.map(t => ({
+          treatmentId: t.treatment_id,
+          variantId: t.variant_id ?? null,
+          priceOverride: (t as { price_override?: number | null }).price_override ?? null,
+        })) || [])
       : cart.flatMap(item =>
           Array.from({ length: item.quantity }, () => ({
             treatmentId: item.treatmentId,
             variantId: item.variantId ?? null,
+            priceOverride: item.priceOverride ?? null,
           }))
         );
 
@@ -1945,6 +1964,43 @@ export default function EditBookingDialog({
                 })()}
               </div>
               
+              {/* Admin-only: per-line price override (special rate). Empty = catalog price. */}
+              {isAdmin && !treatmentsDisabled && cartDetails.length > 0 && (
+                <div className="shrink-0 border-t border-border bg-background pt-2 mt-2 space-y-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Prix par prestation
+                  </span>
+                  {cartDetails.map(({ treatmentId, variantId, treatment, priceOverride }) => (
+                    <div key={`ov-${treatmentId}-${variantId ?? 'base'}`} className="flex items-center gap-2">
+                      <span className="text-[11px] flex-1 truncate">
+                        {getCartLineDisplayName(treatment, variantId)}
+                      </span>
+                      {priceOverride != null && (
+                        <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
+                          modifié
+                        </span>
+                      )}
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={priceOverride ?? ''}
+                        onChange={(e) =>
+                          setCart(prev => prev.map(x =>
+                            x.treatmentId === treatmentId && (x.variantId ?? null) === (variantId ?? null)
+                              ? { ...x, priceOverride: e.target.value === '' ? null : Number(e.target.value) }
+                              : x
+                          ))
+                        }
+                        className="h-7 w-20 text-xs text-right"
+                        placeholder={String(getCartLineUnitPrice(treatment, variantId))}
+                      />
+                      <span className="text-[10px] text-muted-foreground">€</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="shrink-0 border-t border-border bg-background pt-2 mt-2">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">

@@ -28,6 +28,7 @@ export interface AmenityAccessPayload {
 export interface TreatmentPayload {
   treatmentId: string;
   variantId?: string;
+  priceOverride?: number | null;
 }
 
 export interface CreateBookingPayload {
@@ -191,6 +192,7 @@ async function insertSingleBooking(
         booking_id: booking.id,
         treatment_id: t.treatmentId,
         variant_id: t.variantId || null,
+        price_override: t.priceOverride ?? null,
       })),
     );
     if (te) throw te;

@@ -7,6 +7,7 @@ import {
 import { sendEmail } from '../_shared/send-email.ts';
 import { sendSms } from '../_shared/send-sms.ts';
 import { getStripeForVenue } from '../_shared/stripe-resolver.ts';
+import { resolveTreatmentPrice } from '../_shared/treatmentPrice.ts';
 
 // Resend templates "Booking Payment Link" (FR/EN) — same template variables.
 const PAYMENT_LINK_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
@@ -154,11 +155,15 @@ serve(async (req: Request) => {
     const { data: bookingTreatments, error: treatmentsError } = await supabase
       .from('booking_treatments')
       .select(`
+        price_override,
         treatment_menus (
           id,
           name,
           price,
           duration
+        ),
+        treatment_variants (
+          price
         )
       `)
       .eq('booking_id', bookingId);
@@ -170,7 +175,7 @@ serve(async (req: Request) => {
 
     const treatments = bookingTreatments?.map((bt: any) => ({
       name: bt.treatment_menus?.name || 'Service',
-      price: bt.treatment_menus?.price || 0,
+      price: resolveTreatmentPrice(bt),
       duration: bt.treatment_menus?.duration
     })) || [];
 
@@ -178,9 +183,11 @@ serve(async (req: Request) => {
       console.warn(`[SEND-PAYMENT-LINK] No booking_treatments found for booking ${bookingId} — booking may be corrupted`);
     }
 
-    // Correction ici : ajout des types sum et t
+    // Use the live treatment sum (override-aware) as the source of truth.
+    // Fall back to booking.total_price only when there are no treatment lines at
+    // all — a sum of 0 across existing lines is a legitimate amount (e.g. comped).
     const verifiedTotalPrice = treatments.reduce((sum: number, t: any) => sum + t.price, 0);
-    const totalPrice = verifiedTotalPrice > 0 ? verifiedTotalPrice : booking.total_price;
+    const totalPrice = treatments.length > 0 ? verifiedTotalPrice : booking.total_price;
 
     const currency = hotelCurrency;
     const currencySymbol = currency === 'eur' ? '€' : currency.toUpperCase();
