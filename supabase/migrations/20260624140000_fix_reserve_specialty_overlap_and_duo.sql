@@ -1,4 +1,4 @@
-﻿-- Fix reserve_trunk_atomically:
+-- Fix reserve_trunk_atomically:
 -- 1. Duo bookings: reserve room only (therapist assignment via broadcast-accept).
 -- 2. Specialty match: overlap (&&) like check-availability, not strict subset (<@).
 -- 3. Duration 0 treated as 30 min for overlap calculations.
