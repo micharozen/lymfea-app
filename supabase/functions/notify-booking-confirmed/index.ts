@@ -253,11 +253,12 @@ serve(async (req) => {
     await delay(600);
 
     // Garde paiement : on ne notifie le client (email + SMS) que si le paiement
-    // est engagé (paid/charged/charged_to_room/card_saved) ou facturé par un
-    // partenaire (Staycation/ClassPass). Un booking confirmé par un thérapeute
-    // mais non payé reste muet côté client — l'email de confirmation sera envoyé
-    // par stripe-webhook au moment du paiement (Gate status === 'confirmed').
-    const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing'];
+    // est engagé (paid/charged/charged_to_room/card_saved), facturé par un
+    // partenaire (Staycation/ClassPass) ou offert (rien à encaisser, aucun
+    // webhook Stripe ne suivra). Un booking confirmé par un thérapeute mais non
+    // payé reste muet côté client — l'email de confirmation sera envoyé par
+    // stripe-webhook au moment du paiement (Gate status === 'confirmed').
+    const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing', 'offert'];
     const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
 
     // 3. Send to client (only once payment is engaged)

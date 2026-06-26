@@ -549,8 +549,9 @@ serve(async (req) => {
           // must NOT receive the confirmation email. The operator sends a payment
           // link manually; the confirmed email (CLIENT_NEW_BOOKING) is then sent
           // by the Stripe webhook once paid. Pending bookings still get the
-          // pending template regardless of payment.
-          const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing'];
+          // pending template regardless of payment. 'offert' is treated as paid
+          // (nothing to collect, no Stripe webhook will ever follow up).
+          const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing', 'offert'];
           const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
 
           if (!isPending && !isPaidEnough) {
