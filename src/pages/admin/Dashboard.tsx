@@ -145,31 +145,6 @@ export default function Dashboard() {
           <StatCard title="Taux annulation" value={`${stats.cancellationRate}%`} icon={Ban} alignRight />
         </div>
 
-        {/* Operational gauges */}
-        <div className="mb-6 max-w-md">
-          <Card className="border border-border bg-card shadow-sm">
-            <CardContent className="p-5">
-              <p className="text-xs font-medium text-muted-foreground mb-2 tracking-wide">
-                Thérapeutes actifs aujourd'hui
-              </p>
-              <div className="flex items-baseline gap-2 mb-3">
-                <span className="text-2xl font-medium text-foreground tabular-nums">
-                  {data.activeTherapists.used}/{data.activeTherapists.total}
-                </span>
-                <span className="text-sm text-muted-foreground">disponibles</span>
-              </div>
-              <Progress
-                value={
-                  data.activeTherapists.total > 0
-                    ? (data.activeTherapists.used / data.activeTherapists.total) * 100
-                    : 0
-                }
-                className="h-2"
-              />
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Charts row */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
           <div className="lg:col-span-3">
@@ -207,6 +182,38 @@ export default function Dashboard() {
               topTreatments={data.topTreatments}
               isSingleVenue={isSingleVenue}
             />
+
+            {/* Operational gauges */}
+            <div className="mt-6 max-w-md">
+              <Card className="relative border border-border bg-card shadow-sm overflow-hidden">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-muted-foreground tracking-wide">
+                      Thérapeutes actifs aujourd'hui
+                    </p>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Soon
+                    </span>
+                  </div>
+                  <div className="pointer-events-none select-none opacity-40 blur-[2px]">
+                    <div className="flex items-baseline gap-2 mb-3">
+                      <span className="text-2xl font-medium text-foreground tabular-nums">
+                        {data.activeTherapists.used}/{data.activeTherapists.total}
+                      </span>
+                      <span className="text-sm text-muted-foreground">disponibles</span>
+                    </div>
+                    <Progress
+                      value={
+                        data.activeTherapists.total > 0
+                          ? (data.activeTherapists.used / data.activeTherapists.total) * 100
+                          : 0
+                      }
+                      className="h-2"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Overview tab — admins only (comparative view across all venues) */}

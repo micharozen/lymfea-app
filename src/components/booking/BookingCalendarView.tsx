@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
@@ -850,6 +850,21 @@ function AmenityBookingCard({
   const typeDef = getAmenityType(booking.amenity_type);
   const Icon = typeDef?.icon;
 
+  // Detect when the card is too narrow to fit info on a single row,
+  // and stack the contents vertically (single column) instead.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      setIsNarrow(width < 80);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const durationHours = Math.floor(booking.duration / 60);
   const durationMinutes = booking.duration % 60;
   const durationFormatted = durationHours > 0
@@ -870,6 +885,7 @@ function AmenityBookingCard({
     <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
         <div
+          ref={cardRef}
           className={cn(
             "absolute rounded text-sm cursor-pointer overflow-hidden z-[5] border-l-4 group transition-opacity",
             "hover:opacity-90"
@@ -890,7 +906,14 @@ function AmenityBookingCard({
           }}
         >
           <div className="p-1 h-full flex flex-col">
-            <div className="flex items-start justify-between gap-0.5">
+            <div
+              className={cn(
+                "flex gap-0.5",
+                isNarrow
+                  ? "flex-col items-start"
+                  : "flex-row items-start justify-between"
+              )}
+            >
               <div className="font-bold text-[13px] leading-tight" style={{ color: booking.amenity_color }}>
                 {booking.booking_time?.substring(0, 5)}
               </div>
@@ -911,9 +934,16 @@ function AmenityBookingCard({
               </div>
             )}
             {height >= 48 && (
-              <div className="flex items-center gap-1 text-[12px] font-semibold opacity-80">
+              <div
+                className={cn(
+                  "flex text-[12px] font-semibold opacity-80",
+                  isNarrow
+                    ? "flex-col items-start leading-tight"
+                    : "flex-row items-center gap-1"
+                )}
+              >
                 <span>{durationFormatted}</span>
-                <span>·</span>
+                {!isNarrow && <span>·</span>}
                 <span>{booking.num_guests}/{booking.capacity_total}</span>
               </div>
             )}
