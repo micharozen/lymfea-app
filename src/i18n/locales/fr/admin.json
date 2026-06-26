@@ -107,6 +107,11 @@
       "helper": "Le lieu a encaissé le client. La prestation sera facturée au lieu en fin de mois.",
       "referenceLabel": "Référence du voucher (optionnel)"
     },
+    "offert": {
+      "label": "Offert (gratuit)",
+      "helper": "Cette réservation est offerte : aucun paiement, prix à 0.",
+      "tag": "Offert"
+    },
     "payment": {
       "paidByVoucher": "Payé par voucher — encaissé par le lieu",
       "partnerBilled": "Facturé au partenaire (fin de mois)"

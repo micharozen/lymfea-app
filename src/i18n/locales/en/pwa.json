@@ -325,8 +325,14 @@
     "create": "Create booking",
     "next": "Next",
     "back": "Back",
+    "backToDashboard": "Back to dashboard",
     "selectHotel": "Select a venue",
     "bookingCreated": "Booking created!",
+    "offert": {
+      "label": "Complimentary (free)",
+      "helper": "This booking is complimentary: no payment, price set to 0.",
+      "tag": "Free"
+    },
     "firstName": "First name",
     "lastName": "Last name",
     "phone": "Phone",

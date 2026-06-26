@@ -65,6 +65,8 @@ export interface CreateBookingPayload {
   clientType?: BookingClientType;
   payByVoucher?: boolean;
   voucherReference?: string | null;
+  /** Réservation offerte (gratuite) : prix forcé à 0, payment "offert". */
+  isOffert?: boolean;
   source?: string;
   emailInquiryId?: string;
   isBroadcast?: boolean;
@@ -121,8 +123,10 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         resolveAssignment(allTherapistIds, guestCount, therapists);
 
       const clientType: BookingClientType = d.clientType ?? "external";
+      const isOffert = d.isOffert ?? false;
       const { paymentMethod, paymentStatus } = derivePaymentForClientType(clientType, {
         payByVoucher: d.payByVoucher,
+        isOffert,
       });
 
       // Si l'admin a explicitement choisi une salle, on la respecte.
@@ -191,9 +195,9 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         therapist_name: finalTherapistName,
         status,
         assigned_at: finalTherapistId ? new Date().toISOString() : null,
-        total_price: d.totalPrice,
-        is_out_of_hours: d.isOutOfHours,
-        surcharge_amount: d.surchargeAmount,
+        total_price: isOffert ? 0 : d.totalPrice,
+        is_out_of_hours: isOffert ? false : d.isOutOfHours,
+        surcharge_amount: isOffert ? 0 : d.surchargeAmount,
         room_id: roomId,
         duration: d.totalDuration,
         customer_id: customerId || null,
