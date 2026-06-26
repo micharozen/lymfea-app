@@ -84,6 +84,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientNote: "",
       payByVoucher: false,
       voucherReference: "",
+      isOffert: false,
     },
   });
 
@@ -101,6 +102,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const clientType = form.watch("clientType");
   const payByVoucher = form.watch("payByVoucher");
   const voucherReference = form.watch("voucherReference");
+  const isOffert = form.watch("isOffert");
   const roomId = form.watch("roomId");
 
   // Salles de soin disponibles au créneau choisi (pré-sélection auto + override).
@@ -284,9 +286,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         });
         const ct = form.getValues("clientType");
         const byVoucher = form.getValues("payByVoucher");
-        const skipStripe = ct !== "external" || byVoucher;
+        const offered = form.getValues("isOffert");
+        const skipStripe = ct !== "external" || byVoucher || offered;
         if (isConcierge) {
-          const isExternal = ct === "external" && !byVoucher;
+          const isExternal = ct === "external" && !byVoucher && !offered;
           const isBroadcastBooking = data.status === "pending";
           // External clients or broadcast: operator sends client comms manually.
           if (isExternal || isBroadcastBooking) {
@@ -347,6 +350,14 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       return;
     }
     const isBroadcast = duoMode === "broadcast" || !values.therapistId;
+    const comboParams = comboDuoEnabled ? buildComboDuoBookingParams(sessions) : null;
+    const treatments = comboParams?.treatments ?? cart.flatMap(item =>
+      Array.from({ length: item.quantity }, () => ({
+        treatmentId: item.treatmentId,
+        variantId: item.variantId || undefined,
+      }))
+    );
+    const offered = values.isOffert;
     mutation.mutate({
       hotelId: values.hotelId,
       clientFirstName: values.clientFirstName,
@@ -366,22 +377,19 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       slot3Date: values.slot3Date ? format(values.slot3Date, "yyyy-MM-dd") : null,
       slot3Time: values.slot3Time || null,
       treatmentIds: [],
-      treatments: cart.flatMap(item =>
-        Array.from({ length: item.quantity }, () => ({
-          treatmentId: item.treatmentId,
-          variantId: item.variantId || undefined,
-        }))
-      ),
-      totalPrice: finalPriceWithSurcharge,
+      treatments,
+      totalPrice: offered ? 0 : finalPriceWithSurcharge,
       totalDuration: finalDuration,
       isAdmin,
-      isOutOfHours: isBookingOutOfHours,
-      surchargeAmount,
+      isOutOfHours: offered ? false : isBookingOutOfHours,
+      surchargeAmount: offered ? 0 : surchargeAmount,
       amenityAccess: amenityAccessPayload.length > 0 ? amenityAccessPayload : undefined,
       clientType: values.clientType,
       payByVoucher: values.payByVoucher,
       voucherReference: values.voucherReference?.trim() || null,
-      guestCount: requiredGuestCount,
+      isOffert: offered,
+      guestCount: comboDuoEnabled ? comboParams!.guestCount : requiredGuestCount,
+      comboDuo: comboDuoEnabled,
       isBroadcast,
       ...(requiredGuestCount > 1 && duoMode === "assign" && additionalTherapistIds.length > 0
         ? { therapistIds: [values.therapistId, ...additionalTherapistIds].filter(Boolean) }
@@ -426,6 +434,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientNote: "",
       payByVoucher: false,
       voucherReference: "",
+      isOffert: false,
     });
     setCart([]);
     setCustomPrice("");
@@ -519,9 +528,26 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   onToggleAmenity={handleToggleAmenity}
                   clientType={clientType}
                   payByVoucher={payByVoucher}
-                  onPayByVoucherChange={(v) => form.setValue("payByVoucher", v)}
+                  onPayByVoucherChange={(v) => {
+                    form.setValue("payByVoucher", v);
+                    if (v) form.setValue("isOffert", false);
+                  }}
                   voucherReference={voucherReference}
                   onVoucherReferenceChange={(v) => form.setValue("voucherReference", v)}
+                  comboDuoEligible={comboDuoEligible}
+                  comboDuoEnabled={comboDuoEnabled}
+                  onComboDuoChange={setComboDuoEnabled}
+                  sessionCount={sessionCount}
+                  variantDuoInCart={requiredGuestCount > 1}
+                  canOffer={canAssignTherapist}
+                  isOffert={isOffert}
+                  onIsOffertChange={(v) => {
+                    form.setValue("isOffert", v);
+                    if (v) {
+                      form.setValue("payByVoucher", false);
+                      form.setValue("voucherReference", "");
+                    }
+                  }}
                 />
             </TabsContent>
 
@@ -581,7 +607,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         room_number: roomNumber || undefined,
         booking_date: date ? format(date, "yyyy-MM-dd") : "",
         booking_time: time,
-        total_price: finalPriceWithSurcharge,
+        total_price: isOffert ? 0 : finalPriceWithSurcharge,
         hotel_name: createdBooking.hotel_name,
         treatments: cartDetails.map(item => ({
           name: item.treatment?.name || 'Service',

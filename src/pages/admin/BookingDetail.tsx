@@ -54,6 +54,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   charged_to_room: "Facturé chambre",
   pending_partner_billing: "Paiement partenaire",
   card_saved: "Carte enregistrée",
+  offert: "Offert",
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -204,9 +205,14 @@ export default function BookingDetail() {
   const hotelInfo = getHotelInfo(booking.hotel_id);
   const currency = hotelInfo?.currency || 'EUR';
   
-  const displayPrice = booking.total_price && booking.total_price > 0
-    ? booking.total_price
-    : booking.treatmentsTotalPrice;
+  // Réservation offerte : prix forcé à 0 (sinon le fallback ci-dessous
+  // réafficherait le prix réel des soins).
+  const isOffert = booking.payment_status === "offert";
+  const displayPrice = isOffert
+    ? 0
+    : (booking.total_price && booking.total_price > 0
+      ? booking.total_price
+      : booking.treatmentsTotalPrice);
 
   const totalDuration = booking.totalDuration || booking.treatmentsTotalDuration || 0;
   const guestCount = (booking as any)?.guest_count ?? 1;
@@ -231,7 +237,12 @@ export default function BookingDetail() {
   // Payment breakdown for the "Paiement" card. total_price already includes the
   // out-of-hours surcharge, which is also stored separately on surcharge_amount.
   const surchargeAmount = booking.is_out_of_hours ? (booking.surcharge_amount ?? 0) : 0;
-  const subtotal = Math.max(displayPrice - surchargeAmount, 0);
+  // Offert: show the real treatment price as subtotal, then a negative "Offert"
+  // line that brings the total back to 0 (instead of a flat 0 everywhere).
+  const offertOriginalPrice = isOffert ? (booking.treatmentsTotalPrice || 0) : 0;
+  const subtotal = isOffert
+    ? offertOriginalPrice
+    : Math.max(displayPrice - surchargeAmount, 0);
   const surchargePercent = subtotal > 0 ? Math.round((surchargeAmount / subtotal) * 100) : 0;
   const hasSurcharge = surchargeAmount > 0;
   const giftPaid = ((booking as any).gift_amount_applied_cents ?? 0) / 100;
@@ -649,6 +660,13 @@ export default function BookingDetail() {
                     Majoration hors horaires ({surchargePercent}%)
                   </span>
                   <span className="whitespace-nowrap">+{formatPrice(surchargeAmount, currency)}</span>
+                </div>
+              )}
+
+              {isOffert && (
+                <div className="flex justify-between items-center mt-3 text-base font-semibold text-amber-600">
+                  <span>Offert</span>
+                  <span className="whitespace-nowrap">−{formatPrice(offertOriginalPrice, currency)}</span>
                 </div>
               )}
 

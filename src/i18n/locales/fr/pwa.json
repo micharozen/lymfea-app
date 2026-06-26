@@ -325,13 +325,27 @@
     "create": "Créer la réservation",
     "next": "Suivant",
     "back": "Retour",
+    "backToDashboard": "Retour au tableau de bord",
     "selectHotel": "Sélectionner un lieu",
     "bookingCreated": "Réservation créée !",
+    "offert": {
+      "label": "Offert (gratuit)",
+      "helper": "Cette réservation est offerte : aucun paiement, prix à 0.",
+      "tag": "Offert"
+    },
     "firstName": "Prénom",
     "lastName": "Nom",
     "phone": "Téléphone",
     "room": "Chambre",
-    "time": "Heure"
+    "time": "Heure",
+    "searchClient": "Rechercher un client existant",
+    "searchClientPlaceholder": "Nom, prénom ou téléphone…",
+    "searching": "Recherche…",
+    "noClientFound": "Aucun client trouvé",
+    "assignToOther": "L'associer à un autre thérapeute",
+    "selectTherapist": "Sélectionner un thérapeute",
+    "loadingTherapists": "Chargement…",
+    "noOtherTherapist": "Aucun autre thérapeute"
   },
   "tabs": {
     "home": "Accueil",

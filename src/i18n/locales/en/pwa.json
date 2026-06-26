@@ -325,13 +325,27 @@
     "create": "Create booking",
     "next": "Next",
     "back": "Back",
+    "backToDashboard": "Back to dashboard",
     "selectHotel": "Select a venue",
     "bookingCreated": "Booking created!",
+    "offert": {
+      "label": "Complimentary (free)",
+      "helper": "This booking is complimentary: no payment, price set to 0.",
+      "tag": "Free"
+    },
     "firstName": "First name",
     "lastName": "Last name",
     "phone": "Phone",
     "room": "Room",
-    "time": "Time"
+    "time": "Time",
+    "searchClient": "Search for an existing client",
+    "searchClientPlaceholder": "Name, first name or phone…",
+    "searching": "Searching…",
+    "noClientFound": "No client found",
+    "assignToOther": "Assign to another therapist",
+    "selectTherapist": "Select a therapist",
+    "loadingTherapists": "Loading…",
+    "noOtherTherapist": "No other therapist"
   },
   "tabs": {
     "home": "Home",
