@@ -27,6 +27,8 @@ export const createFormSchema = (t: TFunction) => z.object({
   clientNote: z.string().default(""),
   payByVoucher: z.boolean().default(false),
   voucherReference: z.string().default(""),
+  // Réservation offerte (gratuite) : prix forcé à 0, marquée "offert".
+  isOffert: z.boolean().default(false),
 }).refine(data => {
   // If slot 2 is partially filled, both date and time are required
   if ((data.slot2Date && !data.slot2Time) || (!data.slot2Date && data.slot2Time)) return false;

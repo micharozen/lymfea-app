@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatPrice } from "@/lib/formatPrice";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Loader2 } from "lucide-react";
+import { Loader2, Gift } from "lucide-react";
 
 interface Treatment {
   id: string;
@@ -36,6 +37,8 @@ interface SummaryStepProps {
   totalPrice: number;
   totalDuration: number;
   currency: string;
+  isOffert: boolean;
+  onIsOffertChange: (value: boolean) => void;
   isPending: boolean;
   onCreate: () => void;
   onBack: () => void;
@@ -55,6 +58,8 @@ export function SummaryStep({
   totalPrice,
   totalDuration,
   currency,
+  isOffert,
+  onIsOffertChange,
   isPending,
   onCreate,
   onBack,
@@ -139,12 +144,34 @@ export function SummaryStep({
             <div className="bg-primary/10 rounded-lg p-3 mt-3 flex items-center justify-between">
               <span className="text-sm font-semibold">Total</span>
               <span className="text-sm font-bold text-primary">
-                {formatPrice(totalPrice, currency)}
+                {isOffert
+                  ? t("newBooking.offert.tag", "Offert")
+                  : formatPrice(totalPrice, currency)}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-2 italic">
               Durée estimée : {totalDuration} min
             </p>
+
+            {/* Offert (gratuit) */}
+            <label className="flex items-start gap-2 cursor-pointer rounded-lg border border-primary/20 px-3 py-2.5 mt-3">
+              <Checkbox
+                checked={isOffert}
+                onCheckedChange={(checked) => onIsOffertChange(!!checked)}
+                className="mt-0.5"
+              />
+              <div className="flex-1 min-w-0">
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  <Gift className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  {t("newBooking.offert.label", "Offert (gratuit)")}
+                </span>
+                {isOffert && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t("newBooking.offert.helper", "Cette réservation est offerte : aucun paiement, prix à 0.")}
+                  </p>
+                )}
+              </div>
+            </label>
           </div>
         </div>
       </div>

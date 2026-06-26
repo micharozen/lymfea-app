@@ -107,6 +107,11 @@
       "helper": "The venue collected payment from the client. The service will be billed to the venue at month-end.",
       "referenceLabel": "Voucher reference (optional)"
     },
+    "offert": {
+      "label": "Complimentary (free)",
+      "helper": "This booking is complimentary: no payment, price set to 0.",
+      "tag": "Free"
+    },
     "payment": {
       "paidByVoucher": "Paid by voucher — collected by venue",
       "partnerBilled": "Billed to partner (month-end)"

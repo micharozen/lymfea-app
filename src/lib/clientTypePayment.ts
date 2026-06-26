@@ -14,9 +14,14 @@ const LOCKED_PAYMENT_STATUSES = ["paid", "refunded"];
  */
 export function derivePaymentForClientType(
   clientType: BookingClientType,
-  opts?: { payByVoucher?: boolean },
+  opts?: { payByVoucher?: boolean; isOffert?: boolean },
 ): DerivedPayment {
   const payByVoucher = opts?.payByVoucher ?? false;
+  // Une réservation offerte (gratuite) prime sur tout : ni voucher, ni
+  // facturation chambre/partenaire.
+  if (opts?.isOffert) {
+    return { paymentMethod: "offert", paymentStatus: "offert" };
+  }
   if (payByVoucher && (clientType === "hotel" || clientType === "external")) {
     return { paymentMethod: "voucher", paymentStatus: "paid" };
   }
