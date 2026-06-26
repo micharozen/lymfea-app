@@ -19,10 +19,18 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Calendar as CalendarIcon, Check, ChevronsUpDown, List, Search, Users } from "lucide-react";
+import { Ban, Calendar as CalendarIcon, Check, CheckCheck, CheckCircle2, ChevronsUpDown, Clock, List, Search, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { Hotel, Therapist } from "@/hooks/booking";
+
+// Status filter options with a pastel background + icon per value.
+const STATUS_FILTER_OPTIONS = [
+  { value: "pending", label: "En attente", Icon: Clock, className: "bg-orange-50 text-orange-900 focus:bg-orange-100 focus:text-orange-900" },
+  { value: "confirmed", label: "Confirmé", Icon: CheckCircle2, className: "bg-emerald-50 text-emerald-900 focus:bg-emerald-100 focus:text-emerald-900" },
+  { value: "completed", label: "Terminé", Icon: CheckCheck, className: "bg-emerald-50/60 text-emerald-800 focus:bg-emerald-100 focus:text-emerald-900" },
+  { value: "cancelled", label: "Annulé", Icon: Ban, className: "bg-gray-100 text-red-600 focus:bg-gray-200 focus:text-red-700" },
+] as const;
 
 interface BookingFiltersProps {
   searchQuery: string;
@@ -102,37 +110,6 @@ export function BookingFilters({
         </div>
       )}
 
-      <Select value={statusFilter} onValueChange={onStatusChange}>
-        <SelectTrigger className={cn("w-[160px] h-8 text-xs", groupFiltersRight && "ml-auto")}>
-          <SelectValue placeholder="Tous les statuts" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Tous les statuts</SelectItem>
-          <SelectItem value="quote_pending">Devis</SelectItem>
-          <SelectItem value="pending">En attente</SelectItem>
-          <SelectItem value="confirmed">Confirmé</SelectItem>
-          <SelectItem value="ongoing">En cours</SelectItem>
-          <SelectItem value="completed">Terminé</SelectItem>
-          <SelectItem value="cancelled">Annulé</SelectItem>
-        </SelectContent>
-      </Select>
-
-      {periodDays !== undefined && onPeriodDaysChange && (
-        <Select
-          value={String(periodDays)}
-          onValueChange={(v) => onPeriodDaysChange(Number(v))}
-        >
-          <SelectTrigger className="w-[140px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="10">10 derniers jours</SelectItem>
-            <SelectItem value="30">30 derniers jours</SelectItem>
-            <SelectItem value="60">60 derniers jours</SelectItem>
-          </SelectContent>
-        </Select>
-      )}
-
       {isAdmin && !hideHotelFilter && (() => {
         const selectedHotel = hotelFilter !== "all" ? hotels?.find(h => h.id === hotelFilter) : null;
         return (
@@ -142,7 +119,7 @@ export function BookingFilters({
                 variant="outline"
                 role="combobox"
                 aria-expanded={hotelPopoverOpen}
-                className="w-[160px] h-8 px-2 text-xs font-normal justify-between"
+                className={cn("w-[160px] h-8 px-2 text-xs font-normal justify-between", groupFiltersRight && "ml-auto")}
               >
                 <div className="flex items-center gap-1.5 truncate">
                   {selectedHotel && (
@@ -200,6 +177,39 @@ export function BookingFilters({
           </Popover>
         );
       })()}
+
+      <Select value={statusFilter} onValueChange={onStatusChange}>
+        <SelectTrigger className={cn("w-[160px] h-8 text-xs", groupFiltersRight && (!isAdmin || hideHotelFilter) && "ml-auto")}>
+          <SelectValue placeholder="Tous les statuts" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Tous les statuts</SelectItem>
+          {STATUS_FILTER_OPTIONS.map(({ value, label, Icon, className }) => (
+            <SelectItem key={value} value={value} className={cn("my-0.5 rounded-sm", className)}>
+              <span className="flex items-center gap-2">
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {periodDays !== undefined && onPeriodDaysChange && (
+        <Select
+          value={String(periodDays)}
+          onValueChange={(v) => onPeriodDaysChange(Number(v))}
+        >
+          <SelectTrigger className="w-[140px] h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="10">10 derniers jours</SelectItem>
+            <SelectItem value="30">30 derniers jours</SelectItem>
+            <SelectItem value="60">60 derniers jours</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
 
       {isAdmin && (() => {
         const selectedTherapist =

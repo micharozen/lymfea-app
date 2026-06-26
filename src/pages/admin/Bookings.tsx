@@ -288,6 +288,7 @@ useEffect(() => {
           hotels={hotels}
           therapists={therapists}
           hideSearch
+          hideViewToggle
           groupFiltersRight
           leading={
             <h1 className="text-lg font-medium text-foreground mr-1">Planning</h1>
