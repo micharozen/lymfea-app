@@ -61,6 +61,8 @@ export interface CreateBookingPayload {
   clientType?: BookingClientType;
   payByVoucher?: boolean;
   voucherReference?: string | null;
+  /** Réservation offerte (gratuite) : prix forcé à 0, payment "offert". */
+  isOffert?: boolean;
   source?: string;
   emailInquiryId?: string;
   isBroadcast?: boolean;
@@ -166,9 +168,9 @@ async function insertSingleBooking(
     therapist_name: finalTherapistName,
     status,
     assigned_at: finalTherapistId ? new Date().toISOString() : null,
-    total_price: d.totalPrice,
-    is_out_of_hours: d.isOutOfHours,
-    surcharge_amount: d.surchargeAmount,
+    total_price: d.isOffert ? 0 : d.totalPrice,
+    is_out_of_hours: d.isOffert ? false : d.isOutOfHours,
+    surcharge_amount: d.isOffert ? 0 : d.surchargeAmount,
     room_id: roomId,
     duration: d.totalDuration,
     customer_id: customerId || null,
@@ -224,8 +226,10 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       const hotel = hotels?.find(h => h.id === d.hotelId);
 
       const clientType: BookingClientType = d.clientType ?? "external";
+      const isOffert = d.isOffert ?? false;
       const { paymentMethod, paymentStatus } = derivePaymentForClientType(clientType, {
         payByVoucher: d.payByVoucher,
+        isOffert,
       });
 
       const hasPhone = d.phone.trim().length > 0;

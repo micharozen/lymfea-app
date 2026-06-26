@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import { PaymentLinkForm, BookingData } from "@/components/booking/PaymentLinkForm";
 import { CheckCircle2 } from "lucide-react";
 
@@ -9,6 +10,7 @@ interface SuccessStepProps {
   bookingId: number;
   clientFirstName: string;
   clientLastName: string;
+  isOffert?: boolean;
 }
 
 export function SuccessStep({
@@ -16,6 +18,7 @@ export function SuccessStep({
   bookingId,
   clientFirstName,
   clientLastName,
+  isOffert = false,
 }: SuccessStepProps) {
   const navigate = useNavigate();
   const { t } = useTranslation("pwa");
@@ -47,12 +50,21 @@ export function SuccessStep({
         </p>
       </div>
 
-      <PaymentLinkForm
-        booking={booking}
-        onSuccess={() => navigate("/pwa/dashboard")}
-        onSkip={() => navigate("/pwa/dashboard")}
-        showSkipButton
-      />
+      {isOffert ? (
+        <Button
+          className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+          onClick={() => navigate("/pwa/dashboard")}
+        >
+          {t("newBooking.backToDashboard", "Retour au tableau de bord")}
+        </Button>
+      ) : (
+        <PaymentLinkForm
+          booking={booking}
+          onSuccess={() => navigate("/pwa/dashboard")}
+          onSkip={() => navigate("/pwa/dashboard")}
+          showSkipButton
+        />
+      )}
     </div>
   );
 }

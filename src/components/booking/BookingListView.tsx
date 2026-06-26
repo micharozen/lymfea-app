@@ -243,7 +243,9 @@ export function BookingListView({
                   )}
                 </div>
                 <span className="font-medium text-sm shrink-0 flex items-center gap-1">
-                  {formatPrice(booking.total_price, hotel?.currency || "EUR")}
+                  {booking.payment_status === "offert"
+                    ? t("admin:bookings.offert.tag")
+                    : formatPrice(booking.total_price, hotel?.currency || "EUR")}
                   {booking.is_out_of_hours && (
                     <Clock className="h-3 w-3 text-amber-500 shrink-0" title="Hors horaires" />
                   )}
@@ -466,7 +468,9 @@ export function BookingListView({
                 </TableCell>
                 <TableCell className="text-foreground py-3 px-2">
                   <span className="leading-none flex items-center gap-1">
-                    {formatPrice(booking.total_price, getHotelInfo(booking.hotel_id)?.currency || "EUR")}
+                    {booking.payment_status === "offert"
+                      ? t("admin:bookings.offert.tag")
+                      : formatPrice(booking.total_price, getHotelInfo(booking.hotel_id)?.currency || "EUR")}
                     {booking.is_out_of_hours && (
                       <Clock className="h-3 w-3 text-amber-500 shrink-0" title="Hors horaires" />
                     )}
