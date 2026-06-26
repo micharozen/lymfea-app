@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
+import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 import { sendSms } from "../_shared/send-sms.ts";
 import { getStripeForVenue } from "../_shared/stripe-resolver.ts";
 
@@ -81,13 +82,13 @@ serve(async (req) => {
 
     const { data: bookingTreatmentRows } = await supabaseClient
       .from('booking_treatments')
-      .select('treatment_id, treatment_menus(name, price, duration)')
+      .select('treatment_id, price_override, treatment_menus(name, price, duration), treatment_variants(price)')
       .eq('booking_id', bookingId);
     const treatments = (bookingTreatmentRows ?? []).map(bt => {
       const menu = bt.treatment_menus as any;
       return {
         name: menu?.name || '',
-        price: Number(menu?.price) || 0,
+        price: resolveTreatmentPrice(bt as any),
         duration: Number(menu?.duration) || 0,
       };
     });

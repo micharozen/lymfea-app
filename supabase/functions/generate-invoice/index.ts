@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
+import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -411,12 +412,16 @@ serve(async (req: Request) => {
       .from('booking_treatments')
       .select(`
         treatment_id,
+        price_override,
         treatment_menus (
           id,
           name,
           price,
           duration,
           category
+        ),
+        treatment_variants (
+          price
         )
       `)
       .eq('booking_id', bookingId);
@@ -428,7 +433,7 @@ serve(async (req: Request) => {
       return {
         id: tm.id,
         name: tm.name,
-        price: tm.price,
+        price: resolveTreatmentPrice(bt),
         duration: tm.duration,
         category: tm.category,
       };

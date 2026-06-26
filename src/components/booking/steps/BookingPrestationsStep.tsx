@@ -11,7 +11,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
 import type { VenueAmenity } from "@/hooks/useVenueAmenities";
 import { CartItem } from "../CreateBookingDialog.schema";
-import { getCartLineDisplayName } from "@/lib/bookingCartLine";
+import { getCartLineDisplayName, getCartLineUnitPrice } from "@/lib/bookingCartLine";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
 
 interface Treatment {
@@ -44,6 +44,7 @@ interface BookingPrestationsStepProps {
   addToCart: (id: string, variantId?: string | null) => void;
   incrementCart: (id: string, variantId?: string | null) => void;
   decrementCart: (id: string, variantId?: string | null) => void;
+  setLineOverride?: (treatmentId: string, variantId: string | null | undefined, value: number | null) => void;
   getCartQuantity: (treatmentId: string, variantId?: string | null) => number;
   totalPrice: number;
   totalDuration: number;
@@ -91,6 +92,7 @@ export function BookingPrestationsStep({
   addToCart,
   incrementCart,
   decrementCart,
+  setLineOverride,
   getCartQuantity,
   totalPrice,
   totalDuration,
@@ -329,6 +331,43 @@ export function BookingPrestationsStep({
                 placeholder={String(totalDuration)}
               />
             </div>
+          </div>
+        )}
+
+        {/* Admin-only: per-line price override (special rate). Empty = catalog price. */}
+        {isAdmin && setLineOverride && cartDetails.length > 0 && (
+          <div className="space-y-1.5 pb-2 border-b border-border/50">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Prix par prestation
+            </span>
+            {cartDetails.map(({ treatmentId, variantId, treatment, priceOverride }) => (
+              <div key={`ov-${treatmentId}-${variantId ?? 'base'}`} className="flex items-center gap-2">
+                <span className="text-[11px] flex-1 truncate">
+                  {getCartLineDisplayName(treatment, variantId)}
+                </span>
+                {priceOverride != null && (
+                  <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
+                    modifié
+                  </span>
+                )}
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={priceOverride ?? ''}
+                  onChange={(e) =>
+                    setLineOverride(
+                      treatmentId,
+                      variantId,
+                      e.target.value === '' ? null : Number(e.target.value),
+                    )
+                  }
+                  className="h-7 w-20 text-xs text-right"
+                  placeholder={String(getCartLineUnitPrice(treatment, variantId))}
+                />
+                <span className="text-[10px] text-muted-foreground">€</span>
+              </div>
+            ))}
           </div>
         )}
 

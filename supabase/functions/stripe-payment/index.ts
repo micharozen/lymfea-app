@@ -124,18 +124,28 @@ serve(async (req) => {
 
   log.bind({ action, hotelId });
 
-  let stripe;
+  // Cross-venue actions (cron jobs) have no single hotelId up front and
+  // resolve the right Stripe client per booking inside their handler.
+  // For those, a missing global key must NOT be fatal.
+  const SELF_RESOLVING_ACTIONS = new Set(["check-expired-payment-links"]);
+
+  let stripe = null as unknown as Stripe;
   let accountId: string | null = null;
   try {
     const resolved = await getStripeForVenue(supabaseAdmin, hotelId);
     stripe = resolved.client;
     accountId = resolved.accountId;
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Stripe init failed";
-    console.error(`[stripe-payment] resolver error for action=${action}:`, message);
-    log.error("stripe.resolver_failed", err);
-    await log.flush();
-    return jsonResponse({ error: message }, 500);
+    if (!SELF_RESOLVING_ACTIONS.has(action)) {
+      const message = err instanceof Error ? err.message : "Stripe init failed";
+      console.error(`[stripe-payment] resolver error for action=${action}:`, message);
+      log.error("stripe.resolver_failed", err);
+      await log.flush();
+      return jsonResponse({ error: message }, 500);
+    }
+    console.warn(
+      `[stripe-payment] no upfront Stripe client for action=${action} (resolves per venue)`,
+    );
   }
 
   try {

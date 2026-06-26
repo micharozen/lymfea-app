@@ -47,6 +47,8 @@ export interface CartItem {
   treatmentId: string;
   quantity: number;
   variantId?: string | null;
+  /** Admin-only per-line price override (absolute €). null/undefined = catalog price. */
+  priceOverride?: number | null;
 }
 
 export interface CreateBookingDialogProps {

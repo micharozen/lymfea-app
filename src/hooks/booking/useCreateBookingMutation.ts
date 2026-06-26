@@ -28,6 +28,7 @@ export interface AmenityAccessPayload {
 export interface TreatmentPayload {
   treatmentId: string;
   variantId?: string;
+  priceOverride?: number | null;
 }
 
 export interface CreateBookingPayload {
@@ -76,6 +77,149 @@ interface UseCreateBookingMutationOptions {
   hotels: Hotel[] | undefined;
   therapists: Therapist[] | undefined;
   onSuccess: (data: any) => void;
+}
+
+function resolveAssignment(
+  allTherapistIds: string[],
+  guestCount: number,
+  therapists: Therapist[] | undefined,
+) {
+  const primaryTherapist = allTherapistIds.length > 0
+    ? therapists?.find(h => h.id === allTherapistIds[0])
+    : null;
+
+  let status: string;
+  if (allTherapistIds.length >= guestCount) {
+    status = "confirmed";
+  } else if (allTherapistIds.length === 0) {
+    status = "pending";
+  } else {
+    status = "awaiting_hairdresser_selection";
+  }
+
+  return {
+    status,
+    therapistId: primaryTherapist?.id ?? null,
+    therapistName: primaryTherapist
+      ? `${primaryTherapist.first_name} ${primaryTherapist.last_name}`
+      : null,
+  };
+}
+
+async function pickFreeRoom(
+  hotelId: string,
+  date: string,
+  time: string,
+  excludeRoomIds: Set<string>,
+): Promise<string | null> {
+  const { data: treatmentRooms } = await supabase
+    .from("treatment_rooms")
+    .select("id")
+    .eq("hotel_id", hotelId)
+    .eq("status", "active");
+
+  if (!treatmentRooms?.length) return null;
+
+  const { data: bookingsWithRooms } = await supabase
+    .from("bookings")
+    .select("room_id")
+    .eq("hotel_id", hotelId)
+    .eq("booking_date", date)
+    .eq("booking_time", time)
+    .not("room_id", "is", null)
+    .not("status", "in", '("Annulé","Terminé","cancelled")');
+
+  const usedRoomIds = new Set([
+    ...(bookingsWithRooms?.map((b) => b.room_id) || []),
+    ...excludeRoomIds,
+  ]);
+
+  for (const room of treatmentRooms) {
+    if (!usedRoomIds.has(room.id)) return room.id;
+  }
+  return null;
+}
+
+async function insertSingleBooking(
+  d: CreateBookingPayload,
+  hotel: Hotel | undefined,
+  therapists: Therapist[] | undefined,
+  customerId: string | null,
+  paymentMethod: string | null,
+  paymentStatus: string | null,
+  language: "fr" | "en",
+  allTherapistIds: string[],
+  guestCount: number,
+  isBroadcast: boolean,
+  roomId: string | null,
+) {
+  const { status, therapistId: finalTherapistId, therapistName: finalTherapistName } =
+    resolveAssignment(allTherapistIds, guestCount, therapists);
+
+  const { data: booking, error } = await supabase.from("bookings").insert({
+    hotel_id: d.hotelId,
+    hotel_name: hotel?.name || "",
+    client_first_name: d.clientFirstName,
+    client_last_name: d.clientLastName,
+    client_email: d.clientEmail || null,
+    phone: d.phone.trim() ? composePhoneNumber(d.countryCode, d.phone).replace(/\s/g, "") : null,
+    room_number: d.roomNumber?.trim() ? d.roomNumber.trim() : null,
+    client_note: d.clientNote?.trim() ? d.clientNote.trim() : null,
+    booking_date: d.date,
+    booking_time: d.time,
+    therapist_id: finalTherapistId,
+    therapist_name: finalTherapistName,
+    status,
+    assigned_at: finalTherapistId ? new Date().toISOString() : null,
+    total_price: d.isOffert ? 0 : d.totalPrice,
+    is_out_of_hours: d.isOffert ? false : d.isOutOfHours,
+    surcharge_amount: d.isOffert ? 0 : d.surchargeAmount,
+    room_id: roomId,
+    duration: d.totalDuration,
+    customer_id: customerId || null,
+    guest_count: guestCount,
+    client_type: d.clientType ?? "external",
+    payment_method: paymentMethod,
+    payment_status: paymentStatus,
+    payment_reference: d.voucherReference || null,
+    source: d.source ?? "admin",
+    email_inquiry_id: d.emailInquiryId ?? null,
+    language,
+    booking_group_id: null,
+  } as any).select("id, booking_id, hotel_name, status").single();
+
+  if (error) throw error;
+
+  if (d.treatments && d.treatments.length > 0) {
+    const { error: te } = await supabase.from("booking_treatments").insert(
+      d.treatments.map((t) => ({
+        booking_id: booking.id,
+        treatment_id: t.treatmentId,
+        variant_id: t.variantId || null,
+        price_override: t.priceOverride ?? null,
+      })),
+    );
+    if (te) throw te;
+  } else if (d.treatmentIds.length) {
+    const { error: te } = await supabase.from("booking_treatments").insert(
+      d.treatmentIds.map((tid: string) => ({ booking_id: booking.id, treatment_id: tid })),
+    );
+    if (te) throw te;
+  }
+
+  if (booking && allTherapistIds.length > 0) {
+    const { error: btError } = await supabase.from("booking_therapists" as any).insert(
+      allTherapistIds.map((tid: string) => ({
+        booking_id: booking.id,
+        therapist_id: tid,
+        status: "accepted",
+        assigned_at: new Date().toISOString(),
+      })),
+    );
+    if (btError) throw new Error(`Erreur lors de l'assignation des praticiens: ${btError.message}`);
+  }
+
+  return { booking, status, isBroadcast, allTherapistIds, guestCount };
 }
 
 export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseCreateBookingMutationOptions) {

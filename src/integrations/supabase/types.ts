@@ -641,6 +641,7 @@ export type Database = {
           booking_id: string
           created_at: string
           id: string
+          price_override: number | null
           treatment_id: string
           variant_id: string | null
         }
@@ -648,6 +649,7 @@ export type Database = {
           booking_id: string
           created_at?: string
           id?: string
+          price_override?: number | null
           treatment_id: string
           variant_id?: string | null
         }
@@ -655,6 +657,7 @@ export type Database = {
           booking_id?: string
           created_at?: string
           id?: string
+          price_override?: number | null
           treatment_id?: string
           variant_id?: string | null
         }

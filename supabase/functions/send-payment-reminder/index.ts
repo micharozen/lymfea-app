@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
+import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 import { getPaymentReminderEmailHtml, PaymentLinkTemplateData } from "../_shared/payment-link-templates.ts";
 
 serve(async (_req: Request) => {
@@ -99,12 +100,12 @@ serve(async (_req: Request) => {
       // Fetch booking treatments
       const { data: bookingTreatments } = await supabase
         .from('booking_treatments')
-        .select('treatment_menus (name, price, duration)')
+        .select('price_override, treatment_menus (name, price, duration), treatment_variants (price)')
         .eq('booking_id', b.id);
 
-      const treatments = (bookingTreatments ?? []).map((bt: { treatment_menus?: { name?: string; price?: number; duration?: number } }) => ({
+      const treatments = (bookingTreatments ?? []).map((bt: { price_override?: number | null; treatment_menus?: { name?: string; price?: number; duration?: number }; treatment_variants?: { price?: number | null } | null }) => ({
         name: bt.treatment_menus?.name || 'Service',
-        price: bt.treatment_menus?.price || 0,
+        price: resolveTreatmentPrice(bt),
         duration: bt.treatment_menus?.duration,
       }));
 

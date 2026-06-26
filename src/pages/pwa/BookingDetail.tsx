@@ -120,6 +120,7 @@ interface Treatment {
   id: string;
   treatment_id: string;
   variant_id?: string | null;
+  price_override?: number | null;
   treatment_menus: {
     name: string;
     description: string;
@@ -134,6 +135,10 @@ interface Treatment {
     price?: number | null;
   } | null;
 }
+
+/** Override-aware effective price for a booking treatment line. */
+const treatmentLinePrice = (t: Treatment): number =>
+  t.price_override ?? t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0;
 
 const PwaBookingDetail = () => {
   const { id } = useParams();
@@ -426,7 +431,7 @@ const PwaBookingDetail = () => {
         
       if (tError || !tData) throw new Error("Profil thérapeute non trouvé");
 
-      const treatmentsPrice = treatments.reduce((s, t) => s + (t.treatment_menus?.price || 0), 0);
+      const treatmentsPrice = treatments.reduce((s, t) => s + treatmentLinePrice(t), 0);
       const finalPrice = Math.max(booking.total_price || 0, treatmentsPrice);
 
       const { data: rpcResult, error: rpcError } = await supabase.rpc('accept_booking', {
@@ -468,7 +473,7 @@ const PwaBookingDetail = () => {
     setUpdating(true);
     try {
       const found = treatments.find(t => t.id === treatmentId);
-      const deletedPrice = found?.treatment_variants?.price ?? found?.treatment_menus?.price ?? 0;
+      const deletedPrice = found ? treatmentLinePrice(found) : 0;
       const { data, error } = await supabase.from("booking_treatments").delete().eq("id", treatmentId).select();
       if (error || !data?.length) throw new Error("Suppression impossible (RLS ?)");
 
@@ -579,7 +584,7 @@ const PwaBookingDetail = () => {
     setExtendLoading(true);
     try {
       const currentDuration = booking.duration || treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0) || 60;
-      const currentPrice = Math.max(booking.total_price || 0, treatments.reduce((s, t) => s + (t.treatment_menus?.price || 0), 0));
+      const currentPrice = Math.max(booking.total_price || 0, treatments.reduce((s, t) => s + treatmentLinePrice(t), 0));
       const pricePerMinute = currentPrice / currentDuration;
       const extensionPrice = Math.round(pricePerMinute * extensionMinutes * 100) / 100;
 
@@ -618,7 +623,7 @@ const PwaBookingDetail = () => {
   if (loading && !booking) return <PwaPageLoader title={t('bookingDetail.myBooking')} showBack backPath="/pwa/dashboard" />;
   if (!booking) return <div className="flex h-screen items-center justify-center">RDV non trouvé</div>;
 
-  const treatmentsTotalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
+  const treatmentsTotalPrice = treatments.reduce((sum, t) => sum + treatmentLinePrice(t), 0);
   const grossPrice = Math.max(booking.total_price || 0, treatmentsTotalPrice);
   const giftAppliedCents = booking.gift_amount_applied_cents || 0;
   const totalPrice = Math.max(0, grossPrice - giftAppliedCents / 100);
@@ -901,7 +906,7 @@ const PwaBookingDetail = () => {
           </div>
           {treatments.map(t => {
             const effectiveDuration = t.treatment_variants?.duration ?? t.treatment_menus?.duration;
-            const effectivePrice = t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0;
+            const effectivePrice = treatmentLinePrice(t);
             const variantLabel = t.treatment_variants?.label;
             return (
               <div key={t.id} className="flex justify-between items-center py-2 border-b border-border/50">
@@ -997,7 +1002,7 @@ const PwaBookingDetail = () => {
         }}
         signatureToken={booking.signature_token}
         loading={false}
-        treatments={treatments.map(t => ({ name: (t.treatment_menus?.name || "") + (t.treatment_variants?.label ? ` · ${t.treatment_variants.label}` : ""), duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0, price: t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0 }))}
+        treatments={treatments.map(t => ({ name: (t.treatment_menus?.name || "") + (t.treatment_variants?.label ? ` · ${t.treatment_variants.label}` : ""), duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0, price: treatmentLinePrice(t) }))}
         vatRate={booking.hotel_vat || 20}
         totalPrice={totalPrice}
         isAlreadyPaid={true}
@@ -1009,7 +1014,7 @@ const PwaBookingDetail = () => {
         onSkip={handleSkipSignature}
         signatureToken={booking.signature_token}
         loading={signingLoading} 
-        treatments={treatments.map(t => ({ name: (t.treatment_menus?.name || "") + (t.treatment_variants?.label ? ` · ${t.treatment_variants.label}` : ""), duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0, price: t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0 }))} 
+        treatments={treatments.map(t => ({ name: (t.treatment_menus?.name || "") + (t.treatment_variants?.label ? ` · ${t.treatment_variants.label}` : ""), duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0, price: treatmentLinePrice(t) }))} 
         vatRate={booking.hotel_vat || 20} 
         totalPrice={totalPrice} 
         isAlreadyPaid={booking.effective_payment_status === 'paid' || booking.effective_payment_status === 'card_saved'} 

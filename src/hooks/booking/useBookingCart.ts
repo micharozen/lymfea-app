@@ -32,7 +32,7 @@ export function useBookingCart(treatments: Treatment[] | undefined) {
         const variant = i.variantId
           ? t.treatment_variants?.find(v => v.id === i.variantId)
           : null;
-        p += (variant?.price ?? t.price ?? 0) * i.quantity;
+        p += (i.priceOverride ?? variant?.price ?? t.price ?? 0) * i.quantity;
         d += (variant?.duration ?? t.duration ?? 0) * i.quantity;
       }
     });
@@ -97,6 +97,14 @@ export function useBookingCart(treatments: Treatment[] | undefined) {
       return p.map(x => x === target ? { ...x, quantity: x.quantity - 1 } : x);
     });
 
+  // Set (or clear, with null) the admin per-line price override for a cart entry.
+  const setLineOverride = (treatmentId: string, variantId: string | null | undefined, value: number | null) =>
+    setCart(p => p.map(x =>
+      x.treatmentId === treatmentId && x.variantId === (variantId ?? null)
+        ? { ...x, priceOverride: value }
+        : x
+    ));
+
   // Without variantId: returns total quantity across all variants of that treatment.
   // With variantId: returns quantity for that specific (treatmentId, variantId) pair.
   const getCartQuantity = (treatmentId: string, variantId?: string | null) => {
@@ -120,6 +128,7 @@ export function useBookingCart(treatments: Treatment[] | undefined) {
     addToCart,
     incrementCart,
     decrementCart,
+    setLineOverride,
     getCartQuantity,
     flatIds,
     totalPrice,
