@@ -8,6 +8,7 @@ import {
   buildPaymentLinkTemplateMessage,
 } from "../../_shared/whatsapp-meta.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
+import { resolveTreatmentPrice } from "../../_shared/treatmentPrice.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import type { ActionContext } from "../index.ts";
 
@@ -138,7 +139,7 @@ export async function handleSendPaymentLink(
 
     const { data: bookingTreatments, error: treatmentsError } = await supabase
       .from("booking_treatments")
-      .select(`treatment_menus ( id, name, price, duration )`)
+      .select(`price_override, treatment_menus ( id, name, price, duration ), treatment_variants ( price )`)
       .eq("booking_id", bookingId);
 
     if (treatmentsError) throw new Error("Failed to fetch treatments");
@@ -146,20 +147,23 @@ export async function handleSendPaymentLink(
     const treatments =
       bookingTreatments?.map(
         (bt: {
+          price_override?: number | null;
           treatment_menus?: { name?: string; price?: number; duration?: number };
+          treatment_variants?: { price?: number | null } | null;
         }) => ({
           name: bt.treatment_menus?.name || "Service",
-          price: bt.treatment_menus?.price || 0,
+          price: resolveTreatmentPrice(bt),
           duration: bt.treatment_menus?.duration,
         }),
       ) || [];
 
+    // Override-aware live sum; fall back to total_price only when there are no lines.
     const verifiedTotalPrice = treatments.reduce(
       (sum, t) => sum + t.price,
       0,
     );
     const totalPrice =
-      verifiedTotalPrice > 0 ? verifiedTotalPrice : booking.total_price;
+      treatments.length > 0 ? verifiedTotalPrice : booking.total_price;
 
     const currency = hotelCurrency;
     const currencySymbol = currency === "eur" ? "€" : currency.toUpperCase();

@@ -81,11 +81,18 @@ export async function handleCheckExpiredPaymentLinks(
 
       if (item.payment_link_stripe_id) {
         try {
-          // Use the venue's Stripe client when the link was created on it
+          // Resolve the venue's Stripe client from the booking. The router may
+          // pass a null default client for this cron (no global key), so we
+          // rely on the per-venue resolution here.
           let stripe = defaultStripe;
           if (booking?.hotel_id) {
             const resolved = await getStripeForVenue(supabase, booking.hotel_id);
             stripe = resolved.client;
+          }
+          if (!stripe) {
+            throw new Error(
+              `No Stripe client for booking ${item.booking_id} (hotel_id=${booking?.hotel_id ?? "none"})`,
+            );
           }
           await stripe.paymentLinks.update(item.payment_link_stripe_id, {
             active: false,

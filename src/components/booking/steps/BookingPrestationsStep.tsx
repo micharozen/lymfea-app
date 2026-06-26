@@ -5,13 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Minus, Loader2, Clock, Ticket, Gift } from "lucide-react";
+import { Plus, Minus, Loader2, Clock, Ticket, Gift, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
 import type { VenueAmenity } from "@/hooks/useVenueAmenities";
 import { CartItem } from "../CreateBookingDialog.schema";
-import { getCartLineDisplayName } from "@/lib/bookingCartLine";
+import { getCartLineDisplayName, getCartLineUnitPrice } from "@/lib/bookingCartLine";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
 
 interface Treatment {
@@ -44,6 +44,7 @@ interface BookingPrestationsStepProps {
   addToCart: (id: string, variantId?: string | null) => void;
   incrementCart: (id: string, variantId?: string | null) => void;
   decrementCart: (id: string, variantId?: string | null) => void;
+  setLineOverride?: (treatmentId: string, variantId: string | null | undefined, value: number | null) => void;
   getCartQuantity: (treatmentId: string, variantId?: string | null) => number;
   totalPrice: number;
   totalDuration: number;
@@ -91,6 +92,7 @@ export function BookingPrestationsStep({
   addToCart,
   incrementCart,
   decrementCart,
+  setLineOverride,
   getCartQuantity,
   totalPrice,
   totalDuration,
@@ -125,38 +127,31 @@ export function BookingPrestationsStep({
   onIsOffertChange,
 }: BookingPrestationsStepProps) {
   const { t } = useTranslation('admin');
-  const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
+  const [searchQuery, setSearchQuery] = useState("");
   const voucherSupported = clientType === "hotel" || clientType === "external";
 
   return (
     <>
-      {/* Menu Tabs */}
-      <div className="flex items-center gap-4 border-b border-border/50 shrink-0 mb-3">
-        {(["female", "male"] as const).map(f => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setTreatmentFilter(f)}
-            className={cn(
-              "pb-1.5 text-[9px] font-bold uppercase tracking-widest transition-colors",
-              treatmentFilter === f
-                ? "text-foreground border-b-2 border-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {f === "female" ? "WOMEN'S MENU" : "MEN'S MENU"}
-          </button>
-        ))}
+      {/* Treatment search */}
+      <div className="relative shrink-0 mb-3">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={t('bookings.searchTreatment', { defaultValue: 'Rechercher un soin…' })}
+          className="h-8 pl-8 text-xs"
+        />
       </div>
 
       {/* SERVICE LIST - Scrollable with max height */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {(() => {
-          const filtered = treatments?.filter(t =>
-            treatmentFilter === "female"
-              ? (t.service_for === "Female" || t.service_for === "All")
-              : (t.service_for === "Male" || t.service_for === "All")
-          ) || [];
+          const q = searchQuery.trim().toLowerCase();
+          const filtered = (treatments || []).filter(t =>
+            !q ||
+            (t.name?.toLowerCase().includes(q) ?? false) ||
+            (t.category?.toLowerCase().includes(q) ?? false)
+          );
 
           const grouped: Record<string, typeof filtered> = {};
           filtered.forEach(t => {
@@ -336,6 +331,43 @@ export function BookingPrestationsStep({
                 placeholder={String(totalDuration)}
               />
             </div>
+          </div>
+        )}
+
+        {/* Admin-only: per-line price override (special rate). Empty = catalog price. */}
+        {isAdmin && setLineOverride && cartDetails.length > 0 && (
+          <div className="space-y-1.5 pb-2 border-b border-border/50">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Prix par prestation
+            </span>
+            {cartDetails.map(({ treatmentId, variantId, treatment, priceOverride }) => (
+              <div key={`ov-${treatmentId}-${variantId ?? 'base'}`} className="flex items-center gap-2">
+                <span className="text-[11px] flex-1 truncate">
+                  {getCartLineDisplayName(treatment, variantId)}
+                </span>
+                {priceOverride != null && (
+                  <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
+                    modifié
+                  </span>
+                )}
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={priceOverride ?? ''}
+                  onChange={(e) =>
+                    setLineOverride(
+                      treatmentId,
+                      variantId,
+                      e.target.value === '' ? null : Number(e.target.value),
+                    )
+                  }
+                  className="h-7 w-20 text-xs text-right"
+                  placeholder={String(getCartLineUnitPrice(treatment, variantId))}
+                />
+                <span className="text-[10px] text-muted-foreground">€</span>
+              </div>
+            ))}
           </div>
         )}
 

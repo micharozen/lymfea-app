@@ -1,4 +1,5 @@
 import type { OrgScope, TClient, Database } from "./client.ts";
+import { resolveTreatmentPrice } from "../treatmentPrice.ts";
 
 type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
 
@@ -31,6 +32,7 @@ type RawBookingRow = BookingRow & {
   booking_treatments?: Array<{
     treatment_id: string | null;
     variant_id: string | null;
+    price_override: number | null;
     treatment_menus: {
       name: string | null;
       duration: number | null;
@@ -58,7 +60,7 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
     0,
   );
   const treatmentsTotalPrice = treatmentsJoin.reduce(
-    (sum, t) => sum + (t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0),
+    (sum, t) => sum + resolveTreatmentPrice(t),
     0,
   );
   const totalDuration =
@@ -74,7 +76,7 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
         treatment_id: t.treatment_id ?? undefined,
         name: (t.treatment_menus!.name ?? "") + variantSuffix,
         duration: variant?.duration ?? t.treatment_menus!.duration,
-        price: variant?.price ?? t.treatment_menus!.price,
+        price: resolveTreatmentPrice(t),
       };
     });
 
@@ -108,6 +110,7 @@ export async function listBookings(
       booking_treatments(
         treatment_id,
         variant_id,
+        price_override,
         treatment_menus(name, duration, price),
         treatment_variants(id, label, duration, price)
       ),

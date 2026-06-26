@@ -8,6 +8,7 @@ import {
 } from '../_shared/whatsapp-meta.ts';
 import { brand } from "../_shared/brand.ts";
 import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
+import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 import { getStripeForVenue, getGlobalStripe } from "../_shared/stripe-resolver.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { sendEmail } from "../_shared/send-email.ts";
@@ -187,12 +188,12 @@ serve(async (req) => {
 
           const { data: bookingTreatments } = await supabase
             .from('booking_treatments')
-            .select('treatment_menus (name, price)')
+            .select('price_override, treatment_menus (name, price), treatment_variants (price)')
             .eq('booking_id', booking.id);
 
           const treatmentRows = (bookingTreatments ?? []).map(bt => {
             const menu = bt.treatment_menus as any;
-            return { name: menu?.name || '', price: Number(menu?.price) || 0 };
+            return { name: menu?.name || '', price: resolveTreatmentPrice(bt as any) };
           });
           const treatmentsList = treatmentRows.map(t => t.name).filter(Boolean).join(', ') || 'Service bien-être';
           const treatmentPrice = treatmentRows.reduce((sum, t) => sum + t.price, 0);
@@ -398,12 +399,12 @@ serve(async (req) => {
         // Get treatment details for email
         const { data: bookingTreatments } = await supabase
           .from('booking_treatments')
-          .select('treatment_id, treatment_menus(name, price, price_on_request)')
+          .select('treatment_id, price_override, treatment_menus(name, price, price_on_request), treatment_variants(price)')
           .eq('booking_id', booking.id);
 
         const treatmentsForEmail = (bookingTreatments || []).map((bt: any) => ({
           name: bt.treatment_menus?.name,
-          price: bt.treatment_menus?.price,
+          price: resolveTreatmentPrice(bt),
           isPriceOnRequest: !!bt.treatment_menus?.price_on_request,
         }));
 

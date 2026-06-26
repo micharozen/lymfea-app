@@ -39,7 +39,9 @@ export function getCartLineDisplayName(
 export function getCartLineUnitPrice(
   treatment: TreatmentWithVariants | null | undefined,
   variantId: string | null | undefined,
+  priceOverride?: number | null,
 ): number {
+  if (priceOverride !== null && priceOverride !== undefined) return priceOverride;
   const variant = getSelectedVariant(treatment, variantId);
   return variant?.price ?? treatment?.price ?? 0;
 }
@@ -57,7 +59,7 @@ export interface CartLineDetail extends CartItem {
 }
 
 export function getCartLineTotalPrice(item: CartLineDetail): number {
-  return getCartLineUnitPrice(item.treatment, item.variantId) * item.quantity;
+  return getCartLineUnitPrice(item.treatment, item.variantId, item.priceOverride) * item.quantity;
 }
 
 /** Payload shape for SendBookingNotificationDialog / BookingData.treatments */

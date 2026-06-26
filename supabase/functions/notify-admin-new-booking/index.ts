@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
+import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -142,7 +143,7 @@ serve(async (req) => {
     if (groupId) {
       const { data: siblings } = await supabaseClient
         .from("bookings")
-        .select(`*, booking_treatments (treatment_menus (name, price, duration))`)
+        .select(`*, booking_treatments (price_override, treatment_menus (name, price, duration), treatment_variants (price))`)
         .eq("booking_group_id", groupId)
         .order("booking_date", { ascending: true })
         .order("booking_time", { ascending: true });
@@ -151,7 +152,7 @@ serve(async (req) => {
 
     const booking = groupBookings ? groupBookings[0] : (await supabaseClient
       .from("bookings")
-      .select(`*, booking_treatments (treatment_menus (name, price, duration))`)
+      .select(`*, booking_treatments (price_override, treatment_menus (name, price, duration), treatment_variants (price))`)
       .eq("id", bookingId)
       .single()).data;
 
@@ -162,7 +163,7 @@ serve(async (req) => {
 
     const treatments = booking.booking_treatments?.map((bt: any) => ({
       name: bt.treatment_menus?.name || 'Unknown',
-      price: bt.treatment_menus?.price || 0,
+      price: resolveTreatmentPrice(bt),
       duration: bt.treatment_menus?.duration || 0
     })) || [];
 

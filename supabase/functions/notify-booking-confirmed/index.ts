@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
+import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 import { sendSms } from "../_shared/send-sms.ts";
 
 const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
@@ -99,12 +100,12 @@ serve(async (req) => {
 
     const { data: bookingTreatments } = await supabase
       .from('booking_treatments')
-      .select('treatment_id, treatment_menus(name, price)')
+      .select('treatment_id, price_override, treatment_menus(name, price), treatment_variants(price)')
       .eq('booking_id', bookingId);
 
     const treatments = bookingTreatments?.map(bt => {
       const menu = bt.treatment_menus as any;
-      return { name: menu?.name || 'Unknown', price: menu?.price || 0 };
+      return { name: menu?.name || 'Unknown', price: resolveTreatmentPrice(bt as any) };
     }) || [];
 
     // Client language drives which confirmation template (FR/EN) is sent to the

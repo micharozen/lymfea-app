@@ -182,7 +182,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   });
 
   const {
-    cart, setCart, addToCart, incrementCart, decrementCart,
+    cart, setCart, addToCart, incrementCart, decrementCart, setLineOverride,
     getCartQuantity, totalPrice, totalDuration,
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
@@ -387,6 +387,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       Array.from({ length: item.quantity }, () => ({
         treatmentId: item.treatmentId,
         variantId: item.variantId || undefined,
+        priceOverride: item.priceOverride ?? null,
       }))
     );
     const offered = values.isOffert;
@@ -539,6 +540,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   addToCart={addToCart}
                   incrementCart={incrementCart}
                   decrementCart={decrementCart}
+                  setLineOverride={setLineOverride}
                   getCartQuantity={getCartQuantity}
                   totalPrice={totalPrice}
                   totalDuration={totalDuration}

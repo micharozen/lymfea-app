@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { sendEmail } from "../_shared/send-email.ts";
 import { sendSms } from "../_shared/send-sms.ts";
+import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -236,12 +237,12 @@ serve(async (req: Request) => {
 
     const { data: treatments } = await supabase
       .from("booking_treatments")
-      .select("treatment_menus(name, price)")
+      .select("price_override, treatment_menus(name, price), treatment_variants(price)")
       .eq("booking_id", bookingId);
 
     const treatmentList: BookingTreatment[] = (treatments ?? []).map((row: any) => ({
       name: row.treatment_menus?.name ?? null,
-      price: row.treatment_menus?.price ?? null,
+      price: resolveTreatmentPrice(row),
     }));
 
     const hotel = (booking as any).hotels as { name?: string; currency?: string } | null;
