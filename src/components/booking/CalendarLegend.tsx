@@ -6,18 +6,32 @@ import type { Hotel } from "@/hooks/booking";
 interface CalendarLegendProps {
   hotels?: Hotel[];
   hotelFilter?: string;
+  /** Whether cancelled bookings are currently shown on the calendar. */
+  showCancelled?: boolean;
+  /** Toggle cancelled visibility (only meaningful when a venue is filtered). */
+  onToggleCancelled?: () => void;
   className?: string;
 }
 
-export function CalendarLegend({ hotels, hotelFilter, className }: CalendarLegendProps) {
+export function CalendarLegend({
+  hotels,
+  hotelFilter,
+  showCancelled,
+  onToggleCancelled,
+  className,
+}: CalendarLegendProps) {
   const { t, i18n } = useTranslation("admin");
   const fr = i18n.language?.startsWith("fr");
+  const hasVenueFilter = !!hotelFilter && hotelFilter !== "all";
   // Built from the same flow stages used to color the cards, so the legend
-  // always matches what's shown on the planning.
-  const statusEntries = calendarFlowStageOrder.map((key) => {
-    const stage = calendarFlowStages[key];
-    return { key, label: fr ? stage.label : stage.labelEn, swatchClass: stage.swatchClass };
-  });
+  // always matches what's shown on the planning. With no venue filtered,
+  // cancelled and no-show are never drawn — drop them from the legend too.
+  const statusEntries = calendarFlowStageOrder
+    .filter((key) => hasVenueFilter || (key !== "cancelled" && key !== "noshow"))
+    .map((key) => {
+      const stage = calendarFlowStages[key];
+      return { key, label: fr ? stage.label : stage.labelEn, swatchClass: stage.swatchClass };
+    });
 
   const visibleHotels =
     hotelFilter && hotelFilter !== "all"
@@ -31,17 +45,54 @@ export function CalendarLegend({ hotels, hotelFilter, className }: CalendarLegen
           {t("calendar.statuses", "Statuts")}
         </div>
         <ul className="space-y-1">
-          {statusEntries.map((s) => (
-            <li key={s.key} className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "inline-block h-3 w-3 rounded-sm flex-shrink-0",
-                  s.swatchClass
-                )}
-              />
-              <span className="truncate">{s.label}</span>
-            </li>
-          ))}
+          {statusEntries.map((s) => {
+            // The cancelled item doubles as a show/hide toggle when a venue is
+            // filtered; dimmed + struck through when cancelled are hidden.
+            const isCancelledToggle =
+              s.key === "cancelled" && hasVenueFilter && !!onToggleCancelled;
+            const hidden = isCancelledToggle && !showCancelled;
+
+            const content = (
+              <>
+                <span
+                  className={cn(
+                    "inline-block h-3 w-3 rounded-sm flex-shrink-0",
+                    s.swatchClass
+                  )}
+                />
+                <span className={cn("truncate", hidden && "line-through")}>
+                  {s.label}
+                </span>
+              </>
+            );
+
+            if (isCancelledToggle) {
+              return (
+                <li key={s.key}>
+                  <button
+                    type="button"
+                    onClick={onToggleCancelled}
+                    title={t(
+                      "calendar.toggleCancelled",
+                      "Cliquer pour afficher/masquer les annulés"
+                    )}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-sm text-left hover:bg-foreground/5 transition-colors",
+                      hidden && "opacity-40"
+                    )}
+                  >
+                    {content}
+                  </button>
+                </li>
+              );
+            }
+
+            return (
+              <li key={s.key} className="flex items-center gap-2">
+                {content}
+              </li>
+            );
+          })}
         </ul>
       </div>
 

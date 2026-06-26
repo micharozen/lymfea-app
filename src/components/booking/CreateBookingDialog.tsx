@@ -51,6 +51,13 @@ import { BookingTherapistStep } from "./steps/BookingTherapistStep";
 import { BookingPaymentStep } from "./steps/BookingPaymentStep";
 import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities";
 import type { AmenityAccessPayload } from "@/hooks/booking/useCreateBookingMutation";
+import {
+  buildComboDuoBookingParams,
+  computeStaffingCount,
+  expandCartToSessions,
+  getSessionCount,
+  isComboDuoEligible,
+} from "@/features/admin-combo-duo";
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
   const { hotelIds, isAdmin } = useUserContext();
@@ -195,16 +202,28 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     );
   }, [cartDetails]);
 
+  // admin-combo-duo
+  const sessions = useMemo(() => expandCartToSessions(cartDetails), [cartDetails]);
+  const sessionCount = useMemo(() => getSessionCount(cartDetails), [cartDetails]);
+  const comboDuoEligible = isComboDuoEligible(sessions) && requiredGuestCount <= 1;
+  const [comboDuoEnabled, setComboDuoEnabled] = useState(false);
+
+  useEffect(() => {
+    if (!comboDuoEligible && comboDuoEnabled) setComboDuoEnabled(false);
+  }, [comboDuoEligible, comboDuoEnabled]);
+
+  const staffingCount = computeStaffingCount(comboDuoEnabled, sessionCount, requiredGuestCount);
+
   // Additional therapist IDs for duo/trio bookings (index 0 = therapist 2, etc.)
   const [additionalTherapistIds, setAdditionalTherapistIds] = useState<string[]>([]);
   const [duoMode, setDuoMode] = useState<"assign" | "broadcast">("assign");
 
-  // Clear additional therapists when no longer a duo booking
+  // Clear additional therapists when staffing drops to 1
   useEffect(() => {
-    if (requiredGuestCount <= 1) {
+    if (staffingCount <= 1) {
       setAdditionalTherapistIds([]);
     }
-  }, [requiredGuestCount]);
+  }, [staffingCount]);
 
   const handleDuoModeChange = (mode: "assign" | "broadcast") => {
     setDuoMode(mode);
@@ -260,7 +279,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   }, [totalPrice, totalDuration, cart.length, isAdmin, hasOnRequestService]);
 
   const finalPrice = isAdmin && hasOnRequestService && customPrice ? Number(customPrice) : totalPrice;
-  const finalDuration = isAdmin && hasOnRequestService && customDuration ? Number(customDuration) : totalDuration;
+  const catalogDuration = comboDuoEnabled
+    ? buildComboDuoBookingParams(sessions).duration
+    : totalDuration;
+  const finalDuration = isAdmin && hasOnRequestService && customDuration
+    ? Number(customDuration)
+    : catalogDuration;
 
   // Out-of-hours surcharge detection
   const isBookingOutOfHours = useMemo(() => {
@@ -342,11 +366,26 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       return;
     }
     const values = form.getValues();
-    if (canAssignTherapist && !values.therapistId && duoMode !== "broadcast") {
-      toast({ title: "Veuillez sélectionner un thérapeute ou diffuser", variant: "destructive" });
-      return;
+    if (canAssignTherapist && duoMode !== "broadcast") {
+      if (staffingCount > 1) {
+        const assigned = [values.therapistId, ...additionalTherapistIds].filter(Boolean);
+        if (assigned.length < staffingCount) {
+          toast({ title: "Veuillez sélectionner tous les thérapeutes ou diffuser", variant: "destructive" });
+          return;
+        }
+      } else if (!values.therapistId) {
+        toast({ title: "Veuillez sélectionner un thérapeute ou diffuser", variant: "destructive" });
+        return;
+      }
     }
     const isBroadcast = duoMode === "broadcast" || !values.therapistId;
+    const comboParams = comboDuoEnabled ? buildComboDuoBookingParams(sessions) : null;
+    const treatments = comboParams?.treatments ?? cart.flatMap(item =>
+      Array.from({ length: item.quantity }, () => ({
+        treatmentId: item.treatmentId,
+        variantId: item.variantId || undefined,
+      }))
+    );
     mutation.mutate({
       hotelId: values.hotelId,
       clientFirstName: values.clientFirstName,
@@ -366,12 +405,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       slot3Date: values.slot3Date ? format(values.slot3Date, "yyyy-MM-dd") : null,
       slot3Time: values.slot3Time || null,
       treatmentIds: [],
-      treatments: cart.flatMap(item =>
-        Array.from({ length: item.quantity }, () => ({
-          treatmentId: item.treatmentId,
-          variantId: item.variantId || undefined,
-        }))
-      ),
+      treatments,
       totalPrice: finalPriceWithSurcharge,
       totalDuration: finalDuration,
       isAdmin,
@@ -381,9 +415,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientType: values.clientType,
       payByVoucher: values.payByVoucher,
       voucherReference: values.voucherReference?.trim() || null,
-      guestCount: requiredGuestCount,
+      guestCount: comboDuoEnabled ? comboParams!.guestCount : requiredGuestCount,
+      comboDuo: comboDuoEnabled,
       isBroadcast,
-      ...(requiredGuestCount > 1 && duoMode === "assign" && additionalTherapistIds.length > 0
+      ...(staffingCount > 1 && duoMode === "assign"
         ? { therapistIds: [values.therapistId, ...additionalTherapistIds].filter(Boolean) }
         : {}),
     });
@@ -433,6 +468,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setSelectedAmenityIds([]);
     setAdditionalTherapistIds([]);
     setDuoMode("assign");
+    setComboDuoEnabled(false);
     setCreatedBooking(null);
     onOpenChange(false);
   };
@@ -450,7 +486,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
             {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
           </DialogTitle>
           <BookingWizardStepper
-            currentStep={activeTab === "info" ? 1 : activeTab === "prestations" ? 2 : 3}
+            currentStep={
+              activeTab === "info" ? 1
+              : activeTab === "prestations" ? 2
+              : activeTab === "therapist" ? 3
+              : 4
+            }
           />
         </DialogHeader>
 
@@ -522,6 +563,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   onPayByVoucherChange={(v) => form.setValue("payByVoucher", v)}
                   voucherReference={voucherReference}
                   onVoucherReferenceChange={(v) => form.setValue("voucherReference", v)}
+                  comboDuoEligible={comboDuoEligible}
+                  comboDuoEnabled={comboDuoEnabled}
+                  onComboDuoChange={setComboDuoEnabled}
+                  sessionCount={sessionCount}
+                  variantDuoInCart={requiredGuestCount > 1}
                 />
             </TabsContent>
 
@@ -531,6 +577,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   therapistId={form.watch("therapistId")}
                   onTherapistChange={(id) => form.setValue("therapistId", id)}
                   requiredGuestCount={requiredGuestCount}
+                  staffingCount={staffingCount}
                   additionalTherapistIds={additionalTherapistIds}
                   onAdditionalTherapistIdsChange={setAdditionalTherapistIds}
                   duoMode={duoMode}

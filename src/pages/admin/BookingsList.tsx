@@ -45,7 +45,7 @@ export default function BookingsList() {
 
   useEffect(() => {
     const bookingId = searchParams.get("id");
-    if (bookingId && bookings.length > 0) {
+    if (bookingId && bookings && bookings.length > 0) {
       const target = bookings.find(
         (b) => b.id === bookingId || b.booking_id?.toString() === bookingId
       );

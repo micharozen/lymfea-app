@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import AdminPushRegistration from "@/components/admin/AdminPushRegistration";
 import { useOneSignal } from "@/hooks/useOneSignal";
 import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
@@ -496,20 +497,24 @@ const App = () => {
                     : (
                   <SidebarProvider className="min-h-0 h-screen overflow-hidden" style={{ minHeight: 0 }}>
                     <div className="flex h-full w-full">
+                      <AdminPushRegistration />
                       <AppSidebar />
-                      <div className="flex-1 flex flex-col min-h-0 min-w-0">
+                      <div className="relative flex-1 flex flex-col min-h-0 min-w-0">
                         <header
-                          className="flex items-center h-10 md:h-11 px-4 border-b border-border bg-background sticky top-0 z-40"
+                          className="md:hidden flex items-center h-10 px-4 border-b border-border bg-background sticky top-0 z-40"
                           style={{ paddingTop: "env(safe-area-inset-top)" }}
                         >
-                          <SidebarTrigger className="mr-2 md:hidden" />
-                          <span className="font-semibold text-sm md:hidden">{brand.pwa.admin.shortName}</span>
+                          <SidebarTrigger className="mr-2" />
+                          <span className="font-semibold text-sm">{brand.pwa.admin.shortName}</span>
                           <div className="flex-1" />
                           <NotificationsBellButton />
                         </header>
+                        <div className="hidden md:block absolute top-1.5 right-2 z-50">
+                          <NotificationsBellButton />
+                        </div>
                         <VenueModeBanner />
                         <SubscriptionBanner />
-                        <main className="flex-1 min-h-0 overflow-y-auto">
+                        <main className="flex-1 min-h-0 overflow-y-auto md:pr-6">
                           <Suspense fallback={
                             <div className="flex items-center justify-center h-full min-h-[50vh]">
                               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />

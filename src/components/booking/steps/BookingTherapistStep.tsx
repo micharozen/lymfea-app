@@ -12,6 +12,7 @@ import {
 import { Check, Loader2, Sparkles, Users, DoorOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
+import { useTranslation } from "react-i18next";
 import type { CartItem } from "../CreateBookingDialog.schema";
 import type { AvailableRoom } from "@/hooks/booking/useAvailableRooms";
 
@@ -35,6 +36,8 @@ interface BookingTherapistStepProps {
   therapistId: string;
   onTherapistChange: (id: string) => void;
   requiredGuestCount: number;
+  /** admin-combo-duo: overrides picker count when N solo sessions booked as duo */
+  staffingCount?: number;
   additionalTherapistIds: string[];
   onAdditionalTherapistIdsChange: (ids: string[]) => void;
   duoMode: "assign" | "broadcast";
@@ -200,6 +203,7 @@ export function BookingTherapistStep({
   therapistId,
   onTherapistChange,
   requiredGuestCount,
+  staffingCount: staffingCountProp,
   additionalTherapistIds,
   onAdditionalTherapistIdsChange,
   duoMode,
@@ -216,8 +220,10 @@ export function BookingTherapistStep({
   roomId,
   onRoomChange,
 }: BookingTherapistStepProps) {
+  const { t } = useTranslation("admin");
   const broadcast = duoMode === "broadcast";
-  const isDuo = requiredGuestCount > 1;
+  const effectiveStaffing = staffingCountProp ?? requiredGuestCount;
+  const isDuo = effectiveStaffing > 1;
 
   const handleToggleBroadcast = () => {
     if (broadcast) {
@@ -287,21 +293,23 @@ export function BookingTherapistStep({
         {isDuo ? (
           <div className="space-y-4">
             <div className="rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 p-3 text-xs text-violet-800 dark:text-violet-300">
-              Soin à plusieurs — {requiredGuestCount} praticiens requis. Vous pouvez diffuser la demande à toute l'équipe, ou assigner manuellement.
+              Soin à plusieurs — {effectiveStaffing} praticiens requis. Vous pouvez diffuser la demande à toute l'équipe, ou assigner manuellement.
             </div>
 
             <BroadcastCard violet broadcast={broadcast} onToggle={handleToggleBroadcast} />
 
             {!broadcast &&
-              Array.from({ length: requiredGuestCount }).map((_, idx) => {
+              Array.from({ length: effectiveStaffing }).map((_, idx) => {
                 const currentId =
                   idx === 0 ? therapistId : (additionalTherapistIds[idx - 1] ?? "");
-                const otherIds = Array.from({ length: requiredGuestCount }, (_, i) =>
+                const otherIds = Array.from({ length: effectiveStaffing }, (_, i) =>
                   i === 0 ? therapistId : (additionalTherapistIds[i - 1] ?? "")
                 ).filter((id, i) => i !== idx && id !== "");
                 return (
                   <div key={idx} className="space-y-1.5">
-                    <Label className="text-xs font-medium">Praticien {idx + 1}</Label>
+                    <Label className="text-xs font-medium">
+                      {t("booking.comboDuo.practitionerLabel", { index: idx + 1, defaultValue: `Praticien ${idx + 1}` })}
+                    </Label>
                     <TherapistList
                       therapists={therapists}
                       selectedId={currentId}

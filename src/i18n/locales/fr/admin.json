@@ -918,6 +918,14 @@
       "deleteError": "Erreur lors de la suppression"
     }
   },
+  "booking": {
+    "comboDuo": {
+      "toggle": "Réserver en duo ({{count}} praticiens en parallèle)",
+      "helper": "Les {{count}} soins se déroulent en parallèle, chacun avec son praticien.",
+      "ineligibleVariantDuo": "Réservation duo via variante catalogue — le mode combo n'est pas disponible.",
+      "practitionerLabel": "Praticien {{index}}"
+    }
+  },
   "phoneBooking": {
     "title": "Réservation téléphone",
     "titleEmail": "Réservation depuis email",
@@ -993,6 +1001,7 @@
       "selectTreatment": "Sélectionnez au moins un soin",
       "selectSlot": "Sélectionnez une date et un horaire",
       "selectTherapist": "Sélectionnez un thérapeute",
+      "selectAllTherapists": "Veuillez sélectionner tous les thérapeutes ou diffuser",
       "fillClient": "Remplissez les informations client",
       "roomRequired": "Numéro de chambre obligatoire pour un client hôtel"
     }

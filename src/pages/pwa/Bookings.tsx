@@ -194,7 +194,7 @@ const PwaBookings = () => {
 
       query = venueScope
         ? query.in("hotel_id", conciergeHotels)
-        : query.eq("therapist_id", therapist.id);
+        : query.eq("therapist_id", therapist.id).neq("status", "cancelled");
 
       const { data, error } = await query
         .order("booking_date", { ascending: false })

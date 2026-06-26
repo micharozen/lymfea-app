@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { RefreshCw, Plus } from "lucide-react";
+import { RefreshCw, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -19,6 +19,7 @@ import {
   useBookingSelection,
   useAmenityBookingData,
   type BookingWithTreatments,
+  type AmenityBookingForCalendar,
 } from "@/hooks/booking";
 
 import {
@@ -34,6 +35,8 @@ import {
   buildCalendarEntries,
 } from "@/components/booking/CalendarSidebar";
 import { useVenueAmenities } from "@/hooks/useVenueAmenities";
+import { CreateAmenityBookingDialog } from "@/components/booking/CreateAmenityBookingDialog";
+import { AmenityBookingDetailDialog } from "@/components/booking/AmenityBookingDetailDialog";
 
 export default function Booking() {
   const navigate = useNavigate();
@@ -57,6 +60,12 @@ export default function Booking() {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
+
+  // Amenity dialog state
+  const [isAmenityCreateOpen, setIsAmenityCreateOpen] = useState(false);
+  const [isAmenityDetailOpen, setIsAmenityDetailOpen] = useState(false);
+  const [viewedAmenityBooking, setViewedAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
+  const [editingAmenityBooking, setEditingAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
 
   // --- LOGIQUE DE REDIRECTION (ADAPTÉE À LA NOUVELLE PAGE) ---
 useEffect(() => {
@@ -113,6 +122,26 @@ useEffect(() => {
 
   // Amenity data
   const hasVenueFilter = hotelFilter && hotelFilter !== "all";
+
+  // Calendar-only visibility of cancelled bookings (toggled via the legend).
+  // Reset to hidden whenever we leave a single-venue view.
+  const [showCancelled, setShowCancelled] = useState(false);
+  useEffect(() => {
+    if (!hasVenueFilter) setShowCancelled(false);
+  }, [hasVenueFilter]);
+
+  // Bookings shown on the calendar (planning) only — the list view keeps the
+  // full filteredBookings set. No venue: hide cancelled + no-show. Venue
+  // filtered: hide cancelled unless the user re-enabled them via the legend.
+  const calendarBookings = useMemo(() => {
+    return filteredBookings?.filter((b) => {
+      if (!hasVenueFilter) {
+        return b.status !== "cancelled" && b.status !== "noshow";
+      }
+      return showCancelled || b.status !== "cancelled";
+    });
+  }, [filteredBookings, hasVenueFilter, showCancelled]);
+
   const { amenities: venueAmenities } = useVenueAmenities(hasVenueFilter ? hotelFilter : "");
   const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({
     hotelFilter: hasVenueFilter ? hotelFilter : undefined,
@@ -152,7 +181,7 @@ useEffect(() => {
 
   // Calendar logic
   const calendar = useCalendarLogic({
-    filteredBookings,
+    filteredBookings: calendarBookings,
     activeTimezone,
     dayCount,
   });
@@ -233,6 +262,11 @@ useEffect(() => {
     setIsRefreshing(false);
   };
 
+  const handleAmenityBookingClick = (booking: AmenityBookingForCalendar) => {
+    setViewedAmenityBooking(booking);
+    setIsAmenityDetailOpen(true);
+  };
+
   return (
     <div className="h-full min-h-0 bg-background flex flex-col overflow-hidden">
       {/* Header & Filters — single toolbar row to maximize planning space */}
@@ -254,6 +288,7 @@ useEffect(() => {
           hotels={hotels}
           therapists={therapists}
           hideSearch
+          hideViewToggle
           groupFiltersRight
           leading={
             <h1 className="text-lg font-medium text-foreground mr-1">Planning</h1>
@@ -269,6 +304,8 @@ useEffect(() => {
                   onHideAll={handleHideAll}
                   hotels={hotels}
                   hotelFilter={hotelFilter}
+                  showCancelled={showCancelled}
+                  onToggleCancelled={() => setShowCancelled((v) => !v)}
                 />
               )}
               <Button
@@ -281,7 +318,19 @@ useEffect(() => {
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
-              <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="h-8 text-xs">
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700 text-white transition-transform duration-100 active:scale-90"
+                onClick={() => setIsAmenityCreateOpen(true)}
+              >
+                Commodité
+                <Waves className="h-3.5 w-3.5 ml-1" />
+              </Button>
+              <Button
+                onClick={() => setIsCreateDialogOpen(true)}
+                size="sm"
+                className="h-8 text-xs transition-transform duration-100 active:scale-90"
+              >
                 {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
               </Button>
             </>
@@ -301,6 +350,8 @@ useEffect(() => {
               onHideAll={handleHideAll}
               hotels={hotels}
               hotelFilter={hotelFilter}
+              showCancelled={showCancelled}
+              onToggleCancelled={() => setShowCancelled((v) => !v)}
             />
           )}
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -328,8 +379,10 @@ useEffect(() => {
               getHotelInfo={getHotelInfo}
               hotels={hotels}
               hotelFilter={hotelFilter}
-              amenityBookings={hasVenueFilter ? amenityBookings : undefined}
+              showCleanupBuffer={!!hasVenueFilter}
+              amenityBookings={amenityBookings}
               visibleCalendars={hasVenueFilter ? visibleCalendars : undefined}
+              onAmenityBookingClick={handleAmenityBookingClick}
             />
           ) : (
             <BookingListView
@@ -374,6 +427,37 @@ useEffect(() => {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         booking={selectedBooking}
+      />
+
+      {/* Amenity dialogs */}
+      <CreateAmenityBookingDialog
+        open={isAmenityCreateOpen}
+        onOpenChange={setIsAmenityCreateOpen}
+        hotelId={hasVenueFilter ? hotelFilter : undefined}
+        venueAmenities={hasVenueFilter ? venueAmenities : undefined}
+        hotels={hotels}
+        preselectedDate={selectedDate}
+        preselectedTime={selectedTime}
+      />
+
+      {/* Edit an existing amenity booking (reuses the create dialog in edit mode) */}
+      <CreateAmenityBookingDialog
+        open={!!editingAmenityBooking}
+        onOpenChange={(o) => {
+          if (!o) setEditingAmenityBooking(null);
+        }}
+        hotelId={editingAmenityBooking?.hotel_id}
+        editBooking={editingAmenityBooking}
+      />
+
+      <AmenityBookingDetailDialog
+        open={isAmenityDetailOpen}
+        onOpenChange={setIsAmenityDetailOpen}
+        booking={viewedAmenityBooking}
+        onEdit={(booking) => {
+          setIsAmenityDetailOpen(false);
+          setEditingAmenityBooking(booking);
+        }}
       />
 
       {cancelBooking && (

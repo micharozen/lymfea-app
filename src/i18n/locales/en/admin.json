@@ -918,6 +918,14 @@
       "deleteError": "Failed to delete"
     }
   },
+  "booking": {
+    "comboDuo": {
+      "toggle": "Book as duo ({{count}} practitioners in parallel)",
+      "helper": "The {{count}} treatments run in parallel, each with their own practitioner.",
+      "ineligibleVariantDuo": "Duo booking via catalogue variant — combo mode is not available.",
+      "practitionerLabel": "Practitioner {{index}}"
+    }
+  },
   "phoneBooking": {
     "title": "Phone booking",
     "titleEmail": "Booking from email",
@@ -993,6 +1001,7 @@
       "selectTreatment": "Select at least one service",
       "selectSlot": "Select a date and time",
       "selectTherapist": "Select a therapist",
+      "selectAllTherapists": "Select all therapists or broadcast to the team",
       "fillClient": "Fill in client information",
       "roomRequired": "Room number required for hotel clients"
     }

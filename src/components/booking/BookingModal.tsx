@@ -73,6 +73,13 @@ import { ChevronDown } from "lucide-react";
 import { countries, flagEmoji } from "@/lib/countries";
 import { formatPrice } from "@/lib/formatPrice";
 import { composePhoneNumber, languageFromCountryCode } from "@/lib/phone";
+import {
+  buildComboDuoBookingParams,
+  computeStaffingCount,
+  expandCartToSessions,
+  getSessionCount,
+  isComboDuoEligible,
+} from "@/features/admin-combo-duo";
 
 export interface BookingModalInitialValues {
   hotelId?: string;
@@ -180,6 +187,7 @@ export default function BookingModal({
   const [roomNumberLater, setRoomNumberLater] = useState(false);
   const [clientType, setClientType] = useState<BookingClientType>("external");
   const [clientNote, setClientNote] = useState(initialValues?.clientNote ?? "");
+  const [comboDuoEnabled, setComboDuoEnabled] = useState(false);
 
   const [createdBooking, setCreatedBooking] = useState<{
     id: string;
@@ -244,6 +252,19 @@ export default function BookingModal({
     }));
   }, [cartDetails]);
 
+  const sessions = useMemo(() => expandCartToSessions(cartDetails), [cartDetails]);
+  const sessionCount = useMemo(() => getSessionCount(cartDetails), [cartDetails]);
+  const comboDuoEligible = isComboDuoEligible(sessions) && requiredGuestCount <= 1;
+
+  useEffect(() => {
+    if (!comboDuoEligible && comboDuoEnabled) setComboDuoEnabled(false);
+  }, [comboDuoEligible, comboDuoEnabled]);
+
+  const staffingCount = computeStaffingCount(comboDuoEnabled, sessionCount, requiredGuestCount);
+  const effectiveDuration = comboDuoEnabled
+    ? buildComboDuoBookingParams(sessions).duration
+    : totalDuration;
+
   const {
     data: availableTherapists = [],
     isLoading: isTherapistsLoading,
@@ -251,7 +272,7 @@ export default function BookingModal({
     hotelId,
     date,
     time,
-    durationMinutes: totalDuration || 60,
+    durationMinutes: effectiveDuration || 60,
     treatmentIds: flatIds,
   });
 
@@ -310,6 +331,7 @@ export default function BookingModal({
     setRoomNumberLater(false);
     setClientType("external");
     setClientNote("");
+    setComboDuoEnabled(false);
     setCart([]);
     setCreatedBooking(null);
   };
@@ -328,16 +350,50 @@ export default function BookingModal({
     clientFirstName.trim().length > 0 &&
     clientLastName.trim().length > 0;
 
+  const isBroadcastBooking =
+    !therapistId && additionalTherapistIds.filter(Boolean).length === 0;
+
+  const validateTherapistAssignment = (): boolean => {
+    if (!therapistChoiceMade) {
+      toast({
+        title: t("phoneBooking.errors.selectTherapist"),
+        variant: "destructive",
+      });
+      return false;
+    }
+    if (staffingCount > 1 && !isBroadcastBooking) {
+      const assigned = [therapistId, ...additionalTherapistIds].filter(Boolean);
+      if (assigned.length < staffingCount) {
+        toast({
+          title: t("phoneBooking.errors.selectAllTherapists"),
+          variant: "destructive",
+        });
+        return false;
+      }
+    } else if (staffingCount <= 1 && !isBroadcastBooking && !therapistId) {
+      toast({
+        title: t("phoneBooking.errors.selectTherapist"),
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = () => {
     if (!canSubmit || !date) return;
+    if (!validateTherapistAssignment()) return;
     const allTherapistIds = [
       ...(therapistId ? [therapistId] : []),
       ...additionalTherapistIds.filter(Boolean),
     ];
-    const treatmentsPayload = cart.map(c => ({
-      treatmentId: c.treatmentId,
-      ...(c.variantId ? { variantId: c.variantId } : {}),
-    }));
+    const comboParams = comboDuoEnabled ? buildComboDuoBookingParams(sessions) : null;
+    const treatmentsPayload = comboParams?.treatments ?? cart.flatMap((c) =>
+      Array.from({ length: c.quantity }, () => ({
+        treatmentId: c.treatmentId,
+        ...(c.variantId ? { variantId: c.variantId } : {}),
+      }))
+    );
     mutation.mutate({
       hotelId,
       clientFirstName: clientFirstName.trim(),
@@ -352,7 +408,9 @@ export default function BookingModal({
       date: format(date, "yyyy-MM-dd"),
       time,
       therapistId: therapistId || "",
-      ...(allTherapistIds.length > 1 ? { therapistIds: allTherapistIds } : {}),
+      ...(staffingCount > 1 && !isBroadcastBooking
+        ? { therapistIds: allTherapistIds }
+        : {}),
       slot2Date: null,
       slot2Time: null,
       slot3Date: null,
@@ -360,11 +418,12 @@ export default function BookingModal({
       treatmentIds: flatIds,
       treatments: treatmentsPayload,
       totalPrice,
-      totalDuration,
+      totalDuration: effectiveDuration,
       isAdmin: true,
       isOutOfHours: false,
       surchargeAmount: 0,
-      guestCount: requiredGuestCount,
+      guestCount: comboDuoEnabled ? comboParams!.guestCount : requiredGuestCount,
+      comboDuo: comboDuoEnabled,
       source,
       emailInquiryId,
     });
@@ -442,6 +501,11 @@ export default function BookingModal({
                 totalPrice={totalPrice}
                 totalDuration={totalDuration}
                 currency={selectedHotel?.currency || "EUR"}
+                comboDuoEligible={comboDuoEligible}
+                comboDuoEnabled={comboDuoEnabled}
+                onComboDuoChange={setComboDuoEnabled}
+                sessionCount={sessionCount}
+                variantDuoInCart={requiredGuestCount > 1}
               />
             )}
 
@@ -477,6 +541,7 @@ export default function BookingModal({
                 isLoading={isTherapistsLoading}
                 therapistId={therapistId}
                 requiredGuestCount={requiredGuestCount}
+                staffingCount={staffingCount}
                 additionalTherapistIds={additionalTherapistIds}
                 broadcast={therapistChoiceMade && !therapistId && additionalTherapistIds.length === 0}
                 onPickBroadcast={() => {
@@ -542,7 +607,7 @@ export default function BookingModal({
                 hotelName={selectedHotel?.name || ""}
                 cartDetails={cartDetails}
                 totalPrice={totalPrice}
-                totalDuration={totalDuration}
+                totalDuration={effectiveDuration}
                 currency={selectedHotel?.currency || "EUR"}
                 date={date}
                 time={time}
@@ -621,13 +686,7 @@ export default function BookingModal({
                       }
                       setStep("therapist");
                     } else if (step === "therapist") {
-                      if (!therapistChoiceMade) {
-                        toast({
-                          title: t("phoneBooking.errors.selectTherapist"),
-                          variant: "destructive",
-                        });
-                        return;
-                      }
+                      if (!validateTherapistAssignment()) return;
                       setStep("client");
                     } else if (step === "client") {
                       if (
@@ -740,6 +799,11 @@ interface VenueTreatmentStepProps {
   totalPrice: number;
   totalDuration: number;
   currency: string;
+  comboDuoEligible?: boolean;
+  comboDuoEnabled?: boolean;
+  onComboDuoChange?: (enabled: boolean) => void;
+  sessionCount?: number;
+  variantDuoInCart?: boolean;
 }
 
 function VenueTreatmentStep({
@@ -756,6 +820,11 @@ function VenueTreatmentStep({
   totalPrice,
   totalDuration,
   currency,
+  comboDuoEligible = false,
+  comboDuoEnabled = false,
+  onComboDuoChange,
+  sessionCount = 0,
+  variantDuoInCart = false,
 }: VenueTreatmentStepProps) {
   const [treatmentSearch, setTreatmentSearch] = useState("");
 
@@ -873,6 +942,37 @@ function VenueTreatmentStep({
           </span>
         </div>
       )}
+
+      {comboDuoEligible && onComboDuoChange && (
+        <div className="rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-3 py-2">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <Checkbox
+              checked={comboDuoEnabled}
+              onCheckedChange={(checked) => onComboDuoChange(!!checked)}
+              className="mt-0.5"
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">
+                {t("booking.comboDuo.toggle", {
+                  count: sessionCount,
+                  defaultValue: `Réserver en duo (${sessionCount} praticiens en parallèle)`,
+                })}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t("booking.comboDuo.helper", {
+                  count: sessionCount,
+                  defaultValue: "Les soins se déroulent en parallèle, chacun avec son praticien.",
+                })}
+              </p>
+            </div>
+          </label>
+        </div>
+      )}
+      {variantDuoInCart && sessionCount >= 2 && !comboDuoEligible && (
+        <p className="text-xs text-muted-foreground">
+          {t("booking.comboDuo.ineligibleVariantDuo")}
+        </p>
+      )}
     </div>
   );
 }
@@ -962,6 +1062,7 @@ interface TherapistStepProps {
   isLoading: boolean;
   therapistId: string;
   requiredGuestCount?: number;
+  staffingCount?: number;
   additionalTherapistIds?: string[];
   broadcast: boolean;
   onPickBroadcast: () => void;
@@ -980,12 +1081,14 @@ function TherapistStep({
   isLoading,
   therapistId,
   requiredGuestCount = 1,
+  staffingCount: staffingCountProp,
   additionalTherapistIds = [],
   broadcast,
   onPickBroadcast,
   onPickTherapist,
 }: TherapistStepProps) {
-  const isDuo = requiredGuestCount > 1;
+  const effectiveStaffing = staffingCountProp ?? requiredGuestCount;
+  const isDuo = effectiveStaffing > 1;
 
   if (isLoading) {
     return (
@@ -1081,7 +1184,7 @@ function TherapistStep({
     return (
       <div className="space-y-4">
         <div className="rounded-lg bg-violet-50 border border-violet-200 p-3 text-xs text-violet-800">
-          Soin à plusieurs — {requiredGuestCount} praticiens requis. Vous pouvez diffuser la demande à toute l'équipe, ou assigner manuellement.
+          Soin à plusieurs — {effectiveStaffing} praticiens requis. Vous pouvez diffuser la demande à toute l'équipe, ou assigner manuellement.
         </div>
 
         <button
@@ -1106,14 +1209,16 @@ function TherapistStep({
            {broadcast && <Check className="h-4 w-4 text-primary" />}
         </button>
 
-        {!broadcast && Array.from({ length: requiredGuestCount }).map((_, idx) => {
+        {!broadcast && Array.from({ length: effectiveStaffing }).map((_, idx) => {
           const currentId = idx === 0 ? therapistId : (additionalTherapistIds[idx - 1] ?? "");
-          const otherIds = Array.from({ length: requiredGuestCount }, (_, i) =>
+          const otherIds = Array.from({ length: effectiveStaffing }, (_, i) =>
             i === 0 ? therapistId : (additionalTherapistIds[i - 1] ?? "")
           ).filter((id, i) => i !== idx && id !== "");
           return (
             <div key={idx} className="space-y-1">
-              <Label className="text-xs">Praticien {idx + 1}</Label>
+              <Label className="text-xs">
+                {t("booking.comboDuo.practitionerLabel", { index: idx + 1, defaultValue: `Praticien ${idx + 1}` })}
+              </Label>
               <TherapistList
                 selectedId={currentId}
                 slotIndex={idx}

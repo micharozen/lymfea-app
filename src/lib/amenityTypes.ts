@@ -1,4 +1,4 @@
-import { Waves, Dumbbell, Flame, Cloud, Bath, type LucideIcon } from "lucide-react";
+import { Waves, Dumbbell, Flame, Cloud, Bath, Globe, Hotel, Sparkles, KeyRound, type LucideIcon } from "lucide-react";
 
 export interface AmenityTypeDefinition {
   key: string;
@@ -34,14 +34,22 @@ export function getAmenityDefaultColor(key: string): string {
   return getAmenityType(key)?.defaultColor ?? "#3b82f6";
 }
 
-export const CLIENT_TYPES = ["external", "internal", "lymfea"] as const;
+export const CLIENT_TYPES = ["external", "internal", "lymfea", "sezame"] as const;
 export type AmenityClientType = (typeof CLIENT_TYPES)[number];
 
-export function getClientTypeLabel(clientType: AmenityClientType, locale: string): string {
-  const labels: Record<AmenityClientType, { fr: string; en: string }> = {
-    external: { fr: "Externe", en: "External" },
-    internal: { fr: "Interne (hôtel)", en: "Internal (hotel)" },
-    lymfea: { fr: "Eïa (soin)", en: "Eïa (treatment)" },
-  };
-  return locale === "fr" ? labels[clientType].fr : labels[clientType].en;
+const CLIENT_TYPE_LABELS: Record<string, { fr: string; en: string; icon: LucideIcon }> = {
+  external: { fr: "Externe", en: "External", icon: Globe },
+  internal: { fr: "Interne (hôtel)", en: "Internal (hotel)", icon: Hotel },
+  lymfea: { fr: "Eïa (soin)", en: "Eïa (treatment)", icon: Sparkles },
+  sezame: { fr: "Sezame", en: "Sezame", icon: KeyRound },
+};
+
+export function getClientTypeLabel(clientType: string, locale: string): string {
+  const label = CLIENT_TYPE_LABELS[clientType];
+  if (!label) return clientType;
+  return locale === "fr" ? label.fr : label.en;
+}
+
+export function getClientTypeIcon(clientType: string): LucideIcon | undefined {
+  return CLIENT_TYPE_LABELS[clientType]?.icon;
 }

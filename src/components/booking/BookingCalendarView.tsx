@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
@@ -44,6 +44,9 @@ interface BookingCalendarViewProps {
     hourAvailability: Map<string, HourAvailability[]>;
   };
   showAvailability?: boolean;
+  // Draw the "remise en état" (room turnover) buffer zone under each booking.
+  // Hidden when viewing all venues at once to keep the planning readable.
+  showCleanupBuffer?: boolean;
   // Amenity bookings (optional — multi-calendar support)
   amenityBookings?: AmenityBookingForCalendar[];
   visibleCalendars?: Record<string, boolean>;
@@ -57,6 +60,17 @@ function formatTherapistShort(name: string | null | undefined): string {
     return `${parts[0][0].toUpperCase()}.${parts.slice(1).join(" ")}`;
   }
   return parts[0];
+}
+
+// Display the client as "Prénom L." — full first name + initial of last name.
+function formatClientShort(
+  firstName: string | null | undefined,
+  lastName: string | null | undefined,
+): string {
+  const first = (firstName ?? "").trim();
+  const last = (lastName ?? "").trim();
+  const lastInitial = last ? `${last[0].toUpperCase()}.` : "";
+  return [first, lastInitial].filter(Boolean).join(" ");
 }
 
 function addMinutesToTime(time: string, minutes: number): string {
@@ -92,6 +106,7 @@ export function BookingCalendarView({
   hotelFilter,
   availabilityData,
   showAvailability,
+  showCleanupBuffer = true,
   amenityBookings,
   visibleCalendars,
   onAmenityBookingClick,
@@ -410,6 +425,7 @@ export function BookingCalendarView({
                             getHotelInfo={getHotelInfo}
                             onBookingClick={onBookingClick}
                             navigate={navigate}
+                            showCleanupBuffer={showCleanupBuffer}
                           />
                         ))}
                       </TooltipProvider>
@@ -516,6 +532,7 @@ export function BookingCalendarView({
                             getHotelInfo={getHotelInfo}
                             onBookingClick={onBookingClick}
                             navigate={navigate}
+                            showCleanupBuffer={showCleanupBuffer}
                           />
                         ))}
                       </TooltipProvider>
@@ -564,6 +581,7 @@ function BookingCard({
   getHotelInfo,
   onBookingClick,
   navigate,
+  showCleanupBuffer = true,
 }: {
   booking: BookingWithTreatments;
   layoutInfo?: { column: number; totalColumns: number };
@@ -574,6 +592,7 @@ function BookingCard({
   getHotelInfo: (hotelId: string | null) => Hotel | null;
   onBookingClick: (booking: BookingWithTreatments) => void;
   navigate: ReturnType<typeof useNavigate>;
+  showCleanupBuffer?: boolean;
 }) {
   const { top, height } = getBookingPosition(booking);
   const hotelInfo = getHotelInfo(booking.hotel_id);
@@ -595,7 +614,7 @@ function BookingCard({
 
   const therapistShort = formatTherapistShort(booking.therapist_name);
   const hasTherapist = !!booking.therapist_id && !!booking.therapist_name;
-  const clientName = `${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim();
+  const clientName = formatClientShort(booking.client_first_name, booking.client_last_name);
 
   // Show each detail row only when it fully fits, so nothing is half-clipped.
   // Rows are tight (~13px each) on top of the time row + padding.
@@ -616,7 +635,7 @@ function BookingCard({
 
   return (
     <>
-      {booking.status !== 'cancelled' && (
+      {showCleanupBuffer && booking.status !== 'cancelled' && (
         <CleanupBufferZone
           bufferMinutes={hotelInfo?.room_turnover_buffer_minutes ?? 0}
           bookingTop={top}
@@ -745,7 +764,7 @@ function BookingCard({
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs font-medium">
               <User className="h-3 w-3" />
-              <span>{booking.client_first_name} {booking.client_last_name}</span>
+              <span>{formatClientShort(booking.client_first_name, booking.client_last_name)}</span>
             </div>
             {booking.phone && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -831,6 +850,21 @@ function AmenityBookingCard({
   const typeDef = getAmenityType(booking.amenity_type);
   const Icon = typeDef?.icon;
 
+  // Detect when the card is too narrow to fit info on a single row,
+  // and stack the contents vertically (single column) instead.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      setIsNarrow(width < 80);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const durationHours = Math.floor(booking.duration / 60);
   const durationMinutes = booking.duration % 60;
   const durationFormatted = durationHours > 0
@@ -851,6 +885,7 @@ function AmenityBookingCard({
     <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
         <div
+          ref={cardRef}
           className={cn(
             "absolute rounded text-sm cursor-pointer overflow-hidden z-[5] border-l-4 group transition-opacity",
             "hover:opacity-90"
@@ -871,8 +906,15 @@ function AmenityBookingCard({
           }}
         >
           <div className="p-1 h-full flex flex-col">
-            <div className="flex items-start justify-between gap-0.5">
-              <div className="font-bold text-[11px] leading-tight" style={{ color: booking.amenity_color }}>
+            <div
+              className={cn(
+                "flex gap-0.5",
+                isNarrow
+                  ? "flex-col items-start"
+                  : "flex-row items-start justify-between"
+              )}
+            >
+              <div className="font-bold text-[13px] leading-tight" style={{ color: booking.amenity_color }}>
                 {booking.booking_time?.substring(0, 5)}
               </div>
               <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -892,9 +934,16 @@ function AmenityBookingCard({
               </div>
             )}
             {height >= 48 && (
-              <div className="flex items-center gap-1 text-[7px] opacity-60">
+              <div
+                className={cn(
+                  "flex text-[12px] font-semibold opacity-80",
+                  isNarrow
+                    ? "flex-col items-start leading-tight"
+                    : "flex-row items-center gap-1"
+                )}
+              >
                 <span>{durationFormatted}</span>
-                <span>·</span>
+                {!isNarrow && <span>·</span>}
                 <span>{booking.num_guests}/{booking.capacity_total}</span>
               </div>
             )}
