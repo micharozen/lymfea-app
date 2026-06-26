@@ -70,6 +70,12 @@ interface BookingPrestationsStepProps {
   onPayByVoucherChange: (value: boolean) => void;
   voucherReference: string;
   onVoucherReferenceChange: (value: string) => void;
+  // admin-combo-duo
+  comboDuoEligible?: boolean;
+  comboDuoEnabled?: boolean;
+  onComboDuoChange?: (enabled: boolean) => void;
+  sessionCount?: number;
+  variantDuoInCart?: boolean;
 }
 
 export function BookingPrestationsStep({
@@ -105,6 +111,11 @@ export function BookingPrestationsStep({
   onPayByVoucherChange,
   voucherReference,
   onVoucherReferenceChange,
+  comboDuoEligible = false,
+  comboDuoEnabled = false,
+  onComboDuoChange,
+  sessionCount = 0,
+  variantDuoInCart = false,
 }: BookingPrestationsStepProps) {
   const { t } = useTranslation('admin');
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
@@ -405,6 +416,40 @@ export function BookingPrestationsStep({
               />
             )}
           </div>
+        )}
+
+        {/* admin-combo-duo: parallel N solo treatments as one duo booking */}
+        {comboDuoEligible && onComboDuoChange && (
+          <div className="space-y-1.5 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-2.5 py-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <Checkbox
+                checked={comboDuoEnabled}
+                onCheckedChange={(checked) => onComboDuoChange(!!checked)}
+                className="mt-0.5"
+              />
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-medium">
+                  {t("booking.comboDuo.toggle", {
+                    count: sessionCount,
+                    defaultValue: `Réserver en duo (${sessionCount} praticiens en parallèle)`,
+                  })}
+                </span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {t("booking.comboDuo.helper", {
+                    count: sessionCount,
+                    defaultValue: "Les soins se déroulent en parallèle, chacun avec son praticien.",
+                  })}
+                </p>
+              </div>
+            </label>
+          </div>
+        )}
+        {variantDuoInCart && sessionCount >= 2 && !comboDuoEligible && (
+          <p className="text-[10px] text-muted-foreground px-0.5">
+            {t("booking.comboDuo.ineligibleVariantDuo", {
+              defaultValue: "Réservation duo via variante catalogue — le mode combo n'est pas disponible.",
+            })}
+          </p>
         )}
 
         <div className="flex items-center justify-between gap-3">
