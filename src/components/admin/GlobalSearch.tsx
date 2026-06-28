@@ -14,6 +14,7 @@ import {
 import { DialogTitle } from "@/components/ui/dialog"; // FIX 1: Ajout du titre pour l'accessibilité
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/useUserContext";
+import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 
 // Hook personnalisé pour le Debounce
 function useDebounce<T>(value: T, delay: number): T {
@@ -74,7 +75,7 @@ export function GlobalSearch() {
           .limit(5),
         supabase
           .from("bookings")
-          .select("id, booking_id, booking_date, hotel_id, client_first_name, client_last_name, client_email, phone")
+          .select("id, booking_id, booking_date, hotel_id, client_first_name, client_last_name, client_email, phone, status, payment_status")
           .or(`client_first_name.ilike.${searchTerm},client_last_name.ilike.${searchTerm},client_email.ilike.${searchTerm},phone.ilike.${searchTerm}${numericMatch}`)
           .order("booking_date", { ascending: false })
           .limit(10),
@@ -150,12 +151,30 @@ export function GlobalSearch() {
                       onSelect={() => onSelect(`/admin/bookings?id=${booking.id}`)}
                       className="cursor-pointer"
                     >
-                      <Calendar className="w-4 h-4 mr-2 text-blue-500" />
-                      <div className="flex flex-col">
+                      <Calendar className="w-4 h-4 mr-2 text-blue-500 flex-shrink-0" />
+                      <div className="flex flex-col gap-1 min-w-0 flex-1">
                         <span className="font-medium">{booking.client_first_name} {booking.client_last_name}</span>
                         <span className="text-[10px] text-muted-foreground">
                           #{booking.booking_id} — {booking.booking_date} {booking.phone ? `— ${booking.phone}` : ''}
                         </span>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${getBookingStatusConfig(booking.status).badgeClass}`}>
+                            {getBookingStatusConfig(booking.status).label}
+                          </span>
+                          {(() => {
+                            const settled = ["paid", "charged_to_room", "card_saved", "pending_partner_billing", "offert"];
+                            const isPaid = settled.includes((booking.payment_status || "").toLowerCase());
+                            return (
+                              <span
+                                className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                                  isPaid ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                                }`}
+                              >
+                                {isPaid ? "Payé" : "Non payé"}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </CommandItem>
                   ))}
