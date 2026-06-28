@@ -16,6 +16,34 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/useUserContext";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 
+// Date "2026-06-30" → "30 juin 2026"
+function formatBookingDate(date: string | null): string {
+  if (!date) return "";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+}
+
+const SETTLED_PAYMENT_STATUSES = ["paid", "charged_to_room", "card_saved", "pending_partner_billing", "offert"];
+
+// Petit badge homogène pour les lignes de résultat
+function ResultBadge({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-none ${className ?? ""}`}>
+      {children}
+    </span>
+  );
+}
+
+// Vignette d'icône colorée à gauche de chaque ligne
+function IconBox({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${className ?? ""}`}>
+      {children}
+    </div>
+  );
+}
+
 // Hook personnalisé pour le Debounce
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);

@@ -7,13 +7,43 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink, DoorOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink, DoorOpen, CreditCard } from "lucide-react";
 import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities, cn } from "@/lib/utils";
 import { AvailabilityOverlay } from "./AvailabilityOverlay";
 import { CleanupBufferZone } from "./CleanupBufferZone";
 import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar } from "@/hooks/booking";
 import { getAmenityType } from "@/lib/amenityTypes";
+
+// Human-readable payment-status labels for the booking hover tooltip.
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  pending: "En attente",
+  awaiting_payment: "En attente de paiement",
+  paid: "Payé",
+  failed: "Échoué",
+  refunded: "Remboursé",
+  charged: "Encaissé",
+  charged_to_room: "Facturé chambre",
+  card_saved: "Carte enregistrée",
+  expired: "Expiré",
+  pending_partner_billing: "Paiement partenaire",
+  pending_room_charge: "Facturation chambre en attente",
+};
+
+// Background colors for the payment-status line in the booking hover tooltip.
+const PAYMENT_STATUS_CLASSES: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  awaiting_payment: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  paid: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+  failed: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
+  refunded: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  charged: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+  charged_to_room: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
+  card_saved: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  expired: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  pending_partner_billing: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+  pending_room_charge: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+};
 
 interface BookingCalendarViewProps {
   weekDays: Date[];
@@ -616,6 +646,24 @@ function BookingCard({
   const hasTherapist = !!booking.therapist_id && !!booking.therapist_name;
   const clientName = formatClientShort(booking.client_first_name, booking.client_last_name);
 
+  // Small payment tag — "Payé" once settled by card/cash, "Facturé chambre" when
+  // charged to the hotel room. Mirrors the canonical payment_status logic used
+  // across the app (BookingDetail / CustomerBookingsTab).
+  const paymentTag =
+    booking.payment_status === 'paid'
+      ? { label: 'Payé', className: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-800' }
+      : booking.payment_status === 'charged_to_room'
+        ? { label: 'Facturé chambre', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border-blue-200 dark:border-blue-800' }
+        : null;
+
+  // Full payment-status label + background color for the hover tooltip.
+  const paymentStatusLabel = booking.payment_status
+    ? PAYMENT_STATUS_LABELS[booking.payment_status] ?? booking.payment_status
+    : null;
+  const paymentStatusClass = booking.payment_status
+    ? PAYMENT_STATUS_CLASSES[booking.payment_status] ?? 'bg-muted text-foreground'
+    : 'bg-muted text-foreground';
+
   // Show each detail row only when it fully fits, so nothing is half-clipped.
   // Rows are tight (~13px each) on top of the time row + padding.
   const showTherapistRow = hasTherapist && height >= 40;
@@ -716,6 +764,20 @@ function BookingCard({
               <div className="flex items-center gap-1 text-[11px] font-medium opacity-90 min-w-0" title={booking.room_name || ""}>
                 <DoorOpen className="h-2.5 w-2.5 flex-shrink-0" />
                 <span className="truncate">{booking.room_name}</span>
+              </div>
+            )}
+            {/* Payment tag — bottom-left, in flow so it never overlaps the rows above */}
+            {paymentTag && (
+              <div
+                className={cn(
+                  "mt-auto self-start px-1.5 h-4 rounded-[3px] flex items-center text-[8px] font-bold flex-shrink-0 border shadow-sm whitespace-nowrap max-w-[70%] truncate",
+                  // Reserve room on the right for the absolute "À ASSIGNER" badge when present.
+                  !hasTherapist && "mr-16",
+                  paymentTag.className
+                )}
+                title={paymentTag.label}
+              >
+                {paymentTag.label}
               </div>
             )}
             {/* Unassigned badge — bottom-right corner */}
@@ -829,6 +891,13 @@ function BookingCard({
             <Euro className="h-3 w-3" />
             <span>Total: {formatPrice(totalPrice, hotelInfo?.currency || 'EUR')}</span>
           </div>
+
+          {paymentStatusLabel && (
+            <div className={cn("flex items-center gap-2 text-xs font-medium rounded px-2 py-1", paymentStatusClass)}>
+              <CreditCard className="h-3 w-3 flex-shrink-0" />
+              <span>Paiement : {paymentStatusLabel}</span>
+            </div>
+          )}
         </div>
       </TooltipContent>
     </Tooltip>
