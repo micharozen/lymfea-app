@@ -206,7 +206,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                     {room.name}
                     {(room.capacity ?? 1) > 1 && (
                       <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                        ({room.capacity} pers.)
+                        ({room.capacity} lits)
                       </span>
                     )}
                   </p>
@@ -327,7 +327,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Capacité</Label>
+                  <Label className="text-xs">Lits</Label>
                   <Input
                     type="number"
                     min="1"

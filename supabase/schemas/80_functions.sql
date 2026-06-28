@@ -2469,6 +2469,7 @@ DECLARE
   _new_start             INTEGER;
   _new_end               INTEGER;
   _has_conflict          BOOLEAN;
+  _occupied_beds         INTEGER;
   _required_specialties  TEXT[];
   _therapist_id          UUID := NULL;
   _therapist_skills      TEXT[];
@@ -2524,22 +2525,26 @@ BEGIN
 
   <<room_loop>>
   FOR _room IN
-    SELECT id FROM treatment_rooms
+    SELECT id, capacity FROM treatment_rooms
     WHERE hotel_id::text = _hotel_id AND LOWER(status) IN ('active', 'actif')
     ORDER BY id
   LOOP
-    -- Room conflict check
-    SELECT EXISTS(
-      SELECT 1 FROM bookings
-      WHERE room_id = _room.id
-        AND booking_date = _booking_date
-        AND status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
-        AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '10 minutes')
-        AND (_new_start < (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)) + COALESCE(duration, 30) + _turnover_buffer
-             AND _new_end + _turnover_buffer > (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)))
-    ) INTO _has_conflict;
+    -- Room capacity check: a room has `capacity` beds (simultaneous occupations).
+    -- Sum the beds (guest_count) of overlapping bookings; skip the room only when
+    -- adding this booking would exceed its bed capacity. A duo (guest_count = 2)
+    -- consumes 2 beds.
+    SELECT COALESCE(SUM(COALESCE(guest_count, 1)), 0) INTO _occupied_beds
+    FROM bookings
+    WHERE room_id = _room.id
+      AND booking_date = _booking_date
+      AND status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
+      AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '10 minutes')
+      AND (_new_start < (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)) + COALESCE(duration, 30) + _turnover_buffer
+           AND _new_end + _turnover_buffer > (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)));
 
-    IF _has_conflict THEN CONTINUE room_loop; END IF;
+    IF _occupied_beds + COALESCE(_guest_count, 1) > COALESCE(_room.capacity, 1) THEN
+      CONTINUE room_loop;
+    END IF;
 
     -- Validate at least one qualified therapist exists (gender-aware for solo)
     FOR _therapist_id, _therapist_skills IN

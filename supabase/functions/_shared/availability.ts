@@ -9,6 +9,7 @@ export interface Booking {
   therapist_id: string | null;
   room_id: string | null;
   duration: number | null;
+  guest_count: number | null; // beds consumed in the room (duo = 2)
 }
 
 export interface CrossVenueBooking {
@@ -106,16 +107,22 @@ export function computeSlotCapacity(input: SlotAvailabilityInput): SlotCapacity 
     doesBookingBlockSlot(slot, requestedDuration, b.booking_time, b.duration, roomTurnoverBuffer)
   );
 
-  // Room capacity: every blocking booking consumes a room (even without therapist_id).
-  const occupiedRoomIds = new Set<string>();
-  let bookingsWithoutRoom = 0;
+  // Room capacity: a room has `capacity` beds (simultaneous occupations). Each
+  // blocking booking consumes `guest_count` beds (duo = 2). A room stays partly
+  // available until its beds are full — matching reserve_trunk_atomically.
+  // Bookings without an assigned room (e.g. card-saved holds awaiting therapist
+  // broadcast) still hold beds and must drain the pool.
+  const occupiedBedsByRoom = new Map<string, number>();
+  let bedsWithoutRoom = 0;
   for (const b of blocking) {
-    if (b.room_id) occupiedRoomIds.add(b.room_id);
-    else bookingsWithoutRoom++;
+    const g = b.guest_count ?? 1;
+    if (b.room_id) occupiedBedsByRoom.set(b.room_id, (occupiedBedsByRoom.get(b.room_id) ?? 0) + g);
+    else bedsWithoutRoom += g;
   }
-  const freeRoomCapacity = rooms
-    .filter((r) => !occupiedRoomIds.has(r.id))
-    .reduce((sum, r) => sum + (r.capacity || 1), 0) - bookingsWithoutRoom;
+  const freeRoomCapacity = rooms.reduce(
+    (sum, r) => sum + Math.max(0, (r.capacity || 1) - (occupiedBedsByRoom.get(r.id) ?? 0)),
+    0,
+  ) - bedsWithoutRoom;
 
   const overlappingHolds = pendingHolds.filter((h) => {
     const hs = timeToMinutes(h.time);
