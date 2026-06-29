@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDistanceToNow, format, formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Loader2, History, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -179,6 +179,8 @@ export function BookingHistoryTab({ bookingId, enabled }: BookingHistoryTabProps
         {entries.map((entry) => {
           const fields = getChangedFields(entry);
           const dateObj = new Date(entry.changed_at);
+          console.log(dateObj);
+          /* console.log(formatDate(dateObj)); */
 
           return (
             <div key={entry.id} className="relative pl-8">
@@ -191,7 +193,10 @@ export function BookingHistoryTab({ bookingId, enabled }: BookingHistoryTabProps
                     className="text-xs text-muted-foreground"
                     title={format(dateObj, "d MMMM yyyy à HH:mm:ss", { locale: fr })}
                   >
-                    {formatDistanceToNow(dateObj, { addSuffix: true, locale: fr })}
+                    Le {format(entry.changed_at, 'dd/MM/yyyy à HH:mm:ss')} 
+                    {/* (il y a {formatDistanceToNow(dateObj, { addSuffix: true, locale: fr, includeSeconds:true })}) */}
+                    {/* {format(dateObj)} */}
+                    {/* {formatDistanceToNow(dateObj, { addSuffix: true, locale: fr })} */}
                   </span>
                   {entry.changed_by_name && (
                     <span className="text-xs font-medium text-gray-500">
