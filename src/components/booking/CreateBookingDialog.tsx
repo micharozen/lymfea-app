@@ -497,7 +497,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     <>
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleRequestClose(); }}>
       <DialogContent
-        className="max-h-[92vh] max-w-3xl p-0 gap-0 flex flex-col overflow-hidden"
+        className="h-[92vh] max-w-3xl p-0 gap-0 flex flex-col overflow-hidden"
         onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
       >
@@ -543,7 +543,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 />
               </TabsContent>
 
-            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-4 pt-1 data-[state=inactive]:hidden max-h-[60vh]">
+            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-4 pt-1 data-[state=inactive]:hidden">
                 <BookingPrestationsStep
                   treatments={treatments}
                   selectedHotel={selectedHotel}
