@@ -83,11 +83,13 @@ interface BookingCalendarViewProps {
   onAmenityBookingClick?: (booking: AmenityBookingForCalendar) => void;
 }
 
+// Display the therapist as "Prénom.N" — full first name + initial of last name.
 function formatTherapistShort(name: string | null | undefined): string {
   if (!name) return "";
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) {
-    return `${parts[0][0].toUpperCase()}.${parts.slice(1).join(" ")}`;
+    const lastInitial = parts[parts.length - 1][0].toUpperCase();
+    return `${parts[0]}.${lastInitial}`;
   }
   return parts[0];
 }
@@ -772,7 +774,7 @@ function BookingCard({
                   {therapistShort}
                 </span>
                 <button
-                  className="opacity-0 group-hover:opacity-100 transition-opacity h-4 w-4 flex items-center justify-center rounded-full hover:bg-foreground/10 flex-shrink-0 ml-auto"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity h-3 w-3 flex items-center justify-center rounded-full hover:bg-foreground/10 flex-shrink-0 ml-auto"
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate(`/admin/therapists/${booking.therapist_id}`);
