@@ -141,6 +141,34 @@ export function TreatmentRoomGeneralTab({
         )}
       />
 
+      {/* Concurrent beds (occupations simultanées) */}
+      <FormField
+        control={form.control}
+        name="capacity"
+        render={({ field }) => (
+          <FormItem className="max-w-[200px]">
+            <FormLabel>Lits</FormLabel>
+            <p className="text-xs text-muted-foreground">
+              Nombre d&apos;occupations simultanées (1 = une seule réservation par créneau)
+            </p>
+            <FormControl>
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                disabled={disabled}
+                value={field.value}
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value, 10);
+                  field.onChange(Number.isNaN(parsed) ? 1 : Math.max(1, parsed));
+                }}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
       {/* Capabilities (multi-select) */}
       <div className="space-y-2">
         <FormLabel>Soins compatibles *</FormLabel>
