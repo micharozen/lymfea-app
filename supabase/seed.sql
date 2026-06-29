@@ -258,14 +258,14 @@ VALUES
 -- 10) Treatment rooms
 INSERT INTO public.treatment_rooms (id, name, room_number, room_type, status, hotel_id, hotel_name, capacity)
 VALUES
-  ('00000000-0000-0000-0000-000000000030', 'Salle de Massage #1', 'ROOM-DEV-001', 'Massage', 'Actif', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana', 1),
-  ('00000000-0000-0000-0000-000000000031', 'Salle de Massage #2', 'ROOM-DEV-002', 'Massage', 'Actif', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana', 1);
+  ('00000000-0000-0000-0000-000000000030', 'Salle de Massage #1', 'ROOM-DEV-001', 'Massage', 'active', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana', 1),
+  ('00000000-0000-0000-0000-000000000031', 'Salle de Massage #2', 'ROOM-DEV-002', 'Massage', 'active', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana', 1);
 
 -- 10b) Treatment rooms for Spa Nara
 INSERT INTO public.treatment_rooms (id, name, room_number, room_type, status, hotel_id, hotel_name, capacity)
 VALUES
-  ('00000000-0000-0000-0000-000000000032', 'Cabine Zen', 'ROOM-DEV-003', 'Massage', 'Actif', '00000000-0000-0000-0000-000000000011', 'Spa Nara', 1),
-  ('00000000-0000-0000-0000-000000000033', 'Cabine Lotus', 'ROOM-DEV-004', 'Massage', 'Actif', '00000000-0000-0000-0000-000000000011', 'Spa Nara', 1);
+  ('00000000-0000-0000-0000-000000000032', 'Cabine Zen', 'ROOM-DEV-003', 'Massage', 'active', '00000000-0000-0000-0000-000000000011', 'Spa Nara', 1),
+  ('00000000-0000-0000-0000-000000000033', 'Cabine Lotus', 'ROOM-DEV-004', 'Massage', 'active', '00000000-0000-0000-0000-000000000011', 'Spa Nara', 1);
 
 -- 11) Venue deployment schedule
 INSERT INTO public.venue_deployment_schedules (id, hotel_id, schedule_type, recurrence_interval)
