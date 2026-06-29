@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -21,6 +21,48 @@ const generateRoomNumber = () => {
   }
   return result;
 };
+
+function RoomCapacityInput({
+  roomId,
+  capacity,
+  disabled,
+  onSave,
+}: {
+  roomId: string;
+  capacity: number;
+  disabled?: boolean;
+  onSave: (roomId: string, capacity: number) => void;
+}) {
+  const [value, setValue] = useState(String(capacity));
+
+  useEffect(() => {
+    setValue(String(capacity));
+  }, [capacity]);
+
+  const commit = () => {
+    const parsed = Math.max(1, parseInt(value, 10) || 1);
+    setValue(String(parsed));
+    if (parsed !== capacity) onSave(roomId, parsed);
+  };
+
+  return (
+    <Input
+      type="number"
+      min={1}
+      step={1}
+      disabled={disabled}
+      className="h-7 w-14 text-xs text-center"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+      onClick={(e) => e.stopPropagation()}
+      title="Lits (occupations simultanées)"
+    />
+  );
+}
 
 interface VenueTreatmentRoomsTabProps {
   hotelId: string;
@@ -114,6 +156,23 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
     },
   });
 
+  const updateCapacityMutation = useMutation({
+    mutationFn: async ({ roomId, capacity }: { roomId: string; capacity: number }) => {
+      const { error } = await supabase
+        .from("treatment_rooms")
+        .update({ capacity })
+        .eq("id", roomId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateQueries();
+      toast.success("Nombre de lits mis à jour");
+    },
+    onError: () => {
+      toast.error("Erreur lors de la mise à jour");
+    },
+  });
+
   // Delete room mutation
   const deleteMutation = useMutation({
     mutationFn: async (roomId: string) => {
@@ -202,20 +261,27 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {room.name}
-                    {(room.capacity ?? 1) > 1 && (
-                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                        ({room.capacity} lits)
-                      </span>
-                    )}
-                  </p>
+                  <p className="text-sm font-medium truncate">{room.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {((room as any).capabilities?.length
                       ? (room as any).capabilities.map((c: string) => ROOM_TYPES.find((t) => t.value === c)?.label || c).join(", ")
                       : ROOM_TYPES.find((t) => t.value === room.room_type)?.label || room.room_type
                     )}
                   </p>
+                </div>
+                <div
+                  className="flex flex-col items-center gap-0.5 flex-shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="text-[10px] text-muted-foreground">Lits</span>
+                  <RoomCapacityInput
+                    roomId={room.id}
+                    capacity={room.capacity ?? 1}
+                    disabled={updateCapacityMutation.isPending}
+                    onSave={(roomId, capacity) =>
+                      updateCapacityMutation.mutate({ roomId, capacity })
+                    }
+                  />
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <Button
