@@ -118,13 +118,31 @@ export function useBookingData(options: UseBookingDataOptions = {}) {
     };
   }, [refetchBookings, refetchHotels]);
 
+  // Resolve the accepted therapists' display names for duo bookings. booking_therapists
+  // has no FK to therapists, so this can't be an embedded join — resolve it here from the
+  // already-fetched therapists list.
+  const enrichedBookings = useMemo(() => {
+    if (!bookings) return bookings;
+    const nameById = new Map(
+      (therapists ?? []).map((t) => [t.id, `${t.first_name} ${t.last_name ?? ""}`.trim()]),
+    );
+    return bookings.map((b) => {
+      if ((b.guest_count ?? 1) <= 1) return b;
+      const therapist_display_names = (b.booking_therapists ?? [])
+        .filter((bt) => bt.status === "accepted")
+        .map((bt) => nameById.get(bt.therapist_id))
+        .filter((n): n is string => !!n);
+      return { ...b, therapist_display_names };
+    });
+  }, [bookings, therapists]);
+
   const getHotelInfo = (hotelId: string | null): Hotel | null => {
     if (!hotelId || !hotels) return null;
     return hotels.find(h => h.id === hotelId) || null;
   };
 
   return {
-    bookings,
+    bookings: enrichedBookings,
     hotels,
     therapists,
     getHotelInfo,

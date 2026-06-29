@@ -735,6 +735,7 @@ export type Database = {
           quote_token: string | null
           room_id: string | null
           room_number: string | null
+          secondary_room_id: string | null
           short_token: string
           signature_token: string | null
           signed_at: string | null
@@ -798,6 +799,7 @@ export type Database = {
           quote_token?: string | null
           room_id?: string | null
           room_number?: string | null
+          secondary_room_id?: string | null
           short_token?: string
           signature_token?: string | null
           signed_at?: string | null
@@ -861,6 +863,7 @@ export type Database = {
           quote_token?: string | null
           room_id?: string | null
           room_number?: string | null
+          secondary_room_id?: string | null
           short_token?: string
           signature_token?: string | null
           signed_at?: string | null
@@ -907,6 +910,13 @@ export type Database = {
           {
             foreignKeyName: "bookings_trunk_id_fkey"
             columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_secondary_room_id_fkey"
+            columns: ["secondary_room_id"]
             isOneToOne: false
             referencedRelation: "treatment_rooms"
             referencedColumns: ["id"]

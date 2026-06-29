@@ -194,8 +194,8 @@ const PwaBookings = () => {
         .from("bookings")
         .select(
           venueScope
-            ? "*, treatment_rooms(name), therapists(first_name, last_name), booking_treatments(treatment_menus(name, price, duration))"
-            : "*, treatment_rooms(name), booking_treatments(treatment_menus(name, price, duration))",
+            ? "*, treatment_rooms!bookings_trunk_id_fkey(name), therapists(first_name, last_name), booking_treatments(treatment_menus(name, price, duration))"
+            : "*, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(treatment_menus(name, price, duration))",
         );
 
       query = venueScope

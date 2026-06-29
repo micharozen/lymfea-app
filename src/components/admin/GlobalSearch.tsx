@@ -115,7 +115,7 @@ export function GlobalSearch() {
           .limit(5),
         supabase
           .from("bookings")
-          .select("id, booking_id, booking_date, hotel_id, client_first_name, client_last_name, client_email, phone, status, payment_status, treatment_rooms(name), booking_treatments(treatment_menus(name), treatment_variants(label))")
+          .select("id, booking_id, booking_date, hotel_id, client_first_name, client_last_name, client_email, phone, status, payment_status, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(treatment_menus(name), treatment_variants(label))")
           .or(`client_first_name.ilike.${searchTerm},client_last_name.ilike.${searchTerm},client_email.ilike.${searchTerm},phone.ilike.${searchTerm}${numericMatch}`)
           .order("booking_date", { ascending: false })
           .limit(10),

@@ -322,6 +322,7 @@ export function BookingListView({
                       <span className="truncate flex items-center gap-1">
                         <DoorOpen className="h-3 w-3 shrink-0" />
                         {booking.room_name}
+                        {booking.secondary_room_name && ` + ${booking.secondary_room_name}`}
                       </span>
                     )}
                   </div>
@@ -483,6 +484,7 @@ export function BookingListView({
                       <span className="flex items-center gap-1 text-xs text-muted-foreground leading-tight truncate">
                         <DoorOpen className="h-3 w-3 shrink-0" />
                         {booking.room_name}
+                        {booking.secondary_room_name && ` + ${booking.secondary_room_name}`}
                       </span>
                     )}
                   </TableCell>

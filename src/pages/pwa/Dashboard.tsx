@@ -401,7 +401,7 @@ const PwaDashboard = () => {
       .from("bookings")
       .select(`
         *,
-        treatment_rooms ( name ),
+        treatment_rooms!bookings_trunk_id_fkey ( name ),
         booking_therapists ( status, therapist_id ),
         booking_treatments (
           treatment_menus (
@@ -477,7 +477,7 @@ const PwaDashboard = () => {
       .from("bookings")
       .select(`
         *,
-        treatment_rooms ( name ),
+        treatment_rooms!bookings_trunk_id_fkey ( name ),
         booking_therapists ( status, therapist_id ),
         booking_treatments (
           treatment_menus (

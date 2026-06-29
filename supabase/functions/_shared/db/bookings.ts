@@ -17,6 +17,11 @@ export type BookingListItem = BookingRow & {
   treatmentsTotalPrice: number;
   treatments: BookingTreatment[];
   room_name: string | null;
+  // Name of the optional secondary room of a split duo booking (NULL = single room).
+  secondary_room_name: string | null;
+  // Full display names of all accepted therapists for a duo booking (incl. primary).
+  // Resolved client-side in useBookingData (booking_therapists has no FK to therapists).
+  therapist_display_names?: string[];
   booking_therapists?: { status: string; therapist_id: string }[];
   booking_payment_infos?: { payment_status: string | null; stripe_payment_method_id: string | null } | null;
 };
@@ -50,6 +55,7 @@ type RawBookingRow = BookingRow & {
     | Array<{ payment_status: string | null; stripe_payment_method_id: string | null }>
     | null;
   treatment_rooms?: { name: string | null } | null;
+  secondary_room?: { name: string | null } | null;
 };
 
 function computeBookingItem(row: RawBookingRow): BookingListItem {
@@ -84,7 +90,13 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
     ? row.booking_payment_infos[0] ?? null
     : row.booking_payment_infos ?? null;
 
-  const { booking_treatments: _drop, booking_payment_infos: _pi, treatment_rooms: roomJoin, ...booking } = row;
+  const {
+    booking_treatments: _drop,
+    booking_payment_infos: _pi,
+    treatment_rooms: roomJoin,
+    secondary_room: secondaryRoomJoin,
+    ...booking
+  } = row;
   return {
     ...(booking as BookingRow),
     totalDuration,
@@ -92,6 +104,7 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
     treatmentsTotalPrice,
     treatments,
     room_name: roomJoin?.name ?? null,
+    secondary_room_name: secondaryRoomJoin?.name ?? null,
     booking_payment_infos: paymentInfos,
   };
 }
@@ -116,7 +129,8 @@ export async function listBookings(
       ),
       booking_therapists(status, therapist_id),
       booking_payment_infos(payment_status, stripe_payment_method_id),
-      treatment_rooms(name),
+      treatment_rooms!room_id(name),
+      secondary_room:treatment_rooms!secondary_room_id(name),
       hotels!inner(id, organization_id)
     `,
     )
