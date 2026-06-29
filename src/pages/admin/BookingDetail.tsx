@@ -18,6 +18,7 @@ import {
   FileText, CreditCard
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
+import { DuoRecapTable } from "@/components/admin/booking/DuoRecapTable";
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
 import { BookingNotesSection } from "@/components/admin/details/BookingNotesSection";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
@@ -365,9 +366,9 @@ export default function BookingDetail() {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
+          {/* <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
             <MessageSquare className="h-4 w-4 mr-2" /> Notes
-          </Button>
+          </Button> */}
           {booking.status === "completed" && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -434,6 +435,11 @@ export default function BookingDetail() {
             <TabsTrigger value="history" className="gap-1.5">
               <History className="h-3.5 w-3.5" />
               Historique
+            </TabsTrigger>
+
+            <TabsTrigger value="notes" className="gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5" />
+              Notes
             </TabsTrigger>
           </TabsList>
 
@@ -507,8 +513,23 @@ export default function BookingDetail() {
         )}
         </div>
 
+        {isDuo && (
+          <div className="pt-2">
+            <DuoRecapTable
+              treatments={booking.treatments ?? []}
+              acceptedTherapists={acceptedTherapists}
+              guestCount={guestCount}
+              roomName={booking.room_name}
+              secondaryRoomName={booking.secondary_room_name}
+              bookingTime={booking.booking_time}
+              displayPrice={displayPrice}
+              currency={currency}
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-          
+
           <div className="space-y-6">
 
             <section
@@ -523,14 +544,27 @@ export default function BookingDetail() {
                   <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 translate-x-[-10px] group-hover:translate-x-0" />
                 )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
                   <p className="text-xs text-gray-500">Nom</p>
                   <p className="font-medium">{booking.client_first_name} {booking.client_last_name}</p>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs text-gray-500">Contact</p>
-                  <p className="text-sm">{booking.phone || "-"} / {booking.client_email || "-"}</p>
+                  <p className="text-sm break-words">
+                    {booking.phone || "-"} /{" "}
+                    {booking.client_email ? (
+                      <a
+                        href={`mailto:${booking.client_email}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-primary hover:underline"
+                      >
+                        {booking.client_email}
+                      </a>
+                    ) : (
+                      "-"
+                    )}
+                  </p>
                 </div>
               </div>
               {(booking as any).client_note && (
@@ -541,59 +575,30 @@ export default function BookingDetail() {
               )}
             </section>
 
+            {!isDuo && (
             <section className="bg-white rounded-xl border p-6 shadow-sm">
               <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4 flex items-center gap-2">
                 <HandHeart className="h-4 w-4" /> Soins & Praticien
               </h3>
-              
-              {isDuo ? (
-                <div className="mb-4 space-y-2">
-                  <p className="text-xs text-gray-500">
-                    Thérapeutes assignés ({acceptedTherapists.length}/{guestCount})
-                  </p>
-                  {acceptedTherapists.length > 0 ? acceptedTherapists.map((therapist) => (
-                    <div
-                      key={therapist.id}
-                      onClick={() => navigate(`/admin/therapists/${therapist.id}`)}
-                      className="p-3 bg-muted/30 rounded-lg flex items-center justify-between transition-all duration-200 border border-transparent cursor-pointer hover:bg-muted/50 hover:border-primary/40 group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                          {therapist.first_name?.charAt(0) || "?"}
-                        </div>
-                        <p className="font-semibold text-sm">{therapist.first_name} {therapist.last_name}</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-[-10px] group-hover:translate-x-0" />
-                    </div>
-                  )) : (
-                    <p className="text-sm text-muted-foreground">Aucun thérapeute n'a encore rejoint ce soin</p>
-                  )}
-                  {acceptedTherapists.length > 0 && acceptedTherapists.length < guestCount && (
-                    <p className="text-xs text-violet-600">
-                      En attente de {guestCount - acceptedTherapists.length} thérapeute(s) supplémentaire(s)…
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div
-                  onClick={() => booking.therapist_id && navigate(`/admin/therapists/${booking.therapist_id}`)}
-                  className={`mb-4 p-3 bg-muted/30 rounded-lg flex items-center justify-between transition-all duration-200 border border-transparent ${booking.therapist_id ? 'cursor-pointer hover:bg-muted/50 hover:border-primary/40 group' : ''}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                      {booking.therapist_name?.charAt(0) || "?"}
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Thérapeute assigné</p>
-                      <p className="font-semibold text-sm">{booking.therapist_name || "Non assigné"}</p>
-                    </div>
+
+              <div
+                onClick={() => booking.therapist_id && navigate(`/admin/therapists/${booking.therapist_id}`)}
+                className={`mb-4 p-3 bg-muted/30 rounded-lg flex items-center justify-between transition-all duration-200 border border-transparent ${booking.therapist_id ? 'cursor-pointer hover:bg-muted/50 hover:border-primary/40 group' : ''}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                    {booking.therapist_name?.charAt(0) || "?"}
                   </div>
-                  {booking.therapist_id && (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-[-10px] group-hover:translate-x-0" />
-                  )}
+                  <div>
+                    <p className="text-xs text-gray-500">Thérapeute assigné</p>
+                    <p className="font-semibold text-sm">{booking.therapist_name || "Non assigné"}</p>
+                  </div>
                 </div>
-              )}
-              
+                {booking.therapist_id && (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-[-10px] group-hover:translate-x-0" />
+                )}
+              </div>
+
               <div className="space-y-3">
                 {booking.treatments?.map((t, i) => (
                   <div key={i} className="flex flex-col gap-1 p-3 bg-gray-50 rounded-lg">
@@ -603,6 +608,7 @@ export default function BookingDetail() {
                 ))}
               </div>
             </section>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -621,7 +627,7 @@ export default function BookingDetail() {
                   <Building2 className="h-4 w-4 text-gray-400" />
                   <span>{hotelInfo?.name || "-"}</span>
                 </div>
-                {booking.room_name && (
+                {!isDuo && booking.room_name && (
                   <div className="flex items-center gap-3">
                     <DoorOpen className="h-4 w-4 text-gray-400" />
                     <span>{booking.room_name}</span>
@@ -766,6 +772,11 @@ export default function BookingDetail() {
           <TabsContent value="history" className="mt-4">
             <BookingHistoryTab bookingId={id!} enabled={activeTab === "history"} />
           </TabsContent>
+
+          <TabsContent value="notes" className="mt-4">
+          <BookingNotesSection bookingId={id!} />
+          </TabsContent>
+          
         </Tabs>
       </main>
 
@@ -832,7 +843,7 @@ export default function BookingDetail() {
         currency={currency}
       />
 
-      <Sheet open={isNotesOpen} onOpenChange={setIsNotesOpen}>
+      {/* <Sheet open={isNotesOpen} onOpenChange={setIsNotesOpen}>
         <SheetContent side="right" className="sm:max-w-md flex flex-col">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
@@ -844,7 +855,7 @@ export default function BookingDetail() {
             <BookingNotesSection bookingId={id!} />
           </div>
         </SheetContent>
-      </Sheet>
+      </Sheet> */}
     </div>
   );
 }

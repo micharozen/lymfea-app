@@ -133,6 +133,7 @@ DECLARE
   _current_date DATE;
   _day_of_week INT;
   _day_config JSONB;
+  _day_enabled BOOLEAN;
   _affected INT := 0;
 BEGIN
   _start_date := make_date(_year, _month, 1);
@@ -142,13 +143,17 @@ BEGIN
   WHILE _current_date <= _end_date LOOP
     _day_of_week := EXTRACT(ISODOW FROM _current_date)::int - 1;
     _day_config := _weekly_pattern->_day_of_week;
+    _day_enabled := COALESCE((_day_config->>'enabled')::boolean, false);
 
     INSERT INTO therapist_availability (therapist_id, date, is_available, shifts, is_manually_edited, last_change_source)
     VALUES (
       _therapist_id,
       _current_date,
-      COALESCE((_day_config->>'enabled')::boolean, false),
-      COALESCE(_day_config->'shifts', '[]'::jsonb),
+      _day_enabled,
+      CASE
+        WHEN _day_enabled THEN COALESCE(_day_config->'shifts', '[]'::jsonb)
+        ELSE '[]'::jsonb
+      END,
       false,
       'template_apply'
     )
@@ -158,7 +163,9 @@ BEGIN
       is_manually_edited = false,
       last_change_source = 'template_apply',
       updated_at = now()
-    WHERE _overwrite_manual OR NOT therapist_availability.is_manually_edited;
+    WHERE _overwrite_manual
+      OR NOT therapist_availability.is_manually_edited
+      OR NOT _day_enabled;
 
     IF FOUND THEN
       _affected := _affected + 1;
@@ -172,6 +179,120 @@ END;
 $$;
 
 ALTER FUNCTION "public"."apply_schedule_template"("_therapist_id" "uuid", "_year" integer, "_month" integer, "_weekly_pattern" "jsonb", "_overwrite_manual" boolean) OWNER TO "postgres";
+
+CREATE OR REPLACE FUNCTION "public"."get_schedule_completeness"("p_therapist_id" "uuid") RETURNS "jsonb"
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  _horizon_days constant int := 14;
+  _tz constant text := 'Europe/Paris';
+  _start_date date := (timezone(_tz, now()))::date;
+  _end_date date := _start_date + (_horizon_days - 1);
+  _weekly_pattern jsonb;
+  _has_template boolean := false;
+  _declared_days int := 0;
+  _expected_days int := 0;
+  _status text;
+  _is_incomplete boolean;
+  _d date;
+  _day_index int;
+  _day_config jsonb;
+  _i int;
+BEGIN
+  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM therapists t
+      WHERE t.id = p_therapist_id AND t.user_id = auth.uid()
+    ) THEN
+      RAISE EXCEPTION 'not authorized';
+    END IF;
+  END IF;
+
+  SELECT weekly_pattern INTO _weekly_pattern
+  FROM therapist_schedule_templates
+  WHERE therapist_id = p_therapist_id;
+
+  IF _weekly_pattern IS NOT NULL AND jsonb_typeof(_weekly_pattern) = 'array' THEN
+    SELECT EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(_weekly_pattern) AS elem
+      WHERE COALESCE((elem->>'enabled')::boolean, false)
+        AND jsonb_array_length(COALESCE(elem->'shifts', '[]'::jsonb)) > 0
+    ) INTO _has_template;
+  END IF;
+
+  SELECT COUNT(*)::int INTO _declared_days
+  FROM therapist_availability ta
+  WHERE ta.therapist_id = p_therapist_id
+    AND ta.date BETWEEN _start_date AND _end_date
+    AND ta.is_available = true
+    AND jsonb_array_length(COALESCE(ta.shifts, '[]'::jsonb)) > 0;
+
+  IF _weekly_pattern IS NOT NULL AND jsonb_typeof(_weekly_pattern) = 'array' THEN
+    _d := _start_date;
+    FOR _i IN 1.._horizon_days LOOP
+      _day_index := EXTRACT(ISODOW FROM _d)::int - 1;
+      _day_config := _weekly_pattern->_day_index;
+      IF COALESCE((_day_config->>'enabled')::boolean, false)
+         AND jsonb_array_length(COALESCE(_day_config->'shifts', '[]'::jsonb)) > 0 THEN
+        _expected_days := _expected_days + 1;
+      END IF;
+      _d := _d + 1;
+    END LOOP;
+  END IF;
+
+  IF NOT _has_template THEN
+    _status := 'no_template';
+  ELSIF _declared_days = 0 THEN
+    _status := 'template_not_applied';
+  ELSIF _expected_days > 0 AND _declared_days < _expected_days THEN
+    _status := 'partial';
+  ELSE
+    _status := 'complete';
+  END IF;
+
+  _is_incomplete := _status IN ('no_template', 'template_not_applied');
+
+  RETURN jsonb_build_object(
+    'status', _status,
+    'is_incomplete', _is_incomplete,
+    'declared_days_count', _declared_days,
+    'expected_days_count', _expected_days,
+    'horizon_days', _horizon_days,
+    'has_template', _has_template,
+    'weekly_pattern', _weekly_pattern
+  );
+END;
+$$;
+
+ALTER FUNCTION "public"."get_schedule_completeness"("p_therapist_id" "uuid") OWNER TO "postgres";
+
+CREATE OR REPLACE FUNCTION "public"."get_incomplete_schedule_therapist_ids"("p_dedup_days" integer DEFAULT 14, "p_reminder_type" "text" DEFAULT 'biweekly'::"text") RETURNS SETOF "uuid"
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+  WITH active_therapists AS (
+    SELECT DISTINCT t.id
+    FROM therapists t
+    INNER JOIN therapist_venues tv ON tv.therapist_id = t.id
+    WHERE t.user_id IS NOT NULL
+      AND COALESCE(t.status, '') IN ('Active', 'Actif', 'active')
+  ),
+  recently_reminded AS (
+    SELECT DISTINCT srl.therapist_id
+    FROM schedule_reminder_logs srl
+    WHERE srl.reminder_type = p_reminder_type
+      AND srl.sent_at >= now() - (p_dedup_days || ' days')::interval
+  )
+  SELECT a.id
+  FROM active_therapists a
+  LEFT JOIN recently_reminded r ON r.therapist_id = a.id
+  WHERE r.therapist_id IS NULL
+    AND (public.get_schedule_completeness(a.id)->>'is_incomplete')::boolean = true;
+$$;
+
+ALTER FUNCTION "public"."get_incomplete_schedule_therapist_ids"("p_dedup_days" integer, "p_reminder_type" "text") OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."claim_gift_card"("_code" "text", "_email" "text" DEFAULT NULL::"text") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -2469,6 +2590,7 @@ DECLARE
   _new_start             INTEGER;
   _new_end               INTEGER;
   _has_conflict          BOOLEAN;
+  _occupied_beds         INTEGER;
   _required_specialties  TEXT[];
   _therapist_id          UUID := NULL;
   _therapist_skills      TEXT[];
@@ -2524,22 +2646,26 @@ BEGIN
 
   <<room_loop>>
   FOR _room IN
-    SELECT id FROM treatment_rooms
+    SELECT id, capacity FROM treatment_rooms
     WHERE hotel_id::text = _hotel_id AND LOWER(status) IN ('active', 'actif')
     ORDER BY id
   LOOP
-    -- Room conflict check
-    SELECT EXISTS(
-      SELECT 1 FROM bookings
-      WHERE room_id = _room.id
-        AND booking_date = _booking_date
-        AND status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
-        AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '10 minutes')
-        AND (_new_start < (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)) + COALESCE(duration, 30) + _turnover_buffer
-             AND _new_end + _turnover_buffer > (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)))
-    ) INTO _has_conflict;
+    -- Room capacity check: a room has `capacity` beds (simultaneous occupations).
+    -- Sum the beds (guest_count) of overlapping bookings; skip the room only when
+    -- adding this booking would exceed its bed capacity. A duo (guest_count = 2)
+    -- consumes 2 beds.
+    SELECT COALESCE(SUM(COALESCE(guest_count, 1)), 0) INTO _occupied_beds
+    FROM bookings
+    WHERE room_id = _room.id
+      AND booking_date = _booking_date
+      AND status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
+      AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '10 minutes')
+      AND (_new_start < (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)) + COALESCE(duration, 30) + _turnover_buffer
+           AND _new_end + _turnover_buffer > (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)));
 
-    IF _has_conflict THEN CONTINUE room_loop; END IF;
+    IF _occupied_beds + COALESCE(_guest_count, 1) > COALESCE(_room.capacity, 1) THEN
+      CONTINUE room_loop;
+    END IF;
 
     -- Validate at least one qualified therapist exists (gender-aware for solo)
     FOR _therapist_id, _therapist_skills IN
@@ -2558,6 +2684,39 @@ BEGIN
         IF _therapist_skills IS NOT NULL AND array_length(_therapist_skills, 1) > 0 THEN
           IF NOT _required_specialties <@ _therapist_skills THEN CONTINUE; END IF;
         END IF;
+      END IF;
+
+      -- Therapist schedule: skip explicitly unavailable days
+      IF EXISTS (
+        SELECT 1 FROM therapist_availability ta
+        WHERE ta.therapist_id = _therapist_id
+          AND ta.date = _booking_date
+          AND ta.is_available = false
+      ) THEN
+        CONTINUE;
+      END IF;
+
+      -- Therapist schedule: skip when shifts exist but booking time is outside all shifts
+      IF EXISTS (
+        SELECT 1 FROM therapist_availability ta
+        WHERE ta.therapist_id = _therapist_id
+          AND ta.date = _booking_date
+          AND ta.is_available = true
+          AND ta.shifts IS NOT NULL
+          AND jsonb_array_length(ta.shifts) > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM jsonb_array_elements(ta.shifts) AS shift
+            WHERE _new_start >= (
+              (split_part(shift->>'start', ':', 1)::int * 60)
+              + COALESCE(NULLIF(split_part(shift->>'start', ':', 2), '')::int, 0)
+            )
+            AND _new_start < (
+              (split_part(shift->>'end', ':', 1)::int * 60)
+              + COALESCE(NULLIF(split_part(shift->>'end', ':', 2), '')::int, 0)
+            )
+          )
+      ) THEN
+        CONTINUE;
       END IF;
 
       SELECT EXISTS(
@@ -3095,6 +3254,12 @@ GRANT ALL ON FUNCTION "public"."apply_schedule_template"("_therapist_id" "uuid",
 GRANT ALL ON FUNCTION "public"."apply_schedule_template"("_therapist_id" "uuid", "_year" integer, "_month" integer, "_weekly_pattern" "jsonb", "_overwrite_manual" boolean) TO "authenticated";
 
 GRANT ALL ON FUNCTION "public"."apply_schedule_template"("_therapist_id" "uuid", "_year" integer, "_month" integer, "_weekly_pattern" "jsonb", "_overwrite_manual" boolean) TO "service_role";
+
+GRANT ALL ON FUNCTION "public"."get_schedule_completeness"("p_therapist_id" "uuid") TO "authenticated";
+
+GRANT ALL ON FUNCTION "public"."get_schedule_completeness"("p_therapist_id" "uuid") TO "service_role";
+
+GRANT ALL ON FUNCTION "public"."get_incomplete_schedule_therapist_ids"("p_dedup_days" integer, "p_reminder_type" "text") TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."claim_gift_card"("_code" "text", "_email" "text") TO "anon";
 

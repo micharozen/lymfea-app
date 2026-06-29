@@ -48,6 +48,7 @@
     "privacyPolicy": "Privacy Policy"
   },
   "dashboard": {
+    "refresh": "Refresh",
     "title": "Dashboard",
     "myBookings": "MY BOOKINGS",
     "upcoming": "Upcoming",
@@ -86,7 +87,9 @@
     "slots": "{{count}} slots",
     "todayAppointments": "Today's appointments",
     "todayHours": "Today's hours",
-    "todayEarnings": "Today's earnings"
+    "todayEarnings": "Today's earnings",
+    "scheduleReminderTitle": "Declare your availability",
+    "scheduleReminderDesc": "So the team knows who can accept your next booking requests."
   },
   "booking": {
     "details": "Booking Details",
@@ -113,9 +116,11 @@
     "bookingId": "Booking ID"
   },
   "bookingDetail": {
+    "reassignedAway": "This booking has been reassigned to another therapist.",
     "myBooking": "My Booking",
     "notFound": "Booking not found",
     "price": "Price",
+    "outOfHoursSurcharge": "Incl. out-of-hours surcharge",
     "name": "Name",
     "add": "Add",
     "noTreatments": "No treatments added",
@@ -293,6 +298,10 @@
         "heading": "Check your schedule",
         "subtitle": "Your upcoming appointments are grouped by day in the Agenda. You can see the venue, the treatment room and the client at a glance."
       },
+      "schedule": {
+        "heading": "Declare your availability",
+        "subtitle": "From the Agenda tab, tap \"My availability\" to set your weekly pattern and block time off."
+      },
       "addTreatment": {
         "heading": "Add a treatment on the go",
         "subtitle": "During a session, you can propose an extra treatment from the booking detail. The client is charged automatically and the new treatment shows up in your agenda."
@@ -357,6 +366,11 @@
     "wallet": "Wallet",
     "agenda": "Schedule",
     "stats": "Stats"
+  },
+  "bookings": {
+    "title": "Schedule",
+    "editSchedule": "My availability",
+    "scheduleIncomplete": "Update your availability for the next 2 weeks"
   },
   "statistics": {
     "title": "Statistics",
@@ -577,7 +591,21 @@
     "confirmDelete": "Yes, delete",
     "upcoming": "Upcoming",
     "past": "Past",
-    "blocked": "Blocked"
+    "blocked": "Blocked",
+    "actionBanner": {
+      "noTemplateTitle": "Set up your weekly template",
+      "noTemplateDesc": "Set your usual days and time slots so the team knows when you can accept requests.",
+      "configureTemplate": "Configure weekly template",
+      "applyTitle": "Apply your template to {{month}}",
+      "applyDesc": "Your template is ready but not yet applied to the coming weeks.",
+      "applyNow": "Apply now",
+      "reviewTemplate": "Review weekly template",
+      "partialTitle": "{{count}}/{{total}} upcoming days declared",
+      "partialDesc": "Apply your weekly template to the calendar to fill your working days.",
+      "complete": "Complete",
+      "reviewMonthly": "View calendar",
+      "updateAvailability": "Update my availability"
+    }
   },
   "bundleSession": "Package session",
   "bundleUsed": "Paid via package",

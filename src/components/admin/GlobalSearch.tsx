@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Calendar, Users, UserRound, Loader2 } from "lucide-react";
+import { Search, Calendar, Users, UserRound, Loader2, Flower2, DoorOpen } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CommandDialog,
@@ -14,6 +14,47 @@ import {
 import { DialogTitle } from "@/components/ui/dialog"; // FIX 1: Ajout du titre pour l'accessibilité
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/useUserContext";
+import { getBookingStatusConfig, getEntityStatusConfig } from "@/utils/statusStyles";
+
+// Date "2026-06-30" → "30 juin 2026"
+function formatBookingDate(date: string | null): string {
+  if (!date) return "";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+}
+
+const SETTLED_PAYMENT_STATUSES = ["paid", "charged_to_room", "card_saved", "pending_partner_billing", "offert"];
+
+// "Massage suédois · 60min, Soin visage" depuis les booking_treatments embarqués
+function summarizeTreatments(bookingTreatments: any[] | null | undefined): string {
+  return (bookingTreatments ?? [])
+    .map((t) => {
+      const name = t.treatment_menus?.name;
+      if (!name) return "";
+      return t.treatment_variants?.label ? `${name} · ${t.treatment_variants.label}` : name;
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
+// Petit badge homogène pour les lignes de résultat
+function ResultBadge({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-none ${className ?? ""}`}>
+      {children}
+    </span>
+  );
+}
+
+// Vignette d'icône colorée à gauche de chaque ligne
+function IconBox({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${className ?? ""}`}>
+      {children}
+    </div>
+  );
+}
 
 // Hook personnalisé pour le Debounce
 function useDebounce<T>(value: T, delay: number): T {
@@ -74,7 +115,7 @@ export function GlobalSearch() {
           .limit(5),
         supabase
           .from("bookings")
-          .select("id, booking_id, booking_date, hotel_id, client_first_name, client_last_name, client_email, phone")
+          .select("id, booking_id, booking_date, hotel_id, client_first_name, client_last_name, client_email, phone, status, payment_status, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(treatment_menus(name), treatment_variants(label))")
           .or(`client_first_name.ilike.${searchTerm},client_last_name.ilike.${searchTerm},client_email.ilike.${searchTerm},phone.ilike.${searchTerm}${numericMatch}`)
           .order("booking_date", { ascending: false })
           .limit(10),
@@ -142,23 +183,52 @@ export function GlobalSearch() {
 
               {filteredBookings.length > 0 && (
                 <CommandGroup heading="Réservations">
-                  {filteredBookings.map((booking: any) => (
+                  {filteredBookings.map((booking: any) => {
+                    const isPaid = SETTLED_PAYMENT_STATUSES.includes((booking.payment_status || "").toLowerCase());
+                    const statusConfig = getBookingStatusConfig(booking.status);
+                    const roomName = booking.treatment_rooms?.name as string | undefined;
+                    const treatmentsSummary = summarizeTreatments(booking.booking_treatments);
+                    return (
                     <CommandItem
                       key={booking.id}
                       // FIX 3: Valeur explicite pour que la modale retrouve ses petits
                       value={`${booking.client_first_name} ${booking.client_last_name} ${booking.booking_id} ${booking.phone || ''} ${booking.client_email || ''}`}
                       onSelect={() => onSelect(`/admin/bookings?id=${booking.id}`)}
-                      className="cursor-pointer"
+                      className="cursor-pointer flex items-center gap-3 py-2.5"
                     >
-                      <Calendar className="w-4 h-4 mr-2 text-blue-500" />
-                      <div className="flex flex-col">
-                        <span className="font-medium">{booking.client_first_name} {booking.client_last_name}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          #{booking.booking_id} — {booking.booking_date} {booking.phone ? `— ${booking.phone}` : ''}
+                      <IconBox className="bg-blue-50 text-blue-500">
+                        <Calendar className="w-4 h-4" />
+                      </IconBox>
+                      <div className="flex flex-col min-w-0 flex-1 gap-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="font-medium truncate capitalize">{booking.client_first_name} {booking.client_last_name}</span>
+                          <span className="text-[11px] text-muted-foreground tabular-nums flex-shrink-0">#{booking.booking_id}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground truncate">
+                          {formatBookingDate(booking.booking_date)}{booking.phone ? ` · ${booking.phone}` : ''}
                         </span>
+                        {treatmentsSummary && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground truncate" title={treatmentsSummary}>
+                            <Flower2 className="w-3 h-3 flex-shrink-0 text-rose-400" />
+                            <span className="truncate">{treatmentsSummary}</span>
+                          </span>
+                        )}
+                        {roomName && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+                            <DoorOpen className="w-3 h-3 flex-shrink-0 text-blue-400" />
+                            <span className="truncate">{roomName}</span>
+                          </span>
+                        )}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          <ResultBadge className={statusConfig.badgeClass}>{statusConfig.label}</ResultBadge>
+                          <ResultBadge className={isPaid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}>
+                            {isPaid ? "Payé" : "Non payé"}
+                          </ResultBadge>
+                        </div>
                       </div>
                     </CommandItem>
-                  ))}
+                    );
+                  })}
                 </CommandGroup>
               )}
 
@@ -172,12 +242,14 @@ export function GlobalSearch() {
                       // FIX 3
                       value={`${c.first_name} ${c.last_name} ${c.email || ''} ${c.phone || ''}`}
                       onSelect={() => onSelect(`/admin/customers/${c.id}`)}
-                      className="cursor-pointer"
+                      className="cursor-pointer flex items-center gap-3 py-2.5"
                     >
-                      <Users className="w-4 h-4 mr-2 text-green-500" />
-                      <div className="flex flex-col">
-                        <span>{c.first_name} {c.last_name}</span>
-                        <span className="text-[10px] text-muted-foreground">{c.email || c.phone}</span>
+                      <IconBox className="bg-green-50 text-green-500">
+                        <Users className="w-4 h-4" />
+                      </IconBox>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-medium truncate capitalize">{c.first_name} {c.last_name}</span>
+                        <span className="text-xs text-muted-foreground truncate">{c.email || c.phone}</span>
                       </div>
                     </CommandItem>
                   ))}
@@ -194,12 +266,14 @@ export function GlobalSearch() {
                       // FIX 3
                       value={`${t.first_name} ${t.last_name} ${t.status || ''}`}
                       onSelect={() => onSelect(`/admin/therapists/${t.id}`)}
-                      className="cursor-pointer"
+                      className="cursor-pointer flex items-center gap-3 py-2.5"
                     >
-                      <UserRound className="w-4 h-4 mr-2 text-purple-500" />
-                      <div className="flex flex-col">
-                        <span>{t.first_name} {t.last_name}</span>
-                        <span className="text-[10px] text-muted-foreground">Statut : {t.status}</span>
+                      <IconBox className="bg-purple-50 text-purple-500">
+                        <UserRound className="w-4 h-4" />
+                      </IconBox>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-medium truncate capitalize">{t.first_name} {t.last_name}</span>
+                        <span className="text-xs text-muted-foreground truncate">{getEntityStatusConfig(t.status).label}</span>
                       </div>
                     </CommandItem>
                   ))}

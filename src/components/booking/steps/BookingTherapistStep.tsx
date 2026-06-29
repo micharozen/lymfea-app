@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,6 +13,7 @@ import {
 import { Check, Loader2, Sparkles, Users, DoorOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
+import { useTranslation } from "react-i18next";
 import type { CartItem } from "../CreateBookingDialog.schema";
 import type { AvailableRoom } from "@/hooks/booking/useAvailableRooms";
 
@@ -35,6 +37,8 @@ interface BookingTherapistStepProps {
   therapistId: string;
   onTherapistChange: (id: string) => void;
   requiredGuestCount: number;
+  /** admin-combo-duo: overrides picker count when N solo sessions booked as duo */
+  staffingCount?: number;
   additionalTherapistIds: string[];
   onAdditionalTherapistIdsChange: (ids: string[]) => void;
   duoMode: "assign" | "broadcast";
@@ -48,11 +52,71 @@ interface BookingTherapistStepProps {
   currency: string;
   rooms: AvailableRoom[];
   occupiedRoomIds: Set<string>;
+  roomOccupancy: Map<string, number>;
   roomId: string;
   onRoomChange: (id: string) => void;
+  secondaryRoomId: string;
+  onSecondaryRoomChange: (id: string) => void;
+  secondaryRoomEnabled: boolean;
+  onSecondaryRoomEnabledChange: (enabled: boolean) => void;
 }
 
 const AUTO_ROOM_VALUE = "__auto__";
+
+interface RoomSelectProps {
+  rooms: AvailableRoom[];
+  occupiedRoomIds: Set<string>;
+  roomOccupancy: Map<string, number>;
+  value: string;
+  onChange: (id: string) => void;
+  /** Salle à masquer des options (ex. la salle principale pour la salle secondaire). */
+  excludeRoomId?: string;
+}
+
+function RoomSelect({
+  rooms,
+  occupiedRoomIds,
+  roomOccupancy,
+  value,
+  onChange,
+  excludeRoomId,
+}: RoomSelectProps) {
+  return (
+    <Select
+      value={value || AUTO_ROOM_VALUE}
+      onValueChange={(v) => onChange(v === AUTO_ROOM_VALUE ? "" : v)}
+    >
+      <SelectTrigger className="h-9">
+        <SelectValue placeholder="Automatique" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={AUTO_ROOM_VALUE}>Automatique</SelectItem>
+        {rooms
+          .filter((room) => room.id !== excludeRoomId)
+          .map((room) => {
+            const occupied = occupiedRoomIds.has(room.id) && room.id !== value;
+            const used = roomOccupancy.get(room.id) ?? 0;
+            return (
+              <SelectItem key={room.id} value={room.id} disabled={occupied}>
+                <span className="flex items-center gap-1.5">
+                  {room.name}
+                  <span
+                    className={cn(
+                      "text-xs tabular-nums",
+                      occupied ? "text-destructive" : "text-muted-foreground",
+                    )}
+                  >
+                    {used}/{room.capacity}
+                  </span>
+                  {occupied && <span className="text-xs text-destructive">— Complète</span>}
+                </span>
+              </SelectItem>
+            );
+          })}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function getInitials(first: string, last: string) {
   return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
@@ -200,6 +264,7 @@ export function BookingTherapistStep({
   therapistId,
   onTherapistChange,
   requiredGuestCount,
+  staffingCount: staffingCountProp,
   additionalTherapistIds,
   onAdditionalTherapistIdsChange,
   duoMode,
@@ -213,11 +278,18 @@ export function BookingTherapistStep({
   currency,
   rooms,
   occupiedRoomIds,
+  roomOccupancy,
   roomId,
   onRoomChange,
+  secondaryRoomId,
+  onSecondaryRoomChange,
+  secondaryRoomEnabled,
+  onSecondaryRoomEnabledChange,
 }: BookingTherapistStepProps) {
+  const { t } = useTranslation("admin");
   const broadcast = duoMode === "broadcast";
-  const isDuo = requiredGuestCount > 1;
+  const effectiveStaffing = staffingCountProp ?? requiredGuestCount;
+  const isDuo = effectiveStaffing > 1;
 
   const handleToggleBroadcast = () => {
     if (broadcast) {
@@ -261,47 +333,67 @@ export function BookingTherapistStep({
           <Label className="text-xs font-medium flex items-center gap-1.5">
             <DoorOpen className="h-3.5 w-3.5" />
             Salle de soin
+            {isDuo && secondaryRoomEnabled && (
+              <span className="text-muted-foreground font-normal">(praticien 1)</span>
+            )}
           </Label>
-          <Select
-            value={roomId || AUTO_ROOM_VALUE}
-            onValueChange={(value) => onRoomChange(value === AUTO_ROOM_VALUE ? "" : value)}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Automatique" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={AUTO_ROOM_VALUE}>Automatique</SelectItem>
-              {rooms.map((room) => {
-                const occupied = occupiedRoomIds.has(room.id) && room.id !== roomId;
-                return (
-                  <SelectItem key={room.id} value={room.id} disabled={occupied}>
-                    {room.name}
-                    {occupied && " — Occupée"}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+          <RoomSelect
+            rooms={rooms}
+            occupiedRoomIds={occupiedRoomIds}
+            roomOccupancy={roomOccupancy}
+            value={roomId}
+            onChange={onRoomChange}
+          />
+
+          {isDuo && (
+            <div className="space-y-1.5 pt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={secondaryRoomEnabled}
+                  onCheckedChange={(checked) => {
+                    const enabled = checked === true;
+                    onSecondaryRoomEnabledChange(enabled);
+                    if (!enabled) onSecondaryRoomChange("");
+                  }}
+                />
+                <span className="text-xs font-medium">
+                  Salle différente pour le 2e praticien
+                </span>
+              </label>
+              {secondaryRoomEnabled && (
+                <RoomSelect
+                  rooms={rooms}
+                  occupiedRoomIds={occupiedRoomIds}
+                  roomOccupancy={roomOccupancy}
+                  value={secondaryRoomId}
+                  onChange={onSecondaryRoomChange}
+                  excludeRoomId={roomId}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {isDuo ? (
           <div className="space-y-4">
             <div className="rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 p-3 text-xs text-violet-800 dark:text-violet-300">
-              Soin à plusieurs — {requiredGuestCount} praticiens requis. Vous pouvez diffuser la demande à toute l'équipe, ou assigner manuellement.
+              Soin à plusieurs — {effectiveStaffing} praticiens requis. Vous pouvez diffuser la demande à toute l'équipe, ou assigner manuellement.
             </div>
 
             <BroadcastCard violet broadcast={broadcast} onToggle={handleToggleBroadcast} />
 
             {!broadcast &&
-              Array.from({ length: requiredGuestCount }).map((_, idx) => {
+              Array.from({ length: effectiveStaffing }).map((_, idx) => {
                 const currentId =
                   idx === 0 ? therapistId : (additionalTherapistIds[idx - 1] ?? "");
-                const otherIds = Array.from({ length: requiredGuestCount }, (_, i) =>
+                const otherIds = Array.from({ length: effectiveStaffing }, (_, i) =>
                   i === 0 ? therapistId : (additionalTherapistIds[i - 1] ?? "")
                 ).filter((id, i) => i !== idx && id !== "");
                 return (
                   <div key={idx} className="space-y-1.5">
-                    <Label className="text-xs font-medium">Praticien {idx + 1}</Label>
+                    <Label className="text-xs font-medium">
+                      {t("booking.comboDuo.practitionerLabel", { index: idx + 1, defaultValue: `Praticien ${idx + 1}` })}
+                    </Label>
                     <TherapistList
                       therapists={therapists}
                       selectedId={currentId}

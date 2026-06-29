@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -43,7 +44,7 @@ import { computeOutOfHoursSurcharge } from "@/lib/surcharge";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil, Search, DoorOpen } from "lucide-react";
+import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil, Search, DoorOpen, UserX } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
@@ -55,6 +56,10 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { ButtonGroup } from "@/components/ui/button-group";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
 import { BOOKING_CLIENT_TYPES, type BookingClientType } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType, isPaymentStatusLocked } from "@/lib/clientTypePayment";
@@ -153,6 +158,8 @@ interface Booking {
   room_number: string | null;
   room_id?: string | null;
   room_name?: string | null;
+  secondary_room_id?: string | null;
+  secondary_room_name?: string | null;
   booking_date: string;
   booking_time: string;
   status: string;
@@ -200,11 +207,16 @@ export default function EditBookingDialog({
   const [status, setStatus] = useState("En attente");
   const [therapistId, setTherapistId] = useState("");
   const [roomId, setRoomId] = useState("");
+  // Duo scindé sur 2 salles (admin) : salle secondaire optionnelle.
+  const [secondaryRoomId, setSecondaryRoomId] = useState("");
+  const [secondaryRoomEnabled, setSecondaryRoomEnabled] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showNoShowDialog, setShowNoShowDialog] = useState(false);
+  const [noShowLoading, setNoShowLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"view" | "edit" | "quote">("view");
   const [treatmentSearch, setTreatmentSearch] = useState("");
   const [therapistIds, setTherapistIds] = useState<string[]>([]);
@@ -249,6 +261,8 @@ export default function EditBookingDialog({
       setStatus(booking.status || "En attente");
       setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapist_id : "");
       setRoomId(booking.room_id || "");
+      setSecondaryRoomId(booking.secondary_room_id || "");
+      setSecondaryRoomEnabled(!!booking.secondary_room_id);
 
       const guestCount = booking.guest_count ?? 1;
       setTherapistIds(guestCount > 1 ? Array(guestCount).fill('') : []);
@@ -277,6 +291,33 @@ export default function EditBookingDialog({
   const isConcierge = userRole === "concierge" || isVenueManagerView;
   const canCancelBooking =
     (isAdmin || isConcierge) && canCancelBookingByStatus(booking?.status);
+  const canMarkNoShow =
+    (isAdmin || isConcierge) &&
+    (booking?.status === "confirmed" || booking?.status === "ongoing");
+
+  const handleNoShow = async () => {
+    if (!booking || noShowLoading) return;
+    setNoShowLoading(true);
+    try {
+      const { data, error } = await invokeEdgeFunction<
+        { bookingId: string },
+        { success?: boolean; error?: string }
+      >("mark-booking-noshow", { body: { bookingId: booking.id } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Réservation marquée comme no-show." });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      setShowNoShowDialog(false);
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur lors du marquage no-show.";
+      toast({ title: message, variant: "destructive" });
+    } finally {
+      setNoShowLoading(false);
+    }
+  };
+
   const isDuo = (booking?.guest_count ?? 1) > 1;
   const therapistCount = booking?.guest_count ?? 1;
 
@@ -302,7 +343,7 @@ export default function EditBookingDialog({
   const queryHotelId = hotelId || booking?.hotel_id;
 
   // Salles de soin disponibles au créneau (la salle actuelle reste sélectionnable).
-  const { rooms, occupiedRoomIds } = useAvailableRooms(
+  const { rooms, occupiedRoomIds, roomOccupancy } = useAvailableRooms(
     queryHotelId,
     date ? format(date, "yyyy-MM-dd") : undefined,
     time,
@@ -394,7 +435,8 @@ export default function EditBookingDialog({
         `)
         .eq("booking_date", selectedDate)
         .neq("id", booking!.id)
-        .not("therapist_id", "is", null);
+        .not("therapist_id", "is", null)
+        .not("status", "in", "(cancelled,canceled,noshow,no_show,completed)");
       
       if (error) {
         console.error("Error fetching availability:", error);
@@ -596,6 +638,7 @@ export default function EditBookingDialog({
           phone: bookingData.phone,
           room_number: bookingData.room_number,
           room_id: bookingData.room_id ?? null,
+          secondary_room_id: bookingData.secondary_room_id ?? null,
           booking_date: bookingData.booking_date,
           booking_time: bookingData.booking_time,
           therapist_id: bookingData.therapist_id || null,
@@ -655,6 +698,21 @@ export default function EditBookingDialog({
               status: 'accepted',
             }))
           );
+          if (btError) throw btError;
+        }
+      } else {
+        // Solo booking: keep booking_therapists in sync with therapist_id.
+        // A previously-assigned therapist keeps an 'accepted' row otherwise, and
+        // the PWA dashboard lists bookings via booking_therapists (not only
+        // therapist_id), so they would keep seeing a reassigned booking.
+        const { error: btDeleteError } = await supabase.from("booking_therapists").delete().eq("booking_id", booking.id);
+        if (btDeleteError) throw btDeleteError;
+        if (bookingData.therapist_id) {
+          const { error: btError } = await supabase.from("booking_therapists").insert({
+            booking_id: booking.id,
+            therapist_id: bookingData.therapist_id,
+            status: 'accepted',
+          });
           if (btError) throw btError;
         }
       }
@@ -916,7 +974,8 @@ export default function EditBookingDialog({
         `)
         .eq("therapist_id", therapistId)
         .eq("booking_date", format(date, "yyyy-MM-dd"))
-        .neq("id", booking?.id); 
+        .neq("id", booking?.id)
+        .not("status", "in", "(cancelled,canceled,noshow,no_show,completed)");
 
       if (error) {
         console.error("Error checking for overlaps:", error);
@@ -984,6 +1043,11 @@ export default function EditBookingDialog({
       phone: isConcierge ? (booking?.phone || null) : (composePhoneNumber(countryCode, phone) || null),
       room_number: isConcierge ? (booking?.room_number || "") : roomNumber,
       room_id: isConcierge ? (booking?.room_id ?? null) : (roomId || null),
+      secondary_room_id: isConcierge
+        ? (booking?.secondary_room_id ?? null)
+        : (isDuo && secondaryRoomEnabled && secondaryRoomId && secondaryRoomId !== roomId
+            ? secondaryRoomId
+            : null),
       booking_date: submittedDate,
       booking_time: submittedTime,
       therapist_id: primaryTherapistId,
@@ -1534,15 +1598,100 @@ export default function EditBookingDialog({
                       )}
                       {rooms.map((room) => {
                         const occupied = occupiedRoomIds.has(room.id) && room.id !== roomId;
+                        const used = roomOccupancy.get(room.id) ?? 0;
                         return (
                           <SelectItem key={room.id} value={room.id} disabled={occupied}>
-                            {room.name}
-                            {occupied && " — Occupée"}
+                            <span className="flex items-center gap-1.5">
+                              {room.name}
+                              <span
+                                className={cn(
+                                  "text-xs tabular-nums",
+                                  occupied ? "text-destructive" : "text-muted-foreground",
+                                )}
+                              >
+                                {used}/{room.capacity}
+                              </span>
+                              {occupied && (
+                                <span className="text-xs text-destructive">— Complète</span>
+                              )}
+                            </span>
                           </SelectItem>
                         );
                       })}
                     </SelectContent>
                   </Select>
+
+                  {isDuo && !clientFieldsDisabled && (
+                    <div className="space-y-1.5 pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={secondaryRoomEnabled}
+                          onCheckedChange={(checked) => {
+                            const enabled = checked === true;
+                            setSecondaryRoomEnabled(enabled);
+                            if (!enabled) setSecondaryRoomId("");
+                          }}
+                        />
+                        <span className="text-xs font-medium">
+                          Salle différente pour le 2e praticien
+                        </span>
+                      </label>
+                      {secondaryRoomEnabled && (
+                        <Select
+                          value={secondaryRoomId || "__auto__"}
+                          onValueChange={(value) =>
+                            setSecondaryRoomId(value === "__auto__" ? "" : value)
+                          }
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Automatique" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-lg">
+                            <SelectItem value="__auto__">Automatique</SelectItem>
+                            {secondaryRoomId &&
+                              !rooms.find((r) => r.id === secondaryRoomId) && (
+                                <SelectItem value={secondaryRoomId}>
+                                  {booking?.secondary_room_name || "Salle actuelle"}
+                                </SelectItem>
+                              )}
+                            {rooms
+                              .filter((room) => room.id !== roomId)
+                              .map((room) => {
+                                const occupied =
+                                  occupiedRoomIds.has(room.id) && room.id !== secondaryRoomId;
+                                const used = roomOccupancy.get(room.id) ?? 0;
+                                return (
+                                  <SelectItem
+                                    key={room.id}
+                                    value={room.id}
+                                    disabled={occupied}
+                                  >
+                                    <span className="flex items-center gap-1.5">
+                                      {room.name}
+                                      <span
+                                        className={cn(
+                                          "text-xs tabular-nums",
+                                          occupied
+                                            ? "text-destructive"
+                                            : "text-muted-foreground",
+                                        )}
+                                      >
+                                        {used}/{room.capacity}
+                                      </span>
+                                      {occupied && (
+                                        <span className="text-xs text-destructive">
+                                          — Complète
+                                        </span>
+                                      )}
+                                    </span>
+                                  </SelectItem>
+                                );
+                              })}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1770,17 +1919,30 @@ export default function EditBookingDialog({
 
               </div>
               <div className="shrink-0 px-4 py-3 border-t bg-background flex justify-between gap-3">
-                {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking ? (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => setShowCancelDialog(true)}
-                    className="gap-2"
-                  >
-                    <X className="h-4 w-4" />
-                    Annuler la réservation
-                  </Button>
-                ) : <div />}
+                <div className="flex gap-2">
+                  {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking ? (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={() => setShowCancelDialog(true)}
+                      className="gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Annuler la réservation
+                    </Button>
+                  ) : null}
+                  {canMarkNoShow && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowNoShowDialog(true)}
+                      className="gap-2 text-amber-600 hover:text-amber-700"
+                    >
+                      <UserX className="h-4 w-4" />
+                      Client pas venu
+                    </Button>
+                  )}
+                </div>
                 <Button type="button" onClick={() => setActiveTab("prestations")}>
                   Suivant (Prestations) ➔
                 </Button>
@@ -2076,6 +2238,24 @@ export default function EditBookingDialog({
           userRole={isConcierge ? "concierge" : "admin"}
         />
       )}
+
+      <AlertDialog open={showNoShowDialog} onOpenChange={setShowNoShowDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Marquer comme no-show ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Le client ne s'est pas présenté. Des frais de no-show peuvent s'appliquer
+              selon la politique de l'établissement. Cette action est définitive.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={noShowLoading}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleNoShow} disabled={noShowLoading}>
+              Confirmer le no-show
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {booking && (
         <SendPaymentLinkDialog

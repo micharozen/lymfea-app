@@ -18,6 +18,8 @@ ALTER TABLE "public"."treatment_rooms" OWNER TO "postgres";
 
 COMMENT ON COLUMN "public"."treatment_rooms"."capabilities" IS 'Array of treatment types this room supports (e.g. Massage, Facial, Hammam). Replaces the single room_type field.';
 
+COMMENT ON COLUMN "public"."treatment_rooms"."capacity" IS 'Nombre d''occupations simultanées (lits/postes) dans la salle. Chaque réservation consomme guest_count lits. Défaut 1.';
+
 ALTER TABLE ONLY "public"."treatment_rooms"
     ADD CONSTRAINT "treatment_rooms_pkey" PRIMARY KEY ("id");
 

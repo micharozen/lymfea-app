@@ -36,6 +36,7 @@ const createFormSchema = (t: TFunction) =>
     capabilities: z
       .array(z.string())
       .min(1, "Sélectionnez au moins un type de soin"),
+    capacity: z.coerce.number().int().min(1, "Minimum 1 lit").default(1),
     hotel_id: z.string().optional(),
     status: z.string().default("active"),
   });
@@ -73,6 +74,7 @@ export default function TreatmentRoomDetail() {
     defaultValues: {
       name: "",
       capabilities: [],
+      capacity: 1,
       hotel_id: "",
       status: "active",
     },
@@ -113,6 +115,7 @@ export default function TreatmentRoomDetail() {
           form.reset({
             name: room.name || "",
             capabilities,
+            capacity: room.capacity ?? 1,
             hotel_id: room.hotel_id || "",
             status: room.status || "active",
           });
@@ -152,6 +155,7 @@ export default function TreatmentRoomDetail() {
         name: values.name,
         room_type: values.capabilities[0] || "Multi-purpose",
         capabilities: values.capabilities,
+        capacity: values.capacity,
         hotel_id: values.hotel_id || null,
         hotel_name: selectedHotel?.name || null,
         image: roomImage || null,

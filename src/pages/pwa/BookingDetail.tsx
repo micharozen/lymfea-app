@@ -16,6 +16,7 @@ import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer"
 import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { useIsMounted } from "@/hooks/useIsMounted";
+import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import { computeTherapistEarnings } from "@/lib/therapistEarnings";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import {
@@ -50,6 +51,9 @@ interface Booking {
   status: string;
   phone: string;
   total_price: number;
+  surcharge_amount?: number | null;
+  is_out_of_hours?: boolean | null;
+  out_of_hours_surcharge_percent?: number | null;
   therapist_id: string | null;
   declined_by?: string[];
   hotel_image_url?: string;
@@ -206,6 +210,12 @@ const PwaBookingDetail = () => {
     };
   }, [id]);
 
+  // Re-fetch when the app regains focus (realtime is disabled in prod). The
+  // ownership guard inside fetchBookingDetail redirects away if reassigned.
+  useRefetchOnFocus(() => {
+    fetchBookingDetail();
+  });
+
   // Fetch room gap for margin/extension display
   useEffect(() => {
     const fetchRoomGap = async () => {
@@ -304,6 +314,7 @@ const PwaBookingDetail = () => {
         therapist_rate_60: therapistRates.rate_60,
         therapist_rate_90: therapistRates.rate_90,
         hotel_currency: hotelData?.currency || 'EUR',
+        out_of_hours_surcharge_percent: hotelData?.out_of_hours_surcharge_percent ?? null,
         venue_type: hotelData?.venue_type || null,
         card_brand: paymentInfo?.card_brand || null,
         card_last4: paymentInfo?.card_last4 || null,
@@ -324,10 +335,25 @@ const PwaBookingDetail = () => {
 
       if (!isMountedRef.current) return;
 
+      const isAcceptedParticipant = myTherapistId
+        ? (btData?.some((bt) => (bt as { therapist_id: string }).therapist_id === myTherapistId) ?? false)
+        : false;
+
       setAcceptedTherapistCount(btData?.length ?? 0);
-      setHasAlreadyAccepted(
-        myTherapistId ? (btData?.some((bt) => (bt as { therapist_id: string }).therapist_id === myTherapistId) ?? false) : false
-      );
+      setHasAlreadyAccepted(isAcceptedParticipant);
+
+      // Booking no longer belongs to the connected therapist (e.g. reassigned by
+      // an admin while the app was open / opened from a stale push notification).
+      // Pending/awaiting bookings stay visible as open requests.
+      const isOpenRequest = bookingData.status === "pending" || bookingData.status === "awaiting_hairdresser_selection";
+      const isMine = bookingData.therapist_id === myTherapistId || isAcceptedParticipant;
+      if (myTherapistId && !isOpenRequest && !isMine) {
+        if (isMountedRef.current) {
+          toast.info(t('bookingDetail.reassignedAway'));
+          navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+        }
+        return;
+      }
 
       // Fetch bundle info if booking has a bundle_usage_id
       const bundleUsageId = bookingData.bundle_usage_id;
@@ -751,6 +777,16 @@ const PwaBookingDetail = () => {
               <div className="min-w-0">
                 <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('bookingDetail.price')}</div>
                 <div className="text-sm font-semibold truncate">{formatPrice(totalPrice, booking.hotel_currency)}</div>
+                {booking.is_out_of_hours && (booking.surcharge_amount ?? 0) > 0 && (
+                  <div className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1">
+                    <Clock className="w-2.5 h-2.5 shrink-0" />
+                    <span className="truncate">
+                      {t('bookingDetail.outOfHoursSurcharge')}
+                      {booking.out_of_hours_surcharge_percent ? ` (+${booking.out_of_hours_surcharge_percent}%)` : ''}
+                      {' '}+{formatPrice(booking.surcharge_amount!, booking.hotel_currency)}
+                    </span>
+                  </div>
+                )}
                 {giftAppliedCents > 0 && (
                   <div className="text-[10px] text-amber-600 mt-0.5">
                     -{formatPrice(giftAppliedCents / 100, booking.hotel_currency)} carte cadeau

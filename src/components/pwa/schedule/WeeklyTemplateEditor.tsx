@@ -56,8 +56,8 @@ export function WeeklyTemplateEditor({
   const locale = i18n.language === "fr" ? fr : enUS;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [targetMonth, setTargetMonth] = useState(() => {
-    const next = addMonths(startOfMonth(new Date()), 1);
-    return { year: next.getFullYear(), month: next.getMonth() + 1 };
+    const current = startOfMonth(new Date());
+    return { year: current.getFullYear(), month: current.getMonth() + 1 };
   });
 
   const handleToggleDay = (dayIndex: number, enabled: boolean) => {
@@ -65,9 +65,11 @@ export function WeeklyTemplateEditor({
     updated[dayIndex] = {
       ...updated[dayIndex],
       enabled,
-      shifts: enabled && updated[dayIndex].shifts.length === 0
-        ? [{ start: "09:00", end: "17:00" }]
-        : updated[dayIndex].shifts,
+      shifts: enabled
+        ? updated[dayIndex].shifts.length === 0
+          ? [{ start: "09:00", end: "17:00" }]
+          : updated[dayIndex].shifts
+        : [],
     };
     onChange(updated);
   };

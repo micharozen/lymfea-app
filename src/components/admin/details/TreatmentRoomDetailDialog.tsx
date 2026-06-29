@@ -65,9 +65,10 @@ export function TreatmentRoomDetailDialog({
         <DetailCard>
           <div className="space-y-2">
             <DetailField label="Type" value={room.room_type || "-"} />
-            {room.capacity && (
-              <DetailField label="Capacite" value={String(room.capacity)} />
-            )}
+            <DetailField
+              label="Lits"
+              value={String(room.capacity ?? 1)}
+            />
             <DetailField label="ID" value={room.id} muted />
           </div>
         </DetailCard>
