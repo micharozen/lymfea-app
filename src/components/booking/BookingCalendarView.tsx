@@ -94,18 +94,7 @@ function formatTherapistShort(name: string | null | undefined): string {
   return parts[0];
 }
 
-// Display the client as "Prénom L." — full first name + initial of last name.
-function formatClientShort(
-  firstName: string | null | undefined,
-  lastName: string | null | undefined,
-): string {
-  const first = (firstName ?? "").trim();
-  const last = (lastName ?? "").trim();
-  const lastInitial = last ? `${last[0].toUpperCase()}.` : "";
-  return [first, lastInitial].filter(Boolean).join(" ");
-}
-
-// Display the client's full name — "Prénom Nom" — for the hover tooltip.
+// Display the client's full name — "Prénom Nom".
 function formatClientFull(
   firstName: string | null | undefined,
   lastName: string | null | undefined,
@@ -656,7 +645,7 @@ function BookingCard({
 
   const therapistShort = formatTherapistShort(booking.therapist_name);
   const hasTherapist = !!booking.therapist_id && !!booking.therapist_name;
-  const clientName = formatClientShort(booking.client_first_name, booking.client_last_name);
+  const clientName = formatClientFull(booking.client_first_name, booking.client_last_name);
   const treatmentsLabel = treatments.map((t) => t.name).filter(Boolean).join(", ");
 
   // Duo booking: one row needing several practitioners (guest_count > 1).
