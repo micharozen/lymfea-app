@@ -191,7 +191,7 @@ export default function TreatmentRooms() {
     }
   };
 
-  const columnCount = isAdmin ? 6 : 5;
+  const columnCount = isAdmin ? 7 : 6;
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
@@ -261,6 +261,7 @@ export default function TreatmentRooms() {
                   <SortableTableHead column="type" sortDirection={getSortDirection("type")} onSort={toggleSort}>
                     Type
                   </SortableTableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Lits</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prochaine res.</TableHead>
                   <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
@@ -306,6 +307,9 @@ export default function TreatmentRooms() {
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <span className="truncate block text-foreground">{room.room_type}</span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">{room.capacity ?? 1}</span>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <HotelCell hotel={getHotelInfo(room.hotel_id)} />
