@@ -676,8 +676,8 @@ function BookingCard({
 
   // Show each detail row only when it fully fits, so nothing is half-clipped.
   // Rows are tight (~15px each) on top of the time row + padding.
-  const showTherapistRow = hasTherapist && height >= 44;
-  const showClientRow = !!clientName && height >= 60;
+  const showClientRow = !!clientName && height >= 44;
+  const showTherapistRow = hasTherapist && height >= 60;
   const showTreatmentRow = !!treatmentsLabel && height >= 76;
   const showRoomRow = !!booking.room_name && height >= 92;
   // When the client doesn't get its own row, keep it visible inline next to the time.
@@ -756,6 +756,12 @@ function BookingCard({
             </div>
             {/* Stacked details (therapist · client · room), each with its icon.
                 Each row renders only when it fully fits (see flags above). */}
+            {showClientRow && (
+              <div className="flex items-center gap-1 text-[12px] font-medium opacity-90 min-w-0" title={clientName}>
+                <User className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{clientName}</span>
+              </div>
+            )}
             {showTherapistRow && (
               <div className="flex items-center gap-1 text-[12px] font-medium text-foreground/80 min-w-0">
                 <Users className="h-3 w-3 flex-shrink-0" />
@@ -772,12 +778,6 @@ function BookingCard({
                 >
                   <ExternalLink className="h-2.5 w-2.5" />
                 </button>
-              </div>
-            )}
-            {showClientRow && (
-              <div className="flex items-center gap-1 text-[12px] font-medium opacity-90 min-w-0" title={clientName}>
-                <User className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate">{clientName}</span>
               </div>
             )}
             {showTreatmentRow && (
