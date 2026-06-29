@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Minus, Loader2, Clock, Ticket, Gift, Search } from "lucide-react";
+import { Plus, Minus, Loader2, Clock, Ticket, Gift, Search, ChevronDown, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
@@ -128,7 +128,12 @@ export function BookingPrestationsStep({
 }: BookingPrestationsStepProps) {
   const { t } = useTranslation('admin');
   const [searchQuery, setSearchQuery] = useState("");
+  const [showPriceOverrides, setShowPriceOverrides] = useState(false);
+  const [showAmenities, setShowAmenities] = useState(false);
   const voucherSupported = clientType === "hotel" || clientType === "external";
+  const overriddenCount = cartDetails.filter((l) => l.priceOverride != null).length;
+  const enabledAmenities = (venueAmenities ?? []).filter((a) => a.is_enabled);
+  const selectedAmenityCount = enabledAmenities.filter((a) => selectedAmenityIds?.includes(a.id)).length;
 
   return (
     <>
@@ -334,12 +339,31 @@ export function BookingPrestationsStep({
           </div>
         )}
 
-        {/* Admin-only: per-line price override (special rate). Empty = catalog price. */}
+        {/* Admin-only: per-line price override (special rate). Empty = catalog price.
+            Collapsed by default so it doesn't shrink the treatment list. */}
         {isAdmin && setLineOverride && cartDetails.length > 0 && (
-          <div className="space-y-1.5 pb-2 border-b border-border/50">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Prix par prestation
-            </span>
+          <div className="pb-2 border-b border-border/50">
+            <button
+              type="button"
+              onClick={() => setShowPriceOverrides((v) => !v)}
+              className="flex w-full items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Pencil className="h-3 w-3 shrink-0" />
+              <span>Prix par prestation</span>
+              {overriddenCount > 0 && (
+                <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5 normal-case">
+                  {overriddenCount} modifié{overriddenCount > 1 ? 's' : ''}
+                </span>
+              )}
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 ml-auto transition-transform",
+                  showPriceOverrides && "rotate-180",
+                )}
+              />
+            </button>
+            {showPriceOverrides && (
+            <div className="space-y-1.5 mt-2">
             {cartDetails.map(({ treatmentId, variantId, treatment, priceOverride }) => (
               <div key={`ov-${treatmentId}-${variantId ?? 'base'}`} className="flex items-center gap-2">
                 <span className="text-[11px] flex-1 truncate">
@@ -368,17 +392,36 @@ export function BookingPrestationsStep({
                 <span className="text-[10px] text-muted-foreground">€</span>
               </div>
             ))}
+            </div>
+            )}
           </div>
         )}
 
         {/* Out-of-hours surcharge line */}
         {/* Amenity access toggles */}
-        {venueAmenities && venueAmenities.length > 0 && onToggleAmenity && (
-          <div className="space-y-1.5 border rounded-md p-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Accès commodités
-            </span>
-            {venueAmenities.filter(a => a.is_enabled).map((amenity) => {
+        {enabledAmenities.length > 0 && onToggleAmenity && (
+          <div className="border rounded-md p-2">
+            <button
+              type="button"
+              onClick={() => setShowAmenities((v) => !v)}
+              className="flex w-full items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span>Accès commodités</span>
+              {selectedAmenityCount > 0 && (
+                <span className="text-[8px] uppercase font-semibold text-emerald-600 bg-emerald-100 rounded px-1 py-0.5">
+                  {selectedAmenityCount} actif{selectedAmenityCount > 1 ? 's' : ''}
+                </span>
+              )}
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 ml-auto transition-transform",
+                  showAmenities && "rotate-180",
+                )}
+              />
+            </button>
+            {showAmenities && (
+            <div className="space-y-1.5 mt-2">
+            {enabledAmenities.map((amenity) => {
               const typeDef = getAmenityType(amenity.type);
               const Icon = typeDef?.icon;
               const isSelected = selectedAmenityIds?.includes(amenity.id) ?? false;
@@ -410,6 +453,8 @@ export function BookingPrestationsStep({
                 </div>
               );
             })}
+            </div>
+            )}
           </div>
         )}
 
