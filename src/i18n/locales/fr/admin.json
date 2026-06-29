@@ -85,7 +85,13 @@
     "coverageGaps": "Trous de couverture",
     "fullAvailability": "Bonne dispo",
     "lowAvailability": "Limitée",
-    "noAvailability": "Aucune couverture"
+    "noAvailability": "Aucune couverture",
+    "therapistsLegend": "Thérapeutes :",
+    "bedsLegend": "Lits libres :",
+    "bedsLegendGood": "≥ 2 lits",
+    "bedsLegendLow": "1 lit",
+    "bedsLegendNone": "0 lit",
+    "bedsAvailableTooltip": "{{free}}/{{total}} lits libres (min. journée)"
   },
   "bookings": {
     "title": "Réservations",

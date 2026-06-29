@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { RefreshCw, Plus } from "lucide-react";
+import { RefreshCw, Plus, Bed } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ import {
   useCalendarLogic,
   useBookingSelection,
   useVenueAvailability,
+  useVenueRoomAvailability,
   useAmenityBookingData,
   type BookingWithTreatments,
   type AmenityBookingForCalendar,
@@ -156,6 +157,11 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
 
   // Therapist availability data
   const availability = useVenueAvailability({
+    venueId: hotelId,
+    weekDays: calendar.weekDays,
+  });
+
+  const roomAvailability = useVenueRoomAvailability({
     venueId: hotelId,
     weekDays: calendar.weekDays,
   });
@@ -310,24 +316,42 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
 
       {/* Availability legend */}
       {showAvailability && view === "calendar" && (
-        <div className="flex items-center gap-3 px-1 py-1 text-[10px] text-muted-foreground flex-shrink-0 mt-1">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-2 rounded-sm bg-emerald-100 dark:bg-emerald-900/30" />
-            <span>{t("planning.fullAvailability")}</span>
+        <div className="flex flex-col gap-1 px-1 py-1 text-[10px] text-muted-foreground flex-shrink-0 mt-1">
+          <div className="flex items-center gap-3">
+            <span className="font-medium text-foreground/70">{t("planning.therapistsLegend")}</span>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-2 rounded-sm bg-emerald-100 dark:bg-emerald-900/30" />
+              <span>{t("planning.fullAvailability")}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-2 rounded-sm bg-amber-100 dark:bg-amber-900/30" />
+              <span>{t("planning.lowAvailability")}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div
+                className="w-3 h-2 rounded-sm"
+                style={{
+                  backgroundImage:
+                    "repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(239, 68, 68, 0.15) 2px, rgba(239, 68, 68, 0.15) 4px)",
+                }}
+              />
+              <span>{t("planning.noAvailability")}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-2 rounded-sm bg-amber-100 dark:bg-amber-900/30" />
-            <span>{t("planning.lowAvailability")}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div
-              className="w-3 h-2 rounded-sm"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(239, 68, 68, 0.15) 2px, rgba(239, 68, 68, 0.15) 4px)",
-              }}
-            />
-            <span>{t("planning.noAvailability")}</span>
+          <div className="flex items-center gap-3">
+            <span className="font-medium text-foreground/70">{t("planning.bedsLegend")}</span>
+            <div className="flex items-center gap-1">
+              <Bed className="h-3 w-3 text-emerald-700 dark:text-emerald-400" />
+              <span>{t("planning.bedsLegendGood")}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Bed className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+              <span>{t("planning.bedsLegendLow")}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Bed className="h-3 w-3 text-red-600 dark:text-red-400" />
+              <span>{t("planning.bedsLegendNone")}</span>
+            </div>
           </div>
         </div>
       )}
@@ -374,6 +398,12 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
               availabilityData={showAvailability ? {
                 daySummaries: availability.daySummaries,
                 hourAvailability: availability.hourAvailability,
+                slotBedAvailability: roomAvailability.slotBedAvailability,
+                roomDaySummaries: roomAvailability.daySummaries,
+                totalBeds: roomAvailability.totalBeds,
+                slotInterval: roomAvailability.slotInterval,
+                venueOpeningMinutes: roomAvailability.openingMinutes,
+                venueClosingMinutes: roomAvailability.closingMinutes,
               } : undefined}
               amenityBookings={amenityBookings}
               visibleCalendars={visibleCalendars}

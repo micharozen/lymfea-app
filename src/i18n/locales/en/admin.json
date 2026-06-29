@@ -85,7 +85,13 @@
     "coverageGaps": "Coverage gaps",
     "fullAvailability": "Good availability",
     "lowAvailability": "Limited",
-    "noAvailability": "No coverage"
+    "noAvailability": "No coverage",
+    "therapistsLegend": "Therapists:",
+    "bedsLegend": "Free beds:",
+    "bedsLegendGood": "≥ 2 beds",
+    "bedsLegendLow": "1 bed",
+    "bedsLegendNone": "0 beds",
+    "bedsAvailableTooltip": "{{free}}/{{total}} free beds (daily min.)"
   },
   "bookings": {
     "title": "Bookings",

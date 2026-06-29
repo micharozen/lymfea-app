@@ -7,12 +7,22 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink, DoorOpen, CreditCard, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, Bed, ExternalLink, DoorOpen, CreditCard, Sparkles } from "lucide-react";
 import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities, cn } from "@/lib/utils";
 import { AvailabilityOverlay } from "./AvailabilityOverlay";
+import { RoomBedOverlay } from "./RoomBedOverlay";
 import { CleanupBufferZone } from "./CleanupBufferZone";
-import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar } from "@/hooks/booking";
+import type {
+  BookingWithTreatments,
+  Hotel,
+  DaySummary,
+  HourAvailability,
+  SlotBedAvailability,
+  RoomDaySummary,
+  AmenityBookingForCalendar,
+} from "@/hooks/booking";
 import { getAmenityType } from "@/lib/amenityTypes";
 
 // Human-readable payment-status labels for the booking hover tooltip.
@@ -72,6 +82,12 @@ interface BookingCalendarViewProps {
   availabilityData?: {
     daySummaries: Map<string, DaySummary>;
     hourAvailability: Map<string, HourAvailability[]>;
+    slotBedAvailability?: Map<string, SlotBedAvailability[]>;
+    roomDaySummaries?: Map<string, RoomDaySummary>;
+    totalBeds?: number;
+    slotInterval?: number;
+    venueOpeningMinutes?: number;
+    venueClosingMinutes?: number;
   };
   showAvailability?: boolean;
   // Draw the "remise en état" (room turnover) buffer zone under each booking.
@@ -143,6 +159,7 @@ export function BookingCalendarView({
   onAmenityBookingClick,
 }: BookingCalendarViewProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation("admin");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to current time on mount
@@ -325,6 +342,32 @@ export function BookingCalendarView({
                         </Tooltip>
                       );
                     })()}
+                    {showAvailability && availabilityData?.roomDaySummaries && (() => {
+                      const dateStr = format(day, "yyyy-MM-dd");
+                      const roomSummary = availabilityData.roomDaySummaries.get(dateStr);
+                      if (!roomSummary) return null;
+                      const { minFreeBeds, totalBeds } = roomSummary;
+                      return (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className={cn(
+                              "text-[9px] font-medium px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5",
+                              minFreeBeds === 0 && "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+                              minFreeBeds === 1 && "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+                              minFreeBeds >= 2 && "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
+                            )}>
+                              <Bed className="h-2.5 w-2.5" />
+                              {minFreeBeds}/{totalBeds}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">
+                            <div className="text-xs font-medium">
+                              {t("planning.bedsAvailableTooltip", { free: minFreeBeds, total: totalBeds })}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -372,6 +415,23 @@ export function BookingCalendarView({
                         )}>
                           <Users className="h-2 w-2" />
                           {count}
+                        </div>
+                      );
+                    })()}
+                    {showAvailability && availabilityData?.roomDaySummaries && (() => {
+                      const dateStr = format(day, "yyyy-MM-dd");
+                      const roomSummary = availabilityData.roomDaySummaries.get(dateStr);
+                      if (!roomSummary) return null;
+                      const { minFreeBeds, totalBeds } = roomSummary;
+                      return (
+                        <div className={cn(
+                          "mt-0.5 text-[8px] font-medium px-1 py-0.5 rounded-full inline-flex items-center gap-0.5",
+                          minFreeBeds === 0 && "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+                          minFreeBeds === 1 && "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+                          minFreeBeds >= 2 && "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
+                        )}>
+                          <Bed className="h-2 w-2" />
+                          {minFreeBeds}/{totalBeds}
                         </div>
                       );
                     })()}
@@ -438,6 +498,18 @@ export function BookingCalendarView({
                         hours={hours}
                         hourHeight={hourHeight}
                         startHour={startHour}
+                      />
+                    )}
+
+                    {showAvailability && availabilityData?.slotBedAvailability && availabilityData.slotInterval != null && (
+                      <RoomBedOverlay
+                        slots={availabilityData.slotBedAvailability.get(format(day, "yyyy-MM-dd")) || []}
+                        hours={hours}
+                        hourHeight={hourHeight}
+                        startHour={startHour}
+                        slotInterval={availabilityData.slotInterval}
+                        openingMinutes={availabilityData.venueOpeningMinutes ?? 0}
+                        closingMinutes={availabilityData.venueClosingMinutes ?? 24 * 60}
                       />
                     )}
 
@@ -546,6 +618,18 @@ export function BookingCalendarView({
                         hours={hours}
                         hourHeight={hourHeight}
                         startHour={startHour}
+                      />
+                    )}
+
+                    {showAvailability && availabilityData?.slotBedAvailability && availabilityData.slotInterval != null && (
+                      <RoomBedOverlay
+                        slots={availabilityData.slotBedAvailability.get(format(day, "yyyy-MM-dd")) || []}
+                        hours={hours}
+                        hourHeight={hourHeight}
+                        startHour={startHour}
+                        slotInterval={availabilityData.slotInterval}
+                        openingMinutes={availabilityData.venueOpeningMinutes ?? 0}
+                        closingMinutes={availabilityData.venueClosingMinutes ?? 24 * 60}
                       />
                     )}
 

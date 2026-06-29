@@ -14,5 +14,8 @@ export type { CreateBookingPayload } from "./useCreateBookingMutation";
 export { useVenueAvailability } from "./useVenueAvailability";
 export type { VenueAvailabilityData, DaySummary, HourAvailability, AvailabilityLevel } from "./useVenueAvailability";
 
+export { useVenueRoomAvailability } from "./useVenueRoomAvailability";
+export type { VenueRoomAvailabilityData, SlotBedAvailability, RoomDaySummary } from "./useVenueRoomAvailability";
+
 export { useAmenityBookingData } from "./useAmenityBookingData";
 export type { AmenityBookingForCalendar } from "./useAmenityBookingData";
