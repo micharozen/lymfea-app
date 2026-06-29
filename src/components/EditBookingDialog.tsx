@@ -690,6 +690,21 @@ export default function EditBookingDialog({
           );
           if (btError) throw btError;
         }
+      } else {
+        // Solo booking: keep booking_therapists in sync with therapist_id.
+        // A previously-assigned therapist keeps an 'accepted' row otherwise, and
+        // the PWA dashboard lists bookings via booking_therapists (not only
+        // therapist_id), so they would keep seeing a reassigned booking.
+        const { error: btDeleteError } = await supabase.from("booking_therapists").delete().eq("booking_id", booking.id);
+        if (btDeleteError) throw btDeleteError;
+        if (bookingData.therapist_id) {
+          const { error: btError } = await supabase.from("booking_therapists").insert({
+            booking_id: booking.id,
+            therapist_id: bookingData.therapist_id,
+            status: 'accepted',
+          });
+          if (btError) throw btError;
+        }
       }
 
       return { wasAssigned, therapistChanged, becameHotelRoomCharge };
