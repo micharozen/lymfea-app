@@ -427,7 +427,8 @@ export default function EditBookingDialog({
         `)
         .eq("booking_date", selectedDate)
         .neq("id", booking!.id)
-        .not("therapist_id", "is", null);
+        .not("therapist_id", "is", null)
+        .not("status", "in", "(cancelled,canceled,noshow,no_show,completed)");
       
       if (error) {
         console.error("Error fetching availability:", error);
@@ -964,7 +965,8 @@ export default function EditBookingDialog({
         `)
         .eq("therapist_id", therapistId)
         .eq("booking_date", format(date, "yyyy-MM-dd"))
-        .neq("id", booking?.id); 
+        .neq("id", booking?.id)
+        .not("status", "in", "(cancelled,canceled,noshow,no_show,completed)");
 
       if (error) {
         console.error("Error checking for overlaps:", error);
