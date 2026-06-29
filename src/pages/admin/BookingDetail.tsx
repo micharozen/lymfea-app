@@ -237,12 +237,7 @@ export default function BookingDetail() {
   // Payment breakdown for the "Paiement" card. total_price already includes the
   // out-of-hours surcharge, which is also stored separately on surcharge_amount.
   const surchargeAmount = booking.is_out_of_hours ? (booking.surcharge_amount ?? 0) : 0;
-  // Offert: show the real treatment price as subtotal, then a negative "Offert"
-  // line that brings the total back to 0 (instead of a flat 0 everywhere).
-  const offertOriginalPrice = isOffert ? (booking.treatmentsTotalPrice || 0) : 0;
-  const subtotal = isOffert
-    ? offertOriginalPrice
-    : Math.max(displayPrice - surchargeAmount, 0);
+  const subtotal = Math.max(displayPrice - surchargeAmount, 0);
   const surchargePercent = subtotal > 0 ? Math.round((surchargeAmount / subtotal) * 100) : 0;
   const hasSurcharge = surchargeAmount > 0;
   const giftPaid = ((booking as any).gift_amount_applied_cents ?? 0) / 100;
@@ -365,9 +360,9 @@ export default function BookingDetail() {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
+          {/* <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
             <MessageSquare className="h-4 w-4 mr-2" /> Notes
-          </Button>
+          </Button> */}
           {booking.status === "completed" && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -434,6 +429,11 @@ export default function BookingDetail() {
             <TabsTrigger value="history" className="gap-1.5">
               <History className="h-3.5 w-3.5" />
               Historique
+            </TabsTrigger>
+
+            <TabsTrigger value="notes" className="gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5" />
+              Notes
             </TabsTrigger>
           </TabsList>
 
@@ -663,13 +663,6 @@ export default function BookingDetail() {
                 </div>
               )}
 
-              {isOffert && (
-                <div className="flex justify-between items-center mt-3 text-base font-semibold text-amber-600">
-                  <span>Offert</span>
-                  <span className="whitespace-nowrap">−{formatPrice(offertOriginalPrice, currency)}</span>
-                </div>
-              )}
-
               <div className="border-t border-gray-100 my-4" />
 
               <div className="flex justify-between items-baseline">
@@ -766,6 +759,11 @@ export default function BookingDetail() {
           <TabsContent value="history" className="mt-4">
             <BookingHistoryTab bookingId={id!} enabled={activeTab === "history"} />
           </TabsContent>
+
+          <TabsContent value="notes" className="mt-4">
+          <BookingNotesSection bookingId={id!} />
+          </TabsContent>
+          
         </Tabs>
       </main>
 
@@ -832,7 +830,7 @@ export default function BookingDetail() {
         currency={currency}
       />
 
-      <Sheet open={isNotesOpen} onOpenChange={setIsNotesOpen}>
+      {/* <Sheet open={isNotesOpen} onOpenChange={setIsNotesOpen}>
         <SheetContent side="right" className="sm:max-w-md flex flex-col">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
@@ -844,7 +842,7 @@ export default function BookingDetail() {
             <BookingNotesSection bookingId={id!} />
           </div>
         </SheetContent>
-      </Sheet>
+      </Sheet> */}
     </div>
   );
 }

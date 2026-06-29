@@ -50,6 +50,9 @@ interface Booking {
   status: string;
   phone: string;
   total_price: number;
+  surcharge_amount?: number | null;
+  is_out_of_hours?: boolean | null;
+  out_of_hours_surcharge_percent?: number | null;
   therapist_id: string | null;
   declined_by?: string[];
   hotel_image_url?: string;
@@ -304,6 +307,7 @@ const PwaBookingDetail = () => {
         therapist_rate_60: therapistRates.rate_60,
         therapist_rate_90: therapistRates.rate_90,
         hotel_currency: hotelData?.currency || 'EUR',
+        out_of_hours_surcharge_percent: hotelData?.out_of_hours_surcharge_percent ?? null,
         venue_type: hotelData?.venue_type || null,
         card_brand: paymentInfo?.card_brand || null,
         card_last4: paymentInfo?.card_last4 || null,
@@ -751,6 +755,16 @@ const PwaBookingDetail = () => {
               <div className="min-w-0">
                 <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('bookingDetail.price')}</div>
                 <div className="text-sm font-semibold truncate">{formatPrice(totalPrice, booking.hotel_currency)}</div>
+                {booking.is_out_of_hours && (booking.surcharge_amount ?? 0) > 0 && (
+                  <div className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1">
+                    <Clock className="w-2.5 h-2.5 shrink-0" />
+                    <span className="truncate">
+                      {t('bookingDetail.outOfHoursSurcharge')}
+                      {booking.out_of_hours_surcharge_percent ? ` (+${booking.out_of_hours_surcharge_percent}%)` : ''}
+                      {' '}+{formatPrice(booking.surcharge_amount!, booking.hotel_currency)}
+                    </span>
+                  </div>
+                )}
                 {giftAppliedCents > 0 && (
                   <div className="text-[10px] text-amber-600 mt-0.5">
                     -{formatPrice(giftAppliedCents / 100, booking.hotel_currency)} carte cadeau

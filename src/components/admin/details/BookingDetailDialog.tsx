@@ -11,13 +11,18 @@ import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { ButtonGroup } from "@/components/ui/button-group";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { formatPrice } from "@/lib/formatPrice";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
   User, Phone, Mail, DoorOpen, Calendar, Clock, Building2, HandHeart, CreditCard,
-  Pencil, Timer, Send, X, Loader2, AlertTriangle, FileText, ExternalLink // <- Ajout de ExternalLink
+  Pencil, Timer, Send, X, Loader2, AlertTriangle, FileText, ExternalLink, UserX // <- Ajout de ExternalLink
 } from "lucide-react";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
@@ -35,6 +40,8 @@ export function BookingDetailDialog({
   open, onOpenChange, booking, hotel, onEdit, onSendPaymentLink,
 }: BookingDetailDialogProps) {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showNoShowDialog, setShowNoShowDialog] = useState(false);
+  const [noShowLoading, setNoShowLoading] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: userRole } = useQuery({
@@ -55,6 +62,31 @@ export function BookingDetailDialog({
     canCancelBookingByStatus(booking?.status) &&
     (userRole === 'admin' || userRole === 'concierge');
 
+  const canMarkNoShow =
+    (booking?.status === "confirmed" || booking?.status === "ongoing") &&
+    (userRole === "admin" || userRole === "concierge");
+
+  const handleNoShow = async () => {
+    if (!booking || noShowLoading) return;
+    setNoShowLoading(true);
+    try {
+      const { data, error } = await invokeEdgeFunction<
+        { bookingId: string },
+        { success?: boolean; error?: string }
+      >("mark-booking-noshow", { body: { bookingId: booking.id } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Réservation marquée comme no-show." });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      setShowNoShowDialog(false);
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur lors du marquage no-show.";
+      toast({ title: message, variant: "destructive" });
+    } finally {
+      setNoShowLoading(false);
+    }
+  };
 
   if (!booking) return null;
 
@@ -75,6 +107,14 @@ export function BookingDetailDialog({
             </div>
             <ButtonGroup className="pr-10">
               {/* Boutons (Paiement, Annuler, Editer) inchangés... */}
+              {canMarkNoShow && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-8 w-8 text-amber-600" onClick={() => setShowNoShowDialog(true)}><UserX className="h-4 w-4" /></Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Client pas venu (no-show)</TooltipContent>
+                </Tooltip>
+              )}
               {canCancel && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -218,6 +258,24 @@ export function BookingDetailDialog({
         userRole={isConcierge ? "concierge" : "admin"}
       />
     )}
+
+    <AlertDialog open={showNoShowDialog} onOpenChange={setShowNoShowDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Marquer comme no-show ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Le client ne s'est pas présenté. Des frais de no-show peuvent s'appliquer
+            selon la politique de l'établissement. Cette action est définitive.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={noShowLoading}>Annuler</AlertDialogCancel>
+          <AlertDialogAction onClick={handleNoShow} disabled={noShowLoading}>
+            Confirmer le no-show
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }

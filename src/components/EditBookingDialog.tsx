@@ -43,7 +43,7 @@ import { computeOutOfHoursSurcharge } from "@/lib/surcharge";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil, Search, DoorOpen } from "lucide-react";
+import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil, Search, DoorOpen, UserX } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
@@ -55,6 +55,10 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { ButtonGroup } from "@/components/ui/button-group";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
 import { BOOKING_CLIENT_TYPES, type BookingClientType } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType, isPaymentStatusLocked } from "@/lib/clientTypePayment";
@@ -205,6 +209,8 @@ export default function EditBookingDialog({
   const [totalDuration, setTotalDuration] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showNoShowDialog, setShowNoShowDialog] = useState(false);
+  const [noShowLoading, setNoShowLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"view" | "edit" | "quote">("view");
   const [treatmentSearch, setTreatmentSearch] = useState("");
   const [therapistIds, setTherapistIds] = useState<string[]>([]);
@@ -277,6 +283,33 @@ export default function EditBookingDialog({
   const isConcierge = userRole === "concierge" || isVenueManagerView;
   const canCancelBooking =
     (isAdmin || isConcierge) && canCancelBookingByStatus(booking?.status);
+  const canMarkNoShow =
+    (isAdmin || isConcierge) &&
+    (booking?.status === "confirmed" || booking?.status === "ongoing");
+
+  const handleNoShow = async () => {
+    if (!booking || noShowLoading) return;
+    setNoShowLoading(true);
+    try {
+      const { data, error } = await invokeEdgeFunction<
+        { bookingId: string },
+        { success?: boolean; error?: string }
+      >("mark-booking-noshow", { body: { bookingId: booking.id } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Réservation marquée comme no-show." });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      setShowNoShowDialog(false);
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur lors du marquage no-show.";
+      toast({ title: message, variant: "destructive" });
+    } finally {
+      setNoShowLoading(false);
+    }
+  };
+
   const isDuo = (booking?.guest_count ?? 1) > 1;
   const therapistCount = booking?.guest_count ?? 1;
 
@@ -1770,17 +1803,30 @@ export default function EditBookingDialog({
 
               </div>
               <div className="shrink-0 px-4 py-3 border-t bg-background flex justify-between gap-3">
-                {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking ? (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => setShowCancelDialog(true)}
-                    className="gap-2"
-                  >
-                    <X className="h-4 w-4" />
-                    Annuler la réservation
-                  </Button>
-                ) : <div />}
+                <div className="flex gap-2">
+                  {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking ? (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={() => setShowCancelDialog(true)}
+                      className="gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Annuler la réservation
+                    </Button>
+                  ) : null}
+                  {canMarkNoShow && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowNoShowDialog(true)}
+                      className="gap-2 text-amber-600 hover:text-amber-700"
+                    >
+                      <UserX className="h-4 w-4" />
+                      Client pas venu
+                    </Button>
+                  )}
+                </div>
                 <Button type="button" onClick={() => setActiveTab("prestations")}>
                   Suivant (Prestations) ➔
                 </Button>
@@ -2076,6 +2122,24 @@ export default function EditBookingDialog({
           userRole={isConcierge ? "concierge" : "admin"}
         />
       )}
+
+      <AlertDialog open={showNoShowDialog} onOpenChange={setShowNoShowDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Marquer comme no-show ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Le client ne s'est pas présenté. Des frais de no-show peuvent s'appliquer
+              selon la politique de l'établissement. Cette action est définitive.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={noShowLoading}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleNoShow} disabled={noShowLoading}>
+              Confirmer le no-show
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {booking && (
         <SendPaymentLinkDialog

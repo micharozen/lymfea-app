@@ -315,8 +315,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         if (isConcierge) {
           const isExternal = ct === "external" && !byVoucher && !offered;
           const isBroadcastBooking = data.status === "pending";
-          // External clients or broadcast: operator sends client comms manually.
-          if (isExternal || isBroadcastBooking) {
+          // External clients: show the booking-created recap step first (same as
+          // admin), then send the payment link from there.
+          if (isExternal) {
+            setActiveTab("payment");
+          } else if (isBroadcastBooking) {
+            // Non-external broadcast: operator sends client comms manually.
             setIsNotificationDialogOpen(true);
           } else {
             handleClose();
@@ -621,6 +625,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   <BookingPaymentStep
                     createdBooking={createdBooking}
                     isAdmin={isAdmin}
+                    isConcierge={isConcierge}
                     clientFirstName={clientFirstName}
                     clientLastName={clientLastName}
                     finalPrice={finalPriceWithSurcharge}
