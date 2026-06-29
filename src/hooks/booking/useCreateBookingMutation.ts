@@ -38,16 +38,12 @@ export interface CreateBookingPayload {
   clientEmail?: string;
   phone: string;
   countryCode: string;
-  /** Communication language for client SMS/emails. Defaults to the value
-   *  derived from the country code (+33 → 'fr', otherwise 'en') when omitted. */
   language?: "fr" | "en";
   roomNumber: string;
   clientNote?: string;
   date: string;
   time: string;
   therapistId: string;
-  /** Salle de soin choisie par l'admin. Si omis, assignation automatique
-   *  (1ère salle libre au créneau). */
   roomId?: string;
   therapistIds?: string[];
   slot2Date: string | null;
@@ -71,12 +67,8 @@ export interface CreateBookingPayload {
   source?: string;
   emailInquiryId?: string;
   isBroadcast?: boolean;
-}
-
-interface UseCreateBookingMutationOptions {
-  hotels: Hotel[] | undefined;
-  therapists: Therapist[] | undefined;
-  onSuccess: (data: any) => void;
+  /** admin-combo-duo: N solo treatments booked as one duo booking */
+  comboDuo?: boolean;
 }
 
 function resolveAssignment(
@@ -104,6 +96,12 @@ function resolveAssignment(
       ? `${primaryTherapist.first_name} ${primaryTherapist.last_name}`
       : null,
   };
+}
+
+interface UseCreateBookingMutationOptions {
+  hotels: Hotel[] | undefined;
+  therapists: Therapist[] | undefined;
+  onSuccess: (data: any) => void;
 }
 
 async function pickFreeRoom(
@@ -279,13 +277,12 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       );
 
       if (d.amenityAccess && d.amenityAccess.length > 0 && booking) {
+        const [h, m] = d.time.split(":").map(Number);
         for (const amenity of d.amenityAccess) {
-          const [h, m] = d.time.split(":").map(Number);
           const endMinutes = h * 60 + m + amenity.duration;
           const endH = Math.floor(endMinutes / 60) % 24;
           const endM = endMinutes % 60;
           const endTime = `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`;
-
           await supabase.from("amenity_bookings").insert({
             hotel_id: d.hotelId,
             venue_amenity_id: amenity.venueAmenityId,
@@ -321,8 +318,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       try {
         const needsBroadcastNotify =
           isBroadcast || (guestCount > 1 && allTherapistIds.length < guestCount);
-
-        await invokeEdgeFunction('trigger-new-booking-notifications', {
+        await invokeEdgeFunction("trigger-new-booking-notifications", {
           body: {
             bookingId: booking.id,
             sendPaymentLink: false,

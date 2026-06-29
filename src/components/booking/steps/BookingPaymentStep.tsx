@@ -10,6 +10,7 @@ interface BookingPaymentStepProps {
     hotel_name: string;
   };
   isAdmin: boolean;
+  isConcierge?: boolean;
   clientFirstName: string;
   clientLastName: string;
   finalPrice: number;
@@ -22,6 +23,7 @@ interface BookingPaymentStepProps {
 export function BookingPaymentStep({
   createdBooking,
   isAdmin,
+  isConcierge = false,
   clientFirstName,
   clientLastName,
   finalPrice,
@@ -31,18 +33,20 @@ export function BookingPaymentStep({
   onClose,
 }: BookingPaymentStepProps) {
   const navigate = useNavigate();
+  // Concierges get the same booking-created recap + payment-link action as admins.
+  const canSendPaymentLink = isAdmin || isConcierge;
   return (
     <div className="flex flex-col items-center justify-center flex-1 gap-6 py-6">
       <div className="flex flex-col items-center gap-3">
         <CheckCircle2 className="h-12 w-12 text-green-500" />
         <h3 className="text-lg font-semibold">
-          {isAdmin ? "Réservation créée" : "Demande envoyée"}
+          {canSendPaymentLink ? "Réservation créée" : "Demande envoyée"}
         </h3>
         <p className="text-sm text-muted-foreground text-center">
           Réservation #{createdBooking.booking_id} pour {clientFirstName} {clientLastName}
         </p>
         <p className="text-sm font-medium">{formatPrice(finalPrice, currency)}</p>
-        {!isAdmin && (
+        {!canSendPaymentLink && (
           <p className="text-xs text-muted-foreground text-center max-w-xs">
             Les thérapeutes du lieu ont été notifiés. Le lien de paiement sera envoyé automatiquement au client une fois qu'un thérapeute aura validé un créneau.
           </p>
@@ -50,7 +54,7 @@ export function BookingPaymentStep({
       </div>
 
       <div className="flex flex-col gap-2 w-full max-w-xs">
-        {isAdmin && clientType === "external" && (
+        {canSendPaymentLink && clientType === "external" && (
           <Button
             type="button"
             onClick={onSendPaymentLink}

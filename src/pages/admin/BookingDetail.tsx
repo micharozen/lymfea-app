@@ -365,9 +365,9 @@ export default function BookingDetail() {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
+          {/* <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
             <MessageSquare className="h-4 w-4 mr-2" /> Notes
-          </Button>
+          </Button> */}
           {booking.status === "completed" && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -434,6 +434,11 @@ export default function BookingDetail() {
             <TabsTrigger value="history" className="gap-1.5">
               <History className="h-3.5 w-3.5" />
               Historique
+            </TabsTrigger>
+
+            <TabsTrigger value="notes" className="gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5" />
+              Notes
             </TabsTrigger>
           </TabsList>
 
@@ -766,6 +771,11 @@ export default function BookingDetail() {
           <TabsContent value="history" className="mt-4">
             <BookingHistoryTab bookingId={id!} enabled={activeTab === "history"} />
           </TabsContent>
+
+          <TabsContent value="notes" className="mt-4">
+          <BookingNotesSection bookingId={id!} />
+          </TabsContent>
+          
         </Tabs>
       </main>
 
@@ -832,7 +842,7 @@ export default function BookingDetail() {
         currency={currency}
       />
 
-      <Sheet open={isNotesOpen} onOpenChange={setIsNotesOpen}>
+      {/* <Sheet open={isNotesOpen} onOpenChange={setIsNotesOpen}>
         <SheetContent side="right" className="sm:max-w-md flex flex-col">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
@@ -844,7 +854,7 @@ export default function BookingDetail() {
             <BookingNotesSection bookingId={id!} />
           </div>
         </SheetContent>
-      </Sheet>
+      </Sheet> */}
     </div>
   );
 }

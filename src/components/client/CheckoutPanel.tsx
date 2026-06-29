@@ -23,6 +23,7 @@ import { formatPrice } from '@/lib/formatPrice';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
 import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
+import { checkoutIntentFields } from '@/lib/client/checkoutIntentFields';
 
 interface CheckoutPanelProps {
   hotelId: string;
@@ -46,7 +47,7 @@ export function CheckoutPanel({
     bookingDateTime, clientInfo, therapistGenderPreference,
     setPendingCheckoutSession, clearFlow, isBundleOnlyPurchase,
     selectedBundle, setSelectedBundle, giftInfo, authBundles, draftBookingId, setHoldExpiresAt,
-    scheduleMode, perItemSchedule, groupId, bookingIds,
+    scheduleMode, perItemSchedule, groupId, bookingIds, checkoutIntentId,
   } = useClientFlow();
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
@@ -231,6 +232,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               totalPrice: 0,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
+              ...(checkoutIntentFields(checkoutIntentId)),
             },
             skipAuth: true,
           });
@@ -270,6 +272,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
+              ...(checkoutIntentFields(checkoutIntentId)),
           }, { skipAuth: true });
 
           if (error) throw error;
@@ -320,6 +323,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
             totalPrice: 0,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
             ...(draftBookingId ? { draftBookingId } : {}),
+            ...(checkoutIntentFields(checkoutIntentId)),
           },
           skipAuth: true,
         });
@@ -363,6 +367,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
           totalPrice: total,
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
+          ...(checkoutIntentFields(checkoutIntentId)),
           ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
           isMulti,
           ...(isMulti ? { groupId, bookingIds } : {}),
@@ -412,6 +417,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
               totalPrice: fixedTotal,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(checkoutIntentFields(checkoutIntentId)),
             }
           : {
               hotelId,
@@ -422,6 +428,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               totalPrice: fixedTotal,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
+              ...(checkoutIntentFields(checkoutIntentId)),
               ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
             };
 

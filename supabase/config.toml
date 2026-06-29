@@ -215,3 +215,6 @@ verify_jwt = false
 
 [functions.inbound-email-webhook]
 verify_jwt = false
+
+[functions.send-schedule-reminder]
+verify_jwt = false

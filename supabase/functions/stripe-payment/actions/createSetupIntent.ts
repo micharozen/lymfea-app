@@ -35,6 +35,7 @@ export async function handleCreateSetupIntent(
     groupId,
     bookingIds,
     slots,
+    checkoutIntentId,
   } = body as Record<string, any>;
 
   type SlotPayload = { date: string; time: string; treatmentId: string; variantId?: string | null; duration?: number; quantity?: number; guestCount?: number };
@@ -261,6 +262,7 @@ export async function handleCreateSetupIntent(
       language: language || "fr",
       therapistGender: therapistGender || "",
       draftBookingId: draftBookingId || "",
+      checkoutIntentId: checkoutIntentId || "",
       guestCount: guestCount ? String(guestCount) : "1",
       ...(giftAmountUsage
         ? {

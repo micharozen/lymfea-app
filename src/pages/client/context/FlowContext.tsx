@@ -70,6 +70,7 @@ interface ClientFlowState {
   perItemSchedule: PerItemSchedule;
   groupId: string | null;
   bookingIds: string[];
+  checkoutIntentId: string | null;
 }
 
 interface ClientFlowContextType extends ClientFlowState {
@@ -88,6 +89,7 @@ interface ClientFlowContextType extends ClientFlowState {
   resetPerItemSchedule: () => void;
   setGroupId: (id: string | null) => void;
   setBookingIds: (ids: string[]) => void;
+  setCheckoutIntentId: (id: string | null) => void;
   clearFlow: () => void;
   canProceedToStep: (step: "info" | "payment" | "confirmation") => boolean;
   cancelHold: () => Promise<void>;
@@ -110,6 +112,7 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
   const [perItemSchedule, setPerItemScheduleState] = useState<PerItemSchedule>({});
   const [groupId, setGroupIdState] = useState<string | null>(null);
   const [bookingIds, setBookingIdsState] = useState<string[]>([]);
+  const [checkoutIntentId, setCheckoutIntentIdState] = useState<string | null>(null);
 
   const setBookingDateTime = useCallback((data: BookingDateTime) => setBookingDateTimeState(data), []);
   const setClientInfo = useCallback((data: ClientInfo) => setClientInfoState(data), []);
@@ -153,6 +156,7 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
 
   const setGroupId = useCallback((id: string | null) => setGroupIdState(id), []);
   const setBookingIds = useCallback((ids: string[]) => setBookingIdsState(ids), []);
+  const setCheckoutIntentId = useCallback((id: string | null) => setCheckoutIntentIdState(id), []);
 
   const clearFlow = useCallback(() => {
     setBookingDateTimeState(null);
@@ -169,6 +173,7 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
     setPerItemScheduleState({});
     setGroupIdState(null);
     setBookingIdsState([]);
+    setCheckoutIntentIdState(null);
   }, []);
 const cancelHold = useCallback(async () => {
     const idsToDelete = bookingIds.length > 0
@@ -211,13 +216,13 @@ const cancelHold = useCallback(async () => {
       draftBookingId, holdExpiresAt,
       giftInfo, authBundles,
       scheduleMode, perItemSchedule,
-      groupId, bookingIds,
+      groupId, bookingIds, checkoutIntentId,
       setBookingDateTime, setClientInfo, setPendingCheckoutSession,
       setTherapistGenderPreference, setSelectedBundle, setIsBundleOnlyPurchase,
       setDraftBookingId, setHoldExpiresAt,
       setGiftInfo, setAuthBundles,
       setScheduleMode, setItemSchedule, resetPerItemSchedule,
-      setGroupId, setBookingIds,
+      setGroupId, setBookingIds, setCheckoutIntentId,
       clearFlow, canProceedToStep,
       cancelHold,
     }),
@@ -227,13 +232,13 @@ const cancelHold = useCallback(async () => {
       draftBookingId, holdExpiresAt,
       giftInfo, authBundles,
       scheduleMode, perItemSchedule,
-      groupId, bookingIds,
+      groupId, bookingIds, checkoutIntentId,
       setBookingDateTime, setClientInfo, setPendingCheckoutSession,
       setTherapistGenderPreference, setSelectedBundle, setIsBundleOnlyPurchase,
       setDraftBookingId, setHoldExpiresAt,
       setGiftInfo, setAuthBundles,
       setScheduleMode, setItemSchedule, resetPerItemSchedule,
-      setGroupId, setBookingIds,
+      setGroupId, setBookingIds, setCheckoutIntentId,
       clearFlow, canProceedToStep,
       cancelHold,
     ]
