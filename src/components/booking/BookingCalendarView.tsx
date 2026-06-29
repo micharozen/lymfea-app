@@ -103,6 +103,16 @@ function formatClientShort(
   return [first, lastInitial].filter(Boolean).join(" ");
 }
 
+// Display the client's full name — "Prénom Nom" — for the hover tooltip.
+function formatClientFull(
+  firstName: string | null | undefined,
+  lastName: string | null | undefined,
+): string {
+  const first = (firstName ?? "").trim();
+  const last = (lastName ?? "").trim();
+  return [first, last].filter(Boolean).join(" ");
+}
+
 function addMinutesToTime(time: string, minutes: number): string {
   const [h, m] = time.split(":").map(Number);
   const total = h * 60 + m + minutes;
@@ -852,7 +862,7 @@ function BookingCard({
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs font-medium">
               <User className="h-3 w-3" />
-              <span>{formatClientShort(booking.client_first_name, booking.client_last_name)}</span>
+              <span>{formatClientFull(booking.client_first_name, booking.client_last_name)}</span>
             </div>
             {booking.phone && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
