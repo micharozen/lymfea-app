@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink, DoorOpen, CreditCard } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink, DoorOpen, CreditCard, Sparkles } from "lucide-react";
 import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities, cn } from "@/lib/utils";
 import { AvailabilityOverlay } from "./AvailabilityOverlay";
@@ -655,6 +655,7 @@ function BookingCard({
   const therapistShort = formatTherapistShort(booking.therapist_name);
   const hasTherapist = !!booking.therapist_id && !!booking.therapist_name;
   const clientName = formatClientShort(booking.client_first_name, booking.client_last_name);
+  const treatmentsLabel = treatments.map((t) => t.name).filter(Boolean).join(", ");
 
   // Duo booking: one row needing several practitioners (guest_count > 1).
   const guestCount = booking.guest_count ?? 1;
@@ -683,10 +684,11 @@ function BookingCard({
     : 'bg-muted text-foreground';
 
   // Show each detail row only when it fully fits, so nothing is half-clipped.
-  // Rows are tight (~13px each) on top of the time row + padding.
-  const showTherapistRow = hasTherapist && height >= 40;
-  const showClientRow = !!clientName && height >= 54;
-  const showRoomRow = !!booking.room_name && height >= 68;
+  // Rows are tight (~15px each) on top of the time row + padding.
+  const showTherapistRow = hasTherapist && height >= 44;
+  const showClientRow = !!clientName && height >= 60;
+  const showTreatmentRow = !!treatmentsLabel && height >= 76;
+  const showRoomRow = !!booking.room_name && height >= 92;
   // When the client doesn't get its own row, keep it visible inline next to the time.
   const showInlineClient = !!clientName && !showClientRow;
 
@@ -736,7 +738,7 @@ function BookingCard({
           <div className="p-1 h-full flex flex-col gap-px relative leading-none">
             {/* Time range (+ out-of-hours indicator, + inline client on short cards) */}
             <div className="flex items-center gap-1 min-w-0">
-              <span className="font-medium text-[13px] flex-shrink-0 whitespace-nowrap">
+              <span className="font-medium text-[14px] flex-shrink-0 whitespace-nowrap">
                 {booking.booking_time
                   ? `${booking.booking_time.substring(0, 5)} – ${addMinutesToTime(booking.booking_time, duration)}`
                   : ""}
@@ -756,7 +758,7 @@ function BookingCard({
                 </span>
               )}
               {showInlineClient && (
-                <span className="truncate text-[11px] opacity-90 font-medium min-w-0" title={clientName}>
+                <span className="truncate text-[12px] opacity-90 font-medium min-w-0" title={clientName}>
                   {clientName}
                 </span>
               )}
@@ -764,8 +766,8 @@ function BookingCard({
             {/* Stacked details (therapist · client · room), each with its icon.
                 Each row renders only when it fully fits (see flags above). */}
             {showTherapistRow && (
-              <div className="flex items-center gap-1 text-[11px] font-medium text-foreground/80 min-w-0">
-                <Users className="h-2.5 w-2.5 flex-shrink-0" />
+              <div className="flex items-center gap-1 text-[12px] font-medium text-foreground/80 min-w-0">
+                <Users className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate" title={booking.therapist_name || ""}>
                   {therapistShort}
                 </span>
@@ -782,14 +784,20 @@ function BookingCard({
               </div>
             )}
             {showClientRow && (
-              <div className="flex items-center gap-1 text-[11px] font-medium opacity-90 min-w-0" title={clientName}>
-                <User className="h-2.5 w-2.5 flex-shrink-0" />
+              <div className="flex items-center gap-1 text-[12px] font-medium opacity-90 min-w-0" title={clientName}>
+                <User className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">{clientName}</span>
               </div>
             )}
+            {showTreatmentRow && (
+              <div className="flex items-center gap-1 text-[12px] font-medium opacity-90 min-w-0" title={treatmentsLabel}>
+                <Sparkles className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{treatmentsLabel}</span>
+              </div>
+            )}
             {showRoomRow && (
-              <div className="flex items-center gap-1 text-[11px] font-medium opacity-90 min-w-0" title={booking.room_name || ""}>
-                <DoorOpen className="h-2.5 w-2.5 flex-shrink-0" />
+              <div className="flex items-center gap-1 text-[12px] font-medium opacity-90 min-w-0" title={booking.room_name || ""}>
+                <DoorOpen className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">{booking.room_name}</span>
               </div>
             )}

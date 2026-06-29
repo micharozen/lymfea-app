@@ -6,9 +6,9 @@ import type { BookingWithTreatments } from "./useBookingData";
 export const CALENDAR_CONSTANTS = {
   START_HOUR: 7,
   END_HOUR: 24,
-  // Taller rows so a 50-min booking (~83px) fits its key info on the
-  // card without clicking: time range + therapist name, client, treatments, room.
-  HOUR_HEIGHT: 100,
+  // Taller rows so a 50-min booking (~100px) comfortably fits its key info on
+  // the card without clicking: time range + therapist name, client, treatments, room.
+  HOUR_HEIGHT: 120,
 } as const;
 
 interface UseCalendarLogicOptions {
