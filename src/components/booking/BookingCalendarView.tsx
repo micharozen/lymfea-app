@@ -646,6 +646,14 @@ function BookingCard({
   const hasTherapist = !!booking.therapist_id && !!booking.therapist_name;
   const clientName = formatClientShort(booking.client_first_name, booking.client_last_name);
 
+  // Duo booking: one row needing several practitioners (guest_count > 1).
+  const guestCount = booking.guest_count ?? 1;
+  const isDuo = guestCount > 1;
+  const acceptedTherapistCount = (booking.booking_therapists ?? []).filter(
+    (bt) => bt.status === "accepted",
+  ).length;
+  const therapistNames = booking.therapist_display_names ?? [];
+
   // Small payment tag — "Payé" once settled by card/cash, "Facturé chambre" when
   // charged to the hotel room. Mirrors the canonical payment_status logic used
   // across the app (BookingDetail / CustomerBookingsTab).
@@ -728,6 +736,15 @@ function BookingCard({
                   <Clock className="h-2.5 w-2.5 text-amber-500" />
                 </span>
               )}
+              {isDuo && (
+                <span
+                  className="flex items-center gap-0.5 flex-shrink-0 px-1 rounded-full text-[9px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                  title={`Soin duo — ${acceptedTherapistCount}/${guestCount} thérapeutes`}
+                >
+                  <Users className="h-2 w-2" />
+                  Duo {acceptedTherapistCount}/{guestCount}
+                </span>
+              )}
               {showInlineClient && (
                 <span className="truncate text-[11px] opacity-90 font-medium min-w-0" title={clientName}>
                   {clientName}
@@ -801,6 +818,12 @@ function BookingCard({
             <Badge className={`text-[8px] ${getStatusColor(booking.status)}`}>
               {getTranslatedStatus(booking.status)}
             </Badge>
+            {isDuo && (
+              <Badge className="text-[8px] gap-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                <Users className="h-2.5 w-2.5" />
+                Duo {acceptedTherapistCount}/{guestCount}
+              </Badge>
+            )}
           </div>
 
           {booking.hotel_name && (
@@ -819,7 +842,10 @@ function BookingCard({
           {booking.room_name && (
             <div className="flex items-center gap-2 text-xs">
               <DoorOpen className="h-3 w-3" />
-              <span>Salle : {booking.room_name}</span>
+              <span>
+                Salle : {booking.room_name}
+                {booking.secondary_room_name && ` + ${booking.secondary_room_name}`}
+              </span>
             </div>
           )}
 
@@ -836,11 +862,23 @@ function BookingCard({
             )}
           </div>
 
-          {booking.therapist_name && (
-            <div className="flex items-center gap-2 text-xs">
-              <Users className="h-3 w-3" />
-              <span>Thérapeute : {booking.therapist_name}</span>
+          {isDuo ? (
+            <div className="flex items-start gap-2 text-xs">
+              <Users className="h-3 w-3 mt-0.5 flex-shrink-0" />
+              <span>
+                Thérapeutes :{" "}
+                {therapistNames.length > 0
+                  ? therapistNames.join(", ")
+                  : `${acceptedTherapistCount}/${guestCount} assigné(s)`}
+              </span>
             </div>
+          ) : (
+            booking.therapist_name && (
+              <div className="flex items-center gap-2 text-xs">
+                <Users className="h-3 w-3" />
+                <span>Thérapeute : {booking.therapist_name}</span>
+              </div>
+            )
           )}
 
           <div className="flex items-center gap-2 text-xs">

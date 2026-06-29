@@ -45,6 +45,11 @@ export interface CreateBookingPayload {
   time: string;
   therapistId: string;
   roomId?: string;
+  /**
+   * Salle secondaire pour un Duo scindé sur 2 salles (admin uniquement).
+   * undefined = salle unique. "" = auto-pick d'une 2e salle libre ≠ principale.
+   */
+  secondaryRoomId?: string;
   therapistIds?: string[];
   slot2Date: string | null;
   slot2Time: string | null;
@@ -150,6 +155,7 @@ async function insertSingleBooking(
   guestCount: number,
   isBroadcast: boolean,
   roomId: string | null,
+  secondaryRoomId: string | null,
 ) {
   const { status, therapistId: finalTherapistId, therapistName: finalTherapistName } =
     resolveAssignment(allTherapistIds, guestCount, therapists);
@@ -173,6 +179,8 @@ async function insertSingleBooking(
     is_out_of_hours: d.isOffert ? false : d.isOutOfHours,
     surcharge_amount: d.isOffert ? 0 : d.surchargeAmount,
     room_id: roomId,
+    // Garde-fou : pas de salle secondaire identique à la principale.
+    secondary_room_id: secondaryRoomId && secondaryRoomId !== roomId ? secondaryRoomId : null,
     duration: d.totalDuration,
     customer_id: customerId || null,
     guest_count: guestCount,
@@ -262,6 +270,21 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         roomId = await pickFreeRoom(d.hotelId, d.date, d.time, new Set());
       }
 
+      // Salle secondaire (Duo scindé) : undefined = non scindé. "" = auto-pick d'une
+      // 2e salle libre différente de la principale. Sinon valeur choisie par l'admin.
+      let secondaryRoomId: string | null = null;
+      if (d.secondaryRoomId !== undefined) {
+        secondaryRoomId = d.secondaryRoomId.trim() ? d.secondaryRoomId.trim() : null;
+        if (!secondaryRoomId && roomId) {
+          secondaryRoomId = await pickFreeRoom(
+            d.hotelId,
+            d.date,
+            d.time,
+            new Set([roomId]),
+          );
+        }
+      }
+
       const { booking, status } = await insertSingleBooking(
         d,
         hotel,
@@ -274,6 +297,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         guestCount,
         isBroadcast,
         roomId,
+        secondaryRoomId,
       );
 
       if (d.amenityAccess && d.amenityAccess.length > 0 && booking) {

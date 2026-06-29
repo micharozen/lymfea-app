@@ -48,6 +48,7 @@
     "privacyPolicy": "Politique de confidentialité"
   },
   "dashboard": {
+    "refresh": "Actualiser",
     "title": "Tableau de bord",
     "myBookings": "MES RÉSERVATIONS",
     "upcoming": "À venir",
@@ -115,6 +116,7 @@
     "bookingId": "ID Réservation"
   },
   "bookingDetail": {
+    "reassignedAway": "Cette réservation a été réassignée à un autre thérapeute.",
     "myBooking": "Ma réservation",
     "notFound": "Réservation introuvable",
     "price": "Prix",

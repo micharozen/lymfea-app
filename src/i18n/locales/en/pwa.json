@@ -48,6 +48,7 @@
     "privacyPolicy": "Privacy Policy"
   },
   "dashboard": {
+    "refresh": "Refresh",
     "title": "Dashboard",
     "myBookings": "MY BOOKINGS",
     "upcoming": "Upcoming",
@@ -115,6 +116,7 @@
     "bookingId": "Booking ID"
   },
   "bookingDetail": {
+    "reassignedAway": "This booking has been reassigned to another therapist.",
     "myBooking": "My Booking",
     "notFound": "Booking not found",
     "price": "Price",

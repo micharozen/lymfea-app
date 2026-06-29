@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -51,11 +52,71 @@ interface BookingTherapistStepProps {
   currency: string;
   rooms: AvailableRoom[];
   occupiedRoomIds: Set<string>;
+  roomOccupancy: Map<string, number>;
   roomId: string;
   onRoomChange: (id: string) => void;
+  secondaryRoomId: string;
+  onSecondaryRoomChange: (id: string) => void;
+  secondaryRoomEnabled: boolean;
+  onSecondaryRoomEnabledChange: (enabled: boolean) => void;
 }
 
 const AUTO_ROOM_VALUE = "__auto__";
+
+interface RoomSelectProps {
+  rooms: AvailableRoom[];
+  occupiedRoomIds: Set<string>;
+  roomOccupancy: Map<string, number>;
+  value: string;
+  onChange: (id: string) => void;
+  /** Salle à masquer des options (ex. la salle principale pour la salle secondaire). */
+  excludeRoomId?: string;
+}
+
+function RoomSelect({
+  rooms,
+  occupiedRoomIds,
+  roomOccupancy,
+  value,
+  onChange,
+  excludeRoomId,
+}: RoomSelectProps) {
+  return (
+    <Select
+      value={value || AUTO_ROOM_VALUE}
+      onValueChange={(v) => onChange(v === AUTO_ROOM_VALUE ? "" : v)}
+    >
+      <SelectTrigger className="h-9">
+        <SelectValue placeholder="Automatique" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={AUTO_ROOM_VALUE}>Automatique</SelectItem>
+        {rooms
+          .filter((room) => room.id !== excludeRoomId)
+          .map((room) => {
+            const occupied = occupiedRoomIds.has(room.id) && room.id !== value;
+            const used = roomOccupancy.get(room.id) ?? 0;
+            return (
+              <SelectItem key={room.id} value={room.id} disabled={occupied}>
+                <span className="flex items-center gap-1.5">
+                  {room.name}
+                  <span
+                    className={cn(
+                      "text-xs tabular-nums",
+                      occupied ? "text-destructive" : "text-muted-foreground",
+                    )}
+                  >
+                    {used}/{room.capacity}
+                  </span>
+                  {occupied && <span className="text-xs text-destructive">— Complète</span>}
+                </span>
+              </SelectItem>
+            );
+          })}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function getInitials(first: string, last: string) {
   return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
@@ -217,8 +278,13 @@ export function BookingTherapistStep({
   currency,
   rooms,
   occupiedRoomIds,
+  roomOccupancy,
   roomId,
   onRoomChange,
+  secondaryRoomId,
+  onSecondaryRoomChange,
+  secondaryRoomEnabled,
+  onSecondaryRoomEnabledChange,
 }: BookingTherapistStepProps) {
   const { t } = useTranslation("admin");
   const broadcast = duoMode === "broadcast";
@@ -267,27 +333,45 @@ export function BookingTherapistStep({
           <Label className="text-xs font-medium flex items-center gap-1.5">
             <DoorOpen className="h-3.5 w-3.5" />
             Salle de soin
+            {isDuo && secondaryRoomEnabled && (
+              <span className="text-muted-foreground font-normal">(praticien 1)</span>
+            )}
           </Label>
-          <Select
-            value={roomId || AUTO_ROOM_VALUE}
-            onValueChange={(value) => onRoomChange(value === AUTO_ROOM_VALUE ? "" : value)}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Automatique" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={AUTO_ROOM_VALUE}>Automatique</SelectItem>
-              {rooms.map((room) => {
-                const occupied = occupiedRoomIds.has(room.id) && room.id !== roomId;
-                return (
-                  <SelectItem key={room.id} value={room.id} disabled={occupied}>
-                    {room.name}
-                    {occupied && " — Occupée"}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+          <RoomSelect
+            rooms={rooms}
+            occupiedRoomIds={occupiedRoomIds}
+            roomOccupancy={roomOccupancy}
+            value={roomId}
+            onChange={onRoomChange}
+          />
+
+          {isDuo && (
+            <div className="space-y-1.5 pt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={secondaryRoomEnabled}
+                  onCheckedChange={(checked) => {
+                    const enabled = checked === true;
+                    onSecondaryRoomEnabledChange(enabled);
+                    if (!enabled) onSecondaryRoomChange("");
+                  }}
+                />
+                <span className="text-xs font-medium">
+                  Salle différente pour le 2e praticien
+                </span>
+              </label>
+              {secondaryRoomEnabled && (
+                <RoomSelect
+                  rooms={rooms}
+                  occupiedRoomIds={occupiedRoomIds}
+                  roomOccupancy={roomOccupancy}
+                  value={secondaryRoomId}
+                  onChange={onSecondaryRoomChange}
+                  excludeRoomId={roomId}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {isDuo ? (

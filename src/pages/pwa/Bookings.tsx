@@ -16,6 +16,7 @@ import PwaHeader from "@/components/pwa/Header";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { ScheduleReminderBanner } from "@/components/pwa/schedule/ScheduleReminderBanner";
 import { useScheduleCompleteness } from "@/hooks/pwa/useScheduleCompleteness";
+import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 
 interface BookingTreatment {
   treatment_menus: {
@@ -116,6 +117,11 @@ const PwaBookings = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope]);
 
+  // Re-fetch when the app regains focus so reassigned bookings stop showing.
+  useRefetchOnFocus(() => {
+    fetchBookings();
+  });
+
   const fetchBookings = async () => {
     if (!isMountedRef.current) return;
 
@@ -188,8 +194,8 @@ const PwaBookings = () => {
         .from("bookings")
         .select(
           venueScope
-            ? "*, treatment_rooms(name), therapists(first_name, last_name), booking_treatments(treatment_menus(name, price, duration))"
-            : "*, treatment_rooms(name), booking_treatments(treatment_menus(name, price, duration))",
+            ? "*, treatment_rooms!bookings_trunk_id_fkey(name), therapists(first_name, last_name), booking_treatments(treatment_menus(name, price, duration))"
+            : "*, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(treatment_menus(name, price, duration))",
         );
 
       query = venueScope

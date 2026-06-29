@@ -6,7 +6,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Check, CheckCircle2, ChevronRight, Clock, Euro, Loader2, X, Users, DoorOpen } from "lucide-react";
+import { CalendarDays, Check, CheckCircle2, ChevronRight, Clock, Euro, Loader2, RefreshCw, X, Users, DoorOpen } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -18,6 +18,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
 import { brand } from "@/config/brand";
 import { useScheduleCompleteness, fetchTherapistUnavailableDates } from "@/hooks/pwa/useScheduleCompleteness";
+import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import { ScheduleReminderBanner } from "@/components/pwa/schedule/ScheduleReminderBanner";
 
 interface Therapist {
@@ -294,6 +295,12 @@ const PwaDashboard = () => {
     };
   }, [therapist]);
 
+  // Re-fetch when the app regains focus/visibility: realtime is disabled in prod,
+  // so this is what makes a reassigned booking disappear for the old therapist.
+  useRefetchOnFocus(() => {
+    if (therapist) fetchAllBookings(therapist.id);
+  }, !!therapist);
+
 
   const checkAuth = async () => {
     try {
@@ -394,7 +401,7 @@ const PwaDashboard = () => {
       .from("bookings")
       .select(`
         *,
-        treatment_rooms ( name ),
+        treatment_rooms!bookings_trunk_id_fkey ( name ),
         booking_therapists ( status, therapist_id ),
         booking_treatments (
           treatment_menus (
@@ -470,7 +477,7 @@ const PwaDashboard = () => {
       .from("bookings")
       .select(`
         *,
-        treatment_rooms ( name ),
+        treatment_rooms!bookings_trunk_id_fkey ( name ),
         booking_therapists ( status, therapist_id ),
         booking_treatments (
           treatment_menus (
@@ -852,15 +859,26 @@ const PwaDashboard = () => {
           <span className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Kormelink', serif" }}>{brand.name}</span>
         }
         rightSlot={
-          <Avatar
-            className="h-7 w-7 ring-1 ring-border cursor-pointer"
-            onClick={() => navigate("/pwa/profile")}
-          >
-            <AvatarImage src={therapist?.profile_image || undefined} />
-            <AvatarFallback className="bg-muted text-foreground text-[10px] font-medium">
-              {therapist?.first_name?.[0]}{therapist?.last_name?.[0]}
-            </AvatarFallback>
-          </Avatar>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              aria-label={t('dashboard.refresh')}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+            </button>
+            <Avatar
+              className="h-7 w-7 ring-1 ring-border cursor-pointer"
+              onClick={() => navigate("/pwa/profile")}
+            >
+              <AvatarImage src={therapist?.profile_image || undefined} />
+              <AvatarFallback className="bg-muted text-foreground text-[10px] font-medium">
+                {therapist?.first_name?.[0]}{therapist?.last_name?.[0]}
+              </AvatarFallback>
+            </Avatar>
+          </div>
         }
       />
 

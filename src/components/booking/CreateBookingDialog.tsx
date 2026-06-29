@@ -88,6 +88,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       roomNumber: "",
       roomNumberLater: false,
       roomId: "",
+      secondaryRoomId: "",
       clientNote: "",
       payByVoucher: false,
       voucherReference: "",
@@ -111,10 +112,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const voucherReference = form.watch("voucherReference");
   const isOffert = form.watch("isOffert");
   const roomId = form.watch("roomId");
+  const secondaryRoomId = form.watch("secondaryRoomId");
 
   // Salles de soin disponibles au créneau choisi (pré-sélection auto + override).
   const dateStr = date ? format(date, "yyyy-MM-dd") : undefined;
-  const { rooms, occupiedRoomIds } = useAvailableRooms(hotelId, dateStr, time);
+  const { rooms, occupiedRoomIds, roomOccupancy } = useAvailableRooms(hotelId, dateStr, time);
 
   // Clear roomNumber when clientType switches away from 'hotel'
   // and reset voucher when moving to partner client types.
@@ -136,6 +138,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
   const [customDuration, setCustomDuration] = useState<string>("");
+  // Duo scindé sur 2 salles : toggle "salle différente pour le 2e praticien".
+  const [secondaryRoomEnabled, setSecondaryRoomEnabled] = useState(false);
 
   useEffect(() => {
     if (selectedDate) form.setValue("date", selectedDate);
@@ -409,6 +413,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       time: values.time,
       therapistId: values.therapistId,
       roomId: values.roomId || undefined,
+      // Salle secondaire seulement pour un Duo scindé (toggle activé).
+      secondaryRoomId:
+        secondaryRoomEnabled && staffingCount > 1 ? values.secondaryRoomId || "" : undefined,
       slot2Date: values.slot2Date ? format(values.slot2Date, "yyyy-MM-dd") : null,
       slot2Time: values.slot2Time || null,
       slot3Date: values.slot3Date ? format(values.slot3Date, "yyyy-MM-dd") : null,
@@ -450,6 +457,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const handleClose = () => {
     setShowConfirmClose(false);
     setActiveTab("info");
+    setSecondaryRoomEnabled(false);
     form.reset({
       hotelId: presetHotelId || "",
       therapistId: "",
@@ -468,6 +476,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       roomNumber: "",
       roomNumberLater: false,
       roomId: "",
+      secondaryRoomId: "",
       clientNote: "",
       payByVoucher: false,
       voucherReference: "",
@@ -615,8 +624,16 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   currency={selectedHotel?.currency || 'EUR'}
                   rooms={rooms}
                   occupiedRoomIds={occupiedRoomIds}
+                  roomOccupancy={roomOccupancy}
                   roomId={roomId}
                   onRoomChange={(id) => form.setValue("roomId", id)}
+                  secondaryRoomId={secondaryRoomId}
+                  onSecondaryRoomChange={(id) => form.setValue("secondaryRoomId", id)}
+                  secondaryRoomEnabled={secondaryRoomEnabled}
+                  onSecondaryRoomEnabledChange={(enabled) => {
+                    setSecondaryRoomEnabled(enabled);
+                    if (!enabled) form.setValue("secondaryRoomId", "");
+                  }}
                 />
             </TabsContent>
 

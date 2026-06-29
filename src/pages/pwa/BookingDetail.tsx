@@ -16,6 +16,7 @@ import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer"
 import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { useIsMounted } from "@/hooks/useIsMounted";
+import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import { computeTherapistEarnings } from "@/lib/therapistEarnings";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import {
@@ -209,6 +210,12 @@ const PwaBookingDetail = () => {
     };
   }, [id]);
 
+  // Re-fetch when the app regains focus (realtime is disabled in prod). The
+  // ownership guard inside fetchBookingDetail redirects away if reassigned.
+  useRefetchOnFocus(() => {
+    fetchBookingDetail();
+  });
+
   // Fetch room gap for margin/extension display
   useEffect(() => {
     const fetchRoomGap = async () => {
@@ -328,10 +335,25 @@ const PwaBookingDetail = () => {
 
       if (!isMountedRef.current) return;
 
+      const isAcceptedParticipant = myTherapistId
+        ? (btData?.some((bt) => (bt as { therapist_id: string }).therapist_id === myTherapistId) ?? false)
+        : false;
+
       setAcceptedTherapistCount(btData?.length ?? 0);
-      setHasAlreadyAccepted(
-        myTherapistId ? (btData?.some((bt) => (bt as { therapist_id: string }).therapist_id === myTherapistId) ?? false) : false
-      );
+      setHasAlreadyAccepted(isAcceptedParticipant);
+
+      // Booking no longer belongs to the connected therapist (e.g. reassigned by
+      // an admin while the app was open / opened from a stale push notification).
+      // Pending/awaiting bookings stay visible as open requests.
+      const isOpenRequest = bookingData.status === "pending" || bookingData.status === "awaiting_hairdresser_selection";
+      const isMine = bookingData.therapist_id === myTherapistId || isAcceptedParticipant;
+      if (myTherapistId && !isOpenRequest && !isMine) {
+        if (isMountedRef.current) {
+          toast.info(t('bookingDetail.reassignedAway'));
+          navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+        }
+        return;
+      }
 
       // Fetch bundle info if booking has a bundle_usage_id
       const bundleUsageId = bookingData.bundle_usage_id;
