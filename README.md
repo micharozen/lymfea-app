@@ -130,10 +130,18 @@ src/
 npm run build
 ```
 
-### Start Command (with serve)
+### Start Command
 ```bash
-npx serve -s dist -l $PORT
+npm run start
 ```
+
+> Do **not** use `serve -s dist`. This app has two entry points — the marketing landing
+> (`landing.html`, prerendered to `/`, `/compare`, `/terms`, `/privacy`,
+> `/compare/saoma-vs-*`) and the SPA app (`index.html`, all other routes). `scripts/serve-prod.mjs`
+> serves `/` → `landing.html`, the marketing clean-URLs → their prerendered HTML, and
+> SPA-falls-back everything else to `index.html`. A blanket `-s` fallback would make
+> `saoma.io/` serve the app shell (wrong `<title>` + the PWA manifest's "E" favicon)
+> instead of the Saoma landing.
 
 ## License
 
