@@ -700,7 +700,7 @@ export default function BookingDetail() {
                 </span>
               </div>
 
-              {!isPaid && !isConcierge && (
+              {!isPaid && (
                 <Button
                   variant="outline"
                   size="sm"
