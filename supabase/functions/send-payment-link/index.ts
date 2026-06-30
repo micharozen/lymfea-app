@@ -8,6 +8,7 @@ import { sendEmail } from '../_shared/send-email.ts';
 import { sendSms } from '../_shared/send-sms.ts';
 import { getStripeForVenue } from '../_shared/stripe-resolver.ts';
 import { resolveTreatmentPrice } from '../_shared/treatmentPrice.ts';
+import { civilityLabel } from '../_shared/civility.ts';
 
 // Resend templates "Booking Payment Link" (FR/EN) — same template variables.
 const PAYMENT_LINK_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
@@ -107,7 +108,8 @@ serve(async (req: Request) => {
         payment_method,
         hotel_id,
         hotel_name,
-        therapist_name
+        therapist_name,
+        customer_id
       `)
       .eq('id', bookingId)
       .single();
@@ -309,8 +311,27 @@ serve(async (req: Request) => {
       
 
 
+    // Civilité (fiche customer) → salutation personnalisée. Cette fonction ne
+    // chargeait pas le customer : on le fait à la demande via booking.customer_id.
+    let customerCivility: string | null = null;
+    if ((booking as any).customer_id) {
+      const { data: customerRow } = await supabase
+        .from('customers')
+        .select('civility')
+        .eq('id', (booking as any).customer_id)
+        .maybeSingle();
+      customerCivility = (customerRow as any)?.civility ?? null;
+    }
+    const civLabel = civilityLabel(customerCivility, language === 'en' ? 'en' : 'fr');
+    // "Madame Dupont" si civilité, sinon le prénom (pour les intros rendues côté code).
+    const greetingName = civLabel
+      ? `${civLabel} ${booking.client_last_name ?? ''}`.trim()
+      : (booking.client_first_name ?? '');
+
     const templateData: PaymentLinkTemplateData = {
-      clientName: `${booking.client_first_name} ${booking.client_last_name}`,
+      clientName: civLabel
+        ? `${civLabel} ${booking.client_last_name ?? ''}`.trim()
+        : `${booking.client_first_name} ${booking.client_last_name}`,
       hotelName: booking.hotel_name || 'Hotel',
       hotelImageUrl: hotelImageUrl,
       roomNumber: booking.room_number || undefined,
@@ -367,13 +388,14 @@ serve(async (req: Request) => {
 
         // Variables du template Resend (mêmes clés que trigger-new-booking-notifications)
         const introText = language === 'fr'
-          ? `Bonjour ${booking.client_first_name}, merci pour votre réservation. Pour la confirmer, veuillez procéder au paiement.`
-          : `Hello ${booking.client_first_name}, thank you for your booking. To confirm it, please complete the payment.`;
+          ? `Bonjour ${greetingName}, merci pour votre réservation. Pour la confirmer, veuillez procéder au paiement.`
+          : `Hello ${greetingName}, thank you for your booking. To confirm it, please complete the payment.`;
 
         const templateVariables: Record<string, string> = {
           booking_date: templateData.bookingDate,
           booking_number: String(booking.booking_id ?? ''),
           booking_time: templateData.bookingTime,
+          client_civility: civLabel ?? '',
           expiry_date: expiresAtText,
           intro_text: introText,
           payment_url: templateData.paymentUrl,
@@ -413,7 +435,7 @@ serve(async (req: Request) => {
           ? smsBody.trim()
           : buildDefaultSmsBody(
               language,
-              booking.client_first_name,
+              greetingName,
               templateData.hotelName,
               templateData.bookingDate,
               templateData.bookingTime,

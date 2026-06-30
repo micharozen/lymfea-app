@@ -5,6 +5,7 @@ import { sendEmail } from "../_shared/send-email.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 import { sendSms } from "../_shared/send-sms.ts";
 import { getStripeForVenue } from "../_shared/stripe-resolver.ts";
+import { civilityLabel } from "../_shared/civility.ts";
 
 const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
 const BOOKING_CONFIRMED_TEMPLATE_ID_EN = "c73fa801-c20f-40ef-834a-4d3eb2d7d96c";
@@ -288,11 +289,11 @@ serve(async (req) => {
     // Send confirmation email to the client (Resend template)
     try {
       // Prefer customer record (created upstream by find_or_create_customer) over booking columns
-      let customer: { email?: string | null; phone?: string | null; first_name?: string | null; last_name?: string | null; language?: string | null } | null = null;
+      let customer: { email?: string | null; phone?: string | null; first_name?: string | null; last_name?: string | null; language?: string | null; civility?: string | null } | null = null;
       if ((booking as any).customer_id) {
         const { data: customerRow } = await supabaseClient
           .from('customers')
-          .select('email, phone, first_name, last_name, language')
+          .select('email, phone, first_name, last_name, language, civility')
           .eq('id', (booking as any).customer_id)
           .maybeSingle();
         customer = customerRow ?? null;
@@ -339,7 +340,14 @@ serve(async (req) => {
 
         const firstName = customer?.first_name ?? booking.client_first_name ?? '';
         const lastName = customer?.last_name ?? booking.client_last_name ?? '';
-        const clientName = `${firstName} ${lastName}`.trim();
+        // Civilité (fiche customer) → salutation personnalisée selon la langue du client.
+        const civLabel = civilityLabel(customer?.civility, resolvedLanguage);
+        const clientName = civLabel
+          ? `${civLabel} ${lastName}`.trim()
+          : `${firstName} ${lastName}`.trim();
+        // Nom de salutation court ("Madame Dupont" si civilité, sinon le prénom),
+        // pour les messages où l'intro est rendue côté code (intro_text, SMS).
+        const greetingName = civLabel ? `${civLabel} ${lastName}`.trim() : firstName;
         const clientPhone = customer?.phone ?? (booking as any).phone ?? (booking as any).client_phone ?? '';
 
         const isExternal = (booking as any).client_type === 'external';
@@ -420,8 +428,8 @@ serve(async (req) => {
           })}`;
 
           const introText = language === 'fr'
-            ? `Bonjour ${firstName}, merci pour votre réservation. Pour la confirmer, veuillez procéder au paiement.`
-            : `Hello ${firstName}, thank you for your booking. To confirm it, please complete the payment.`;
+            ? `Bonjour ${greetingName}, merci pour votre réservation. Pour la confirmer, veuillez procéder au paiement.`
+            : `Hello ${greetingName}, thank you for your booking. To confirm it, please complete the payment.`;
 
           const templateVariables: Record<string, string> = {
             booking_date: formattedDate,
@@ -469,8 +477,8 @@ serve(async (req) => {
                 // URL = lien Stripe brut (sans ?prefilled_email=, plus court).
                 // Vise 1 segment SMS. Accents basiques (a, e, e) restent en GSM-7.
                 const smsBody = language === 'fr'
-                  ? `Bonjour ${firstName}, votre réservation chez ${booking.hotel_name ?? ''} le ${smsDate} à ${formattedTime} (${totalPrice}${currencySymbol}). Paiement : ${paymentLink.url}`
-                  : `Hello ${firstName}, your booking at ${booking.hotel_name ?? ''} on ${smsDate} at ${formattedTime} (${totalPrice}${currencySymbol}). Payment: ${paymentLink.url}`;
+                  ? `Bonjour ${greetingName}, votre réservation chez ${booking.hotel_name ?? ''} le ${smsDate} à ${formattedTime} (${totalPrice}${currencySymbol}). Paiement : ${paymentLink.url}`
+                  : `Hello ${greetingName}, your booking at ${booking.hotel_name ?? ''} on ${smsDate} at ${formattedTime} (${totalPrice}${currencySymbol}). Payment: ${paymentLink.url}`;
                 const smsResult = await sendSms({ to: clientPhone, body: smsBody });
                 if (smsResult.error) {
                   console.error('[trigger-new-booking-notifications][sms] External payment-link SMS error:', smsResult.error);
@@ -512,6 +520,7 @@ serve(async (req) => {
             ? {
                 booking_date: formattedDate,
                 booking_time: formattedTime,
+                client_civility: civLabel ?? '',
                 contact_email: contactEmail,
                 first_name: firstName,
                 hotel_name: booking.hotel_name ?? '',
@@ -526,6 +535,7 @@ serve(async (req) => {
                 booking_number: String(booking.booking_id ?? ''),
                 booking_time: formattedTime,
                 booking_url: clientBookingUrl,
+                client_civility: civLabel ?? '',
                 client_name: clientName,
                 client_phone: clientPhone,
                 contact_email: contactEmail,

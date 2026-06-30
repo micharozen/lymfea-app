@@ -4,6 +4,7 @@ import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 import { sendSms } from "../_shared/send-sms.ts";
+import { civilityLabel } from "../_shared/civility.ts";
 
 const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
 const BOOKING_CONFIRMED_TEMPLATE_ID_EN = "c73fa801-c20f-40ef-834a-4d3eb2d7d96c";
@@ -114,13 +115,15 @@ serve(async (req) => {
     // customer's stored default.
     let clientLanguage: 'fr' | 'en' = 'fr';
     let customerLanguage: string | null = null;
+    let customerCivility: string | null = null;
     if ((booking as any).customer_id) {
       const { data: customer } = await supabase
         .from('customers')
-        .select('language')
+        .select('language, civility')
         .eq('id', (booking as any).customer_id)
         .single();
       customerLanguage = (customer as any)?.language ?? null;
+      customerCivility = (customer as any)?.civility ?? null;
     }
     const bookingLanguage = (booking as any).language;
     if (bookingLanguage === 'en' || bookingLanguage === 'fr') {
@@ -158,11 +161,20 @@ serve(async (req) => {
       .filter(Boolean)
       .join(', ');
 
+    // Civilité (depuis la fiche customer) → salutation personnalisée. Quand elle
+    // est présente, on préfixe le nom de famille ("Madame Dupont") ; sinon on
+    // garde prénom + nom. La variable client_civility est aussi exposée au template.
+    const civLabel = civilityLabel(customerCivility, clientLanguage);
+    const clientName = civLabel
+      ? `${civLabel} ${booking.client_last_name ?? ''}`.trim()
+      : `${booking.client_first_name ?? ''} ${booking.client_last_name ?? ''}`.trim();
+
     const templateVariables: Record<string, string> = {
       booking_number: String(booking.booking_id ?? ''),
       booking_date: `${formattedDate} ${formattedTime}`.trim(),
       booking_url: bookingDetailsUrl,
-      client_name: `${booking.client_first_name ?? ''} ${booking.client_last_name ?? ''}`.trim(),
+      client_civility: civLabel ?? '',
+      client_name: clientName,
       client_phone: booking.phone ?? '',
       hotel_name: booking.hotel_name ?? '',
       room_number: booking.room_number ? String(booking.room_number) : '',
@@ -299,13 +311,17 @@ serve(async (req) => {
     if (clientPhone && clientEmailOk && isPaidEnough) {
       try {
         const firstName = booking.client_first_name ?? '';
+        // Civilité : "Madame Dupont" si renseignée, sinon le prénom.
+        const smsGreetingName = civLabel
+          ? `${civLabel} ${booking.client_last_name ?? ''}`.trim()
+          : firstName;
         const shortToken = (booking as any).short_token;
         const clientManageUrl = shortToken
           ? `${siteUrl}/m/${shortToken}`
           : `${siteUrl}/booking/manage/${bookingId}`;
         const smsBody = clientLanguage === 'en'
-          ? `Hello ${firstName}, your treatment at ${booking.hotel_name ?? ''} on ${formattedDate} at ${formattedTime} is confirmed. Manage: ${clientManageUrl}`
-          : `Bonjour ${firstName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${clientManageUrl}`;
+          ? `Hello ${smsGreetingName}, your treatment at ${booking.hotel_name ?? ''} on ${formattedDate} at ${formattedTime} is confirmed. Manage: ${clientManageUrl}`
+          : `Bonjour ${smsGreetingName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${clientManageUrl}`;
         const smsResult = await sendSms({ to: clientPhone, body: smsBody });
         if (smsResult.error) {
           console.error('[notify-booking-confirmed][sms] Confirmation SMS error:', smsResult.error);

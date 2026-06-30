@@ -38,6 +38,8 @@ export interface CreateBookingPayload {
   clientEmail?: string;
   phone: string;
   countryCode: string;
+  /** Civilité du client (optionnel) — stockée sur la fiche customer. */
+  civility?: "madame" | "monsieur";
   language?: "fr" | "en";
   roomNumber: string;
   clientNote?: string;
@@ -255,6 +257,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           _last_name: d.clientLastName,
           _email: d.clientEmail?.trim() || null,
           _language: language,
+          _civility: d.civility ?? null,
         });
         customerId = data ?? null;
       }

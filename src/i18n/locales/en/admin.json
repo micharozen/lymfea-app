@@ -930,6 +930,12 @@
       "helper": "The {{count}} treatments run in parallel, each with their own practitioner.",
       "ineligibleVariantDuo": "Duo booking via catalogue variant — combo mode is not available.",
       "practitionerLabel": "Practitioner {{index}}"
+    },
+    "civility": {
+      "label": "Title",
+      "optional": "(optional)",
+      "madame": "Mrs",
+      "monsieur": "Mr"
     }
   },
   "phoneBooking": {

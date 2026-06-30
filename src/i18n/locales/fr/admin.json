@@ -930,6 +930,12 @@
       "helper": "Les {{count}} soins se déroulent en parallèle, chacun avec son praticien.",
       "ineligibleVariantDuo": "Réservation duo via variante catalogue — le mode combo n'est pas disponible.",
       "practitionerLabel": "Praticien {{index}}"
+    },
+    "civility": {
+      "label": "Civilité",
+      "optional": "(optionnel)",
+      "madame": "Madame",
+      "monsieur": "Monsieur"
     }
   },
   "phoneBooking": {

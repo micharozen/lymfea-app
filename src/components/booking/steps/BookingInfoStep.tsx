@@ -843,6 +843,31 @@ export function BookingInfoStep({
         )}
       </div>
 
+      <FormField
+        control={form.control}
+        name="civility"
+        render={({ field }) => (
+          <FormItem className="space-y-1">
+            <FormLabel className="text-xs">
+              {t('booking.civility.label')}{' '}
+              <span className="text-muted-foreground font-normal">{t('booking.civility.optional')}</span>
+            </FormLabel>
+            <Select value={field.value ?? ''} onValueChange={field.onChange}>
+              <FormControl>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={t('booking.civility.label')} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="madame">{t('booking.civility.madame')}</SelectItem>
+                <SelectItem value="monsieur">{t('booking.civility.monsieur')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage className="text-xs" />
+          </FormItem>
+        )}
+      />
+
       <div className="grid grid-cols-2 gap-2">
         <FormField
           control={form.control}
