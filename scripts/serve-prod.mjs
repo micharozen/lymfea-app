@@ -85,10 +85,15 @@ async function resolveFile(pathname) {
   return join(DIST, "index.html");
 }
 
+// Service worker + PWA manifests must always revalidate so a new deploy's SW is
+// picked up promptly (workbox registerType: autoUpdate). Matched by basename.
+const NO_CACHE_FILES = /^(sw|service-worker|workbox-[^/]+|OneSignalSDKWorker)\.js$|\.webmanifest$/;
+
 function cacheControl(filePath) {
   // Vite emits content-hashed files under /assets — safe to cache forever.
-  // HTML must revalidate so deploys are picked up.
+  // HTML, the service worker, and manifests must revalidate.
   if (extname(filePath) === ".html") return "no-cache";
+  if (NO_CACHE_FILES.test(filePath.split("/").pop())) return "no-cache";
   if (filePath.includes(`${DIST}/assets/`)) return "public, max-age=31536000, immutable";
   return "public, max-age=3600";
 }
