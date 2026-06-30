@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
+    "start": "node scripts/serve-prod.mjs",
     "sup:func": "supabase functions serve",
     "sup:reset": "supabase db reset",
     "sup:start": "supabase start",

@@ -130,10 +130,20 @@ src/
 npm run build
 ```
 
-### Start Command (with serve)
-```bash
-npx serve -s dist -l $PORT
-```
+### Start Command
+
+The start command is committed in the repo via `Procfile` (`web: node scripts/serve-prod.mjs`),
+so Railway picks it up automatically — no dashboard Start Command needed. If a Start Command
+**is** set in the Railway dashboard it overrides the Procfile, so leave it empty (or set it to
+`node scripts/serve-prod.mjs`). Locally: `npm run start`.
+
+> Do **not** use `serve -s dist`. This app has two entry points — the marketing landing
+> (`landing.html`, prerendered to `/`, `/compare`, `/terms`, `/privacy`,
+> `/compare/saoma-vs-*`) and the SPA app (`index.html`, all other routes). `scripts/serve-prod.mjs`
+> serves `/` → `landing.html`, the marketing clean-URLs → their prerendered HTML, and
+> SPA-falls-back everything else to `index.html`. A blanket `-s` fallback would make
+> `saoma.io/` serve the app shell (wrong `<title>` + the PWA manifest's "E" favicon)
+> instead of the Saoma landing.
 
 ## License
 
