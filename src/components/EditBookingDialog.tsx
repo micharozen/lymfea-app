@@ -2126,8 +2126,8 @@ export default function EditBookingDialog({
                 })()}
               </div>
               
-              {/* Admin-only: per-line price override (special rate). Empty = catalog price. */}
-              {isAdmin && !treatmentsDisabled && cartDetails.length > 0 && (
+              {/* Admin/concierge: per-line price override (special rate). Empty = catalog price. */}
+              {(isAdmin || isConcierge) && !treatmentsDisabled && cartDetails.length > 0 && (
                 <div className="shrink-0 border-t border-border bg-background pt-2 mt-2 space-y-1.5">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Prix par prestation
