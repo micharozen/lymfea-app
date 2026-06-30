@@ -131,9 +131,11 @@ npm run build
 ```
 
 ### Start Command
-```bash
-npm run start
-```
+
+The start command is committed in the repo via `Procfile` (`web: node scripts/serve-prod.mjs`),
+so Railway picks it up automatically — no dashboard Start Command needed. If a Start Command
+**is** set in the Railway dashboard it overrides the Procfile, so leave it empty (or set it to
+`node scripts/serve-prod.mjs`). Locally: `npm run start`.
 
 > Do **not** use `serve -s dist`. This app has two entry points — the marketing landing
 > (`landing.html`, prerendered to `/`, `/compare`, `/terms`, `/privacy`,
