@@ -669,7 +669,15 @@ serve(async (req) => {
     let setupIntentCancelled = false;
     let settlementWarnings: string[] = [];
 
-    if (!skipStripe) {
+    // Only touch Stripe when there is something to settle: a refund is needed,
+    // or a PaymentIntent/SetupIntent exists to release. A free/unpaid booking
+    // (no payment_method, no Stripe artifact) has nothing to do — skip building
+    // the Stripe client entirely (runStripeSettlement would no-op anyway).
+    const hasStripeArtifact = !!paymentInfo?.stripe_payment_intent_id ||
+      !!paymentInfo?.stripe_setup_intent_id;
+    const requiresStripeSettlement = !skipStripe && (needsStripe || hasStripeArtifact);
+
+    if (requiresStripeSettlement) {
       try {
         const stripe = stripeClientForSettlement ??
           (await getStripeForVenue(supabase, booking.hotel_id)).client;
