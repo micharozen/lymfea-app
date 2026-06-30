@@ -557,21 +557,26 @@ export default function EditBookingDialog({
   useEffect(() => {
     if (treatments && cart.length > 0) {
       let price = 0;
-      let duration = 0;
+      const unitDurations: number[] = [];
       cart.forEach(item => {
         const treatment = treatments.find(t => t.id === item.treatmentId);
         if (treatment) {
           price += getCartLineUnitPrice(treatment, item.variantId, item.priceOverride) * item.quantity;
-          duration += getCartLineUnitDuration(treatment, item.variantId) * item.quantity;
+          const unitDur = getCartLineUnitDuration(treatment, item.variantId);
+          for (let i = 0; i < item.quantity; i++) unitDurations.push(unitDur);
         }
       });
+      // Duo = soins en parallèle → durée = plus long soin (pas la somme).
+      const duration = isDuo
+        ? Math.max(0, ...unitDurations)
+        : unitDurations.reduce((sum, d) => sum + d, 0);
       setTotalPrice(price);
       setTotalDuration(duration);
     } else {
       setTotalPrice(0);
       setTotalDuration(0);
     }
-  }, [cart, treatments]);
+  }, [cart, treatments, isDuo]);
 
   useEffect(() => {
     if ((booking?.guest_count ?? 1) > 1 && acceptedTherapists) {
