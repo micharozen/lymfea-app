@@ -27,6 +27,8 @@ interface DuoLeg {
   soin: string;
   duration: number | null;
   therapist: string;
+  /** No therapist assigned yet for this leg (slot still open). */
+  pending: boolean;
   room: string;
   amount: number;
   schedule: string;
@@ -62,21 +64,24 @@ export function DuoRecapTable({
     // Combo-duo : un soin distinct par invité. Sinon (duo-variante) : soin partagé + montant divisé.
     const perTreatment = treatments.length === guestCount && guestCount > 0;
     const sharedAmount = guestCount > 0 ? displayPrice / guestCount : displayPrice;
+    // Si AU MOINS un soin porte un therapist_id réel, on s'appuie uniquement sur ce
+    // lien (un leg non encore attribué = « En attente »). Le mapping positionnel n'est
+    // utilisé que pour les bookings legacy où aucun leg n'a de lien — sinon on
+    // recollerait une praticienne déjà assignée sur un leg encore libre.
+    const hasRealLinks = treatments.some((t) => !!t?.therapist_id);
 
     return Array.from({ length: Math.max(guestCount, 1) }, (_, i) => {
       const t = perTreatment ? treatments[i] : treatments[0];
-      // Prefer the real stored soin↔therapist link; fall back to positional pairing
-      // for legacy bookings where booking_treatments.therapist_id is still null.
-      const therapist =
-        (t?.therapist_id
-          ? acceptedTherapists.find((at) => at.id === t.therapist_id)
-          : undefined) ?? acceptedTherapists[i];
+      const therapist = hasRealLinks
+        ? (t?.therapist_id ? acceptedTherapists.find((at) => at.id === t.therapist_id) : undefined)
+        : acceptedTherapists[i];
       return {
         soin: t?.name ?? "-",
         duration: t?.duration ?? null,
         therapist: therapist
           ? `${therapist.first_name} ${therapist.last_name}`.trim()
           : "En attente",
+        pending: !therapist,
         room: (i === 0 ? roomName : secondaryRoomName ?? roomName) ?? "-",
         amount: perTreatment ? t?.price ?? 0 : sharedAmount,
         schedule: formatSchedule(bookingTime, t?.duration ?? null),
@@ -104,14 +109,16 @@ export function DuoRecapTable({
           </TableHeader>
           <TableBody>
             {legs.map((leg, i) => (
-              <TableRow key={i}>
+              <TableRow key={i} className={leg.pending ? "bg-amber-50" : undefined}>
                 <TableCell className="font-medium">
                   {leg.soin}
                   {leg.duration ? (
                     <span className="text-muted-foreground"> · {leg.duration} min</span>
                   ) : null}
                 </TableCell>
-                <TableCell>{leg.therapist}</TableCell>
+                <TableCell className={leg.pending ? "text-amber-700 font-medium" : undefined}>
+                  {leg.therapist}
+                </TableCell>
                 <TableCell>{leg.room}</TableCell>
                 <TableCell className="text-right font-semibold whitespace-nowrap">
                   {formatPrice(leg.amount, currency)}
@@ -126,7 +133,10 @@ export function DuoRecapTable({
       {/* Cartes (mobile) */}
       <div className="space-y-3 sm:hidden">
         {legs.map((leg, i) => (
-          <div key={i} className="p-3 bg-gray-50 rounded-lg space-y-1.5 text-sm">
+          <div
+            key={i}
+            className={`p-3 rounded-lg space-y-1.5 text-sm ${leg.pending ? "bg-amber-50" : "bg-gray-50"}`}
+          >
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium">
                 {leg.soin}
@@ -140,7 +150,9 @@ export function DuoRecapTable({
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Thérapeute</span>
-              <span className="text-foreground">{leg.therapist}</span>
+              <span className={leg.pending ? "text-amber-700 font-medium" : "text-foreground"}>
+                {leg.therapist}
+              </span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Salle</span>
