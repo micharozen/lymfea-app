@@ -39,6 +39,7 @@ interface BookingPrestationsStepProps {
   treatments: Treatment[] | undefined;
   selectedHotel: { currency?: string | null } | undefined;
   isAdmin: boolean;
+  isConcierge: boolean;
   cart: CartItem[];
   cartDetails: Array<CartItem & { treatment: Treatment | undefined }>;
   addToCart: (id: string, variantId?: string | null) => void;
@@ -87,6 +88,7 @@ export function BookingPrestationsStep({
   treatments,
   selectedHotel,
   isAdmin,
+  isConcierge,
   cart,
   cartDetails,
   addToCart,
@@ -310,7 +312,7 @@ export function BookingPrestationsStep({
       {/* Compact Footer */}
       <div className="shrink-0 border-t border-border bg-background pt-3 mt-3 space-y-3">
         {/* Admin-only: Custom Price & Duration - ONLY for On Request services */}
-        {isAdmin && hasOnRequestService && (
+        {(isAdmin || isConcierge) && hasOnRequestService && (
           <div className="grid grid-cols-2 gap-2 pb-2 border-b border-border/50">
             <div className="space-y-1">
               <Label className="text-[10px] text-muted-foreground">Prix personnalisé (€)</Label>
@@ -341,7 +343,7 @@ export function BookingPrestationsStep({
 
         {/* Admin-only: per-line price override (special rate). Empty = catalog price.
             Collapsed by default so it doesn't shrink the treatment list. */}
-        {isAdmin && setLineOverride && cartDetails.length > 0 && (
+        {(isAdmin || isConcierge) && setLineOverride && cartDetails.length > 0 && (
           <div className="pb-2 border-b border-border/50">
             <button
               type="button"
