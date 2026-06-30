@@ -117,6 +117,15 @@ function sanitizeString(str: string): string {
     .trim();
 }
 
+// Mirrors src/lib/phone.ts languageFromCountryCode, but reads the country code
+// off the composed international phone string (e.g. "+46 709313996"). +33 → fr,
+// everything else → en. No phone (PMS-verified guests) → fr (venue default).
+function languageFromPhone(phone: string | null): 'fr' | 'en' {
+  const p = (phone ?? '').replace(/\s/g, '');
+  if (!p) return 'fr';
+  return p.startsWith('+33') ? 'fr' : 'en';
+}
+
 async function handleMultiBookingConfirm(
   supabase: any,
   data: z.infer<typeof multiRequestSchema>,
@@ -140,6 +149,7 @@ async function handleMultiBookingConfirm(
     roomNumber: clientData.roomNumber ? sanitizeString(clientData.roomNumber) : null,
     note: clientData.note ? sanitizeString(clientData.note) : null,
   };
+  const clientLanguage = languageFromPhone(sanitizedClientData.phone);
 
   // Hotel info for surcharge + email
   const { data: hotel, error: hotelError } = await supabase
@@ -237,6 +247,7 @@ async function handleMultiBookingConfirm(
     _first_name: sanitizedClientData.firstName,
     _last_name: sanitizedClientData.lastName,
     _email: sanitizedClientData.email,
+    _language: clientLanguage,
   });
 
   const isOffert = !!hotel.offert || !!hotel.company_offered;
@@ -265,6 +276,7 @@ async function handleMultiBookingConfirm(
         phone: sanitizedClientData.phone,
         room_number: sanitizedClientData.roomNumber,
         client_note: sanitizedClientData.note,
+        language: clientLanguage,
         status: bookingStatus,
         payment_method: effectivePaymentMethod,
         payment_status: effectivePaymentStatus,
@@ -447,6 +459,7 @@ try {
       pmsGuestCheckIn: clientData.pmsGuestCheckIn || null,
       pmsGuestCheckOut: clientData.pmsGuestCheckOut || null,
     };
+    const clientLanguage = languageFromPhone(sanitizedClientData.phone);
 
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
@@ -637,6 +650,7 @@ try {
       _first_name: sanitizedClientData.firstName,
       _last_name: sanitizedClientData.lastName,
       _email: sanitizedClientData.email,
+      _language: clientLanguage,
     });
 
     if (customerError) {
@@ -682,7 +696,7 @@ try {
           _payment_method: effectivePaymentMethod,
           _payment_status: effectivePaymentStatus,
           _total_price: effectiveTotalPrice,
-          _language: 'fr',
+          _language: clientLanguage,
           _treatment_ids: treatmentIds,
           _customer_id: customerId || null,
           _therapist_gender: therapistGender || null,
@@ -716,6 +730,7 @@ try {
             phone: sanitizedClientData.phone,
             room_number: sanitizedClientData.roomNumber,
             client_note: sanitizedClientData.note,
+            language: clientLanguage,
             status: bookingStatus,
             payment_method: effectivePaymentMethod,
             payment_status: effectivePaymentStatus,
@@ -764,7 +779,7 @@ try {
         _payment_method: effectivePaymentMethod,
         _payment_status: effectivePaymentStatus,
         _total_price: effectiveTotalPrice,
-        _language: 'fr',
+        _language: clientLanguage,
         _treatment_ids: treatmentIds,
         _customer_id: customerId || null,
         _therapist_gender: therapistGender || null,
