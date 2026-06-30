@@ -9,6 +9,8 @@ export type BookingTreatment = {
   name: string;
   duration: number | null;
   price: number | null;
+  // Combo-duo: therapist performing this specific leg (NULL = booking owner / all).
+  therapist_id?: string | null;
 };
 
 export type BookingListItem = BookingRow & {
@@ -38,6 +40,7 @@ type RawBookingRow = BookingRow & {
     treatment_id: string | null;
     variant_id: string | null;
     price_override: number | null;
+    therapist_id: string | null;
     treatment_menus: {
       name: string | null;
       duration: number | null;
@@ -83,6 +86,7 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
         name: (t.treatment_menus!.name ?? "") + variantSuffix,
         duration: variant?.duration ?? t.treatment_menus!.duration,
         price: resolveTreatmentPrice(t),
+        therapist_id: t.therapist_id ?? null,
       };
     });
 
@@ -124,6 +128,7 @@ export async function listBookings(
         treatment_id,
         variant_id,
         price_override,
+        therapist_id,
         treatment_menus(name, duration, price),
         treatment_variants(id, label, duration, price)
       ),

@@ -9,6 +9,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
 
 interface BookingTreatment {
+  therapist_id?: string | null;
   treatment_menus: {
     name: string;
     price: number;
@@ -44,6 +45,8 @@ interface PwaDayViewProps {
   onAcceptBooking?: (booking: DayViewBooking) => void;
   therapistRates?: TherapistRates | null;
   hideEarnings?: boolean;
+  /** When set, a duo card only shows the soin assigned to this therapist (fallback: all). */
+  currentTherapistId?: string | null;
 }
 
 const HOUR_HEIGHT = 80;
@@ -51,9 +54,14 @@ const START_HOUR = 7;
 const END_HOUR = 23;
 const SWIPE_THRESHOLD = 50;
 
-function getTreatmentNames(booking: DayViewBooking): string {
+function getTreatmentNames(booking: DayViewBooking, currentTherapistId?: string | null): string {
   if (!booking.booking_treatments || booking.booking_treatments.length === 0) return "";
-  return booking.booking_treatments
+  // Duo : ne montrer que le(s) soin(s) attribué(s) à la praticienne. Fallback : tous.
+  const mine = currentTherapistId
+    ? booking.booking_treatments.filter((bt) => bt.therapist_id === currentTherapistId)
+    : [];
+  const legs = mine.length > 0 ? mine : booking.booking_treatments;
+  return legs
     .map((bt) => bt.treatment_menus?.name)
     .filter(Boolean)
     .join(", ");
@@ -84,6 +92,7 @@ export function PwaDayView({
   onAcceptBooking,
   therapistRates,
   hideEarnings,
+  currentTherapistId,
 }: PwaDayViewProps) {
   const { t, i18n } = useTranslation("pwa");
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -325,7 +334,7 @@ export function PwaDayView({
                 const statusConfig = getBookingStatusConfig(booking.status);
                 const duration = calculateDuration(booking);
                 const endTime = formatEndTime(booking.booking_time, duration);
-                const treatmentNames = getTreatmentNames(booking);
+                const treatmentNames = getTreatmentNames(booking, currentTherapistId);
 
                 return (
                   <div

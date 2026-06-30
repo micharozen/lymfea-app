@@ -141,6 +141,7 @@
     "notAssigned": "Cette réservation ne vous est pas assignée",
     "unassigned": "Réservation remise en attente",
     "accepted": "Réservation acceptée !",
+    "acceptedSoin": "Soin attribué : {{name}} ({{duration}} min)",
     "alreadyTaken": "Cette réservation a déjà été acceptée par un autre thérapeute",
     "alreadyAccepted": "Vous avez déjà accepté cette réservation",
     "acceptError": "Impossible d'accepter cette réservation",

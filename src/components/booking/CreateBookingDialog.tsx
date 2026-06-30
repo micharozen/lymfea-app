@@ -58,6 +58,7 @@ import {
   getSessionCount,
   isComboDuoEligible,
 } from "@/features/admin-combo-duo";
+import { assignLegsToTherapists } from "@/lib/duoAssignment";
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
   const { hotelIds, isAdmin } = useUserContext();
@@ -393,13 +394,31 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     }
     const isBroadcast = duoMode === "broadcast" || !values.therapistId;
     const comboParams = comboDuoEnabled ? buildComboDuoBookingParams(sessions) : null;
-    const treatments = comboParams?.treatments ?? cart.flatMap(item =>
-      Array.from({ length: item.quantity }, () => ({
-        treatmentId: item.treatmentId,
-        variantId: item.variantId || undefined,
-        priceOverride: item.priceOverride ?? null,
-      }))
-    );
+    let treatments;
+    if (comboParams) {
+      // Combo-duo: pair each leg to its therapist (longest soin → first therapist).
+      // Broadcast (no therapists chosen yet) leaves legs unassigned — done at accept.
+      const assignedTherapistIds =
+        duoMode === "assign"
+          ? [values.therapistId, ...additionalTherapistIds].filter(Boolean)
+          : [];
+      const legTherapists = assignLegsToTherapists(
+        sessions.map((s) => ({ duration: s.duration })),
+        assignedTherapistIds,
+      );
+      treatments = comboParams.treatments.map((t, i) => ({
+        ...t,
+        therapistId: legTherapists[i],
+      }));
+    } else {
+      treatments = cart.flatMap(item =>
+        Array.from({ length: item.quantity }, () => ({
+          treatmentId: item.treatmentId,
+          variantId: item.variantId || undefined,
+          priceOverride: item.priceOverride ?? null,
+        }))
+      );
+    }
     const offered = values.isOffert;
     mutation.mutate({
       hotelId: values.hotelId,

@@ -80,6 +80,7 @@ import {
   getSessionCount,
   isComboDuoEligible,
 } from "@/features/admin-combo-duo";
+import { assignLegsToTherapists } from "@/lib/duoAssignment";
 
 export interface BookingModalInitialValues {
   hotelId?: string;
@@ -388,12 +389,27 @@ export default function BookingModal({
       ...additionalTherapistIds.filter(Boolean),
     ];
     const comboParams = comboDuoEnabled ? buildComboDuoBookingParams(sessions) : null;
-    const treatmentsPayload = comboParams?.treatments ?? cart.flatMap((c) =>
-      Array.from({ length: c.quantity }, () => ({
-        treatmentId: c.treatmentId,
-        ...(c.variantId ? { variantId: c.variantId } : {}),
-      }))
-    );
+    let treatmentsPayload;
+    if (comboParams) {
+      // Combo-duo: pair each leg to its therapist (longest soin → first therapist).
+      // Broadcast leaves legs unassigned — assignment happens at accept.
+      const assignedTherapistIds = isBroadcastBooking ? [] : allTherapistIds;
+      const legTherapists = assignLegsToTherapists(
+        sessions.map((s) => ({ duration: s.duration })),
+        assignedTherapistIds,
+      );
+      treatmentsPayload = comboParams.treatments.map((t, i) => ({
+        ...t,
+        therapistId: legTherapists[i],
+      }));
+    } else {
+      treatmentsPayload = cart.flatMap((c) =>
+        Array.from({ length: c.quantity }, () => ({
+          treatmentId: c.treatmentId,
+          ...(c.variantId ? { variantId: c.variantId } : {}),
+        }))
+      );
+    }
     mutation.mutate({
       hotelId,
       clientFirstName: clientFirstName.trim(),

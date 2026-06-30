@@ -29,6 +29,8 @@ export interface TreatmentPayload {
   treatmentId: string;
   variantId?: string;
   priceOverride?: number | null;
+  /** admin-combo-duo: therapist who performs this specific leg (null = unassigned/broadcast). */
+  therapistId?: string | null;
 }
 
 export interface CreateBookingPayload {
@@ -203,6 +205,7 @@ async function insertSingleBooking(
         treatment_id: t.treatmentId,
         variant_id: t.variantId || null,
         price_override: t.priceOverride ?? null,
+        therapist_id: t.therapistId ?? null,
       })),
     );
     if (te) throw te;

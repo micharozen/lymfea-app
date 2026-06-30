@@ -653,7 +653,11 @@ const PwaDashboard = () => {
 
       if (error) throw error;
 
-      const result = data as { success: boolean; error?: string; data?: { status?: string } } | null;
+      const result = data as {
+        success: boolean;
+        error?: string;
+        data?: { status?: string; assigned_treatment?: { name?: string | null; duration?: number | null } | null };
+      } | null;
 
       if (result && !result.success) {
         const errCode = result.error;
@@ -679,7 +683,15 @@ const PwaDashboard = () => {
 
       if (!isMountedRef.current) return;
 
-      toast.success(t('dashboard.bookingAccepted'));
+      const assignedSoin = result?.data?.assigned_treatment;
+      toast.success(t('dashboard.bookingAccepted'), {
+        description: assignedSoin?.name
+          ? t('bookingDetail.acceptedSoin', {
+              name: assignedSoin.name,
+              duration: assignedSoin.duration ?? '',
+            })
+          : undefined,
+      });
       fetchAllBookings(therapist.id, true); // Force refresh to get updated data
     } catch (error) {
       console.error("Error accepting booking:", error);

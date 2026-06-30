@@ -194,8 +194,8 @@ const PwaBookings = () => {
         .from("bookings")
         .select(
           venueScope
-            ? "*, treatment_rooms!bookings_trunk_id_fkey(name), therapists(first_name, last_name), booking_treatments(treatment_menus(name, price, duration))"
-            : "*, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(treatment_menus(name, price, duration))",
+            ? "*, treatment_rooms!bookings_trunk_id_fkey(name), therapists(first_name, last_name), booking_treatments(therapist_id, treatment_menus(name, price, duration))"
+            : "*, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(therapist_id, treatment_menus(name, price, duration))",
         );
 
       query = venueScope
@@ -362,6 +362,7 @@ const PwaBookings = () => {
               onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
               therapistRates={venueMode ? null : therapistRates}
               hideEarnings={venueMode}
+              currentTherapistId={venueMode ? null : therapistId}
             />
           </div>
         ) : view === "calendar" ? (

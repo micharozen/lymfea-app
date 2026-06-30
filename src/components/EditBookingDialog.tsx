@@ -40,6 +40,7 @@ import {
   getCartLineUnitPrice,
   getCartLineUnitDuration,
 } from "@/lib/bookingCartLine";
+import { assignLegsToTherapists } from "@/lib/duoAssignment";
 import { computeOutOfHoursSurcharge } from "@/lib/surcharge";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -671,11 +672,12 @@ export default function EditBookingDialog({
 
       if (bookingData.treatments && bookingData.treatments.length > 0) {
         const treatmentInserts = bookingData.treatments.map(
-          (t: { treatmentId: string; variantId?: string | null; priceOverride?: number | null }) => ({
+          (t: { treatmentId: string; variantId?: string | null; priceOverride?: number | null; therapistId?: string | null }) => ({
             booking_id: booking.id,
             treatment_id: t.treatmentId,
             variant_id: t.variantId ?? null,
             price_override: t.priceOverride ?? null,
+            therapist_id: t.therapistId ?? null,
           })
         );
 
@@ -1031,6 +1033,29 @@ export default function EditBookingDialog({
         ? (therapistIds.find(id => !!id) || null)
         : (therapistId === "none" ? null : therapistId);
 
+    // Combo-duo: persist the soin↔therapist link (longest soin → first therapist).
+    // Only when there is one leg per guest (perTreatment) and therapists are chosen;
+    // otherwise leave therapist_id null (variant-duo / broadcast / solo).
+    const duoTherapistIds = (isDuo ? therapistIds : []).filter(Boolean);
+    const isComboDuoLegs =
+      isDuo &&
+      duoTherapistIds.length > 0 &&
+      submittedTreatments.length === (booking?.guest_count ?? 0);
+    const legTherapistIds = isComboDuoLegs
+      ? assignLegsToTherapists(
+          submittedTreatments.map((leg) => ({
+            duration: getCartLineUnitDuration(
+              treatments?.find((x) => x.id === leg.treatmentId),
+              leg.variantId,
+            ),
+          })),
+          duoTherapistIds,
+        )
+      : null;
+    const submittedTreatmentsWithTherapist = legTherapistIds
+      ? submittedTreatments.map((t, i) => ({ ...t, therapistId: legTherapistIds[i] }))
+      : submittedTreatments;
+
     // Reconcile the out-of-hours surcharge against the (possibly edited) time and
     // subtotal. total_price stores the surcharge-inclusive amount; surcharge_amount
     // and is_out_of_hours are kept in sync so the Paiement card stays consistent.
@@ -1055,7 +1080,7 @@ export default function EditBookingDialog({
       duration: totalDuration,
       surcharge_amount: surcharge.surchargeAmount,
       is_out_of_hours: surcharge.isOutOfHours,
-      treatments: submittedTreatments,
+      treatments: submittedTreatmentsWithTherapist,
       status: status,
       client_note: isConcierge
         ? (booking?.client_note ?? null)

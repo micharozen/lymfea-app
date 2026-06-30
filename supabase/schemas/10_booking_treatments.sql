@@ -3,7 +3,9 @@ CREATE TABLE IF NOT EXISTS "public"."booking_treatments" (
     "booking_id" "uuid" NOT NULL,
     "treatment_id" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "variant_id" "uuid"
+    "variant_id" "uuid",
+    "price_override" numeric,
+    "therapist_id" "uuid"
 );
 
 ALTER TABLE "public"."booking_treatments" OWNER TO "postgres";

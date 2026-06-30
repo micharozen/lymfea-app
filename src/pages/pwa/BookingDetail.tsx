@@ -125,6 +125,7 @@ interface Treatment {
   treatment_id: string;
   variant_id?: string | null;
   price_override?: number | null;
+  therapist_id?: string | null;
   treatment_menus: {
     name: string;
     description: string;
@@ -483,7 +484,22 @@ const PwaBookingDetail = () => {
         invokeEdgeFunction('notify-booking-confirmed', { body: { bookingId: booking.id } }).catch(() => {});
       }
       
-      toast.success(t('bookingDetail.accepted'));
+      // Combo-duo: tell the therapist exactly which soin they were assigned.
+      const assignedSoin = (
+        rpcResult as
+          | { data?: { assigned_treatment?: { name?: string | null; duration?: number | null } | null } }
+          | null
+          | undefined
+      )?.data?.assigned_treatment;
+      toast.success(t('bookingDetail.accepted'), {
+        description:
+          assignedSoin?.name
+            ? t('bookingDetail.acceptedSoin', {
+                name: assignedSoin.name,
+                duration: assignedSoin.duration ?? '',
+              })
+            : undefined,
+      });
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
 
     } catch (error: unknown) {
@@ -649,6 +665,20 @@ const PwaBookingDetail = () => {
   if (loading && !booking) return <PwaPageLoader title={t('bookingDetail.myBooking')} showBack backPath="/pwa/dashboard" />;
   if (!booking) return <div className="flex h-screen items-center justify-center">RDV non trouvé</div>;
 
+  // Duo : chaque praticienne ne voit que SON soin (leg attribué). Fallback sans
+  // régression : aucun leg ne lui est attribué (solo, duo-variante, données legacy)
+  // → on montre tous les soins, comme avant.
+  const myTreatments = myTherapistId
+    ? treatments.filter((t) => t.therapist_id === myTherapistId)
+    : [];
+  const visibleTreatments = myTreatments.length > 0 ? myTreatments : treatments;
+  // Durée de travail propre à la praticienne (son leg du duo). Sert au calcul du
+  // gain en mode taux fixe. 0 → on retombe sur la durée totale du booking.
+  const myLegDuration = myTreatments.reduce(
+    (s, t) => s + (t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0),
+    0,
+  );
+
   const treatmentsTotalPrice = treatments.reduce((sum, t) => sum + treatmentLinePrice(t), 0);
   const grossPrice = Math.max(booking.total_price || 0, treatmentsTotalPrice);
   const giftAppliedCents = booking.gift_amount_applied_cents || 0;
@@ -663,7 +693,7 @@ const PwaBookingDetail = () => {
     if (booking.global_therapist_commission === false) {
       return computeTherapistEarnings(
         { rate_60: booking.therapist_rate_60 ?? null, rate_75: booking.therapist_rate_75 ?? null, rate_90: booking.therapist_rate_90 ?? null },
-        totalDuration,
+        myLegDuration > 0 ? myLegDuration : totalDuration,
       ) ?? 0;
     }
     const pricePerTherapist = grossPrice / Math.max(booking.guest_count || 1, 1);
@@ -940,7 +970,7 @@ const PwaBookingDetail = () => {
             <h3 className="text-xs font-semibold">Soins</h3>
             {booking.status === "confirmed" && <button onClick={() => setShowAddTreatmentDialog(true)} className="text-[10px] bg-primary text-white px-3 py-1 rounded">+ Ajouter</button>}
           </div>
-          {treatments.map(t => {
+          {visibleTreatments.map(t => {
             const effectiveDuration = t.treatment_variants?.duration ?? t.treatment_menus?.duration;
             const effectivePrice = treatmentLinePrice(t);
             const variantLabel = t.treatment_variants?.label;

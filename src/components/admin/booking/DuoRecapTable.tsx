@@ -65,7 +65,12 @@ export function DuoRecapTable({
 
     return Array.from({ length: Math.max(guestCount, 1) }, (_, i) => {
       const t = perTreatment ? treatments[i] : treatments[0];
-      const therapist = acceptedTherapists[i];
+      // Prefer the real stored soin↔therapist link; fall back to positional pairing
+      // for legacy bookings where booking_treatments.therapist_id is still null.
+      const therapist =
+        (t?.therapist_id
+          ? acceptedTherapists.find((at) => at.id === t.therapist_id)
+          : undefined) ?? acceptedTherapists[i];
       return {
         soin: t?.name ?? "-",
         duration: t?.duration ?? null,
