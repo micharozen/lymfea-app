@@ -21,6 +21,7 @@ export const SPECIALTY_OPTIONS: readonly SpecialtyDefinition[] = [
   { key: "hydrotherapy", labelFr: "Hydrothérapie", labelEn: "Hydrotherapy" },
   { key: "reflexology", labelFr: "Réflexologie", labelEn: "Reflexology" },
   { key: "ayurveda", labelFr: "Ayurvéda", labelEn: "Ayurveda" },
+  { key: "yoga", labelFr: "Yoga", labelEn: "Yoga" },
 ] as const;
 
 export function getSpecialtyLabel(key: string, locale: string): string {
