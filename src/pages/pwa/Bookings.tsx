@@ -190,12 +190,15 @@ const PwaBookings = () => {
 
       const venueScope = scope === "venue" && conciergeHotels.length > 0;
 
+      const mineSelect =
+        "*, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(treatment_menus(name, price, duration))";
+
       let query = supabase
         .from("bookings")
         .select(
           venueScope
             ? "*, treatment_rooms!bookings_trunk_id_fkey(name), therapists(first_name, last_name), booking_treatments(treatment_menus(name, price, duration))"
-            : "*, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(treatment_menus(name, price, duration))",
+            : mineSelect,
         );
 
       query = venueScope
@@ -210,13 +213,52 @@ const PwaBookings = () => {
 
       if (error) throw error;
 
-      const rows = (data ?? []) as Array<
-        Booking & {
-          treatment_rooms?: { name: string | null } | null;
-          therapists?: { first_name: string; last_name: string } | null;
-          therapist_name?: string | null;
+      type BookingRow = Booking & {
+        treatment_rooms?: { name: string | null } | null;
+        therapists?: { first_name: string; last_name: string } | null;
+        therapist_name?: string | null;
+      };
+
+      let rows = (data ?? []) as BookingRow[];
+
+      // In "mine" scope, also include duo bookings where this therapist is a
+      // secondary participant — linked via booking_therapists, not the primary
+      // therapist_id column. Without this, a duo soin assigned as secondary
+      // shows on the dashboard but not on the planning. Mirrors Dashboard.tsx.
+      if (!venueScope) {
+        const { data: btData } = await supabase
+          .from("booking_therapists")
+          .select("booking_id")
+          .eq("therapist_id", therapist.id)
+          .eq("status", "accepted");
+
+        if (!isMountedRef.current) return;
+
+        const primaryIds = new Set(rows.map((b) => b.id));
+        const secondaryIds = (btData ?? [])
+          .map((bt) => bt.booking_id)
+          .filter((id) => !primaryIds.has(id));
+
+        if (secondaryIds.length > 0) {
+          const { data: secondaryData, error: secondaryError } = await supabase
+            .from("bookings")
+            .select(mineSelect)
+            .in("id", secondaryIds)
+            .neq("status", "cancelled");
+
+          if (!isMountedRef.current) return;
+
+          if (secondaryError) throw secondaryError;
+
+          rows = [...rows, ...((secondaryData ?? []) as BookingRow[])].sort((a, b) => {
+            if (a.booking_date !== b.booking_date) {
+              return a.booking_date < b.booking_date ? 1 : -1;
+            }
+            return a.booking_time < b.booking_time ? 1 : -1;
+          });
         }
-      >;
+      }
+
       const mapped: Booking[] = rows.map((b) => ({
         ...b,
         room_name: b.treatment_rooms?.name ?? null,
