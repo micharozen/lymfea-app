@@ -61,6 +61,11 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
+import {
+  expandCartToSessions,
+  isComboDuoEligible,
+  buildComboDuoBookingParams,
+} from "@/features/admin-combo-duo";
 import { BOOKING_CLIENT_TYPES, type BookingClientType } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType, isPaymentStatusLocked } from "@/lib/clientTypePayment";
 
@@ -564,13 +569,24 @@ export default function EditBookingDialog({
           duration += getCartLineUnitDuration(treatment, item.variantId) * item.quantity;
         }
       });
+      // Duo bookings run their treatments in parallel (one therapist per treatment),
+      // so the booking duration is the longest treatment — not the sum. Mirror the
+      // creation flow (BookingModal → buildComboDuoBookingParams) which takes the max.
+      const sessions = expandCartToSessions(
+        cart
+          .map(item => ({ ...item, treatment: treatments.find(t => t.id === item.treatmentId) }))
+          .filter(item => item.treatment),
+      );
+      if (therapistCount > 1 && isComboDuoEligible(sessions)) {
+        duration = buildComboDuoBookingParams(sessions).duration;
+      }
       setTotalPrice(price);
       setTotalDuration(duration);
     } else {
       setTotalPrice(0);
       setTotalDuration(0);
     }
-  }, [cart, treatments]);
+  }, [cart, treatments, therapistCount]);
 
   useEffect(() => {
     if ((booking?.guest_count ?? 1) > 1 && acceptedTherapists) {
