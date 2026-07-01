@@ -23,6 +23,7 @@ const createFormSchema = (t: TFunction) =>
     phone: z.string().min(1, t("admin:customers.phoneRequired", "Le téléphone est requis")),
     email: z.string().email(t("admin:customers.emailInvalid", "Email invalide")).or(z.literal("")),
     language: z.enum(["fr", "en"]).default("fr"),
+    civility: z.enum(["madame", "monsieur"]).optional(),
   });
 
 export type CustomerFormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -55,6 +56,7 @@ export default function CustomerDetail() {
       phone: "",
       email: "",
       language: "fr",
+      civility: undefined,
     },
   });
 
@@ -82,6 +84,7 @@ export default function CustomerDetail() {
           phone: customer.phone || "",
           email: customer.email || "",
           language: (customer.language as "fr" | "en") || "fr",
+          civility: (customer.civility as "madame" | "monsieur") ?? undefined,
         });
 
         setCustomerName(`${customer.first_name} ${customer.last_name || ""}`.trim());
@@ -114,6 +117,7 @@ export default function CustomerDetail() {
         phone: values.phone,
         email: values.email || null,
         language: values.language,
+        civility: values.civility ?? null,
         preferred_therapist_id: preferredTherapistId || null,
         preferred_treatment_type: preferredTreatmentType || null,
         health_notes: healthNotes || null,
