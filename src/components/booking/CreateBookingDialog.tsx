@@ -274,8 +274,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     })
     .filter((x): x is AmenityAccessPayload => x !== null);
 
+  const canEditPrice = isAdmin || isConcierge;
+
   useEffect(() => {
-    if (isAdmin && hasOnRequestService && cart.length > 0) {
+    if (canEditPrice && hasOnRequestService && cart.length > 0) {
       if (!customPrice) setCustomPrice(String(totalPrice));
       if (!customDuration) setCustomDuration(String(totalDuration));
     }
@@ -283,13 +285,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       setCustomPrice("");
       setCustomDuration("");
     }
-  }, [totalPrice, totalDuration, cart.length, isAdmin, hasOnRequestService]);
+  }, [totalPrice, totalDuration, cart.length, canEditPrice, hasOnRequestService]);
 
-  const finalPrice = isAdmin && hasOnRequestService && customPrice ? Number(customPrice) : totalPrice;
+  const finalPrice = canEditPrice && hasOnRequestService && customPrice ? Number(customPrice) : totalPrice;
   const catalogDuration = comboDuoEnabled
     ? buildComboDuoBookingParams(sessions).duration
     : totalDuration;
-  const finalDuration = isAdmin && hasOnRequestService && customDuration
+  const finalDuration = canEditPrice && hasOnRequestService && customDuration
     ? Number(customDuration)
     : catalogDuration;
 
@@ -551,6 +553,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   treatments={treatments}
                   selectedHotel={selectedHotel}
                   isAdmin={isAdmin}
+                  isConcierge={isConcierge}
                   cart={cart}
                   cartDetails={cartDetails}
                   addToCart={addToCart}
