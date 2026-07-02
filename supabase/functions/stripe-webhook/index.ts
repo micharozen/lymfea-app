@@ -6,22 +6,24 @@ import {
   buildPaymentConfirmedTemplateMessage,
   formatDateForWhatsApp,
 } from '../_shared/whatsapp-meta.ts';
-import { brand } from "../_shared/brand.ts";
+import { brand, transactionalFrom } from "../_shared/brand.ts";
 import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 import { getStripeForVenue, getGlobalStripe } from "../_shared/stripe-resolver.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { sendEmail } from "../_shared/send-email.ts";
+import { buildPendingVars, buildConfirmedVars } from "../_shared/booking-email-vars.ts";
+import { getBookingConfirmedHtml } from "../_shared/templates/booking-confirmed.ts";
+import { getBookingPendingHtml } from "../_shared/templates/booking-pending.ts";
+import { buildBookingIcs } from "../_shared/ics.ts";
 
-// Resend templates for the client payment-link flow.
-// - PENDING: booking paid but no therapist assigned yet (awaiting acceptance).
-// - BOOKING_CONFIRMED: booking already confirmed (a therapist is assigned) but
-//   not yet paid at creation — the operator sent a payment link manually, so the
-//   confirmation email is held back until payment lands here.
-const CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR = "c5378102-92c7-48de-834c-db17da702794";
-const CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN = "4d48ce0b-92c3-4ef7-8685-4f3905e34820";
-const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
-const BOOKING_CONFIRMED_TEMPLATE_ID_EN = "c73fa801-c20f-40ef-834a-4d3eb2d7d96c";
+/** UTF-8-safe base64 (btoa alone breaks on accented chars in the .ics). */
+function toBase64Utf8(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
 
 serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
@@ -106,7 +108,8 @@ serve(async (req) => {
               payment_status,
               payment_link_language,
               payment_link_channels,
-              hotels(currency, contact_email, address, postal_code, city, country, organizations(name))
+              customer_id,
+              hotels(name, currency, image, contact_email, address, postal_code, city, country, timezone, website_url, cancellation_policy_text_en, cancellation_policy_text_fr, organizations(name))
             `)
             .eq('id', metadata.booking_id)
             .single();
@@ -171,32 +174,74 @@ serve(async (req) => {
           
           // Venue fields resolved from the embed on the booking fetch above.
           const venue = (booking as any).hotels as {
+            name?: string | null;
             currency?: string | null;
+            image?: string | null;
             contact_email?: string | null;
             address?: string | null;
             postal_code?: string | null;
             city?: string | null;
             country?: string | null;
+            timezone?: string | null;
+            website_url?: string | null;
             organizations?: { name?: string | null } | null;
           } | null;
           const currency = (venue?.currency || 'EUR').toUpperCase();
           const venueContactEmail = venue?.contact_email || brand.legal.contactEmail;
           const venueOrganizationName = venue?.organizations?.name || brand.name;
-          const venueAddress = [venue?.address, venue?.postal_code, venue?.city, venue?.country]
-            .filter(Boolean)
-            .join(', ');
 
           const { data: bookingTreatments } = await supabase
             .from('booking_treatments')
-            .select('price_override, treatment_menus (name, price), treatment_variants (price)')
+            .select('price_override, treatment_menus (name, price, duration), treatment_variants (price)')
             .eq('booking_id', booking.id);
 
           const treatmentRows = (bookingTreatments ?? []).map(bt => {
             const menu = bt.treatment_menus as any;
-            return { name: menu?.name || '', price: resolveTreatmentPrice(bt as any) };
+            return {
+              name: menu?.name || '',
+              price: resolveTreatmentPrice(bt as any),
+              duration: Number(menu?.duration) || 0,
+            };
           });
           const treatmentsList = treatmentRows.map(t => t.name).filter(Boolean).join(', ') || 'Service bien-être';
-          const treatmentPrice = treatmentRows.reduce((sum, t) => sum + t.price, 0);
+
+          // Civilité (fiche customer) → salutation personnalisée dans les emails.
+          let customerCivility: string | null = null;
+          if ((booking as any).customer_id) {
+            const { data: customerRow } = await supabase
+              .from('customers')
+              .select('civility')
+              .eq('id', (booking as any).customer_id)
+              .maybeSingle();
+            customerCivility = (customerRow as any)?.civility ?? null;
+          }
+
+          // Langue + contexte partagé pour les deux templates client ci-dessous.
+          // Le builder centralise civilité, nom, dates, prix, durée, devise et
+          // logo du lieu.
+          const clientLanguage: 'fr' | 'en' = booking.payment_link_language === 'en' ? 'en' : 'fr';
+          const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
+          const emailCtx = {
+            booking: {
+              booking_id: booking.booking_id,
+              client_first_name: booking.client_first_name,
+              client_last_name: booking.client_last_name,
+              phone: booking.phone,
+              room_number: booking.room_number,
+              therapist_name: (booking as any).therapist_name,
+              total_price: booking.total_price,
+              hotel_name: booking.hotel_name,
+              booking_date: booking.booking_date,
+              booking_time: booking.booking_time,
+            },
+            venue,
+            civility: customerCivility,
+            lang: clientLanguage,
+            treatments: treatmentRows,
+            bookingUrl: `${siteUrl}/booking/manage/${booking.id}`,
+            contactEmail: venueContactEmail,
+            organizationName: venueOrganizationName,
+          };
 
           if (wasWhatsAppUsed && clientPhone) {
             try {
@@ -230,30 +275,13 @@ serve(async (req) => {
           // back (unpaid) — send BOOKING_CONFIRMED now that payment has landed.
           if (booking.client_email && booking.status === 'pending') {
             try {
-              const clientLanguage: 'fr' | 'en' = booking.payment_link_language === 'en' ? 'en' : 'fr';
-              const formattedDate = new Date(booking.booking_date).toLocaleDateString(
-                clientLanguage === 'en' ? 'en-US' : 'fr-FR',
-                { weekday: 'short', day: 'numeric', month: 'short' },
-              );
-              const formattedTime = booking.booking_time?.substring(0, 5) || '';
-
               const emailResult = await sendEmail({
                 to: booking.client_email,
                 subject: clientLanguage === 'en'
                   ? `Booking request #${booking.booking_id} · ${booking.hotel_name ?? ''}`
                   : `Demande de réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
-                templateId: clientLanguage === 'en'
-                  ? CLIENT_PENDING_BOOKING_TEMPLATE_ID_EN
-                  : CLIENT_PENDING_BOOKING_TEMPLATE_ID_FR,
-                templateVariables: {
-                  booking_date: formattedDate,
-                  booking_time: formattedTime,
-                  first_name: booking.client_first_name ?? '',
-                  hotel_name: booking.hotel_name ?? '',
-                  venue_name: booking.hotel_name ?? '',
-                  room_number: booking.room_number ? String(booking.room_number) : '',
-                  treatment_name: treatmentsList,
-                },
+                from: transactionalFrom(clientLanguage),
+                html: getBookingPendingHtml(clientLanguage, buildPendingVars(emailCtx)),
                 audit: { bookingId: booking.id, emailType: 'new_booking_notifications', metadata: { booking_number: booking.booking_id } },
               });
 
@@ -269,41 +297,29 @@ serve(async (req) => {
             // Confirmed-at-creation booking whose confirmation email was held back
             // because payment wasn't engaged. Payment has now landed → send it.
             try {
-              const clientLanguage: 'fr' | 'en' = booking.payment_link_language === 'en' ? 'en' : 'fr';
-              const formattedDate = new Date(booking.booking_date).toLocaleDateString(
-                clientLanguage === 'en' ? 'en-US' : 'fr-FR',
-                { weekday: 'short', day: 'numeric', month: 'short' },
-              );
-              const formattedTime = booking.booking_time?.substring(0, 5) || '';
-              const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
-              const clientName = `${booking.client_first_name ?? ''} ${booking.client_last_name ?? ''}`.trim();
-
+              const icsResult = buildBookingIcs({
+                id: booking.id,
+                booking_id: booking.booking_id,
+                booking_date: booking.booking_date,
+                booking_time: booking.booking_time,
+                venue_name: venue?.name || booking.hotel_name,
+                timezone: venue?.timezone,
+                address: venue?.address,
+                postal_code: venue?.postal_code,
+                city: venue?.city,
+                country: venue?.country,
+                treatments: treatmentRows,
+              });
               const emailResult = await sendEmail({
                 to: booking.client_email,
                 subject: clientLanguage === 'en'
-                  ? `Booking #${booking.booking_id} · ${booking.hotel_name ?? ''}`
-                  : `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
-                templateId: clientLanguage === 'en'
-                  ? BOOKING_CONFIRMED_TEMPLATE_ID_EN
-                  : BOOKING_CONFIRMED_TEMPLATE_ID,
-                templateVariables: {
-                  booking_date: formattedDate,
-                  booking_number: String(booking.booking_id ?? ''),
-                  booking_time: formattedTime,
-                  booking_url: `${siteUrl}/booking/manage/${booking.id}`,
-                  client_name: clientName,
-                  client_phone: booking.phone ?? '',
-                  contact_email: venueContactEmail,
-                  hotel_name: booking.hotel_name ?? '',
-                  organization_name: venueOrganizationName,
-                  venue_address: venueAddress,
-                  venue_name: booking.hotel_name ?? '',
-                  room_number: booking.room_number ? String(booking.room_number) : '',
-                  therapist_name: (booking as any).therapist_name ?? '',
-                  total_price: `${booking.total_price ?? 0}€`,
-                  treatment_name: treatmentsList,
-                  treatment_price: `${treatmentPrice}€`,
-                },
+                  ? `✅ Your treatment is confirmed · ${booking.hotel_name ?? ''}`
+                  : `✅ Votre soin est confirmé · ${booking.hotel_name ?? ''}`,
+                from: transactionalFrom(clientLanguage),
+                html: getBookingConfirmedHtml(clientLanguage, buildConfirmedVars(emailCtx)),
+                attachments: icsResult
+                  ? [{ filename: icsResult.filename, content: toBase64Utf8(icsResult.ics), contentType: "text/calendar" }]
+                  : undefined,
                 audit: { bookingId: booking.id, emailType: 'booking_confirmed', metadata: { booking_number: booking.booking_id } },
               });
 

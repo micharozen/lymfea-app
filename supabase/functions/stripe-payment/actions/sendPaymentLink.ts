@@ -9,6 +9,7 @@ import {
 } from "../../_shared/whatsapp-meta.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
 import { resolveTreatmentPrice } from "../../_shared/treatmentPrice.ts";
+import { buildPaymentLinkVars } from "../../_shared/booking-email-vars.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import type { ActionContext } from "../index.ts";
 
@@ -92,7 +93,8 @@ export async function handleSendPaymentLink(
         payment_method,
         hotel_id,
         hotel_name,
-        therapist_name
+        therapist_name,
+        customer_id
       `,
       )
       .eq("id", bookingId)
@@ -114,6 +116,7 @@ export async function handleSendPaymentLink(
     const contactEmail = brand.emails.from.default;
     const contactPhone = "";
     let hotelImageUrl = "";
+    let hotelLogo = "";
     let hotelTimezone = "Europe/Paris";
 
     if (booking.hotel_id) {
@@ -127,6 +130,7 @@ export async function handleSendPaymentLink(
         if (hotel.timezone) hotelTimezone = hotel.timezone;
         if (hotel.currency) hotelCurrency = hotel.currency.toLowerCase();
         hotelImageUrl = hotel.cover_image || hotel.image || "";
+        hotelLogo = hotel.image || "";
       }
     }
 
@@ -167,6 +171,17 @@ export async function handleSendPaymentLink(
 
     const currency = hotelCurrency;
     const currencySymbol = currency === "eur" ? "€" : currency.toUpperCase();
+
+    // Civilité (fiche customer) → salutation personnalisée dans l'email.
+    let customerCivility: string | null = null;
+    if ((booking as any).customer_id) {
+      const { data: customerRow } = await supabase
+        .from("customers")
+        .select("civility")
+        .eq("id", (booking as any).customer_id)
+        .maybeSingle();
+      customerCivility = (customerRow as any)?.civility ?? null;
+    }
 
     const email = clientEmail || booking.client_email;
     const phone = clientPhone || booking.phone;
@@ -299,30 +314,37 @@ export async function handleSendPaymentLink(
 
     if (channels.includes("email") && email) {
       try {
-        const totalDuration = treatments.reduce(
-          (sum, t) => sum + (t.duration || 60),
-          0,
-        );
-
-        // Variables du template Resend (mêmes clés que trigger-new-booking-notifications)
+        // Intro rendue côté code ; le builder centralise les variables Resend
+        // (civilité, dates, prix, durée, devise, logo du lieu).
         const introText =
           language === "fr"
             ? `Bonjour ${booking.client_first_name}, merci pour votre réservation. Pour la confirmer, veuillez procéder au paiement.`
             : `Hello ${booking.client_first_name}, thank you for your booking. To confirm it, please complete the payment.`;
 
-        const templateVariables: Record<string, string> = {
-          booking_date: templateData.bookingDate,
-          booking_number: String(booking.booking_id ?? ""),
-          booking_time: templateData.bookingTime,
-          expiry_date: expiresAtText,
-          intro_text: introText,
-          payment_url: templateData.paymentUrl,
-          total_price: `${totalPrice}${currencySymbol}`,
-          treatment_duration: `${totalDuration} min`,
-          treatment_name: treatments.map((t) => t.name).filter(Boolean).join(", "),
-          treatment_price: `${totalPrice}${currencySymbol}`,
-          venue_name: templateData.hotelName,
-        };
+        const templateVariables = buildPaymentLinkVars(
+          {
+            booking: {
+              booking_id: booking.booking_id,
+              client_first_name: booking.client_first_name,
+              client_last_name: booking.client_last_name,
+              room_number: booking.room_number,
+              total_price: booking.total_price,
+              hotel_name: booking.hotel_name,
+              booking_date: booking.booking_date,
+              booking_time: booking.booking_time,
+            },
+            venue: { image: hotelLogo, currency: hotelCurrency },
+            civility: customerCivility,
+            lang: language === "en" ? "en" : "fr",
+            treatments,
+          },
+          {
+            paymentUrl: templateData.paymentUrl,
+            expiryDate: expiresAtText,
+            introText,
+            totalAmount: totalPrice ?? undefined,
+          },
+        );
 
         const templateId =
           language === "fr" ? PAYMENT_LINK_TEMPLATE_FR : PAYMENT_LINK_TEMPLATE_EN;

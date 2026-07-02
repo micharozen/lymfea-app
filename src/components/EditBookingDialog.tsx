@@ -207,6 +207,10 @@ export default function EditBookingDialog({
   const [roomNumber, setRoomNumber] = useState("");
   const [clientNote, setClientNote] = useState("");
   const [clientType, setClientType] = useState<BookingClientType>("external");
+  // Civilité du client, stockée sur la fiche customer (pas sur le booking).
+  // Chargée et persistée séparément via customer_id.
+  const [civility, setCivility] = useState<"madame" | "monsieur" | "">("");
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("");
   const [status, setStatus] = useState("En attente");
@@ -273,6 +277,31 @@ export default function EditBookingDialog({
       setTherapistIds(guestCount > 1 ? Array(guestCount).fill('') : []);
     }
   }, [booking, open, initialMode]);
+
+  // Civilité vit sur la fiche customer — résolue via booking.customer_id (absent
+  // de l'objet booking passé en prop), donc fetch dédié à l'ouverture.
+  useEffect(() => {
+    if (!open || !booking?.id) {
+      setCivility("");
+      setCustomerId(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bookings")
+        .select("customer_id, customers(civility)")
+        .eq("id", booking.id)
+        .single();
+      if (cancelled) return;
+      setCustomerId(data?.customer_id ?? null);
+      const civ = (data?.customers as { civility?: string | null } | null)?.civility;
+      setCivility(civ === "madame" || civ === "monsieur" ? civ : "");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, booking?.id]);
 
   const { data: userRole } = useQuery({
     queryKey: ["user-role"],
@@ -678,6 +707,54 @@ export default function EditBookingDialog({
 
       if (bookingError) throw bookingError;
 
+      // La fiche customer est la source de vérité des infos client (à terme les
+      // colonnes client_* du booking seront supprimées). On y propage donc
+      // l'identité éditée par l'admin (prénom, nom, téléphone, civilité).
+      // Concierge : champs client non éditables → on ne touche pas la fiche.
+      // Non bloquant : un échec de sync ne doit pas casser l'édition du booking.
+      if (!isConcierge) {
+        // Téléphone normalisé (sans espaces) — convention de la table customers
+        // et clé de déduplication (cf. find_or_create_customer).
+        const normalizedPhone = bookingData.phone
+          ? String(bookingData.phone).replace(/\s/g, "")
+          : null;
+        if (customerId) {
+          const { error: customerError } = await supabase
+            .from("customers")
+            .update({
+              first_name: bookingData.client_first_name || null,
+              last_name: bookingData.client_last_name || null,
+              phone: normalizedPhone,
+              civility: bookingData.civility ?? null,
+            })
+            .eq("id", customerId);
+          if (customerError) {
+            console.error("Error syncing customer record:", customerError);
+          }
+        } else if (normalizedPhone) {
+          // Pas encore de fiche customer (booking historique sans téléphone, ou
+          // téléphone ajouté à l'édition) → on crée/relie via la RPC de dédup,
+          // puis on rattache le booking.
+          const { data: newCustomerId, error: rpcError } = await supabase.rpc(
+            "find_or_create_customer",
+            {
+              _phone: normalizedPhone,
+              _first_name: bookingData.client_first_name,
+              _last_name: bookingData.client_last_name,
+              _civility: bookingData.civility ?? null,
+            },
+          );
+          if (rpcError) {
+            console.error("Error creating customer record:", rpcError);
+          } else if (newCustomerId) {
+            await supabase
+              .from("bookings")
+              .update({ customer_id: newCustomerId })
+              .eq("id", booking.id);
+          }
+        }
+      }
+
       const { error: deleteTreatmentsError } = await supabase
         .from("booking_treatments")
         .delete()
@@ -1077,6 +1154,9 @@ export default function EditBookingDialog({
         ? (booking?.client_note ?? null)
         : (clientNote.trim() ? clientNote.trim() : null),
       client_type: clientType,
+      // Civilité éditable par l'admin uniquement (champs client désactivés pour
+      // le concierge). undefined = ne pas toucher la fiche customer.
+      civility: isConcierge ? undefined : (civility || null),
       therapistIds: isDuo ? therapistIds : undefined,
     });
   };
@@ -1867,6 +1947,25 @@ export default function EditBookingDialog({
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">
+                  Civilité <span className="text-muted-foreground font-normal">(optionnel)</span>
+                </Label>
+                <Select
+                  value={civility}
+                  onValueChange={(value) => setCivility(value as "madame" | "monsieur")}
+                  disabled={clientFieldsDisabled}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Civilité" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="madame">Madame</SelectItem>
+                    <SelectItem value="monsieur">Monsieur</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-2">

@@ -166,7 +166,7 @@ export function BookingInfoStep({
     queryFn: async () => {
       let q = supabase
         .from("customers")
-        .select("id, first_name, last_name, phone, email, language")
+        .select("id, first_name, last_name, phone, email, language, civility")
         .limit(5);
       if (isPhoneSearch) {
         const normalized = trimmedCustomerSearch.replace(/\s/g, "");
@@ -177,12 +177,13 @@ export function BookingInfoStep({
         );
       }
       const { data } = await q;
-      return (data as Array<{ id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null }>) || [];
+      return (data as Array<{ id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null; civility: string | null }>) || [];
     },
   });
 
-  const handleSelectCustomer = (c: { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null }) => {
+  const handleSelectCustomer = (c: { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null; civility: string | null }) => {
     setSelectedCustomerId(c.id);
+    if (c.civility === "madame" || c.civility === "monsieur") form.setValue("civility", c.civility);
     if (c.first_name) form.setValue("clientFirstName", c.first_name);
     if (c.last_name) form.setValue("clientLastName", c.last_name);
     if (c.email) form.setValue("clientEmail", c.email);
@@ -842,6 +843,31 @@ export function BookingInfoStep({
           </div>
         )}
       </div>
+
+      <FormField
+        control={form.control}
+        name="civility"
+        render={({ field }) => (
+          <FormItem className="space-y-1">
+            <FormLabel className="text-xs">
+              {t('booking.civility.label')}{' '}
+              <span className="text-muted-foreground font-normal">{t('booking.civility.optional')}</span>
+            </FormLabel>
+            <Select value={field.value ?? ''} onValueChange={field.onChange}>
+              <FormControl>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={t('booking.civility.label')} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="madame">{t('booking.civility.madame')}</SelectItem>
+                <SelectItem value="monsieur">{t('booking.civility.monsieur')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage className="text-xs" />
+          </FormItem>
+        )}
+      />
 
       <div className="grid grid-cols-2 gap-2">
         <FormField

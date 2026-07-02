@@ -12,6 +12,9 @@ export const createFormSchema = (t: TFunction) => z.object({
   slot3Date: z.date().optional(),
   slot3Time: z.string().optional(),
   clientType: z.enum(['hotel', 'staycation', 'classpass', 'external']).default('external'),
+  // Civilité du client (optionnel) — stockée sur la fiche customer, réutilisée
+  // dans les salutations des emails/SMS.
+  civility: z.enum(['madame', 'monsieur']).optional(),
   clientFirstName: z.string().min(1, t('errors.validation.firstNameRequired')),
   clientLastName: z.string().min(1, t('errors.validation.lastNameRequired')),
   clientEmail: z.string().email(t('errors.validation.emailInvalid')).optional().or(z.literal('')), 

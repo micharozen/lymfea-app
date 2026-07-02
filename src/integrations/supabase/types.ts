@@ -1367,6 +1367,7 @@ export type Database = {
       customers: {
         Row: {
           auth_user_id: string | null
+          civility: string | null
           created_at: string
           email: string | null
           first_name: string | null
@@ -1383,6 +1384,7 @@ export type Database = {
         }
         Insert: {
           auth_user_id?: string | null
+          civility?: string | null
           created_at?: string
           email?: string | null
           first_name?: string | null
@@ -1399,6 +1401,7 @@ export type Database = {
         }
         Update: {
           auth_user_id?: string | null
+          civility?: string | null
           created_at?: string
           email?: string | null
           first_name?: string | null
@@ -3735,6 +3738,7 @@ export type Database = {
       expire_overdue_bundles: { Args: never; Returns: number }
       find_or_create_customer: {
         Args: {
+          _civility?: string
           _email?: string
           _first_name: string
           _language?: string

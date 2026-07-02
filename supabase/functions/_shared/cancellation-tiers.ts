@@ -3,6 +3,8 @@
  * Keep in sync with src/lib/cancellationTiers.ts
  */
 
+import { venueLocalToUtc } from "./venue-time.ts";
+
 export type CancellationTier = {
   max_hours: number;
   min_hours: number;
@@ -82,35 +84,7 @@ export function hoursUntilBooking(
   bookingTime: string,
   timezone = "UTC",
 ): number | null {
-  if (!bookingDate || !bookingTime) return null;
-  const [year, month, day] = bookingDate.split("-").map(Number);
-  const [hour, minute, second = 0] = bookingTime.split(":").map(Number);
-  if ([year, month, day, hour, minute, second].some((v) => Number.isNaN(v))) {
-    return null;
-  }
-  const localAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date(localAsUtc)).reduce<Record<string, string>>((acc, part) => {
-    if (part.type !== "literal") acc[part.type] = part.value;
-    return acc;
-  }, {});
-  const asIfLocal = Date.UTC(
-    Number(parts.year),
-    Number(parts.month) - 1,
-    Number(parts.day),
-    Number(parts.hour),
-    Number(parts.minute),
-    Number(parts.second),
-  );
-  const timezoneOffsetMs = asIfLocal - localAsUtc;
-  const bookingMs = localAsUtc - timezoneOffsetMs;
-  return (bookingMs - Date.now()) / (1000 * 60 * 60);
+  const bookingDateUtc = venueLocalToUtc(bookingDate, bookingTime, timezone);
+  if (!bookingDateUtc) return null;
+  return (bookingDateUtc.getTime() - Date.now()) / (1000 * 60 * 60);
 }

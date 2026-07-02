@@ -16,12 +16,20 @@ export interface EmailAuditInfo {
   metadata?: Record<string, unknown>;
 }
 
+/** A file attached to the email. `content` is base64-encoded (Resend format). */
+export interface EmailAttachment {
+  filename: string;
+  content: string;
+  contentType?: string;
+}
+
 interface SendEmailWithHtml {
   to: string | string[];
   subject: string;
   from?: string;
   html: string;
   headers?: Record<string, string>;
+  attachments?: EmailAttachment[];
   audit?: EmailAuditInfo;
   templateId?: never;
   templateVariables?: never;
@@ -33,6 +41,7 @@ interface SendEmailWithTemplate {
   from?: string;
   html?: never;
   headers?: Record<string, string>;
+  attachments?: EmailAttachment[];
   audit?: EmailAuditInfo;
   templateId: string;
   templateVariables?: Record<string, string>;
@@ -75,6 +84,14 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     };
   } else if (options.html) {
     body.html = options.html;
+  }
+
+  if (options.attachments && options.attachments.length > 0) {
+    body.attachments = options.attachments.map((a) => ({
+      filename: a.filename,
+      content: a.content,
+      ...(a.contentType ? { content_type: a.contentType } : {}),
+    }));
   }
 
   if (options.headers && Object.keys(options.headers).length > 0) {
