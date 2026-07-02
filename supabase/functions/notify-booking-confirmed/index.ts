@@ -1,15 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { brand } from "../_shared/brand.ts";
+import { brand, transactionalFrom } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 import { sendSms } from "../_shared/send-sms.ts";
-import { civilityLabel } from "../_shared/civility.ts";
-
-const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
-const BOOKING_CONFIRMED_TEMPLATE_ID_EN = "c73fa801-c20f-40ef-834a-4d3eb2d7d96c";
+import { buildConfirmedVars, clientGreeting, type EmailVenue } from "../_shared/booking-email-vars.ts";
+import { getBookingConfirmedHtml, getBookingConfirmedAdminHtml } from "../_shared/templates/booking-confirmed.ts";
+import { buildBookingIcs } from "../_shared/ics.ts";
+import type { EmailAttachment } from "../_shared/send-email.ts";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/** UTF-8-safe base64 (btoa alone breaks on accented chars in the .ics). */
+function toBase64Utf8(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,7 +59,7 @@ serve(async (req) => {
         short_token,
         customer_id,
         language,
-        hotels(organization_id, address, postal_code, city, country, contact_email, organizations(name))
+        hotels(organization_id, name, address, postal_code, city, country, timezone, website_url, contact_email, image, currency, cancellation_policy_text_en, cancellation_policy_text_fr, organizations(name))
       `)
       .eq('id', bookingId)
       .single();
@@ -101,12 +109,16 @@ serve(async (req) => {
 
     const { data: bookingTreatments } = await supabase
       .from('booking_treatments')
-      .select('treatment_id, price_override, treatment_menus(name, price), treatment_variants(price)')
+      .select('treatment_id, price_override, treatment_menus(name, price, duration), treatment_variants(price)')
       .eq('booking_id', bookingId);
 
     const treatments = bookingTreatments?.map(bt => {
       const menu = bt.treatment_menus as any;
-      return { name: menu?.name || 'Unknown', price: resolveTreatmentPrice(bt as any) };
+      return {
+        name: menu?.name || 'Unknown',
+        price: resolveTreatmentPrice(bt as any),
+        duration: Number(menu?.duration) || 0,
+      };
     }) || [];
 
     // Client language drives which confirmation template (FR/EN) is sent to the
@@ -152,40 +164,61 @@ serve(async (req) => {
 
     const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
     const bookingDetailsUrl = `${siteUrl}/admin/bookings/${bookingId}`;
+    // Client-facing manage URL (short token link, else the manage route) — the
+    // admin detail URL must not leak into the client email. Mirrors the SMS.
+    const shortToken = (booking as any).short_token;
+    const clientManageUrl = shortToken
+      ? `${siteUrl}/m/${shortToken}`
+      : `${siteUrl}/booking/manage/${bookingId}`;
+    // "Add to calendar" endpoint (public booking-ics edge function).
+    const calendarUrl = `${supabaseUrl}/functions/v1/booking-ics?b=${booking.id}`;
 
-    const treatmentName = treatments.map(t => t.name).join(', ');
-    const treatmentPrice = treatments.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+    const venue = (booking as any).hotels as (EmailVenue & { name?: string | null; timezone?: string | null }) | null;
 
-    const venue = (booking as any).hotels;
-    const venueAddress = [venue?.address, venue?.postal_code, venue?.city, venue?.country]
-      .filter(Boolean)
-      .join(', ');
+    // Build the .ics once and attach it to the client email so the appointment
+    // lands directly in Apple/Google/Outlook (the "Add to calendar" button
+    // linking to booking-ics stays as a fallback). Same generator as booking-ics.
+    const icsResult = buildBookingIcs({
+      id: booking.id,
+      booking_id: booking.booking_id,
+      booking_date: booking.booking_date,
+      booking_time: booking.booking_time,
+      venue_name: venue?.name || booking.hotel_name,
+      timezone: venue?.timezone,
+      address: venue?.address,
+      postal_code: venue?.postal_code,
+      city: venue?.city,
+      country: venue?.country,
+      treatments,
+    });
+    const clientAttachments: EmailAttachment[] | undefined = icsResult
+      ? [{ filename: icsResult.filename, content: toBase64Utf8(icsResult.ics), contentType: "text/calendar" }]
+      : undefined;
 
-    // Civilité (depuis la fiche customer) → salutation personnalisée. Quand elle
-    // est présente, on préfixe le nom de famille ("Madame Dupont") ; sinon on
-    // garde prénom + nom. La variable client_civility est aussi exposée au template.
-    const civLabel = civilityLabel(customerCivility, clientLanguage);
-    const clientName = civLabel
-      ? `${civLabel} ${booking.client_last_name ?? ''}`.trim()
-      : `${booking.client_first_name ?? ''} ${booking.client_last_name ?? ''}`.trim();
-
-    const templateVariables: Record<string, string> = {
-      booking_number: String(booking.booking_id ?? ''),
-      booking_date: `${formattedDate} ${formattedTime}`.trim(),
-      booking_url: bookingDetailsUrl,
-      client_civility: civLabel ?? '',
-      client_name: clientName,
-      client_phone: booking.phone ?? '',
-      hotel_name: booking.hotel_name ?? '',
-      room_number: booking.room_number ? String(booking.room_number) : '',
-      therapist_name: booking.therapist_name ?? '',
-      total_price: `${booking.total_price ?? 0}€`,
-      treatment_name: treatmentName,
-      treatment_price: `${treatmentPrice}€`,
-      contact_email: venue?.contact_email ?? '',
-      venue_address: venueAddress,
-      organization_name: venue?.organizations?.name ?? '',
+    // Shared email variables (civilité, nom, dates, prix, durée, logo du lieu…)
+    // sont construits par le builder centralisé. Les emails admin/concierge
+    // restent en français ; l'email client suit la langue résolue du client.
+    const emailCtx = {
+      booking: {
+        booking_id: booking.booking_id,
+        client_first_name: booking.client_first_name,
+        client_last_name: booking.client_last_name,
+        phone: booking.phone,
+        room_number: booking.room_number,
+        therapist_name: booking.therapist_name,
+        total_price: booking.total_price,
+        hotel_name: booking.hotel_name,
+        booking_date: booking.booking_date,
+        booking_time: booking.booking_time,
+      },
+      venue,
+      civility: customerCivility,
+      treatments,
+      bookingUrl: bookingDetailsUrl,
+      calendarUrl,
     };
+    const adminVars = buildConfirmedVars({ ...emailCtx, lang: 'fr', variant: 'admin' });
+    const clientVars = buildConfirmedVars({ ...emailCtx, lang: clientLanguage, bookingUrl: clientManageUrl, variant: 'client' });
 
     const subject = `✅ #${booking.booking_id} confirmée · ${booking.therapist_name ?? ''}`;
 
@@ -211,8 +244,8 @@ serve(async (req) => {
         const { error: emailError } = await sendEmail({
           to: admin.email,
           subject,
-          templateId: BOOKING_CONFIRMED_TEMPLATE_ID,
-          templateVariables,
+          from: transactionalFrom('fr'),
+          html: getBookingConfirmedAdminHtml(adminVars),
         });
 
         if (emailError) {
@@ -248,8 +281,8 @@ serve(async (req) => {
           const { error: emailError } = await sendEmail({
             to: concierge.email,
             subject: `✅ #${booking.booking_id} confirmée · ${booking.hotel_name ?? ''}`,
-            templateId: BOOKING_CONFIRMED_TEMPLATE_ID,
-            templateVariables,
+            from: transactionalFrom('fr'),
+            html: getBookingConfirmedAdminHtml(adminVars),
           });
 
           if (emailError) {
@@ -279,15 +312,11 @@ serve(async (req) => {
       const { error: emailError } = await sendEmail({
         to: booking.client_email,
         subject: clientLanguage === 'en'
-          ? `✅ Your appointment is confirmed · ${clientFormattedDate}`
-          : `✅ Votre RDV est confirmé · ${clientFormattedDate}`,
-        templateId: clientLanguage === 'en'
-          ? BOOKING_CONFIRMED_TEMPLATE_ID_EN
-          : BOOKING_CONFIRMED_TEMPLATE_ID,
-        templateVariables: {
-          ...templateVariables,
-          booking_date: `${clientFormattedDate} ${formattedTime}`.trim(),
-        },
+          ? `✅ Your treatment is confirmed · ${booking.hotel_name ?? ''}`
+          : `✅ Votre soin est confirmé · ${booking.hotel_name ?? ''}`,
+        from: transactionalFrom(clientLanguage),
+        html: getBookingConfirmedHtml(clientLanguage, clientVars),
+        attachments: clientAttachments,
         audit: { bookingId: booking.id, emailType: 'booking_confirmed', metadata: { booking_number: booking.booking_id } },
       });
 
@@ -310,15 +339,13 @@ serve(async (req) => {
     const clientPhone: string = (booking as any).phone ?? (booking as any).client_phone ?? '';
     if (clientPhone && clientEmailOk && isPaidEnough) {
       try {
-        const firstName = booking.client_first_name ?? '';
         // Civilité : "Madame Dupont" si renseignée, sinon le prénom.
-        const smsGreetingName = civLabel
-          ? `${civLabel} ${booking.client_last_name ?? ''}`.trim()
-          : firstName;
-        const shortToken = (booking as any).short_token;
-        const clientManageUrl = shortToken
-          ? `${siteUrl}/m/${shortToken}`
-          : `${siteUrl}/booking/manage/${bookingId}`;
+        const { greetingName: smsGreetingName } = clientGreeting(
+          customerCivility,
+          booking.client_first_name,
+          booking.client_last_name,
+          clientLanguage,
+        );
         const smsBody = clientLanguage === 'en'
           ? `Hello ${smsGreetingName}, your treatment at ${booking.hotel_name ?? ''} on ${formattedDate} at ${formattedTime} is confirmed. Manage: ${clientManageUrl}`
           : `Bonjour ${smsGreetingName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${clientManageUrl}`;

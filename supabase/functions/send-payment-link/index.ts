@@ -9,6 +9,7 @@ import { sendSms } from '../_shared/send-sms.ts';
 import { getStripeForVenue } from '../_shared/stripe-resolver.ts';
 import { resolveTreatmentPrice } from '../_shared/treatmentPrice.ts';
 import { civilityLabel } from '../_shared/civility.ts';
+import { buildPaymentLinkVars } from '../_shared/booking-email-vars.ts';
 
 // Resend templates "Booking Payment Link" (FR/EN) — same template variables.
 const PAYMENT_LINK_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
@@ -123,6 +124,7 @@ serve(async (req: Request) => {
     let contactEmail = brand.emails.from.default;
     let contactPhone = "";
     let hotelImageUrl = "";
+    let hotelLogo = "";
     let hotelTimezone = "Europe/Paris";
   if (booking.hotel_id) {
       const cleanHotelId = booking.hotel_id.trim();
@@ -141,6 +143,7 @@ serve(async (req: Request) => {
         if (hotel.timezone) hotelTimezone = hotel.timezone;
         if (hotel.currency) hotelCurrency = hotel.currency.toLowerCase();
         hotelImageUrl = hotel.cover_image || hotel.image || "";
+        hotelLogo = hotel.image || "";
       } else {
         console.warn("[SEND-PAYMENT-LINK] No hotel found for id:", cleanHotelId);
       }
@@ -383,28 +386,36 @@ serve(async (req: Request) => {
 
     if (channels?.includes('email') && email) {
       try {
-        // Durée totale des soins (pour la variable de template)
-        const totalDuration = treatments.reduce((sum: number, t: any) => sum + (t.duration || 60), 0);
-
-        // Variables du template Resend (mêmes clés que trigger-new-booking-notifications)
+        // Intro rendue côté code (le builder centralise les variables Resend :
+        // civilité, dates, prix, durée, devise et logo du lieu).
         const introText = language === 'fr'
           ? `Bonjour ${greetingName}, merci pour votre réservation. Pour la confirmer, veuillez procéder au paiement.`
           : `Hello ${greetingName}, thank you for your booking. To confirm it, please complete the payment.`;
 
-        const templateVariables: Record<string, string> = {
-          booking_date: templateData.bookingDate,
-          booking_number: String(booking.booking_id ?? ''),
-          booking_time: templateData.bookingTime,
-          client_civility: civLabel ?? '',
-          expiry_date: expiresAtText,
-          intro_text: introText,
-          payment_url: templateData.paymentUrl,
-          total_price: `${totalPrice}${currencySymbol}`,
-          treatment_duration: `${totalDuration} min`,
-          treatment_name: treatments.map((t: any) => t.name).filter(Boolean).join(', '),
-          treatment_price: `${totalPrice}${currencySymbol}`,
-          venue_name: templateData.hotelName,
-        };
+        const templateVariables = buildPaymentLinkVars(
+          {
+            booking: {
+              booking_id: booking.booking_id,
+              client_first_name: booking.client_first_name,
+              client_last_name: booking.client_last_name,
+              room_number: booking.room_number,
+              total_price: booking.total_price,
+              hotel_name: booking.hotel_name,
+              booking_date: booking.booking_date,
+              booking_time: booking.booking_time,
+            },
+            venue: { image: hotelLogo, currency: hotelCurrency },
+            civility: customerCivility,
+            lang: language === 'en' ? 'en' : 'fr',
+            treatments,
+          },
+          {
+            paymentUrl: templateData.paymentUrl,
+            expiryDate: expiresAtText,
+            introText,
+            totalAmount: totalPrice ?? undefined,
+          },
+        );
 
         const templateId = language === 'fr' ? PAYMENT_LINK_TEMPLATE_FR : PAYMENT_LINK_TEMPLATE_EN;
 
