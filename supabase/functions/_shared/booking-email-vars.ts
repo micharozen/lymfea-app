@@ -159,6 +159,9 @@ export interface BookingEmailContext {
     room_number?: number | string | null;
     therapist_name?: string | null;
     total_price?: number | null;
+    /** Out-of-hours surcharge already included in `total_price`. */
+    surcharge_amount?: number | null;
+    is_out_of_hours?: boolean | null;
     hotel_name?: string | null;
     booking_date: string;
     booking_time?: string | null;
@@ -196,8 +199,8 @@ function greetingFor(ctx: BookingEmailContext) {
 // keeps all optionality in TS (typed, testable) rather than in the HTML blob.
 
 const FRAG_LABELS = {
-  fr: { min: 'min', therapist: 'Praticien', room: 'Chambre', modify: 'Modifier ou annuler', policy: "Politique d'annulation" },
-  en: { min: 'min', therapist: 'Therapist', room: 'Room', modify: 'Modify or cancel', policy: 'Cancellation policy' },
+  fr: { min: 'min', therapist: 'Praticien', room: 'Chambre', modify: 'Modifier ou annuler', policy: "Politique d'annulation", surcharge: 'Majoration hors horaires' },
+  en: { min: 'min', therapist: 'Therapist', room: 'Room', modify: 'Modify or cancel', policy: 'Cancellation policy', surcharge: 'Out-of-hours surcharge' },
 } as const;
 
 // Palette echoed from templates/booking-confirmed.ts (kept in sync).
@@ -221,6 +224,24 @@ function treatmentsHtml(treatments: EmailTreatment[], sym: string, lang: Lang): 
       return `<tr><td style="padding:12px 0;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SANS};font-size:15px;color:${INK}">${escapeHtml(t.name)}${sub}</td><td align="right" style="padding:12px 0 12px 16px;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SERIF};font-size:16px;color:${INK};white-space:nowrap;vertical-align:top">${escapeHtml(price)}</td></tr>`;
     })
     .join('');
+}
+
+/**
+ * Out-of-hours surcharge line, styled like a treatment row (label left, serif
+ * `+amount` right) so it slots under the treatments and reconciles the total
+ * — which already includes the surcharge. '' when not applicable.
+ */
+function surchargeRow(
+  isOutOfHours: boolean | null | undefined,
+  amount: number | null | undefined,
+  sym: string,
+  lang: Lang,
+): string {
+  const value = Number(amount) || 0;
+  if (!isOutOfHours || value <= 0) return '';
+  const label = FRAG_LABELS[lang].surcharge;
+  const price = `+${value} ${sym}`;
+  return `<tr><td style="padding:12px 0;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SANS};font-size:15px;color:${INK_SOFT}">${escapeHtml(label)}</td><td align="right" style="padding:12px 0 12px 16px;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SERIF};font-size:16px;color:${INK};white-space:nowrap;vertical-align:top">${escapeHtml(price)}</td></tr>`;
 }
 
 /**
@@ -311,7 +332,8 @@ export function buildConfirmedVars(ctx: BookingEmailContext): Record<string, str
     cancel_annulation: policy,
     logo_url: venueLogoUrl(ctx.venue),
     // Pre-rendered HTML fragments consumed by the new email template.
-    treatments_html: treatmentsHtml(ctx.treatments, sym, ctx.lang),
+    treatments_html: treatmentsHtml(ctx.treatments, sym, ctx.lang)
+      + surchargeRow(ctx.booking.is_out_of_hours, ctx.booking.surcharge_amount, sym, ctx.lang),
     cancellation_html: cancellationHtml(policy, bookingUrl, ctx.lang),
     therapist_row_html: keyRowFragment(
       ICON_PERSON,
@@ -365,7 +387,8 @@ export function buildPendingVars(ctx: BookingEmailContext): Record<string, strin
     logo_url: venueLogoUrl(ctx.venue),
     // Pre-rendered HTML fragments consumed by the shared layout. Therapist row
     // stays empty (unassigned while pending) so the row collapses.
-    treatments_html: treatmentsHtml(ctx.treatments, sym, ctx.lang),
+    treatments_html: treatmentsHtml(ctx.treatments, sym, ctx.lang)
+      + surchargeRow(ctx.booking.is_out_of_hours, ctx.booking.surcharge_amount, sym, ctx.lang),
     therapist_row_html: '',
     footer_website_html: footerWebsiteHtml(ctx.venue?.website_url),
     maps_url: venueMapsUrl(ctx.venue),
