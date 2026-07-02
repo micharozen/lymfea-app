@@ -169,8 +169,6 @@ export interface BookingEmailContext {
   treatments: EmailTreatment[];
   /** Client-facing "manage booking" URL or admin detail URL (confirmed family). */
   bookingUrl?: string;
-  /** "Add to calendar" URL (booking-ics edge function) for the confirmed family. */
-  calendarUrl?: string;
   /** Overrides booking.phone when the customer record holds a better number. */
   clientPhone?: string | null;
   /** Overrides organization_name (e.g. brand-name fallback). */
@@ -323,7 +321,6 @@ export function buildConfirmedVars(ctx: BookingEmailContext): Record<string, str
     ),
     room_row_html: keyRowFragment(ICON_ROOM, FRAG_LABELS[ctx.lang].room, roomNumber, ''),
     maps_url: venueMapsUrl(ctx.venue),
-    calendar_url: ctx.calendarUrl ?? '',
   };
 }
 

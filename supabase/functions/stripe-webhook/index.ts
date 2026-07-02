@@ -239,7 +239,6 @@ serve(async (req) => {
             lang: clientLanguage,
             treatments: treatmentRows,
             bookingUrl: `${siteUrl}/booking/manage/${booking.id}`,
-            calendarUrl: `${Deno.env.get('SUPABASE_URL') ?? ''}/functions/v1/booking-ics?b=${booking.id}`,
             contactEmail: venueContactEmail,
             organizationName: venueOrganizationName,
           };

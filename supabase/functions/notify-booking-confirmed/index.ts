@@ -170,14 +170,11 @@ serve(async (req) => {
     const clientManageUrl = shortToken
       ? `${siteUrl}/m/${shortToken}`
       : `${siteUrl}/booking/manage/${bookingId}`;
-    // "Add to calendar" endpoint (public booking-ics edge function).
-    const calendarUrl = `${supabaseUrl}/functions/v1/booking-ics?b=${booking.id}`;
 
     const venue = (booking as any).hotels as (EmailVenue & { name?: string | null; timezone?: string | null }) | null;
 
-    // Build the .ics once and attach it to the client email so the appointment
-    // lands directly in Apple/Google/Outlook (the "Add to calendar" button
-    // linking to booking-ics stays as a fallback). Same generator as booking-ics.
+    // Build the .ics and attach it to the client email — mail clients
+    // (Apple/Google/Outlook) auto-detect it and offer "Add to calendar".
     const icsResult = buildBookingIcs({
       id: booking.id,
       booking_id: booking.booking_id,
@@ -215,7 +212,6 @@ serve(async (req) => {
       civility: customerCivility,
       treatments,
       bookingUrl: bookingDetailsUrl,
-      calendarUrl,
     };
     const adminVars = buildConfirmedVars({ ...emailCtx, lang: 'fr', variant: 'admin' });
     const clientVars = buildConfirmedVars({ ...emailCtx, lang: clientLanguage, bookingUrl: clientManageUrl, variant: 'client' });

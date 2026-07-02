@@ -40,7 +40,6 @@ export { ICON_PERSON, ICON_ROOM, keyGap, keyRow } from "./email-layout.ts";
 interface ConfirmedCopy extends EmailCopy {
   labelRef: string;
   sectionTitle: string;
-  btnCalendar: string;
   btnMaps: string;
   btnManage: string;
   clientBlockTitle: string;
@@ -55,11 +54,8 @@ interface ConfirmedCopy extends EmailCopy {
 
 function clientTemplate(copy: ConfirmedCopy): string {
   const buttons =
-    `<tr><td style="padding:28px 48px 0">${primaryButton("{{{calendar_url}}}", copy.btnCalendar)}</td></tr>` +
-    `<tr><td style="padding:10px 48px 0"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tbody><tr>` +
-    `<td width="50%" style="padding-right:5px">${ghostButton("{{{maps_url}}}", copy.btnMaps)}</td>` +
-    `<td width="50%" style="padding-left:5px">${ghostButton("{{{booking_url}}}", copy.btnManage)}</td>` +
-    `</tr></tbody></table></td></tr>`;
+    `<tr><td style="padding:28px 48px 0">${primaryButton("{{{booking_url}}}", copy.btnManage)}</td></tr>` +
+    `<tr><td style="padding:10px 48px 0">${ghostButton("{{{maps_url}}}", copy.btnMaps)}</td></tr>`;
   const body =
     header(copy) +
     hero(copy) +
@@ -117,7 +113,6 @@ const CLIENT_COPY_FR: ConfirmedCopy = {
   labelRef: "Référence",
   sectionTitle: "Votre soin",
   totalLabel: "Total",
-  btnCalendar: "Ajouter à mon agenda",
   btnMaps: "Itinéraire",
   btnManage: "Gérer ma réservation",
   arriveNote: "Merci d'arriver 10 minutes avant le début de votre soin afin de profiter pleinement de votre moment.",
@@ -143,7 +138,6 @@ const CLIENT_COPY_EN: ConfirmedCopy = {
   labelRef: "Reference",
   sectionTitle: "Your treatment",
   totalLabel: "Total",
-  btnCalendar: "Add to calendar",
   btnMaps: "Directions",
   btnManage: "Manage booking",
   arriveNote: "Please arrive 10 minutes before your treatment begins to fully enjoy your moment.",
@@ -169,7 +163,6 @@ const ADMIN_COPY_FR: ConfirmedCopy = {
   labelRef: "Référence",
   sectionTitle: "Prestation",
   totalLabel: "Total",
-  btnCalendar: "",
   btnMaps: "Itinéraire",
   btnManage: "Voir la réservation",
   arriveNote: "",

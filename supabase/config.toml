@@ -218,6 +218,3 @@ verify_jwt = false
 
 [functions.send-schedule-reminder]
 verify_jwt = false
-
-[functions.booking-ics]
-verify_jwt = false

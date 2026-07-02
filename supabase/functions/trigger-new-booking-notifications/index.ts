@@ -421,7 +421,6 @@ serve(async (req) => {
           treatments,
           clientPhone,
           bookingUrl: clientBookingUrl,
-          calendarUrl: `${Deno.env.get('SUPABASE_URL') ?? ''}/functions/v1/booking-ics?b=${bookingId}`,
           contactEmail: venueContactEmail,
           organizationName: venueOrganizationName,
         };
@@ -607,8 +606,8 @@ serve(async (req) => {
             const confirmedSubject = clientLanguage === 'en'
               ? `✅ Your treatment is confirmed · ${booking.hotel_name ?? ''}`
               : `✅ Votre soin est confirmé · ${booking.hotel_name ?? ''}`;
-            // Attach the .ics to the confirmed email so the appointment lands
-            // straight in the client's calendar (same generator as booking-ics).
+            // Attach the .ics to the confirmed email — mail clients auto-detect
+            // it and offer "Add to calendar".
             let clientAttachments: EmailAttachment[] | undefined;
             if (!isPending) {
               const icsResult = buildBookingIcs({

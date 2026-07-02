@@ -1,7 +1,6 @@
-// Shared iCalendar (.ics) builder for a booking. Used both by the public
-// booking-ics endpoint (served as a downloadable link) and by
-// notify-booking-confirmed (attached to the confirmation email), so the two
-// stay identical. Times are converted from venue-local to UTC.
+// Shared iCalendar (.ics) builder for a booking. Attached to the confirmation
+// email (mail clients auto-detect the .ics and offer "Add to calendar"), so no
+// dedicated HTTP endpoint is needed. Times are converted from venue-local to UTC.
 import { venueLocalToUtc } from "./venue-time.ts";
 
 /** ICS text escaping: backslash, comma, semicolon, newline. */
