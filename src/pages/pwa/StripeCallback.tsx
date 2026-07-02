@@ -15,19 +15,19 @@ const PwaStripeCallback = () => {
 
     if (success === "true") {
       setStatus('success');
-      // Redirect to wallet after 2 seconds
+      // Redirect to dashboard after 2 seconds
       setTimeout(() => {
-        navigate("/pwa/wallet", { replace: true });
+        navigate("/pwa/dashboard", { replace: true });
       }, 2000);
     } else if (refresh === "true") {
       setStatus('refresh');
-      // Redirect to wallet after 2 seconds to retry
+      // Redirect to dashboard after 2 seconds to retry
       setTimeout(() => {
-        navigate("/pwa/wallet", { replace: true });
+        navigate("/pwa/dashboard", { replace: true });
       }, 2000);
     } else {
-      // Unknown state, redirect to wallet
-      navigate("/pwa/wallet", { replace: true });
+      // Unknown state, redirect to dashboard
+      navigate("/pwa/dashboard", { replace: true });
     }
   }, [searchParams, navigate]);
 

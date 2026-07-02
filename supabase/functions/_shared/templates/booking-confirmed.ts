@@ -54,8 +54,8 @@ interface ConfirmedCopy extends EmailCopy {
 
 function clientTemplate(copy: ConfirmedCopy): string {
   const buttons =
-    `<tr><td style="padding:28px 48px 0">${primaryButton("{{{booking_url}}}", copy.btnManage)}</td></tr>` +
-    `<tr><td style="padding:10px 48px 0">${ghostButton("{{{maps_url}}}", copy.btnMaps)}</td></tr>`;
+    `<tr><td class="eia-sect" style="padding:28px 40px 0">${primaryButton("{{{booking_url}}}", copy.btnManage)}</td></tr>` +
+    `<tr><td class="eia-sect" style="padding:10px 40px 0">${ghostButton("{{{maps_url}}}", copy.btnMaps)}</td></tr>`;
   const body =
     header(copy) +
     hero(copy) +
@@ -75,7 +75,7 @@ function clientTemplate(copy: ConfirmedCopy): string {
 
 function adminTemplate(copy: ConfirmedCopy): string {
   const clientBlock =
-    `<tr><td style="padding:28px 48px 0"><p style="margin:0 0 10px;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${INK_MUTE}">${copy.clientBlockTitle}</p><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:${SAND_100};border:1px solid ${LINE_SOFT};border-radius:14px"><tbody><tr><td style="padding:22px 22px"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tbody>` +
+    `<tr><td class="eia-sect" style="padding:28px 40px 0"><p style="margin:0 0 10px;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${INK_MUTE}">${copy.clientBlockTitle}</p><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:${SAND_100};border:1px solid ${LINE_SOFT};border-radius:14px"><tbody><tr><td class="eia-box" style="padding:22px 22px"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tbody>` +
     keyRow(ICON_PERSON, "Client", "{{{client_name}}}", "", "") +
     `{{{client_type_row_html}}}` +
     keyGap() +
@@ -83,7 +83,7 @@ function adminTemplate(copy: ConfirmedCopy): string {
     `{{{room_row_html}}}` +
     `</tbody></table></td></tr></tbody></table></td></tr>`;
   const buttons =
-    `<tr><td style="padding:28px 48px 40px">${primaryButton("{{{booking_url}}}", copy.btnManage)}</td></tr>`;
+    `<tr><td class="eia-sect" style="padding:28px 40px 40px">${primaryButton("{{{booking_url}}}", copy.btnManage)}</td></tr>`;
   const body =
     header(copy) +
     hero(copy) +

@@ -24,6 +24,7 @@ import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
 import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
 import { checkoutIntentFields } from '@/lib/client/checkoutIntentFields';
+import { languageFromCountryCode } from '@/lib/phone';
 
 interface CheckoutPanelProps {
   hotelId: string;
@@ -166,7 +167,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
                 recipientLanguage: giftInfo.recipientLanguage,
               },
             }),
-            language: i18n.language === 'en' ? 'en' : 'fr',
+            language: languageFromCountryCode(clientInfo.countryCode),
         }, { skipAuth: true });
 
         if (error) throw error;

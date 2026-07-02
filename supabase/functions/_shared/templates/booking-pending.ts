@@ -34,8 +34,8 @@ interface PendingCopy extends EmailCopy {
 
 function clientTemplate(copy: PendingCopy): string {
   const buttons =
-    `<tr><td style="padding:28px 48px 0">${primaryButton("{{{booking_url}}}", copy.btnManage)}</td></tr>` +
-    `<tr><td style="padding:10px 48px 0">${ghostButton("{{{maps_url}}}", copy.btnMaps)}</td></tr>`;
+    `<tr><td class="eia-sect" style="padding:28px 40px 0">${primaryButton("{{{booking_url}}}", copy.btnManage)}</td></tr>` +
+    `<tr><td class="eia-sect" style="padding:10px 40px 0">${ghostButton("{{{maps_url}}}", copy.btnMaps)}</td></tr>`;
   const body =
     header(copy) +
     hero(copy) +
