@@ -24,6 +24,7 @@ import { HoldBanner } from '@/components/client/HoldBanner';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
 import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
 import { checkoutIntentFields } from '@/lib/client/checkoutIntentFields';
+import { languageFromCountryCode } from '@/lib/phone';
 import i18n from '@/i18n';
 
 export default function Payment() {
@@ -160,7 +161,7 @@ export default function Payment() {
                 recipientLanguage: giftInfo.recipientLanguage,
               },
             }),
-            language: i18n.language === 'en' ? 'en' : 'fr',
+            language: languageFromCountryCode(clientInfo.countryCode),
         }, { skipAuth: true });
 
         if (error) throw error;
@@ -268,7 +269,7 @@ export default function Payment() {
                 customerBundleId: selectedBundle.customerBundleId,
                 amountCents: selectedBundle.amountToUseCents,
               },
-              language: i18n.language === 'en' ? 'en' : 'fr',
+              language: languageFromCountryCode(clientInfo.countryCode),
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
           }, { skipAuth: true });
@@ -366,7 +367,7 @@ export default function Payment() {
           treatmentIds: items.map(item => item.id),
           treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId })),
           totalPrice: total,
-          language: i18n.language === 'en' ? 'en' : 'fr',
+          language: languageFromCountryCode(clientInfo.countryCode),
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
           ...(checkoutIntentFields(checkoutIntentId)),

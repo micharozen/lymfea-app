@@ -218,7 +218,7 @@ function treatmentsHtml(treatments: EmailTreatment[], sym: string, lang: Lang): 
         ? `<span style="display:block;margin-top:2px;font-family:${FONT_SANS};font-size:12px;color:${INK_MUTE}">${Number(t.duration)} ${min}</span>`
         : '';
       const price = `${Number(t.price) || 0} ${sym}`;
-      return `<tr><td style="padding:12px 0;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SANS};font-size:15px;color:${INK}">${escapeHtml(t.name)}${sub}</td><td align="right" style="padding:12px 0;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SERIF};font-size:16px;color:${INK};white-space:nowrap;vertical-align:top">${escapeHtml(price)}</td></tr>`;
+      return `<tr><td style="padding:12px 0;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SANS};font-size:15px;color:${INK}">${escapeHtml(t.name)}${sub}</td><td align="right" style="padding:12px 0 12px 16px;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SERIF};font-size:16px;color:${INK};white-space:nowrap;vertical-align:top">${escapeHtml(price)}</td></tr>`;
     })
     .join('');
 }
@@ -249,7 +249,7 @@ function cancellationHtml(policy: string, bookingUrl: string, lang: Lang): strin
   const link = bookingUrl
     ? ` <a href="${escapeHtml(bookingUrl)}" style="color:${CLAY};text-decoration:underline;font-family:${FONT_SANS};font-size:12px">${escapeHtml(l.modify)}</a>`
     : '';
-  return `<tr><td align="center" style="padding:20px 48px 0"><p style="margin:0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_MUTE}"><strong style="font-weight:500;color:${INK_SOFT}">${escapeHtml(l.policy)} :</strong> ${escapeHtml(policy)}${link}</p></td></tr>`;
+  return `<tr><td align="center" class="eia-sect" style="padding:20px 40px 0"><p style="margin:0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_MUTE}"><strong style="font-weight:500;color:${INK_SOFT}">${escapeHtml(l.policy)} :</strong> ${escapeHtml(policy)}${link}</p></td></tr>`;
 }
 
 /** Variables for the "booking confirmed" template family. */

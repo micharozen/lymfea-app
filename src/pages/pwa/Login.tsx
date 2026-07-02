@@ -629,7 +629,7 @@ const PwaLogin = () => {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="therapist@example.com"
+                  placeholder="hello@saoma.io"
                   className="h-12"
                 />
               </div>
@@ -892,7 +892,7 @@ const PwaLogin = () => {
                     autoComplete="email"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    placeholder="therapist@example.com"
+                    placeholder="hello@saoma.io"
                     className="h-12"
                   />
                 </div>
