@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, Check, ChevronsUpDown, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { Check, ChevronsUpDown, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Command,
@@ -603,33 +603,14 @@ const PwaLogin = () => {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleBack = () => {
-    if (authMode === "otp-code") {
-      setAuthMode("otp-phone");
-      setOtp(["", "", "", "", "", ""]);
-      return;
-    }
-    if (authMode === "otp-phone") {
-      setAuthMode("password");
-      return;
-    }
-    if (authMode === "forgot") {
-      setAuthMode("password");
-      setResetSent(false);
-      return;
-    }
-    navigate("/pwa/welcome");
-  };
-
   return (
     <div className="flex flex-1 flex-col bg-background min-h-screen">
       <div className="p-4 flex justify-between items-center">
-        <button
-          onClick={handleBack}
-          className="flex items-center justify-center h-10 w-10"
-        >
-          <ArrowLeft className="h-6 w-6" />
-        </button>
+        <img
+          src="/favicon.svg"
+          alt={brand.name}
+          className="h-9 w-auto"
+        />
         <LanguageSwitcher variant="minimal" />
       </div>
 
