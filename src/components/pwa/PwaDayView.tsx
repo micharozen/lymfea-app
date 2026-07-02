@@ -4,9 +4,11 @@ import { fr, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CalendarDays, Clock, Euro, Check, DoorOpen, User } from "lucide-react";
-import { getBookingStatusConfig } from "@/utils/statusStyles";
+import { getCalendarFlowStage } from "@/utils/statusStyles";
 import { formatPrice } from "@/lib/formatPrice";
 import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
+import { useLongPress } from "@/hooks/pwa/useLongPress";
+import { BookingPreviewPopover } from "@/components/pwa/BookingPreviewPopover";
 
 interface BookingTreatment {
   treatment_menus: {
@@ -27,6 +29,7 @@ export interface DayViewBooking {
   room_number: string;
   room_name?: string | null;
   status: string;
+  payment_status?: string | null;
   phone: string;
   duration?: number;
   isUnassigned?: boolean;
@@ -50,6 +53,8 @@ const HOUR_HEIGHT = 80;
 const START_HOUR = 7;
 const END_HOUR = 23;
 const SWIPE_THRESHOLD = 50;
+// Trim a couple px off each block so back-to-back bookings keep a readable seam.
+const BLOCK_GAP = 3;
 
 function getTreatmentNames(booking: DayViewBooking): string {
   if (!booking.booking_treatments || booking.booking_treatments.length === 0) return "";
@@ -87,9 +92,11 @@ export function PwaDayView({
 }: PwaDayViewProps) {
   const { t, i18n } = useTranslation("pwa");
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [preview, setPreview] = useState<DayViewBooking | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const dateLocale = i18n.language === "fr" ? fr : enUS;
+  const { bind, consumeLongPress } = useLongPress();
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -144,7 +151,7 @@ export function PwaDayView({
     const totalMinutesFromStart = (h - START_HOUR) * 60 + m;
     const top = (totalMinutesFromStart / 60) * HOUR_HEIGHT;
     const height = (duration / 60) * HOUR_HEIGHT;
-    return { top, height: Math.max(height, 40) };
+    return { top, height: Math.max(height - BLOCK_GAP, 40) };
   }, []);
 
   const getCurrentTimePosition = useCallback(() => {
@@ -322,7 +329,7 @@ export function PwaDayView({
 
               {dayBookings.map((booking) => {
                 const { top, height } = getBookingPosition(booking);
-                const statusConfig = getBookingStatusConfig(booking.status);
+                const flowStage = getCalendarFlowStage(booking.status, booking.payment_status);
                 const duration = calculateDuration(booking);
                 const endTime = formatEndTime(booking.booking_time, duration);
                 const treatmentNames = getTreatmentNames(booking);
@@ -330,9 +337,9 @@ export function PwaDayView({
                 return (
                   <div
                     key={booking.id}
-                    className={`absolute left-1 right-1 rounded-lg text-xs cursor-pointer overflow-hidden z-10 ${statusConfig.cardClass} ${
+                    className={`absolute left-1 right-1 rounded-lg text-xs cursor-pointer overflow-hidden z-10 select-none ${flowStage.cardClass} ${
                       booking.isUnassigned
-                        ? "opacity-75 border-2 border-dashed border-white/60"
+                        ? "opacity-75 border-2 border-dashed border-current/40"
                         : ""
                     }`}
                     style={{
@@ -340,7 +347,11 @@ export function PwaDayView({
                       height: `${height}px`,
                       minHeight: "40px",
                     }}
-                    onClick={() => onBookingClick(booking)}
+                    {...bind(() => setPreview(booking))}
+                    onClick={() => {
+                      if (consumeLongPress()) return;
+                      onBookingClick(booking);
+                    }}
                   >
                     <div
                       className="h-full flex items-center overflow-hidden"
@@ -452,6 +463,8 @@ export function PwaDayView({
           </div>
         </div>
       </div>
+
+      <BookingPreviewPopover booking={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }

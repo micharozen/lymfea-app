@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -32,9 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PwaHeader from "@/components/pwa/Header";
-import WalletTabContent from "@/components/pwa/WalletTabContent";
 import { formatPrice } from "@/lib/formatPrice";
 import { useTherapistEarnings } from "@/hooks/pwa/useTherapistEarnings";
 
@@ -68,17 +66,12 @@ function getDateRange(period: Period): { start: string; end: string } {
   }
 }
 
-type TabKey = "stats" | "wallet";
-
 const PwaStatistics = () => {
   const { t, i18n } = useTranslation("pwa");
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const initialTab: TabKey = (searchParams.get("tab") as TabKey) === "wallet" ? "wallet" : "stats";
 
   const [therapistId, setTherapistId] = useState<string>();
   const [period, setPeriod] = useState<Period>("thisMonth");
-  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
 
   const dateLocale = i18n.language === "fr" ? fr : enUS;
   const { start, end } = useMemo(() => getDateRange(period), [period]);
@@ -130,25 +123,12 @@ const PwaStatistics = () => {
     <div className="flex flex-1 flex-col bg-background">
       <PwaHeader
         centerSlot={
-          <div className="flex items-center gap-2">
-            <h1 className="text-base font-semibold text-foreground">{t("statistics.title")}</h1>
-            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-              Beta
-            </span>
-          </div>
+          <h1 className="text-base font-semibold text-foreground">{t("statistics.title")}</h1>
         }
       />
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)} className="flex-1 flex flex-col min-h-0">
-        <div className="px-4 pt-3">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="stats">{t("statistics.stats")}</TabsTrigger>
-            <TabsTrigger value="wallet">{t("statistics.walletTab")}</TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="stats" className="flex-1 overflow-auto mt-0">
-          <div className="px-4 pt-4 pb-2">
+      <div className="flex-1 flex flex-col min-h-0 overflow-auto">
+        <div className="px-4 pt-4 pb-2">
             <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -300,12 +280,7 @@ const PwaStatistics = () => {
               </div>
             </div>
           )}
-        </TabsContent>
-
-        <TabsContent value="wallet" className="flex-1 overflow-auto mt-0 pb-24">
-          <WalletTabContent />
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 };
