@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { brand } from "../_shared/brand.ts";
+import {
+  resolveIssuerLegal,
+  type OrgLegal,
+  type ResolvedIssuer,
+} from "../_shared/issuer-legal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,11 +53,13 @@ interface Hotel {
   vat: number | null;
   address: string | null;
   city: string | null;
+  organization_id: string | null;
 }
 
 interface GeneratedInvoiceData {
   hotel: Hotel;
   billingProfile: BillingProfile;
+  issuer: ResolvedIssuer;
   invoiceNumber: string;
   issueDate: Date;
   dueDate: Date;
@@ -90,9 +97,9 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     bookingsCount,
   } = data;
 
-  const legal = brand.legal;
+  const legal = data.issuer;
 
-  const issuerName = legal.companyName;
+  const issuerName = legal.issuerName;
   const issuerAddressHtml = escapeHtml(legal.address).replace(/, /g, "<br>");
 
   const clientName = billingProfile.company_name || hotel.name;
@@ -349,6 +356,22 @@ const generateForHotel = async (
     .maybeSingle();
 
   const profile: BillingProfile = billingProfile ?? {};
+
+  // Issuer (émetteur) = the organization that owns the venue; falls back to
+  // brand.json per field until the organization's legal identity is filled in.
+  let orgLegal: OrgLegal | null = null;
+  if (hotel.organization_id) {
+    const { data: org } = await supabaseAdmin
+      .from("organizations")
+      .select(
+        "commercial_name, legal_name, legal_form, legal_capital, siren, siret, rcs, vat_number, legal_address, legal_postal_code, legal_city, legal_country",
+      )
+      .eq("id", hotel.organization_id)
+      .maybeSingle();
+    orgLegal = org;
+  }
+  const issuer = resolveIssuerLegal(orgLegal);
+
   // Les montants des bookings sont TTC — on extrait la TVA (20%) plutôt que de l'ajouter.
   const vatRate = 20;
   const amountHt = Math.round((amountTtc / (1 + vatRate / 100)) * 100) / 100;
@@ -363,6 +386,7 @@ const generateForHotel = async (
   const invoiceHTML = generateInvoiceHTML({
     hotel,
     billingProfile: profile,
+    issuer,
     invoiceNumber,
     issueDate,
     dueDate,
@@ -395,7 +419,7 @@ const generateForHotel = async (
     currency: "EUR",
     bookings_count: eligibleBookings.length,
     html_snapshot: invoiceHTML,
-    issuer_snapshot: brand.legal,
+    issuer_snapshot: issuer,
     client_snapshot: profile,
     metadata: {
       booking_ids: bookingIds,
@@ -437,7 +461,7 @@ serve(async (req: Request) => {
 
     let hotelQuery = supabaseAdmin
       .from("hotels")
-      .select("id, name, vat, address, city");
+      .select("id, name, vat, address, city, organization_id");
     if (hotel_id) hotelQuery = hotelQuery.eq("id", hotel_id);
     const { data: hotels, error: hotelsError } = await hotelQuery;
     if (hotelsError) throw hotelsError;
