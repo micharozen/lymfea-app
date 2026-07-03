@@ -5,8 +5,9 @@ import brandConfig from './brand.json' with { type: 'json' };
 export const brand = brandConfig;
 export type BrandConfig = typeof brandConfig;
 
-// Full URL for email logo (hosted in Supabase Storage bucket "assets")
-export const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
+// Full URL for email logo (hosted in Supabase Storage bucket "assets").
+// The Saoma leaf mark (public/images/saoma.png) — replaces the legacy OOM logo.
+export const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/saoma.png';
 
 // Base URL for the email icon set (hosted PNGs — inline SVG is stripped by
 // Gmail). Source files live in docs/email-icons/; upload them to the "assets"
