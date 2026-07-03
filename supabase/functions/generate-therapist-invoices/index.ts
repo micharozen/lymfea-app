@@ -433,7 +433,13 @@ const generateForTherapistHotel = async (
   hotel: Hotel,
   periodStart: Date,
   periodEnd: Date,
-): Promise<{ success: boolean; skipped?: boolean; reason?: string; invoiceId?: string }> => {
+): Promise<{
+  success: boolean;
+  skipped?: boolean;
+  reason?: string;
+  invoiceId?: string;
+  bookingsCount?: number;
+}> => {
   const startStr = periodStart.toISOString().slice(0, 10);
   const endStr = periodEnd.toISOString().slice(0, 10);
 
@@ -482,6 +488,9 @@ const generateForTherapistHotel = async (
 
   // Compute earnings per booking using duration-based rates
   let amountHt = 0;
+  // Track bookings whose earnings couldn't be computed because the therapist's
+  // rates are missing/incomplete (no payout to fall back on either).
+  let missingRateCount = 0;
   for (const b of eligibleBookings) {
     const fromPayout = payoutMap.get(b.id);
     if (fromPayout !== undefined) {
@@ -495,12 +504,27 @@ const generateForTherapistHotel = async (
     const dur = (b as any).duration && (b as any).duration > 0
       ? (b as any).duration
       : treatmentsDuration;
-    const earned = computeTherapistEarnings(rates, dur) ?? 0;
+    const earned = computeTherapistEarnings(rates, dur);
+    if (earned === null) {
+      missingRateCount += 1;
+      continue;
+    }
     amountHt += earned;
   }
   amountHt = Math.round(amountHt * 100) / 100;
 
   if (amountHt <= 0) {
+    // Distinguish "no rates configured" from a genuine zero so the UI can
+    // tell the admin to set the therapist's rates instead of showing a
+    // misleading "nothing to bill" message.
+    if (missingRateCount > 0) {
+      return {
+        success: true,
+        skipped: true,
+        reason: "missing_rates",
+        bookingsCount: eligibleBookings.length,
+      };
+    }
     return { success: true, skipped: true, reason: "zero_amount" };
   }
 
