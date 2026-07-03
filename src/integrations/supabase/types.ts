@@ -2053,31 +2053,70 @@ export type Database = {
       }
       organizations: {
         Row: {
+          commercial_name: string | null
           contact_email: string | null
           created_at: string
           id: string
+          legal_address: string | null
+          legal_capital: string | null
+          legal_city: string | null
+          legal_country: string | null
+          legal_form: string | null
+          legal_name: string | null
+          legal_postal_code: string | null
+          legal_synced_at: string | null
           logo_url: string | null
           name: string
+          rcs: string | null
+          siren: string | null
+          siret: string | null
           slug: string
           updated_at: string
+          vat_number: string | null
         }
         Insert: {
+          commercial_name?: string | null
           contact_email?: string | null
           created_at?: string
           id?: string
+          legal_address?: string | null
+          legal_capital?: string | null
+          legal_city?: string | null
+          legal_country?: string | null
+          legal_form?: string | null
+          legal_name?: string | null
+          legal_postal_code?: string | null
+          legal_synced_at?: string | null
           logo_url?: string | null
           name: string
+          rcs?: string | null
+          siren?: string | null
+          siret?: string | null
           slug: string
           updated_at?: string
+          vat_number?: string | null
         }
         Update: {
+          commercial_name?: string | null
           contact_email?: string | null
           created_at?: string
           id?: string
+          legal_address?: string | null
+          legal_capital?: string | null
+          legal_city?: string | null
+          legal_country?: string | null
+          legal_form?: string | null
+          legal_name?: string | null
+          legal_postal_code?: string | null
+          legal_synced_at?: string | null
           logo_url?: string | null
           name?: string
+          rcs?: string | null
+          siren?: string | null
+          siret?: string | null
           slug?: string
           updated_at?: string
+          vat_number?: string | null
         }
         Relationships: []
       }
