@@ -615,7 +615,7 @@ serve(async (req: Request) => {
     let therapistQuery = supabaseAdmin
       .from("therapists")
       .select("id, first_name, last_name, email")
-      .eq("status", "Actif");
+      .in("status", ["active", "Actif", "Active"]);
     if (therapist_id) therapistQuery = therapistQuery.eq("id", therapist_id);
     const { data: therapists, error: therapistsError } = await therapistQuery;
     if (therapistsError) throw therapistsError;
