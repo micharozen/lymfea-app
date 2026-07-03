@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 interface BookingStatusStepperProps {
   status: string;
   paymentStatus: string;
+  /** Optional subline shown under "Annulé" — e.g. cancellation time + source. */
+  cancellationDetail?: string;
 }
 
 interface Step {
@@ -82,7 +84,7 @@ function buildSteps(status: string, paymentStatus: string): { steps: Step[]; cur
   return { steps, currentIndex };
 }
 
-export function BookingStatusStepper({ status, paymentStatus }: BookingStatusStepperProps) {
+export function BookingStatusStepper({ status, paymentStatus, cancellationDetail }: BookingStatusStepperProps) {
   const isCancelled = status === "cancelled";
   const isNoshow = status === "noshow";
 
@@ -94,9 +96,14 @@ export function BookingStatusStepper({ status, paymentStatus }: BookingStatusSte
       : "bg-rose-50 border-rose-200 text-rose-700";
 
     return (
-      <div className={cn("rounded-xl border p-4 flex items-center justify-center gap-2", colorClasses)}>
-        <Icon className="h-5 w-5" />
-        <span className="font-medium text-sm">{label}</span>
+      <div className={cn("rounded-xl border p-4 flex flex-col items-center justify-center gap-1", colorClasses)}>
+        <div className="flex items-center gap-2">
+          <Icon className="h-5 w-5" />
+          <span className="font-medium text-sm">{label}</span>
+        </div>
+        {cancellationDetail && (
+          <span className="text-xs opacity-80">{cancellationDetail}</span>
+        )}
       </div>
     );
   }

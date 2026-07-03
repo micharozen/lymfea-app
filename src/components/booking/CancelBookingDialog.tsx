@@ -461,7 +461,9 @@ export function CancelBookingDialog({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        hideOverlay={stackedOnDialog}
+        overlayClassName={
+          stackedOnDialog ? "z-[55] bg-black/50 backdrop-blur-sm" : undefined
+        }
         className={cn(
           "bg-background",
           stackedOnDialog && "z-[60]",
