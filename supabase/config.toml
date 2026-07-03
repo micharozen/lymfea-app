@@ -116,6 +116,9 @@ verify_jwt = false
 [functions.invite-admin]
 verify_jwt = false
 
+[functions.lookup-company]
+verify_jwt = false
+
 [functions.resend-invite]
 verify_jwt = false
 
