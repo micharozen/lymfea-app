@@ -410,7 +410,8 @@
       "categories": "Catégories",
       "amenities": "Commodités",
       "overview": "Aperçu",
-      "clientPreview": "Aperçu client"
+      "clientPreview": "Aperçu client",
+      "history": "Historique"
     },
     "interVenueBuffer": "Temps de trajet inter-lieux",
     "interVenueBufferDesc": "Buffer ajouté avant et après chaque prestation quand le thérapeute vient d'un autre lieu. 0 = pas de buffer.",

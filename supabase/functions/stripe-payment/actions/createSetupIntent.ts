@@ -145,7 +145,7 @@ export async function handleCreateSetupIntent(
   const { data: hotel, error: hotelError } = await supabase
     .from("hotels")
     .select(
-      "slug, currency, name, offert, pms_guest_lookup_enabled, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent",
+      "slug, currency, name, offert, pms_guest_lookup_enabled, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent, client_payment_mode",
     )
     .eq("id", hotelId)
     .maybeSingle();
@@ -153,6 +153,11 @@ export async function handleCreateSetupIntent(
   if (hotelError || !hotel) {
     throw new Error("Hotel not found");
   }
+
+  // Server is the source of truth for the payment mode. 'pay_at_booking' charges the
+  // client immediately (Checkout mode: payment); anything else keeps the SetupIntent
+  // pre-authorization (card saved, charged later).
+  const payAtBooking = (hotel as any).client_payment_mode === "pay_at_booking";
   if (hotel.offert) {
     throw new Error("Ce lieu propose actuellement des soins offerts.");
   }
@@ -240,14 +245,35 @@ export async function handleCreateSetupIntent(
 
   const origin = req.headers.get("origin") || "http://localhost:5173";
 
+  const currency = (hotel.currency || "eur").toLowerCase();
+
+  // 'pay_at_booking' → immediate charge: Checkout mode: payment with a single line item
+  // for the server-verified total (surcharge included). Otherwise keep mode: setup.
+  const modeSpecific = payAtBooking
+    ? {
+        mode: "payment" as const,
+        line_items: [
+          {
+            price_data: {
+              currency,
+              product_data: { name: hotel.name ? `Réservation soin — ${hotel.name}` : "Réservation soin" },
+              unit_amount: Math.round(finalTotalPrice * 100),
+            },
+            quantity: 1,
+          },
+        ],
+      }
+    : { mode: "setup" as const };
+
   const session = await stripe.checkout.sessions.create({
-    mode: "setup",
+    ...modeSpecific,
     locale: language === "en" ? "en" : "fr",
     customer: stripeCustomerId,
     payment_method_types: ["card"],
     success_url: `${origin}/client/${hotel.slug ?? hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/client/${hotel.slug ?? hotelId}/payment`,
     metadata: {
+      paymentMode: payAtBooking ? "pay_at_booking" : "pre_authorization",
       hotelId: hotelId,
       bookingDate: bookingData.date,
       bookingTime: bookingData.time,

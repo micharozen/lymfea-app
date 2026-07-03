@@ -71,6 +71,40 @@ export const composePhoneNumber = (countryCode: string, phone: string): string =
 };
 
 /**
+ * Sépare un numéro stocké en indicatif pays + numéro local, pour ré-alimenter
+ * un champ de saisie à indicatif séparé (ex: édition d'une réservation).
+ *
+ * Gère les deux formats rencontrés en base :
+ *   - forme espacée héritée : "+33 6 09 01 50 23"
+ *   - forme normalisée `customers` (sans espace) : "+33609015023"
+ *
+ * On repère l'indicatif en cherchant le préfixe connu le plus long dans
+ * `countries` (les indicatifs se chevauchent, ex: +1 vs +1XXX). Si aucun
+ * indicatif n'est reconnu, le numéro est renvoyé tel quel avec l'indicatif
+ * par défaut fourni.
+ */
+export const splitPhoneNumber = (
+  raw: string,
+  defaultCountryCode = "+33",
+): { countryCode: string; phone: string } => {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed.startsWith("+")) {
+    return { countryCode: defaultCountryCode, phone: trimmed };
+  }
+
+  const match = countries
+    .map((c) => c.code)
+    .filter((code) => trimmed.startsWith(code))
+    .sort((a, b) => b.length - a.length)[0];
+
+  if (!match) {
+    return { countryCode: defaultCountryCode, phone: trimmed };
+  }
+
+  return { countryCode: match, phone: trimmed.slice(match.length).trim() };
+};
+
+/**
  * Normalise un numéro vers la forme canonique stockée dans `therapists.phone`.
  *
  * La DB impose `CHECK (phone IS NULL OR phone ~ '^[1-9][0-9]+$')`

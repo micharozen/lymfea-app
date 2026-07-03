@@ -59,25 +59,34 @@ async function insertPaymentInfo(
     bookingId: string;
     customerId: string | null;
     paymentMethodId: string;
-    setupIntentId: string;
+    setupIntentId?: string | null;
+    paymentIntentId?: string | null;
     sessionId: string;
     cardBrand?: string | null;
     cardLast4?: string | null;
     estimatedPrice?: number;
+    // 'card_saved' for pre-authorization, 'charged' when charged at booking.
+    paymentStatus: "card_saved" | "charged";
   },
 ) {
   await supabase.from("booking_payment_infos").insert({
     booking_id: params.bookingId,
     customer_id: params.customerId,
     stripe_payment_method_id: params.paymentMethodId,
-    stripe_setup_intent_id: params.setupIntentId,
+    stripe_setup_intent_id: params.setupIntentId || null,
+    stripe_payment_intent_id: params.paymentIntentId || null,
     stripe_session_id: params.sessionId,
     card_brand: params.cardBrand || null,
     card_last4: params.cardLast4 || null,
     ...(params.estimatedPrice !== undefined
       ? { estimated_price: params.estimatedPrice }
       : {}),
-    payment_status: "card_saved",
+    payment_status: params.paymentStatus,
+    // Direct payment mode (pay-at-booking) charges the card now, so stamp the
+    // payment time. Pre-auth ('card_saved') is charged later — leave it null.
+    ...(params.paymentStatus === "charged"
+      ? { payment_at: new Date().toISOString() }
+      : {}),
   });
 }
 
@@ -153,7 +162,7 @@ export async function handleConfirmSetupIntent(
   // pass hotelId we may have used the global key. Try to read metadata.hotelId
   // and re-resolve with the venue key when possible.
   let session = await stripe.checkout.sessions.retrieve(sessionId, {
-    expand: ["setup_intent", "setup_intent.payment_method"],
+    expand: ["setup_intent", "setup_intent.payment_method", "payment_intent", "payment_intent.payment_method"],
   });
   const meta = session.metadata || {};
 
@@ -161,7 +170,7 @@ export async function handleConfirmSetupIntent(
     const resolved = await getStripeForVenue(supabase, meta.hotelId);
     stripe = resolved.client;
     session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["setup_intent", "setup_intent.payment_method"],
+      expand: ["setup_intent", "setup_intent.payment_method", "payment_intent", "payment_intent.payment_method"],
     });
   }
 
@@ -204,25 +213,52 @@ export async function handleConfirmSetupIntent(
       ? session.customer
       : session.customer?.id;
 
-  const setupIntent = session.setup_intent as Stripe.SetupIntent;
+  // 'pay_at_booking' sessions carry a payment_intent (immediate charge); pre-authorization
+  // sessions carry a setup_intent (card saved, charged later).
+  const payAtBooking =
+    meta.paymentMode === "pay_at_booking" || session.mode === "payment";
+  const setupIntent = session.setup_intent as Stripe.SetupIntent | null;
+  const paymentIntent = session.payment_intent as Stripe.PaymentIntent | null;
+
+  // Booking status is 'paid' when charged at booking, otherwise 'card_saved' (pre-auth).
+  const bookingPaymentStatus = payAtBooking ? "paid" : "card_saved";
+  const infoPaymentStatus: "card_saved" | "charged" = payAtBooking
+    ? "charged"
+    : "card_saved";
+  const paymentIntentId = payAtBooking ? paymentIntent?.id ?? null : null;
+
+  const intentPaymentMethod = payAtBooking
+    ? paymentIntent?.payment_method
+    : setupIntent?.payment_method;
   const paymentMethodId =
-    typeof setupIntent?.payment_method === "string"
-      ? setupIntent.payment_method
-      : (setupIntent?.payment_method as Stripe.PaymentMethod)?.id;
+    typeof intentPaymentMethod === "string"
+      ? intentPaymentMethod
+      : (intentPaymentMethod as Stripe.PaymentMethod)?.id;
   const paymentMethodCard =
-    typeof setupIntent?.payment_method !== "string"
-      ? (setupIntent?.payment_method as Stripe.PaymentMethod)?.card
+    typeof intentPaymentMethod !== "string"
+      ? (intentPaymentMethod as Stripe.PaymentMethod)?.card
       : null;
 
   console.log("[CONFIRM-SETUP] session state", {
     sessionStatus: session.status,
+    payAtBooking,
     setupIntentId: setupIntent?.id,
-    paymentMethodType: typeof setupIntent?.payment_method,
+    paymentIntentId,
+    paymentMethodType: typeof intentPaymentMethod,
     paymentMethodId,
   });
 
   let resolvedPaymentMethodId = paymentMethodId;
-  if (setupIntent?.id && !resolvedPaymentMethodId) {
+  if (!resolvedPaymentMethodId && payAtBooking && paymentIntent?.id) {
+    console.warn("[CONFIRM-SETUP] paymentMethodId null — fetching PaymentIntent directly");
+    const fullPI = await stripe.paymentIntents.retrieve(paymentIntent.id, {
+      expand: ["payment_method"],
+    });
+    resolvedPaymentMethodId = typeof fullPI.payment_method === "string"
+      ? fullPI.payment_method
+      : (fullPI.payment_method as Stripe.PaymentMethod)?.id;
+    console.log("[CONFIRM-SETUP] resolved paymentMethodId from PI:", resolvedPaymentMethodId);
+  } else if (setupIntent?.id && !resolvedPaymentMethodId) {
     console.warn("[CONFIRM-SETUP] paymentMethodId null — fetching SetupIntent directly");
     const fullSI = await stripe.setupIntents.retrieve(setupIntent.id, {
       expand: ["payment_method"],
@@ -326,7 +362,7 @@ export async function handleConfirmSetupIntent(
           therapist_id: null,
           is_out_of_hours: slotSurcharge.isOutOfHours,
           surcharge_amount: slotSurcharge.surchargeAmount,
-          payment_status: "card_saved",
+          payment_status: bookingPaymentStatus,
         }).eq("id", newId);
 
         await supabase.from("booking_treatments").insert({
@@ -338,15 +374,17 @@ export async function handleConfirmSetupIntent(
         slotCreatedIds.push(newId);
       }
 
-      if (resolvedPaymentMethodId && setupIntent) {
+      if (resolvedPaymentMethodId && (setupIntent || paymentIntent)) {
         await insertPaymentInfo(supabase, {
           bookingId: slotCreatedIds[0],
           customerId,
           paymentMethodId: resolvedPaymentMethodId,
-          setupIntentId: setupIntent.id,
+          setupIntentId: payAtBooking ? null : setupIntent?.id,
+          paymentIntentId,
           sessionId,
           cardBrand: paymentMethodCard?.brand,
           cardLast4: paymentMethodCard?.last4,
+          paymentStatus: infoPaymentStatus,
         });
       }
 
@@ -373,7 +411,7 @@ export async function handleConfirmSetupIntent(
         client_note: meta.note || null,
         status: "pending",
         payment_method: "card",
-        payment_status: "card_saved",
+        payment_status: bookingPaymentStatus,
         customer_id: customerId,
       })
       .in("id", multiBookingIds)
@@ -389,15 +427,17 @@ export async function handleConfirmSetupIntent(
     // booking_payment_infos.stripe_session_id has a UNIQUE constraint, so we
     // attach the row to the first booking only. Sibling bookings of the group
     // are linked via booking_group_id.
-    if (resolvedPaymentMethodId && setupIntent) {
+    if (resolvedPaymentMethodId && (setupIntent || paymentIntent)) {
       await insertPaymentInfo(supabase, {
         bookingId: multiBookingIds[0],
         customerId,
         paymentMethodId: resolvedPaymentMethodId,
-        setupIntentId: setupIntent.id,
+        setupIntentId: payAtBooking ? null : setupIntent?.id,
+        paymentIntentId,
         sessionId,
         cardBrand: paymentMethodCard?.brand,
         cardLast4: paymentMethodCard?.last4,
+        paymentStatus: infoPaymentStatus,
       });
     }
 
@@ -482,7 +522,7 @@ export async function handleConfirmSetupIntent(
         therapist_id: null,
         is_out_of_hours: surcharge.isOutOfHours,
         surcharge_amount: surcharge.surchargeAmount,
-        payment_status: "card_saved",
+        payment_status: bookingPaymentStatus,
       }).eq("id", bookingId);
     } else {
       const { error: updateError } = await supabase
@@ -496,7 +536,7 @@ export async function handleConfirmSetupIntent(
           client_note: meta.note || null,
           status: "pending",
           payment_method: "card",
-          payment_status: "card_saved",
+          payment_status: bookingPaymentStatus,
           total_price: verifiedPrice,
           customer_id: customerId,
           therapist_id: null,
@@ -536,7 +576,7 @@ export async function handleConfirmSetupIntent(
       therapist_id: null,
       is_out_of_hours: surcharge.isOutOfHours,
       surcharge_amount: surcharge.surchargeAmount,
-      payment_status: "card_saved",
+      payment_status: bookingPaymentStatus,
     }).eq("id", bookingId);
   }
 
@@ -598,16 +638,18 @@ export async function handleConfirmSetupIntent(
     }
   }
 
-  if (resolvedPaymentMethodId && setupIntent) {
+  if (resolvedPaymentMethodId && (setupIntent || paymentIntent)) {
     await insertPaymentInfo(supabase, {
       bookingId,
       customerId,
       paymentMethodId: resolvedPaymentMethodId,
-      setupIntentId: setupIntent.id,
+      setupIntentId: payAtBooking ? null : setupIntent?.id,
+      paymentIntentId,
       sessionId,
       cardBrand: paymentMethodCard?.brand,
       cardLast4: paymentMethodCard?.last4,
       estimatedPrice: netPrice,
+      paymentStatus: infoPaymentStatus,
     });
   }
 

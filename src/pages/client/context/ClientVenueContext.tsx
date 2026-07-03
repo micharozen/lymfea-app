@@ -42,6 +42,11 @@ export interface PublicHotel {
   font_title_family: string | null;
   font_body_url: string | null;
   font_body_family: string | null;
+  client_payment_mode: string | null;
+  cancellation_policy_text_fr: string | null;
+  cancellation_policy_text_en: string | null;
+  cancellation_tiers: unknown;
+  client_cancellation_cutoff_hours: number | null;
 }
 
 interface ClientVenueContextValue {

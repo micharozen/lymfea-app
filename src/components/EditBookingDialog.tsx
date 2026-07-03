@@ -48,7 +48,7 @@ import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, 
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
-import { composePhoneNumber } from "@/lib/phone";
+import { composePhoneNumber, splitPhoneNumber } from "@/lib/phone";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -253,14 +253,11 @@ export default function EditBookingDialog({
       setClientFirstName(booking.client_first_name || "");
       setClientLastName(booking.client_last_name || "");
       
-      const phoneStr = booking.phone || "";
-      const phoneMatch = phoneStr.match(/^(\+\d+)\s+(.+)$/);
-      if (phoneMatch) {
-        setCountryCode(phoneMatch[1]);
-        setPhone(phoneMatch[2]);
-      } else {
-        setPhone(phoneStr);
-      }
+      const { countryCode: parsedCode, phone: parsedPhone } = splitPhoneNumber(
+        booking.phone || "",
+      );
+      setCountryCode(parsedCode);
+      setPhone(parsedPhone);
       
       setRoomNumber(booking.room_number || "");
       setClientNote(booking.client_note || "");

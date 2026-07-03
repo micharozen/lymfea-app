@@ -65,6 +65,7 @@ export default function Payment() {
   const venueType = hotel?.venue_type as VenueType | null;
   const venueTerms = useVenueTerms(venueType);
   const isOffert = !!hotel?.offert || !!hotel?.company_offered;
+  const payAtBooking = (hotel as { client_payment_mode?: string } | null)?.client_payment_mode === 'pay_at_booking';
   const supportsRoomPayment = venueTerms.supportsRoomPayment;
   const { trackPageView } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
@@ -715,6 +716,11 @@ export default function Payment() {
                       : t('payment.bundleActivation', 'Votre cure sera activée immédiatement.')}
                   </strong>
                 </>
+              ) : payAtBooking ? (
+                <>
+                  Paiement sécurisé par Stripe.
+                  <strong className="text-gray-900 font-medium"> Le montant de votre réservation sera débité immédiatement.</strong>
+                </>
               ) : (
                 <>
                   Pour garantir votre rendez-vous, une empreinte bancaire sécurisée vous sera demandée.
@@ -751,8 +757,8 @@ export default function Payment() {
                   <p className={cn(
                     "font-medium text-sm",
                     selectedMethod === 'card' ? "text-gray-900" : "text-gray-700"
-                  )}>Garantie par carte bancaire</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Aucun débit immédiat. Paiement sur place.</p>
+                  )}>{payAtBooking ? 'Paiement par carte bancaire' : 'Garantie par carte bancaire'}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{payAtBooking ? 'Débit immédiat du montant de la réservation.' : 'Aucun débit immédiat. Paiement sur place.'}</p>
                 </div>
               </div>
             </button>

@@ -461,11 +461,13 @@ export function CancelBookingDialog({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        hideOverlay={stackedOnDialog}
+        overlayClassName={
+          stackedOnDialog ? "z-[55] bg-black/50 backdrop-blur-sm" : undefined
+        }
         className={cn(
           "bg-background",
           stackedOnDialog && "z-[60]",
-          showPaymentSidePanel ? "max-w-2xl p-0 overflow-hidden" : "max-w-lg p-0 overflow-hidden",
+          showPaymentSidePanel ? "max-w-3xl p-0 overflow-hidden" : "max-w-xl p-0 overflow-hidden",
         )}
       >
         <DialogHeader className="px-6 pt-6 pb-2">
@@ -810,8 +812,8 @@ function RefundSummaryPanel({
         {!isPartnerBilled && (
           <>
             <Separator />
-            <div className="flex justify-between font-semibold">
-              <div>
+            <div className="flex justify-between items-start gap-4 font-semibold">
+              <div className="min-w-0">
                 <span>{t("cancelBookingDialog.totalRefund")}</span>
                 <p className="text-xs font-normal text-muted-foreground">
                   {t("cancelBookingDialog.toPaymentMethod")}
@@ -822,7 +824,7 @@ function RefundSummaryPanel({
                   </p>
                 )}
               </div>
-              <span className="text-lg">{formatCancelAmount(refundAmount)}</span>
+              <span className="text-lg whitespace-nowrap shrink-0">{formatCancelAmount(refundAmount)}</span>
             </div>
           </>
         )}
