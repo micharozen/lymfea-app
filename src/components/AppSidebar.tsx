@@ -98,6 +98,7 @@ const venueManagerPrimaryItems: MenuItem[] = [
   { title: "Réservations", url: "/admin/bookings", icon: ListChecks },
   { title: "Clients", url: "/admin/customers", icon: Contact },
   { title: "Mon lieu", url: "/admin/my-venue", icon: Building2 },
+  { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
 ];
 

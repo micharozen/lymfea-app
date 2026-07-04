@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useUser } from "@/contexts/UserContext";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,10 @@ interface VenueTherapistsTabProps {
 
 export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
   const { i18n } = useTranslation();
+  // Concierges (venue managers) can assign/unassign existing therapists but not
+  // create new therapist accounts — creation stays admin-only.
+  const { isConcierge } = useUser();
+  const canCreateTherapist = !isConcierge;
   const skillsOptions = useMemo(() => getSpecialtySelectOptions(i18n.language), [i18n.language]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -367,6 +372,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
       )}
 
       {/* Create new therapist */}
+      {canCreateTherapist && (
       <div>
         {!showCreateForm ? (
           <Button
@@ -480,6 +486,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
           </div>
         )}
       </div>
+      )}
 
       {/* Therapist detail dialog */}
       <TherapistDetailDialog

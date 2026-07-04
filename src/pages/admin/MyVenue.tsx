@@ -40,6 +40,7 @@ export default function MyVenue() {
       hotelIdOverride={hotelId}
       restricted
       restrictedSections={RESTRICTED_SECTIONS}
+      showTherapistTab
       backTo="/admin"
     />
   );
