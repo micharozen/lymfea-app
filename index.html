@@ -24,6 +24,11 @@
       if (window.location.pathname.startsWith('/admin-pwa')) {
         document.querySelector('link[rel="manifest"]').href = '/admin-manifest.webmanifest';
       }
+      // Distinct favicon on non-prod hosts (localhost, apptest, staging) to differentiate from PROD
+      if (window.location.hostname !== 'app.eiaspa.fr') {
+        var svgIcon = document.querySelector('link[rel="icon"][type="image/svg+xml"]');
+        if (svgIcon) svgIcon.href = '/favicon-dev.svg';
+      }
     </script>
 
     <!-- Preload critical font -->
