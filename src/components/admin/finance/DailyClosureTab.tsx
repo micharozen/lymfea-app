@@ -148,7 +148,7 @@ export function DailyClosureTab() {
           .order("booking_time", { ascending: true }),
         supabase
           .from("therapist_venues")
-          .select("therapist_id, therapists ( id, rate_45, rate_60, rate_90 )")
+          .select("therapist_id, therapists ( id, rate_60, rate_75, rate_90 )")
           .eq("hotel_id", selectedVenueId),
       ]);
 
@@ -159,11 +159,11 @@ export function DailyClosureTab() {
 
       const ratesMap: TherapistRatesMap = {};
       for (const row of ratesResult.data ?? []) {
-        const t = (row as { therapists: { id: string; rate_45: number | null; rate_60: number | null; rate_90: number | null } | null })
+        const t = (row as { therapists: { id: string; rate_60: number | null; rate_75: number | null; rate_90: number | null } | null })
           .therapists;
         if (!t) continue;
-        const rates: TherapistRates = { rate_45: t.rate_45, rate_60: t.rate_60, rate_90: t.rate_90 };
-        if (rates.rate_45 == null && rates.rate_60 == null && rates.rate_90 == null) {
+        const rates: TherapistRates = { rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90 };
+        if (rates.rate_60 == null && rates.rate_75 == null && rates.rate_90 == null) {
           ratesMap[t.id] = null;
         } else {
           ratesMap[t.id] = rates;
