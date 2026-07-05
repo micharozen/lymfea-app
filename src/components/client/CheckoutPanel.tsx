@@ -280,6 +280,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               treatments: items.map(item => ({
                 treatmentId: item.id,
                 variantId: item.variantId,
+                quantity: item.quantity,
               })),
               totalPrice: uncoveredTotal,
               giftAmountUsage: {
@@ -379,7 +380,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
           },
           bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
           treatmentIds: items.map(item => item.id),
-          treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId })),
+          treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId, quantity: item.quantity })),
           totalPrice: total,
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
