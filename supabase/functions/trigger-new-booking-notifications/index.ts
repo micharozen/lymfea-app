@@ -202,14 +202,30 @@ serve(async (req) => {
              !(booking.declined_by || []).includes(t.id);
     });
 
-    // notifyAll = true (concierge flow): notify ALL therapists at this hotel
-    // notifyAll = false/undefined (admin flow): notify only assigned therapist
-    if (!notifyAll && booking.therapist_id) {
+    // Assigned therapists (duo = plusieurs lignes). Source de vérité pour le ciblage
+    // non-broadcast : on notifie TOUS les praticiens assignés, pas seulement le principal.
+    let assignedTherapistIds: string[] = [];
+    if (!notifyAll) {
+      const { data: assignedRows } = await supabaseClient
+        .from("booking_therapists")
+        .select("therapist_id")
+        .eq("booking_id", bookingId);
+      assignedTherapistIds = (assignedRows ?? []).map((r: { therapist_id: string }) => r.therapist_id);
+      // Fallback legacy : pas de lignes junction → retomber sur le principal.
+      if (assignedTherapistIds.length === 0 && booking.therapist_id) {
+        assignedTherapistIds = [booking.therapist_id];
+      }
+    }
+
+    // notifyAll = true (concierge/broadcast flow): notify ALL therapists at this hotel
+    // notifyAll = false/undefined (admin flow): notify all ASSIGNED therapists (duo inclus)
+    if (!notifyAll && assignedTherapistIds.length > 0) {
+      const assignedSet = new Set(assignedTherapistIds);
       eligibleTherapists = eligibleTherapists.filter(th => {
         const t = th.therapists as any;
-        return t && t.id === booking.therapist_id;
+        return t && assignedSet.has(t.id);
       });
-      console.log(`Notifying assigned therapist only`);
+      console.log(`Notifying ${assignedTherapistIds.length} assigned therapist(s)`);
     } else {
       console.log(`Notifying all ${eligibleTherapists.length} eligible therapists`);
     }

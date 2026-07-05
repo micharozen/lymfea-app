@@ -87,14 +87,9 @@ function resolveAssignment(
     ? therapists?.find(h => h.id === allTherapistIds[0])
     : null;
 
-  let status: string;
-  if (allTherapistIds.length >= guestCount) {
-    status = "confirmed";
-  } else if (allTherapistIds.length === 0) {
-    status = "pending";
-  } else {
-    status = "awaiting_hairdresser_selection";
-  }
+  // 'confirmed' once every slot is staffed; otherwise 'pending' (a duo still
+  // needing therapists is pending + guest_count > 1).
+  const status: string = allTherapistIds.length >= guestCount ? "confirmed" : "pending";
 
   return {
     status,

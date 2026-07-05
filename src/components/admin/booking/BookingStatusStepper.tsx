@@ -36,7 +36,7 @@ function buildSteps(status: string, paymentStatus: string): { steps: Step[]; cur
 
   const isPaid = paymentStatus === "paid" || paymentStatus === "charged_to_room";
   const isCardSaved = paymentStatus === "card_saved";
-  const isPending = status === "pending" || status === "waiting_approval" || status === "awaiting_hairdresser_selection";
+  const isPending = status === "pending" || status === "waiting_approval";
   const paidSublabel = "Payé";
   const unpaidSublabel = isCardSaved ? "Carte enregistrée" : "Paiement en attente";
 

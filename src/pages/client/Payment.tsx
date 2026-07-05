@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { HoldBanner } from '@/components/client/HoldBanner';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
-import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
+import { buildMultiBookingItems, totalTreatmentCount } from '@/lib/multiTimeBooking';
 import { checkoutIntentFields } from '@/lib/client/checkoutIntentFields';
 import { languageFromCountryCode } from '@/lib/phone';
 import i18n from '@/i18n';
@@ -90,6 +90,15 @@ export default function Payment() {
   }, [canProceedToStep, navigate, slug]);
 
   const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
+
+  // "Same time" (shared) with 2+ treatments = duo: one bed + one therapist per
+  // treatment (counting quantity). Falls back to the native variant guest_count.
+  const duoGuestCount = (() => {
+    const totalTreatments = totalTreatmentCount(items.filter(i => !i.isAddon && !i.isBundle));
+    return scheduleMode === 'shared' && totalTreatments > 1
+      ? Math.max(requiredGuestCount, totalTreatments)
+      : requiredGuestCount;
+  })();
 
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
@@ -231,7 +240,7 @@ export default function Payment() {
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
-              ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+              ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
             },
             skipAuth: true,
           });
@@ -325,7 +334,7 @@ export default function Payment() {
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
             ...(draftBookingId ? { draftBookingId } : {}),
             ...(checkoutIntentFields(checkoutIntentId)),
-            ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+            ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
           },
           skipAuth: true,
         });
@@ -372,7 +381,7 @@ export default function Payment() {
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
           ...(checkoutIntentFields(checkoutIntentId)),
-          ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+          ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
           isMulti,
           ...(isMulti ? { groupId, bookingIds } : {}),
           // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
@@ -434,7 +443,7 @@ export default function Payment() {
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
-              ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+              ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
             };
 
         const { data, error } = await invokeEdgeFunction<unknown, { bookingId?: string; bookingIds?: string[] }>('create-client-booking', { body, skipAuth: true });
@@ -679,7 +688,9 @@ export default function Payment() {
                   ? t('giftCardLogin.giftCard')
                   : selectedBundle
                     ? t('bundle.bundleName', { name: selectedBundle.bundleName })
-                    : 'Sur place à la fin du soin'}
+                    : payAtBooking
+                      ? 'Débité aujourd\'hui'
+                      : 'Sur place à la fin du soin'}
               </span>
             </div>
             <div className="text-right">
@@ -718,7 +729,7 @@ export default function Payment() {
                 </>
               ) : payAtBooking ? (
                 <>
-                  Paiement sécurisé par Stripe.
+                  Paiement sécurisé.
                   <strong className="text-gray-900 font-medium"> Le montant de votre réservation sera débité immédiatement.</strong>
                 </>
               ) : (

@@ -113,6 +113,9 @@ export async function handleCreateSetupIntent(
     variants = vData || [];
   }
 
+  // Duo (guestCount > 1): treatments run simultaneously → slot duration = longest
+  // single treatment (max). Solo: sequential → sum. Price always sums.
+  const isDuo = Math.max(1, Number(guestCount) || 1) > 1;
   let rawTotalPrice = 0;
   let totalDuration = 0;
   for (const tPayload of safeTreatmentsPayload) {
@@ -120,17 +123,21 @@ export async function handleCreateSetupIntent(
       (t: any) => t.id === (tPayload.treatmentId || tPayload.id),
     );
     if (!baseTreatment) continue;
+    let unitPrice = 0;
+    let unitDuration = 0;
     if (tPayload.variantId) {
       const variant = variants.find((v: any) => v.id === tPayload.variantId);
       if (!variant) {
         throw new Error("A requested treatment variant is no longer available.");
       }
-      rawTotalPrice += variant.price ?? baseTreatment.price ?? 0;
-      totalDuration += variant.duration ?? baseTreatment.duration ?? 30;
+      unitPrice = variant.price ?? baseTreatment.price ?? 0;
+      unitDuration = variant.duration ?? baseTreatment.duration ?? 30;
     } else {
-      rawTotalPrice += baseTreatment.price ?? 0;
-      totalDuration += baseTreatment.duration ?? 30;
+      unitPrice = baseTreatment.price ?? 0;
+      unitDuration = baseTreatment.duration ?? 30;
     }
+    rawTotalPrice += unitPrice;
+    totalDuration = isDuo ? Math.max(totalDuration, unitDuration) : totalDuration + unitDuration;
   }
 
   const giftDeductionEuros = giftAmountUsage?.amountCents

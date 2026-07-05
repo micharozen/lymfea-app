@@ -372,7 +372,7 @@ export default function BookingDetail() {
         <div className="flex flex-1 items-center gap-3 justify-center flex-wrap min-w-0">
           <h1 className="text-xl font-bold text-gray-900 whitespace-nowrap">Réservation #{booking.booking_id}</h1>
           <ClientTypeBadge clientType={(booking as any).client_type || (booking.room_number ? "hotel" : "external")} />
-          {booking.room_number ? (
+          {booking.room_number && booking.room_number !== "TBD" ? (
             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
               Ch. {booking.room_number}
             </Badge>
@@ -391,7 +391,7 @@ export default function BookingDetail() {
           {isDuo && (
             <span className="inline-flex items-center rounded-md border font-medium h-6 px-2 text-xs gap-1.5 bg-purple-100 text-purple-800 border-purple-200">
               <Users className="w-3.5 h-3.5 shrink-0" />
-              Duo
+              Duo {acceptedTherapists.length}/{guestCount}
             </span>
           )}
           {bundleInfo && (

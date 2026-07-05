@@ -47,7 +47,7 @@ serve(async (req) => {
       throw new Error("Booking not found");
     }
 
-    if (booking.status !== "awaiting_hairdresser_selection") {
+    if (booking.status !== "pending") {
       throw new Error(`Booking is not awaiting therapist selection (current status: ${booking.status})`);
     }
 

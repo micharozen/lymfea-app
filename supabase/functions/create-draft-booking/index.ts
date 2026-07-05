@@ -143,12 +143,17 @@ serve(async (req: Request) => {
       let treatmentIdsForRpc: string[];
 
       if (legacy) {
-        // Legacy mode: sum across all treatments for the single slot.
+        // Legacy single-slot mode. Solo: treatments run sequentially → sum durations.
+        // Duo (guestCount > 1): treatments run simultaneously → the slot lasts as long
+        // as the longest single treatment (max), while price still sums (each person pays).
+        const isDuo = effectiveGuestCount > 1;
         for (const t of legacy) {
           const row: any = t.variantId ? variantMap.get(t.variantId) : menuMap.get(t.id);
           if (!row) continue;
           totalPrice += (row.price || 0) * t.quantity;
-          totalDuration += (row.duration || 0) * t.quantity;
+          totalDuration = isDuo
+            ? Math.max(totalDuration, row.duration || 0)
+            : totalDuration + (row.duration || 0) * t.quantity;
         }
         treatmentIdsForRpc = legacy.map((t) => t.id);
       } else {

@@ -345,7 +345,7 @@ const PwaBookingDetail = () => {
       // Booking no longer belongs to the connected therapist (e.g. reassigned by
       // an admin while the app was open / opened from a stale push notification).
       // Pending/awaiting bookings stay visible as open requests.
-      const isOpenRequest = bookingData.status === "pending" || bookingData.status === "awaiting_hairdresser_selection";
+      const isOpenRequest = bookingData.status === "pending";
       const isMine = bookingData.therapist_id === myTherapistId || isAcceptedParticipant;
       if (myTherapistId && !isOpenRequest && !isMine) {
         if (isMountedRef.current) {
@@ -961,7 +961,7 @@ const PwaBookingDetail = () => {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t p-4 pb-safe z-30">
-        {booking.status === "awaiting_hairdresser_selection" && (
+        {booking.status === "pending" && (booking.guest_count ?? 1) > 1 && (
           <div className="mb-3 rounded-xl bg-violet-50 border border-violet-200 px-3 py-2 flex items-center gap-2">
             <Hourglass className="w-4 h-4 text-violet-600 shrink-0" />
             <span className="text-xs font-medium text-violet-800">
@@ -969,15 +969,15 @@ const PwaBookingDetail = () => {
             </span>
           </div>
         )}
-        {(booking.status === "pending" && (!booking.therapist_id || booking.therapist_id === myTherapistId)) ||
-         (booking.status === "awaiting_hairdresser_selection" && !hasAlreadyAccepted) ? (
+        {(booking.status === "pending" && (booking.guest_count ?? 1) <= 1 && (!booking.therapist_id || booking.therapist_id === myTherapistId)) ||
+         (booking.status === "pending" && (booking.guest_count ?? 1) > 1 && !hasAlreadyAccepted) ? (
           <div className="flex gap-2">
             <button onClick={() => setShowDeclineDialog(true)} className="w-12 h-12 rounded-full border-2 border-destructive flex items-center justify-center"><X className="text-destructive"/></button>
             <button onClick={handleAcceptBooking} disabled={updating} className="flex-1 bg-primary text-white rounded-full font-bold">
-              {booking.status === "awaiting_hairdresser_selection" ? t('bookingDetail.duoJoin') : t('dashboard.accept')}
+              {(booking.guest_count ?? 1) > 1 ? t('bookingDetail.duoJoin') : t('dashboard.accept')}
             </button>
           </div>
-        ) : booking.status === "awaiting_hairdresser_selection" && hasAlreadyAccepted ? (
+        ) : booking.status === "pending" && (booking.guest_count ?? 1) > 1 && hasAlreadyAccepted ? (
           <div className="w-full rounded-full border border-violet-300 bg-violet-50 py-3 text-center">
             <span className="text-sm font-medium text-violet-700">{t('bookingDetail.duoWaiting')}</span>
           </div>

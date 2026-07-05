@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
-import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
+import { buildMultiBookingItems, totalTreatmentCount } from '@/lib/multiTimeBooking';
 import { checkoutIntentFields } from '@/lib/client/checkoutIntentFields';
 import { parseCancellationTiers } from '@/lib/cancellationTiers';
 import { languageFromCountryCode } from '@/lib/phone';
@@ -53,6 +53,14 @@ export function CheckoutPanel({
   } = useClientFlow();
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
+  // "Same time" (shared) with 2+ treatments = duo: one bed + one therapist per
+  // treatment (counting quantity). Falls back to the native variant guest_count.
+  const duoGuestCount = (() => {
+    const totalTreatments = totalTreatmentCount(items.filter(i => !i.isAddon && !i.isBundle));
+    return scheduleMode === 'shared' && totalTreatments > 1
+      ? Math.max(requiredGuestCount, totalTreatments)
+      : requiredGuestCount;
+  })();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const { trackPageView } = useClientAnalytics(hotelId);
@@ -376,7 +384,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
           ...(checkoutIntentFields(checkoutIntentId)),
-          ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+          ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
           isMulti,
           ...(isMulti ? { groupId, bookingIds } : {}),
           // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
@@ -437,7 +445,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
-              ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+              ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
             };
 
         const { data, error } = await invokeEdgeFunction<unknown, { bookingId?: string; bookingIds?: string[] }>('create-client-booking', { body, skipAuth: true });

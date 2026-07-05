@@ -251,8 +251,9 @@ async function handleMultiBookingConfirm(
   });
 
   const isOffert = !!hotel.offert || !!hotel.company_offered;
-  const isDuoBooking = items.some(i => (i.guestCount ?? 1) > 1);
-  const bookingStatus = isDuoBooking ? 'awaiting_hairdresser_selection' : 'pending';
+  // Solo and duo both start 'pending'; a duo stays pending (guest_count > 1)
+  // until all practitioners have accepted, then accept_booking sets 'confirmed'.
+  const bookingStatus = 'pending';
   const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
   const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : 'pending');
 
@@ -549,12 +550,16 @@ try {
       );
     }
 
-    // Calculate total duration from treatments (considering quantities)
+    // Calculate booking duration from treatments. Solo: treatments run sequentially
+    // → sum (× quantity). Duo (guestCount > 1): treatments run simultaneously → the
+    // slot lasts as long as the longest single treatment (max).
     let totalDuration = 0;
     for (const treatment of treatments) {
       const treatmentData = validTreatments?.find(t => t.id === treatment.treatmentId);
       if (treatmentData?.duration) {
-        totalDuration += treatmentData.duration * treatment.quantity;
+        totalDuration = isDuoBooking
+          ? Math.max(totalDuration, treatmentData.duration)
+          : totalDuration + treatmentData.duration * treatment.quantity;
       }
     }
     console.log('Total booking duration:', totalDuration, 'minutes');
@@ -623,13 +628,12 @@ try {
     // Check if any treatment is price_on_request
     const hasPriceOnRequest = validTreatments?.some(t => t.price_on_request) || false;
     const isOffert = !!hotel.offert || !!hotel.company_offered;
-    // Duo bookings go straight to awaiting_hairdresser_selection so the
-    // broadcast-accept flow (accept_booking RPC) handles therapist assignment.
+    // Duo bookings start 'pending' (like solo) and stay pending until every
+    // practitioner has accepted via the broadcast-accept flow (accept_booking
+    // RPC), which then flips the booking to 'confirmed'.
     const bookingStatus = (!isOffert && hasPriceOnRequest)
       ? 'quote_pending'
-      : isDuoBooking
-        ? 'awaiting_hairdresser_selection'
-        : 'pending';
+      : 'pending';
     // Recalcul serveur de la majoration hors horaires (source de vérité — ignore le totalPrice client)
     const basePrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
     const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);
