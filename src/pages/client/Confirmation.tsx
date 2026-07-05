@@ -459,7 +459,7 @@ export default function Confirmation() {
 
   const pillLabel = isPending ? t('confirmation.pendingPill') : t('confirmation.confirmedPill');
   const headerMessage = isPending ? t('confirmation.pendingMessage') : t('confirmation.message');
-  const venueLine = roomNumber ? `${hotelName} · ${t('confirmation.room')}.${roomNumber}` : hotelName;
+  const venueLine = roomNumber && roomNumber !== 'TBD' ? `${hotelName} · ${t('confirmation.room')}.${roomNumber}` : hotelName;
   const footerTagline = [organizationName || hotelName, websiteUrl].filter(Boolean).join(" · ");
   const dateLabel = bookingDate
     ? format(new Date(bookingDate), 'd MMMM yyyy', { locale: dateLocale })

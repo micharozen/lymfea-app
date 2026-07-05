@@ -117,6 +117,15 @@ function sanitizeString(str: string): string {
     .trim();
 }
 
+// Mirrors src/lib/phone.ts languageFromCountryCode, but reads the country code
+// off the composed international phone string (e.g. "+46 709313996"). +33 → fr,
+// everything else → en. No phone (PMS-verified guests) → fr (venue default).
+function languageFromPhone(phone: string | null): 'fr' | 'en' {
+  const p = (phone ?? '').replace(/\s/g, '');
+  if (!p) return 'fr';
+  return p.startsWith('+33') ? 'fr' : 'en';
+}
+
 async function handleMultiBookingConfirm(
   supabase: any,
   data: z.infer<typeof multiRequestSchema>,
@@ -140,6 +149,7 @@ async function handleMultiBookingConfirm(
     roomNumber: clientData.roomNumber ? sanitizeString(clientData.roomNumber) : null,
     note: clientData.note ? sanitizeString(clientData.note) : null,
   };
+  const clientLanguage = languageFromPhone(sanitizedClientData.phone);
 
   // Hotel info for surcharge + email
   const { data: hotel, error: hotelError } = await supabase
@@ -237,11 +247,13 @@ async function handleMultiBookingConfirm(
     _first_name: sanitizedClientData.firstName,
     _last_name: sanitizedClientData.lastName,
     _email: sanitizedClientData.email,
+    _language: clientLanguage,
   });
 
   const isOffert = !!hotel.offert || !!hotel.company_offered;
-  const isDuoBooking = items.some(i => (i.guestCount ?? 1) > 1);
-  const bookingStatus = isDuoBooking ? 'awaiting_hairdresser_selection' : 'pending';
+  // Solo and duo both start 'pending'; a duo stays pending (guest_count > 1)
+  // until all practitioners have accepted, then accept_booking sets 'confirmed'.
+  const bookingStatus = 'pending';
   const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
   const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : 'pending');
 
@@ -265,6 +277,7 @@ async function handleMultiBookingConfirm(
         phone: sanitizedClientData.phone,
         room_number: sanitizedClientData.roomNumber,
         client_note: sanitizedClientData.note,
+        language: clientLanguage,
         status: bookingStatus,
         payment_method: effectivePaymentMethod,
         payment_status: effectivePaymentStatus,
@@ -447,6 +460,7 @@ try {
       pmsGuestCheckIn: clientData.pmsGuestCheckIn || null,
       pmsGuestCheckOut: clientData.pmsGuestCheckOut || null,
     };
+    const clientLanguage = languageFromPhone(sanitizedClientData.phone);
 
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
@@ -536,12 +550,16 @@ try {
       );
     }
 
-    // Calculate total duration from treatments (considering quantities)
+    // Calculate booking duration from treatments. Solo: treatments run sequentially
+    // → sum (× quantity). Duo (guestCount > 1): treatments run simultaneously → the
+    // slot lasts as long as the longest single treatment (max).
     let totalDuration = 0;
     for (const treatment of treatments) {
       const treatmentData = validTreatments?.find(t => t.id === treatment.treatmentId);
       if (treatmentData?.duration) {
-        totalDuration += treatmentData.duration * treatment.quantity;
+        totalDuration = isDuoBooking
+          ? Math.max(totalDuration, treatmentData.duration)
+          : totalDuration + treatmentData.duration * treatment.quantity;
       }
     }
     console.log('Total booking duration:', totalDuration, 'minutes');
@@ -610,13 +628,12 @@ try {
     // Check if any treatment is price_on_request
     const hasPriceOnRequest = validTreatments?.some(t => t.price_on_request) || false;
     const isOffert = !!hotel.offert || !!hotel.company_offered;
-    // Duo bookings go straight to awaiting_hairdresser_selection so the
-    // broadcast-accept flow (accept_booking RPC) handles therapist assignment.
+    // Duo bookings start 'pending' (like solo) and stay pending until every
+    // practitioner has accepted via the broadcast-accept flow (accept_booking
+    // RPC), which then flips the booking to 'confirmed'.
     const bookingStatus = (!isOffert && hasPriceOnRequest)
       ? 'quote_pending'
-      : isDuoBooking
-        ? 'awaiting_hairdresser_selection'
-        : 'pending';
+      : 'pending';
     // Recalcul serveur de la majoration hors horaires (source de vérité — ignore le totalPrice client)
     const basePrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
     const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);
@@ -637,6 +654,7 @@ try {
       _first_name: sanitizedClientData.firstName,
       _last_name: sanitizedClientData.lastName,
       _email: sanitizedClientData.email,
+      _language: clientLanguage,
     });
 
     if (customerError) {
@@ -682,7 +700,7 @@ try {
           _payment_method: effectivePaymentMethod,
           _payment_status: effectivePaymentStatus,
           _total_price: effectiveTotalPrice,
-          _language: 'fr',
+          _language: clientLanguage,
           _treatment_ids: treatmentIds,
           _customer_id: customerId || null,
           _therapist_gender: therapistGender || null,
@@ -716,6 +734,7 @@ try {
             phone: sanitizedClientData.phone,
             room_number: sanitizedClientData.roomNumber,
             client_note: sanitizedClientData.note,
+            language: clientLanguage,
             status: bookingStatus,
             payment_method: effectivePaymentMethod,
             payment_status: effectivePaymentStatus,
@@ -764,7 +783,7 @@ try {
         _payment_method: effectivePaymentMethod,
         _payment_status: effectivePaymentStatus,
         _total_price: effectiveTotalPrice,
-        _language: 'fr',
+        _language: clientLanguage,
         _treatment_ids: treatmentIds,
         _customer_id: customerId || null,
         _therapist_gender: therapistGender || null,

@@ -184,7 +184,7 @@ export async function getVenueAvailability(
   // 7. Bookings over the range (optionally excluding the one being edited).
   let bookingsQuery = supabase
     .from("bookings")
-    .select("booking_date, booking_time, therapist_id, status, room_id, duration, guest_count")
+    .select("booking_date, booking_time, therapist_id, status, room_id, secondary_room_id, duration, guest_count")
     .eq("hotel_id", hotelId)
     .gte("booking_date", rangeStart)
     .lte("booking_date", rangeEnd)

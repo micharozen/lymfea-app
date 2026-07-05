@@ -414,7 +414,6 @@ const App = () => {
               <Route path="notifications" element={<PwaNotifications />} />
               <Route path="hotels" element={<PwaHotels />} />
               <Route path="statistics" element={<PwaStatistics />} />
-              <Route path="wallet" element={<Navigate to="/pwa/statistics?tab=wallet" replace />} />
               <Route path="new-booking" element={<PwaNewBooking />} />
             </Route>
             {/* PWA routes without TabBar (still protected) */}

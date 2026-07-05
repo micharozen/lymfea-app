@@ -101,6 +101,31 @@ export function CustomerGeneralTab({ form, disabled }: CustomerGeneralTabProps) 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
+              name="civility"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("booking.civility.label")}</FormLabel>
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                    disabled={disabled}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("booking.civility.label")} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="madame">{t("booking.civility.madame")}</SelectItem>
+                      <SelectItem value="monsieur">{t("booking.civility.monsieur")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="language"
               render={({ field }) => (
                 <FormItem>

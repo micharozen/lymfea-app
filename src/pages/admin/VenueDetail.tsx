@@ -36,8 +36,10 @@ import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/ve
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
 import { VenueCatalogTab } from "@/components/admin/venue/VenueCatalogTab";
 import { VenueResourcesTab } from "@/components/admin/venue/VenueResourcesTab";
+import { VenueTherapistsTab } from "@/components/admin/venue/VenueTherapistsTab";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
 import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
+import { VenueHistoryTab } from "@/components/admin/venue/VenueHistoryTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { formatPrice } from "@/lib/formatPrice";
 import type { VenueWizardFormValues, BlockedSlot, VenueFormSchemaOptions } from "@/components/admin/VenueWizardDialog";
@@ -78,6 +80,7 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   auto_validate_bookings: z.boolean().default(false),
   allow_out_of_hours_booking: z.boolean().default(false),
   out_of_hours_surcharge_percent: z.string().default("0"),
+  client_payment_mode: z.enum(['pre_authorization', 'pay_at_booking']).default('pre_authorization'),
   inter_venue_buffer_minutes: z.number().min(0).max(120).default(0),
   room_turnover_buffer_minutes: z.number().min(0).max(120).default(0),
   min_booking_notice_minutes: z.number().min(0).max(10080).default(0),
@@ -139,6 +142,11 @@ interface VenueDetailProps {
   /** Restrict the page to the configuration tab and a subset of section cards. */
   restricted?: boolean;
   restrictedSections?: VenueSectionId[];
+  /**
+   * In restricted mode, also expose a "Thérapeutes" tab alongside Configuration
+   * so venue managers can manage their venue's therapists.
+   */
+  showTherapistTab?: boolean;
   /** Where the back button should navigate. Defaults to /admin/places. */
   backTo?: string;
 }
@@ -147,6 +155,7 @@ export default function VenueDetail({
   hotelIdOverride,
   restricted = false,
   restrictedSections,
+  showTherapistTab = false,
   backTo = "/admin/places",
 }: VenueDetailProps = {}) {
   const params = useParams<{ id: string }>();
@@ -172,7 +181,7 @@ export default function VenueDetail({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const validTabs = ["configuration", "planning", "catalog", "resources", "billing", "branding"] as const;
+  const validTabs = ["configuration", "planning", "catalog", "resources", "therapists", "billing", "branding", "history"] as const;
   type TabValue = (typeof validTabs)[number];
   const initialTab: TabValue = (() => {
     const requested = searchParams.get("tab");
@@ -265,6 +274,7 @@ export default function VenueDetail({
       auto_validate_bookings: false,
       allow_out_of_hours_booking: false,
       out_of_hours_surcharge_percent: "0",
+      client_payment_mode: "pre_authorization",
       inter_venue_buffer_minutes: 0,
       room_turnover_buffer_minutes: 0,
       min_booking_notice_minutes: 0,
@@ -349,6 +359,7 @@ export default function VenueDetail({
           auto_validate_bookings: hotel.auto_validate_bookings || false,
           allow_out_of_hours_booking: hotel.allow_out_of_hours_booking || false,
           out_of_hours_surcharge_percent: hotel.out_of_hours_surcharge_percent?.toString() || "0",
+          client_payment_mode: (hotel as any).client_payment_mode || "pre_authorization",
           inter_venue_buffer_minutes: (hotel as any).inter_venue_buffer_minutes ?? 0,
           room_turnover_buffer_minutes: (hotel as any).room_turnover_buffer_minutes ?? 0,
           min_booking_notice_minutes: (hotel as any).min_booking_notice_minutes ?? 0,
@@ -620,6 +631,7 @@ export default function VenueDetail({
         auto_validate_bookings: values.auto_validate_bookings,
         allow_out_of_hours_booking: values.allow_out_of_hours_booking,
         out_of_hours_surcharge_percent: parseFloat(values.out_of_hours_surcharge_percent) || 0,
+        client_payment_mode: values.client_payment_mode,
         inter_venue_buffer_minutes: values.inter_venue_buffer_minutes ?? 0,
         room_turnover_buffer_minutes: values.room_turnover_buffer_minutes ?? 0,
         min_booking_notice_minutes: values.min_booking_notice_minutes ?? 0,
@@ -869,6 +881,20 @@ export default function VenueDetail({
         </div>
       ) : (
         <Tabs value={activeTab} onValueChange={handleTabChange}>
+          {/* Restricted tab bar (venue manager) — Configuration + Thérapeutes only */}
+          {restricted && showTherapistTab && (
+          <div className="px-4 md:px-6 pt-4 bg-background sticky top-[57px] z-[9]">
+            <TabsList className="w-full justify-start overflow-x-auto bg-transparent rounded-none border-b p-0 h-auto">
+              <TabsTrigger value="configuration" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Configuration
+              </TabsTrigger>
+              <TabsTrigger value="therapists" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Thérapeutes
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          )}
+
           {/* Tab bar — sticky below header */}
           {!restricted && (
           <div className="px-4 md:px-6 pt-4 bg-background sticky top-[57px] z-[9]">
@@ -894,6 +920,9 @@ export default function VenueDetail({
               <TabsTrigger value="inbox-email" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 {tAdmin('inbox.tab.tabLabel', 'Inbox email')}
               </TabsTrigger>
+              <TabsTrigger value="history" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                {tAdmin('venue.tabs.history', 'Historique')}
+              </TabsTrigger>
             </TabsList>
           </div>
           )}
@@ -905,7 +934,7 @@ export default function VenueDetail({
                 <TabsContent value="configuration" className="mt-0">
                   {/* Option 2: Horizontal sticky sub-nav */}
                   <VenueSectionNavBar
-                    topOffset={restricted ? 57 : 105}
+                    topOffset={restricted && !showTherapistTab ? 57 : 105}
                     sections={
                       restrictedSections
                         ? VENUE_CONFIG_SECTIONS.filter((s) =>
@@ -929,6 +958,12 @@ export default function VenueDetail({
                 </TabsContent>
               </form>
             </Form>
+
+            {showTherapistTab && effectiveHotelId && (
+              <TabsContent value="therapists" className="mt-0">
+                <VenueTherapistsTab hotelId={effectiveHotelId} />
+              </TabsContent>
+            )}
 
             <TabsContent value="planning" className="mt-0">
               {canAccessTabs ? (
@@ -989,6 +1024,10 @@ export default function VenueDetail({
 
                 <TabsContent value="inbox-email" className="mt-0">
                   <VenueInboundEmailTab hotelId={effectiveHotelId || undefined} />
+                </TabsContent>
+
+                <TabsContent value="history" className="mt-0">
+                  <VenueHistoryTab hotelId={effectiveHotelId!} enabled={activeTab === "history"} />
                 </TabsContent>
               </>
             )}

@@ -47,21 +47,6 @@ const TabBar = ({ unreadCount = 0, scheduleIncomplete = false }: TabBarProps) =>
           </button>
 
           <button
-            onClick={() => handleNavigation("/pwa/statistics")}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
-          >
-            <BarChart3
-              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/statistics") ? "text-primary" : "text-muted-foreground"}`}
-              strokeWidth={isActive("/pwa/statistics") ? 2.5 : 1.5}
-            />
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/statistics") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
-              {t('tabs.stats')}
-            </span>
-          </button>
-
-          <div className="flex-1" />
-
-          <button
             onClick={() => handleNavigation("/pwa/bookings")}
             className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all relative"
           >
@@ -76,6 +61,21 @@ const TabBar = ({ unreadCount = 0, scheduleIncomplete = false }: TabBarProps) =>
             </div>
             <span className={`text-[10px] transition-colors ${isActive("/pwa/bookings") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
               {t('tabs.agenda')}
+            </span>
+          </button>
+
+          <div className="flex-1" />
+
+          <button
+            onClick={() => handleNavigation("/pwa/statistics")}
+            className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
+          >
+            <BarChart3
+              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/statistics") ? "text-primary" : "text-muted-foreground"}`}
+              strokeWidth={isActive("/pwa/statistics") ? 2.5 : 1.5}
+            />
+            <span className={`text-[10px] transition-colors ${isActive("/pwa/statistics") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
+              {t('tabs.stats')}
             </span>
           </button>
 

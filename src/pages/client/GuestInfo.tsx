@@ -43,6 +43,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ProgressBar } from '@/components/client/ProgressBar';
 import { phoneCountries as countries, toFlagEmoji } from '@/lib/phoneCountries';
+import { languageFromCountryCode } from '@/lib/phone';
 
 const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean, isHotelGuest: boolean, isGiftCard: boolean) => {
   // PMS-verified hotel guest: we collect room + name only and resolve email/phone
@@ -323,7 +324,7 @@ export default function GuestInfo() {
 
       if (shouldTrackCheckoutIntent && hotelId) {
         const phone = `${savedClientInfo.countryCode}${savedClientInfo.phone}`.replace(/\s/g, '');
-        const lang = i18n.language === 'en' ? 'en' : 'fr';
+        const lang = languageFromCountryCode(savedClientInfo.countryCode);
         const bookingDate = scheduleMode === 'shared' ? bookingDateTime?.date ?? null : null;
         const bookingTime = scheduleMode === 'shared' ? bookingDateTime?.time ?? null : null;
         const currency = items.find((i) => i.currency)?.currency ?? 'EUR';

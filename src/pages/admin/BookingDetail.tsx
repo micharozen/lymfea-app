@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
@@ -12,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, User, Users, Phone,
-  Calendar, Clock, Building2, HandHeart, DoorOpen,
+  Calendar, Clock, Building2, HandHeart,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
   FileText, CreditCard
@@ -128,6 +129,22 @@ export default function BookingDetail() {
       });
   }, [booking?.id]);
 
+  // Payment metadata from booking_payment_infos: when it was paid (payment_at) and,
+  // for cancellations, the time + who cancelled (cancelled_by = staff user id;
+  // NULL means the client cancelled via the public flow).
+  const { data: paymentMeta } = useQuery({
+    queryKey: ["booking-payment-meta", booking?.id],
+    enabled: !!booking?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("booking_payment_infos")
+        .select("payment_at, cancelled_at, cancelled_by")
+        .eq("booking_id", booking!.id)
+        .maybeSingle();
+      return data ?? null;
+    },
+  });
+
   // Fetch all accepted therapists for duo bookings
   useEffect(() => {
     const guestCount = (booking as any)?.guest_count ?? 1;
@@ -201,6 +218,7 @@ export default function BookingDetail() {
   if (!booking) return <div className="p-10 text-center text-muted-foreground">Réservation introuvable.</div>;
 
   const isPaid = booking.payment_status === 'paid' || booking.payment_status === 'charged_to_room';
+  const isRoomPayment = booking.payment_method === 'room' || booking.payment_status === 'charged_to_room';
   const isPartnerBilled = booking.payment_status === 'pending_partner_billing';
   const isSigned = !!booking.signed_at;
 
@@ -254,6 +272,18 @@ export default function BookingDetail() {
     ? (PAYMENT_METHOD_LABELS[booking.payment_method] || booking.payment_method)
     : "À définir";
 
+  const cancellationDetail =
+    booking.status === "cancelled" && paymentMeta?.cancelled_at
+      ? `${format(new Date(paymentMeta.cancelled_at), "d MMM à HH:mm", { locale: fr })} · ${paymentMeta.cancelled_by ? "Annulé par l'établissement" : "Annulé par le client"}`
+      : undefined;
+
+  // Success banner is only meaningful for a real collected payment — not a room
+  // charge (settled on the hotel folio, not actually paid here).
+  const showPaymentSuccess = isPaid && !isRoomPayment;
+  const paidAtDetail = paymentMeta?.payment_at
+    ? format(new Date(paymentMeta.payment_at), "d MMM à HH:mm", { locale: fr })
+    : undefined;
+
   const handleMarkAsPaid = async () => {
     if (!booking || !markPaidMethod) return;
     setMarkPaidLoading(true);
@@ -263,6 +293,12 @@ export default function BookingDetail() {
         .update({ payment_status: "paid", payment_method: markPaidMethod })
         .eq("id", booking.id);
       if (error) throw error;
+      // Stamp the payment time so the detail view can show "payé le …".
+      // Only the Stripe/webhook flows set this otherwise — a manual mark left it null.
+      await supabase
+        .from("booking_payment_infos")
+        .update({ payment_at: new Date().toISOString() })
+        .eq("booking_id", booking.id);
       toast.success("Paiement enregistré.");
       setIsMarkPaidOpen(false);
       refetch();
@@ -336,7 +372,7 @@ export default function BookingDetail() {
         <div className="flex flex-1 items-center gap-3 justify-center flex-wrap min-w-0">
           <h1 className="text-xl font-bold text-gray-900 whitespace-nowrap">Réservation #{booking.booking_id}</h1>
           <ClientTypeBadge clientType={(booking as any).client_type || (booking.room_number ? "hotel" : "external")} />
-          {booking.room_number ? (
+          {booking.room_number && booking.room_number !== "TBD" ? (
             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
               Ch. {booking.room_number}
             </Badge>
@@ -346,7 +382,7 @@ export default function BookingDetail() {
               Chambre à renseigner
             </Badge>
           )}
-          <StatusBadge status={booking.status} type="booking" />
+          <StatusBadge status={booking.status} type="booking" className="no-underline" />
           <StatusBadge
             status={booking.payment_status || "pending"}
             type="payment"
@@ -355,7 +391,7 @@ export default function BookingDetail() {
           {isDuo && (
             <span className="inline-flex items-center rounded-md border font-medium h-6 px-2 text-xs gap-1.5 bg-purple-100 text-purple-800 border-purple-200">
               <Users className="w-3.5 h-3.5 shrink-0" />
-              Duo
+              Duo {acceptedTherapists.length}/{guestCount}
             </span>
           )}
           {bundleInfo && (
@@ -429,7 +465,7 @@ export default function BookingDetail() {
       </header>
 
       <main className="flex-1 p-6 max-w-4xl mx-auto w-full space-y-4">
-        <BookingStatusStepper status={booking.status} paymentStatus={booking.payment_status || "pending"} />
+        <BookingStatusStepper status={booking.status} paymentStatus={booking.payment_status || "pending"} cancellationDetail={cancellationDetail} />
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="details">Détails</TabsTrigger>
@@ -446,10 +482,20 @@ export default function BookingDetail() {
 
           <TabsContent value="details" className="space-y-4 mt-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {isPaid ? (
+        {showPaymentSuccess ? (
           <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-green-800">
             <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-            <span className="font-medium text-sm">Le paiement a été réalisé avec succès.</span>
+            <span className="font-medium text-sm">
+              Le paiement a été réalisé avec succès.
+              {paidAtDetail && (
+                <span className="font-normal opacity-70"> — le {paidAtDetail}</span>
+              )}
+            </span>
+          </div>
+        ) : isRoomPayment ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-blue-800">
+            <Building2 className="h-4 w-4 text-blue-600 flex-shrink-0" />
+            <span className="font-medium text-sm">Facturé en chambre.</span>
           </div>
         ) : isPartnerBilled ? (
           <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-indigo-800">
@@ -613,28 +659,35 @@ export default function BookingDetail() {
           </div>
 
           <div className="space-y-6">
-            <section className="bg-white rounded-xl border p-6 shadow-sm">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4">Date/Horaire/Lieu</h3>
-              <div className="space-y-4 text-sm">
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span>{booking.booking_date ? format(new Date(booking.booking_date), "EEEE d MMMM", { locale: fr }) : "-"}</span>
+            <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+              <div className="flex items-center gap-2.5 mb-5">
+                <Calendar className="h-5 w-5 text-gray-400" />
+                <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Rendez-vous</span>
+              </div>
+              <dl className="divide-y divide-gray-100">
+                <div className="flex items-center justify-between gap-4 py-2.5">
+                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Date</dt>
+                  <dd className="text-sm font-medium text-gray-900 text-right capitalize">
+                    {booking.booking_date ? format(new Date(booking.booking_date), "EEEE d MMMM", { locale: fr }) : "-"}
+                  </dd>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span>{booking.booking_time?.substring(0, 5) || "-"}{totalDuration > 0 && ` — ${totalDuration} min`}</span>
+                <div className="flex items-center justify-between gap-4 py-2.5">
+                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Horaire</dt>
+                  <dd className="text-sm font-medium text-gray-900 text-right">
+                    {booking.booking_time?.substring(0, 5) || "-"}{totalDuration > 0 && ` · ${totalDuration} min`}
+                  </dd>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Building2 className="h-4 w-4 text-gray-400" />
-                  <span>{hotelInfo?.name || "-"}</span>
+                <div className="flex items-center justify-between gap-4 py-2.5">
+                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Lieu</dt>
+                  <dd className="text-sm font-medium text-gray-900 text-right break-words">{hotelInfo?.name || "-"}</dd>
                 </div>
                 {!isDuo && booking.room_name && (
-                  <div className="flex items-center gap-3">
-                    <DoorOpen className="h-4 w-4 text-gray-400" />
-                    <span>{booking.room_name}</span>
+                  <div className="flex items-center justify-between gap-4 py-2.5">
+                    <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Cabine</dt>
+                    <dd className="text-sm font-medium text-gray-900 text-right break-words">{booking.room_name}</dd>
                   </div>
                 )}
-              </div>
+              </dl>
             </section>
           </div>
 

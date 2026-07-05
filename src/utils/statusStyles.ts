@@ -1,7 +1,7 @@
 // Centralized Status Configuration
 // All database values are now in English
 
-export type BookingStatus = 'pending' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled' | 'noshow' | 'quote_pending' | 'waiting_approval' | 'alternative_proposed' | 'awaiting_hairdresser_selection';
+export type BookingStatus = 'pending' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled' | 'noshow' | 'quote_pending' | 'waiting_approval' | 'alternative_proposed';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'charged_to_room' | 'pending_partner_billing' | 'card_saved' | 'offert';
 export type EntityStatus = 'active' | 'pending' | 'inactive' | 'maintenance';
 
@@ -79,14 +79,6 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     cardClass: 'bg-violet-500 text-white',
     calendarCardClass: 'bg-violet-50 text-violet-900 dark:bg-violet-900/20 dark:text-violet-100',
     hexColor: '#8b5cf6',
-  },
-  awaiting_hairdresser_selection: {
-    label: 'Attente thérapeute',
-    badgeClass: 'bg-violet-100 text-violet-800 border border-violet-300',
-    cardClass: 'bg-violet-500 text-white',
-    calendarCardClass: 'bg-violet-50 text-violet-900 dark:bg-violet-900/20 dark:text-violet-100',
-    hexColor: '#8b5cf6',
-    pulse: true,
   },
 };
 
@@ -342,7 +334,7 @@ export const calendarFlowStageOrder: CalendarFlowStageKey[] = [
 ];
 
 const QUOTE_STATUSES = new Set(['quote_pending', 'waiting_approval', 'alternative_proposed']);
-const AWAITING_THERAPIST_STATUSES = new Set(['pending', 'awaiting_hairdresser_selection']);
+const AWAITING_THERAPIST_STATUSES = new Set(['pending']);
 // Empty/null payment, on-site pending, or a locked Stripe pre-reservation all
 // mean "not yet paid". Partner billing, card-saved, paid, charged-to-room are settled.
 const AWAITING_PAYMENT_STATUSES = new Set(['pending', 'awaiting_payment']);

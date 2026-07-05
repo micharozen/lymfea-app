@@ -128,11 +128,7 @@ const PwaDashboard = () => {
     if (!therapist) return;
 
     const pendingDates = allBookings
-      .filter(
-        (b) =>
-          b.status === "pending" ||
-          b.status === "awaiting_hairdresser_selection"
-      )
+      .filter((b) => b.status === "pending")
       .map((b) => b.booking_date);
 
     if (pendingDates.length === 0) {
@@ -211,12 +207,13 @@ const PwaDashboard = () => {
           setAllBookings(prev => {
             const idx = prev.findIndex(b => b.id === newData.id);
 
-            // Solo pending taken by another therapist → toast
+            // Solo pending taken by another therapist → toast.
+            // Duos (guest_count > 1) stay visible to other therapists, so skip them.
             if (idx !== -1 &&
                 oldData.therapist_id === null &&
                 newData.therapist_id !== null &&
                 newData.therapist_id !== therapist.id &&
-                newData.status !== 'awaiting_hairdresser_selection') {
+                !(newData.guest_count > 1)) {
               const isSecondary = prev[idx].booking_therapists?.some(
                 (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
               );
@@ -488,7 +485,7 @@ const PwaDashboard = () => {
         )
       `)
       .in("hotel_id", hotelIds)
-      .in("status", ["pending", "awaiting_hairdresser_selection"]);
+      .eq("status", "pending");
 
     const { data: pendingBookings, error: pendingError } = await pendingQuery;
 
@@ -496,8 +493,10 @@ const PwaDashboard = () => {
 
     // Filter pending bookings
     const filteredPendingBookings = pendingBookings?.filter(b => {
-      // Duo bookings waiting for more therapists: show to all hotel therapists who haven't accepted yet
-      if (b.status === "awaiting_hairdresser_selection") {
+      // Duo bookings (guest_count > 1) waiting for more therapists: show to all
+      // hotel therapists who haven't accepted yet. A fully staffed duo is
+      // already 'confirmed', so any pending duo here is still open.
+      if (b.guest_count > 1) {
         const alreadyAccepted = (b.booking_therapists as { status: string; therapist_id?: string }[] | undefined)?.some(
           bt => bt.therapist_id === therapistId && bt.status === 'accepted'
         );
@@ -505,16 +504,13 @@ const PwaDashboard = () => {
       }
       // Solo pending bookings: must be unassigned (assigned ones come from myBookings).
       // Visible to all therapists of the venue, regardless of treatment room.
-      if (b.status === "pending") {
-        return b.therapist_id === null;
-      }
-      return false;
+      return b.therapist_id === null;
     }) || [];
 
 
-    // Fetch proposed slots for awaiting_hairdresser_selection bookings
+    // Fetch proposed slots for open duo bookings
     const awaitingBookingIds = filteredPendingBookings
-      .filter(b => b.status === "awaiting_hairdresser_selection")
+      .filter(b => b.guest_count > 1)
       .map(b => b.id);
 
     let slotsMap = new Map<string, any>();
@@ -623,9 +619,20 @@ const PwaDashboard = () => {
       const isActiveStatus = activeStatuses.includes(booking.status);
       
       if (activeTab === "upcoming") {
-        // Pending bookings appear in the pending requests section, not here
+        // Pending bookings normally live in the pending requests section, not
+        // here. Exception: an open duo (guest_count > 1) that THIS therapist has
+        // already accepted stays 'pending' until the duo is fully staffed, but
+        // it's filtered out of the pending requests section (already accepted).
+        // Surface it here so it doesn't fall through the cracks (visible only in
+        // the planning otherwise).
+        const acceptedDuoPending =
+          booking.status === "pending" &&
+          (booking.guest_count ?? 1) > 1 &&
+          booking.booking_therapists?.some(
+            (bt) => bt.therapist_id === therapist?.id && bt.status === "accepted"
+          );
         return isAssignedToMe &&
-               booking.status !== "pending" &&
+               (booking.status !== "pending" || acceptedDuoPending) &&
                booking.status !== "completed" &&
                bookingDate >= today;
       } else {
@@ -767,8 +774,9 @@ const PwaDashboard = () => {
 
       if (unavailableDates.has(b.booking_date)) return false;
 
-      if (b.status === "awaiting_hairdresser_selection") {
-        // Duo booking: show unless current therapist already accepted
+      if (b.status === "pending" && b.guest_count > 1) {
+        // Open duo booking (pending until fully staffed): show unless current
+        // therapist already accepted.
         const alreadyAccepted = b.booking_therapists?.some(
           bt => bt.therapist_id === therapist?.id && bt.status === 'accepted'
         );

@@ -8,11 +8,18 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { getBookingStatusConfig } from "@/utils/statusStyles";
+import {
+  getBookingStatusConfig,
+  getCalendarFlowStage,
+  calendarFlowStages,
+  calendarFlowStageOrder,
+  type CalendarFlowStageKey,
+} from "@/utils/statusStyles";
 import PwaCalendarView from "@/components/pwa/PwaCalendarView";
 import PwaDayView, { DayViewBooking } from "@/components/pwa/PwaDayView";
 import type { TherapistRates } from "@/lib/therapistEarnings";
 import PwaHeader from "@/components/pwa/Header";
+import PwaPageLoader from "@/components/pwa/PageLoader";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { ScheduleReminderBanner } from "@/components/pwa/schedule/ScheduleReminderBanner";
 import { useScheduleCompleteness } from "@/hooks/pwa/useScheduleCompleteness";
@@ -38,6 +45,7 @@ interface Booking {
   room_id?: string | null;
   room_name?: string | null;
   status: string;
+  payment_status?: string | null;
   phone: string;
   duration?: number;
   total_price?: number | null;
@@ -292,6 +300,7 @@ const PwaBookings = () => {
     room_number: b.room_number,
     room_name: b.room_name,
     status: b.status,
+    payment_status: b.payment_status,
     phone: b.phone,
     duration: b.duration,
     total_price: b.total_price,
@@ -301,18 +310,18 @@ const PwaBookings = () => {
 
   const venueMode = scope === "venue";
 
-  const legendStatuses = Array.from(new Set(bookings.map((b) => b.status)));
+  // Legend mirrors the admin/concierge planning: reservation-flow stages
+  // (status + payment) shown in lifecycle order, deduped to what's on screen.
+  const legendStages = calendarFlowStageOrder.filter((key) =>
+    bookings.some((b) => getCalendarFlowStage(b.status, b.payment_status).key === key),
+  );
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg text-muted-foreground">Chargement...</div>
-      </div>
-    );
+    return <PwaPageLoader title={t("bookings.title")} />;
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-background">
+    <div className="flex h-full min-h-0 flex-col bg-background">
       <PwaHeader
         title={t("bookings.title")}
         showBack
@@ -376,17 +385,14 @@ const PwaBookings = () => {
               ))}
             </div>
           )}
-          {legendStatuses.length > 0 && (
+          {legendStages.length > 0 && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              {legendStatuses.map((s) => {
-                const cfg = getBookingStatusConfig(s);
+              {legendStages.map((key) => {
+                const stage = calendarFlowStages[key];
                 return (
-                  <span key={s} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: cfg.hexColor }}
-                    />
-                    {cfg.label}
+                  <span key={key} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", stage.swatchClass)} />
+                    {stage.label}
                   </span>
                 );
               })}

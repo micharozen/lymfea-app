@@ -46,7 +46,7 @@ serve(async (req) => {
 
     for (const slot of expiredSlots) {
       const booking = (slot as any).bookings;
-      if (!booking || booking.status !== "awaiting_hairdresser_selection") continue;
+      if (!booking || booking.status !== "pending") continue;
 
       // Mark admin as notified to prevent duplicate notifications
       await supabase

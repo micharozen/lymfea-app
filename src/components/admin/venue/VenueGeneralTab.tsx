@@ -973,6 +973,33 @@ export function VenueGeneralTab({
 
           <FormField
             control={form.control}
+            name="client_payment_mode"
+            render={({ field }) => (
+              <FormItem className="py-4">
+                <FormLabel className="text-sm font-medium">Mode de paiement client</FormLabel>
+                <FormControl>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
+                    <SelectTrigger className="w-full max-w-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pre_authorization">Pré-autorisation</SelectItem>
+                      <SelectItem value="pay_at_booking">Paiement à la réservation</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  {field.value === "pay_at_booking"
+                    ? "Le client est débité immédiatement au moment de la réservation."
+                    : "La carte du client est enregistrée mais non débitée à la réservation ; le paiement est encaissé plus tard par le thérapeute."}
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="allow_out_of_hours_booking"
             render={({ field }) => (
               <FormItem className="flex items-center justify-between py-4">

@@ -22,8 +22,10 @@ import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
-import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
+import { buildMultiBookingItems, totalTreatmentCount } from '@/lib/multiTimeBooking';
 import { checkoutIntentFields } from '@/lib/client/checkoutIntentFields';
+import { parseCancellationTiers } from '@/lib/cancellationTiers';
+import { languageFromCountryCode } from '@/lib/phone';
 
 interface CheckoutPanelProps {
   hotelId: string;
@@ -51,6 +53,14 @@ export function CheckoutPanel({
   } = useClientFlow();
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
+  // "Same time" (shared) with 2+ treatments = duo: one bed + one therapist per
+  // treatment (counting quantity). Falls back to the native variant guest_count.
+  const duoGuestCount = (() => {
+    const totalTreatments = totalTreatmentCount(items.filter(i => !i.isAddon && !i.isBundle));
+    return scheduleMode === 'shared' && totalTreatments > 1
+      ? Math.max(requiredGuestCount, totalTreatments)
+      : requiredGuestCount;
+  })();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const { trackPageView } = useClientAnalytics(hotelId);
@@ -74,6 +84,12 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
   const isOffert = !!hotel?.offert || !!hotel?.company_offered;
   const isCompanyOffered = !!hotel?.company_offered;
   const supportsRoomPayment = venueTerms.supportsRoomPayment;
+  const payAtBooking = (hotel as { client_payment_mode?: string } | null)?.client_payment_mode === 'pay_at_booking';
+  const cancellationPolicyText = (i18n.language === 'en'
+    ? (hotel as { cancellation_policy_text_en?: string | null } | null)?.cancellation_policy_text_en
+    : (hotel as { cancellation_policy_text_fr?: string | null } | null)?.cancellation_policy_text_fr) || '';
+  const cancellationTiers = parseCancellationTiers((hotel as { cancellation_tiers?: unknown } | null)?.cancellation_tiers);
+  const cancellationCutoffHours = Number((hotel as { client_cancellation_cutoff_hours?: number | null } | null)?.client_cancellation_cutoff_hours ?? 2);
 
   // Fetch bundle template details for bundle-only purchases (cures + gift cards)
   const bundleTemplateId = isBundleOnlyPurchase ? items.find(i => i.bundleId)?.bundleId : null;
@@ -166,7 +182,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
                 recipientLanguage: giftInfo.recipientLanguage,
               },
             }),
-            language: i18n.language === 'en' ? 'en' : 'fr',
+            language: languageFromCountryCode(clientInfo.countryCode),
         }, { skipAuth: true });
 
         if (error) throw error;
@@ -368,7 +384,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
           ...(checkoutIntentFields(checkoutIntentId)),
-          ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+          ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
           isMulti,
           ...(isMulti ? { groupId, bookingIds } : {}),
           // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
@@ -429,7 +445,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
-              ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+              ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
             };
 
         const { data, error } = await invokeEdgeFunction<unknown, { bookingId?: string; bookingIds?: string[] }>('create-client-booking', { body, skipAuth: true });
@@ -845,8 +861,13 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
                 <p className={cn(
   "text-sm font-medium",
   selectedMethod === 'card' ? "text-gold-600" : "text-gray-900"
-)}>{t('payment.saveCard', 'Réserver')}</p>
-<p className="text-xs text-gray-400">{t('payment.saveCardDesc', 'Votre carte sera débitée après votre soin')}</p>
+)}>{payAtBooking ? t('payment.payNow', 'Paiement par carte') : t('payment.saveCard', 'Réserver')}</p>
+{!payAtBooking && (
+  <p className="text-xs text-gray-400">{t('payment.saveCardDesc', 'Votre carte sera débitée après votre soin')}</p>
+)}
+{payAtBooking && (
+  <p className="text-xs text-gray-400">{t('payment.payNowDesc', 'Le montant de votre réservation sera débité immédiatement.')}</p>
+)}
               </div>
             </div>
           </button>
@@ -879,6 +900,37 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
                 </div>
               </div>
             </button>
+          )}
+        </div>
+      )}
+
+      {/* Cancellation conditions — shown when the client is charged at booking */}
+      {payAtBooking && !isOffert && !hasPriceOnRequest && (cancellationPolicyText || cancellationTiers.length > 0) && (
+        <div className="rounded-lg border border-gray-100 bg-gray-50/80 p-3">
+          <p className="text-xs font-medium text-gray-700 mb-1">
+            {t('payment.cancellationConditionsTitle', "Conditions d'annulation")}
+          </p>
+          {cancellationPolicyText ? (
+            <p className="text-xs text-gray-500 whitespace-pre-line leading-relaxed">{cancellationPolicyText}</p>
+          ) : (
+            <ul className="text-xs text-gray-500 space-y-0.5">
+              {cancellationTiers.map((tier, idx) => (
+                <li key={idx}>
+                  {t('payment.cancellationTierLine', {
+                    defaultValue: 'Entre {{min}}h et {{max}}h avant : {{percent}}% remboursé',
+                    min: tier.min_hours,
+                    max: tier.max_hours,
+                    percent: tier.refund_percent,
+                  })}
+                </li>
+              ))}
+              <li>
+                {t('payment.cancellationCutoffLine', {
+                  defaultValue: 'Moins de {{cutoff}}h avant : aucun remboursement',
+                  cutoff: cancellationCutoffHours,
+                })}
+              </li>
+            </ul>
           )}
         </div>
       )}

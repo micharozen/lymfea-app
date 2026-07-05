@@ -13,6 +13,15 @@ export interface MultiBookingItem {
 }
 
 /**
+ * Total number of treatments across base items, counting quantity.
+ * `Massage ×2` counts as 2. Drives the shared/per-item chooser visibility and
+ * the "same time" duo guest_count (a duplicated treatment is still 2 people).
+ */
+export function totalTreatmentCount(baseItems: BasketItem[]): number {
+  return baseItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
+}
+
+/**
  * Zip cart base items with their per-item slot picks into the payload shape
  * expected by `create-draft-booking` and `create-client-booking` (multi mode).
  * Returns null if any base item is missing a slot — caller should validate

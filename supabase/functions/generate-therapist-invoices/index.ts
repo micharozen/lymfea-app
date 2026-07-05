@@ -2,6 +2,11 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { brand } from "../_shared/brand.ts";
 import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
+import {
+  resolveIssuerLegal,
+  type OrgLegal,
+  type ResolvedIssuer,
+} from "../_shared/issuer-legal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,6 +63,7 @@ interface Hotel {
   vat: number | null;
   address: string | null;
   city: string | null;
+  organization_id: string | null;
 }
 
 interface InvoiceLine {
@@ -70,6 +76,8 @@ interface GeneratedInvoiceData {
   therapist: Therapist;
   hotel: Hotel;
   billingProfile: BillingProfile;
+  // Platform party (récepteur / client) = the organization that owns the venue.
+  platformLegal: ResolvedIssuer;
   invoiceNumber: string;
   issueDate: Date;
   dueDate: Date;
@@ -129,7 +137,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   if (billingProfile.tva_number && !billingProfile.vat_exempt)
     issuerLegalLines.push(`N° TVA ${escapeHtml(billingProfile.tva_number)}`);
 
-  const legal = brand.legal;
+  const legal = data.platformLegal;
   const clientAddressHtml = escapeHtml(legal.address).replace(/, /g, "<br>");
 
   const lineDescription = `Commission thérapeute — ${hotel.name} — ${formatMonthYear(periodStart)}`;
@@ -433,7 +441,13 @@ const generateForTherapistHotel = async (
   hotel: Hotel,
   periodStart: Date,
   periodEnd: Date,
-): Promise<{ success: boolean; skipped?: boolean; reason?: string; invoiceId?: string }> => {
+): Promise<{
+  success: boolean;
+  skipped?: boolean;
+  reason?: string;
+  invoiceId?: string;
+  bookingsCount?: number;
+}> => {
   const startStr = periodStart.toISOString().slice(0, 10);
   const endStr = periodEnd.toISOString().slice(0, 10);
 
@@ -482,6 +496,9 @@ const generateForTherapistHotel = async (
 
   // Compute earnings per booking using duration-based rates
   let amountHt = 0;
+  // Track bookings whose earnings couldn't be computed because the therapist's
+  // rates are missing/incomplete (no payout to fall back on either).
+  let missingRateCount = 0;
   for (const b of eligibleBookings) {
     const fromPayout = payoutMap.get(b.id);
     if (fromPayout !== undefined) {
@@ -495,12 +512,27 @@ const generateForTherapistHotel = async (
     const dur = (b as any).duration && (b as any).duration > 0
       ? (b as any).duration
       : treatmentsDuration;
-    const earned = computeTherapistEarnings(rates, dur) ?? 0;
+    const earned = computeTherapistEarnings(rates, dur);
+    if (earned === null) {
+      missingRateCount += 1;
+      continue;
+    }
     amountHt += earned;
   }
   amountHt = Math.round(amountHt * 100) / 100;
 
   if (amountHt <= 0) {
+    // Distinguish "no rates configured" from a genuine zero so the UI can
+    // tell the admin to set the therapist's rates instead of showing a
+    // misleading "nothing to bill" message.
+    if (missingRateCount > 0) {
+      return {
+        success: true,
+        skipped: true,
+        reason: "missing_rates",
+        bookingsCount: eligibleBookings.length,
+      };
+    }
     return { success: true, skipped: true, reason: "zero_amount" };
   }
 
@@ -513,6 +545,22 @@ const generateForTherapistHotel = async (
     .maybeSingle();
 
   const profile: BillingProfile = billingProfile ?? {};
+
+  // Platform party (client / récepteur of the auto-invoice) = the organization
+  // that owns the venue; falls back to brand.json per field.
+  let orgLegal: OrgLegal | null = null;
+  if (hotel.organization_id) {
+    const { data: org } = await supabaseAdmin
+      .from("organizations")
+      .select(
+        "commercial_name, legal_name, legal_form, legal_capital, siren, siret, rcs, vat_number, legal_address, legal_postal_code, legal_city, legal_country",
+      )
+      .eq("id", hotel.organization_id)
+      .maybeSingle();
+    orgLegal = org;
+  }
+  const platformLegal = resolveIssuerLegal(orgLegal);
+
   const vatRate = profile.vat_exempt ? 0 : 20;
   const vatAmount = Math.round(((amountHt * vatRate) / 100) * 100) / 100;
   const amountTtc = Math.round((amountHt + vatAmount) * 100) / 100;
@@ -537,6 +585,7 @@ const generateForTherapistHotel = async (
     therapist,
     hotel,
     billingProfile: profile,
+    platformLegal,
     invoiceNumber,
     issueDate,
     dueDate,
@@ -574,7 +623,7 @@ const generateForTherapistHotel = async (
         bookings_count: eligibleBookings.length,
         html_snapshot: invoiceHTML,
         issuer_snapshot: profile,
-        client_snapshot: brand.legal,
+        client_snapshot: platformLegal,
         metadata: {
           booking_ids: bookingIds,
           therapist_name: `${therapist.first_name} ${therapist.last_name}`,
@@ -626,7 +675,7 @@ serve(async (req: Request) => {
       // Fetch therapist's venues
       let venuesQuery = supabaseAdmin
         .from("therapist_venues")
-        .select("hotel_id, hotels(id, name, vat, address, city)")
+        .select("hotel_id, hotels(id, name, vat, address, city, organization_id)")
         .eq("therapist_id", therapist.id);
       if (hotel_id) venuesQuery = venuesQuery.eq("hotel_id", hotel_id);
       const { data: venues, error: venuesError } = await venuesQuery;

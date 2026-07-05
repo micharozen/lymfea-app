@@ -410,7 +410,8 @@
       "categories": "Categories",
       "amenities": "Amenities",
       "overview": "Overview",
-      "clientPreview": "Client Preview"
+      "clientPreview": "Client Preview",
+      "history": "History"
     },
     "interVenueBuffer": "Inter-venue travel time",
     "interVenueBufferDesc": "Buffer added before and after each booking when the therapist comes from another venue. 0 = no buffer.",
@@ -930,6 +931,12 @@
       "helper": "The {{count}} treatments run in parallel, each with their own practitioner.",
       "ineligibleVariantDuo": "Duo booking via catalogue variant — combo mode is not available.",
       "practitionerLabel": "Practitioner {{index}}"
+    },
+    "civility": {
+      "label": "Title",
+      "optional": "(optional)",
+      "madame": "Mrs",
+      "monsieur": "Mr"
     }
   },
   "phoneBooking": {

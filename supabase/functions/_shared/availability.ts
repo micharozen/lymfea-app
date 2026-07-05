@@ -8,8 +8,9 @@ export interface Booking {
   booking_time: string; // "HH:MM:SS" venue-local
   therapist_id: string | null;
   room_id: string | null;
+  secondary_room_id: string | null; // overflow room for a duo spanning two rooms
   duration: number | null;
-  guest_count: number | null; // beds consumed in the room (duo = 2)
+  guest_count: number | null; // beds consumed across room_id (+ secondary_room_id)
 }
 
 export interface CrossVenueBooking {
@@ -108,16 +109,35 @@ export function computeSlotCapacity(input: SlotAvailabilityInput): SlotCapacity 
   );
 
   // Room capacity: a room has `capacity` beds (simultaneous occupations). Each
-  // blocking booking consumes `guest_count` beds (duo = 2). A room stays partly
-  // available until its beds are full — matching reserve_trunk_atomically.
-  // Bookings without an assigned room (e.g. card-saved holds awaiting therapist
-  // broadcast) still hold beds and must drain the pool.
+  // blocking booking consumes `guest_count` beds. A room stays partly available
+  // until its beds are full — matching reserve_trunk_atomically.
+  // Bed-attribution rule (shared with the RPC): a booking debits
+  // LEAST(guest_count, capacity(room_id)) beds to room_id and the remainder to
+  // secondary_room_id — so a duo spanning two capacity-1 rooms debits 1 bed from
+  // each. Bookings without an assigned room (card-saved holds awaiting broadcast),
+  // and legacy overflow with no secondary_room_id, drain the generic pool.
+  const capacityById = new Map(rooms.map((r) => [r.id, r.capacity || 1]));
   const occupiedBedsByRoom = new Map<string, number>();
   let bedsWithoutRoom = 0;
   for (const b of blocking) {
     const g = b.guest_count ?? 1;
-    if (b.room_id) occupiedBedsByRoom.set(b.room_id, (occupiedBedsByRoom.get(b.room_id) ?? 0) + g);
-    else bedsWithoutRoom += g;
+    if (!b.room_id) {
+      bedsWithoutRoom += g;
+      continue;
+    }
+    const primaryBeds = Math.min(g, capacityById.get(b.room_id) ?? 1);
+    occupiedBedsByRoom.set(b.room_id, (occupiedBedsByRoom.get(b.room_id) ?? 0) + primaryBeds);
+    const overflow = g - primaryBeds;
+    if (overflow > 0) {
+      if (b.secondary_room_id) {
+        occupiedBedsByRoom.set(
+          b.secondary_room_id,
+          (occupiedBedsByRoom.get(b.secondary_room_id) ?? 0) + overflow,
+        );
+      } else {
+        bedsWithoutRoom += overflow;
+      }
+    }
   }
   const freeRoomCapacity = rooms.reduce(
     (sum, r) => sum + Math.max(0, (r.capacity || 1) - (occupiedBedsByRoom.get(r.id) ?? 0)),

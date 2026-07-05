@@ -38,6 +38,8 @@ export interface CreateBookingPayload {
   clientEmail?: string;
   phone: string;
   countryCode: string;
+  /** Civilité du client (optionnel) — stockée sur la fiche customer. */
+  civility?: "madame" | "monsieur";
   language?: "fr" | "en";
   roomNumber: string;
   clientNote?: string;
@@ -85,14 +87,9 @@ function resolveAssignment(
     ? therapists?.find(h => h.id === allTherapistIds[0])
     : null;
 
-  let status: string;
-  if (allTherapistIds.length >= guestCount) {
-    status = "confirmed";
-  } else if (allTherapistIds.length === 0) {
-    status = "pending";
-  } else {
-    status = "awaiting_hairdresser_selection";
-  }
+  // 'confirmed' once every slot is staffed; otherwise 'pending' (a duo still
+  // needing therapists is pending + guest_count > 1).
+  const status: string = allTherapistIds.length >= guestCount ? "confirmed" : "pending";
 
   return {
     status,
@@ -255,6 +252,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           _last_name: d.clientLastName,
           _email: d.clientEmail?.trim() || null,
           _language: language,
+          _civility: d.civility ?? null,
         });
         customerId = data ?? null;
       }

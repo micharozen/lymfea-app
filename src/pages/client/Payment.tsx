@@ -22,8 +22,9 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { HoldBanner } from '@/components/client/HoldBanner';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
-import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
+import { buildMultiBookingItems, totalTreatmentCount } from '@/lib/multiTimeBooking';
 import { checkoutIntentFields } from '@/lib/client/checkoutIntentFields';
+import { languageFromCountryCode } from '@/lib/phone';
 import i18n from '@/i18n';
 
 export default function Payment() {
@@ -64,6 +65,7 @@ export default function Payment() {
   const venueType = hotel?.venue_type as VenueType | null;
   const venueTerms = useVenueTerms(venueType);
   const isOffert = !!hotel?.offert || !!hotel?.company_offered;
+  const payAtBooking = (hotel as { client_payment_mode?: string } | null)?.client_payment_mode === 'pay_at_booking';
   const supportsRoomPayment = venueTerms.supportsRoomPayment;
   const { trackPageView } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
@@ -88,6 +90,15 @@ export default function Payment() {
   }, [canProceedToStep, navigate, slug]);
 
   const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
+
+  // "Same time" (shared) with 2+ treatments = duo: one bed + one therapist per
+  // treatment (counting quantity). Falls back to the native variant guest_count.
+  const duoGuestCount = (() => {
+    const totalTreatments = totalTreatmentCount(items.filter(i => !i.isAddon && !i.isBundle));
+    return scheduleMode === 'shared' && totalTreatments > 1
+      ? Math.max(requiredGuestCount, totalTreatments)
+      : requiredGuestCount;
+  })();
 
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
@@ -160,7 +171,7 @@ export default function Payment() {
                 recipientLanguage: giftInfo.recipientLanguage,
               },
             }),
-            language: i18n.language === 'en' ? 'en' : 'fr',
+            language: languageFromCountryCode(clientInfo.countryCode),
         }, { skipAuth: true });
 
         if (error) throw error;
@@ -229,7 +240,7 @@ export default function Payment() {
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
-              ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+              ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
             },
             skipAuth: true,
           });
@@ -268,7 +279,7 @@ export default function Payment() {
                 customerBundleId: selectedBundle.customerBundleId,
                 amountCents: selectedBundle.amountToUseCents,
               },
-              language: i18n.language === 'en' ? 'en' : 'fr',
+              language: languageFromCountryCode(clientInfo.countryCode),
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
           }, { skipAuth: true });
@@ -323,7 +334,7 @@ export default function Payment() {
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
             ...(draftBookingId ? { draftBookingId } : {}),
             ...(checkoutIntentFields(checkoutIntentId)),
-            ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+            ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
           },
           skipAuth: true,
         });
@@ -366,11 +377,11 @@ export default function Payment() {
           treatmentIds: items.map(item => item.id),
           treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId })),
           totalPrice: total,
-          language: i18n.language === 'en' ? 'en' : 'fr',
+          language: languageFromCountryCode(clientInfo.countryCode),
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
           ...(checkoutIntentFields(checkoutIntentId)),
-          ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+          ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
           isMulti,
           ...(isMulti ? { groupId, bookingIds } : {}),
           // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
@@ -432,7 +443,7 @@ export default function Payment() {
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
-              ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+              ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
             };
 
         const { data, error } = await invokeEdgeFunction<unknown, { bookingId?: string; bookingIds?: string[] }>('create-client-booking', { body, skipAuth: true });
@@ -677,7 +688,9 @@ export default function Payment() {
                   ? t('giftCardLogin.giftCard')
                   : selectedBundle
                     ? t('bundle.bundleName', { name: selectedBundle.bundleName })
-                    : 'Sur place à la fin du soin'}
+                    : payAtBooking
+                      ? 'Débité aujourd\'hui'
+                      : 'Sur place à la fin du soin'}
               </span>
             </div>
             <div className="text-right">
@@ -713,6 +726,11 @@ export default function Payment() {
                       ? t('payment.giftActivation', 'La carte cadeau sera activée immédiatement.')
                       : t('payment.bundleActivation', 'Votre cure sera activée immédiatement.')}
                   </strong>
+                </>
+              ) : payAtBooking ? (
+                <>
+                  Paiement sécurisé.
+                  <strong className="text-gray-900 font-medium"> Le montant de votre réservation sera débité immédiatement.</strong>
                 </>
               ) : (
                 <>
@@ -750,8 +768,8 @@ export default function Payment() {
                   <p className={cn(
                     "font-medium text-sm",
                     selectedMethod === 'card' ? "text-gray-900" : "text-gray-700"
-                  )}>Garantie par carte bancaire</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Aucun débit immédiat. Paiement sur place.</p>
+                  )}>{payAtBooking ? 'Paiement par carte bancaire' : 'Garantie par carte bancaire'}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{payAtBooking ? 'Débit immédiat du montant de la réservation.' : 'Aucun débit immédiat. Paiement sur place.'}</p>
                 </div>
               </div>
             </button>

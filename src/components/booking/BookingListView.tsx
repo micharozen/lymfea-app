@@ -268,7 +268,7 @@ export function BookingListView({
                   />
                 )}
                 {(booking as any).guest_count > 1 &&
-                  ["awaiting_hairdresser_selection", "pending"].includes(booking.status) && (
+                  booking.status === "pending" && (
                     <span
                       className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap font-medium"
                       title={`Soin duo — ${(booking as any).guest_count} praticiens nécessaires`}
@@ -402,7 +402,7 @@ export function BookingListView({
                       className="text-[10px] px-2 py-0.5 whitespace-nowrap"
                     />
                     {(booking as any).guest_count > 1 &&
-                      ["awaiting_hairdresser_selection", "pending"].includes(booking.status) && (
+                      booking.status === "pending" && (
                         <span
                           className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap font-medium"
                           title={`Soin duo — ${(booking as any).guest_count} praticiens nécessaires`}

@@ -3,7 +3,13 @@ import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getBookingStatusConfig } from "@/utils/statusStyles";
+import { getCalendarFlowStage } from "@/utils/statusStyles";
+import { useLongPress } from "@/hooks/pwa/useLongPress";
+import { BookingPreviewPopover } from "@/components/pwa/BookingPreviewPopover";
+
+interface BookingTreatment {
+  treatment_menus: { name: string; price?: number; duration?: number } | null;
+}
 
 interface Booking {
   id: string;
@@ -16,9 +22,11 @@ interface Booking {
   room_number: string;
   room_name?: string | null;
   status: string;
+  payment_status?: string | null;
   phone: string;
   duration?: number;
   therapistName?: string | null;
+  booking_treatments?: BookingTreatment[];
 }
 
 interface PwaCalendarViewProps {
@@ -30,6 +38,8 @@ interface PwaCalendarViewProps {
 const HOUR_HEIGHT = 48;
 const START_HOUR = 7;
 const END_HOUR = 23;
+// Trim a couple px off each block so back-to-back bookings keep a readable seam.
+const BLOCK_GAP = 2;
 
 const WEEK_STORAGE_KEY = "pwa-calendar-3day-week";
 const INDEX_STORAGE_KEY = "pwa-calendar-3day-index";
@@ -55,6 +65,8 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
     return Math.min(mondayBasedIndex, 4);
   });
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [preview, setPreview] = useState<Booking | null>(null);
+  const { bind, consumeLongPress } = useLongPress();
 
   useEffect(() => {
     try {
@@ -124,7 +136,7 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
     const top = (totalMinutesFromStart / 60) * HOUR_HEIGHT;
     const height = (duration / 60) * HOUR_HEIGHT;
 
-    return { top, height: Math.max(height, 24) };
+    return { top, height: Math.max(height - BLOCK_GAP, 24) };
   }, []);
 
   const getCurrentTimePosition = useCallback(
@@ -278,18 +290,22 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
                   {/* Bookings */}
                   {dayBookings.map((booking) => {
                     const { top, height } = getBookingPosition(booking);
-                    const statusConfig = getBookingStatusConfig(booking.status);
+                    const flowStage = getCalendarFlowStage(booking.status, booking.payment_status);
 
                     return (
                       <div
                         key={booking.id}
-                        className={`absolute left-0.5 right-0.5 rounded text-xs cursor-pointer overflow-hidden z-10 ${statusConfig.cardClass}`}
+                        className={`absolute left-0.5 right-0.5 rounded text-xs cursor-pointer overflow-hidden z-10 select-none ${flowStage.cardClass}`}
                         style={{
                           top: `${top}px`,
                           height: `${height}px`,
                           minHeight: "24px",
                         }}
-                        onClick={() => onBookingClick(booking)}
+                        {...bind(() => setPreview(booking))}
+                        onClick={() => {
+                          if (consumeLongPress()) return;
+                          onBookingClick(booking);
+                        }}
                       >
                         <div className="p-1 h-full flex flex-col">
                           <div className="font-bold text-[11px] leading-tight">
@@ -335,6 +351,8 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
           </div>
         </div>
       </div>
+
+      <BookingPreviewPopover booking={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }

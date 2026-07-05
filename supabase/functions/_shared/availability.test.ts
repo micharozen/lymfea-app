@@ -40,6 +40,7 @@ function booking(over: Partial<Booking> = {}): Booking {
     booking_time: "19:30:00",
     therapist_id: null,
     room_id: ROOM_A.id,
+    secondary_room_id: null,
     duration: 60,
     guest_count: 1,
     ...over,
@@ -227,6 +228,52 @@ Deno.test("booking without room_id drains the pool by its guest_count", () => {
     bookings: [booking({ room_id: null, guest_count: 2, therapist_id: THERAPIST_1 })],
   }));
   assertStrictEquals(result, false);
+});
+
+// ---------------------------------------------------------------------------
+// isSlotAvailable — duo spanning two capacity-1 rooms (secondary_room_id)
+// ---------------------------------------------------------------------------
+
+Deno.test("duo across two capacity-1 rooms: both beds taken → a second duo is unavailable", () => {
+  const duo = booking({
+    room_id: ROOM_A.id,
+    secondary_room_id: ROOM_B.id,
+    guest_count: 2,
+    therapist_id: THERAPIST_1,
+  });
+  const result = isSlotAvailable(input({
+    rooms: [ROOM_A, ROOM_B],
+    bookings: [duo],
+    requiredGuestCount: 2,
+  }));
+  assertStrictEquals(result, false);
+});
+
+Deno.test("duo across two capacity-1 rooms: overflow bed in room B leaves no solo bed free", () => {
+  // Load-bearing: proves the 2nd bed is attributed to ROOM_B via secondary_room_id.
+  // Before the fix a duo debited 2 beds from ROOM_A (clamped to 1) and left ROOM_B
+  // looking free → availability/reserve divergence.
+  const duo = booking({
+    room_id: ROOM_A.id,
+    secondary_room_id: ROOM_B.id,
+    guest_count: 2,
+    therapist_id: THERAPIST_1,
+  });
+  const result = isSlotAvailable(input({
+    rooms: [ROOM_A, ROOM_B],
+    bookings: [duo],
+    requiredGuestCount: 1,
+  }));
+  assertStrictEquals(result, false);
+});
+
+Deno.test("solo in room A leaves room B free for another solo", () => {
+  const result = isSlotAvailable(input({
+    rooms: [ROOM_A, ROOM_B],
+    bookings: [booking({ room_id: ROOM_A.id, therapist_id: THERAPIST_1 })],
+    requiredGuestCount: 1,
+  }));
+  assertStrictEquals(result, true);
 });
 
 // ---------------------------------------------------------------------------
