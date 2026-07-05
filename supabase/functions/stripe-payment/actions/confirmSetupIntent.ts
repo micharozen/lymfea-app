@@ -99,6 +99,10 @@ async function atomicReserveSingle(
   verifiedPrice: number,
   treatmentIds: string[],
 ): Promise<{ data: string | null; error: Error | null }> {
+  // Duo (guest_count > 1): reserve guest_count beds, no therapist yet. Booking
+  // stays 'pending' until all guest_count practitioners have accepted (a duo
+  // still needing therapists is pending + guest_count > 1).
+  const guestCount = Math.max(1, Number(meta.guestCount) || 1);
   return supabase.rpc("reserve_trunk_atomically", {
     _booking_date: meta.bookingDate,
     _booking_time: meta.bookingTime,
@@ -119,6 +123,7 @@ async function atomicReserveSingle(
     _therapist_gender: meta.therapistGender || null,
     _total_price: verifiedPrice,
     _treatment_ids: treatmentIds,
+    _guest_count: guestCount,
   });
 }
 
@@ -455,6 +460,11 @@ export async function handleConfirmSetupIntent(
   // ── SINGLE BOOKING PATH ──────────────────────────────────────────
   const treatmentIds = JSON.parse(meta.treatmentIds || "[]");
 
+  // Duo (guest_count > 1): treatments run simultaneously → slot duration = longest
+  // single treatment (max). Solo: sum. Both stay 'pending' until fully staffed.
+  const guestCount = Math.max(1, Number(meta.guestCount) || 1);
+  const isDuo = guestCount > 1;
+
   const { data: treatments } = await supabase
     .from("treatment_menus")
     .select("price, duration")
@@ -464,10 +474,15 @@ export async function handleConfirmSetupIntent(
     0,
   );
   const totalDuration =
-    (treatments || []).reduce(
-      (sum: number, t: { duration: number }) => sum + (t.duration || 0),
-      0,
-    ) || 30;
+    (isDuo
+      ? (treatments || []).reduce(
+          (max: number, t: { duration: number }) => Math.max(max, t.duration || 0),
+          0,
+        )
+      : (treatments || []).reduce(
+          (sum: number, t: { duration: number }) => sum + (t.duration || 0),
+          0,
+        )) || 30;
 
   const { data: hotel } = await supabase
     .from("hotels")

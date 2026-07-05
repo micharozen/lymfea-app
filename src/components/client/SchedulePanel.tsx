@@ -18,7 +18,7 @@ import { useFeasibleAddons } from '@/hooks/client/useFeasibleAddons';
 import { useQuery } from '@tanstack/react-query';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { PerItemScheduler } from '@/components/client/PerItemScheduler';
-import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
+import { buildMultiBookingItems, totalTreatmentCount } from '@/lib/multiTimeBooking';
 import { DatePillsRow } from '@/components/client/scheduler/DatePillsRow';
 import { useDateOptions } from '@/components/client/scheduler/useDateOptions';
 import { useTimeSlots } from '@/components/client/scheduler/useTimeSlots';
@@ -125,6 +125,23 @@ export function SchedulePanel({
     () => baseItems.reduce((sum, i) => sum + (i.duration || 0) * (i.quantity || 1), 0),
     [baseItems],
   );
+
+  // Total treatments counting quantity — a treatment added twice counts as 2.
+  const totalTreatments = useMemo(() => totalTreatmentCount(baseItems), [baseItems]);
+
+  // "Same time" = duo: treatments run simultaneously, so the slot lasts as long
+  // as the longest single treatment (max), not the sum, and consumes one bed +
+  // one therapist per treatment.
+  const isDuoMode = scheduleMode === 'shared' && totalTreatments > 1;
+  const maxUnitDuration = useMemo(
+    () => Math.max(0, ...baseItems.map(i => i.duration || 0)),
+    [baseItems],
+  );
+  const duoGuestCount = isDuoMode
+    ? Math.max(requiredGuestCount, totalTreatments)
+    : requiredGuestCount;
+  // Availability/hold duration: simultaneous (max) in duo, sequential (sum) otherwise.
+  const effectiveDuration = isDuoMode ? maxUnitDuration : totalBaseDuration;
 
   const formatBaseEndTime = (time: string): string => {
     if (!time) return '';
@@ -239,7 +256,7 @@ export function SchedulePanel({
 
   // Fetch per-day availability (which deployed days actually have at least one free slot)
   const { data: daysWithSlots } = useQuery({
-    queryKey: ['venue-days-with-slots', hotelId, maxDaysAhead, therapistGenderPreference, requiredGuestCount],
+    queryKey: ['venue-days-with-slots', hotelId, maxDaysAhead, therapistGenderPreference, duoGuestCount],
     queryFn: async () => {
       const today = new Date();
       const endDate = addDays(today, maxDaysAhead);
@@ -250,7 +267,7 @@ export function SchedulePanel({
           startDate: format(today, 'yyyy-MM-dd'),
           endDate: format(endDate, 'yyyy-MM-dd'),
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-          ...(requiredGuestCount > 1 ? { requiredGuestCount } : {}),
+          ...(duoGuestCount > 1 ? { requiredGuestCount: duoGuestCount } : {}),
         },
       });
 
@@ -313,9 +330,9 @@ export function SchedulePanel({
             hotelId,
             date: selectedDate,
             ...(treatmentIds.length > 0 ? { treatmentIds } : {}),
-            ...(totalBaseDuration > 0 ? { requestedDuration: totalBaseDuration } : {}),
+            ...(effectiveDuration > 0 ? { requestedDuration: effectiveDuration } : {}),
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-            ...(requiredGuestCount > 1 ? { requiredGuestCount } : {}),
+            ...(duoGuestCount > 1 ? { requiredGuestCount: duoGuestCount } : {}),
           }
         });
 
@@ -341,7 +358,7 @@ export function SchedulePanel({
     };
 
     fetchAvailability();
-  }, [selectedDate, hotelId, therapistGenderPreference, requiredGuestCount, baseItems, totalBaseDuration, t]);
+  }, [selectedDate, hotelId, therapistGenderPreference, duoGuestCount, baseItems, effectiveDuration, t]);
 
   /**
    * Creates a draft booking (holds the slot) then navigates forward.
@@ -387,7 +404,7 @@ export function SchedulePanel({
             quantity: item.quantity,
           })),
           therapistGender: therapistGenderPreference || null,
-          ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+          ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
           ...(priorDraftIds.length > 0 ? { priorDraftIds } : {}),
         },
       });
@@ -661,20 +678,21 @@ export function SchedulePanel({
         />
       </div>
 
-      {/* Schedule mode chooser: blocking question when 2+ base treatments in cart */}
-      {baseItems.length > 1 && !scheduleModeChosen && (
+      {/* Schedule mode chooser: blocking question when 2+ treatments in cart
+          (counting quantity — a treatment added twice also counts). */}
+      {totalTreatments > 1 && !scheduleModeChosen && (
         <div className="p-4 rounded-lg border border-gray-200 bg-gray-50 space-y-3">
           <div>
             <div className="text-sm font-medium text-gray-900">
               {t(
                 'datetime.multiTime.question',
-                'Souhaitez-vous réserver ces soins sur le même créneau ?',
+                'Réserver ces soins en même temps (Duo) ?',
               )}
             </div>
             <p className="text-xs text-gray-500 mt-1">
               {t(
                 'datetime.multiTime.questionHelper',
-                "Choisissez si vos soins se déroulent simultanément (en couple/duo) ou l'un après l'autre à des horaires distincts.",
+                "En duo, vos soins ont lieu simultanément (2 praticien·nes). Sinon, choisissez un créneau distinct par soin.",
               )}
             </p>
           </div>
@@ -687,7 +705,7 @@ export function SchedulePanel({
                 setScheduleModeChosen(true);
               }}
             >
-              {t('datetime.multiTime.yesShared', 'Oui, même créneau')}
+              {t('datetime.multiTime.yesShared', 'Même moment (Duo)')}
             </Button>
             <Button
               type="button"
@@ -701,19 +719,19 @@ export function SchedulePanel({
                 setScheduleModeChosen(true);
               }}
             >
-              {t('datetime.multiTime.noSeparate', 'Non, créneaux séparés')}
+              {t('datetime.multiTime.noSeparate', 'Créneaux séparés')}
             </Button>
           </div>
         </div>
       )}
 
       {/* Recap of chosen schedule mode (with "change" link) */}
-      {baseItems.length > 1 && scheduleModeChosen && (
+      {totalTreatments > 1 && scheduleModeChosen && (
         <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
           <p className="text-xs text-gray-600">
             {scheduleMode === 'per_item'
               ? t('datetime.multiTime.recapSeparate', 'Un créneau distinct par soin')
-              : t('datetime.multiTime.recapShared', 'Créneau unique pour tous les soins')}
+              : t('datetime.multiTime.recapShared', 'Duo — même créneau pour tous les soins')}
           </p>
           <button
             type="button"
@@ -742,7 +760,7 @@ export function SchedulePanel({
       )}
 
       {/* Per-item scheduler: one date+time picker per cart item (multi-time mode) */}
-      {scheduleMode === 'per_item' && baseItems.length > 1 && scheduleModeChosen && (
+      {scheduleMode === 'per_item' && totalTreatments > 1 && scheduleModeChosen && (
         <>
           <PerItemScheduler
             hotelId={hotelId}
@@ -759,7 +777,7 @@ export function SchedulePanel({
       )}
 
       {/* Date Selection (shared single-slot mode) */}
-      {scheduleMode === 'shared' && (baseItems.length <= 1 || scheduleModeChosen) && (
+      {scheduleMode === 'shared' && (totalTreatments <= 1 || scheduleModeChosen) && (
       <>
       <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.2s' }}>
         <DatePillsRow

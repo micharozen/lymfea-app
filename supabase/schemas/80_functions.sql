@@ -62,7 +62,8 @@ BEGIN
   IF _accepted_count >= _booking_guest_count THEN
     _new_status := 'confirmed';
   ELSE
-    _new_status := 'awaiting_hairdresser_selection';
+    -- Duo still needing therapists stays 'pending' (pending + guest_count > 1).
+    _new_status := 'pending';
   END IF;
 
   -- Update booking: set first therapist as primary (backward compat), update status
