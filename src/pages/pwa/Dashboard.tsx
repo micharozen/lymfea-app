@@ -619,9 +619,20 @@ const PwaDashboard = () => {
       const isActiveStatus = activeStatuses.includes(booking.status);
       
       if (activeTab === "upcoming") {
-        // Pending bookings appear in the pending requests section, not here
+        // Pending bookings normally live in the pending requests section, not
+        // here. Exception: an open duo (guest_count > 1) that THIS therapist has
+        // already accepted stays 'pending' until the duo is fully staffed, but
+        // it's filtered out of the pending requests section (already accepted).
+        // Surface it here so it doesn't fall through the cracks (visible only in
+        // the planning otherwise).
+        const acceptedDuoPending =
+          booking.status === "pending" &&
+          (booking.guest_count ?? 1) > 1 &&
+          booking.booking_therapists?.some(
+            (bt) => bt.therapist_id === therapist?.id && bt.status === "accepted"
+          );
         return isAssignedToMe &&
-               booking.status !== "pending" &&
+               (booking.status !== "pending" || acceptedDuoPending) &&
                booking.status !== "completed" &&
                bookingDate >= today;
       } else {
