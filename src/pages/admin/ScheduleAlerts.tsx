@@ -23,6 +23,7 @@ import {
   Shield,
   Bell,
   MapPin,
+  ListTodo,
   UserX,
   AlertTriangle,
   Trash2,
@@ -107,6 +108,7 @@ export default function ScheduleAlerts() {
   interface NotificationEntry {
     id: string;
     booking_id: string | null;
+    task_id: string | null;
     type: string;
     message: string;
     read: boolean;
@@ -168,6 +170,7 @@ export default function ScheduleAlerts() {
       case "noshow": return <UserX className="h-4 w-4 text-amber-600" />;
       case "new_booking": return <Bell className="h-4 w-4 text-green-600" />;
       case "booking_cancelled": return <AlertTriangle className="h-4 w-4 text-red-600" />;
+      case "task_assigned": return <ListTodo className="h-4 w-4 text-gold-600" />;
       default: return <Bell className="h-4 w-4 text-muted-foreground" />;
     }
   };
@@ -178,6 +181,7 @@ export default function ScheduleAlerts() {
       case "noshow": return { label: "No-show", className: "bg-amber-100 text-amber-700" };
       case "new_booking": return { label: isFr ? "Nouvelle réservation" : "New booking", className: "bg-green-100 text-green-700" };
       case "booking_cancelled": return { label: isFr ? "Annulation" : "Cancellation", className: "bg-red-100 text-red-700" };
+      case "task_assigned": return { label: isFr ? "Tâche assignée" : "Task assigned", className: "bg-gold-100 text-gold-700" };
       default: return { label: type, className: "bg-gray-100 text-gray-700" };
     }
   };
@@ -520,7 +524,8 @@ export default function ScheduleAlerts() {
                             )}
                             onClick={() => {
                               if (!notif.read) handleMarkNotifRead(notif.id);
-                              if (notif.booking_id) navigate(`/admin/bookings/${notif.booking_id}`);
+                              if (notif.task_id) navigate(`/admin/tasks?task=${notif.task_id}`);
+                              else if (notif.booking_id) navigate(`/admin/bookings/${notif.booking_id}`);
                             }}
                           >
                             <TableCell className="py-0 px-2">

@@ -369,6 +369,21 @@
     "no": "No"
   },
   "venue": {
+    "completeness": {
+      "title": "Configuration completeness",
+      "badge": "Config. {{percent}}%",
+      "missing": "To fill in",
+      "items": {
+        "opening_hours": "Opening hours",
+        "payment_connected": "Payment connected",
+        "commissions": "Commissions (venue + therapist)",
+        "payment_mode": "Client payment mode",
+        "out_of_hours_surcharge": "Out-of-hours surcharge",
+        "deployment": "Deployment schedule",
+        "hold": "Pre-booking (hold)",
+        "min_notice": "Minimum booking notice"
+      }
+    },
     "branding": {
       "tab": "Branding",
       "title": "Visual customization",
@@ -546,6 +561,63 @@
       "status": "Status",
       "total": "Total"
     }
+  },
+  "tasks": {
+    "title": "Tasks",
+    "description": "Track and assign your team's operational work.",
+    "new": "New task",
+    "create": "Create",
+    "searchPlaceholder": "Search a task...",
+    "allPriorities": "All priorities",
+    "allAssignees": "All assignees",
+    "emptyColumn": "No tasks",
+    "newTitle": "New task",
+    "editTitle": "Edit task",
+    "createSuccess": "Task created",
+    "updateSuccess": "Task updated",
+    "deleteSuccess": "Task deleted",
+    "saveError": "Something went wrong",
+    "status": {
+      "todo": "To do",
+      "in_progress": "In progress",
+      "done": "Done"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "card": {
+      "booking": "Booking"
+    },
+    "fields": {
+      "title": "Title",
+      "titlePlaceholder": "e.g. Call the client to confirm",
+      "description": "Description",
+      "descriptionPlaceholder": "Task details (optional)",
+      "priority": "Priority",
+      "status": "Status",
+      "dueDate": "Due date",
+      "assignee": "Assigned to",
+      "unassigned": "Unassigned",
+      "linkedBooking": "Linked booking",
+      "linkedCustomer": "Linked customer",
+      "noBooking": "No booking",
+      "noCustomer": "No customer",
+      "searchBooking": "Search (number or name)...",
+      "searchCustomer": "Search a customer...",
+      "noResults": "No results"
+    },
+    "dueDatePresets": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "in3days": "In 3 days",
+      "in7days": "In 7 days"
+    },
+    "expand": "Fullscreen",
+    "collapse": "Collapse",
+    "openLink": "View"
   },
   "scheduleAlerts": {
     "title": "Schedule Alerts",
@@ -1031,10 +1103,26 @@
     "account": {
       "continueWithGoogle": "Continue with Google",
       "orDivider": "or",
-      "firstName": { "label": "First name", "placeholder": "Camille", "error": "First name required" },
-      "lastName": { "label": "Last name", "placeholder": "Durand", "error": "Last name required" },
-      "phone": { "label": "Phone", "placeholder": "+33 6 12 34 56 78", "error": "Phone required (min 6 digits)" },
-      "email": { "label": "Email", "placeholder": "camille@example.com", "error": "Invalid email" },
+      "firstName": {
+        "label": "First name",
+        "placeholder": "Camille",
+        "error": "First name required"
+      },
+      "lastName": {
+        "label": "Last name",
+        "placeholder": "Durand",
+        "error": "Last name required"
+      },
+      "phone": {
+        "label": "Phone",
+        "placeholder": "+33 6 12 34 56 78",
+        "error": "Phone required (min 6 digits)"
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "camille@example.com",
+        "error": "Invalid email"
+      },
       "password": {
         "label": "Password",
         "placeholder": "Min 8 characters",
@@ -1049,7 +1137,12 @@
           "strong": "Strong password"
         }
       },
-      "confirmPassword": { "label": "Confirm password", "placeholder": "Repeat password", "error": "Passwords do not match", "match": "Passwords match" },
+      "confirmPassword": {
+        "label": "Confirm password",
+        "placeholder": "Repeat password",
+        "error": "Passwords do not match",
+        "match": "Passwords match"
+      },
       "terms": {
         "label": "I agree to the <tos>Terms of Service</tos>",
         "error": "You must accept the Terms of Service"
@@ -1060,7 +1153,11 @@
       }
     },
     "organization": {
-      "name": { "label": "Organization name", "placeholder": "Lumière Spa Group", "error": "Name required (min 2 characters)" },
+      "name": {
+        "label": "Organization name",
+        "placeholder": "Lumière Spa Group",
+        "error": "Name required (min 2 characters)"
+      },
       "slugPreview": "URL: {{slug}}",
       "helper": "This name appears on your invoices and admin workspace."
     },
@@ -1079,10 +1176,23 @@
         "hint": "Search for your business to pre-fill the address",
         "error": "Name required"
       },
-      "address": { "label": "Address", "placeholder": "12 Lilas Street", "error": "Address required" },
-      "postalCode": { "label": "Postal code", "placeholder": "75004" },
-      "city": { "label": "City", "placeholder": "Paris" },
-      "country": { "label": "Country", "placeholder": "France" }
+      "address": {
+        "label": "Address",
+        "placeholder": "12 Lilas Street",
+        "error": "Address required"
+      },
+      "postalCode": {
+        "label": "Postal code",
+        "placeholder": "75004"
+      },
+      "city": {
+        "label": "City",
+        "placeholder": "Paris"
+      },
+      "country": {
+        "label": "Country",
+        "placeholder": "France"
+      }
     },
     "plan": {
       "cycle": {
@@ -1092,8 +1202,12 @@
       },
       "unitMonth": "month",
       "unitYear": "year",
-      "starter": { "tagline": "To get started" },
-      "pro": { "tagline": "For established venues" },
+      "starter": {
+        "tagline": "To get started"
+      },
+      "pro": {
+        "tagline": "For established venues"
+      },
       "trialNotice": "14-day free trial. Card required, no charge during the trial."
     },
     "summary": {
@@ -1314,10 +1428,22 @@
       },
       "flow": {
         "title": "The process at a glance",
-        "step1": { "label": "Email received", "sub": "Guest or concierge" },
-        "step2": { "label": "Dedicated inbox", "sub": "Secure webhook" },
-        "step3": { "label": "AI parsing", "sub": "Fields extracted" },
-        "step4": { "label": "Booking", "sub": "Ready to confirm" }
+        "step1": {
+          "label": "Email received",
+          "sub": "Guest or concierge"
+        },
+        "step2": {
+          "label": "Dedicated inbox",
+          "sub": "Secure webhook"
+        },
+        "step3": {
+          "label": "AI parsing",
+          "sub": "Fields extracted"
+        },
+        "step4": {
+          "label": "Booking",
+          "sub": "Ready to confirm"
+        }
       },
       "how": {
         "title": "How it works",

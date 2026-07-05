@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   ListChecks,
+  ListTodo,
   Building2,
   Users,
   BookOpen,
@@ -79,6 +80,7 @@ const adminPrimaryItems: MenuItem[] = [
   { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
   { title: "Clients", url: "/admin/customers", icon: Contact },
+  { title: "Tâches", url: "/admin/tasks", icon: ListTodo },
   { title: "Inbox", url: "/admin/inbox", icon: Inbox },
   { title: "Alertes", url: "/admin/schedule-alerts", icon: Bell, badge: true },
 ];

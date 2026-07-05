@@ -369,6 +369,21 @@
     "no": "Non"
   },
   "venue": {
+    "completeness": {
+      "title": "Complétude de la configuration",
+      "badge": "Config. {{percent}}%",
+      "missing": "À renseigner",
+      "items": {
+        "opening_hours": "Horaires d'ouverture",
+        "payment_connected": "Paiement connecté",
+        "commissions": "Commissions (lieu + thérapeute)",
+        "payment_mode": "Mode de paiement client",
+        "out_of_hours_surcharge": "Majoration hors horaires",
+        "deployment": "Planning de déploiement",
+        "hold": "Pré-réservation (hold)",
+        "min_notice": "Délai minimum de réservation"
+      }
+    },
     "branding": {
       "tab": "Branding",
       "title": "Personnalisation visuelle",
@@ -546,6 +561,63 @@
       "status": "Statut",
       "total": "Total"
     }
+  },
+  "tasks": {
+    "title": "Tâches",
+    "description": "Suivez et assignez le travail opérationnel de votre équipe.",
+    "new": "Nouvelle tâche",
+    "create": "Créer",
+    "searchPlaceholder": "Rechercher une tâche...",
+    "allPriorities": "Toutes les priorités",
+    "allAssignees": "Tous les assignés",
+    "emptyColumn": "Aucune tâche",
+    "newTitle": "Nouvelle tâche",
+    "editTitle": "Modifier la tâche",
+    "createSuccess": "Tâche créée",
+    "updateSuccess": "Tâche mise à jour",
+    "deleteSuccess": "Tâche supprimée",
+    "saveError": "Une erreur est survenue",
+    "status": {
+      "todo": "À faire",
+      "in_progress": "En cours",
+      "done": "Terminé"
+    },
+    "priority": {
+      "low": "Basse",
+      "medium": "Moyenne",
+      "high": "Haute",
+      "urgent": "Urgente"
+    },
+    "card": {
+      "booking": "Résa"
+    },
+    "fields": {
+      "title": "Titre",
+      "titlePlaceholder": "Ex. Rappeler le client pour confirmer",
+      "description": "Description",
+      "descriptionPlaceholder": "Détails de la tâche (facultatif)",
+      "priority": "Priorité",
+      "status": "Statut",
+      "dueDate": "Échéance",
+      "assignee": "Assigné à",
+      "unassigned": "Non assigné",
+      "linkedBooking": "Réservation liée",
+      "linkedCustomer": "Client lié",
+      "noBooking": "Aucune réservation",
+      "noCustomer": "Aucun client",
+      "searchBooking": "Rechercher (n° ou nom)...",
+      "searchCustomer": "Rechercher un client...",
+      "noResults": "Aucun résultat"
+    },
+    "dueDatePresets": {
+      "today": "Aujourd'hui",
+      "tomorrow": "Demain",
+      "in3days": "Dans 3 jours",
+      "in7days": "Dans 7 jours"
+    },
+    "expand": "Plein écran",
+    "collapse": "Réduire",
+    "openLink": "Voir"
   },
   "scheduleAlerts": {
     "title": "Alertes Planning",
@@ -1031,10 +1103,26 @@
     "account": {
       "continueWithGoogle": "Continuer avec Google",
       "orDivider": "ou",
-      "firstName": { "label": "Prénom", "placeholder": "Camille", "error": "Prénom requis" },
-      "lastName": { "label": "Nom", "placeholder": "Durand", "error": "Nom requis" },
-      "phone": { "label": "Téléphone", "placeholder": "+33 6 12 34 56 78", "error": "Téléphone requis (min 6 chiffres)" },
-      "email": { "label": "Email", "placeholder": "camille@exemple.com", "error": "Email invalide" },
+      "firstName": {
+        "label": "Prénom",
+        "placeholder": "Camille",
+        "error": "Prénom requis"
+      },
+      "lastName": {
+        "label": "Nom",
+        "placeholder": "Durand",
+        "error": "Nom requis"
+      },
+      "phone": {
+        "label": "Téléphone",
+        "placeholder": "+33 6 12 34 56 78",
+        "error": "Téléphone requis (min 6 chiffres)"
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "camille@exemple.com",
+        "error": "Email invalide"
+      },
       "password": {
         "label": "Mot de passe",
         "placeholder": "Min 8 caractères",
@@ -1049,7 +1137,12 @@
           "strong": "Mot de passe fort"
         }
       },
-      "confirmPassword": { "label": "Confirmer le mot de passe", "placeholder": "Retapez le mot de passe", "error": "Les mots de passe ne correspondent pas", "match": "Les mots de passe correspondent" },
+      "confirmPassword": {
+        "label": "Confirmer le mot de passe",
+        "placeholder": "Retapez le mot de passe",
+        "error": "Les mots de passe ne correspondent pas",
+        "match": "Les mots de passe correspondent"
+      },
       "terms": {
         "label": "J'accepte les <tos>Conditions Générales d'Utilisation</tos>",
         "error": "Vous devez accepter les CGU"
@@ -1060,7 +1153,11 @@
       }
     },
     "organization": {
-      "name": { "label": "Nom de l'organisation", "placeholder": "Groupe Spa Lumière", "error": "Nom requis (min 2 caractères)" },
+      "name": {
+        "label": "Nom de l'organisation",
+        "placeholder": "Groupe Spa Lumière",
+        "error": "Nom requis (min 2 caractères)"
+      },
       "slugPreview": "URL : {{slug}}",
       "helper": "Ce nom apparaît sur vos factures et dans l'espace administrateur."
     },
@@ -1079,10 +1176,23 @@
         "hint": "Cherchez votre établissement pour pré-remplir l'adresse",
         "error": "Nom requis"
       },
-      "address": { "label": "Adresse", "placeholder": "12 rue des Lilas", "error": "Adresse requise" },
-      "postalCode": { "label": "Code postal", "placeholder": "75004" },
-      "city": { "label": "Ville", "placeholder": "Paris" },
-      "country": { "label": "Pays", "placeholder": "France" }
+      "address": {
+        "label": "Adresse",
+        "placeholder": "12 rue des Lilas",
+        "error": "Adresse requise"
+      },
+      "postalCode": {
+        "label": "Code postal",
+        "placeholder": "75004"
+      },
+      "city": {
+        "label": "Ville",
+        "placeholder": "Paris"
+      },
+      "country": {
+        "label": "Pays",
+        "placeholder": "France"
+      }
     },
     "plan": {
       "cycle": {
@@ -1092,8 +1202,12 @@
       },
       "unitMonth": "mois",
       "unitYear": "an",
-      "starter": { "tagline": "Pour démarrer en douceur" },
-      "pro": { "tagline": "Pour les structures établies" },
+      "starter": {
+        "tagline": "Pour démarrer en douceur"
+      },
+      "pro": {
+        "tagline": "Pour les structures établies"
+      },
       "trialNotice": "14 jours d'essai gratuit. Carte demandée, non débitée pendant l'essai."
     },
     "summary": {
@@ -1314,10 +1428,22 @@
       },
       "flow": {
         "title": "Le processus en un coup d'œil",
-        "step1": { "label": "Email reçu", "sub": "Client ou concierge" },
-        "step2": { "label": "Inbox dédié", "sub": "Webhook sécurisé" },
-        "step3": { "label": "Analyse IA", "sub": "Champs extraits" },
-        "step4": { "label": "Réservation", "sub": "Prête à valider" }
+        "step1": {
+          "label": "Email reçu",
+          "sub": "Client ou concierge"
+        },
+        "step2": {
+          "label": "Inbox dédié",
+          "sub": "Webhook sécurisé"
+        },
+        "step3": {
+          "label": "Analyse IA",
+          "sub": "Champs extraits"
+        },
+        "step4": {
+          "label": "Réservation",
+          "sub": "Prête à valider"
+        }
       },
       "how": {
         "title": "Comment ça marche",

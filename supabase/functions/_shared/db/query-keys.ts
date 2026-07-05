@@ -63,6 +63,20 @@ export const customerKeys = {
   search: (query: string) => [...customerKeys.all, "search", query] as const,
 };
 
+export const taskKeys = {
+  all: ["tasks"] as const,
+  forOrg: (scope: ScopeLike) => [...taskKeys.all, "org", orgKey(scope)] as const,
+  list: (scope: ScopeLike) => [...taskKeys.forOrg(scope), "list"] as const,
+  detail: (scope: ScopeLike, id: string) =>
+    [...taskKeys.forOrg(scope), "detail", id] as const,
+};
+
+export const adminKeys = {
+  all: ["admins"] as const,
+  forOrg: (scope: ScopeLike) => [...adminKeys.all, "org", orgKey(scope)] as const,
+  list: (scope: ScopeLike) => [...adminKeys.forOrg(scope), "list"] as const,
+};
+
 export const bundleKeys = {
   all: ["treatment-bundles"] as const,
   forOrg: (scope: ScopeLike) => [...bundleKeys.all, "org", orgKey(scope)] as const,
