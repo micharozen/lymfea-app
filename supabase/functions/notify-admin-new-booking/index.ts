@@ -11,7 +11,46 @@ const corsHeaders = {
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
-// Compact email template - no scrolling
+// Type de client → label FR pour le badge admin.
+const CLIENT_TYPE_LABELS: Record<string, string> = {
+  hotel: 'Client hôtel',
+  external: 'Client externe',
+  staycation: 'Staycation',
+  classpass: 'ClassPass',
+};
+
+// Origine de la réservation (colonne bookings.source, enum contraint) → label FR.
+const SOURCE_LABELS: Record<string, string> = {
+  admin: 'Créée par l’équipe',
+  client: 'Réservation en ligne',
+  email: 'Email',
+  pwa: 'App thérapeute',
+  api: 'API',
+  phone: 'Téléphone',
+};
+
+// Statut de paiement → label FR. Aligné sur PAID_STATUSES utilisé dans
+// notify-booking-confirmed et trigger-new-booking-notifications.
+const paymentStatusLabel = (status?: string | null): string => {
+  const s = (status || '').toLowerCase();
+  if (['paid', 'charged', 'charged_to_room', 'card_saved', 'offert'].includes(s)) return 'Payé';
+  if (s === 'pending_partner_billing') return 'Paiement partenaire';
+  return 'En attente';
+};
+
+// Ligne label/valeur en style éditorial (label uppercase gris + valeur).
+const infoRow = (label: string, valueHtml: string) => `
+<tr>
+  <td style="padding:14px 0;border-bottom:1px solid #f0eee9;">
+    <span style="display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#9b958c;">${label}</span>
+  </td>
+  <td style="padding:14px 0;border-bottom:1px solid #f0eee9;text-align:right;">
+    <span style="font-size:15px;color:#1a1a1a;">${valueHtml}</span>
+  </td>
+</tr>
+`;
+
+// Email template — style éditorial, adapté à un public admin.
 const createAdminEmailHtml = (booking: any, treatments: any[], dashboardUrl: string, groupSlots?: { date: string; time: string; treatmentsLine: string }[]) => {
   const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
     weekday: 'short',
@@ -22,87 +61,96 @@ const createAdminEmailHtml = (booking: any, treatments: any[], dashboardUrl: str
   const treatmentsHtml = (groupSlots && groupSlots.length > 1)
     ? groupSlots.map(s => {
         const d = new Date(s.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-        return `<div style="margin:4px 0;font-size:12px;"><strong>${d} · ${s.time?.substring(0,5)}</strong> — ${s.treatmentsLine}</div>`;
+        return `<div style="margin:6px 0;font-size:14px;color:#1a1a1a;"><strong>${d} · ${s.time?.substring(0,5)}</strong> — ${s.treatmentsLine}</div>`;
       }).join('')
     : treatments.map(t =>
-      `<span style="display:inline-block;background:#f3f4f6;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
+      `<div style="margin:6px 0;font-size:14px;color:#1a1a1a;">${t.name} · <strong>${t.price}€</strong></div>`
     ).join('');
 
   const logoUrl = EMAIL_LOGO_URL;
+
+  const clientTypeLabel = CLIENT_TYPE_LABELS[booking.client_type] || 'Client';
+  const typeValue = (booking.client_type === 'hotel' && booking.room_number)
+    ? `${clientTypeLabel} · Ch.${booking.room_number}`
+    : clientTypeLabel;
+
+  const sourceLabel = SOURCE_LABELS[booking.source];
 
   return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:20px;">
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f4ef;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f4ef;padding:32px 20px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#fff;border-radius:12px;overflow:hidden;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;background:#fff;border-radius:16px;overflow:hidden;">
           <!-- Header -->
           <tr>
-            <td style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="${brand.name}" style="height:50px;display:block;margin:0 auto 10px;" />
-              <span style="display:inline-block;background:#f59e0b;color:#fff;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">🔔 Nouvelle résa</span>
+            <td style="padding:28px 32px 0;text-align:center;">
+              <img src="${logoUrl}" alt="${brand.name}" style="height:40px;display:block;margin:0 auto 16px;" />
+              <span style="display:inline-block;background:#fef3c7;color:#92400e;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">🔔 Nouvelle réservation</span>
             </td>
           </tr>
-          
+
+          <!-- Title -->
+          <tr>
+            <td style="padding:24px 32px 8px;text-align:center;">
+              <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:30px;font-weight:400;color:#1a1a1a;">Nouvelle réservation</h1>
+            </td>
+          </tr>
+
           <!-- Content -->
           <tr>
-            <td style="padding:16px;">
-              <!-- Key Info -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef3c7;border-radius:8px;margin-bottom:12px;">
+            <td style="padding:16px 32px 32px;">
+              <!-- Number + date -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f5ed;border-radius:12px;margin-bottom:24px;">
                 <tr>
-                  <td style="padding:10px;text-align:center;">
-                    <span style="font-size:20px;font-weight:bold;color:#92400e;">#${booking.booking_id}</span>
-                    <span style="margin:0 8px;color:#d97706;">·</span>
-                    <span style="font-size:14px;color:#92400e;">${formattedDate} à ${booking.booking_time?.substring(0,5)}</span>
+                  <td style="padding:16px 20px;">
+                    <span style="font-size:22px;font-weight:bold;color:#2f4a2a;">#${booking.booking_id}</span>
+                    <span style="float:right;font-size:14px;color:#4a6342;line-height:30px;">${formattedDate} à ${booking.booking_time?.substring(0,5)}</span>
                   </td>
                 </tr>
               </table>
-              
-              <!-- Details Grid -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;margin-bottom:12px;">
-                <tr>
-                  <td style="padding:5px 0;color:#6b7280;width:80px;">Client</td>
-                  <td style="padding:5px 0;font-weight:500;">${booking.client_first_name} ${booking.client_last_name}</td>
-                </tr>
-                <tr>
-                  <td style="padding:5px 0;color:#6b7280;">Tél</td>
-                  <td style="padding:5px 0;">${booking.phone}</td>
-                </tr>
-                <tr>
-                  <td style="padding:5px 0;color:#6b7280;">Hôtel</td>
-                  <td style="padding:5px 0;">${booking.hotel_name || booking.hotel_id}${booking.room_number ? ` · Ch.${booking.room_number}` : ''}</td>
-                </tr>
-              </table>
-              
-              <!-- Treatments -->
-              <div style="margin-bottom:12px;">${treatmentsHtml}</div>
-              
-              <!-- Total + CTA -->
+
+              <!-- Details -->
               <table width="100%" cellpadding="0" cellspacing="0">
+                ${infoRow('Client', `${booking.client_first_name} ${booking.client_last_name}`)}
+                ${infoRow('Type', typeValue)}
+                ${booking.phone ? infoRow('Téléphone', booking.phone) : ''}
+                ${booking.client_email ? infoRow('Email', booking.client_email) : ''}
+                ${infoRow('Hôtel', booking.hotel_name || booking.hotel_id)}
+                ${infoRow('Paiement', paymentStatusLabel(booking.payment_status))}
+                ${sourceLabel ? infoRow('Source', sourceLabel) : ''}
+              </table>
+
+              <!-- Treatments -->
+              <div style="margin:24px 0 16px;">${treatmentsHtml}</div>
+
+              <!-- Total -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f7f2;border-radius:12px;">
                 <tr>
-                  <td style="background:#f9fafb;padding:10px;border-radius:8px;">
-                    <span style="font-size:12px;color:#6b7280;">Total</span>
-                    <span style="float:right;font-size:18px;font-weight:bold;">${booking.total_price || 0}€</span>
+                  <td style="padding:16px 20px;">
+                    <span style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#9b958c;">Total</span>
+                    <span style="float:right;font-size:22px;font-weight:bold;color:#1a1a1a;">${booking.total_price || 0}€</span>
                   </td>
                 </tr>
               </table>
-              
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">
+
+              <!-- CTA -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
                 <tr>
                   <td align="center">
-                    <a href="${dashboardUrl}" style="display:inline-block;background:#000;color:#fff;padding:10px 24px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">Gérer →</a>
+                    <a href="${dashboardUrl}" style="display:inline-block;background:#1a1a1a;color:#fff;padding:14px 36px;border-radius:8px;font-size:13px;font-weight:600;letter-spacing:1px;text-decoration:none;">GÉRER →</a>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
-          
+
           <!-- Footer -->
           <tr>
-            <td style="padding:10px;text-align:center;background:#fafafa;font-size:11px;color:#9ca3af;">
+            <td style="padding:20px;text-align:center;background:#faf9f5;font-size:11px;color:#9b958c;">
               ${brand.name}
             </td>
           </tr>
@@ -143,7 +191,25 @@ serve(async (req) => {
     if (groupId) {
       const { data: siblings } = await supabaseClient
         .from("bookings")
-        .select(`*, booking_treatments (price_override, treatment_menus (name, price, duration), treatment_variants (price))`)
+        .select(`
+        id,
+        booking_id,
+        booking_group_id,
+        booking_date,
+        booking_time,
+        client_first_name,
+        client_last_name,
+        client_email,
+        client_type,
+        phone,
+        hotel_id,
+        hotel_name,
+        room_number,
+        total_price,
+        payment_status,
+        source,
+        booking_treatments (price_override, treatment_menus (name, price, duration), treatment_variants (price))
+      `)
         .eq("booking_group_id", groupId)
         .order("booking_date", { ascending: true })
         .order("booking_time", { ascending: true });
@@ -152,7 +218,25 @@ serve(async (req) => {
 
     const booking = groupBookings ? groupBookings[0] : (await supabaseClient
       .from("bookings")
-      .select(`*, booking_treatments (price_override, treatment_menus (name, price, duration), treatment_variants (price))`)
+      .select(`
+        id,
+        booking_id,
+        booking_group_id,
+        booking_date,
+        booking_time,
+        client_first_name,
+        client_last_name,
+        client_email,
+        client_type,
+        phone,
+        hotel_id,
+        hotel_name,
+        room_number,
+        total_price,
+        payment_status,
+        source,
+        booking_treatments (price_override, treatment_menus (name, price, duration), treatment_variants (price))
+      `)
       .eq("id", bookingId)
       .single()).data;
 
