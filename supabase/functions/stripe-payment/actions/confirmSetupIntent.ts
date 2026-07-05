@@ -460,6 +460,16 @@ export async function handleConfirmSetupIntent(
   // ── SINGLE BOOKING PATH ──────────────────────────────────────────
   const treatmentIds = JSON.parse(meta.treatmentIds || "[]");
 
+  // treatmentsPayload carries per-line quantity/variant. A cart line can have
+  // quantity > 1 (same treatment booked N times) — price, duration and the
+  // booking_treatments rows must all scale with it. Fall back to one unit per id
+  // for older sessions whose metadata predates the quantity field.
+  const treatmentsPayload: Array<{ treatmentId: string; variantId?: string | null; quantity?: number }> =
+    JSON.parse(meta.treatmentsPayload || "[]");
+  const pricingLines = treatmentsPayload.length > 0
+    ? treatmentsPayload
+    : (treatmentIds as string[]).map((id) => ({ treatmentId: id, quantity: 1 }));
+
   // Duo (guest_count > 1): treatments run simultaneously → slot duration = longest
   // single treatment (max). Solo: sum. Both stay 'pending' until fully staffed.
   const guestCount = Math.max(1, Number(meta.guestCount) || 1);
@@ -467,22 +477,26 @@ export async function handleConfirmSetupIntent(
 
   const { data: treatments } = await supabase
     .from("treatment_menus")
-    .select("price, duration")
+    .select("id, price, duration")
     .in("id", treatmentIds);
-  const basePrice = (treatments || []).reduce(
-    (sum: number, t: { price: number }) => sum + (t.price || 0),
-    0,
+  const priceById = new Map<string, number>(
+    (treatments || []).map((t: { id: string; price: number }) => [t.id, t.price || 0]),
   );
-  const totalDuration =
-    (isDuo
-      ? (treatments || []).reduce(
-          (max: number, t: { duration: number }) => Math.max(max, t.duration || 0),
-          0,
-        )
-      : (treatments || []).reduce(
-          (sum: number, t: { duration: number }) => sum + (t.duration || 0),
-          0,
-        )) || 30;
+  const durationById = new Map<string, number>(
+    (treatments || []).map((t: { id: string; duration: number }) => [t.id, t.duration || 0]),
+  );
+
+  let basePrice = 0;
+  let sumDuration = 0;
+  let maxDuration = 0;
+  for (const line of pricingLines) {
+    const qty = Math.max(1, Number(line.quantity) || 1);
+    basePrice += (priceById.get(line.treatmentId) || 0) * qty;
+    const d = durationById.get(line.treatmentId) || 0;
+    sumDuration += d * qty;
+    if (d > maxDuration) maxDuration = d;
+  }
+  const totalDuration = (isDuo ? maxDuration : sumDuration) || 30;
 
   const { data: hotel } = await supabase
     .from("hotels")
@@ -609,17 +623,15 @@ export async function handleConfirmSetupIntent(
         .eq("booking_id", bookingId);
     }
 
-    const treatmentsPayload: Array<{ treatmentId: string; variantId?: string | null }> =
-      JSON.parse(meta.treatmentsPayload || "[]");
-    const variantMap = new Map(
-      treatmentsPayload.filter((t) => t.variantId).map((t) => [t.treatmentId, t.variantId]),
-    );
-
-    const treatmentInserts = treatmentIds.map((id: string) => ({
-      booking_id: bookingId,
-      treatment_id: id,
-      variant_id: variantMap.get(id) || null,
-    }));
+    // One row per booked unit — a line with quantity > 1 yields N rows.
+    const treatmentInserts = pricingLines.flatMap((line) => {
+      const qty = Math.max(1, Number(line.quantity) || 1);
+      return Array.from({ length: qty }, () => ({
+        booking_id: bookingId,
+        treatment_id: line.treatmentId,
+        variant_id: line.variantId ?? null,
+      }));
+    });
 
     if (treatmentInserts.length > 0) {
       const { error: treatmentsError } = await supabase

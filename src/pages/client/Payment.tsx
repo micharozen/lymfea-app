@@ -273,6 +273,7 @@ export default function Payment() {
               treatments: items.map(item => ({
                 treatmentId: item.id,
                 variantId: item.variantId,
+                quantity: item.quantity,
               })),
               totalPrice: uncoveredTotal,
               giftAmountUsage: {
@@ -375,7 +376,7 @@ export default function Payment() {
           },
           bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
           treatmentIds: items.map(item => item.id),
-          treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId })),
+          treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId, quantity: item.quantity })),
           totalPrice: total,
           language: languageFromCountryCode(clientInfo.countryCode),
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
