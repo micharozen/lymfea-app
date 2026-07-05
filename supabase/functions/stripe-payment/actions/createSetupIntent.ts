@@ -115,6 +115,8 @@ export async function handleCreateSetupIntent(
 
   // Duo (guestCount > 1): treatments run simultaneously → slot duration = longest
   // single treatment (max). Solo: sequential → sum. Price always sums.
+  // A cart line can carry quantity > 1 (same treatment booked N times) — price and
+  // sequential duration must both scale with it.
   const isDuo = Math.max(1, Number(guestCount) || 1) > 1;
   let rawTotalPrice = 0;
   let totalDuration = 0;
@@ -123,6 +125,7 @@ export async function handleCreateSetupIntent(
       (t: any) => t.id === (tPayload.treatmentId || tPayload.id),
     );
     if (!baseTreatment) continue;
+    const quantity = Math.max(1, Number(tPayload.quantity) || 1);
     let unitPrice = 0;
     let unitDuration = 0;
     if (tPayload.variantId) {
@@ -136,8 +139,8 @@ export async function handleCreateSetupIntent(
       unitPrice = baseTreatment.price ?? 0;
       unitDuration = baseTreatment.duration ?? 30;
     }
-    rawTotalPrice += unitPrice;
-    totalDuration = isDuo ? Math.max(totalDuration, unitDuration) : totalDuration + unitDuration;
+    rawTotalPrice += unitPrice * quantity;
+    totalDuration = isDuo ? Math.max(totalDuration, unitDuration) : totalDuration + unitDuration * quantity;
   }
 
   const giftDeductionEuros = giftAmountUsage?.amountCents
