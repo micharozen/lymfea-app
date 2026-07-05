@@ -211,6 +211,10 @@ export function useDashboardData(
   const toEUR = (price: number | null, hotelId: string) =>
     convertToEUR(parseFloat(String(price)) || 0, hotelCurrencyMap[hotelId] || "EUR", rates);
 
+  // Cancelled and no-show bookings generate no revenue — exclude from every CA sum.
+  const generatesRevenue = (b: { status: string }) =>
+    b.status !== "cancelled" && b.status !== "noshow";
+
   // ── Filtered bookings (by period + venue) ─────────────────────────
 
   const filteredBookings = useMemo(
@@ -241,7 +245,8 @@ export function useDashboardData(
   // ── Stats ─────────────────────────────────────────────────────────
 
   const stats = useMemo<DashboardStats>(() => {
-    const totalSales = filteredBookings.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
+    const revenueBookings = filteredBookings.filter(generatesRevenue);
+    const totalSales = revenueBookings.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
     const totalBookings = filteredBookings.length;
 
     const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -268,9 +273,12 @@ export function useDashboardData(
     const cancelled = filteredBookings.filter((b) => b.status === "cancelled").length;
     const cancellationRate = totalBookings > 0 ? Math.round((cancelled / totalBookings) * 100) : 0;
 
-    const averageBasket = totalBookings > 0 ? (totalSales / totalBookings).toFixed(2) : "0.00";
+    const averageBasket =
+      revenueBookings.length > 0 ? (totalSales / revenueBookings.length).toFixed(2) : "0.00";
 
-    const prevSales = prevFilteredBookings.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
+    const prevSales = prevFilteredBookings
+      .filter(generatesRevenue)
+      .reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
     const prevCount = prevFilteredBookings.length;
     const salesTrend = prevSales > 0 ? Math.round(((totalSales - prevSales) / prevSales) * 100) : 0;
     const bookingsTrend = prevCount > 0 ? Math.round(((totalBookings - prevCount) / prevCount) * 100) : 0;
@@ -431,15 +439,16 @@ export function useDashboardData(
 
   const salesChartData = useMemo<ChartPoint[]>(() => {
     const days = differenceInDays(endDate, startDate);
-    if (filteredBookings.length === 0) return [];
+    const revenueBookings = filteredBookings.filter(generatesRevenue);
+    if (revenueBookings.length === 0) return [];
 
-    const prestationCount = (b: (typeof filteredBookings)[number]) =>
+    const prestationCount = (b: (typeof revenueBookings)[number]) =>
       (b.booking_treatments || []).length;
 
     if (days === 0) {
       return Array.from({ length: 8 }, (_, i) => {
         const hour = 9 + i * 2;
-        const hourBookings = filteredBookings.filter((b) => {
+        const hourBookings = revenueBookings.filter((b) => {
           const bh = parseInt(b.booking_time?.split(":")[0] || "0");
           return bh >= hour && bh < hour + 2;
         });
@@ -458,7 +467,7 @@ export function useDashboardData(
       salesByDate[key] = 0;
       prestationsByDate[key] = 0;
     }
-    filteredBookings.forEach((b) => {
+    revenueBookings.forEach((b) => {
       if (Object.prototype.hasOwnProperty.call(salesByDate, b.booking_date)) {
         salesByDate[b.booking_date] += toEUR(b.total_price, b.hotel_id);
         prestationsByDate[b.booking_date] += prestationCount(b);
@@ -518,7 +527,7 @@ export function useDashboardData(
 
   const topVenues = useMemo<RankingItem[]>(() => {
     const map: Record<string, RankingItem> = {};
-    filteredBookings.forEach((b) => {
+    filteredBookings.filter(generatesRevenue).forEach((b) => {
       if (!map[b.hotel_id]) {
         const hotel = hotels.find((h) => h.id === b.hotel_id);
         map[b.hotel_id] = { name: hotel?.name || b.hotel_name || "Inconnu", revenue: 0, bookings: 0 };
@@ -533,7 +542,7 @@ export function useDashboardData(
 
   const topTherapists = useMemo<RankingItem[]>(() => {
     const map: Record<string, RankingItem> = {};
-    filteredBookings.forEach((b) => {
+    filteredBookings.filter(generatesRevenue).forEach((b) => {
       if (!b.therapist_id) return;
       if (!map[b.therapist_id]) {
         map[b.therapist_id] = { name: b.therapist_name || "Inconnu", revenue: 0, bookings: 0 };
@@ -548,7 +557,7 @@ export function useDashboardData(
 
   const topTreatments = useMemo<RankingItem[]>(() => {
     const map: Record<string, RankingItem> = {};
-    filteredBookings.forEach((b) => {
+    filteredBookings.filter(generatesRevenue).forEach((b) => {
       const treatments = b.booking_treatments || [];
       treatments.forEach((bt) => {
         const name = bt.treatment_menus?.name;
@@ -569,7 +578,9 @@ export function useDashboardData(
     () =>
       hotels.map((hotel) => {
         const hb = filteredBookings.filter((b) => b.hotel_id === hotel.id);
-        const totalSales = hb.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
+        const totalSales = hb
+          .filter(generatesRevenue)
+          .reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
         return {
           name: hotel.name,
           totalSales: formatPrice(totalSales),
