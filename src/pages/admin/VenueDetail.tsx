@@ -41,6 +41,10 @@ import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPrevi
 import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
 import { VenueHistoryTab } from "@/components/admin/venue/VenueHistoryTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
+import { VenueCompletenessPanel } from "@/components/admin/venue/VenueCompletenessPanel";
+import { useVenueCompleteness } from "@/hooks/useVenueCompleteness";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import type { VenueWizardFormValues, BlockedSlot, VenueFormSchemaOptions } from "@/components/admin/VenueWizardDialog";
 import { useUser } from "@/contexts/UserContext";
@@ -733,6 +737,19 @@ export default function VenueDetail({
   const effectiveHotelId = savedHotelId || id || null;
   const canAccessTabs = !!effectiveHotelId;
 
+  // Booking-flow configuration completeness (header badge + checklist panel).
+  const hasDeploymentSchedule =
+    deploymentState.isAlwaysOpen ||
+    !!existingScheduleId ||
+    deploymentState.selectedDays.length > 0 ||
+    deploymentState.specificDates.length > 0;
+  const { percent: completenessPercent, items: completenessItems } =
+    useVenueCompleteness(form, {
+      hotelId: effectiveHotelId || undefined,
+      hasDeploymentSchedule,
+    });
+  const showCompleteness = !restricted && canAccessTabs;
+
   // Watch name and currency for header display
   const watchedName = form.watch("name");
   const watchedCurrency = form.watch("currency");
@@ -797,6 +814,23 @@ export default function VenueDetail({
                 ? "Nouveau lieu"
                 : watchedName || hotelName || "Lieu"}
             </h1>
+            {showCompleteness && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "flex-shrink-0 tabular-nums",
+                  completenessPercent >= 90
+                    ? "border-emerald-200 text-emerald-700"
+                    : completenessPercent >= 50
+                      ? "border-amber-200 text-amber-700"
+                      : "border-red-200 text-red-700",
+                )}
+              >
+                {tAdmin("venue.completeness.badge", "Config. {{percent}}%", {
+                  percent: completenessPercent,
+                })}
+              </Badge>
+            )}
             {stats && (
               <div className="hidden md:flex items-center gap-3 ml-1 pl-3 border-l">
                 <div className="flex items-center gap-1.5">
@@ -932,6 +966,12 @@ export default function VenueDetail({
             <Form {...form}>
               <form onSubmit={(e) => e.preventDefault()}>
                 <TabsContent value="configuration" className="mt-0">
+                  {showCompleteness && (
+                    <VenueCompletenessPanel
+                      percent={completenessPercent}
+                      items={completenessItems}
+                    />
+                  )}
                   {/* Option 2: Horizontal sticky sub-nav */}
                   <VenueSectionNavBar
                     topOffset={restricted && !showTherapistTab ? 57 : 105}
