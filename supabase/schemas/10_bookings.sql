@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS "public"."bookings" (
     "therapist_gender_preference" "text",
     "external_reference" "text",
     "external_id" "text",
-    CONSTRAINT "bookings_client_type_check" CHECK (("client_type" = ANY (ARRAY['hotel'::"text", 'staycation'::"text", 'classpass'::"text", 'external'::"text"]))),
+    CONSTRAINT "bookings_client_type_check" CHECK (("client_type" = ANY (ARRAY['hotel'::"text", 'staycation'::"text", 'classpass'::"text", 'sezame'::"text", 'external'::"text"]))),
     CONSTRAINT "bookings_gift_amount_applied_cents_check" CHECK (("gift_amount_applied_cents" >= 0)),
     CONSTRAINT "bookings_payment_link_language_check" CHECK (("payment_link_language" = ANY (ARRAY['fr'::"text", 'en'::"text"]))),
     CONSTRAINT "bookings_payment_method_check" CHECK (("payment_method" = ANY (ARRAY['room'::"text", 'card'::"text", 'tap_to_pay'::"text", 'offert'::"text", 'gift_amount'::"text", 'voucher'::"text", 'partner_billed'::"text"]))),
@@ -102,7 +102,7 @@ CREATE INDEX "idx_bookings_awaiting_payment" ON "public"."bookings" USING "btree
 
 CREATE INDEX "idx_bookings_bundle_usage" ON "public"."bookings" USING "btree" ("bundle_usage_id") WHERE ("bundle_usage_id" IS NOT NULL);
 
-CREATE INDEX "idx_bookings_client_type_month" ON "public"."bookings" USING "btree" ("client_type", "booking_date") WHERE ("client_type" = ANY (ARRAY['hotel'::"text", 'staycation'::"text", 'classpass'::"text"]));
+CREATE INDEX "idx_bookings_client_type_month" ON "public"."bookings" USING "btree" ("client_type", "booking_date") WHERE ("client_type" = ANY (ARRAY['hotel'::"text", 'staycation'::"text", 'classpass'::"text", 'sezame'::"text"]));
 
 CREATE INDEX "idx_bookings_customer" ON "public"."bookings" USING "btree" ("customer_id") WHERE ("customer_id" IS NOT NULL);
 

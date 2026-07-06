@@ -3,6 +3,7 @@
 
 import { brand } from "@/config/brand";
 import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
+import { isBookingClientType, type BookingClientType } from "@/lib/clientTypeMeta";
 
 export interface ClosureBookingTreatment {
   name: string;
@@ -37,12 +38,15 @@ export interface ClosureVenue {
   venue_type: string | null;
 }
 
-export type ClientTypeValue = "hotel" | "staycation" | "classpass" | "external";
+// Libellés spécifiques au rapport de clôture (formulation « rapport »),
+// distincts des labels i18n de l'UI. closureReport en est le seul consommateur.
+export type ClientTypeValue = BookingClientType;
 
 export const CLIENT_TYPE_LABELS: Record<ClientTypeValue, string> = {
   hotel: "Résident hôtel",
   staycation: "Staycation",
   classpass: "Classpass",
+  sezame: "Sezame",
   external: "Client externe",
 };
 
@@ -189,7 +193,7 @@ export function computeClosureStats(
     const primaryCategory = booking.treatments[0]?.category ?? "Autres";
     bumpBucket(categoryMap, primaryCategory, primaryCategory, price);
 
-    const ctKey = isClientType(booking.client_type) ? booking.client_type : "external";
+    const ctKey = isBookingClientType(booking.client_type) ? booking.client_type : "external";
     const ctBucket = clientTypeMap.get(ctKey) ?? {
       key: ctKey,
       label: CLIENT_TYPE_LABELS[ctKey],
@@ -231,10 +235,6 @@ export function computeClosureStats(
   stats.byClientType = Array.from(clientTypeMap.values()).sort((a, b) => b.revenue - a.revenue);
 
   return stats;
-}
-
-function isClientType(value: string): value is ClientTypeValue {
-  return value === "hotel" || value === "staycation" || value === "classpass" || value === "external";
 }
 
 function fmtMoney(amount: number, currency: string): string {
