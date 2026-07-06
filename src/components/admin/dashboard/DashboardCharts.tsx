@@ -14,12 +14,17 @@ import {
   Legend,
   ReferenceArea,
 } from "recharts";
+import { useState } from "react";
+import { CalendarClock, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type {
   ChartPoint,
   StatusSlice,
   ForecastPoint,
   HourlyOccupancyPoint,
+  LeadTimeData,
 } from "@/hooks/useDashboardData";
 
 // ── Sales Area Chart ────────────────────────────────────────────────
@@ -328,6 +333,79 @@ export function WeekForecast({ data }: WeekForecastProps) {
             <Bar dataKey="pending" name="En attente" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Booking Lead Time ───────────────────────────────────────────────
+
+interface BookingLeadTimeProps {
+  data: LeadTimeData;
+}
+
+function formatDays(days: number): string {
+  const rounded = Math.round(days * 10) / 10;
+  const value = rounded.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+  return `${value} ${rounded <= 1 ? "jour" : "jours"}`;
+}
+
+export function BookingLeadTime({ data }: BookingLeadTimeProps) {
+  const [showByTreatment, setShowByTreatment] = useState(false);
+
+  return (
+    <Card className="border border-border bg-card shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+        <CardTitle className="text-base font-medium text-foreground">
+          Délai de réservation
+        </CardTitle>
+        {data.byTreatment.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+            onClick={() => setShowByTreatment((v) => !v)}
+          >
+            Par prestation
+            <ChevronDown
+              className={cn("h-3.5 w-3.5 transition-transform", showByTreatment && "rotate-180")}
+            />
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {data.count === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Aucune donnée sur la période
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <CalendarClock className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-foreground">{formatDays(data.averageDays)}</p>
+                <p className="text-xs text-muted-foreground">
+                  en moyenne à l'avance · {data.count} réservation{data.count > 1 ? "s" : ""}
+                </p>
+              </div>
+            </div>
+
+            {showByTreatment && (
+              <div className="mt-4 space-y-1 border-t border-border pt-3">
+                {data.byTreatment.map((t) => (
+                  <div key={t.name} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="truncate text-muted-foreground">{t.name}</span>
+                    <span className="shrink-0 font-medium text-foreground">
+                      {formatDays(t.averageDays)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </CardContent>
     </Card>
   );

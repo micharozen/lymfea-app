@@ -10,6 +10,7 @@ export type DashboardBooking = Pick<
   | "booking_id"
   | "booking_date"
   | "booking_time"
+  | "created_at"
   | "total_price"
   | "hotel_id"
   | "hotel_name"
@@ -53,7 +54,7 @@ export async function getDashboardDataForOrg(
   let bookingsQ = client
     .from("bookings")
     .select(
-      "id, booking_id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, room_id, duration, client_type, room_number",
+      "id, booking_id, booking_date, booking_time, created_at, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, room_id, duration, client_type, room_number",
     )
     .order("booking_date", { ascending: true });
   let hotelsQ = client.from("hotels").select("id, name, currency, opening_time, closing_time").order("created_at", {

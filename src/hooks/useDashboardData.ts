@@ -86,6 +86,18 @@ export interface ForecastPoint {
   pending: number;
 }
 
+export interface LeadTimeByTreatment {
+  name: string;
+  averageDays: number;
+  count: number;
+}
+
+export interface LeadTimeData {
+  averageDays: number;
+  count: number;
+  byTreatment: LeadTimeByTreatment[];
+}
+
 export interface HotelOverviewRow {
   name: string;
   totalSales: string;
@@ -119,6 +131,7 @@ export interface DashboardData {
   salesChartData: ChartPoint[];
   statusDistribution: StatusSlice[];
   weekForecast: ForecastPoint[];
+  leadTime: LeadTimeData;
   topVenues: RankingItem[];
   topTherapists: RankingItem[];
   topTreatments: RankingItem[];
@@ -525,6 +538,54 @@ export function useDashboardData(
     });
   }, [bookings, selectedHotel]);
 
+  // ── Booking lead time (how far in advance clients book) ───────────
+  // Délai = booking_date − created_at (jours calendaires), borné à 0.
+  // Filtré sur created_at (réservations FAITES dans la période), pas sur
+  // booking_date : sinon les réservations futures — celles qui portent
+  // justement l'anticipation — seraient exclues.
+
+  const leadTime = useMemo<LeadTimeData>(() => {
+    const withLead = bookings.filter((b) => {
+      if (!b.created_at || !b.booking_date) return false;
+      const created = parseISO(b.created_at);
+      const matchDate = isWithinInterval(created, { start: startDate, end: endDate });
+      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
+      return matchDate && matchHotel;
+    });
+
+    const leadDays = (b: BookingRow) =>
+      Math.max(0, differenceInCalendarDays(parseISO(b.booking_date), parseISO(b.created_at!)));
+
+    const globalCount = withLead.length;
+    const globalSum = withLead.reduce((s, b) => s + leadDays(b), 0);
+
+    const treatmentMap: Record<string, { sum: number; count: number }> = {};
+    withLead.forEach((b) => {
+      const days = leadDays(b);
+      (b.booking_treatments || []).forEach((bt) => {
+        const name = bt.treatment_menus?.name;
+        if (!name) return;
+        if (!treatmentMap[name]) treatmentMap[name] = { sum: 0, count: 0 };
+        treatmentMap[name].sum += days;
+        treatmentMap[name].count += 1;
+      });
+    });
+
+    const byTreatment = Object.entries(treatmentMap)
+      .map(([name, { sum, count }]) => ({
+        name,
+        averageDays: count > 0 ? Math.round((sum / count) * 10) / 10 : 0,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      averageDays: globalCount > 0 ? Math.round((globalSum / globalCount) * 10) / 10 : 0,
+      count: globalCount,
+      byTreatment,
+    };
+  }, [bookings, startDate, endDate, selectedHotel]);
+
   const topVenues = useMemo<RankingItem[]>(() => {
     const map: Record<string, RankingItem> = {};
     filteredBookings.filter(generatesRevenue).forEach((b) => {
@@ -605,6 +666,7 @@ export function useDashboardData(
     salesChartData,
     statusDistribution,
     weekForecast,
+    leadTime,
     topVenues,
     topTherapists,
     topTreatments,
