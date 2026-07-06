@@ -164,7 +164,9 @@ export function VenueOverviewTab({ hotelId }: VenueOverviewTabProps) {
       let totalSales = 0;
       let bookingsCount = 0;
       (data || []).forEach((b) => {
-        bookingsCount++;
+        if (b.status === "confirmed" || b.status === "completed") {
+          bookingsCount++;
+        }
         if (b.status === "completed" && b.total_price) {
           totalSales += Number(b.total_price);
         }

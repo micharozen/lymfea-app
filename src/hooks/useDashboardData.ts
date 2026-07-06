@@ -28,16 +28,19 @@ interface HotelRow {
 interface RoomRow {
   id: string;
   hotel_id: string | null;
+  name: string | null;
+  capacity: number | null;
 }
 
 export interface AlertsData {
   unassigned: number;
+  unassignedBookings: AlertBooking[];
   pendingPayments: number;
-  pendingPaymentBookings: PendingPaymentBooking[];
+  pendingPaymentBookings: AlertBooking[];
   failedPayments: number;
 }
 
-export interface PendingPaymentBooking {
+export interface AlertBooking {
   id: string;
   bookingNumber: number | null;
   date: string;
@@ -71,19 +74,48 @@ export interface ChartPoint {
   prestations: number;
 }
 
-export interface HourlyOccupancyPoint {
-  hour: string;
+// Occupation d'une salle sur un créneau d'1h, basée sur la capacité simultanée.
+export interface RoomHeatmapCell {
   hourIndex: number;
-  used: number;
-  total: number;
-  rate: number;
+  seats: number; // places occupées simultanément sur le créneau
+  capacity: number; // capacité de la salle (≥ 1)
+  rate: number; // seats / capacity en % (borné à 100)
   outOfHours: boolean;
+}
+
+export interface RoomHeatmapRow {
+  roomId: string;
+  roomName: string;
+  hotelId: string;
+  hotelName: string;
+  capacity: number;
+  cells: RoomHeatmapCell[];
+  dayRate: number; // occupation moyenne de la salle sur les heures d'ouverture (%)
+}
+
+export interface RoomOccupancyHeatmap {
+  rooms: RoomHeatmapRow[];
+  hours: number[]; // index horaires affichés (colonnes)
+  openingHour: number;
+  closingHour: number;
 }
 
 export interface ForecastPoint {
   day: string;
   confirmed: number;
   pending: number;
+}
+
+export interface LeadTimeByTreatment {
+  name: string;
+  averageDays: number;
+  count: number;
+}
+
+export interface LeadTimeData {
+  averageDays: number;
+  count: number;
+  byTreatment: LeadTimeByTreatment[];
 }
 
 export interface HotelOverviewRow {
@@ -113,12 +145,12 @@ export interface DashboardData {
   stats: DashboardStats;
   alerts: AlertsData;
   roomOccupancy: OccupancyData;
-  roomOccupancyHourly: HourlyOccupancyPoint[];
-  roomOccupancyHourlyMeta: { openingHour: number; closingHour: number };
+  roomOccupancyHeatmap: RoomOccupancyHeatmap;
   activeTherapists: OccupancyData;
   salesChartData: ChartPoint[];
   statusDistribution: StatusSlice[];
   weekForecast: ForecastPoint[];
+  leadTime: LeadTimeData;
   topVenues: RankingItem[];
   topTherapists: RankingItem[];
   topTreatments: RankingItem[];
@@ -211,6 +243,10 @@ export function useDashboardData(
   const toEUR = (price: number | null, hotelId: string) =>
     convertToEUR(parseFloat(String(price)) || 0, hotelCurrencyMap[hotelId] || "EUR", rates);
 
+  // Cancelled and no-show bookings generate no revenue — exclude from every CA sum.
+  const generatesRevenue = (b: { status: string }) =>
+    b.status !== "cancelled" && b.status !== "noshow";
+
   // ── Filtered bookings (by period + venue) ─────────────────────────
 
   const filteredBookings = useMemo(
@@ -241,7 +277,8 @@ export function useDashboardData(
   // ── Stats ─────────────────────────────────────────────────────────
 
   const stats = useMemo<DashboardStats>(() => {
-    const totalSales = filteredBookings.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
+    const revenueBookings = filteredBookings.filter(generatesRevenue);
+    const totalSales = revenueBookings.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
     const totalBookings = filteredBookings.length;
 
     const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -268,9 +305,12 @@ export function useDashboardData(
     const cancelled = filteredBookings.filter((b) => b.status === "cancelled").length;
     const cancellationRate = totalBookings > 0 ? Math.round((cancelled / totalBookings) * 100) : 0;
 
-    const averageBasket = totalBookings > 0 ? (totalSales / totalBookings).toFixed(2) : "0.00";
+    const averageBasket =
+      revenueBookings.length > 0 ? (totalSales / revenueBookings.length).toFixed(2) : "0.00";
 
-    const prevSales = prevFilteredBookings.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
+    const prevSales = prevFilteredBookings
+      .filter(generatesRevenue)
+      .reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
     const prevCount = prevFilteredBookings.length;
     const salesTrend = prevSales > 0 ? Math.round(((totalSales - prevSales) / prevSales) * 100) : 0;
     const bookingsTrend = prevCount > 0 ? Math.round(((totalBookings - prevCount) / prevCount) * 100) : 0;
@@ -294,26 +334,31 @@ export function useDashboardData(
       ? bookings
       : bookings.filter((b) => b.hotel_id === selectedHotel);
 
+    const toAlertBooking = (b: (typeof relevant)[number]): AlertBooking => {
+      const bookingDate = parseISO(b.booking_date);
+
+      return {
+        id: b.id,
+        bookingNumber: b.booking_id,
+        date: format(bookingDate, "dd/MM/yyyy"),
+        daysUntil: differenceInCalendarDays(bookingDate, new Date()),
+        time: b.booking_time,
+        hotelName: b.hotel_name,
+        amount: formatPrice(toEUR(b.total_price, b.hotel_id)),
+      };
+    };
+
     const pendingPaymentBookings = relevant
       .filter((b) => b.payment_status === "pending" && b.status !== "cancelled")
-      .map((b) => {
-        const bookingDate = parseISO(b.booking_date);
+      .map(toAlertBooking);
 
-        return {
-          id: b.id,
-          bookingNumber: b.booking_id,
-          date: format(bookingDate, "dd/MM/yyyy"),
-          daysUntil: differenceInCalendarDays(bookingDate, new Date()),
-          time: b.booking_time,
-          hotelName: b.hotel_name,
-          amount: formatPrice(toEUR(b.total_price, b.hotel_id)),
-        };
-      });
+    const unassignedBookings = relevant
+      .filter((b) => b.status === "pending" && b.booking_date >= todayStr)
+      .map(toAlertBooking);
 
     return {
-      unassigned: relevant.filter(
-        (b) => b.status === "pending" && b.booking_date >= todayStr
-      ).length,
+      unassigned: unassignedBookings.length,
+      unassignedBookings,
       pendingPayments: pendingPaymentBookings.length,
       pendingPaymentBookings,
       failedPayments: relevant.filter(
@@ -340,9 +385,12 @@ export function useDashboardData(
     return { used: usedRoomIds.size, total: totalRooms };
   }, [bookings, rooms, selectedHotel]);
 
-  // ── Hourly room occupancy (today) ─────────────────────────────────
+  // ── Room occupancy heatmap (today, per room) ──────────────────────
+  // Une ligne par salle, une colonne par heure. L'occupation d'un créneau
+  // est basée sur la capacité simultanée de la salle : places occupées
+  // (somme des guest_count des réservations qui chevauchent) / capacity.
 
-  const { roomOccupancyHourly, roomOccupancyHourlyMeta } = useMemo(() => {
+  const roomOccupancyHeatmap = useMemo<RoomOccupancyHeatmap>(() => {
     const todayStr = format(new Date(), "yyyy-MM-dd");
 
     const scopedHotels =
@@ -362,18 +410,18 @@ export function useDashboardData(
       .map((h) => parseHour(h.closing_time, NaN))
       .filter((n) => !Number.isNaN(n));
 
-    const openingHourRaw = openings.length > 0 ? Math.min(...openings) : 9;
-    const closingHourRaw = closings.length > 0 ? Math.max(...closings) : 20;
-    const openingHour = Math.floor(openingHourRaw);
-    const closingHour = Math.ceil(closingHourRaw);
+    const openingHour = Math.floor(openings.length > 0 ? Math.min(...openings) : 9);
+    const closingHour = Math.ceil(closings.length > 0 ? Math.max(...closings) : 20);
 
     const startHour = Math.max(0, openingHour - 2);
     const endHour = Math.min(24, closingHour + 2);
+    const hours: number[] = [];
+    for (let h = startHour; h < endHour; h++) hours.push(h);
 
-    const totalRooms =
-      selectedHotel === "all"
-        ? rooms.length
-        : rooms.filter((r) => r.hotel_id === selectedHotel).length;
+    const scopedRooms =
+      selectedHotel === "all" ? rooms : rooms.filter((r) => r.hotel_id === selectedHotel);
+
+    const hotelNameById = new Map(hotels.map((h) => [h.id, h.name]));
 
     const todaysBookings = bookings.filter((b) => {
       const matchDate = b.booking_date === todayStr;
@@ -383,35 +431,57 @@ export function useDashboardData(
       return matchDate && matchHotel && hasRoom && activeStatus;
     });
 
-    const points: HourlyOccupancyPoint[] = [];
-    for (let h = startHour; h < endHour; h++) {
-      const slotStart = h;
-      const slotEnd = h + 1;
-      const usedRoomIds = new Set<string>();
-      todaysBookings.forEach((b) => {
-        const [bh, bm] = (b.booking_time || "0:0").split(":").map((n) => parseInt(n, 10));
-        const bookingStart = (Number.isNaN(bh) ? 0 : bh) + (Number.isNaN(bm) ? 0 : bm) / 60;
-        const durationHours = (b.duration ?? 60) / 60;
-        const bookingEnd = bookingStart + durationHours;
-        if (bookingStart < slotEnd && bookingEnd > slotStart && b.room_id) {
-          usedRoomIds.add(b.room_id);
-        }
-      });
-      const used = usedRoomIds.size;
-      points.push({
-        hour: `${String(h).padStart(2, "0")}h`,
-        hourIndex: h,
-        used,
-        total: totalRooms,
-        rate: totalRooms > 0 ? Math.round((used / totalRooms) * 100) : 0,
-        outOfHours: h < openingHour || h >= closingHour,
-      });
-    }
+    const openHoursCount = Math.max(1, closingHour - openingHour);
 
-    return {
-      roomOccupancyHourly: points,
-      roomOccupancyHourlyMeta: { openingHour, closingHour },
-    };
+    const roomRows: RoomHeatmapRow[] = scopedRooms.map((room) => {
+      const capacity = room.capacity && room.capacity > 0 ? room.capacity : 1;
+      const roomBookings = todaysBookings.filter((b) => b.room_id === room.id);
+
+      let occupiedSeatHours = 0; // cumul (places occupées, plafonnées) sur les heures d'ouverture
+      const cells: RoomHeatmapCell[] = hours.map((h) => {
+        const slotStart = h;
+        const slotEnd = h + 1;
+        let seats = 0;
+        roomBookings.forEach((b) => {
+          const [bh, bm] = (b.booking_time || "0:0").split(":").map((n) => parseInt(n, 10));
+          const bookingStart = (Number.isNaN(bh) ? 0 : bh) + (Number.isNaN(bm) ? 0 : bm) / 60;
+          const bookingEnd = bookingStart + (b.duration ?? 60) / 60;
+          if (bookingStart < slotEnd && bookingEnd > slotStart) {
+            seats += b.guest_count ?? 1;
+          }
+        });
+        const cappedSeats = Math.min(seats, capacity);
+        const outOfHours = h < openingHour || h >= closingHour;
+        if (!outOfHours) occupiedSeatHours += cappedSeats;
+        return {
+          hourIndex: h,
+          seats,
+          capacity,
+          rate: Math.min(100, Math.round((seats / capacity) * 100)),
+          outOfHours,
+        };
+      });
+
+      return {
+        roomId: room.id,
+        roomName: room.name || "Salle",
+        hotelId: room.hotel_id ?? "",
+        hotelName: (room.hotel_id && hotelNameById.get(room.hotel_id)) || "Lieu inconnu",
+        capacity,
+        cells,
+        dayRate: Math.round((occupiedSeatHours / (capacity * openHoursCount)) * 100),
+      };
+    });
+
+    // Regroupé par lieu (pour la vue « tous les lieux »), puis par occupation.
+    roomRows.sort(
+      (a, b) =>
+        a.hotelName.localeCompare(b.hotelName) ||
+        b.dayRate - a.dayRate ||
+        a.roomName.localeCompare(b.roomName),
+    );
+
+    return { rooms: roomRows, hours, openingHour, closingHour };
   }, [bookings, rooms, hotels, selectedHotel]);
 
   // ── Active therapists today ───────────────────────────────────────
@@ -431,15 +501,16 @@ export function useDashboardData(
 
   const salesChartData = useMemo<ChartPoint[]>(() => {
     const days = differenceInDays(endDate, startDate);
-    if (filteredBookings.length === 0) return [];
+    const revenueBookings = filteredBookings.filter(generatesRevenue);
+    if (revenueBookings.length === 0) return [];
 
-    const prestationCount = (b: (typeof filteredBookings)[number]) =>
+    const prestationCount = (b: (typeof revenueBookings)[number]) =>
       (b.booking_treatments || []).length;
 
     if (days === 0) {
       return Array.from({ length: 8 }, (_, i) => {
         const hour = 9 + i * 2;
-        const hourBookings = filteredBookings.filter((b) => {
+        const hourBookings = revenueBookings.filter((b) => {
           const bh = parseInt(b.booking_time?.split(":")[0] || "0");
           return bh >= hour && bh < hour + 2;
         });
@@ -458,7 +529,7 @@ export function useDashboardData(
       salesByDate[key] = 0;
       prestationsByDate[key] = 0;
     }
-    filteredBookings.forEach((b) => {
+    revenueBookings.forEach((b) => {
       if (Object.prototype.hasOwnProperty.call(salesByDate, b.booking_date)) {
         salesByDate[b.booking_date] += toEUR(b.total_price, b.hotel_id);
         prestationsByDate[b.booking_date] += prestationCount(b);
@@ -516,9 +587,57 @@ export function useDashboardData(
     });
   }, [bookings, selectedHotel]);
 
+  // ── Booking lead time (how far in advance clients book) ───────────
+  // Délai = booking_date − created_at (jours calendaires), borné à 0.
+  // Filtré sur created_at (réservations FAITES dans la période), pas sur
+  // booking_date : sinon les réservations futures — celles qui portent
+  // justement l'anticipation — seraient exclues.
+
+  const leadTime = useMemo<LeadTimeData>(() => {
+    const withLead = bookings.filter((b) => {
+      if (!b.created_at || !b.booking_date) return false;
+      const created = parseISO(b.created_at);
+      const matchDate = isWithinInterval(created, { start: startDate, end: endDate });
+      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
+      return matchDate && matchHotel;
+    });
+
+    const leadDays = (b: BookingRow) =>
+      Math.max(0, differenceInCalendarDays(parseISO(b.booking_date), parseISO(b.created_at!)));
+
+    const globalCount = withLead.length;
+    const globalSum = withLead.reduce((s, b) => s + leadDays(b), 0);
+
+    const treatmentMap: Record<string, { sum: number; count: number }> = {};
+    withLead.forEach((b) => {
+      const days = leadDays(b);
+      (b.booking_treatments || []).forEach((bt) => {
+        const name = bt.treatment_menus?.name;
+        if (!name) return;
+        if (!treatmentMap[name]) treatmentMap[name] = { sum: 0, count: 0 };
+        treatmentMap[name].sum += days;
+        treatmentMap[name].count += 1;
+      });
+    });
+
+    const byTreatment = Object.entries(treatmentMap)
+      .map(([name, { sum, count }]) => ({
+        name,
+        averageDays: count > 0 ? Math.round((sum / count) * 10) / 10 : 0,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      averageDays: globalCount > 0 ? Math.round((globalSum / globalCount) * 10) / 10 : 0,
+      count: globalCount,
+      byTreatment,
+    };
+  }, [bookings, startDate, endDate, selectedHotel]);
+
   const topVenues = useMemo<RankingItem[]>(() => {
     const map: Record<string, RankingItem> = {};
-    filteredBookings.forEach((b) => {
+    filteredBookings.filter(generatesRevenue).forEach((b) => {
       if (!map[b.hotel_id]) {
         const hotel = hotels.find((h) => h.id === b.hotel_id);
         map[b.hotel_id] = { name: hotel?.name || b.hotel_name || "Inconnu", revenue: 0, bookings: 0 };
@@ -533,7 +652,7 @@ export function useDashboardData(
 
   const topTherapists = useMemo<RankingItem[]>(() => {
     const map: Record<string, RankingItem> = {};
-    filteredBookings.forEach((b) => {
+    filteredBookings.filter(generatesRevenue).forEach((b) => {
       if (!b.therapist_id) return;
       if (!map[b.therapist_id]) {
         map[b.therapist_id] = { name: b.therapist_name || "Inconnu", revenue: 0, bookings: 0 };
@@ -548,7 +667,7 @@ export function useDashboardData(
 
   const topTreatments = useMemo<RankingItem[]>(() => {
     const map: Record<string, RankingItem> = {};
-    filteredBookings.forEach((b) => {
+    filteredBookings.filter(generatesRevenue).forEach((b) => {
       const treatments = b.booking_treatments || [];
       treatments.forEach((bt) => {
         const name = bt.treatment_menus?.name;
@@ -569,7 +688,9 @@ export function useDashboardData(
     () =>
       hotels.map((hotel) => {
         const hb = filteredBookings.filter((b) => b.hotel_id === hotel.id);
-        const totalSales = hb.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
+        const totalSales = hb
+          .filter(generatesRevenue)
+          .reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
         return {
           name: hotel.name,
           totalSales: formatPrice(totalSales),
@@ -588,12 +709,12 @@ export function useDashboardData(
     stats,
     alerts,
     roomOccupancy,
-    roomOccupancyHourly,
-    roomOccupancyHourlyMeta,
+    roomOccupancyHeatmap,
     activeTherapists,
     salesChartData,
     statusDistribution,
     weekForecast,
+    leadTime,
     topVenues,
     topTherapists,
     topTreatments,

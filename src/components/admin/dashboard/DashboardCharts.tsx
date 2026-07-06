@@ -12,14 +12,19 @@ import {
   BarChart,
   Bar,
   Legend,
-  ReferenceArea,
 } from "recharts";
+import { useState } from "react";
+import { CalendarClock, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type {
   ChartPoint,
   StatusSlice,
   ForecastPoint,
-  HourlyOccupancyPoint,
+  RoomOccupancyHeatmap as RoomOccupancyHeatmapData,
+  RoomHeatmapCell,
+  LeadTimeData,
 } from "@/hooks/useDashboardData";
 
 // ── Sales Area Chart ────────────────────────────────────────────────
@@ -103,18 +108,30 @@ export function SalesChart({ data }: SalesChartProps) {
   );
 }
 
-// ── Room Occupancy Hourly Chart ────────────────────────────────────
+// ── Room Occupancy Heatmap (today, per room) ───────────────────────
 
-interface RoomOccupancyChartProps {
-  data: HourlyOccupancyPoint[];
-  openingHour: number;
-  closingHour: number;
+interface RoomOccupancyHeatmapProps {
+  data: RoomOccupancyHeatmapData;
 }
 
-export function RoomOccupancyChart({ data, openingHour, closingHour }: RoomOccupancyChartProps) {
-  const totalRooms = data[0]?.total ?? 0;
+// Couleur d'une case selon son taux d'occupation (0-100%).
+function cellBackground(cell: RoomHeatmapCell): string {
+  if (cell.rate <= 0) {
+    // Case vide : gris très léger hors horaires, quasi transparent en horaires.
+    return cell.outOfHours ? "hsl(0 0% 60% / 0.10)" : "hsl(180 45% 45% / 0.06)";
+  }
+  // Occupée : teinte teal dont l'opacité croît avec le taux.
+  const alpha = 0.2 + (cell.rate / 100) * 0.8;
+  return `hsl(180 45% 45% / ${alpha})`;
+}
 
-  if (totalRooms === 0) {
+export function RoomOccupancyHeatmap({ data }: RoomOccupancyHeatmapProps) {
+  const { rooms, hours } = data;
+
+  // Afficher un intitulé de lieu seulement quand la vue couvre plusieurs lieux.
+  const showVenueGroups = new Set(rooms.map((r) => r.hotelId)).size > 1;
+
+  if (rooms.length === 0) {
     return (
       <Card className="border border-border bg-card shadow-sm">
         <CardHeader>
@@ -129,78 +146,82 @@ export function RoomOccupancyChart({ data, openingHour, closingHour }: RoomOccup
     );
   }
 
-  const startHour = data[0]?.hourIndex ?? openingHour;
-  const endHour = (data[data.length - 1]?.hourIndex ?? closingHour) + 1;
-  const leftBufferEnd = `${String(openingHour).padStart(2, "0")}h`;
-  const rightBufferStart = `${String(closingHour).padStart(2, "0")}h`;
-  const hasLeftBuffer = startHour < openingHour;
-  const hasRightBuffer = endHour > closingHour;
+  // Colonne des noms (fixe) + une colonne par heure + colonne du % du jour.
+  const gridTemplateColumns = `minmax(120px, 160px) repeat(${hours.length}, minmax(22px, 1fr)) 48px`;
 
   return (
     <Card className="border border-border bg-card shadow-sm">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-base font-medium text-foreground">
           Occupation salles — aujourd'hui
         </CardTitle>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>0%</span>
+          <span
+            className="h-2.5 w-16 rounded-full"
+            style={{
+              background:
+                "linear-gradient(90deg, hsl(180 45% 45% / 0.06), hsl(180 45% 45% / 1))",
+            }}
+          />
+          <span>100%</span>
+        </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={data}>
-            <defs>
-              <linearGradient id="roomOccupancyGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(180, 45%, 45%)" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="hsl(180, 45%, 45%)" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-            <XAxis dataKey="hour" tick={{ fontSize: 12 }} stroke="#666" />
-            <YAxis
-              tick={{ fontSize: 12 }}
-              stroke="#666"
-              domain={[0, 100]}
-              tickFormatter={(v) => `${v}%`}
-            />
-            {hasLeftBuffer && (
-              <ReferenceArea
-                x1={`${String(startHour).padStart(2, "0")}h`}
-                x2={leftBufferEnd}
-                fill="#9ca3af"
-                fillOpacity={0.08}
-              />
-            )}
-            {hasRightBuffer && (
-              <ReferenceArea
-                x1={rightBufferStart}
-                x2={`${String(endHour - 1).padStart(2, "0")}h`}
-                fill="#9ca3af"
-                fillOpacity={0.08}
-              />
-            )}
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              }}
-              labelStyle={{ fontWeight: "bold", marginBottom: "4px" }}
-              formatter={(_value: number, _name: string, item: { payload: HourlyOccupancyPoint }) => {
-                const p = item.payload;
-                const label = `${p.used}/${p.total} salles (${p.rate}%)${p.outOfHours ? " · Hors horaires" : ""}`;
-                return [label, "Occupation"];
-              }}
-            />
-            <Area
-              type="monotone"
-              dataKey="rate"
-              stroke="hsl(180, 45%, 45%)"
-              strokeWidth={2}
-              fill="url(#roomOccupancyGradient)"
-              dot={{ fill: "hsl(180, 45%, 45%)", strokeWidth: 2, r: 3 }}
-              activeDot={{ r: 5, fill: "hsl(180, 45%, 45%)" }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        <div className="overflow-x-auto">
+          <div className="min-w-max">
+            {/* Header : heures */}
+            <div className="grid items-end" style={{ gridTemplateColumns }}>
+              <div />
+              {hours.map((h) => (
+                <div key={h} className="pb-1 text-center text-[10px] text-muted-foreground">
+                  {String(h).padStart(2, "0")}
+                </div>
+              ))}
+              <div className="pb-1 text-center text-[10px] font-medium text-muted-foreground">
+                Jour
+              </div>
+            </div>
+
+            {/* Lignes : une par salle, regroupées par lieu si vue multi-lieux */}
+            {rooms.map((room, i) => {
+              const isNewVenue = showVenueGroups && (i === 0 || rooms[i - 1].hotelId !== room.hotelId);
+              return (
+                <div key={room.roomId}>
+                  {isNewVenue && (
+                    <div className="mt-3 mb-1 border-b border-border pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {room.hotelName}
+                    </div>
+                  )}
+                  <div className="grid items-center py-0.5" style={{ gridTemplateColumns }}>
+                    <div className="flex items-baseline gap-1.5 pr-2 min-w-0">
+                      <span className="truncate text-sm text-foreground" title={room.roomName}>
+                        {room.roomName}
+                      </span>
+                      {room.capacity > 1 && (
+                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                          ×{room.capacity}
+                        </span>
+                      )}
+                    </div>
+                    {room.cells.map((cell) => (
+                      <div key={cell.hourIndex} className="px-px">
+                        <div
+                          className="h-6 w-full rounded-sm"
+                          style={{ backgroundColor: cellBackground(cell) }}
+                          title={`${room.roomName} · ${String(cell.hourIndex).padStart(2, "0")}h — ${cell.seats}/${cell.capacity} (${cell.rate}%)${cell.outOfHours ? " · hors horaires" : ""}`}
+                        />
+                      </div>
+                    ))}
+                    <div className="text-center text-xs font-semibold text-foreground">
+                      {room.dayRate}%
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -328,6 +349,79 @@ export function WeekForecast({ data }: WeekForecastProps) {
             <Bar dataKey="pending" name="En attente" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Booking Lead Time ───────────────────────────────────────────────
+
+interface BookingLeadTimeProps {
+  data: LeadTimeData;
+}
+
+function formatDays(days: number): string {
+  const rounded = Math.round(days * 10) / 10;
+  const value = rounded.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+  return `${value} ${rounded <= 1 ? "jour" : "jours"}`;
+}
+
+export function BookingLeadTime({ data }: BookingLeadTimeProps) {
+  const [showByTreatment, setShowByTreatment] = useState(false);
+
+  return (
+    <Card className="border border-border bg-card shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+        <CardTitle className="text-base font-medium text-foreground">
+          Délai de réservation
+        </CardTitle>
+        {data.byTreatment.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+            onClick={() => setShowByTreatment((v) => !v)}
+          >
+            Par prestation
+            <ChevronDown
+              className={cn("h-3.5 w-3.5 transition-transform", showByTreatment && "rotate-180")}
+            />
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {data.count === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Aucune donnée sur la période
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <CalendarClock className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold text-foreground">{formatDays(data.averageDays)}</p>
+                <p className="text-xs text-muted-foreground">
+                  en moyenne à l'avance · {data.count} réservation{data.count > 1 ? "s" : ""}
+                </p>
+              </div>
+            </div>
+
+            {showByTreatment && (
+              <div className="mt-4 space-y-1 border-t border-border pt-3">
+                {data.byTreatment.map((t) => (
+                  <div key={t.name} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="truncate text-muted-foreground">{t.name}</span>
+                    <span className="shrink-0 font-medium text-foreground">
+                      {formatDays(t.averageDays)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </CardContent>
     </Card>
   );

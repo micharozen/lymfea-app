@@ -15,6 +15,7 @@ interface NotificationItem {
   type: string;
   message: string;
   booking_id: string | null;
+  task_id: string | null;
   read: boolean;
   created_at: string;
 }
@@ -24,6 +25,7 @@ const TYPE_LABEL_FR: Record<string, string> = {
   booking_cancelled: "Annulation",
   therapist_arrived: "Arrivée",
   noshow: "No-show",
+  task_assigned: "Tâche assignée",
 };
 
 const TYPE_LABEL_EN: Record<string, string> = {
@@ -31,6 +33,7 @@ const TYPE_LABEL_EN: Record<string, string> = {
   booking_cancelled: "Cancellation",
   therapist_arrived: "Arrival",
   noshow: "No-show",
+  task_assigned: "Task assigned",
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -38,6 +41,7 @@ const TYPE_COLOR: Record<string, string> = {
   booking_cancelled: "bg-red-500",
   therapist_arrived: "bg-blue-500",
   noshow: "bg-amber-500",
+  task_assigned: "bg-gold-500",
 };
 
 export function NotificationsBellButton({ className }: { className?: string }) {
@@ -62,7 +66,7 @@ export function NotificationsBellButton({ className }: { className?: string }) {
       setLoading(true);
       const { data } = await supabase
         .from("notifications")
-        .select("id, type, message, booking_id, read, created_at")
+        .select("id, type, message, booking_id, task_id, read, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -112,7 +116,8 @@ export function NotificationsBellButton({ className }: { className?: string }) {
   const handleClick = async (notif: NotificationItem) => {
     if (!notif.read) await markRead(notif.id);
     setOpen(false);
-    if (notif.booking_id) navigate(`/admin/bookings/${notif.booking_id}`);
+    if (notif.task_id) navigate(`/admin/tasks?task=${notif.task_id}`);
+    else if (notif.booking_id) navigate(`/admin/bookings/${notif.booking_id}`);
   };
 
   const labelFor = (type: string) =>

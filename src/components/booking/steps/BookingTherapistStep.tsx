@@ -291,6 +291,10 @@ export function BookingTherapistStep({
   const effectiveStaffing = staffingCountProp ?? requiredGuestCount;
   const isDuo = effectiveStaffing > 1;
 
+  // Il faut soit diffuser à tous, soit avoir affecté tous les praticiens requis.
+  const assignedCount = [therapistId, ...additionalTherapistIds].filter(Boolean).length;
+  const selectionComplete = broadcast || assignedCount >= effectiveStaffing;
+
   const handleToggleBroadcast = () => {
     if (broadcast) {
       onDuoModeChange("assign");
@@ -474,20 +478,20 @@ export function BookingTherapistStep({
 
           <div className="flex-1 min-w-0 flex justify-center">
             {cart.length > 0 ? (
-              <div className="flex items-center gap-1.5 overflow-x-auto">
+              <div className="flex items-center gap-2 overflow-x-auto">
                 {cartDetails.slice(0, 3).map(({ treatmentId, quantity, treatment }) => (
                   <div
                     key={treatmentId}
-                    className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 shrink-0"
+                    className="flex items-center gap-1.5 bg-muted rounded-full px-2.5 py-1 shrink-0"
                   >
-                    <span className="text-[9px] font-medium truncate max-w-[60px]">
+                    <span className="text-xs font-medium truncate max-w-[100px]">
                       {treatment?.name}
                     </span>
-                    <span className="text-[9px] font-bold">×{quantity}</span>
+                    <span className="text-xs font-bold text-muted-foreground">×{quantity}</span>
                   </div>
                 ))}
                 {cartDetails.length > 3 && (
-                  <span className="text-[9px] text-muted-foreground shrink-0">
+                  <span className="text-xs text-muted-foreground shrink-0">
                     +{cartDetails.length - 3}
                   </span>
                 )}
@@ -502,9 +506,9 @@ export function BookingTherapistStep({
 
           <Button
             type="submit"
-            disabled={isPending || cart.length === 0}
+            disabled={isPending || cart.length === 0 || !selectionComplete}
             size="sm"
-            className="h-7 text-xs px-3 shrink-0 bg-foreground text-background hover:bg-foreground/90"
+            className="h-7 text-xs px-3 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {isPending ? "Création..." : isConcierge && broadcast ? "Envoyer la demande" : isConcierge ? "Confirmer" : "Créer"}
             {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}

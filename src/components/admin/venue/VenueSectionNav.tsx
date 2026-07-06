@@ -33,6 +33,25 @@ export const VENUE_CONFIG_SECTIONS: SectionDef[] = [
   { id: "payment", label: "Paiement", icon: CreditCard },
 ];
 
+/**
+ * Smoothly scroll a venue config section into view by its DOM id.
+ * Shared by the section nav bar and the completeness panel.
+ */
+export function scrollToVenueSection(id: string, offset = 160): void {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const scroller = (el.closest("main, [data-scroll-container]") as HTMLElement) || null;
+  if (scroller) {
+    const elTop = el.getBoundingClientRect().top;
+    const scrollerTop = scroller.getBoundingClientRect().top;
+    const target = scroller.scrollTop + (elTop - scrollerTop) - offset;
+    scroller.scrollTo({ top: target, behavior: "smooth" });
+  } else {
+    const target = window.scrollY + el.getBoundingClientRect().top - offset;
+    window.scrollTo({ top: target, behavior: "smooth" });
+  }
+}
+
 function useActiveSection(sectionIds: string[]) {
   const [active, setActive] = useState(sectionIds[0]);
   const clickLockRef = useRef(false);
@@ -41,20 +60,7 @@ function useActiveSection(sectionIds: string[]) {
   const handleClick = useCallback((id: string) => {
     setActive(id);
     clickLockRef.current = true;
-    const el = document.getElementById(id);
-    if (el) {
-      const SCROLL_OFFSET = 160;
-      const scroller = (el.closest("main, [data-scroll-container]") as HTMLElement) || null;
-      if (scroller) {
-        const elTop = el.getBoundingClientRect().top;
-        const scrollerTop = scroller.getBoundingClientRect().top;
-        const target = scroller.scrollTop + (elTop - scrollerTop) - SCROLL_OFFSET;
-        scroller.scrollTo({ top: target, behavior: "smooth" });
-      } else {
-        const target = window.scrollY + el.getBoundingClientRect().top - SCROLL_OFFSET;
-        window.scrollTo({ top: target, behavior: "smooth" });
-      }
-    }
+    scrollToVenueSection(id);
     if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
     clickTimerRef.current = setTimeout(() => {
       clickLockRef.current = false;

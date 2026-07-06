@@ -16,9 +16,10 @@ import {
   Calendar, Clock, Building2, HandHeart,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
-  FileText, CreditCard
+  FileText, CreditCard, ListTodo
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
+import { BookingTasksTab } from "@/components/admin/tasks/BookingTasksTab";
 import { DuoRecapTable } from "@/components/admin/booking/DuoRecapTable";
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
 import { BookingNotesSection } from "@/components/admin/details/BookingNotesSection";
@@ -478,6 +479,13 @@ export default function BookingDetail() {
               <MessageSquare className="h-3.5 w-3.5" />
               Notes
             </TabsTrigger>
+
+            {!isConcierge && (
+              <TabsTrigger value="tasks" className="gap-1.5">
+                <ListTodo className="h-3.5 w-3.5" />
+                {t("tasks.bookingTab.label")}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="details" className="space-y-4 mt-4">
@@ -830,7 +838,20 @@ export default function BookingDetail() {
           <TabsContent value="notes" className="mt-4">
           <BookingNotesSection bookingId={id!} />
           </TabsContent>
-          
+
+          {!isConcierge && booking && (
+            <TabsContent value="tasks" className="mt-4">
+              <BookingTasksTab
+                booking={{
+                  id: booking.id,
+                  booking_id: booking.booking_id,
+                  client_first_name: booking.client_first_name,
+                  client_last_name: booking.client_last_name,
+                }}
+              />
+            </TabsContent>
+          )}
+
         </Tabs>
       </main>
 
