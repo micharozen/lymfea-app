@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -66,16 +67,8 @@ import {
   isComboDuoEligible,
   buildComboDuoBookingParams,
 } from "@/features/admin-combo-duo";
-import { BOOKING_CLIENT_TYPES, type BookingClientType } from "@/lib/clientTypeMeta";
+import { BOOKING_CLIENT_TYPES, CLIENT_TYPE_META, type BookingClientType } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType, isPaymentStatusLocked } from "@/lib/clientTypePayment";
-
-const CLIENT_TYPE_LABELS: Record<BookingClientType, string> = {
-  hotel: "Client hôtel",
-  staycation: "Staycation",
-  classpass: "ClassPass",
-  sezame: "Sezame",
-  external: "Client externe",
-};
 
 const countries = [
   { code: "+27", label: "Afrique du Sud", flag: "🇿🇦" },
@@ -199,6 +192,7 @@ export default function EditBookingDialog({
   initialMode = "view",
   onSuccess,
 }: EditBookingDialogProps) {
+  const { t } = useTranslation("admin");
   const queryClient = useQueryClient();
   const [hotelId, setHotelId] = useState("");
   const [clientFirstName, setClientFirstName] = useState("");
@@ -1616,7 +1610,7 @@ export default function EditBookingDialog({
                     <SelectContent className="bg-background border shadow-lg">
                       {BOOKING_CLIENT_TYPES.map((type) => (
                         <SelectItem key={type} value={type}>
-                          {CLIENT_TYPE_LABELS[type]}
+                          {t(CLIENT_TYPE_META[type].labelKey)}
                         </SelectItem>
                       ))}
                     </SelectContent>

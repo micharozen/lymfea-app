@@ -1,5 +1,6 @@
 import * as z from "zod";
 import { TFunction } from "i18next";
+import { BOOKING_CLIENT_TYPES, type BookingClientType } from "@/lib/clientTypeMeta";
 
 export const createFormSchema = (t: TFunction) => z.object({
   hotelId: z.string().min(1, t('errors.validation.hotelRequired')),
@@ -11,7 +12,7 @@ export const createFormSchema = (t: TFunction) => z.object({
   slot2Time: z.string().optional(),
   slot3Date: z.date().optional(),
   slot3Time: z.string().optional(),
-  clientType: z.enum(['hotel', 'staycation', 'classpass', 'sezame', 'external']).default('external'),
+  clientType: z.enum(BOOKING_CLIENT_TYPES as [BookingClientType, ...BookingClientType[]]).default('external'),
   // Civilité du client (optionnel) — stockée sur la fiche customer, réutilisée
   // dans les salutations des emails/SMS.
   civility: z.enum(['madame', 'monsieur']).optional(),

@@ -1,4 +1,4 @@
-import type { BookingClientType } from "@/lib/clientTypeMeta";
+import { isPartnerBilledClientType, type BookingClientType } from "@/lib/clientTypeMeta";
 
 export interface DerivedPayment {
   paymentMethod: string | null;
@@ -28,7 +28,7 @@ export function derivePaymentForClientType(
   if (clientType === "hotel") {
     return { paymentMethod: "room", paymentStatus: "charged_to_room" };
   }
-  if (clientType === "staycation" || clientType === "classpass" || clientType === "sezame") {
+  if (isPartnerBilledClientType(clientType)) {
     return { paymentMethod: "partner_billed", paymentStatus: "pending_partner_billing" };
   }
   return { paymentMethod: null, paymentStatus: "pending" };

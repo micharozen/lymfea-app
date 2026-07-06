@@ -53,3 +53,28 @@ export const CLIENT_TYPE_META: Record<BookingClientType, ClientTypeMeta> = {
     iconIsBrand: false,
   },
 };
+
+/**
+ * Types de client facturés à un partenaire en fin de mois (paiement différé,
+ * pas d'encaissement sur place). Source de vérité partagée UI + dérivation
+ * paiement — voir derivePaymentForClientType.
+ */
+export const PARTNER_BILLED_CLIENT_TYPES: readonly BookingClientType[] = [
+  "staycation",
+  "classpass",
+  "sezame",
+];
+
+export function isPartnerBilledClientType(clientType: BookingClientType): boolean {
+  return PARTNER_BILLED_CLIENT_TYPES.includes(clientType);
+}
+
+/** Type guard : la valeur est-elle un BookingClientType connu ? */
+export function isBookingClientType(value: unknown): value is BookingClientType {
+  return typeof value === "string" && (BOOKING_CLIENT_TYPES as string[]).includes(value);
+}
+
+/** Normalise une valeur brute en BookingClientType, avec repli sur "external". */
+export function normalizeBookingClientType(value: string | null | undefined): BookingClientType {
+  return isBookingClientType(value) ? value : "external";
+}
