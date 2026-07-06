@@ -72,6 +72,8 @@ interface TaskDialogProps {
   onClose: () => void;
   task: Task | null;
   defaultStatus?: TaskStatus;
+  /** Pré-remplit la réservation liée pour une nouvelle tâche (onglet Tâches d'une résa). */
+  defaultBooking?: BookingSearchResult | null;
 }
 
 // Local date (yyyy-mm-dd) offset by `days`, for the due-date quick presets.
@@ -117,7 +119,7 @@ function Req() {
   return <span className="ml-0.5 text-red-500">*</span>;
 }
 
-export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogProps) {
+export function TaskDialog({ open, onClose, task, defaultStatus, defaultBooking }: TaskDialogProps) {
   const { t } = useTranslation("admin");
   const { userId } = useUser();
   const { create, update, remove } = useTaskMutations();
@@ -187,10 +189,10 @@ export function TaskDialog({ open, onClose, task, defaultStatus }: TaskDialogPro
         due_date: "",
         assigned_to_user_id: userId ?? "",
       });
-      setBooking(null);
+      setBooking(defaultBooking ?? null);
       setCustomer(null);
     }
-  }, [open, task, defaultStatus, userId, form]);
+  }, [open, task, defaultStatus, userId, form, defaultBooking]);
 
   const onSubmit = async (values: FormValues) => {
     const shared = {
