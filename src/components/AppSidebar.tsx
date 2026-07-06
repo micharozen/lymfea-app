@@ -69,6 +69,7 @@ interface MenuItem {
   url: string;
   icon: LucideIcon;
   badge?: boolean;
+  isNew?: boolean;
   soon?: boolean;
 }
 
@@ -80,7 +81,7 @@ const adminPrimaryItems: MenuItem[] = [
   { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
   { title: "Clients", url: "/admin/customers", icon: Contact },
-  { title: "Tâches", url: "/admin/tasks", icon: ListTodo },
+  { title: "Tâches", url: "/admin/tasks", icon: ListTodo, isNew: true },
   { title: "Inbox", url: "/admin/inbox", icon: Inbox },
   { title: "Alertes", url: "/admin/schedule-alerts", icon: Bell, badge: true },
 ];
@@ -304,6 +305,11 @@ export function AppSidebar() {
             {item.badge && (redFlagCount + unreadNotifCount) > 0 && (
               <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                 {(redFlagCount + unreadNotifCount) > 99 ? '99+' : (redFlagCount + unreadNotifCount)}
+              </span>
+            )}
+            {item.isNew && (
+              <span className="ml-auto bg-emerald-500 text-white text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5">
+                New
               </span>
             )}
           </NavLink>
