@@ -25,8 +25,11 @@ export function useTasks() {
   });
 
   useEffect(() => {
+    // Unique channel name per mount: with a fixed name, React 18 StrictMode's
+    // double-invoke would re-grab the still-subscribing channel and re-attaching
+    // postgres_changes throws "cannot add callbacks after subscribe()".
     const channel = supabase
-      .channel("tasks-realtime")
+      .channel(`tasks-realtime-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "tasks" },

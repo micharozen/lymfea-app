@@ -20,7 +20,7 @@ import { useCurrentVenueId } from "@/hooks/useCurrentVenueId";
 import { useAdminWelcome } from "@/hooks/useAdminWelcome";
 import { WelcomeDialog } from "@/components/admin/WelcomeDialog";
 import { DashboardAlerts } from "@/components/admin/dashboard/DashboardAlerts";
-import { SalesChart, StatusDonut, WeekForecast, RoomOccupancyChart } from "@/components/admin/dashboard/DashboardCharts";
+import { SalesChart, StatusDonut, WeekForecast, RoomOccupancyHeatmap, BookingLeadTime } from "@/components/admin/dashboard/DashboardCharts";
 import { DashboardRankings } from "@/components/admin/dashboard/DashboardRankings";
 import { DashboardOverview } from "@/components/admin/dashboard/DashboardOverview";
 import { DashboardKpiRow } from "@/components/admin/dashboard/DashboardKpiRow";
@@ -155,18 +155,19 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Room occupancy hourly */}
+        {/* Room occupancy heatmap (per room) */}
         <div className="mb-6">
-          <RoomOccupancyChart
-            data={data.roomOccupancyHourly}
-            openingHour={data.roomOccupancyHourlyMeta.openingHour}
-            closingHour={data.roomOccupancyHourlyMeta.closingHour}
-          />
+          <RoomOccupancyHeatmap data={data.roomOccupancyHeatmap} />
         </div>
 
-        {/* Week forecast */}
-        <div className="mb-6">
-          <WeekForecast data={data.weekForecast} />
+        {/* Week forecast + booking lead time */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+          <div className="lg:col-span-3">
+            <WeekForecast data={data.weekForecast} />
+          </div>
+          <div className="lg:col-span-2">
+            <BookingLeadTime data={data.leadTime} />
+          </div>
         </div>
 
         {stats.missingRoomNumber > 0 && (

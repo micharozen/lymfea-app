@@ -98,6 +98,16 @@ export function BookingInfoStep({
   const isHotelClient = clientType === "hotel";
   const roomNumberLater = form.watch("roomNumberLater");
 
+  // Champs obligatoires de l'étape 1 : tant qu'ils ne sont pas remplis, le
+  // bouton "Suivant" reste désactivé (au lieu d'afficher les erreurs au clic).
+  const infoComplete =
+    !!form.watch("hotelId") &&
+    !!form.watch("date") &&
+    !!form.watch("time") &&
+    !!form.watch("clientFirstName")?.trim() &&
+    !!form.watch("clientLastName")?.trim() &&
+    (!isHotelClient || roomNumberLater || !!form.watch("roomNumber")?.trim());
+
   // Communication language is pre-filled from the phone country code (+33 → fr,
   // otherwise en). Once the operator picks a value manually (or we load it from
   // an existing customer), we stop auto-deriving so their choice sticks.
@@ -1035,7 +1045,7 @@ export function BookingInfoStep({
         <Button type="button" variant="outline" onClick={onCancel}>
           Annuler
         </Button>
-        <Button type="button" onClick={onValidateAndNext}>
+        <Button type="button" onClick={onValidateAndNext} disabled={!infoComplete}>
           Suivant
         </Button>
       </div>

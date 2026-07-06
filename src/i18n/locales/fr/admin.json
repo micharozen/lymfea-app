@@ -591,6 +591,12 @@
     "card": {
       "booking": "Résa"
     },
+    "bookingTab": {
+      "label": "Tâches",
+      "count_one": "{{count}} tâche liée à cette réservation",
+      "count_other": "{{count}} tâches liées à cette réservation",
+      "empty": "Aucune tâche liée à cette réservation."
+    },
     "fields": {
       "title": "Titre",
       "titlePlaceholder": "Ex. Rappeler le client pour confirmer",

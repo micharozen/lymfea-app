@@ -10,6 +10,7 @@ export type DashboardBooking = Pick<
   | "booking_id"
   | "booking_date"
   | "booking_time"
+  | "created_at"
   | "total_price"
   | "hotel_id"
   | "hotel_name"
@@ -21,6 +22,7 @@ export type DashboardBooking = Pick<
   | "duration"
   | "client_type"
   | "room_number"
+  | "guest_count"
 >;
 
 export type DashboardHotel = Pick<HotelRow, "id" | "name" | "currency" | "opening_time" | "closing_time">;
@@ -28,7 +30,7 @@ export type DashboardHotel = Pick<HotelRow, "id" | "name" | "currency" | "openin
 export type DashboardData = {
   bookings: DashboardBooking[];
   hotels: DashboardHotel[];
-  treatmentRooms: Array<{ id: string; hotel_id: string | null }>;
+  treatmentRooms: Array<{ id: string; hotel_id: string | null; name: string | null; capacity: number | null }>;
   todayAvailableTherapistIds: string[];
   therapistVenues: Array<{ therapist_id: string; hotel_id: string }>;
 };
@@ -53,7 +55,7 @@ export async function getDashboardDataForOrg(
   let bookingsQ = client
     .from("bookings")
     .select(
-      "id, booking_id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, room_id, duration, client_type, room_number",
+      "id, booking_id, booking_date, booking_time, created_at, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, room_id, duration, client_type, room_number, guest_count",
     )
     .order("booking_date", { ascending: true });
   let hotelsQ = client.from("hotels").select("id, name, currency, opening_time, closing_time").order("created_at", {
@@ -61,7 +63,7 @@ export async function getDashboardDataForOrg(
   });
   let roomsQ = client
     .from("treatment_rooms")
-    .select("id, hotel_id")
+    .select("id, hotel_id, name, capacity")
     .in("status", ["active", "Actif"]);
   let venuesQ = client.from("therapist_venues").select("therapist_id, hotel_id");
 
@@ -111,7 +113,12 @@ export async function getDashboardDataForOrg(
   return {
     bookings: (bookingsRes.data ?? []) as DashboardBooking[],
     hotels: (hotelsRes.data ?? []) as DashboardHotel[],
-    treatmentRooms: (roomsRes.data ?? []) as Array<{ id: string; hotel_id: string | null }>,
+    treatmentRooms: (roomsRes.data ?? []) as Array<{
+      id: string;
+      hotel_id: string | null;
+      name: string | null;
+      capacity: number | null;
+    }>,
     todayAvailableTherapistIds: availableIds,
     therapistVenues: venues,
   };

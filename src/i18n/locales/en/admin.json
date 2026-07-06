@@ -591,6 +591,12 @@
     "card": {
       "booking": "Booking"
     },
+    "bookingTab": {
+      "label": "Tasks",
+      "count_one": "{{count}} task linked to this booking",
+      "count_other": "{{count}} tasks linked to this booking",
+      "empty": "No task linked to this booking."
+    },
     "fields": {
       "title": "Title",
       "titlePlaceholder": "e.g. Call the client to confirm",
