@@ -4,6 +4,7 @@ import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 import { getBaseEmailTemplate, getEmailHeader } from "../_shared/email-template.ts";
 import { computeTherapistEarnings, type TherapistRates } from "../_shared/therapistEarnings.ts";
+import { normalizeClientType, clientTypeLabel, type BookingClientType } from "../_shared/client-type.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,13 +19,7 @@ interface ClosureRequest {
   hide_commissions?: boolean;
 }
 
-type ClientTypeValue = "hotel" | "staycation" | "classpass" | "external";
-const CLIENT_TYPE_LABELS: Record<ClientTypeValue, string> = {
-  hotel: "Résident hôtel",
-  staycation: "Staycation",
-  classpass: "Classpass",
-  external: "Client externe",
-};
+type ClientTypeValue = BookingClientType;
 
 interface RawBooking {
   id: string;
@@ -95,13 +90,6 @@ function fmtDateLong(iso: string): string {
     month: "long",
     year: "numeric",
   });
-}
-
-function normalizeClientType(value: string | null | undefined): ClientTypeValue {
-  if (value === "hotel" || value === "staycation" || value === "classpass" || value === "external") {
-    return value;
-  }
-  return "external";
 }
 
 function bookingDuration(booking: RawBooking): number {
@@ -178,7 +166,7 @@ serve(async (req: Request): Promise<Response> => {
         .order("booking_time", { ascending: true }),
       supabase
         .from("therapist_venues")
-        .select("therapist_id, therapists ( id, rate_45, rate_60, rate_90 )")
+        .select("therapist_id, therapists ( id, rate_60, rate_75, rate_90 )")
         .eq("hotel_id", hotel_id),
     ]);
 
@@ -193,10 +181,10 @@ serve(async (req: Request): Promise<Response> => {
 
     const ratesMap: Record<string, TherapistRates | null> = {};
     for (const row of ratesRes.data ?? []) {
-      const t = (row as { therapists: { id: string; rate_45: number | null; rate_60: number | null; rate_90: number | null } | null }).therapists;
+      const t = (row as { therapists: { id: string; rate_60: number | null; rate_75: number | null; rate_90: number | null } | null }).therapists;
       if (!t) continue;
-      const rates: TherapistRates = { rate_45: t.rate_45, rate_60: t.rate_60, rate_90: t.rate_90 };
-      const empty = rates.rate_45 == null && rates.rate_60 == null && rates.rate_90 == null;
+      const rates: TherapistRates = { rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90 };
+      const empty = rates.rate_60 == null && rates.rate_75 == null && rates.rate_90 == null;
       ratesMap[t.id] = empty ? null : rates;
     }
 
@@ -356,7 +344,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const clientTypeRows = Array.from(clientTypeMap.entries())
       .sort((a, b) => b[1].revenue - a[1].revenue)
-      .map(([k, v]) => [escapeHtml(CLIENT_TYPE_LABELS[k]), String(v.count), money(v.revenue)]);
+      .map(([k, v]) => [escapeHtml(clientTypeLabel(k, "fr")), String(v.count), money(v.revenue)]);
 
     const therapistHeaders = hide_commissions
       ? ["Thérapeute", "Prestations", "CA"]

@@ -3,6 +3,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
+import { clientTypeLabel } from "../_shared/client-type.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,14 +11,6 @@ const corsHeaders = {
 };
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
-// Type de client → label FR pour le badge admin.
-const CLIENT_TYPE_LABELS: Record<string, string> = {
-  hotel: 'Client hôtel',
-  external: 'Client externe',
-  staycation: 'Staycation',
-  classpass: 'ClassPass',
-};
 
 // Origine de la réservation (colonne bookings.source, enum contraint) → label FR.
 const SOURCE_LABELS: Record<string, string> = {
@@ -69,10 +62,10 @@ const createAdminEmailHtml = (booking: any, treatments: any[], dashboardUrl: str
 
   const logoUrl = EMAIL_LOGO_URL;
 
-  const clientTypeLabel = CLIENT_TYPE_LABELS[booking.client_type] || 'Client';
+  const clientLabel = clientTypeLabel(booking.client_type, 'fr');
   const typeValue = (booking.client_type === 'hotel' && booking.room_number)
-    ? `${clientTypeLabel} · Ch.${booking.room_number}`
-    : clientTypeLabel;
+    ? `${clientLabel} · Ch.${booking.room_number}`
+    : clientLabel;
 
   const sourceLabel = SOURCE_LABELS[booking.source];
 

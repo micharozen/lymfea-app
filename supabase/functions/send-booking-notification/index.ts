@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { sendEmail } from "../_shared/send-email.ts";
 import { sendSms } from "../_shared/send-sms.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
+import { isPartnerBilledClientType, isDeferredBillingClientType } from "../_shared/client-type.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,7 +62,7 @@ function buildEmailHtml(params: {
   clientType: string | null;
 }) {
   const { clientName, hotelName, bookingId, dateLong, bookingTime, roomNumber, treatments, totalPrice, currency, language, clientType } = params;
-  const showPartnerNotice = clientType === "staycation" || clientType === "classpass" || clientType === "hotel";
+  const showPartnerNotice = isDeferredBillingClientType(clientType);
   const labels = language === "fr"
     ? {
         title: "Votre réservation bien-être est confirmée",
@@ -150,7 +151,7 @@ function buildSmsBody(params: {
     return `Hello ${clientName},\n\nYour treatment at ${hotelName} on ${dateLong} at ${bookingTime} has been cancelled.\n\nBook again: ${rebookUrl}\n\nSee you soon!`;
   }
 
-  const isPartner = clientType === "staycation" || clientType === "classpass";
+  const isPartner = isPartnerBilledClientType(clientType);
   const isHotel = clientType === "hotel";
 
   if (language === "fr") {
@@ -221,7 +222,7 @@ serve(async (req: Request) => {
 
     const bookingClientType = (booking as any).client_type as string | null;
     const bookingPaymentStatus = (booking as any).payment_status as string | null;
-    const isPartnerBilled = bookingClientType === "staycation" || bookingClientType === "classpass" || bookingClientType === "hotel";
+    const isPartnerBilled = isDeferredBillingClientType(bookingClientType);
     const isPaymentEngaged = bookingPaymentStatus === "paid" || bookingPaymentStatus === "authorized" || bookingPaymentStatus === "engaged";
     const isReschedOrCancel = body.type === "reschedule" || body.type === "cancellation";
 

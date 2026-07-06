@@ -1,14 +1,16 @@
 import hotelLogo from "@/assets/client-types/hotel.svg";
 import staycationLogo from "@/assets/client-types/staycation.svg";
 import classpassLogo from "@/assets/client-types/classpass.svg";
+import sezameLogo from "@/assets/client-types/sezame.svg";
 import externalLogo from "@/assets/client-types/external.svg";
 
-export type BookingClientType = "hotel" | "staycation" | "classpass" | "external";
+export type BookingClientType = "hotel" | "staycation" | "classpass" | "sezame" | "external";
 
 export const BOOKING_CLIENT_TYPES: BookingClientType[] = [
   "hotel",
   "staycation",
   "classpass",
+  "sezame",
   "external",
 ];
 
@@ -38,6 +40,12 @@ export const CLIENT_TYPE_META: Record<BookingClientType, ClientTypeMeta> = {
     colorClass: "bg-neutral-100 text-neutral-900 border-neutral-300 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700",
     iconIsBrand: true,
   },
+  sezame: {
+    logo: sezameLogo,
+    labelKey: "bookings.clientType.sezame",
+    colorClass: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-800",
+    iconIsBrand: true,
+  },
   external: {
     logo: externalLogo,
     labelKey: "bookings.clientType.external",
@@ -45,3 +53,28 @@ export const CLIENT_TYPE_META: Record<BookingClientType, ClientTypeMeta> = {
     iconIsBrand: false,
   },
 };
+
+/**
+ * Types de client facturés à un partenaire en fin de mois (paiement différé,
+ * pas d'encaissement sur place). Source de vérité partagée UI + dérivation
+ * paiement — voir derivePaymentForClientType.
+ */
+export const PARTNER_BILLED_CLIENT_TYPES: readonly BookingClientType[] = [
+  "staycation",
+  "classpass",
+  "sezame",
+];
+
+export function isPartnerBilledClientType(clientType: BookingClientType): boolean {
+  return PARTNER_BILLED_CLIENT_TYPES.includes(clientType);
+}
+
+/** Type guard : la valeur est-elle un BookingClientType connu ? */
+export function isBookingClientType(value: unknown): value is BookingClientType {
+  return typeof value === "string" && (BOOKING_CLIENT_TYPES as string[]).includes(value);
+}
+
+/** Normalise une valeur brute en BookingClientType, avec repli sur "external". */
+export function normalizeBookingClientType(value: string | null | undefined): BookingClientType {
+  return isBookingClientType(value) ? value : "external";
+}

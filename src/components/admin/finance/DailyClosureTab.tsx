@@ -37,13 +37,13 @@ import type { TherapistRates } from "@/lib/therapistEarnings";
 import {
   computeClosureStats,
   renderClosureReportHtml,
-  type ClientTypeValue,
   type ClosureBooking,
   type ClosureReport,
   type ClosureStats,
   type ClosureVenue,
   type TherapistRatesMap,
 } from "@/lib/closureReport";
+import { normalizeBookingClientType } from "@/lib/clientTypeMeta";
 
 import { ClosureReportPreviewDialog } from "./ClosureReportPreviewDialog";
 import { ClosureSendEmailDialog } from "./ClosureSendEmailDialog";
@@ -85,13 +85,6 @@ const fmtMoney = (amount: number, currency: string) => {
     return `${amount.toFixed(2)} ${currency}`;
   }
 };
-
-function normalizeClientType(value: string | null | undefined): ClientTypeValue {
-  if (value === "hotel" || value === "staycation" || value === "classpass" || value === "external") {
-    return value;
-  }
-  return "external";
-}
 
 export function DailyClosureTab() {
   const [venues, setVenues] = useState<VenueOption[]>([]);
@@ -203,7 +196,7 @@ export function DailyClosureTab() {
         booking_time: b.booking_time,
         client_first_name: b.client_first_name,
         client_last_name: b.client_last_name,
-        client_type: normalizeClientType(b.client_type),
+        client_type: normalizeBookingClientType(b.client_type),
         room_number: b.room_number,
         therapist_id: b.therapist_id,
         therapist_name: b.therapist_name,
