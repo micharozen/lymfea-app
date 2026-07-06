@@ -772,16 +772,19 @@ export default function EditBookingDialog({
       }
 
       if (bookingData.therapistIds) {
-        const validIds: string[] = bookingData.therapistIds.filter(Boolean);
+        const validIds: string[] = [...new Set(bookingData.therapistIds.filter(Boolean))];
         const { error: btDeleteError } = await supabase.from("booking_therapists").delete().eq("booking_id", booking.id);
         if (btDeleteError) throw btDeleteError;
         if (validIds.length > 0) {
-          const { error: btError } = await supabase.from("booking_therapists").insert(
+          // upsert (ignore duplicates) : le delete+insert n'est pas atomique — un accept_booking
+          // concurrent peut réinsérer une ligne et provoquer une violation de UNIQUE(booking_id, therapist_id).
+          const { error: btError } = await supabase.from("booking_therapists").upsert(
             validIds.map((tid: string) => ({
               booking_id: booking.id,
               therapist_id: tid,
               status: 'accepted',
-            }))
+            })),
+            { onConflict: "booking_id,therapist_id", ignoreDuplicates: true }
           );
           if (btError) throw btError;
         }

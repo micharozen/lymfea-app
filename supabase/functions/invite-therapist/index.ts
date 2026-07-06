@@ -152,12 +152,13 @@ serve(async (req: Request): Promise<Response> => {
         console.warn("Could not link therapist to auth user:", linkError.message);
       }
 
-      const { error: roleInsertError } = await supabaseAdmin
+      // Upsert (idempotent) : évite la violation de user_roles_user_id_role_key
+      // lors d'une ré-invitation. Aligné sur invite-concierge.
+      const { error: roleUpsertError } = await supabaseAdmin
         .from("user_roles")
-        .insert({ user_id: authUserId, role: "therapist" });
-      // Ignore duplicate-role errors (idempotent)
-      if (roleInsertError && !roleInsertError.message.toLowerCase().includes("duplicate")) {
-        console.warn("Could not insert therapist role:", roleInsertError.message);
+        .upsert({ user_id: authUserId, role: "therapist" }, { onConflict: "user_id,role" });
+      if (roleUpsertError) {
+        console.warn("Could not upsert therapist role:", roleUpsertError.message);
       }
     } else {
       console.warn("No auth user id returned from generateLink — therapist row not linked.");

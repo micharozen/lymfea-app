@@ -186,6 +186,11 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
+      // Doublon email : un concierge avec cet email existe déjà.
+      if (error?.code === "23505") {
+        toast.error("Un concierge avec cet email existe déjà");
+        return;
+      }
       toast.error("Erreur lors de l'ajout du membre");
       console.error(error);
     }
