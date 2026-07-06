@@ -37,12 +37,13 @@ export interface ClosureVenue {
   venue_type: string | null;
 }
 
-export type ClientTypeValue = "hotel" | "staycation" | "classpass" | "external";
+export type ClientTypeValue = "hotel" | "staycation" | "classpass" | "sezame" | "external";
 
 export const CLIENT_TYPE_LABELS: Record<ClientTypeValue, string> = {
   hotel: "Résident hôtel",
   staycation: "Staycation",
   classpass: "Classpass",
+  sezame: "Sezame",
   external: "Client externe",
 };
 
@@ -234,7 +235,7 @@ export function computeClosureStats(
 }
 
 function isClientType(value: string): value is ClientTypeValue {
-  return value === "hotel" || value === "staycation" || value === "classpass" || value === "external";
+  return value === "hotel" || value === "staycation" || value === "classpass" || value === "sezame" || value === "external";
 }
 
 function fmtMoney(amount: number, currency: string): string {

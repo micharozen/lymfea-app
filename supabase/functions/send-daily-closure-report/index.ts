@@ -18,11 +18,12 @@ interface ClosureRequest {
   hide_commissions?: boolean;
 }
 
-type ClientTypeValue = "hotel" | "staycation" | "classpass" | "external";
+type ClientTypeValue = "hotel" | "staycation" | "classpass" | "sezame" | "external";
 const CLIENT_TYPE_LABELS: Record<ClientTypeValue, string> = {
   hotel: "Résident hôtel",
   staycation: "Staycation",
   classpass: "Classpass",
+  sezame: "Sezame",
   external: "Client externe",
 };
 
@@ -98,7 +99,7 @@ function fmtDateLong(iso: string): string {
 }
 
 function normalizeClientType(value: string | null | undefined): ClientTypeValue {
-  if (value === "hotel" || value === "staycation" || value === "classpass" || value === "external") {
+  if (value === "hotel" || value === "staycation" || value === "classpass" || value === "sezame" || value === "external") {
     return value;
   }
   return "external";

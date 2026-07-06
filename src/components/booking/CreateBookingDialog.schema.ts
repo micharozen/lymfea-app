@@ -11,7 +11,7 @@ export const createFormSchema = (t: TFunction) => z.object({
   slot2Time: z.string().optional(),
   slot3Date: z.date().optional(),
   slot3Time: z.string().optional(),
-  clientType: z.enum(['hotel', 'staycation', 'classpass', 'external']).default('external'),
+  clientType: z.enum(['hotel', 'staycation', 'classpass', 'sezame', 'external']).default('external'),
   // Civilité du client (optionnel) — stockée sur la fiche customer, réutilisée
   // dans les salutations des emails/SMS.
   civility: z.enum(['madame', 'monsieur']).optional(),

@@ -17,6 +17,7 @@ const CLIENT_TYPE_LABELS: Record<string, string> = {
   external: 'Client externe',
   staycation: 'Staycation',
   classpass: 'ClassPass',
+  sezame: 'Sezame',
 };
 
 // Origine de la réservation (colonne bookings.source, enum contraint) → label FR.

@@ -28,7 +28,7 @@ export function derivePaymentForClientType(
   if (clientType === "hotel") {
     return { paymentMethod: "room", paymentStatus: "charged_to_room" };
   }
-  if (clientType === "staycation" || clientType === "classpass") {
+  if (clientType === "staycation" || clientType === "classpass" || clientType === "sezame") {
     return { paymentMethod: "partner_billed", paymentStatus: "pending_partner_billing" };
   }
   return { paymentMethod: null, paymentStatus: "pending" };

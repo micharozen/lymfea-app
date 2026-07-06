@@ -73,6 +73,7 @@ const CLIENT_TYPE_LABELS: Record<BookingClientType, string> = {
   hotel: "Client hôtel",
   staycation: "Staycation",
   classpass: "ClassPass",
+  sezame: "Sezame",
   external: "Client externe",
 };
 

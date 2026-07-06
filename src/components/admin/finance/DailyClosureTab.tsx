@@ -87,7 +87,7 @@ const fmtMoney = (amount: number, currency: string) => {
 };
 
 function normalizeClientType(value: string | null | undefined): ClientTypeValue {
-  if (value === "hotel" || value === "staycation" || value === "classpass" || value === "external") {
+  if (value === "hotel" || value === "staycation" || value === "classpass" || value === "sezame" || value === "external") {
     return value;
   }
   return "external";

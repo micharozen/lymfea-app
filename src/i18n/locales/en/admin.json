@@ -101,6 +101,7 @@
       "hotel": "Hotel",
       "staycation": "Staycation",
       "classpass": "ClassPass",
+      "sezame": "Sezame",
       "external": "External"
     },
     "payByVoucher": {
