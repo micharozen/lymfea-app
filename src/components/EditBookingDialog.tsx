@@ -802,7 +802,13 @@ export default function EditBookingDialog({
         }
       }
 
-      return { wasAssigned, therapistChanged, becameHotelRoomCharge };
+      // Duo : compléter le 2e thérapeute fait passer pending → confirmed sans
+      // changer therapist_id (le principal était déjà là). wasAssigned/therapistChanged
+      // sont donc faux et l'email/push de confirmation seraient sautés. On détecte
+      // le passage à confirmed pour déclencher les notifications dans ce cas.
+      const becameConfirmed = newStatus === "confirmed" && booking.status !== "confirmed";
+
+      return { wasAssigned, therapistChanged, becameHotelRoomCharge, becameConfirmed };
     },
     onSuccess: async (result) => {
       // Passage en facturation chambre : pousser l'order vers le PMS si le lieu en a un.
@@ -817,7 +823,7 @@ export default function EditBookingDialog({
         }
       }
 
-      if ((result?.wasAssigned || result?.therapistChanged) && booking?.id) {
+      if ((result?.wasAssigned || result?.therapistChanged || result?.becameConfirmed) && booking?.id) {
         try {
           await invokeEdgeFunction('trigger-new-booking-notifications', {
             body: { bookingId: booking.id }
