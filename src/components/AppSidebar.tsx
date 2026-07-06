@@ -320,9 +320,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" expandOnHover>
-      <SidebarContent className="flex flex-col h-full">
-        {/* Logo */}
-        <div className="px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
+      <SidebarContent className="flex flex-col h-full overflow-hidden">
+        {/* Logo (fixed) */}
+        <div className="flex-shrink-0 px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
           <img
             src={brandLogos.primary}
             alt={brand.name}
@@ -335,55 +335,58 @@ export function AppSidebar() {
           />
         </div>
 
-        {/* Search */}
-        <div className="px-3 pb-2 group-data-[collapsible=icon]:px-0">
+        {/* Search (fixed) */}
+        <div className="flex-shrink-0 px-3 pb-2 group-data-[collapsible=icon]:px-0">
           <GlobalSearch />
         </div>
 
-        {/* Primary navigation */}
-        <SidebarGroup className="py-1">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {primaryItems.map(renderNavItem)}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* View mode switcher -- admin in admin mode only */}
-        {isAdmin && !inVenueManagerView && (
-          <SidebarGroup className="py-0">
+        {/* Scrollable navigation area */}
+        <div className="flex-1 min-h-0 overflow-y-auto group-data-[collapsible=icon]:overflow-hidden">
+          {/* Primary navigation */}
+          <SidebarGroup className="py-1">
             <SidebarGroupContent>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <ViewModeSwitcher />
-                </SidebarMenuItem>
+                {primaryItems.map(renderNavItem)}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        )}
 
-        {/* Secondary navigation (collapsible "More") -- admin only */}
-        {secondaryItems.length > 0 && (
-          <Collapsible open={moreOpen} onOpenChange={handleMoreToggle}>
-            <div className="mx-3 border-t border-sidebar-border" />
-            <SidebarGroup className="py-1">
-              <CollapsibleTrigger className="flex items-center gap-2 px-3 py-2 w-full text-[11px] font-medium tracking-wide uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/60 transition-colors group-data-[collapsible=icon]:hidden">
-                <ChevronRight className={`h-3 w-3 will-change-transform transition-transform duration-200 ${moreOpen ? "rotate-90" : ""}`} />
-                Plus
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {secondaryItems.map(renderNavItem)}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </CollapsibleContent>
+          {/* View mode switcher -- admin in admin mode only */}
+          {isAdmin && !inVenueManagerView && (
+            <SidebarGroup className="py-0">
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <ViewModeSwitcher />
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
             </SidebarGroup>
-          </Collapsible>
-        )}
+          )}
 
-        {/* Bottom section: Settings + Profile */}
-        <div className="mt-auto">
+          {/* Secondary navigation (collapsible "More") -- admin only */}
+          {secondaryItems.length > 0 && (
+            <Collapsible open={moreOpen} onOpenChange={handleMoreToggle}>
+              <div className="mx-3 border-t border-sidebar-border" />
+              <SidebarGroup className="py-1">
+                <CollapsibleTrigger className="flex items-center gap-2 px-3 py-2 w-full text-[11px] font-medium tracking-wide uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/60 transition-colors group-data-[collapsible=icon]:hidden">
+                  <ChevronRight className={`h-3 w-3 will-change-transform transition-transform duration-200 ${moreOpen ? "rotate-90" : ""}`} />
+                  Plus
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {secondaryItems.map(renderNavItem)}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+          )}
+        </div>
+
+        {/* Bottom section: Settings + Profile (fixed) */}
+        <div className="flex-shrink-0">
           <div className="mx-3 border-t border-sidebar-border" />
           
           {/* Settings (admin only) */}
