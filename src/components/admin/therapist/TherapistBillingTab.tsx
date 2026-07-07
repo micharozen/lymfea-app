@@ -59,6 +59,19 @@ export function TherapistBillingTab({ therapistId }: TherapistBillingTabProps) {
   const [generateOpen, setGenerateOpen] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState<InvoiceRow | null>(null);
 
+  const { data: therapistEmail } = useQuery<string | null>({
+    queryKey: ["therapist-email", therapistId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("therapists")
+        .select("email")
+        .eq("id", therapistId)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.email ?? null;
+    },
+  });
+
   const {
     data: invoices,
     isLoading,
@@ -282,6 +295,10 @@ export function TherapistBillingTab({ therapistId }: TherapistBillingTabProps) {
           isRoomPayment={false}
           title={`Facture ${previewInvoice.invoice_number}`}
           filename={`${previewInvoice.invoice_number}.pdf`}
+          sendToTherapist={{
+            invoiceId: previewInvoice.id,
+            recipientEmail: therapistEmail ?? null,
+          }}
         />
       )}
     </div>

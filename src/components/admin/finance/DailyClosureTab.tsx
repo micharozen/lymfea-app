@@ -54,6 +54,7 @@ interface VenueOption {
   currency: string | null;
   hotel_commission: number | null;
   venue_type: string | null;
+  out_of_hours_surcharge_percent: number | null;
 }
 
 interface RawBookingRow {
@@ -69,6 +70,7 @@ interface RawBookingRow {
   therapist_name: string | null;
   duration: number | null;
   total_price: number | null;
+  is_out_of_hours: boolean | null;
   payment_method: string | null;
   payment_status: string | null;
   status: string;
@@ -102,7 +104,7 @@ export function DailyClosureTab() {
   useEffect(() => {
     supabase
       .from("hotels")
-      .select("id, name, currency, hotel_commission, venue_type")
+      .select("id, name, currency, hotel_commission, venue_type, out_of_hours_surcharge_percent")
       .eq("status", "active")
       .order("name")
       .then(({ data, error }) => {
@@ -133,7 +135,7 @@ export function DailyClosureTab() {
           .select(
             `id, booking_id, booking_date, booking_time, client_first_name, client_last_name,
              client_type, room_number, therapist_id, therapist_name, duration,
-             total_price, payment_method, payment_status, status, hotel_id,
+             total_price, is_out_of_hours, payment_method, payment_status, status, hotel_id,
              booking_treatments ( treatment_menus ( name, category, duration ) )`,
           )
           .eq("hotel_id", selectedVenueId)
@@ -184,6 +186,7 @@ export function DailyClosureTab() {
       currency: selectedVenue.currency ?? "EUR",
       hotel_commission: Number(selectedVenue.hotel_commission ?? 0),
       venue_type: selectedVenue.venue_type,
+      out_of_hours_surcharge_percent: selectedVenue.out_of_hours_surcharge_percent,
     };
   }, [selectedVenue]);
 
@@ -202,6 +205,7 @@ export function DailyClosureTab() {
         therapist_name: b.therapist_name,
         duration: b.duration,
         total_price: b.total_price,
+        is_out_of_hours: b.is_out_of_hours,
         payment_method: b.payment_method,
         payment_status: b.payment_status,
         status: b.status,

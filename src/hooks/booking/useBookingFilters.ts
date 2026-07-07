@@ -1,11 +1,46 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { BookingWithTreatments } from "./useBookingData";
 
-export function useBookingFilters(bookings: BookingWithTreatments[] | undefined) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [hotelFilter, setHotelFilter] = useState<string>("all");
-  const [therapistFilter, setTherapistFilter] = useState<string>("all");
+function readStored(storageKey: string | undefined, field: string, fallback: string): string {
+  if (!storageKey) return fallback;
+  try {
+    return sessionStorage.getItem(`${storageKey}.${field}`) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStored(storageKey: string | undefined, field: string, value: string): void {
+  if (!storageKey) return;
+  try {
+    sessionStorage.setItem(`${storageKey}.${field}`, value);
+  } catch {
+    // sessionStorage indisponible (mode privé, quota) : on ignore silencieusement
+  }
+}
+
+export function useBookingFilters(
+  bookings: BookingWithTreatments[] | undefined,
+  storageKey?: string
+) {
+  const [searchQuery, setSearchQuery] = useState(() => readStored(storageKey, "search", ""));
+  const [statusFilter, setStatusFilter] = useState<string>(() =>
+    readStored(storageKey, "status", "all")
+  );
+  const [hotelFilter, setHotelFilter] = useState<string>(() =>
+    readStored(storageKey, "hotel", "all")
+  );
+  const [therapistFilter, setTherapistFilter] = useState<string>(() =>
+    readStored(storageKey, "therapist", "all")
+  );
+
+  useEffect(() => writeStored(storageKey, "search", searchQuery), [storageKey, searchQuery]);
+  useEffect(() => writeStored(storageKey, "status", statusFilter), [storageKey, statusFilter]);
+  useEffect(() => writeStored(storageKey, "hotel", hotelFilter), [storageKey, hotelFilter]);
+  useEffect(
+    () => writeStored(storageKey, "therapist", therapistFilter),
+    [storageKey, therapistFilter]
+  );
 
   const filteredBookings = useMemo(() => {
     return bookings?.filter((booking) => {

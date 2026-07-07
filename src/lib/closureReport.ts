@@ -24,6 +24,7 @@ export interface ClosureBooking {
   therapist_name: string | null;
   duration: number | null;
   total_price: number | null;
+  is_out_of_hours?: boolean | null;
   payment_method: string | null;
   payment_status: string | null;
   status: string;
@@ -36,6 +37,7 @@ export interface ClosureVenue {
   currency: string;
   hotel_commission: number;
   venue_type: string | null;
+  out_of_hours_surcharge_percent?: number | null;
 }
 
 // Libellés spécifiques au rapport de clôture (formulation « rapport »),
@@ -183,8 +185,16 @@ export function computeClosureStats(
 
     const rates = booking.therapist_id ? therapistRates[booking.therapist_id] ?? null : null;
     const duration = bookingDuration(booking);
+    // Out-of-hours surcharge uplift (venue percent). NOTE: earnings are attributed
+    // to the primary therapist only; a full per-therapist duo split in the daily
+    // report is deferred (secondary therapist names are not part of this dataset).
+    const surchargePercent = booking.is_out_of_hours
+      ? (Number(venue.out_of_hours_surcharge_percent) || 0)
+      : 0;
     const earnings =
-      booking.therapist_id && duration > 0 ? computeTherapistEarnings(rates, duration) : null;
+      booking.therapist_id && duration > 0
+        ? computeTherapistEarnings(rates, duration, { surchargePercent })
+        : null;
     const therapistEarnings = earnings ?? 0;
     const hasRates = earnings !== null;
     if (booking.therapist_id && !hasRates) stats.bookingsWithoutTherapistRate += 1;

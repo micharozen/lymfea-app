@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { brand } from "../_shared/brand.ts";
 import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
+import { sendEmail } from "../_shared/send-email.ts";
+import { getBaseEmailTemplate, getEmailHeader } from "../_shared/email-template.ts";
 import {
   resolveIssuerLegal,
   type OrgLegal,
@@ -25,11 +27,15 @@ const escapeHtml = (unsafe: string | null | undefined): string => {
 };
 
 interface RequestBody {
-  mode?: "auto" | "manual";
+  mode?: "auto" | "manual" | "send";
   therapist_id?: string;
   hotel_id?: string;
   period_start?: string;
   period_end?: string;
+  // Used only when mode === "send"
+  invoice_id?: string;
+  /** Base64-encoded PDF (without data-URI prefix), rendered client-side. */
+  pdf_base64?: string;
 }
 
 interface BillingProfile {
@@ -66,10 +72,12 @@ interface Hotel {
   organization_id: string | null;
 }
 
-interface InvoiceLine {
-  description: string;
-  amount_ht: number;
-  vat_rate: number;
+// One detail row on the invoice = one billed booking.
+interface InvoiceLineDetail {
+  date: string; // booking_date (YYYY-MM-DD)
+  label: string; // treatment name(s)
+  durationMin: number;
+  amountHt: number;
 }
 
 interface GeneratedInvoiceData {
@@ -88,6 +96,7 @@ interface GeneratedInvoiceData {
   vatAmount: number;
   amountTtc: number;
   bookingsCount: number;
+  lines: InvoiceLineDetail[];
 }
 
 // ============================================================================
@@ -116,6 +125,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     vatRate,
     vatAmount,
     amountTtc,
+    lines,
   } = data;
 
   const issuerName =
@@ -140,7 +150,17 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   const legal = data.platformLegal;
   const clientAddressHtml = escapeHtml(legal.address).replace(/, /g, "<br>");
 
-  const lineDescription = `Commission thérapeute — ${hotel.name} — ${formatMonthYear(periodStart)}`;
+  const detailRows = lines
+    .map((ln) => {
+      const durLabel = ln.durationMin > 0 ? `${ln.durationMin} min` : "—";
+      return `<tr>
+        <td class="date">${formatDateFr(new Date(`${ln.date}T00:00:00Z`))}</td>
+        <td>${escapeHtml(ln.label)}</td>
+        <td>${durLabel}</td>
+        <td>${formatAmount(ln.amountHt)}</td>
+      </tr>`;
+    })
+    .join("");
 
   const vatNotice = billingProfile.vat_exempt
     ? `<div class="vat-notice">TVA non applicable, art. 293 B du CGI</div>`
@@ -206,13 +226,24 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   .party-name { font-weight: 600; font-size: 13px; color: #1a1a1a; }
   .party-lines { color: #555; font-size: 12px; line-height: 1.6; }
 
-  table.items { width: 100%; border-collapse: collapse; margin-top: 24px; table-layout: fixed; }
+  .items-caption {
+    margin-top: 24px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+  }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+  table.items col.col-date { width: 100px; }
   table.items col.col-desc { width: auto; }
-  table.items col.col-qty { width: 60px; }
-  table.items col.col-unit { width: 100px; }
-  table.items col.col-vat { width: 70px; }
-  table.items col.col-ht { width: 100px; }
-  table.items col.col-ttc { width: 110px; }
+  table.items col.col-dur { width: 70px; }
+  table.items col.col-ht { width: 110px; }
+  table.items td.date { white-space: nowrap; color: #555; }
+  table.items tr.items-total td {
+    border-top: 1px solid #1a1a1a;
+    border-bottom: none;
+    font-weight: 600;
+    padding-top: 12px;
+  }
   table.items thead th {
     font-size: 10px;
     font-weight: 600;
@@ -339,33 +370,29 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     </div>
   </div>
 
+  <div class="items-caption">Détail des prestations — ${escapeHtml(hotel.name)} — ${formatMonthYear(periodStart)}</div>
   <table class="items">
     <colgroup>
+      <col class="col-date">
       <col class="col-desc">
-      <col class="col-qty">
-      <col class="col-unit">
-      <col class="col-vat">
+      <col class="col-dur">
       <col class="col-ht">
-      <col class="col-ttc">
     </colgroup>
     <thead>
       <tr>
-        <th>Produits</th>
-        <th>Qté</th>
-        <th>Prix u. HT</th>
-        <th>TVA (%)</th>
-        <th>Total HT</th>
-        <th>Total TTC</th>
+        <th>Date</th>
+        <th>Prestation</th>
+        <th>Durée</th>
+        <th>Montant HT</th>
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td>${escapeHtml(lineDescription)}</td>
-        <td>1 unité</td>
+      ${detailRows}
+      <tr class="items-total">
+        <td></td>
+        <td>Total prestations (${data.bookingsCount})</td>
+        <td></td>
         <td>${formatAmount(amountHt)}</td>
-        <td>${billingProfile.vat_exempt ? "—" : `${vatRate}%`}</td>
-        <td>${formatAmount(amountHt)}</td>
-        <td>${formatAmount(amountTtc)}</td>
       </tr>
     </tbody>
   </table>
@@ -451,29 +478,53 @@ const generateForTherapistHotel = async (
   const startStr = periodStart.toISOString().slice(0, 10);
   const endStr = periodEnd.toISOString().slice(0, 10);
 
-  // Load bookings for this therapist at this hotel in the period
-  const { data: bookings, error: bookingsError } = await supabaseAdmin
-    .from("bookings")
-    .select("id, total_price, duration, status, payment_status, booking_date, booking_treatments(treatment_menus(duration))")
-    .eq("therapist_id", therapist.id)
-    .eq("hotel_id", hotel.id)
-    .gte("booking_date", startStr)
-    .lte("booking_date", endStr)
-    .in("status", ["completed"])
-    .in("payment_status", ["paid", "charged_to_room", "offert"]);
+  const bookingSelect =
+    "id, total_price, duration, status, payment_status, booking_date, booking_treatments(treatment_menus(name, duration))";
+  const applyEligibility = (q: any) =>
+    q
+      .eq("hotel_id", hotel.id)
+      .gte("booking_date", startStr)
+      .lte("booking_date", endStr)
+      .in("status", ["completed"])
+      .in("payment_status", ["paid", "charged_to_room", "offert"]);
 
+  // Bookings where this therapist is the primary (solo + legacy).
+  const { data: primaryBookings, error: bookingsError } = await applyEligibility(
+    supabaseAdmin.from("bookings").select(bookingSelect).eq("therapist_id", therapist.id),
+  );
   if (bookingsError) throw bookingsError;
 
-  const eligibleBookings = bookings ?? [];
+  // Duo bookings where this therapist is an accepted (possibly non-primary) participant.
+  const { data: btRows } = await supabaseAdmin
+    .from("booking_therapists")
+    .select("booking_id")
+    .eq("therapist_id", therapist.id)
+    .eq("status", "accepted");
+  const duoIds = (btRows ?? []).map((r: { booking_id: string }) => r.booking_id);
+  let duoBookings: any[] = [];
+  if (duoIds.length > 0) {
+    const { data } = await applyEligibility(
+      supabaseAdmin.from("bookings").select(bookingSelect).in("id", duoIds),
+    );
+    duoBookings = data ?? [];
+  }
+
+  // Merge unique by booking id.
+  const bookingById = new Map<string, any>();
+  for (const b of [...(primaryBookings ?? []), ...duoBookings]) bookingById.set(b.id, b);
+  const eligibleBookings = [...bookingById.values()];
   if (eligibleBookings.length === 0) {
     return { success: true, skipped: true, reason: "no_bookings" };
   }
 
-  // Load any existing payouts for these bookings (preferred source of truth)
+  // Load THIS therapist's payouts for these bookings (preferred source of truth).
+  // Filtering by therapist_id is required for duo bookings, which have one payout
+  // row per therapist.
   const bookingIds = eligibleBookings.map((b) => b.id);
   const { data: payouts } = await supabaseAdmin
     .from("therapist_payouts")
     .select("booking_id, amount")
+    .eq("therapist_id", therapist.id)
     .in("booking_id", bookingIds);
 
   const payoutMap = new Map<string, number>();
@@ -494,32 +545,55 @@ const generateForTherapistHotel = async (
       }
     : null;
 
-  // Compute earnings per booking using duration-based rates
+  // Compute earnings per booking using duration-based rates, and build the
+  // per-booking detail lines shown on the invoice.
   let amountHt = 0;
+  const lines: InvoiceLineDetail[] = [];
   // Track bookings whose earnings couldn't be computed because the therapist's
   // rates are missing/incomplete (no payout to fall back on either).
   let missingRateCount = 0;
   for (const b of eligibleBookings) {
-    const fromPayout = payoutMap.get(b.id);
-    if (fromPayout !== undefined) {
-      amountHt += fromPayout;
-      continue;
-    }
-    const treatmentsDuration = ((b as any).booking_treatments || []).reduce(
-      (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0),
+    const treatments = ((b as any).booking_treatments || []) as Array<{
+      treatment_menus?: { name?: string | null; duration?: number | null } | null;
+    }>;
+    const treatmentsDuration = treatments.reduce(
+      (sum, bt) => sum + (bt.treatment_menus?.duration || 0),
       0,
     );
     const dur = (b as any).duration && (b as any).duration > 0
       ? (b as any).duration
       : treatmentsDuration;
-    const earned = computeTherapistEarnings(rates, dur);
-    if (earned === null) {
-      missingRateCount += 1;
-      continue;
+    const label =
+      treatments
+        .map((bt) => bt.treatment_menus?.name)
+        .filter(Boolean)
+        .join(" + ") || "Prestation";
+
+    // Payouts are the per-therapist source of truth; fall back to
+    // duration-based rates only when no payout row exists.
+    const fromPayout = payoutMap.get(b.id);
+    let amount: number;
+    if (fromPayout !== undefined) {
+      amount = fromPayout;
+    } else {
+      const earned = computeTherapistEarnings(rates, dur);
+      if (earned === null) {
+        missingRateCount += 1;
+        continue;
+      }
+      amount = earned;
     }
-    amountHt += earned;
+    amountHt += amount;
+    lines.push({
+      date: (b as any).booking_date,
+      label,
+      durationMin: dur,
+      amountHt: Math.round(amount * 100) / 100,
+    });
   }
   amountHt = Math.round(amountHt * 100) / 100;
+  // Chronological order for a readable statement.
+  lines.sort((a, b) => a.date.localeCompare(b.date));
 
   if (amountHt <= 0) {
     // Distinguish "no rates configured" from a genuine zero so the UI can
@@ -596,6 +670,7 @@ const generateForTherapistHotel = async (
     vatAmount,
     amountTtc,
     bookingsCount: eligibleBookings.length,
+    lines,
   });
 
   // Upsert invoice record
@@ -642,6 +717,88 @@ const generateForTherapistHotel = async (
 };
 
 // ============================================================================
+// Send an existing invoice to its therapist by email (PDF attachment)
+// ============================================================================
+
+const jsonResponse = (payload: Record<string, unknown>, status = 200): Response =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const handleSendInvoice = async (body: RequestBody): Promise<Response> => {
+  const { invoice_id, pdf_base64 } = body;
+
+  if (!invoice_id || !pdf_base64) {
+    return jsonResponse({ error: "invoice_id and pdf_base64 are required" }, 400);
+  }
+
+  const { data: invoice, error: invoiceError } = await supabaseAdmin
+    .from("invoices")
+    .select(
+      "id, invoice_number, therapist_id, period_start, period_end, therapists(first_name, last_name, email)",
+    )
+    .eq("id", invoice_id)
+    .eq("invoice_kind", "therapist_commission")
+    .maybeSingle();
+
+  if (invoiceError) throw invoiceError;
+  if (!invoice) {
+    return jsonResponse({ error: "Invoice not found" }, 404);
+  }
+
+  const therapist = invoice.therapists as
+    | { first_name: string; last_name: string; email: string | null }
+    | null;
+  const recipient = therapist?.email?.trim();
+
+  if (!recipient) {
+    return jsonResponse({ error: "Therapist has no email address" }, 422);
+  }
+
+  const period = new Date(`${invoice.period_start}T00:00:00Z`).toLocaleDateString(
+    "fr-FR",
+    { month: "long", year: "numeric", timeZone: "UTC" },
+  );
+  const therapistName = therapist
+    ? `${therapist.first_name} ${therapist.last_name}`.trim()
+    : "";
+
+  const headerContent = `
+    ${getEmailHeader("Votre facture", `Facture ${escapeHtml(invoice.invoice_number)}`, "#111827")}
+    <tr><td style="padding:0 30px 20px;text-align:center;">
+      <p style="margin:0;font-size:15px;color:#333;">Bonjour ${escapeHtml(therapistName)},</p>
+      <p style="margin:12px 0 0;font-size:14px;color:#6b7280;">
+        Vous trouverez ci-joint votre facture <strong>${escapeHtml(invoice.invoice_number)}</strong>
+        pour la période de <strong>${escapeHtml(period)}</strong>.
+      </p>
+    </td></tr>
+  `;
+
+  const html = getBaseEmailTemplate(headerContent);
+
+  const result = await sendEmail({
+    to: recipient,
+    subject: `[${brand.name}] Votre facture ${invoice.invoice_number}`,
+    html,
+    attachments: [
+      {
+        filename: `${invoice.invoice_number}.pdf`,
+        content: pdf_base64,
+        contentType: "application/pdf",
+      },
+    ],
+  });
+
+  if (result.error) {
+    console.error("[GENERATE-THERAPIST-INVOICES] send error:", result.error);
+    return jsonResponse({ error: result.error }, 500);
+  }
+
+  return jsonResponse({ success: true, id: result.id, recipient });
+};
+
+// ============================================================================
 // Main handler
 // ============================================================================
 
@@ -653,6 +810,11 @@ serve(async (req: Request) => {
   try {
     const body: RequestBody = await req.json().catch(() => ({}));
     const { mode = "manual", therapist_id, hotel_id } = body;
+
+    // Send an already-generated invoice to its therapist (PDF attachment).
+    if (mode === "send") {
+      return await handleSendInvoice(body);
+    }
 
     const { start, end } = monthPeriod(body.period_start);
     const periodStart = new Date(`${start}T00:00:00Z`);
