@@ -70,6 +70,7 @@ interface Hotel {
   address: string | null;
   city: string | null;
   organization_id: string | null;
+  out_of_hours_surcharge_percent: number | null;
 }
 
 // One detail row on the invoice = one billed booking.
@@ -479,7 +480,7 @@ const generateForTherapistHotel = async (
   const endStr = periodEnd.toISOString().slice(0, 10);
 
   const bookingSelect =
-    "id, total_price, duration, status, payment_status, booking_date, booking_treatments(treatment_menus(name, duration))";
+    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, booking_treatments(treatment_menus(name, duration))";
   const applyEligibility = (q: any) =>
     q
       .eq("hotel_id", hotel.id)
@@ -545,6 +546,10 @@ const generateForTherapistHotel = async (
       }
     : null;
 
+  // Out-of-hours uplift for the rate fallback, mirroring the venue setting
+  // used at booking time (see CreateBookingDialog / DuoRecapTable).
+  const surchargePercent = Number(hotel.out_of_hours_surcharge_percent) || 0;
+
   // Compute earnings per booking using duration-based rates, and build the
   // per-booking detail lines shown on the invoice.
   let amountHt = 0;
@@ -570,13 +575,19 @@ const generateForTherapistHotel = async (
         .join(" + ") || "Prestation";
 
     // Payouts are the per-therapist source of truth; fall back to
-    // duration-based rates only when no payout row exists.
+    // duration-based rates only when no payout row exists. The fallback must
+    // mirror the out-of-hours uplift applied at booking time, otherwise
+    // out-of-hours bookings are billed at the base rate.
     const fromPayout = payoutMap.get(b.id);
     let amount: number;
     if (fromPayout !== undefined) {
       amount = fromPayout;
     } else {
-      const earned = computeTherapistEarnings(rates, dur);
+      const earned = computeTherapistEarnings(
+        rates,
+        dur,
+        (b as any).is_out_of_hours ? { surchargePercent } : undefined,
+      );
       if (earned === null) {
         missingRateCount += 1;
         continue;
@@ -837,7 +848,9 @@ serve(async (req: Request) => {
       // Fetch therapist's venues
       let venuesQuery = supabaseAdmin
         .from("therapist_venues")
-        .select("hotel_id, hotels(id, name, vat, address, city, organization_id)")
+        .select(
+          "hotel_id, hotels(id, name, vat, address, city, organization_id, out_of_hours_surcharge_percent)",
+        )
         .eq("therapist_id", therapist.id);
       if (hotel_id) venuesQuery = venuesQuery.eq("hotel_id", hotel_id);
       const { data: venues, error: venuesError } = await venuesQuery;
