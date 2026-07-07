@@ -211,13 +211,16 @@ async function insertSingleBooking(
   }
 
   if (booking && allTherapistIds.length > 0) {
-    const { error: btError } = await supabase.from("booking_therapists" as any).insert(
+    // upsert (ignore duplicates) : évite la violation de UNIQUE(booking_id, therapist_id)
+    // si le même praticien est déjà lié à la réservation (retry / course avec accept_booking).
+    const { error: btError } = await supabase.from("booking_therapists" as any).upsert(
       allTherapistIds.map((tid: string) => ({
         booking_id: booking.id,
         therapist_id: tid,
         status: "accepted",
         assigned_at: new Date().toISOString(),
       })),
+      { onConflict: "booking_id,therapist_id", ignoreDuplicates: true },
     );
     if (btError) throw new Error(`Erreur lors de l'assignation des praticiens: ${btError.message}`);
   }
