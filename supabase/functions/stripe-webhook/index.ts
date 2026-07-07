@@ -7,7 +7,11 @@ import {
   formatDateForWhatsApp,
 } from '../_shared/whatsapp-meta.ts';
 import { brand, transactionalFrom } from "../_shared/brand.ts";
-import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
+import {
+  buildTherapistPayoutLegs,
+  fetchPaidTherapistIds,
+  fetchPayoutTherapists,
+} from "../_shared/therapistPayouts.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 import { getStripeForVenue, getGlobalStripe } from "../_shared/stripe-resolver.ts";
 import { createLogger } from "../_shared/logger.ts";
@@ -103,6 +107,8 @@ serve(async (req) => {
               total_price,
               surcharge_amount,
               is_out_of_hours,
+              guest_count,
+              therapist_id,
               status,
               hotel_id,
               hotel_name,
@@ -405,22 +411,14 @@ serve(async (req) => {
 
         const { data: hotel } = await supabase
           .from('hotels')
-          .select('name, currency, hotel_commission, vat')
+          .select('name, currency, hotel_commission, vat, out_of_hours_surcharge_percent')
           .eq('id', booking.hotel_id)
           .maybeSingle();
-
-        const { data: therapistRow } = booking.therapist_id
-          ? await supabase
-              .from('therapists')
-              .select('rate_60, rate_75, rate_90')
-              .eq('id', booking.therapist_id)
-              .maybeSingle()
-          : { data: null };
 
         // Get treatment details for email
         const { data: bookingTreatments } = await supabase
           .from('booking_treatments')
-          .select('treatment_id, price_override, treatment_menus(name, price, price_on_request), treatment_variants(price)')
+          .select('treatment_id, price_override, treatment_menus(name, price, price_on_request, duration), treatment_variants(price, duration)')
           .eq('booking_id', booking.id);
 
         const treatmentsForEmail = (bookingTreatments || []).map((bt: any) => ({
@@ -436,23 +434,24 @@ serve(async (req) => {
           const totalPrice = booking.total_price || 0;
           const vatRate = hotel?.vat || 20;
           const totalHT = totalPrice / (1 + vatRate / 100);
-
-          const bookingDuration = (bookingTreatments || []).reduce(
-            (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0),
-            0,
-          );
-          const therapistEarned = computeTherapistEarnings(
-            therapistRow
-              ? {
-                  rate_75: therapistRow.rate_75 ?? null,
-                  rate_60: therapistRow.rate_60 ?? null,
-                  rate_90: therapistRow.rate_90 ?? null,
-                }
-              : null,
-            bookingDuration,
-          ) ?? 0;
-
           const hotelAmount = (totalHT * hotelCommissionPercent) / 100;
+
+          // Aggregate therapist earnings (duo → all accepted therapists, each on
+          // their own soin; solo → the single therapist), with out-of-hours
+          // surcharge, capped at totalHT − hotelAmount.
+          const payoutTherapists = await fetchPayoutTherapists(supabase, booking.id, (booking as any).therapist_id);
+          const payoutTreatments = (bookingTreatments || []).map((bt: any) => ({
+            duration: Number(bt.treatment_variants?.duration ?? bt.treatment_menus?.duration) || 0,
+          }));
+          const { totalAmount: therapistEarned } = buildTherapistPayoutLegs({
+            therapists: payoutTherapists,
+            treatments: payoutTreatments,
+            guestCount: (booking as any).guest_count ?? 1,
+            isOutOfHours: !!(booking as any).is_out_of_hours,
+            surchargePercent: Number((hotel as any)?.out_of_hours_surcharge_percent ?? 0) || 0,
+            capTotal: totalHT - hotelAmount,
+          });
+
           const oomAmount = Math.max(0, totalHT - hotelAmount - therapistEarned);
 
           console.log(`[STRIPE-WEBHOOK] Commission breakdown: Hotel ${hotelCommissionPercent}% (${hotelAmount}€), Therapist ${therapistEarned}€, OOM ${oomAmount}€`);
@@ -534,7 +533,7 @@ serve(async (req) => {
           .select(`
             *,
             therapist:therapists(id, stripe_account_id, rate_60, rate_75, rate_90),
-            hotel:hotels(vat),
+            hotel:hotels(vat, hotel_commission, out_of_hours_surcharge_percent),
             booking_treatments(treatment_menus(duration))
           `)
           .eq('id', bookingId)
@@ -542,69 +541,74 @@ serve(async (req) => {
 
         if (bookingError || !booking) continue;
 
-        if (!booking.therapist?.stripe_account_id) {
+        // Per-therapist payout allocation (duo → each therapist on their own soin;
+        // solo → single therapist on the total duration), with out-of-hours
+        // surcharge and an aggregate cap of totalHT − hotelCommission.
+        const vatRate = (booking.hotel as any)?.vat || 20;
+        const totalPrice = booking.total_price || 0;
+        const totalHT = totalPrice / (1 + vatRate / 100);
+        const hotelCommissionPercent = (booking.hotel as any)?.hotel_commission ?? 10;
+        const hotelCommission = (totalHT * hotelCommissionPercent) / 100;
+
+        const payoutTherapists = await fetchPayoutTherapists(supabase, booking.id, booking.therapist_id);
+        const payoutTreatments = (booking.booking_treatments || []).map((bt: any) => ({
+          duration: bt.treatment_menus?.duration ?? null,
+        }));
+        const { legs: payoutLegs, totalAmount } = buildTherapistPayoutLegs({
+          therapists: payoutTherapists,
+          treatments: payoutTreatments,
+          guestCount: (booking as any).guest_count ?? 1,
+          isOutOfHours: !!(booking as any).is_out_of_hours,
+          surchargePercent: Number((booking.hotel as any)?.out_of_hours_surcharge_percent ?? 0) || 0,
+          capTotal: totalHT - hotelCommission,
+        });
+
+        if (payoutLegs.length === 0) {
           await supabase.from('bookings').update({ payment_status: 'paid' }).eq('id', bookingId);
           continue;
         }
 
-        // Calculate therapist share via shared util
-        const bookingDur = (booking.booking_treatments || []).reduce(
-          (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0),
-          0,
-        );
-        const earnedAmount = computeTherapistEarnings(
-          booking.therapist
-            ? {
-                rate_75: booking.therapist.rate_75 ?? null,
-                rate_60: booking.therapist.rate_60 ?? null,
-                rate_90: booking.therapist.rate_90 ?? null,
-              }
-            : null,
-          bookingDur,
-        );
-        if (earnedAmount == null) {
-          console.error(`[STRIPE-WEBHOOK] Cannot compute therapist earnings for booking ${booking.booking_id}`);
-          continue;
+        const paidTherapistIds = await fetchPaidTherapistIds(supabase, booking.id);
+        for (const leg of payoutLegs) {
+          if (paidTherapistIds.has(leg.therapistId)) continue; // idempotent
+          if (!leg.stripeAccountId || leg.amount <= 0) continue;
+          try {
+            const transfer = await stripe.transfers.create({
+              amount: Math.round(leg.amount * 100),
+              currency: invoice.currency,
+              destination: leg.stripeAccountId,
+              description: `Paiement pour réservation #${booking.booking_id}`,
+              metadata: { booking_id: booking.id, invoice_id: invoice.id, therapist_id: leg.therapistId },
+            });
+
+            await supabase.from('therapist_payouts').insert({
+              therapist_id: leg.therapistId,
+              booking_id: booking.id,
+              amount: leg.amount,
+              status: 'completed',
+              stripe_transfer_id: transfer.id,
+            });
+          } catch (transferError) {
+            await supabase.from('therapist_payouts').insert({
+              therapist_id: leg.therapistId,
+              booking_id: booking.id,
+              amount: leg.amount,
+              status: 'failed',
+              error_message: transferError instanceof Error ? transferError.message : String(transferError),
+            });
+          }
         }
-        const therapistAmount = Math.round(earnedAmount);
-        const oomCommission = (booking.total_price || 0) - therapistAmount;
 
-        try {
-          const transfer = await stripe.transfers.create({
-            amount: therapistAmount * 100,
-            currency: invoice.currency,
-            destination: booking.therapist.stripe_account_id,
-            description: `Paiement pour réservation #${booking.booking_id}`,
-            metadata: { booking_id: booking.id, invoice_id: invoice.id },
-          });
+        const oomCommission = Math.round(((booking.total_price || 0) - totalAmount) * 100) / 100;
+        await supabase.from('hotel_ledger').insert({
+          hotel_id: booking.hotel_id,
+          booking_id: booking.id,
+          amount: oomCommission,
+          status: 'paid',
+          description: `Paiement carte - Réservation #${booking.booking_id}`,
+        });
 
-          await supabase.from('therapist_payouts').insert({
-            therapist_id: booking.therapist.id,
-            booking_id: booking.id,
-            amount: therapistAmount,
-            status: 'completed',
-            stripe_transfer_id: transfer.id,
-          });
-
-          await supabase.from('hotel_ledger').insert({
-            hotel_id: booking.hotel_id,
-            booking_id: booking.id,
-            amount: oomCommission,
-            status: 'paid',
-            description: `Paiement carte - Réservation #${booking.booking_id}`,
-          });
-
-          await supabase.from('bookings').update({ payment_status: 'paid' }).eq('id', bookingId);
-
-        } catch (transferError) {
-          await supabase.from('therapist_payouts').insert({
-            therapist_id: booking.therapist.id,
-            booking_id: booking.id,
-            amount: therapistAmount,
-            status: 'failed',
-            error_message: transferError instanceof Error ? transferError.message : String(transferError),
-          });
-        }
+        await supabase.from('bookings').update({ payment_status: 'paid' }).eq('id', bookingId);
       }
     }
 

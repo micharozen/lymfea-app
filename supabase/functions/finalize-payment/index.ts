@@ -2,7 +2,11 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand } from "../_shared/brand.ts";
-import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
+import {
+  buildTherapistPayoutLegs,
+  fetchPaidTherapistIds,
+  fetchPayoutTherapists,
+} from "../_shared/therapistPayouts.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = {
@@ -118,6 +122,8 @@ serve(async (req) => {
         booking_id,
         hotel_id,
         therapist_id,
+        guest_count,
+        is_out_of_hours,
         client_email,
         client_first_name,
         client_last_name,
@@ -133,7 +139,8 @@ serve(async (req) => {
           vat,
           hotel_commission,
           currency,
-          venue_type
+          venue_type,
+          out_of_hours_surcharge_percent
         ),
         therapists(
           first_name,
@@ -186,30 +193,29 @@ serve(async (req) => {
     // Commission lieu toujours calculée sur le HT
     const hotelCommission = totalHT * (hotelCommissionRate / 100);
 
-    const bookingDuration = (booking.booking_treatments || []).reduce(
-      (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0),
-      0,
-    );
+    // Per-therapist payout allocation (duo: each therapist on their own soin;
+    // solo: single therapist on the total duration). Out-of-hours surcharge is
+    // applied per leg, then the sum is capped at totalHT − hotelCommission.
+    const payoutTherapists = await fetchPayoutTherapists(supabase, booking.id, booking.therapist_id);
+    const payoutTreatments = (booking.booking_treatments || []).map((bt: any) => ({
+      duration: bt.treatment_menus?.duration ?? null,
+    }));
+    const { legs: payoutLegs, totalEarned, totalAmount } = buildTherapistPayoutLegs({
+      therapists: payoutTherapists,
+      treatments: payoutTreatments,
+      guestCount: booking.guest_count ?? 1,
+      isOutOfHours: !!booking.is_out_of_hours,
+      surchargePercent: Number(hotel.out_of_hours_surcharge_percent ?? 0) || 0,
+      capTotal: totalHT - hotelCommission,
+    });
 
-    const earned = therapist
-      ? computeTherapistEarnings(
-          {
-            rate_60: therapist.rate_60 ?? null,
-            rate_75: therapist.rate_75 ?? null,
-            rate_90: therapist.rate_90 ?? null,
-          },
-          bookingDuration,
-        )
-      : null;
-
-    if (earned == null) {
+    if (payoutTherapists.length > 0 && totalEarned === 0) {
       throw new Error(
         `Tarifs thérapeute incomplets ou durée invalide pour le booking ${booking_id}`,
       );
     }
 
-    // Cap : ne peut pas dépasser totalHT - hotelCommission
-    const therapistShare = Math.min(earned, totalHT - hotelCommission);
+    const therapistShare = totalAmount;
     const lymfeaShare = totalHT - hotelCommission - therapistShare;
 
     const breakdown: CommissionBreakdown = {
@@ -388,79 +394,90 @@ serve(async (req) => {
         })
         .eq('id', booking_id);
 
-      // Cash Advance: Transférer immédiatement au thérapeute
-      let transferResult = null;
-      if (therapist?.stripe_account_id && breakdown.therapistShare > 0) {
+      // Cash Advance: transfer immediately to each therapist. Duo → one transfer
+      // per accepted therapist (their own share); solo → single transfer. Already
+      // paid therapists are skipped so retries don't double-pay.
+      const paidTherapistIds = await fetchPaidTherapistIds(supabase, booking.id);
+      const transfers: any[] = [];
+      for (const leg of payoutLegs) {
+        if (paidTherapistIds.has(leg.therapistId)) {
+          log("Therapist already paid, skipping", { therapist_id: leg.therapistId });
+          continue;
+        }
+        if (!leg.stripeAccountId || leg.amount <= 0) {
+          log("No therapist Stripe account or zero share, skipping transfer", { therapist_id: leg.therapistId });
+          transfers.push({
+            therapist_id: leg.therapistId,
+            success: false,
+            error: leg.stripeAccountId ? "Therapist share is zero" : "Therapist has no Stripe account connected",
+          });
+          continue;
+        }
         try {
           log("Initiating cash advance transfer to therapist", {
-            amount: breakdown.therapistShare,
-            destination: therapist.stripe_account_id,
+            therapist_id: leg.therapistId,
+            amount: leg.amount,
+            destination: leg.stripeAccountId,
           });
 
           const transfer = await stripe.transfers.create({
-            amount: Math.round(breakdown.therapistShare * 100), // En centimes
+            amount: Math.round(leg.amount * 100), // En centimes
             currency: currency,
-            destination: therapist.stripe_account_id,
+            destination: leg.stripeAccountId,
             transfer_group: `booking_${booking.booking_id}`,
             metadata: {
               booking_id: booking.id,
               booking_number: booking.booking_id.toString(),
+              therapist_id: leg.therapistId,
               type: 'cash_advance',
               payment_method: 'room',
             },
           });
 
-          log("Transfer successful", { transfer_id: transfer.id });
+          log("Transfer successful", { therapist_id: leg.therapistId, transfer_id: transfer.id });
 
-          // Enregistrer le payout
           await supabase
             .from('therapist_payouts')
             .insert({
-              therapist_id: booking.therapist_id,
+              therapist_id: leg.therapistId,
               booking_id: booking.id,
-              amount: breakdown.therapistShare,
+              amount: leg.amount,
               stripe_transfer_id: transfer.id,
               status: 'completed',
             });
 
-          transferResult = {
+          transfers.push({
+            therapist_id: leg.therapistId,
             success: true,
             transfer_id: transfer.id,
-            amount: breakdown.therapistShare,
-          };
+            amount: leg.amount,
+          });
         } catch (transferError: any) {
-          log("Transfer failed", { error: transferError.message });
+          log("Transfer failed", { therapist_id: leg.therapistId, error: transferError.message });
           remoteLog.error("payment.transfer_failed", transferError, {
-            therapist_id: booking.therapist_id,
-            amount: breakdown.therapistShare,
-            stripe_account: therapist.stripe_account_id,
+            therapist_id: leg.therapistId,
+            amount: leg.amount,
+            stripe_account: leg.stripeAccountId,
           });
 
-          // Enregistrer l'échec
           await supabase
             .from('therapist_payouts')
             .insert({
-              therapist_id: booking.therapist_id,
+              therapist_id: leg.therapistId,
               booking_id: booking.id,
-              amount: breakdown.therapistShare,
+              amount: leg.amount,
               status: 'failed',
               error_message: transferError.message,
             });
 
-          transferResult = {
+          transfers.push({
+            therapist_id: leg.therapistId,
             success: false,
             error: transferError.message,
-          };
+          });
         }
-      } else {
-        log("No therapist Stripe account or zero share, skipping transfer");
-        transferResult = {
-          success: false,
-          error: therapist?.stripe_account_id
-            ? "Therapist share is zero"
-            : "Therapist has no Stripe account connected",
-        };
       }
+      const transferResult = { success: transfers.every((t) => t.success), transfers };
 
       // Ajouter au Ledger (Hôtel doit à Eïa)
       // Formula: ledgerDebt = total - (baseHT * hotelCommissionRate * (1 + vatRate))

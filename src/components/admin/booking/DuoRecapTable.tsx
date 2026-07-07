@@ -4,6 +4,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { formatPrice } from "@/lib/formatPrice";
+import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
 import type { BookingTreatment } from "@/hooks/booking/useBookingData";
 
 interface AcceptedTherapist {
@@ -21,6 +22,14 @@ interface DuoRecapTableProps {
   bookingTime: string | null;
   displayPrice: number;
   currency: string;
+  /** Per-therapist fixed rates, keyed by therapist id (fixed-rate mode). */
+  therapistRatesMap?: Record<string, TherapistRates>;
+  /** true = commission % mode, false = fixed-rate mode. When undefined, the earnings column is hidden. */
+  globalTherapistCommission?: boolean;
+  /** Commission percent used in commission % mode. */
+  therapistCommission?: number;
+  /** Out-of-hours surcharge percent (fixed-rate mode only). 0 when not out of hours. */
+  surchargePercent?: number;
 }
 
 interface DuoLeg {
@@ -30,6 +39,8 @@ interface DuoLeg {
   room: string;
   amount: number;
   schedule: string;
+  /** Therapist earning for this leg. null = rates incomplete. undefined = column hidden. */
+  earnings: number | null | undefined;
 }
 
 /** "HH:MM:SS" / "HH:MM" + minutes → "HH:MM — HH:MM" (pure minute math, no TZ). */
@@ -57,7 +68,14 @@ export function DuoRecapTable({
   bookingTime,
   displayPrice,
   currency,
+  therapistRatesMap,
+  globalTherapistCommission,
+  therapistCommission,
+  surchargePercent = 0,
 }: DuoRecapTableProps) {
+  // Earnings column is shown only when the caller provides the pay mode.
+  const showEarnings = globalTherapistCommission !== undefined;
+
   const legs = useMemo<DuoLeg[]>(() => {
     // Combo-duo : un soin distinct par invité. Sinon (duo-variante) : soin partagé + montant divisé.
     const perTreatment = treatments.length === guestCount && guestCount > 0;
@@ -66,6 +84,25 @@ export function DuoRecapTable({
     return Array.from({ length: Math.max(guestCount, 1) }, (_, i) => {
       const t = perTreatment ? treatments[i] : treatments[0];
       const therapist = acceptedTherapists[i];
+
+      // Per-leg therapist earning. Fixed-rate mode uses this therapist's rates
+      // and their own treatment duration, uplifted by the out-of-hours surcharge.
+      // Commission % mode keeps the price-based split (surcharge already baked in).
+      let earnings: number | null | undefined;
+      if (!showEarnings) {
+        earnings = undefined;
+      } else if (globalTherapistCommission) {
+        earnings = Math.round((sharedAmount * ((therapistCommission ?? 70) / 100)) * 100) / 100;
+      } else if (therapist) {
+        earnings = computeTherapistEarnings(
+          therapistRatesMap?.[therapist.id] ?? null,
+          t?.duration ?? 0,
+          { surchargePercent },
+        );
+      } else {
+        earnings = null;
+      }
+
       return {
         soin: t?.name ?? "-",
         duration: t?.duration ?? null,
@@ -75,9 +112,10 @@ export function DuoRecapTable({
         room: (i === 0 ? roomName : secondaryRoomName ?? roomName) ?? "-",
         amount: perTreatment ? t?.price ?? 0 : sharedAmount,
         schedule: formatSchedule(bookingTime, t?.duration ?? null),
+        earnings,
       };
     });
-  }, [treatments, acceptedTherapists, guestCount, roomName, secondaryRoomName, bookingTime, displayPrice]);
+  }, [treatments, acceptedTherapists, guestCount, roomName, secondaryRoomName, bookingTime, displayPrice, showEarnings, globalTherapistCommission, therapistCommission, therapistRatesMap, surchargePercent]);
 
   return (
     <section className="bg-white rounded-xl border p-6 shadow-sm">
@@ -94,6 +132,7 @@ export function DuoRecapTable({
               <TableHead>Thérapeute</TableHead>
               <TableHead>Salle</TableHead>
               <TableHead className="text-right">Montant</TableHead>
+              {showEarnings && <TableHead className="text-right">Gain thérapeute</TableHead>}
               <TableHead className="text-right">Horaire</TableHead>
             </TableRow>
           </TableHeader>
@@ -111,6 +150,15 @@ export function DuoRecapTable({
                 <TableCell className="text-right font-semibold whitespace-nowrap">
                   {formatPrice(leg.amount, currency)}
                 </TableCell>
+                {showEarnings && (
+                  <TableCell className="text-right whitespace-nowrap">
+                    {leg.earnings != null ? (
+                      <span className="font-semibold">{formatPrice(leg.earnings, currency)}</span>
+                    ) : (
+                      <span className="text-xs text-amber-600">Tarifs incomplets</span>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell className="text-right whitespace-nowrap">{leg.schedule}</TableCell>
               </TableRow>
             ))}
@@ -141,6 +189,16 @@ export function DuoRecapTable({
               <span>Salle</span>
               <span className="text-foreground">{leg.room}</span>
             </div>
+            {showEarnings && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Gain thérapeute</span>
+                {leg.earnings != null ? (
+                  <span className="font-semibold text-foreground">{formatPrice(leg.earnings, currency)}</span>
+                ) : (
+                  <span className="text-xs text-amber-600">Tarifs incomplets</span>
+                )}
+              </div>
+            )}
             <div className="flex justify-between text-muted-foreground">
               <span>Horaire</span>
               <span className="text-foreground">{leg.schedule}</span>

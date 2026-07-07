@@ -156,15 +156,21 @@ export default function BookingDetail() {
     (async () => {
       const { data: btData } = await supabase
         .from("booking_therapists")
-        .select("therapist_id")
+        .select("therapist_id, assigned_at")
         .eq("booking_id", booking.id)
-        .eq("status", "accepted");
+        .eq("status", "accepted")
+        .order("assigned_at", { ascending: true });
       if (!btData || btData.length === 0) { setAcceptedTherapists([]); return; }
       const { data: tData } = await supabase
         .from("therapists")
         .select("id, first_name, last_name")
         .in("id", btData.map((bt) => bt.therapist_id));
-      setAcceptedTherapists(tData || []);
+      // Preserve acceptance order (assigned_at) — the .in() result order is not guaranteed
+      // and the positional treatment↔therapist mapping depends on a stable order.
+      const byId = new Map((tData || []).map((t) => [t.id, t]));
+      setAcceptedTherapists(
+        btData.map((bt) => byId.get(bt.therapist_id)).filter((t): t is NonNullable<typeof t> => !!t),
+      );
     })();
   }, [booking?.id, (booking as any)?.guest_count, therapistRefreshKey]);
 
@@ -235,11 +241,21 @@ export default function BookingDetail() {
       ? booking.total_price
       : booking.treatmentsTotalPrice);
 
+  // Out-of-hours surcharge percent (derived from the stored amount, matches the
+  // client breakdown). Applied as an uplift on the therapist earning below.
+  const surchargeAmount = booking.is_out_of_hours ? (booking.surcharge_amount ?? 0) : 0;
+  const offertOriginalPrice = isOffert ? (booking.treatmentsTotalPrice || 0) : 0;
+  const subtotal = isOffert
+    ? offertOriginalPrice
+    : Math.max(displayPrice - surchargeAmount, 0);
+  const surchargePercent = subtotal > 0 ? Math.round((surchargeAmount / subtotal) * 100) : 0;
+  const hasSurcharge = surchargeAmount > 0;
+
   const totalDuration = booking.totalDuration || booking.treatmentsTotalDuration || 0;
   const guestCount = (booking as any)?.guest_count ?? 1;
   const isDuo = guestCount > 1;
   const soloRates = !isDuo && booking.therapist_id ? (therapistRatesMap[booking.therapist_id] ?? null) : null;
-  const therapistEarnings = computeTherapistEarnings(soloRates, totalDuration);
+  const therapistEarnings = computeTherapistEarnings(soloRates, totalDuration, { surchargePercent });
   const ratesComplete = hasCompleteRates(soloRates);
   const showEarnings = !isDuo && !!booking.therapist_id && Object.keys(therapistRatesMap).length > 0;
   const clientType = (booking as any).client_type || (booking.room_number ? "hotel" : "external");
@@ -256,16 +272,7 @@ export default function BookingDetail() {
     : (PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending);
 
   // Payment breakdown for the "Paiement" card. total_price already includes the
-  // out-of-hours surcharge, which is also stored separately on surcharge_amount.
-  const surchargeAmount = booking.is_out_of_hours ? (booking.surcharge_amount ?? 0) : 0;
-  // Offert: show the real treatment price as subtotal, then a negative "Offert"
-  // line that brings the total back to 0 (instead of a flat 0 everywhere).
-  const offertOriginalPrice = isOffert ? (booking.treatmentsTotalPrice || 0) : 0;
-  const subtotal = isOffert
-    ? offertOriginalPrice
-    : Math.max(displayPrice - surchargeAmount, 0);
-  const surchargePercent = subtotal > 0 ? Math.round((surchargeAmount / subtotal) * 100) : 0;
-  const hasSurcharge = surchargeAmount > 0;
+  // out-of-hours surcharge (surchargeAmount / subtotal / surchargePercent computed above).
   const giftPaid = ((booking as any).gift_amount_applied_cents ?? 0) / 100;
   const paidAmount = isPaid ? displayPrice : Math.min(giftPaid, displayPrice);
   const remainingDue = Math.max(displayPrice - paidAmount, 0);
@@ -579,6 +586,10 @@ export default function BookingDetail() {
               bookingTime={booking.booking_time}
               displayPrice={displayPrice}
               currency={currency}
+              therapistRatesMap={therapistRatesMap}
+              globalTherapistCommission={hotelCommission?.global_therapist_commission}
+              therapistCommission={hotelCommission?.therapist_commission}
+              surchargePercent={surchargePercent}
             />
           </div>
         )}
@@ -774,58 +785,19 @@ export default function BookingDetail() {
               )}
             </section>
 
-            {(showEarnings || (isDuo && acceptedTherapists.length > 0 && hotelCommission)) && (
+            {showEarnings && (
               <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                {showEarnings && (
-                  <div>
-                    <p className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase mb-2">Gain thérapeute</p>
-                    {ratesComplete && therapistEarnings != null ? (
-                      <p className="text-xl font-bold text-gray-900">{formatPrice(therapistEarnings, currency)}</p>
-                    ) : (
-                      <p className="text-xs text-amber-600">Tarifs thérapeute incomplets — gain non calculable</p>
-                    )}
-                  </div>
-                )}
-
-                {isDuo && acceptedTherapists.length > 0 && hotelCommission && (
-                  <div className={showEarnings ? "mt-4 pt-4 border-t border-gray-100" : undefined}>
-                    <p className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase mb-2">Répartition des gains</p>
-                    {acceptedTherapists.map((therapist) => {
-                      let earnings: number | null;
-                      if (!hotelCommission.global_therapist_commission) {
-                        earnings = computeTherapistEarnings(therapistRatesMap[therapist.id] ?? null, totalDuration);
-                      } else {
-                        const pricePerTherapist = displayPrice / guestCount;
-                        earnings = Math.round(pricePerTherapist * (hotelCommission.therapist_commission / 100) * 100) / 100;
-                      }
-                      return (
-                        <div key={therapist.id} className="flex justify-between items-center mb-1.5">
-                          <p className="text-sm text-gray-500">{therapist.first_name} {therapist.last_name}</p>
-                          {earnings != null ? (
-                            <p className="text-sm font-semibold text-gray-900">{formatPrice(earnings, currency)}</p>
-                          ) : (
-                            <p className="text-xs text-amber-600">Tarifs incomplets</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {hotelCommission.global_therapist_commission && (() => {
-                      const totalTherapistEarnings = acceptedTherapists.reduce((sum) => {
-                        const pricePerTherapist = displayPrice / guestCount;
-                        return sum + Math.round(pricePerTherapist * (hotelCommission.therapist_commission / 100) * 100) / 100;
-                      }, 0);
-                      const hotelShare = Math.round((displayPrice - totalTherapistEarnings) * 100) / 100;
-                      return (
-                        <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
-                          <p className="text-sm text-gray-400">Part établissement</p>
-                          <p className="text-sm font-semibold text-gray-500">{formatPrice(hotelShare, currency)}</p>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase mb-2">Gain thérapeute</p>
+                  {ratesComplete && therapistEarnings != null ? (
+                    <p className="text-xl font-bold text-gray-900">{formatPrice(therapistEarnings, currency)}</p>
+                  ) : (
+                    <p className="text-xs text-amber-600">Tarifs thérapeute incomplets — gain non calculable</p>
+                  )}
+                </div>
               </section>
             )}
+            {/* Duo earnings are shown per therapist in the DuoRecapTable "Gain thérapeute" column above. */}
           </div>
         </div>
 
