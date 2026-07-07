@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
+import {
+  buildTherapistPayoutLegs,
+  fetchPaidTherapistIds,
+  fetchPayoutTherapists,
+} from "../_shared/therapistPayouts.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,6 +64,8 @@ serve(async (req) => {
         booking_id,
         hotel_id,
         therapist_id,
+        guest_count,
+        is_out_of_hours,
         client_email,
         client_first_name,
         client_last_name,
@@ -77,7 +83,8 @@ serve(async (req) => {
           vat,
           hotel_commission,
           currency,
-          venue_type
+          venue_type,
+          out_of_hours_surcharge_percent
         ),
         therapists(
           first_name,
@@ -130,30 +137,29 @@ serve(async (req) => {
 
     const hotelCommission = grossHT * (hotelCommissionRate / 100);
 
-    const bookingDuration = (booking.booking_treatments || []).reduce(
-      (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0),
-      0,
-    );
+    // Per-therapist payout allocation (duo → each therapist on their own soin;
+    // solo → single therapist on the total duration), with out-of-hours surcharge
+    // and an aggregate cap of grossHT − hotelCommission.
+    const payoutTherapists = await fetchPayoutTherapists(supabase, booking.id, booking.therapist_id);
+    const payoutTreatments = (booking.booking_treatments || []).map((bt: any) => ({
+      duration: bt.treatment_menus?.duration ?? null,
+    }));
+    const { legs: payoutLegs, totalEarned, totalAmount } = buildTherapistPayoutLegs({
+      therapists: payoutTherapists,
+      treatments: payoutTreatments,
+      guestCount: (booking as any).guest_count ?? 1,
+      isOutOfHours: !!(booking as any).is_out_of_hours,
+      surchargePercent: Number((hotel as any).out_of_hours_surcharge_percent ?? 0) || 0,
+      capTotal: grossHT - hotelCommission,
+    });
 
-    const therapist = booking.therapists;
-    const earned = therapist
-      ? computeTherapistEarnings(
-          {
-            rate_60: therapist.rate_60 ?? null,
-            rate_75: therapist.rate_75 ?? null,
-            rate_90: therapist.rate_90 ?? null,
-          },
-          bookingDuration,
-        )
-      : null;
-
-    if (earned == null) {
+    if (payoutTherapists.length > 0 && totalEarned === 0) {
       throw new Error(
         `Tarifs thérapeute incomplets ou durée invalide pour le booking ${booking_id}`,
       );
     }
 
-    const therapistShare = Math.min(earned, grossHT - hotelCommission);
+    const therapistShare = totalAmount;
     const lymfeaShare = grossHT - hotelCommission - therapistShare;
 
     const breakdown: CommissionBreakdown = {
@@ -170,19 +176,26 @@ serve(async (req) => {
 
     log("Commission breakdown", breakdown);
 
-    // 3. Record therapist payout (no Stripe transfer - therapist collected directly)
-    if (booking.therapist_id) {
+    // 3. Record therapist payouts (no Stripe transfer - therapist collected
+    // directly). Duo → one row per therapist. Skip therapists already paid.
+    const paidTherapistIds = await fetchPaidTherapistIds(supabase, booking.id);
+    for (const leg of payoutLegs) {
+      if (paidTherapistIds.has(leg.therapistId)) {
+        log("Therapist already paid, skipping", { therapist_id: leg.therapistId });
+        continue;
+      }
+      if (leg.amount <= 0) continue;
       await supabase
         .from('therapist_payouts')
         .insert({
-          therapist_id: booking.therapist_id,
+          therapist_id: leg.therapistId,
           booking_id: booking.id,
-          amount: breakdown.therapistShare,
+          amount: leg.amount,
           status: 'completed',
           stripe_transfer_id: null,
         });
 
-      log("Therapist payout recorded", { amount: breakdown.therapistShare });
+      log("Therapist payout recorded", { therapist_id: leg.therapistId, amount: leg.amount });
     }
 
     // 4. Record hotel ledger entry (same formula as finalize-payment)

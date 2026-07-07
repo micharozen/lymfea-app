@@ -65,7 +65,7 @@ export default function BookingsList() {
     therapistFilter,
     setTherapistFilter,
     filteredBookings,
-  } = useBookingFilters(bookings);
+  } = useBookingFilters(bookings, "bookingsList.filters");
 
   const [sortKey, setSortKey] = useState<BookingSortKey>("reservation");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");

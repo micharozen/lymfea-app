@@ -110,7 +110,7 @@ useEffect(() => {
     therapistFilter,
     setTherapistFilter,
     filteredBookings,
-  } = useBookingFilters(bookings);
+  } = useBookingFilters(bookings, "planning.filters");
 
   // In venue_manager view, force-scope the venue filter to the impersonated venue.
   const currentVenueId = useCurrentVenueId();

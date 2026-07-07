@@ -659,11 +659,25 @@ const PwaBookingDetail = () => {
   // gagne son propre taux pour sa durée de travail, indépendamment du prix total.
   // Mode commission % (global_therapist_commission = true) : chaque thérapeute
   // gagne son % sur sa part du total (total / guest_count pour les duos).
+  // Out-of-hours surcharge uplift (venue percent), applied to the fixed-rate estimate.
+  const surchargePercent = booking.is_out_of_hours
+    ? (Number(booking.out_of_hours_surcharge_percent) || 0)
+    : 0;
   const estimatedEarnings = (() => {
     if (booking.global_therapist_commission === false) {
+      const gc = Math.max(booking.guest_count || 1, 1);
+      // Duo: the therapist is paid on their own soin (per-slot) duration, not the
+      // combined total. Combo-duo (one soin per guest) → first soin duration;
+      // shared-duo (same soin in parallel) → the single soin's total duration.
+      const perTherapistDuration = gc > 1
+        ? (treatments.length === gc
+            ? (treatments[0]?.treatment_menus?.duration || totalDuration / gc)
+            : totalDuration)
+        : totalDuration;
       return computeTherapistEarnings(
         { rate_60: booking.therapist_rate_60 ?? null, rate_75: booking.therapist_rate_75 ?? null, rate_90: booking.therapist_rate_90 ?? null },
-        totalDuration,
+        perTherapistDuration,
+        { surchargePercent },
       ) ?? 0;
     }
     const pricePerTherapist = grossPrice / Math.max(booking.guest_count || 1, 1);
