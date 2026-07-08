@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { formatPrice } from "@/lib/formatPrice";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, Pencil } from "lucide-react";
 
 interface Treatment {
   id: string;
@@ -18,6 +20,7 @@ interface Treatment {
 interface CartItem {
   treatmentId: string;
   quantity: number;
+  priceOverride?: number | null;
 }
 
 interface TreatmentStepProps {
@@ -31,6 +34,7 @@ interface TreatmentStepProps {
   incrementCart: (id: string) => void;
   decrementCart: (id: string) => void;
   getCartQuantity: (id: string) => number;
+  setLineOverride: (id: string, value: number | null) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -46,10 +50,14 @@ export function TreatmentStep({
   incrementCart,
   decrementCart,
   getCartQuantity,
+  setLineOverride,
   onNext,
   onBack,
 }: TreatmentStepProps) {
   const { t } = useTranslation("pwa");
+  const [showPriceOverrides, setShowPriceOverrides] = useState(false);
+
+  const overriddenCount = cartDetails.filter((c) => c.priceOverride != null).length;
 
   const groupedTreatments: Record<string, Treatment[]> = {};
   treatments.forEach((t) => {
@@ -69,7 +77,7 @@ export function TreatmentStep({
   };
 
   return (
-    <div className="flex-1 flex flex-col px-4 py-4">
+    <div className="flex-1 flex flex-col px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
       {/* Treatment list */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {treatmentsLoading ? (
@@ -150,6 +158,54 @@ export function TreatmentStep({
           ))
         )}
       </div>
+
+      {/* Édition des prix par prestation */}
+      {cartDetails.length > 0 && (
+        <div className="shrink-0 border-t border-primary/20 pt-2 mt-3">
+          <button
+            type="button"
+            onClick={() => setShowPriceOverrides((v) => !v)}
+            className="flex w-full items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Pencil className="h-3 w-3 shrink-0" />
+            <span>{t("newBooking.priceOverride.label", "Prix par prestation")}</span>
+            {overriddenCount > 0 && (
+              <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
+                {t("newBooking.priceOverride.count", { count: overriddenCount })}
+              </span>
+            )}
+          </button>
+          {showPriceOverrides && (
+            <div className="space-y-1.5 mt-2 max-h-32 overflow-y-auto">
+              {cartDetails.map(({ treatmentId, treatment, priceOverride }) => (
+                <div key={`ov-${treatmentId}`} className="flex items-center gap-2">
+                  <span className="text-[11px] flex-1 truncate">{treatment?.name}</span>
+                  {priceOverride != null && (
+                    <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
+                      {t("newBooking.priceOverride.modified", "modifié")}
+                    </span>
+                  )}
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={priceOverride ?? ""}
+                    onChange={(e) =>
+                      setLineOverride(
+                        treatmentId,
+                        e.target.value === "" ? null : Number(e.target.value),
+                      )
+                    }
+                    className="h-7 w-20 text-xs text-right"
+                    placeholder={String(treatment?.price ?? 0)}
+                  />
+                  <span className="text-[10px] text-muted-foreground">€</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Cart Footer */}
       <div className="shrink-0 border-t border-primary/20 pt-3 mt-3">
