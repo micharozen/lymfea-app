@@ -74,6 +74,15 @@ serve(async (req: Request) => {
 
     const { bookingId, language, channels, clientEmail, clientPhone, smsBody, mode = 'send' } = await req.json() as SendPaymentLinkRequest;
 
+    console.log("[SEND-PAYMENT-LINK] Request parsed:", JSON.stringify({
+      bookingId,
+      language,
+      mode,
+      channels,
+      hasClientEmail: Boolean(clientEmail),
+      hasClientPhone: Boolean(clientPhone),
+    }));
+
     if (!bookingId || !language) {
       throw new Error("Missing required fields: bookingId and language");
     }
@@ -384,6 +393,14 @@ serve(async (req: Request) => {
       );
     }
 
+    console.log("[SEND-PAYMENT-LINK] Channel dispatch:", JSON.stringify({
+      channels,
+      resolvedEmail: email || null,
+      resolvedPhone: phone || null,
+      willSendEmail: Boolean(channels?.includes('email') && email),
+      willSendSms: Boolean(channels?.includes('sms') && phone),
+    }));
+
     if (channels?.includes('email') && email) {
       try {
         // Intro rendue côté code (le builder centralise les variables Resend :
@@ -504,7 +521,10 @@ serve(async (req: Request) => {
     const atLeastOneSuccess = results.email || results.sms;
 
     if (!atLeastOneSuccess) {
-      throw new Error(`Failed to send payment link: ${results.errors.join('; ')}`);
+      const detail = results.errors.length > 0
+        ? results.errors.join('; ')
+        : `no channel dispatched (channels=${JSON.stringify(channels)}, email=${email ? 'set' : 'empty'}, phone=${phone ? 'set' : 'empty'})`;
+      throw new Error(`Failed to send payment link: ${detail}`);
     }
 
     // Historique de la réservation : log de l'envoi du lien de paiement
