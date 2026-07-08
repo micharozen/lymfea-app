@@ -14,6 +14,8 @@ import { SuccessStep } from "@/components/pwa/new-booking/SuccessStep";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { computeOutOfHoursSurcharge, type SurchargeConfig } from "@/lib/surcharge";
+import type { BookingClientType } from "@/lib/clientTypeMeta";
 
 interface Therapist {
   id: string;
@@ -43,6 +45,8 @@ interface Treatment {
 interface CartItem {
   treatmentId: string;
   quantity: number;
+  /** Prix unitaire forcé (€ absolu). null/undefined = prix catalogue. */
+  priceOverride?: number | null;
 }
 
 const PwaNewBooking = () => {
@@ -60,6 +64,9 @@ const PwaNewBooking = () => {
   // Hotels
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [selectedHotelId, setSelectedHotelId] = useState("");
+
+  // Config majoration hors horaires du lieu (affichage + persistance)
+  const [surchargeConfig, setSurchargeConfig] = useState<SurchargeConfig | null>(null);
 
   // Client info
   const [clientFirstName, setClientFirstName] = useState("");
@@ -86,6 +93,9 @@ const PwaNewBooking = () => {
   const [venueTherapists, setVenueTherapists] = useState<Therapist[]>([]);
   const [selectedTherapistId, setSelectedTherapistId] = useState("");
   const [venueTherapistsLoading, setVenueTherapistsLoading] = useState(false);
+
+  // Type de client (pilote la logique de paiement dans la mutation)
+  const [clientType, setClientType] = useState<BookingClientType>("external");
 
   // Réservation offerte (gratuite)
   const [isOffert, setIsOffert] = useState(false);
@@ -169,6 +179,25 @@ const PwaNewBooking = () => {
     fetchTreatments();
   }, [selectedHotelId]);
 
+  // Fetch out-of-hours surcharge config when hotel changes
+  useEffect(() => {
+    if (!selectedHotelId) {
+      setSurchargeConfig(null);
+      return;
+    }
+    const fetchSurchargeConfig = async () => {
+      const { data } = await supabase
+        .from("hotels")
+        .select(
+          "opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent"
+        )
+        .eq("id", selectedHotelId)
+        .single();
+      setSurchargeConfig(data ?? null);
+    };
+    fetchSurchargeConfig();
+  }, [selectedHotelId]);
+
   // Fetch venue therapists when "assign to other" is enabled
   useEffect(() => {
     if (!assignToOther || !selectedHotelId) {
@@ -225,6 +254,15 @@ const PwaNewBooking = () => {
   };
   const getCartQuantity = (treatmentId: string) =>
     cart.find((c) => c.treatmentId === treatmentId)?.quantity || 0;
+  // Prix unitaire forcé (null = retour au prix catalogue).
+  const setLineOverride = (treatmentId: string, value: number | null) =>
+    setCart((prev) =>
+      prev.map((item) =>
+        item.treatmentId === treatmentId
+          ? { ...item, priceOverride: value }
+          : item
+      )
+    );
 
   const cartDetails = useMemo(
     () =>
@@ -238,7 +276,8 @@ const PwaNewBooking = () => {
   const totalPrice = useMemo(
     () =>
       cartDetails.reduce(
-        (sum, item) => sum + (item.treatment?.price || 0) * item.quantity,
+        (sum, item) =>
+          sum + (item.priceOverride ?? item.treatment?.price ?? 0) * item.quantity,
         0
       ),
     [cartDetails]
@@ -253,10 +292,29 @@ const PwaNewBooking = () => {
     [cartDetails]
   );
 
+  // Majoration hors horaires (affichage — le serveur recalcule et fait foi)
+  const surcharge = useMemo(
+    () => computeOutOfHoursSurcharge(selectedTime, totalPrice, surchargeConfig),
+    [selectedTime, totalPrice, surchargeConfig]
+  );
+
   const treatmentIds = useMemo(
     () =>
       cart.flatMap((item) =>
         Array.from({ length: item.quantity }, () => item.treatmentId)
+      ),
+    [cart]
+  );
+
+  // Lignes de soin avec prix forcé, une entrée par unité (la mutation privilégie
+  // `treatments[]` sur `treatmentIds` pour persister les price_override).
+  const treatmentPayloads = useMemo(
+    () =>
+      cart.flatMap((item) =>
+        Array.from({ length: item.quantity }, () => ({
+          treatmentId: item.treatmentId,
+          priceOverride: item.priceOverride ?? null,
+        }))
       ),
     [cart]
   );
@@ -277,6 +335,11 @@ const PwaNewBooking = () => {
     therapists: therapistsForMutation,
     onSuccess: (data) => {
       setCreatedBooking(data);
+      toast.success(
+        `${t("newBooking.createdToast", "Réservation créée")}${
+          data?.booking_id ? ` #${data.booking_id}` : ""
+        }`
+      );
       setDirection("forward");
       setStep(4);
     },
@@ -339,6 +402,7 @@ const PwaNewBooking = () => {
       hotelId: selectedHotelId,
       clientFirstName: clientFirstName.trim(),
       clientLastName: clientLastName.trim(),
+      clientEmail: email.trim() || undefined,
       phone: phone.trim(),
       countryCode,
       roomNumber,
@@ -350,10 +414,22 @@ const PwaNewBooking = () => {
       slot3Date: null,
       slot3Time: null,
       treatmentIds,
-      totalPrice: isOffert ? 0 : totalPrice,
+      treatments: treatmentPayloads,
+      totalPrice: isOffert ? 0 : totalPrice + surcharge.surchargeAmount,
       totalDuration,
       isAdmin: true,
       isOffert,
+      clientType,
+      isOutOfHours: isOffert ? false : surcharge.isOutOfHours,
+      surchargeAmount: isOffert ? 0 : surcharge.surchargeAmount,
+    }, {
+      // Le onError du hook passe par le toast shadcn (non monté sur la PWA) :
+      // on double avec un toast sonner pour rendre l'échec visible ici.
+      onError: (error: Error) => {
+        toast.error(
+          `${t("newBooking.createError", "Échec de la création")} : ${error.message}`
+        );
+      },
     });
   };
 
@@ -376,14 +452,14 @@ const PwaNewBooking = () => {
         room_number: roomNumber,
         booking_date: format(selectedDate!, "yyyy-MM-dd"),
         booking_time: selectedTime,
-        total_price: isOffert ? 0 : totalPrice,
+        total_price: isOffert ? 0 : totalPrice + surcharge.surchargeAmount,
         hotel_name: selectedHotel?.name,
         currency,
         treatments: cartDetails
           .filter((c) => c.treatment)
           .map((c) => ({
             name: c.treatment!.name,
-            price: c.treatment!.price * c.quantity,
+            price: (c.priceOverride ?? c.treatment!.price) * c.quantity,
           })),
       }
     : null;
@@ -413,6 +489,8 @@ const PwaNewBooking = () => {
               hotels={hotels}
               selectedHotelId={selectedHotelId}
               setSelectedHotelId={setSelectedHotelId}
+              clientType={clientType}
+              setClientType={setClientType}
               assignToOther={assignToOther}
               setAssignToOther={setAssignToOther}
               venueTherapists={venueTherapists}
@@ -457,6 +535,7 @@ const PwaNewBooking = () => {
               incrementCart={incrementCart}
               decrementCart={decrementCart}
               getCartQuantity={getCartQuantity}
+              setLineOverride={setLineOverride}
               onNext={handleNext}
               onBack={handleBack}
             />
@@ -477,6 +556,9 @@ const PwaNewBooking = () => {
               totalPrice={totalPrice}
               totalDuration={totalDuration}
               currency={currency}
+              isOutOfHours={surcharge.isOutOfHours}
+              surchargeAmount={surcharge.surchargeAmount}
+              surchargePercent={surcharge.surchargePercent}
               isOffert={isOffert}
               onIsOffertChange={setIsOffert}
               isPending={createBooking.isPending}
@@ -492,6 +574,7 @@ const PwaNewBooking = () => {
               clientFirstName={clientFirstName}
               clientLastName={clientLastName}
               isOffert={isOffert}
+              clientType={clientType}
             />
           )}
         </StepTransition>

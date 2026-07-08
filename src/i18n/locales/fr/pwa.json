@@ -337,6 +337,9 @@
     "backToDashboard": "Retour au tableau de bord",
     "selectHotel": "Sélectionner un lieu",
     "bookingCreated": "Réservation créée !",
+    "createdToast": "Réservation créée",
+    "createError": "Échec de la création",
+    "outOfHoursSurcharge": "Majoration hors horaires",
     "offert": {
       "label": "Offert (gratuit)",
       "helper": "Cette réservation est offerte : aucun paiement, prix à 0.",
@@ -354,7 +357,17 @@
     "assignToOther": "L'associer à un autre thérapeute",
     "selectTherapist": "Sélectionner un thérapeute",
     "loadingTherapists": "Chargement…",
-    "noOtherTherapist": "Aucun autre thérapeute"
+    "noOtherTherapist": "Aucun autre thérapeute",
+    "priceOverride": {
+      "label": "Prix par prestation",
+      "modified": "modifié",
+      "count_one": "{{count}} modifié",
+      "count_other": "{{count}} modifiés"
+    },
+    "settlement": {
+      "room": "Facturé en chambre",
+      "partner": "Facturé au partenaire"
+    }
   },
   "tabs": {
     "home": "Accueil",

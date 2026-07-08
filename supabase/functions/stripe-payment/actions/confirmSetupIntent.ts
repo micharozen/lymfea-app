@@ -61,7 +61,9 @@ async function insertPaymentInfo(
     paymentMethodId: string;
     setupIntentId?: string | null;
     paymentIntentId?: string | null;
-    sessionId: string;
+    // Null for sibling bookings of a multi-group — the UNIQUE stripe_session_id
+    // is claimed by the group's first booking; siblings share method/customer.
+    sessionId: string | null;
     cardBrand?: string | null;
     cardLast4?: string | null;
     estimatedPrice?: number;
@@ -88,6 +90,46 @@ async function insertPaymentInfo(
       ? { payment_at: new Date().toISOString() }
       : {}),
   });
+}
+
+/**
+ * Insert one payment-info row per booking of a multi-group. Every sibling shares
+ * the same saved card (payment method + customer) but carries its own
+ * estimated_price so each booking can be charged independently after its
+ * treatment. Only the first booking claims the UNIQUE stripe_session_id; the
+ * rest store null (Postgres allows multiple NULLs on a UNIQUE column).
+ */
+async function insertGroupPaymentInfos(
+  supabase: ActionContext["supabase"],
+  bookingIds: string[],
+  priceByBookingId: Map<string, number>,
+  shared: {
+    customerId: string | null;
+    paymentMethodId: string;
+    setupIntentId?: string | null;
+    paymentIntentId?: string | null;
+    sessionId: string;
+    cardBrand?: string | null;
+    cardLast4?: string | null;
+    paymentStatus: "card_saved" | "charged";
+  },
+): Promise<void> {
+  for (let i = 0; i < bookingIds.length; i++) {
+    const bookingId = bookingIds[i];
+    await insertPaymentInfo(supabase, {
+      bookingId,
+      customerId: shared.customerId,
+      paymentMethodId: shared.paymentMethodId,
+      setupIntentId: shared.setupIntentId,
+      paymentIntentId: shared.paymentIntentId,
+      // Only the first booking owns the session id (UNIQUE); siblings store null.
+      sessionId: i === 0 ? shared.sessionId : null,
+      cardBrand: shared.cardBrand,
+      cardLast4: shared.cardLast4,
+      estimatedPrice: priceByBookingId.get(bookingId) ?? 0,
+      paymentStatus: shared.paymentStatus,
+    });
+  }
 }
 
 async function atomicReserveSingle(
@@ -324,6 +366,7 @@ export async function handleConfirmSetupIntent(
       const varPriceMap = new Map((slotVariantsData || []).map((v: { id: string; price: number }) => [v.id, v.price]));
 
       const slotCreatedIds: string[] = [];
+      const slotPriceById = new Map<string, number>();
       for (let i = 0; i < dates.length; i++) {
         const slotVariantId = slotVariantIds[i] || null;
         const qty = slotQuantities[i] || 1;
@@ -377,11 +420,13 @@ export async function handleConfirmSetupIntent(
         });
 
         slotCreatedIds.push(newId);
+        slotPriceById.set(newId, slotSurcharge.totalWithSurcharge);
       }
 
       if (resolvedPaymentMethodId && (setupIntent || paymentIntent)) {
-        await insertPaymentInfo(supabase, {
-          bookingId: slotCreatedIds[0],
+        // One payment-info row per booking so each is chargeable independently
+        // after its treatment (they share the same saved card).
+        await insertGroupPaymentInfos(supabase, slotCreatedIds, slotPriceById, {
           customerId,
           paymentMethodId: resolvedPaymentMethodId,
           setupIntentId: payAtBooking ? null : setupIntent?.id,
@@ -429,12 +474,22 @@ export async function handleConfirmSetupIntent(
       );
     }
 
-    // booking_payment_infos.stripe_session_id has a UNIQUE constraint, so we
-    // attach the row to the first booking only. Sibling bookings of the group
-    // are linked via booking_group_id.
+    // One payment-info row per booking (each carries its own price) so every
+    // booking of the group is chargeable independently after its treatment.
+    // The saved card is shared; only the first booking claims the UNIQUE
+    // stripe_session_id (siblings store null).
     if (resolvedPaymentMethodId && (setupIntent || paymentIntent)) {
-      await insertPaymentInfo(supabase, {
-        bookingId: multiBookingIds[0],
+      const { data: groupPriceRows } = await supabase
+        .from("bookings")
+        .select("id, total_price")
+        .in("id", multiBookingIds);
+      const priceByBookingId = new Map<string, number>(
+        (groupPriceRows || []).map((b: { id: string; total_price: number | null }) => [
+          b.id,
+          Number(b.total_price) || 0,
+        ]),
+      );
+      await insertGroupPaymentInfos(supabase, multiBookingIds, priceByBookingId, {
         customerId,
         paymentMethodId: resolvedPaymentMethodId,
         setupIntentId: payAtBooking ? null : setupIntent?.id,

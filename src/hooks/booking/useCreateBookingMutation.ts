@@ -211,8 +211,14 @@ async function insertSingleBooking(
   }
 
   if (booking && allTherapistIds.length > 0) {
+    // Insert simple (pas d'upsert) : la réservation vient d'être créée, aucune ligne
+    // booking_therapists ne peut préexister. On évite `ON CONFLICT DO NOTHING`, qui
+    // exigerait une policy SELECT satisfaite côté thérapeute (RLS) — celle-ci dépend
+    // de is_booking_participant, faux tant que la ligne n'existe pas → erreur 42501.
+    // On dédoublonne les IDs en amont par sûreté (UNIQUE(booking_id, therapist_id)).
+    const uniqueTherapistIds = Array.from(new Set(allTherapistIds));
     const { error: btError } = await supabase.from("booking_therapists" as any).insert(
-      allTherapistIds.map((tid: string) => ({
+      uniqueTherapistIds.map((tid: string) => ({
         booking_id: booking.id,
         therapist_id: tid,
         status: "accepted",

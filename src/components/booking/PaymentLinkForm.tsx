@@ -13,7 +13,7 @@ import {
   AlertCircle,
   Copy,
 } from "lucide-react";
-import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/formatPrice";
 
@@ -160,18 +160,36 @@ export function PaymentLinkForm({
     if (sendSms) channels.push("sms");
 
     try {
-      const { data, error } = await invokeStripe<{
-        success: boolean;
-        paymentLinkUrl: string;
-        emailSent: boolean;
-        whatsappSent: boolean;
-        errors?: string[];
-      }>("send-payment-link", {
-        bookingId: booking.id,
-        language,
-        channels,
-        clientEmail: sendEmail ? clientEmail : undefined,
-        clientPhone: sendSms ? clientPhone : undefined,
+      // Envoi via la fonction standalone `send-payment-link` (Twilio SMS + Resend),
+      // cohérent avec la génération du lien ci-dessus. `stripe-payment` ne gère que
+      // le canal `whatsapp`, pas `sms` → aucun canal dispatché → échec silencieux.
+      const { data, error } = await invokeEdgeFunction<
+        {
+          bookingId: string;
+          language: Language;
+          channels: ("email" | "sms")[];
+          clientEmail?: string;
+          clientPhone?: string;
+          smsBody?: string;
+          mode: "send";
+        },
+        {
+          success: boolean;
+          paymentLinkUrl: string;
+          emailSent: boolean;
+          smsSent: boolean;
+          errors?: string[];
+        }
+      >("send-payment-link", {
+        body: {
+          bookingId: booking.id,
+          language,
+          channels,
+          clientEmail: sendEmail ? clientEmail : undefined,
+          clientPhone: sendSms ? clientPhone : undefined,
+          smsBody: sendSms ? smsBody : undefined,
+          mode: "send",
+        },
       });
 
       if (error) {

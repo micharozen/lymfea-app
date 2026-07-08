@@ -21,6 +21,7 @@ interface Treatment {
 interface CartItem {
   treatmentId: string;
   quantity: number;
+  priceOverride?: number | null;
 }
 
 interface SummaryStepProps {
@@ -37,6 +38,9 @@ interface SummaryStepProps {
   totalPrice: number;
   totalDuration: number;
   currency: string;
+  isOutOfHours: boolean;
+  surchargeAmount: number;
+  surchargePercent: number;
   isOffert: boolean;
   onIsOffertChange: (value: boolean) => void;
   isPending: boolean;
@@ -58,6 +62,9 @@ export function SummaryStep({
   totalPrice,
   totalDuration,
   currency,
+  isOutOfHours,
+  surchargeAmount,
+  surchargePercent,
   isOffert,
   onIsOffertChange,
   isPending,
@@ -76,7 +83,7 @@ export function SummaryStep({
           </div>
 
           {/* Lieu */}
-          <div className="px-4 py-3 animate-fade-in" style={{ animationDelay: '0ms' }}>
+          <div className="px-4 py-3">
             <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-1">Lieu</p>
             <p className="text-sm font-medium">{hotelName}</p>
           </div>
@@ -84,7 +91,7 @@ export function SummaryStep({
           <div className="h-px bg-primary/15 mx-4" />
 
           {/* Client */}
-          <div className="px-4 py-3 animate-fade-in" style={{ animationDelay: '100ms' }}>
+          <div className="px-4 py-3">
             <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-1">Client</p>
             <p className="text-sm font-medium">
               {clientFirstName} {clientLastName}
@@ -99,7 +106,7 @@ export function SummaryStep({
           <div className="h-px bg-primary/15 mx-4" />
 
           {/* Date/Time */}
-          <div className="px-4 py-3 animate-fade-in" style={{ animationDelay: '200ms' }}>
+          <div className="px-4 py-3">
             <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-1">
               Date & heure
             </p>
@@ -112,12 +119,12 @@ export function SummaryStep({
           <div className="h-px bg-primary/15 mx-4" />
 
           {/* Treatments */}
-          <div className="px-4 py-3 animate-fade-in" style={{ animationDelay: '300ms' }}>
+          <div className="px-4 py-3">
             <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-2">
               Prestations
             </p>
             <div className="space-y-1.5">
-              {cartDetails.map(({ treatmentId, quantity, treatment }) => (
+              {cartDetails.map(({ treatmentId, quantity, treatment, priceOverride }) => (
                 <div
                   key={treatmentId}
                   className="flex items-center justify-between text-sm"
@@ -132,7 +139,7 @@ export function SummaryStep({
                   </span>
                   <span className="font-medium">
                     {formatPrice(
-                      (treatment?.price || 0) * quantity,
+                      (priceOverride ?? treatment?.price ?? 0) * quantity,
                       currency
                     )}
                   </span>
@@ -140,13 +147,26 @@ export function SummaryStep({
               ))}
             </div>
 
+            {/* Majoration hors horaires */}
+            {!isOffert && isOutOfHours && surchargeAmount > 0 && (
+              <div className="flex items-center justify-between text-sm mt-2 text-amber-600">
+                <span>
+                  {t("newBooking.outOfHoursSurcharge", "Majoration hors horaires")}{" "}
+                  ({surchargePercent}%)
+                </span>
+                <span className="font-medium">
+                  +{formatPrice(surchargeAmount, currency)}
+                </span>
+              </div>
+            )}
+
             {/* Total */}
             <div className="bg-primary/10 rounded-lg p-3 mt-3 flex items-center justify-between">
               <span className="text-sm font-semibold">Total</span>
               <span className="text-sm font-bold text-primary">
                 {isOffert
                   ? t("newBooking.offert.tag", "Offert")
-                  : formatPrice(totalPrice, currency)}
+                  : formatPrice(totalPrice + surchargeAmount, currency)}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-2 italic">
@@ -177,7 +197,7 @@ export function SummaryStep({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-primary/20 shrink-0 space-y-2">
+      <div className="px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] border-t border-primary/20 shrink-0 space-y-2">
         <Button
           className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
           onClick={onCreate}

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { BOOKING_CLIENT_TYPES, CLIENT_TYPE_META, type BookingClientType } from "@/lib/clientTypeMeta";
 import { countries, formatPhoneNumber } from "@/lib/phone";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -52,6 +53,8 @@ interface ClientInfoStepProps {
   hotels: Hotel[];
   selectedHotelId: string;
   setSelectedHotelId: (id: string) => void;
+  clientType: BookingClientType;
+  setClientType: (v: BookingClientType) => void;
   assignToOther: boolean;
   setAssignToOther: (v: boolean) => void;
   venueTherapists: VenueTherapist[];
@@ -87,6 +90,8 @@ export function ClientInfoStep({
   hotels,
   selectedHotelId,
   setSelectedHotelId,
+  clientType,
+  setClientType,
   assignToOther,
   setAssignToOther,
   venueTherapists,
@@ -188,6 +193,33 @@ export function ClientInfoStep({
             </Select>
           </div>
         )}
+
+        {/* Type de client */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">
+            {t("bookings.clientType.label", { ns: "admin" })} <span className="text-primary">*</span>
+          </Label>
+          <Select value={clientType} onValueChange={(v) => setClientType(v as BookingClientType)}>
+            <SelectTrigger className="h-9">
+              <SelectValue>
+                <span className="flex items-center gap-2">
+                  <img src={CLIENT_TYPE_META[clientType].logo} alt="" className="w-4 h-4 shrink-0" />
+                  <span>{t(CLIENT_TYPE_META[clientType].labelKey, { ns: "admin" })}</span>
+                </span>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {BOOKING_CLIENT_TYPES.map((ct) => (
+                <SelectItem key={ct} value={ct}>
+                  <span className="flex items-center gap-2">
+                    <img src={CLIENT_TYPE_META[ct].logo} alt="" className="w-4 h-4 shrink-0" />
+                    <span>{t(CLIENT_TYPE_META[ct].labelKey, { ns: "admin" })}</span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Assigner à un autre thérapeute */}
         <div className="space-y-2">
@@ -472,7 +504,7 @@ export function ClientInfoStep({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-primary/20 shrink-0">
+      <div className="px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] border-t border-primary/20 shrink-0">
         <Button
           className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
           onClick={onNext}
