@@ -72,6 +72,7 @@ serve(async (req) => {
       .select(`
         id,
         booking_id,
+        booking_group_id,
         hotel_id,
         booking_date,
         booking_time,
@@ -458,12 +459,36 @@ serve(async (req) => {
         // Stripe payment-link branch and fall through to the standard pending
         // template. The payment-link branch is only for operator-created
         // external bookings where no card has been collected yet.
-        const { data: existingPaymentInfo } = await supabaseClient
-          .from('booking_payment_infos')
-          .select('id')
-          .eq('booking_id', bookingId)
-          .maybeSingle();
-        const hasPaymentMethod = !!existingPaymentInfo;
+        //
+        // Multi-booking (distinct slots per treatment): the card is saved once
+        // for the whole group, attached to the FIRST booking only because
+        // booking_payment_infos.stripe_session_id is UNIQUE. Sibling bookings
+        // therefore have no payment_info row of their own — so we check the
+        // whole group, otherwise siblings wrongly trigger a payment-link SMS.
+        const groupId = (booking as any).booking_group_id as string | null;
+        let hasPaymentMethod = false;
+        if (groupId) {
+          const { data: groupBookings } = await supabaseClient
+            .from('bookings')
+            .select('id')
+            .eq('booking_group_id', groupId);
+          const groupIds = (groupBookings || []).map((b: { id: string }) => b.id);
+          if (groupIds.length > 0) {
+            const { data: groupPaymentInfo } = await supabaseClient
+              .from('booking_payment_infos')
+              .select('id')
+              .in('booking_id', groupIds)
+              .limit(1);
+            hasPaymentMethod = !!(groupPaymentInfo && groupPaymentInfo.length > 0);
+          }
+        } else {
+          const { data: existingPaymentInfo } = await supabaseClient
+            .from('booking_payment_infos')
+            .select('id')
+            .eq('booking_id', bookingId)
+            .maybeSingle();
+          hasPaymentMethod = !!existingPaymentInfo;
+        }
 
         if (isExternal && !hasPaymentMethod && !isOffert && sendPaymentLink === false) {
           // Admin-created bookings (sendPaymentLink === false): do NOT auto-send

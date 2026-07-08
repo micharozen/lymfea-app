@@ -4,6 +4,10 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { PaymentLinkForm, BookingData } from "@/components/booking/PaymentLinkForm";
 import { CheckCircle2 } from "lucide-react";
+import {
+  isPartnerBilledClientType,
+  type BookingClientType,
+} from "@/lib/clientTypeMeta";
 
 interface SuccessStepProps {
   booking: BookingData;
@@ -11,6 +15,7 @@ interface SuccessStepProps {
   clientFirstName: string;
   clientLastName: string;
   isOffert?: boolean;
+  clientType: BookingClientType;
 }
 
 export function SuccessStep({
@@ -19,9 +24,21 @@ export function SuccessStep({
   clientFirstName,
   clientLastName,
   isOffert = false,
+  clientType,
 }: SuccessStepProps) {
   const navigate = useNavigate();
   const { t } = useTranslation("pwa");
+
+  // Lien de paiement uniquement pour un client "externe" (encaissement carte).
+  // hotel = facturé en chambre, partenaires = facturés en fin de mois → pas de lien.
+  const showPaymentLink = !isOffert && clientType === "external";
+  const settlementNote = isOffert
+    ? null
+    : clientType === "hotel"
+      ? t("newBooking.settlement.room", "Facturé en chambre")
+      : isPartnerBilledClientType(clientType)
+        ? t("newBooking.settlement.partner", "Facturé au partenaire")
+        : null;
 
   useEffect(() => {
     navigator.vibrate?.([100, 50, 100]);
@@ -48,22 +65,27 @@ export function SuccessStep({
           Réservation #{bookingId} pour {clientFirstName}{" "}
           {clientLastName}
         </p>
+        {settlementNote && (
+          <span className="text-[11px] font-medium text-primary bg-primary/10 rounded-full px-2.5 py-0.5">
+            {settlementNote}
+          </span>
+        )}
       </div>
 
-      {isOffert ? (
-        <Button
-          className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
-          onClick={() => navigate("/pwa/dashboard")}
-        >
-          {t("newBooking.backToDashboard", "Retour au tableau de bord")}
-        </Button>
-      ) : (
+      {showPaymentLink ? (
         <PaymentLinkForm
           booking={booking}
           onSuccess={() => navigate("/pwa/dashboard")}
           onSkip={() => navigate("/pwa/dashboard")}
           showSkipButton
         />
+      ) : (
+        <Button
+          className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+          onClick={() => navigate("/pwa/dashboard")}
+        >
+          {t("newBooking.backToDashboard", "Retour au tableau de bord")}
+        </Button>
       )}
     </div>
   );

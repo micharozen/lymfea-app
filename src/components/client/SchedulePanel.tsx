@@ -18,7 +18,7 @@ import { useFeasibleAddons } from '@/hooks/client/useFeasibleAddons';
 import { useQuery } from '@tanstack/react-query';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { PerItemScheduler } from '@/components/client/PerItemScheduler';
-import { buildMultiBookingItems, totalTreatmentCount } from '@/lib/multiTimeBooking';
+import { buildMultiBookingItems, expandBaseUnits, totalTreatmentCount } from '@/lib/multiTimeBooking';
 import { DatePillsRow } from '@/components/client/scheduler/DatePillsRow';
 import { useDateOptions } from '@/components/client/scheduler/useDateOptions';
 import { useTimeSlots } from '@/components/client/scheduler/useTimeSlots';
@@ -597,9 +597,8 @@ export function SchedulePanel({
   // The handler still shows a "coming soon" toast — payment lands in PR2.
   const allItemsScheduled = useMemo(() => {
     if (scheduleMode !== 'per_item') return true;
-    return baseItems.every((it) => {
-      const k = it.variantId ? `${it.id}__${it.variantId}` : it.id;
-      const slot = perItemSchedule[k];
+    return expandBaseUnits(baseItems).every(({ unitKey }) => {
+      const slot = perItemSchedule[unitKey];
       return !!slot?.date && !!slot?.time;
     });
   }, [scheduleMode, baseItems, perItemSchedule]);

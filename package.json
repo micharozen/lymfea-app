@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:iphone": "bash scripts/dev-iphone.sh",
     "build": "vite build && node scripts/prerender-landing.mjs",
     "build:noprerender": "vite build",
     "build:dev": "vite build --mode development",

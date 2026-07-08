@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addDays, format, parse } from 'date-fns';
 import { enUS, fr } from 'date-fns/locale';
@@ -14,13 +14,13 @@ import { useDateOptions } from '@/components/client/scheduler/useDateOptions';
 import { useTimeSlots } from '@/components/client/scheduler/useTimeSlots';
 import {
   type BasketItem,
-  getCartKey,
 } from '@/pages/client/context/CartContext';
 import {
   type BookingDateTime,
   type PerItemSchedule,
   type TherapistGender,
 } from '@/pages/client/context/FlowContext';
+import { expandBaseUnits } from '@/lib/multiTimeBooking';
 
 interface VenueData {
   openingMinutes: number;
@@ -67,76 +67,82 @@ export function PerItemScheduler({
   cartAllowedDays,
   maxDaysAhead,
 }: PerItemSchedulerProps) {
+  // Expand quantity into individual schedulable units so a line with quantity 2
+  // yields two distinct date+time cards (one booking each).
+  const units = useMemo(() => expandBaseUnits(baseItems), [baseItems]);
+
   const firstIncompleteKey = useMemo(() => {
-    for (const item of baseItems) {
-      const k = getCartKey(item.id, item.variantId);
-      if (!isComplete(perItemSchedule[k])) return k;
+    for (const { unitKey } of units) {
+      if (!isComplete(perItemSchedule[unitKey])) return unitKey;
     }
     return null;
-    // Only seed once per baseItems shape; subsequent advance is driven by handleSlotChange.
+    // Only seed once per units shape; subsequent advance is driven by handleSlotChange.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseItems]);
+  }, [units]);
 
   const [openKey, setOpenKey] = useState<string | null>(firstIncompleteKey);
 
-  // If items appear/disappear later, keep openKey valid.
+  // If units appear/disappear later, keep openKey valid.
   useEffect(() => {
     if (!openKey) return;
-    const stillExists = baseItems.some(
-      (b) => getCartKey(b.id, b.variantId) === openKey,
-    );
+    const stillExists = units.some((u) => u.unitKey === openKey);
     if (!stillExists) setOpenKey(firstIncompleteKey);
-  }, [baseItems, openKey, firstIncompleteKey]);
+  }, [units, openKey, firstIncompleteKey]);
 
   const advanceFrom = (currentKey: string) => {
-    const idx = baseItems.findIndex(
-      (b) => getCartKey(b.id, b.variantId) === currentKey,
-    );
-    // Look forward from the next item, then wrap around for any earlier incomplete cards.
+    const idx = units.findIndex((u) => u.unitKey === currentKey);
+    // Look forward from the next unit, then wrap around for any earlier incomplete cards.
     const ordered = [
-      ...baseItems.slice(idx + 1),
-      ...baseItems.slice(0, idx),
+      ...units.slice(idx + 1),
+      ...units.slice(0, idx),
     ];
-    for (const item of ordered) {
-      const k = getCartKey(item.id, item.variantId);
-      if (!isComplete(perItemSchedule[k])) {
-        setOpenKey(k);
+    for (const { unitKey } of ordered) {
+      if (!isComplete(perItemSchedule[unitKey])) {
+        setOpenKey(unitKey);
         return;
       }
     }
     setOpenKey(null);
   };
 
+  // Delay the auto-collapse so the user sees their pick register (highlighted
+  // slot + checkmark) before the card gently folds away.
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+  }, []);
+
   const handleSlotChange = (key: string, dt: BookingDateTime | null) => {
     setItemSchedule(key, dt);
-    if (isComplete(dt)) advanceFrom(key);
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    if (isComplete(dt)) {
+      advanceTimer.current = setTimeout(() => advanceFrom(key), 650);
+    }
   };
 
   return (
     <div className="space-y-3">
-      {baseItems.map((item) => {
-        const key = getCartKey(item.id, item.variantId);
+      {units.map(({ item, unitKey, unitIndex, unitCount }) => {
         const otherHolds = Object.entries(perItemSchedule)
-          .filter(([k, dt]) => k !== key && !!dt.date && !!dt.time)
+          .filter(([k, dt]) => k !== unitKey && !!dt.date && !!dt.time)
           .map(([k, dt]) => {
-            const other = baseItems.find(
-              (b) => getCartKey(b.id, b.variantId) === k,
-            );
+            const other = units.find((u) => u.unitKey === k);
             return {
               date: dt.date,
               time: dt.time,
-              duration: (other?.duration ?? 30) * (other?.quantity ?? 1),
+              duration: other?.item.duration ?? 30,
             };
           });
         return (
           <ItemSlotCard
-            key={key}
-            cartKey={key}
+            key={unitKey}
+            cartKey={unitKey}
             item={item}
-            currentSlot={perItemSchedule[key] ?? null}
-            isOpen={openKey === key}
-            onToggle={() => setOpenKey((prev) => (prev === key ? null : key))}
-            onChange={(dt) => handleSlotChange(key, dt)}
+            unitLabel={unitCount > 1 ? `${unitIndex + 1}/${unitCount}` : null}
+            currentSlot={perItemSchedule[unitKey] ?? null}
+            isOpen={openKey === unitKey}
+            onToggle={() => setOpenKey((prev) => (prev === unitKey ? null : unitKey))}
+            onChange={(dt) => handleSlotChange(unitKey, dt)}
             hotelId={hotelId}
             therapistGender={therapistGender}
             venueData={venueData}
@@ -154,6 +160,8 @@ export function PerItemScheduler({
 interface ItemSlotCardProps {
   cartKey: string;
   item: BasketItem;
+  /** e.g. "1/2" when the treatment has multiple instances; null otherwise. */
+  unitLabel: string | null;
   currentSlot: BookingDateTime | null;
   isOpen: boolean;
   onToggle: () => void;
@@ -170,6 +178,7 @@ interface ItemSlotCardProps {
 function ItemSlotCard({
   cartKey,
   item,
+  unitLabel,
   currentSlot,
   isOpen,
   onToggle,
@@ -187,7 +196,8 @@ function ItemSlotCard({
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
-  const itemDuration = (item.duration || 30) * (item.quantity || 1);
+  // One unit = one instance, so its duration is the treatment's own duration.
+  const itemDuration = item.duration || 30;
   const requiredGuestCount = item.guestCount && item.guestCount > 1 ? item.guestCount : 1;
   const pendingHoldsKey = JSON.stringify(pendingHolds);
   const slotComplete = isComplete(currentSlot);
@@ -331,6 +341,9 @@ function ItemSlotCard({
               <CheckCircle2 className="h-4 w-4 text-gold-500 shrink-0" aria-hidden />
             )}
             <div className="text-sm font-medium text-gray-900 truncate">{item.name}</div>
+            {unitLabel && (
+              <span className="text-[11px] font-medium text-gray-400 shrink-0">{unitLabel}</span>
+            )}
           </div>
           <div className="text-[11px] uppercase tracking-widest text-gray-400 mt-0.5">
             {itemDuration} min
@@ -358,7 +371,7 @@ function ItemSlotCard({
 
       {/* Smooth expand/collapse via CSS grid animation — no layout jump */}
       <div
-        className="grid transition-[grid-template-rows] duration-300 ease-in-out"
+        className="grid transition-[grid-template-rows] duration-500 ease-in-out"
         style={{ gridTemplateRows: isOpen ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden">

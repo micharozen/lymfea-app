@@ -211,16 +211,19 @@ async function insertSingleBooking(
   }
 
   if (booking && allTherapistIds.length > 0) {
-    // upsert (ignore duplicates) : évite la violation de UNIQUE(booking_id, therapist_id)
-    // si le même praticien est déjà lié à la réservation (retry / course avec accept_booking).
-    const { error: btError } = await supabase.from("booking_therapists" as any).upsert(
-      allTherapistIds.map((tid: string) => ({
+    // Insert simple (pas d'upsert) : la réservation vient d'être créée, aucune ligne
+    // booking_therapists ne peut préexister. On évite `ON CONFLICT DO NOTHING`, qui
+    // exigerait une policy SELECT satisfaite côté thérapeute (RLS) — celle-ci dépend
+    // de is_booking_participant, faux tant que la ligne n'existe pas → erreur 42501.
+    // On dédoublonne les IDs en amont par sûreté (UNIQUE(booking_id, therapist_id)).
+    const uniqueTherapistIds = Array.from(new Set(allTherapistIds));
+    const { error: btError } = await supabase.from("booking_therapists" as any).insert(
+      uniqueTherapistIds.map((tid: string) => ({
         booking_id: booking.id,
         therapist_id: tid,
         status: "accepted",
         assigned_at: new Date().toISOString(),
       })),
-      { onConflict: "booking_id,therapist_id", ignoreDuplicates: true },
     );
     if (btError) throw new Error(`Erreur lors de l'assignation des praticiens: ${btError.message}`);
   }

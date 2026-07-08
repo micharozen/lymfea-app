@@ -337,6 +337,9 @@
     "backToDashboard": "Back to dashboard",
     "selectHotel": "Select a venue",
     "bookingCreated": "Booking created!",
+    "createdToast": "Booking created",
+    "createError": "Booking creation failed",
+    "outOfHoursSurcharge": "Out-of-hours surcharge",
     "offert": {
       "label": "Complimentary (free)",
       "helper": "This booking is complimentary: no payment, price set to 0.",
@@ -354,7 +357,17 @@
     "assignToOther": "Assign to another therapist",
     "selectTherapist": "Select a therapist",
     "loadingTherapists": "Loading…",
-    "noOtherTherapist": "No other therapist"
+    "noOtherTherapist": "No other therapist",
+    "priceOverride": {
+      "label": "Price per treatment",
+      "modified": "edited",
+      "count_one": "{{count}} edited",
+      "count_other": "{{count}} edited"
+    },
+    "settlement": {
+      "room": "Charged to room",
+      "partner": "Billed to partner"
+    }
   },
   "tabs": {
     "home": "Home",
