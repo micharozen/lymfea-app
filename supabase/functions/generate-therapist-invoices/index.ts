@@ -480,7 +480,7 @@ const generateForTherapistHotel = async (
   const endStr = periodEnd.toISOString().slice(0, 10);
 
   const bookingSelect =
-    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, booking_treatments(treatment_menus(name, duration))";
+    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, booking_treatments(therapist_id, treatment_menus(name, duration))";
   const applyEligibility = (q: any) =>
     q
       .eq("hotel_id", hotel.id)
@@ -559,13 +559,24 @@ const generateForTherapistHotel = async (
   let missingRateCount = 0;
   for (const b of eligibleBookings) {
     const treatments = ((b as any).booking_treatments || []) as Array<{
+      therapist_id?: string | null;
       treatment_menus?: { name?: string | null; duration?: number | null } | null;
     }>;
+    // When the stable soin↔therapist link is present, this therapist is paid on
+    // the sum of THEIR soins; otherwise fall back to the booking duration (or the
+    // total treatment duration). Only used when no payout row exists (see below).
+    const linkedDuration = treatments.some((bt) => bt.therapist_id != null)
+      ? treatments
+          .filter((bt) => bt.therapist_id === therapist.id)
+          .reduce((sum, bt) => sum + (bt.treatment_menus?.duration || 0), 0)
+      : 0;
     const treatmentsDuration = treatments.reduce(
       (sum, bt) => sum + (bt.treatment_menus?.duration || 0),
       0,
     );
-    const dur = (b as any).duration && (b as any).duration > 0
+    const dur = linkedDuration > 0
+      ? linkedDuration
+      : (b as any).duration && (b as any).duration > 0
       ? (b as any).duration
       : treatmentsDuration;
     const label =

@@ -5,6 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType } from "@/lib/clientTypePayment";
 import { composePhoneNumber, languageFromCountryCode } from "@/lib/phone";
+import { therapistForTreatment } from "@/lib/therapistForTreatment";
 
 interface Hotel {
   id: string;
@@ -194,18 +195,25 @@ async function insertSingleBooking(
   if (error) throw error;
 
   if (d.treatments && d.treatments.length > 0) {
+    const count = d.treatments.length;
     const { error: te } = await supabase.from("booking_treatments").insert(
-      d.treatments.map((t) => ({
+      d.treatments.map((t, i) => ({
         booking_id: booking.id,
         treatment_id: t.treatmentId,
         variant_id: t.variantId || null,
         price_override: t.priceOverride ?? null,
+        therapist_id: therapistForTreatment(i, count, guestCount, allTherapistIds),
       })),
     );
     if (te) throw te;
   } else if (d.treatmentIds.length) {
+    const count = d.treatmentIds.length;
     const { error: te } = await supabase.from("booking_treatments").insert(
-      d.treatmentIds.map((tid: string) => ({ booking_id: booking.id, treatment_id: tid })),
+      d.treatmentIds.map((tid: string, i: number) => ({
+        booking_id: booking.id,
+        treatment_id: tid,
+        therapist_id: therapistForTreatment(i, count, guestCount, allTherapistIds),
+      })),
     );
     if (te) throw te;
   }

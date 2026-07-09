@@ -408,6 +408,7 @@ export async function handleConfirmSetupIntent(
         await supabase.from("bookings").update({
           booking_group_id: multiGroupId,
           therapist_id: null,
+          source: "client",
           is_out_of_hours: slotSurcharge.isOutOfHours,
           surcharge_amount: slotSurcharge.surchargeAmount,
           payment_status: bookingPaymentStatus,
@@ -460,6 +461,7 @@ export async function handleConfirmSetupIntent(
         room_number: meta.roomNumber || null,
         client_note: meta.note || null,
         status: "pending",
+        source: "client",
         payment_method: "card",
         payment_status: bookingPaymentStatus,
         customer_id: customerId,
@@ -604,6 +606,7 @@ export async function handleConfirmSetupIntent(
       bookingId = fallbackId;
       await supabase.from("bookings").update({
         therapist_id: null,
+        source: "client",
         is_out_of_hours: surcharge.isOutOfHours,
         surcharge_amount: surcharge.surchargeAmount,
         payment_status: bookingPaymentStatus,
@@ -619,6 +622,7 @@ export async function handleConfirmSetupIntent(
           room_number: meta.roomNumber || null,
           client_note: meta.note || null,
           status: "pending",
+          source: "client",
           payment_method: "card",
           payment_status: bookingPaymentStatus,
           total_price: verifiedPrice,
@@ -658,6 +662,7 @@ export async function handleConfirmSetupIntent(
     bookingId = newBookingId;
     await supabase.from("bookings").update({
       therapist_id: null,
+      source: "client",
       is_out_of_hours: surcharge.isOutOfHours,
       surcharge_amount: surcharge.surchargeAmount,
       payment_status: bookingPaymentStatus,

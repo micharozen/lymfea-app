@@ -35,7 +35,13 @@ export interface PayoutLeg {
 
 export interface BuildPayoutLegsParams {
   therapists: PayoutTherapist[];
-  treatments: { duration: number | null }[];
+  /**
+   * Treatments with their duration and, when available, the stable soin↔therapist
+   * link (booking_treatments.therapist_id). When every treatment carries it, each
+   * therapist is paid on the sum of THEIR soins; otherwise the positional mapping
+   * is used (legacy/broadcast rows).
+   */
+  treatments: { duration: number | null; therapist_id?: string | null }[];
   guestCount: number;
   isOutOfHours: boolean;
   /** Venue out_of_hours_surcharge_percent (only applied when isOutOfHours). */
@@ -142,9 +148,21 @@ export function buildTherapistPayoutLegs(
 
   const pct = isOutOfHours ? (Number(surchargePercent) || 0) : 0;
 
-  // Duration per therapist: duo → positional; solo → total treatment duration.
+  // Duration per therapist. Prefer the stable soin↔therapist link
+  // (booking_treatments.therapist_id) when every treatment carries it: each
+  // therapist is paid on the sum of THEIR soins (unifies solo & duo). Falls back
+  // to the positional mapping for legacy/broadcast rows where the link is absent.
+  const linkComplete = treatments.length > 0 && treatments.every((t) => t.therapist_id != null);
   const isDuo = ordered.length > 1;
-  const durationByTherapist = isDuo
+  const durationByTherapist = linkComplete
+    ? ordered.map((t) => ({
+        therapistId: t.therapist_id,
+        duration: treatments
+          .filter((tr) => tr.therapist_id === t.therapist_id)
+          .reduce((sum, tr) => sum + (tr.duration || 0), 0),
+        index: 0,
+      }))
+    : isDuo
     ? computeDuoLegs(ordered.map((t) => t.therapist_id), treatments, guestCount)
     : ordered.map((t) => ({
         therapistId: t.therapist_id,

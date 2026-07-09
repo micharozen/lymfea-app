@@ -514,7 +514,7 @@ const App = () => {
                         </div>
                         <VenueModeBanner />
                         <SubscriptionBanner />
-                        <main className="flex-1 min-h-0 overflow-y-auto md:pr-6">
+                        <main className="flex-1 min-h-0 overflow-y-auto scrollbar-subtle md:pr-6">
                           <Suspense fallback={
                             <div className="flex items-center justify-center h-full min-h-[50vh]">
                               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />

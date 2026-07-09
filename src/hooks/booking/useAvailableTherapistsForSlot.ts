@@ -18,6 +18,9 @@ interface UseAvailableTherapistsForSlotParams {
   time: string;
   durationMinutes: number;
   treatmentIds?: string[];
+  /** Booking to ignore in the overlap computation (e.g. when converting it to duo,
+   * its own already-assigned therapist must not mark itself as busy). */
+  excludeBookingId?: string;
 }
 
 const ACTIVE_STATUSES = ["Actif", "active", "Active"];
@@ -42,13 +45,14 @@ export function useAvailableTherapistsForSlot({
   time,
   durationMinutes,
   treatmentIds,
+  excludeBookingId,
 }: UseAvailableTherapistsForSlotParams) {
   const dateStr = date ? format(date, "yyyy-MM-dd") : "";
   const enabled = !!hotelId && !!dateStr && !!time && durationMinutes > 0;
   const sortedTreatmentIds = [...(treatmentIds || [])].sort();
 
   return useQuery({
-    queryKey: ["available-therapists-for-slot", hotelId, dateStr, time, durationMinutes, sortedTreatmentIds],
+    queryKey: ["available-therapists-for-slot", hotelId, dateStr, time, durationMinutes, sortedTreatmentIds, excludeBookingId ?? null],
     enabled,
     staleTime: 30_000,
     queryFn: async (): Promise<AvailableTherapist[]> => {
@@ -83,7 +87,7 @@ export function useAvailableTherapistsForSlot({
       // 3. Récupérer les réservations pour vérifier les chevauchements
       const { data: sameDayBookings, error: bookingsError } = await supabase
         .from("bookings")
-        .select("therapist_id, booking_time, duration, status")
+        .select("id, therapist_id, booking_time, duration, status")
         .eq("hotel_id", hotelId)
         .eq("booking_date", dateStr)
         .not("therapist_id", "is", null);
@@ -96,6 +100,7 @@ export function useAvailableTherapistsForSlot({
 
       (sameDayBookings || []).forEach((b) => {
         if (!b.therapist_id || isExcludedStatus(b.status)) return;
+        if (excludeBookingId && b.id === excludeBookingId) return;
         const bStart = timeToMinutes(b.booking_time);
         const bEnd = bStart + (b.duration || 60) + turnoverBuffer;
         if (bStart < requestedEnd && bEnd > requestedStart) busyTherapistIds.add(b.therapist_id);
@@ -104,12 +109,13 @@ export function useAvailableTherapistsForSlot({
       // 4. Vérifier aussi la table booking_therapists (soins duo)
       const { data: multipleBookings } = await supabase
         .from("booking_therapists")
-        .select("therapist_id, bookings!inner(booking_time, duration, status, booking_date)")
+        .select("therapist_id, booking_id, bookings!inner(booking_time, duration, status, booking_date)")
         .eq("bookings.booking_date", dateStr)
         .eq("status", "accepted");
 
-      (multipleBookings || []).forEach((bt: { therapist_id: string; bookings: { booking_time: string; duration: number | null; status: string } }) => {
+      (multipleBookings || []).forEach((bt: { therapist_id: string; booking_id: string; bookings: { booking_time: string; duration: number | null; status: string } }) => {
         if (isExcludedStatus(bt.bookings.status)) return;
+        if (excludeBookingId && bt.booking_id === excludeBookingId) return;
         const bStart = timeToMinutes(bt.bookings.booking_time);
         const bEnd = bStart + (bt.bookings.duration || 60) + turnoverBuffer;
         if (bStart < requestedEnd && bEnd > requestedStart) busyTherapistIds.add(bt.therapist_id);

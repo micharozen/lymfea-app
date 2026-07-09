@@ -642,6 +642,7 @@ export type Database = {
           created_at: string
           id: string
           price_override: number | null
+          therapist_id: string | null
           treatment_id: string
           variant_id: string | null
         }
@@ -650,6 +651,7 @@ export type Database = {
           created_at?: string
           id?: string
           price_override?: number | null
+          therapist_id?: string | null
           treatment_id: string
           variant_id?: string | null
         }
@@ -658,6 +660,7 @@ export type Database = {
           created_at?: string
           id?: string
           price_override?: number | null
+          therapist_id?: string | null
           treatment_id?: string
           variant_id?: string | null
         }
@@ -667,6 +670,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_treatments_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "therapists"
             referencedColumns: ["id"]
           },
           {

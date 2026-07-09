@@ -1016,6 +1016,27 @@
       "optional": "(optional)",
       "madame": "Mrs",
       "monsieur": "Mr"
+    },
+    "convertToDuo": {
+      "button": "Convert to duo",
+      "title": "Convert to duo",
+      "description": "The {{count}} treatments will run in parallel, each with its own practitioner. This conversion is final.",
+      "treatmentPickerLabel": "{{name}} · {{duration}} min",
+      "durationHelper": "Duration: max of treatments → {{duration}} min",
+      "modeAssignTitle": "Assign",
+      "modeBroadcastTitle": "Broadcast",
+      "modeBroadcastHelper": "Practitioners will be assigned on acceptance.",
+      "secondaryRoomLabel": "Secondary room",
+      "roomCapacityWarning": "This room already looks busy for this slot.",
+      "noTherapistAvailable": "No practitioner available",
+      "duplicateWarning": "A practitioner cannot perform two parallel treatments.",
+      "submitAssign": "Convert and assign",
+      "submitBroadcast": "Convert and broadcast",
+      "cancel": "Cancel",
+      "successAssign": "Booking converted to duo.",
+      "successBroadcast": "Duo broadcast to practitioners.",
+      "error": "Failed to convert to duo.",
+      "notificationWarning": "Conversion done, but sending notifications failed."
     }
   },
   "phoneBooking": {
