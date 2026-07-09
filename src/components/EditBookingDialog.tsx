@@ -26,6 +26,7 @@ import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { therapistForTreatment } from "@/lib/therapistForTreatment";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { useAvailableRooms } from "@/hooks/booking/useAvailableRooms";
 import {
@@ -755,12 +756,23 @@ export default function EditBookingDialog({
       if (deleteTreatmentsError) throw deleteTreatmentsError;
 
       if (bookingData.treatments && bookingData.treatments.length > 0) {
+        // Ce delete+re-insert effacerait le lien stable soin↔thérapeute
+        // (booking_treatments.therapist_id) — on le repose, même convention
+        // positionnelle qu'à la création.
+        const editGuestCount = booking?.guest_count ?? 1;
+        const editTherapistIds: string[] = bookingData.therapistIds?.length
+          ? bookingData.therapistIds.filter(Boolean)
+          : bookingData.therapist_id
+          ? [bookingData.therapist_id]
+          : [];
+        const treatmentCount = bookingData.treatments.length;
         const treatmentInserts = bookingData.treatments.map(
-          (t: { treatmentId: string; variantId?: string | null; priceOverride?: number | null }) => ({
+          (t: { treatmentId: string; variantId?: string | null; priceOverride?: number | null }, i: number) => ({
             booking_id: booking.id,
             treatment_id: t.treatmentId,
             variant_id: t.variantId ?? null,
             price_override: t.priceOverride ?? null,
+            therapist_id: therapistForTreatment(i, treatmentCount, editGuestCount, editTherapistIds),
           })
         );
 

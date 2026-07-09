@@ -5,6 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType } from "@/lib/clientTypePayment";
 import { composePhoneNumber, languageFromCountryCode } from "@/lib/phone";
+import { therapistForTreatment } from "@/lib/therapistForTreatment";
 
 interface Hotel {
   id: string;
@@ -98,24 +99,6 @@ function resolveAssignment(
       ? `${primaryTherapist.first_name} ${primaryTherapist.last_name}`
       : null,
   };
-}
-
-/**
- * Stable soin↔therapist link at creation. Combo-duo (N soins = N invités) → therapist[i]
- * does treatment[i]. Solo (guest_count ≤ 1) → the single therapist does every line.
- * Shared-duo (1 soin, N thérapeutes) or broadcast → NULL (roster is the source there).
- */
-function therapistForTreatment(
-  index: number,
-  treatmentCount: number,
-  guestCount: number,
-  allTherapistIds: string[],
-): string | null {
-  if (allTherapistIds.length === 0) return null;
-  const perTreatment = treatmentCount === guestCount && guestCount > 0;
-  if (perTreatment) return allTherapistIds[index] ?? null;
-  if (guestCount <= 1) return allTherapistIds[0] ?? null;
-  return null;
 }
 
 interface UseCreateBookingMutationOptions {
