@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { HandHeart, Pencil, Loader2, Check, X, DoorClosed } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,6 +40,16 @@ interface TreatmentsByTherapistProps {
   onReassigned: () => void;
 }
 
+// Accent par thérapeute (indexé sur l'ordre des groupes) : anneau d'avatar +
+// bordure gauche des lignes — lecture instantanée de « qui fait quoi » en duo.
+const GROUP_ACCENTS = [
+  { avatar: "bg-violet-50 text-violet-700 ring-violet-200", border: "border-l-violet-300" },
+  { avatar: "bg-sky-50 text-sky-700 ring-sky-200", border: "border-l-sky-300" },
+  { avatar: "bg-rose-50 text-rose-700 ring-rose-200", border: "border-l-rose-300" },
+  { avatar: "bg-emerald-50 text-emerald-700 ring-emerald-200", border: "border-l-emerald-300" },
+] as const;
+const UNASSIGNED_ACCENT = { avatar: "bg-stone-100 text-stone-500 ring-stone-200", border: "border-l-stone-300" } as const;
+
 interface TherapistGroup {
   /** Effective therapist id for the group. null = unassigned soins. */
   therapistId: string | null;
@@ -76,6 +87,7 @@ export function TreatmentsByTherapist({
   surchargePercent = 0,
   onReassigned,
 }: TreatmentsByTherapistProps) {
+  const navigate = useNavigate();
   const showEarnings = globalTherapistCommission !== undefined;
   const { reassign, loading: reassigning } = useReassignTreatmentTherapists();
   // bookingTreatmentId of the soin line currently being reassigned (null = none).
@@ -215,26 +227,29 @@ export function TreatmentsByTherapist({
   };
 
   return (
-    <section className="bg-white rounded-xl border p-6 shadow-sm">
-      <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4 flex items-center gap-2">
+    <section className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
+      <h3 className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase mb-4 flex items-center gap-2">
         <HandHeart className="h-4 w-4" /> Soins & Praticien{guestCount > 1 ? "s" : ""}
       </h3>
 
       <div className="space-y-3">
-        {groups.map((group) => {
+        {groups.map((group, groupIndex) => {
+          const accent = group.therapistId
+            ? GROUP_ACCENTS[groupIndex % GROUP_ACCENTS.length]
+            : UNASSIGNED_ACCENT;
           return (
             <div
               key={group.therapistId ?? "unassigned"}
-              className="rounded-lg border border-gray-100 bg-gray-50/60 overflow-hidden"
+              className={`rounded-lg border border-gray-100 border-l-2 ${accent.border} bg-gray-50/60 overflow-hidden`}
             >
               {/* En-tête thérapeute */}
               <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/40 border-b border-gray-100">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
+                  <div className={`h-9 w-9 rounded-full ring-2 ${accent.avatar} flex items-center justify-center font-medium shrink-0`}>
                     {group.therapistName?.charAt(0) || "?"}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-sm truncate">{group.therapistName}</p>
+                    <p className="font-medium text-sm truncate">{group.therapistName}</p>
                     {group.room && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <DoorClosed className="h-3 w-3" /> {group.room}
@@ -247,7 +262,16 @@ export function TreatmentsByTherapist({
                   <div className="text-right shrink-0">
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Gain</p>
                     {group.earnings != null ? (
-                      <p className="text-sm font-semibold">{formatPrice(group.earnings, currency)}</p>
+                      <p className="text-sm font-medium text-amber-700 tabular-nums">{formatPrice(group.earnings, currency)}</p>
+                    ) : group.therapistId ? (
+                      <button
+                        type="button"
+                        className="text-[11px] text-amber-600 underline underline-offset-2 hover:text-amber-700"
+                        onClick={() => navigate(`/admin/therapists/${group.therapistId}`)}
+                        title="Renseigner les tarifs du thérapeute"
+                      >
+                        Compléter les tarifs
+                      </button>
                     ) : (
                       <p className="text-[11px] text-amber-600">Tarifs incomplets</p>
                     )}
@@ -261,16 +285,16 @@ export function TreatmentsByTherapist({
                   const lineId = line.bookingTreatmentId;
                   const isEditingLine = !!lineId && editingLineId === lineId;
                   return (
-                    <div key={lineId || i} className="px-4 py-2.5">
+                    <div key={lineId || i} className={`px-4 py-2.5 transition-colors ${isEditingLine ? "bg-blue-50/50" : ""}`}>
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-sm min-w-0">
-                          {line.name}
+                        <span className="text-sm min-w-0 flex flex-col">
+                          <span>{line.name}</span>
                           {line.duration ? (
-                            <span className="text-muted-foreground"> · {line.duration} min</span>
+                            <span className="text-xs text-muted-foreground">{line.duration} min</span>
                           ) : null}
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-sm font-semibold whitespace-nowrap">
+                          <span className="text-sm font-medium whitespace-nowrap">
                             {formatPrice(line.price ?? 0, currency)}
                           </span>
                           {!isEditingLine && lineId && (

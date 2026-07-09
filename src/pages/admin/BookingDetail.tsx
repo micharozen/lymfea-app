@@ -8,12 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/StatusBadge";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Loader2, ArrowLeft, User, Users, Phone,
-  Calendar, Clock, Building2,
+  Loader2, ArrowLeft, User, Users, Banknote, Gift, Ticket, Smartphone,
+  Calendar, Clock, Building2, MoreHorizontal, ChevronDown,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
   FileText, CreditCard, ListTodo
@@ -25,19 +23,21 @@ import { ConvertToDuoDialog } from "@/components/admin/booking/ConvertToDuoDialo
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
 import { BookingNotesSection } from "@/components/admin/details/BookingNotesSection";
 import { BookingAmenitiesSection } from "@/components/admin/details/BookingAmenitiesSection";
-import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from "@/components/ui/sheet";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { formatPrice } from "@/lib/formatPrice";
+import { getBookingStatusConfig } from "@/utils/statusStyles";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -69,6 +69,49 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   partner_billed: "Facturé au partenaire (fin de mois)",
 };
 
+const PAYMENT_METHOD_ICONS: Record<string, typeof CreditCard> = {
+  room: Building2,
+  card: CreditCard,
+  cash: Banknote,
+  tap_to_pay: Smartphone,
+  offert: Gift,
+  gift_amount: Gift,
+  voucher: Ticket,
+  partner_billed: Building2,
+};
+
+// Hex → pastille : la couleur vient de statusStyles, le rendu est un point +
+// label (moins de bruit visuel que deux badges pleins côte à côte).
+function StatusDot({ hexColor, label, pulse, muted }: { hexColor: string; label: string; pulse?: boolean; muted?: boolean }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-xs font-medium ${muted ? "text-gray-400 line-through" : "text-gray-700"}`}>
+      <span
+        className={`h-1.5 w-1.5 rounded-full shrink-0 ${pulse ? "animate-pulse" : ""}`}
+        style={{ backgroundColor: hexColor }}
+      />
+      {label}
+    </span>
+  );
+}
+
+/** Regroupe les états open/close des dialogues de la page (aucune logique métier). */
+function useBookingDetailDialogs() {
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
+  const [isMarkPaidOpen, setIsMarkPaidOpen] = useState(false);
+  const [isSignatureOpen, setIsSignatureOpen] = useState(false);
+  const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
+  const [isConvertToDuoOpen, setIsConvertToDuoOpen] = useState(false);
+  return {
+    isEditOpen, setIsEditOpen,
+    isPaymentLinkOpen, setIsPaymentLinkOpen,
+    isMarkPaidOpen, setIsMarkPaidOpen,
+    isSignatureOpen, setIsSignatureOpen,
+    isInvoicePreviewOpen, setIsInvoicePreviewOpen,
+    isConvertToDuoOpen, setIsConvertToDuoOpen,
+  };
+}
+
 export default function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -76,20 +119,16 @@ export default function BookingDetail() {
   const { t } = useTranslation('admin');
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
 
-  const [activeTab, setActiveTab] = useState("details");
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
-  const [isMarkPaidOpen, setIsMarkPaidOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("history");
+  const dialogs = useBookingDetailDialogs();
   const [markPaidMethod, setMarkPaidMethod] = useState<string>("");
   const [markPaidLoading, setMarkPaidLoading] = useState(false);
-  const [isSignatureOpen, setIsSignatureOpen] = useState(false);
-  const [isNotesOpen, setIsNotesOpen] = useState(false);
-  const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
   const [invoiceHTML, setInvoiceHTML] = useState("");
   const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
   const [invoiceIsRoomPayment, setInvoiceIsRoomPayment] = useState(false);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
+  const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
   const [bundleInfo, setBundleInfo] = useState<{
     bundleName: string;
     remainingSessions: number;
@@ -99,11 +138,10 @@ export default function BookingDetail() {
   const [hotelCommission, setHotelCommission] = useState<{ therapist_commission: number; global_therapist_commission: boolean } | null>(null);
   const [acceptedTherapists, setAcceptedTherapists] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
   const [therapistRefreshKey, setTherapistRefreshKey] = useState(0);
-  const [isConvertToDuoOpen, setIsConvertToDuoOpen] = useState(false);
 
   const { bookings, therapists, getHotelInfo, refetch } = useBookingData();
-  const isLoading = !bookings; 
-  
+  const isLoading = !bookings;
+
   const booking = bookings?.find((b) => b.id === id);
 
   // Fetch bundle info when booking has a bundle_usage_id
@@ -230,7 +268,7 @@ export default function BookingDetail() {
 
   const hotelInfo = getHotelInfo(booking.hotel_id);
   const currency = hotelInfo?.currency || 'EUR';
-  
+
   // Réservation offerte : prix forcé à 0 (sinon le fallback ci-dessous
   // réafficherait le prix réel des soins).
   const isOffert = booking.payment_status === "offert";
@@ -277,9 +315,11 @@ export default function BookingDetail() {
   const giftPaid = ((booking as any).gift_amount_applied_cents ?? 0) / 100;
   const paidAmount = isPaid ? displayPrice : Math.min(giftPaid, displayPrice);
   const remainingDue = Math.max(displayPrice - paidAmount, 0);
+  const paidRatio = displayPrice > 0 ? Math.min(paidAmount / displayPrice, 1) : (isPaid || isOffert ? 1 : 0);
   const methodLabel = booking.payment_method
     ? (PAYMENT_METHOD_LABELS[booking.payment_method] || booking.payment_method)
     : "À définir";
+  const MethodIcon = booking.payment_method ? (PAYMENT_METHOD_ICONS[booking.payment_method] ?? CreditCard) : CreditCard;
 
   const cancellationDetail =
     booking.status === "cancelled" && paymentMeta?.cancelled_at
@@ -292,6 +332,21 @@ export default function BookingDetail() {
   const paidAtDetail = paymentMeta?.payment_at
     ? format(new Date(paymentMeta.payment_at), "d MMM à HH:mm", { locale: fr })
     : undefined;
+
+  const bookingStatusConfig = getBookingStatusConfig(booking.status);
+
+  const canSendPaymentLink = !isConcierge && !isPartnerBilled && !cardSavedToCharge && !isPaid && !isOffert;
+  const showInvoice = booking.status === "completed";
+  const invoiceLabel = booking.stripe_invoice_url
+    ? "Facture"
+    : booking.payment_method === "room" ? "Bon de prestation" : "Facture";
+  // Une seule action primaire, dictée par l'état du booking : terminé → facture,
+  // impayé → encaisser, sinon → modifier.
+  const primaryAction: "invoice" | "payment" | "edit" = showInvoice
+    ? "invoice"
+    : canSendPaymentLink
+      ? "payment"
+      : "edit";
 
   const handleMarkAsPaid = async () => {
     if (!booking || !markPaidMethod) return;
@@ -309,7 +364,7 @@ export default function BookingDetail() {
         .update({ payment_at: new Date().toISOString() })
         .eq("booking_id", booking.id);
       toast.success("Paiement enregistré.");
-      setIsMarkPaidOpen(false);
+      dialogs.setIsMarkPaidOpen(false);
       refetch();
     } catch (err: any) {
       console.error(err);
@@ -327,17 +382,17 @@ export default function BookingDetail() {
         .update({
           client_signature: signatureData,
           signed_at: new Date().toISOString(),
-          status: booking.status === 'confirmed' ? 'completed' : booking.status 
+          status: booking.status === 'confirmed' ? 'completed' : booking.status
         })
         .eq("id", booking.id);
 
       if (error) throw error;
-      
+
       toast.success("Signature ajoutée avec succès au dossier !");
-      setIsSignatureOpen(false);
-      
+      dialogs.setIsSignatureOpen(false);
+
       refetch();
-      
+
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Erreur lors de l'enregistrement de la signature");
@@ -365,445 +420,415 @@ export default function BookingDetail() {
     setInvoiceHTML(data.html);
     setInvoiceBookingId(Number(data.bookingId));
     setInvoiceIsRoomPayment(booking.payment_method === "room");
-    setIsInvoicePreviewOpen(true);
+    dialogs.setIsInvoicePreviewOpen(true);
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 pb-20">
-      <header className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="flex-shrink-0">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            <span className="hidden sm:inline">Retour</span>
-          </Button>
-        </div>
-
-        <div className="flex flex-1 items-center gap-3 justify-center flex-wrap min-w-0">
-          <h1 className="text-xl font-bold text-gray-900 whitespace-nowrap">Réservation #{booking.booking_id}</h1>
-          <ClientTypeBadge clientType={(booking as any).client_type || (booking.room_number ? "hotel" : "external")} />
-          {booking.room_number && booking.room_number !== "TBD" ? (
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-              Ch. {booking.room_number}
-            </Badge>
-          ) : (booking as any).client_type === "hotel" && (
-            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-              <AlertCircle className="w-3 h-3 mr-1" />
-              Chambre à renseigner
-            </Badge>
-          )}
-          <StatusBadge status={booking.status} type="booking" className="no-underline" />
-          <StatusBadge
-            status={booking.payment_status || "pending"}
-            type="payment"
-            customLabel={paymentLabel}
-          />
-          {isDuo && (
-            <span className="inline-flex items-center rounded-md border font-medium h-6 px-2 text-xs gap-1.5 bg-purple-100 text-purple-800 border-purple-200">
-              <Users className="w-3.5 h-3.5 shrink-0" />
-              Duo {acceptedTherapists.length}/{guestCount}
-            </span>
-          )}
-          {bundleInfo && (
-            <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-xs">
-              <Package className="w-3 h-3 mr-1" />
-              {t('cures.bundleSession')} — {bundleInfo.bundleName} ({t('cures.remainingCount', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })})
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
-            <MessageSquare className="h-4 w-4 mr-2" /> Notes
-          </Button> */}
-          {booking.status === "completed" && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleInvoiceClick}
-                  disabled={invoiceLoading}
-                >
-                  {invoiceLoading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <FileText className="h-4 w-4 mr-2" />
-                  )}
-                  {booking.stripe_invoice_url
-                    ? "Facture"
-                    : booking.payment_method === "room"
-                      ? "Bon"
-                      : "Facture"}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {booking.stripe_invoice_url
-                  ? "Voir la facture Stripe"
-                  : booking.payment_method === "room"
-                    ? "Télécharger le Bon de Prestation"
-                    : "Aperçu de la facture (PDF)"}
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {!isConcierge && !isPartnerBilled && !cardSavedToCharge && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={isPaid ? 0 : -1} className={isPaid ? "cursor-not-allowed" : undefined}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsPaymentLinkOpen(true)}
-                    disabled={isPaid}
-                    className={isPaid ? "pointer-events-none" : undefined}
-                  >
-                    <Send className="h-4 w-4 mr-2" /> Paiement
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              {isPaid && (
-                <TooltipContent>
-                  Paiement déjà effectué pour cette réservation
-                </TooltipContent>
-              )}
-            </Tooltip>
-          )}
-          {canConvertToDuo && (
-            <Button variant="outline" size="sm" onClick={() => setIsConvertToDuoOpen(true)}>
-              <Users className="h-4 w-4 mr-2" /> {t("booking.convertToDuo.button")}
+    <div className="flex flex-col min-h-screen bg-stone-50 pb-20">
+      <header className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-stone-200 px-6 py-3">
+        <div className="flex items-start justify-between gap-4 max-w-6xl mx-auto w-full">
+          <div className="flex items-start gap-3 min-w-0">
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="flex-shrink-0 mt-0.5 -ml-2">
+              <ArrowLeft className="h-4 w-4" />
+              <span className="sr-only">Retour</span>
             </Button>
-          )}
-          <Button variant="default" size="sm" onClick={() => setIsEditOpen(true)}>
-            <Pencil className="h-4 w-4 mr-2" /> Modifier
-          </Button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-3 flex-wrap min-w-0">
+                <h1 className="font-serif text-2xl leading-tight text-gray-900 truncate">
+                  {booking.client_first_name} {booking.client_last_name}
+                </h1>
+                <span className="text-lg text-gray-400 whitespace-nowrap">#{booking.booking_id}</span>
+                <StatusDot
+                  hexColor={bookingStatusConfig.hexColor}
+                  label={bookingStatusConfig.label}
+                  pulse={bookingStatusConfig.pulse}
+                  muted={booking.status === "cancelled"}
+                />
+                <StatusDot
+                  hexColor={isPaid ? "#22c55e" : isPartnerBilled ? "#6366f1" : "#eab308"}
+                  label={paymentLabel}
+                />
+              </div>
+              <p className="mt-0.5 text-xs text-gray-500 flex items-center gap-1.5 flex-wrap">
+                <span>{clientType === "hotel" ? "Client hôtel" : "Client externe"}</span>
+                {booking.room_number && booking.room_number !== "TBD" ? (
+                  <><span className="text-gray-300">·</span><span>Ch. {booking.room_number}</span></>
+                ) : clientType === "hotel" && (
+                  <><span className="text-gray-300">·</span><span className="text-amber-600">Chambre à renseigner</span></>
+                )}
+                {isDuo && (
+                  <><span className="text-gray-300">·</span>
+                  <span className="inline-flex items-center gap-1 text-purple-700">
+                    <Users className="w-3 h-3" /> Duo {acceptedTherapists.length}/{guestCount}
+                  </span></>
+                )}
+                {bundleInfo && (
+                  <><span className="text-gray-300">·</span>
+                  <span className="inline-flex items-center gap-1 text-amber-700">
+                    <Package className="w-3 h-3" />
+                    {t('cures.bundleSession')} — {bundleInfo.bundleName} ({t('cures.remainingCount', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })})
+                  </span></>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {primaryAction === "invoice" && (
+              <Button variant="default" size="sm" onClick={handleInvoiceClick} disabled={invoiceLoading}>
+                {invoiceLabel}
+                {invoiceLoading ? <Loader2 className="h-4 w-4 ml-2 animate-spin" /> : <FileText className="h-4 w-4 ml-2" />}
+              </Button>
+            )}
+            {primaryAction === "payment" && (
+              <Button variant="default" size="sm" onClick={() => dialogs.setIsPaymentLinkOpen(true)}>
+                Envoyer le paiement <Send className="h-4 w-4 ml-2" />
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-md border-stone-200 px-2.5 text-xs text-stone-700 hover:bg-stone-50 hover:text-stone-900 [&_svg]:size-3.5"
+              onClick={() => dialogs.setIsEditOpen(true)}
+            >
+              Modifier <Pencil />
+            </Button>
+            {(canConvertToDuo || (showInvoice && primaryAction !== "invoice") || (!isSigned && !isConcierge)) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="px-2">
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">Plus d'actions</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canConvertToDuo && (
+                    <DropdownMenuItem onClick={() => dialogs.setIsConvertToDuoOpen(true)}>
+                      <Users className="h-4 w-4 mr-2" /> {t("booking.convertToDuo.button")}
+                    </DropdownMenuItem>
+                  )}
+                  {!isSigned && !isConcierge && (
+                    <DropdownMenuItem onClick={() => dialogs.setIsSignatureOpen(true)}>
+                      <PenTool className="h-4 w-4 mr-2" /> Demander la signature
+                    </DropdownMenuItem>
+                  )}
+                  {showInvoice && primaryAction !== "invoice" && (
+                    <DropdownMenuItem onClick={handleInvoiceClick} disabled={invoiceLoading}>
+                      <FileText className="h-4 w-4 mr-2" /> {invoiceLabel}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 p-6 max-w-4xl mx-auto w-full space-y-4">
+      <main className="flex-1 p-6 max-w-6xl mx-auto w-full space-y-6">
         <BookingStatusStepper status={booking.status} paymentStatus={booking.payment_status || "pending"} cancellationDetail={cancellationDetail} />
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="details">Détails</TabsTrigger>
-            <TabsTrigger value="history" className="gap-1.5">
-              <History className="h-3.5 w-3.5" />
-              Historique
-            </TabsTrigger>
 
-            <TabsTrigger value="notes" className="gap-1.5">
-              <MessageSquare className="h-3.5 w-3.5" />
-              Notes
-            </TabsTrigger>
-
-            {!isConcierge && (
-              <TabsTrigger value="tasks" className="gap-1.5">
-                <ListTodo className="h-3.5 w-3.5" />
-                {t("tasks.bookingTab.label")}
-              </TabsTrigger>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {/* Colonne principale : le « quoi » — soins, thérapeutes, client, activité */}
+          <div className="lg:col-span-2 space-y-6 min-w-0">
+            {!isSigned && !isConcierge && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2.5 text-red-800">
+                <div className="flex items-center gap-2 min-w-0">
+                  <AlertCircle className="h-3.5 w-3.5 text-red-600 flex-shrink-0" />
+                  <span className="font-medium text-xs truncate">Décharge non signée</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 flex-shrink-0 px-2 text-xs text-purple-600 border-purple-200 bg-white hover:bg-purple-50 hover:text-purple-700 [&_svg]:size-3.5"
+                  onClick={() => dialogs.setIsSignatureOpen(true)}
+                >
+                  <PenTool className="mr-1" /> Signature
+                </Button>
+              </div>
             )}
-          </TabsList>
+            {isSigned && (
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-3 text-blue-800">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <CheckCircle2 className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                  <span className="font-medium text-sm truncate">Décharge signée</span>
+                </div>
+                <span className="text-xs opacity-70">
+                  Le {format(new Date(booking.signed_at), "d MMM à HH:mm", { locale: fr })}
+                </span>
+              </div>
+            )}
 
-          <TabsContent value="details" className="space-y-4 mt-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {showPaymentSuccess ? (
-          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-green-800">
-            <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-            <span className="font-medium text-sm">
-              Le paiement a été réalisé avec succès.
-              {paidAtDetail && (
-                <span className="font-normal opacity-70"> — le {paidAtDetail}</span>
-              )}
-            </span>
-          </div>
-        ) : isRoomPayment ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-blue-800">
-            <Building2 className="h-4 w-4 text-blue-600 flex-shrink-0" />
-            <span className="font-medium text-sm">Facturé en chambre.</span>
-          </div>
-        ) : isPartnerBilled ? (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-indigo-800">
-            <CheckCircle2 className="h-4 w-4 text-indigo-600 flex-shrink-0" />
-            <span className="font-medium text-sm">Paiement géré par le partenaire (facturation mensuelle).</span>
-          </div>
-        ) : (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2.5 text-amber-800">
-            <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-            <span className="font-medium text-sm">En attente de règlement.</span>
-          </div>
-        )}
+            <TreatmentsByTherapist
+              bookingId={booking.id}
+              hotelId={booking.hotel_id}
+              guestCount={guestCount}
+              treatments={booking.treatments ?? []}
+              primaryTherapistId={booking.therapist_id}
+              acceptedTherapists={acceptedTherapists}
+              roomName={booking.room_name}
+              secondaryRoomName={booking.secondary_room_name}
+              currency={currency}
+              therapistRatesMap={therapistRatesMap}
+              globalTherapistCommission={hotelCommission?.global_therapist_commission}
+              therapistCommission={hotelCommission?.therapist_commission}
+              surchargePercent={surchargePercent}
+              onReassigned={() => { refetch(); setTherapistRefreshKey((k) => k + 1); }}
+            />
 
-        {isSigned ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 text-blue-800">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <CheckCircle2 className="h-4 w-4 text-blue-600 flex-shrink-0" />
-              <span className="font-medium text-sm truncate">Décharge signée</span>
-            </div>
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <span className="text-xs opacity-70 hidden lg:inline">
-                Le {format(new Date(booking.signed_at), "d MMM à HH:mm", { locale: fr })}
-              </span>
-              {!isConcierge && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span tabIndex={0} className="cursor-not-allowed">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled
-                        className="pointer-events-none text-green-600 border-green-200 bg-green-50"
+            <section
+              onClick={() => (booking as any).customer_id && navigate(`/admin/customers/${(booking as any).customer_id}`)}
+              className={`bg-white rounded-2xl border border-stone-100 p-6 shadow-sm transition-all duration-200 ${(booking as any).customer_id ? 'cursor-pointer hover:border-primary/50 hover:shadow-md group' : ''}`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase flex items-center gap-2">
+                  <User className="h-4 w-4" /> Client
+                </h3>
+                {(booking as any).customer_id && (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 translate-x-[-10px] group-hover:translate-x-0" />
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Nom</p>
+                  <p className="font-medium">{booking.client_first_name} {booking.client_last_name}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-500">Contact</p>
+                  <p className="text-sm break-words">
+                    {booking.phone || "-"} /{" "}
+                    {booking.client_email ? (
+                      <a
+                        href={`mailto:${booking.client_email}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-primary hover:underline"
                       >
-                        <CheckCircle2 className="h-4 w-4 mr-2" /> Signé
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Décharge déjà signée
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 text-red-800">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-              <span className="font-medium text-sm truncate">Décharge non signée</span>
-            </div>
-            {!isConcierge && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-shrink-0 text-purple-600 border-purple-200 bg-white hover:bg-purple-50 hover:text-purple-700"
-                onClick={() => setIsSignatureOpen(true)}
-              >
-                <PenTool className="h-4 w-4 mr-2" /> Signature
-              </Button>
-            )}
-          </div>
-        )}
-        </div>
-
-        {/* Ligne 1 : soins par thérapeute | rendez-vous */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 items-start">
-          <TreatmentsByTherapist
-            bookingId={booking.id}
-            hotelId={booking.hotel_id}
-            guestCount={guestCount}
-            treatments={booking.treatments ?? []}
-            primaryTherapistId={booking.therapist_id}
-            acceptedTherapists={acceptedTherapists}
-            roomName={booking.room_name}
-            secondaryRoomName={booking.secondary_room_name}
-            currency={currency}
-            therapistRatesMap={therapistRatesMap}
-            globalTherapistCommission={hotelCommission?.global_therapist_commission}
-            therapistCommission={hotelCommission?.therapist_commission}
-            surchargePercent={surchargePercent}
-            onReassigned={() => { refetch(); setTherapistRefreshKey((k) => k + 1); }}
-          />
-
-          <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <div className="flex items-center gap-2.5 mb-5">
-              <Calendar className="h-5 w-5 text-gray-400" />
-              <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Rendez-vous</span>
-            </div>
-            <dl className="divide-y divide-gray-100">
-              <div className="flex items-center justify-between gap-4 py-2.5">
-                <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Date</dt>
-                <dd className="text-sm font-medium text-gray-900 text-right capitalize">
-                  {booking.booking_date ? format(new Date(booking.booking_date), "EEEE d MMMM", { locale: fr }) : "-"}
-                </dd>
+                        {booking.client_email}
+                      </a>
+                    ) : (
+                      "-"
+                    )}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center justify-between gap-4 py-2.5">
-                <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Horaire</dt>
-                <dd className="text-sm font-medium text-gray-900 text-right">
-                  {booking.booking_time?.substring(0, 5) || "-"}{totalDuration > 0 && ` · ${totalDuration} min`}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-4 py-2.5">
-                <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Lieu</dt>
-                <dd className="text-sm font-medium text-gray-900 text-right break-words">{hotelInfo?.name || "-"}</dd>
-              </div>
-              {!isDuo && booking.room_name && (
-                <div className="flex items-center justify-between gap-4 py-2.5">
-                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Cabine</dt>
-                  <dd className="text-sm font-medium text-gray-900 text-right break-words">{booking.room_name}</dd>
+              {(booking as any).client_note && (
+                <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{(booking as any).client_note}</p>
                 </div>
               )}
-            </dl>
-          </section>
-        </div>
+            </section>
 
-        {/* Ligne 2 : client | paiement — même largeur, même hauteur */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 items-stretch">
+            <BookingAmenitiesSection bookingId={booking.id} currency={currency} />
 
-          <section
-            onClick={() => (booking as any).customer_id && navigate(`/admin/customers/${(booking as any).customer_id}`)}
-            className={`bg-white rounded-2xl border border-gray-100 p-6 shadow-sm transition-all duration-200 ${(booking as any).customer_id ? 'cursor-pointer hover:border-primary/50 hover:shadow-md group' : ''}`}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase flex items-center gap-2">
-                <User className="h-4 w-4" /> Client
-              </h3>
-              {(booking as any).customer_id && (
-                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 translate-x-[-10px] group-hover:translate-x-0" />
-              )}
-            </div>
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-gray-500">Nom</p>
-                <p className="font-medium">{booking.client_first_name} {booking.client_last_name}</p>
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-gray-500">Contact</p>
-                <p className="text-sm break-words">
-                  {booking.phone || "-"} /{" "}
-                  {booking.client_email ? (
-                    <a
-                      href={`mailto:${booking.client_email}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-primary hover:underline"
-                    >
-                      {booking.client_email}
-                    </a>
-                  ) : (
-                    "-"
+            {/* Zone Activité : historique / notes / tâches en sous-onglets */}
+            <section className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList>
+                  <TabsTrigger value="history" className="gap-1.5">
+                    <History className="h-3.5 w-3.5" />
+                    Historique
+                  </TabsTrigger>
+                  <TabsTrigger value="notes" className="gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Notes
+                  </TabsTrigger>
+                  {!isConcierge && (
+                    <TabsTrigger value="tasks" className="gap-1.5">
+                      <ListTodo className="h-3.5 w-3.5" />
+                      {t("tasks.bookingTab.label")}
+                    </TabsTrigger>
                   )}
-                </p>
+                </TabsList>
+
+                <TabsContent value="history" className="mt-4">
+                  <BookingHistoryTab bookingId={id!} enabled={activeTab === "history"} />
+                </TabsContent>
+
+                <TabsContent value="notes" className="mt-4">
+                  <BookingNotesSection bookingId={id!} />
+                </TabsContent>
+
+                {!isConcierge && (
+                  <TabsContent value="tasks" className="mt-4">
+                    <BookingTasksTab
+                      booking={{
+                        id: booking.id,
+                        booking_id: booking.booking_id,
+                        client_first_name: booking.client_first_name,
+                        client_last_name: booking.client_last_name,
+                      }}
+                    />
+                  </TabsContent>
+                )}
+              </Tabs>
+            </section>
+          </div>
+
+          {/* Colonne latérale sticky : le « combien / où / quand » */}
+          <div className="space-y-6 lg:sticky lg:top-24">
+            <section className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
+              <div className="flex items-center gap-2.5 mb-4">
+                <CreditCard className="h-5 w-5 text-gray-400" />
+                <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Paiement</span>
               </div>
-            </div>
-            {(booking as any).client_note && (
-              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note</p>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{(booking as any).client_note}</p>
+
+              <div className="flex justify-between items-baseline">
+                <span className="text-sm font-medium text-gray-500">Total</span>
+                <span className="text-2xl font-medium text-gray-900 tabular-nums tracking-tight">{formatPrice(displayPrice, currency)}</span>
               </div>
-            )}
-          </section>
 
-          <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <div className="flex items-center gap-2.5 mb-5">
-              <CreditCard className="h-5 w-5 text-gray-400" />
-              <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Paiement</span>
-            </div>
-
-            <p className="text-sm text-gray-400 mb-1">Méthode</p>
-            <p className="text-lg font-bold text-gray-900 capitalize">{methodLabel}</p>
-            {(booking as any).payment_reference && (
-              <p className="mt-1 font-mono text-[11px] text-gray-400">
-                Réf. voucher : {(booking as any).payment_reference}
-              </p>
-            )}
-
-            <div className="border-t border-gray-100 my-4" />
-
-            <div className="flex justify-between items-center text-base">
-              <span className="text-gray-500">Sous-total</span>
-              <span className="text-gray-500">{formatPrice(subtotal, currency)}</span>
-            </div>
-
-            {hasSurcharge && (
-              <div className="flex justify-between items-center mt-3 text-base font-semibold text-amber-600">
-                <span className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 shrink-0" />
-                  Majoration hors horaires ({surchargePercent}%)
+              <div className="mt-3 h-1.5 rounded-full bg-stone-100 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${paidRatio >= 1 ? "bg-emerald-500" : "bg-amber-500"}`}
+                  style={{ width: `${Math.round(paidRatio * 100)}%` }}
+                />
+              </div>
+              <div className="mt-2 flex justify-between text-sm">
+                <span className="text-gray-500">Payé <span className="font-medium text-gray-900 tabular-nums">{formatPrice(paidAmount, currency)}</span></span>
+                <span className={`font-medium tabular-nums ${remainingDue > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                  {remainingDue > 0 ? `Reste ${formatPrice(remainingDue, currency)}` : "Soldé"}
                 </span>
-                <span className="whitespace-nowrap">+{formatPrice(surchargeAmount, currency)}</span>
               </div>
-            )}
 
-            {isOffert && (
-              <div className="flex justify-between items-center mt-3 text-base font-semibold text-amber-600">
-                <span>Offert</span>
-                <span className="whitespace-nowrap">−{formatPrice(offertOriginalPrice, currency)}</span>
+              <div className="mt-4">
+                {showPaymentSuccess ? (
+                  <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 flex items-center gap-2 text-green-800">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span className="font-medium text-xs">
+                      Paiement réalisé avec succès{paidAtDetail && <span className="font-normal opacity-70"> — le {paidAtDetail}</span>}
+                    </span>
+                  </div>
+                ) : isRoomPayment ? (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-center gap-2 text-blue-800">
+                    <Building2 className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                    <span className="font-medium text-xs">Facturé en chambre.</span>
+                  </div>
+                ) : isPartnerBilled ? (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2 flex items-center gap-2 text-indigo-800">
+                    <CheckCircle2 className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+                    <span className="font-medium text-xs">Paiement géré par le partenaire (facturation mensuelle).</span>
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2 text-amber-800">
+                    <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                    <span className="font-medium text-xs">En attente de règlement.</span>
+                  </div>
+                )}
               </div>
-            )}
 
-            <div className="border-t border-gray-100 my-4" />
+              <Collapsible open={isPaymentDetailOpen} onOpenChange={setIsPaymentDetailOpen} className="mt-4 border-t border-stone-100 pt-3">
+                <CollapsibleTrigger className="flex w-full items-center justify-between text-sm text-gray-500 hover:text-gray-900 transition-colors">
+                  <span>Détail</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isPaymentDetailOpen ? "rotate-180" : ""}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3 space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500 flex items-center gap-2">
+                      <MethodIcon className="h-4 w-4 shrink-0" /> Méthode
+                    </span>
+                    <span className="text-gray-900 font-medium text-right capitalize">{methodLabel}</span>
+                  </div>
+                  {(booking as any).payment_reference && (
+                    <p className="font-mono text-[11px] text-gray-400 text-right">
+                      Réf. voucher : {(booking as any).payment_reference}
+                    </p>
+                  )}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500">Sous-total</span>
+                    <span className="text-gray-900 tabular-nums">{formatPrice(subtotal, currency)}</span>
+                  </div>
+                  {hasSurcharge && (
+                    <div className="flex justify-between items-center text-sm font-medium text-amber-600">
+                      <span className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 shrink-0" />
+                        Majoration hors horaires ({surchargePercent}%)
+                      </span>
+                      <span className="whitespace-nowrap tabular-nums">+{formatPrice(surchargeAmount, currency)}</span>
+                    </div>
+                  )}
+                  {isOffert && (
+                    <div className="flex justify-between items-center text-sm font-medium text-amber-600">
+                      <span>Offert</span>
+                      <span className="whitespace-nowrap tabular-nums">−{formatPrice(offertOriginalPrice, currency)}</span>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
 
-            <div className="flex justify-between items-baseline">
-              <span className="text-lg text-gray-500">Total</span>
-              <span className="text-3xl font-extrabold text-gray-900">{formatPrice(displayPrice, currency)}</span>
-            </div>
+              {!isPaid && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-4"
+                  onClick={() => { setMarkPaidMethod(booking.payment_method ?? ""); dialogs.setIsMarkPaidOpen(true); }}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" /> Marquer comme payé
+                </Button>
+              )}
+            </section>
 
-            <div className="border-t border-gray-100 my-4" />
-
-            <div className="flex justify-between items-baseline">
-              <span className="text-gray-500">Payé</span>
-              <span className="text-base">
-                <span className="font-bold text-gray-900">{formatPrice(paidAmount, currency)}</span>
-                <span className="text-gray-400"> / {formatPrice(displayPrice, currency)}</span>
-              </span>
-            </div>
-
-            <div className="flex justify-between items-baseline mt-3">
-              <span className="text-gray-500">Reste dû</span>
-              <span className={`text-lg font-bold ${remainingDue > 0 ? "text-amber-600" : "text-emerald-600"}`}>
-                {formatPrice(remainingDue, currency)}
-              </span>
-            </div>
-
-            {!isPaid && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-5"
-                onClick={() => { setMarkPaidMethod(booking.payment_method ?? ""); setIsMarkPaidOpen(true); }}
-              >
-                <CheckCircle2 className="h-4 w-4 mr-2" /> Marquer comme payé
-              </Button>
-            )}
-          </section>
+            <section className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
+              <div className="flex items-center gap-2.5 mb-4">
+                <Calendar className="h-5 w-5 text-gray-400" />
+                <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Rendez-vous</span>
+              </div>
+              <dl className="divide-y divide-stone-100">
+                <div className="flex items-center justify-between gap-4 py-2.5">
+                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Date</dt>
+                  <dd className="text-sm font-medium text-gray-900 text-right capitalize">
+                    {booking.booking_date ? format(new Date(booking.booking_date), "EEEE d MMMM", { locale: fr }) : "-"}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 py-2.5">
+                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Horaire</dt>
+                  <dd className="text-sm font-medium text-gray-900 text-right">
+                    {booking.booking_time?.substring(0, 5) || "-"}{totalDuration > 0 && ` · ${totalDuration} min`}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 py-2.5">
+                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Lieu</dt>
+                  <dd className="text-sm font-medium text-gray-900 text-right break-words">{hotelInfo?.name || "-"}</dd>
+                </div>
+                {booking.room_name && (
+                  <div className="flex items-center justify-between gap-4 py-2.5">
+                    <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">
+                      Cabine{isDuo && booking.secondary_room_name ? "s" : ""}
+                    </dt>
+                    <dd className="text-sm font-medium text-gray-900 text-right break-words">
+                      {booking.room_name}
+                      {isDuo && booking.secondary_room_name && ` · ${booking.secondary_room_name}`}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </section>
+          </div>
         </div>
-
-        <BookingAmenitiesSection bookingId={booking.id} currency={currency} />
-
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-4">
-            <BookingHistoryTab bookingId={id!} enabled={activeTab === "history"} />
-          </TabsContent>
-
-          <TabsContent value="notes" className="mt-4">
-          <BookingNotesSection bookingId={id!} />
-          </TabsContent>
-
-          {!isConcierge && booking && (
-            <TabsContent value="tasks" className="mt-4">
-              <BookingTasksTab
-                booking={{
-                  id: booking.id,
-                  booking_id: booking.booking_id,
-                  client_first_name: booking.client_first_name,
-                  client_last_name: booking.client_last_name,
-                }}
-              />
-            </TabsContent>
-          )}
-
-        </Tabs>
       </main>
 
       <EditBookingDialog
-        open={isEditOpen}
-        onOpenChange={setIsEditOpen}
+        open={dialogs.isEditOpen}
+        onOpenChange={dialogs.setIsEditOpen}
         booking={booking}
         initialMode="edit"
         onSuccess={() => setTherapistRefreshKey(k => k + 1)}
       />
 
       <ConvertToDuoDialog
-        open={isConvertToDuoOpen}
-        onOpenChange={setIsConvertToDuoOpen}
+        open={dialogs.isConvertToDuoOpen}
+        onOpenChange={dialogs.setIsConvertToDuoOpen}
         booking={booking}
         therapists={therapists}
         onSuccess={() => { refetch(); setTherapistRefreshKey(k => k + 1); }}
       />
-      
+
       <SendPaymentLinkDialog
-        open={isPaymentLinkOpen}
-        onOpenChange={setIsPaymentLinkOpen}
+        open={dialogs.isPaymentLinkOpen}
+        onOpenChange={dialogs.setIsPaymentLinkOpen}
         booking={booking}
       />
 
-      <Dialog open={isMarkPaidOpen} onOpenChange={setIsMarkPaidOpen}>
+      <Dialog open={dialogs.isMarkPaidOpen} onOpenChange={dialogs.setIsMarkPaidOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Marquer comme payé</DialogTitle></DialogHeader>
           <div className="space-y-2">
@@ -818,7 +843,7 @@ export default function BookingDetail() {
             </Select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsMarkPaidOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => dialogs.setIsMarkPaidOpen(false)}>Annuler</Button>
             <Button onClick={handleMarkAsPaid} disabled={!markPaidMethod || markPaidLoading}>
               {markPaidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Confirmer le paiement
@@ -828,16 +853,16 @@ export default function BookingDetail() {
       </Dialog>
 
       <InvoicePreviewDialog
-        open={isInvoicePreviewOpen}
-        onOpenChange={setIsInvoicePreviewOpen}
+        open={dialogs.isInvoicePreviewOpen}
+        onOpenChange={dialogs.setIsInvoicePreviewOpen}
         invoiceHTML={invoiceHTML}
         bookingId={invoiceBookingId}
         isRoomPayment={invoiceIsRoomPayment}
       />
 
       <InvoiceSignatureDialog
-        open={isSignatureOpen}
-        onOpenChange={setIsSignatureOpen}
+        open={dialogs.isSignatureOpen}
+        onOpenChange={dialogs.setIsSignatureOpen}
         onConfirm={handleSignatureConfirm}
         signatureToken={booking.signature_token}
         loading={signingLoading}
@@ -851,20 +876,6 @@ export default function BookingDetail() {
         isAlreadyPaid={isPaid}
         currency={currency}
       />
-
-      {/* <Sheet open={isNotesOpen} onOpenChange={setIsNotesOpen}>
-        <SheetContent side="right" className="sm:max-w-md flex flex-col">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              Notes internes
-            </SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-hidden px-1">
-            <BookingNotesSection bookingId={id!} />
-          </div>
-        </SheetContent>
-      </Sheet> */}
     </div>
   );
 }
