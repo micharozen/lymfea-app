@@ -100,6 +100,24 @@ function resolveAssignment(
   };
 }
 
+/**
+ * Stable soin↔therapist link at creation. Combo-duo (N soins = N invités) → therapist[i]
+ * does treatment[i]. Solo (guest_count ≤ 1) → the single therapist does every line.
+ * Shared-duo (1 soin, N thérapeutes) or broadcast → NULL (roster is the source there).
+ */
+function therapistForTreatment(
+  index: number,
+  treatmentCount: number,
+  guestCount: number,
+  allTherapistIds: string[],
+): string | null {
+  if (allTherapistIds.length === 0) return null;
+  const perTreatment = treatmentCount === guestCount && guestCount > 0;
+  if (perTreatment) return allTherapistIds[index] ?? null;
+  if (guestCount <= 1) return allTherapistIds[0] ?? null;
+  return null;
+}
+
 interface UseCreateBookingMutationOptions {
   hotels: Hotel[] | undefined;
   therapists: Therapist[] | undefined;
@@ -194,18 +212,25 @@ async function insertSingleBooking(
   if (error) throw error;
 
   if (d.treatments && d.treatments.length > 0) {
+    const count = d.treatments.length;
     const { error: te } = await supabase.from("booking_treatments").insert(
-      d.treatments.map((t) => ({
+      d.treatments.map((t, i) => ({
         booking_id: booking.id,
         treatment_id: t.treatmentId,
         variant_id: t.variantId || null,
         price_override: t.priceOverride ?? null,
+        therapist_id: therapistForTreatment(i, count, guestCount, allTherapistIds),
       })),
     );
     if (te) throw te;
   } else if (d.treatmentIds.length) {
+    const count = d.treatmentIds.length;
     const { error: te } = await supabase.from("booking_treatments").insert(
-      d.treatmentIds.map((tid: string) => ({ booking_id: booking.id, treatment_id: tid })),
+      d.treatmentIds.map((tid: string, i: number) => ({
+        booking_id: booking.id,
+        treatment_id: tid,
+        therapist_id: therapistForTreatment(i, count, guestCount, allTherapistIds),
+      })),
     );
     if (te) throw te;
   }

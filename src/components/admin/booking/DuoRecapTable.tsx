@@ -80,10 +80,14 @@ export function DuoRecapTable({
     // Combo-duo : un soin distinct par invité. Sinon (duo-variante) : soin partagé + montant divisé.
     const perTreatment = treatments.length === guestCount && guestCount > 0;
     const sharedAmount = guestCount > 0 ? displayPrice / guestCount : displayPrice;
+    // Lien stable soin↔thérapeute (combo-duo) : on résout par booking_treatments.therapist_id.
+    // Fallback positionnel (anciens duos sans lien, ou duo-variante partagé).
+    const therapistById = new Map(acceptedTherapists.map((th) => [th.id, th]));
 
     return Array.from({ length: Math.max(guestCount, 1) }, (_, i) => {
       const t = perTreatment ? treatments[i] : treatments[0];
-      const therapist = acceptedTherapists[i];
+      const linkedId = perTreatment ? t?.therapist_id : null;
+      const therapist = (linkedId ? therapistById.get(linkedId) : undefined) ?? acceptedTherapists[i];
 
       // Per-leg therapist earning. Fixed-rate mode uses this therapist's rates
       // and their own treatment duration, uplifted by the out-of-hours surcharge.

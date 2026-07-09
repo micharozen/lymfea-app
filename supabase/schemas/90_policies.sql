@@ -94,6 +94,8 @@ CREATE POLICY "Admins can update admins" ON "public"."admins" FOR UPDATE TO "aut
 
 CREATE POLICY "Admins can update all profiles" ON "public"."profiles" FOR UPDATE USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
 
+CREATE POLICY "Admins can update booking treatments" ON "public"."booking_treatments" FOR UPDATE USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
+
 CREATE POLICY "Admins can update bookings" ON "public"."bookings" FOR UPDATE USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
 
 CREATE POLICY "Admins can update concierge hotels" ON "public"."concierge_hotels" FOR UPDATE TO "authenticated" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
@@ -233,6 +235,14 @@ CREATE POLICY "Concierges can manage venue amenities for their hotels" ON "publi
 CREATE POLICY "Concierges can update amenity bookings for their hotels" ON "public"."amenity_bookings" FOR UPDATE USING (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
    FROM "public"."get_concierge_hotels"("auth"."uid"()) "get_concierge_hotels"("hotel_id"))))) WITH CHECK (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
    FROM "public"."get_concierge_hotels"("auth"."uid"()) "get_concierge_hotels"("hotel_id")))));
+
+CREATE POLICY "Concierges can update booking treatments for their hotels" ON "public"."booking_treatments" FOR UPDATE USING (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("booking_id" IN ( SELECT "b"."id"
+   FROM "public"."bookings" "b"
+  WHERE ("b"."hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
+           FROM "public"."get_concierge_hotels"("auth"."uid"()) "get_concierge_hotels"("hotel_id"))))))) WITH CHECK (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("booking_id" IN ( SELECT "b"."id"
+   FROM "public"."bookings" "b"
+  WHERE ("b"."hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
+           FROM "public"."get_concierge_hotels"("auth"."uid"()) "get_concierge_hotels"("hotel_id")))))));
 
 CREATE POLICY "Concierges can update bookings from their hotels" ON "public"."bookings" FOR UPDATE USING (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
    FROM "public"."get_concierge_hotels"("auth"."uid"()) "get_concierge_hotels"("hotel_id"))))) WITH CHECK (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
