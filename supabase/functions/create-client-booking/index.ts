@@ -279,6 +279,7 @@ async function handleMultiBookingConfirm(
         client_note: sanitizedClientData.note,
         language: clientLanguage,
         status: bookingStatus,
+        source: 'client',
         payment_method: effectivePaymentMethod,
         payment_status: effectivePaymentStatus,
         total_price: itemTotal,
@@ -825,6 +826,16 @@ try {
     }
 
     console.log('Booking treatments ready');
+
+    // Tag the booking as originating from the client booking flow. bookings.source
+    // defaults to 'admin', and this function (the only caller) never overrode it —
+    // so online client bookings were previously indistinguishable from staff entries.
+    // Covers all single-mode sub-paths (draft update, expired-draft fallback, atomic reserve).
+    const { error: sourceErr } = await supabase
+      .from('bookings')
+      .update({ source: 'client' })
+      .eq('id', bookingId);
+    if (sourceErr) console.error('Failed to tag booking source=client (non-blocking):', sourceErr);
 
     // Persister les flags de majoration hors horaires sur la réservation
     if (!isOffert && !hasPriceOnRequest && (surcharge.isOutOfHours || surcharge.surchargeAmount > 0)) {
