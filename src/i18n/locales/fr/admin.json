@@ -1016,6 +1016,27 @@
       "optional": "(optionnel)",
       "madame": "Madame",
       "monsieur": "Monsieur"
+    },
+    "convertToDuo": {
+      "button": "Convertir en duo",
+      "title": "Convertir en duo",
+      "description": "Les {{count}} soins se dérouleront en parallèle, chacun avec son praticien. Conversion définitive.",
+      "treatmentPickerLabel": "{{name}} · {{duration}} min",
+      "durationHelper": "Durée : max des soins → {{duration}} min",
+      "modeAssignTitle": "Assigner",
+      "modeBroadcastTitle": "Diffuser",
+      "modeBroadcastHelper": "Les praticiens seront affectés à l'acceptation.",
+      "secondaryRoomLabel": "Salle secondaire",
+      "roomCapacityWarning": "Cette salle semble déjà occupée sur ce créneau.",
+      "noTherapistAvailable": "Aucun praticien disponible",
+      "duplicateWarning": "Un praticien ne peut pas faire deux soins en parallèle.",
+      "submitAssign": "Convertir et assigner",
+      "submitBroadcast": "Convertir et diffuser",
+      "cancel": "Annuler",
+      "successAssign": "Réservation convertie en duo.",
+      "successBroadcast": "Duo diffusé aux praticiens.",
+      "error": "Erreur lors de la conversion en duo.",
+      "notificationWarning": "Conversion effectuée, mais l'envoi des notifications a échoué."
     }
   },
   "phoneBooking": {

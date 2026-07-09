@@ -13,16 +13,18 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, User, Users, Phone,
-  Calendar, Clock, Building2, HandHeart,
+  Calendar, Clock, Building2,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
   FileText, CreditCard, ListTodo
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingTasksTab } from "@/components/admin/tasks/BookingTasksTab";
-import { DuoRecapTable } from "@/components/admin/booking/DuoRecapTable";
+import { TreatmentsByTherapist } from "@/components/admin/booking/TreatmentsByTherapist";
+import { ConvertToDuoDialog } from "@/components/admin/booking/ConvertToDuoDialog";
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
 import { BookingNotesSection } from "@/components/admin/details/BookingNotesSection";
+import { BookingAmenitiesSection } from "@/components/admin/details/BookingAmenitiesSection";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -43,11 +45,7 @@ import { useBookingData } from "@/hooks/booking/useBookingData";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
-import {
-  computeTherapistEarnings,
-  hasCompleteRates,
-  type TherapistRates,
-} from "@/lib/therapistEarnings";
+import { type TherapistRates } from "@/lib/therapistEarnings";
 
 const PAYMENT_LABELS: Record<string, string> = {
   pending: "Paiement en attente",
@@ -101,8 +99,9 @@ export default function BookingDetail() {
   const [hotelCommission, setHotelCommission] = useState<{ therapist_commission: number; global_therapist_commission: boolean } | null>(null);
   const [acceptedTherapists, setAcceptedTherapists] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
   const [therapistRefreshKey, setTherapistRefreshKey] = useState(0);
+  const [isConvertToDuoOpen, setIsConvertToDuoOpen] = useState(false);
 
-  const { bookings, getHotelInfo, refetch } = useBookingData();
+  const { bookings, therapists, getHotelInfo, refetch } = useBookingData();
   const isLoading = !bookings; 
   
   const booking = bookings?.find((b) => b.id === id);
@@ -254,10 +253,12 @@ export default function BookingDetail() {
   const totalDuration = booking.totalDuration || booking.treatmentsTotalDuration || 0;
   const guestCount = (booking as any)?.guest_count ?? 1;
   const isDuo = guestCount > 1;
-  const soloRates = !isDuo && booking.therapist_id ? (therapistRatesMap[booking.therapist_id] ?? null) : null;
-  const therapistEarnings = computeTherapistEarnings(soloRates, totalDuration, { surchargePercent });
-  const ratesComplete = hasCompleteRates(soloRates);
-  const showEarnings = !isDuo && !!booking.therapist_id && Object.keys(therapistRatesMap).length > 0;
+  // One-way conversion solo → duo (dispatch a therapist per soin). Requires ≥ 2
+  // soins and a live booking. awaiting_hairdresser_selection was removed.
+  const canConvertToDuo =
+    !isDuo &&
+    (booking.treatments?.length ?? 0) > 1 &&
+    ["pending", "confirmed"].includes(booking.status);
   const clientType = (booking as any).client_type || (booking.room_number ? "hotel" : "external");
   const isExternal = clientType === "external";
   const paymentInfos = booking.booking_payment_infos;
@@ -466,6 +467,11 @@ export default function BookingDetail() {
               )}
             </Tooltip>
           )}
+          {canConvertToDuo && (
+            <Button variant="outline" size="sm" onClick={() => setIsConvertToDuoOpen(true)}>
+              <Users className="h-4 w-4 mr-2" /> {t("booking.convertToDuo.button")}
+            </Button>
+          )}
           <Button variant="default" size="sm" onClick={() => setIsEditOpen(true)}>
             <Pencil className="h-4 w-4 mr-2" /> Modifier
           </Button>
@@ -575,231 +581,179 @@ export default function BookingDetail() {
         )}
         </div>
 
-        {isDuo && (
-          <div className="pt-2">
-            <DuoRecapTable
-              treatments={booking.treatments ?? []}
-              acceptedTherapists={acceptedTherapists}
-              guestCount={guestCount}
-              roomName={booking.room_name}
-              secondaryRoomName={booking.secondary_room_name}
-              bookingTime={booking.booking_time}
-              displayPrice={displayPrice}
-              currency={currency}
-              therapistRatesMap={therapistRatesMap}
-              globalTherapistCommission={hotelCommission?.global_therapist_commission}
-              therapistCommission={hotelCommission?.therapist_commission}
-              surchargePercent={surchargePercent}
-            />
-          </div>
-        )}
+        {/* Ligne 1 : soins par thérapeute | rendez-vous */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 items-start">
+          <TreatmentsByTherapist
+            bookingId={booking.id}
+            hotelId={booking.hotel_id}
+            guestCount={guestCount}
+            treatments={booking.treatments ?? []}
+            primaryTherapistId={booking.therapist_id}
+            acceptedTherapists={acceptedTherapists}
+            roomName={booking.room_name}
+            secondaryRoomName={booking.secondary_room_name}
+            currency={currency}
+            therapistRatesMap={therapistRatesMap}
+            globalTherapistCommission={hotelCommission?.global_therapist_commission}
+            therapistCommission={hotelCommission?.therapist_commission}
+            surchargePercent={surchargePercent}
+            onReassigned={() => { refetch(); setTherapistRefreshKey((k) => k + 1); }}
+          />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-
-          <div className="space-y-6">
-
-            <section
-              onClick={() => (booking as any).customer_id && navigate(`/admin/customers/${(booking as any).customer_id}`)}
-              className={`bg-white rounded-xl border p-6 shadow-sm transition-all duration-200 ${(booking as any).customer_id ? 'cursor-pointer hover:border-primary/50 hover:shadow-md group' : ''}`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-muted-foreground uppercase flex items-center gap-2">
-                  <User className="h-4 w-4" /> Client
-                </h3>
-                {(booking as any).customer_id && (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 translate-x-[-10px] group-hover:translate-x-0" />
-                )}
+          <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+            <div className="flex items-center gap-2.5 mb-5">
+              <Calendar className="h-5 w-5 text-gray-400" />
+              <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Rendez-vous</span>
+            </div>
+            <dl className="divide-y divide-gray-100">
+              <div className="flex items-center justify-between gap-4 py-2.5">
+                <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Date</dt>
+                <dd className="text-sm font-medium text-gray-900 text-right capitalize">
+                  {booking.booking_date ? format(new Date(booking.booking_date), "EEEE d MMMM", { locale: fr }) : "-"}
+                </dd>
               </div>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs text-gray-500">Nom</p>
-                  <p className="font-medium">{booking.client_first_name} {booking.client_last_name}</p>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-gray-500">Contact</p>
-                  <p className="text-sm break-words">
-                    {booking.phone || "-"} /{" "}
-                    {booking.client_email ? (
-                      <a
-                        href={`mailto:${booking.client_email}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-primary hover:underline"
-                      >
-                        {booking.client_email}
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </p>
-                </div>
+              <div className="flex items-center justify-between gap-4 py-2.5">
+                <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Horaire</dt>
+                <dd className="text-sm font-medium text-gray-900 text-right">
+                  {booking.booking_time?.substring(0, 5) || "-"}{totalDuration > 0 && ` · ${totalDuration} min`}
+                </dd>
               </div>
-              {(booking as any).client_note && (
-                <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note</p>
-                  <p className="text-sm text-foreground whitespace-pre-wrap">{(booking as any).client_note}</p>
-                </div>
-              )}
-            </section>
-
-            {!isDuo && (
-            <section className="bg-white rounded-xl border p-6 shadow-sm">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4 flex items-center gap-2">
-                <HandHeart className="h-4 w-4" /> Soins & Praticien
-              </h3>
-
-              <div
-                onClick={() => booking.therapist_id && navigate(`/admin/therapists/${booking.therapist_id}`)}
-                className={`mb-4 p-3 bg-muted/30 rounded-lg flex items-center justify-between transition-all duration-200 border border-transparent ${booking.therapist_id ? 'cursor-pointer hover:bg-muted/50 hover:border-primary/40 group' : ''}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                    {booking.therapist_name?.charAt(0) || "?"}
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Thérapeute assigné</p>
-                    <p className="font-semibold text-sm">{booking.therapist_name || "Non assigné"}</p>
-                  </div>
-                </div>
-                {booking.therapist_id && (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-[-10px] group-hover:translate-x-0" />
-                )}
+              <div className="flex items-center justify-between gap-4 py-2.5">
+                <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Lieu</dt>
+                <dd className="text-sm font-medium text-gray-900 text-right break-words">{hotelInfo?.name || "-"}</dd>
               </div>
-
-              <div className="space-y-3">
-                {booking.treatments?.map((t, i) => (
-                  <div key={i} className="flex flex-col gap-1 p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm font-medium">{t.name} ({t.duration} min)</span>
-                    <span className="font-semibold whitespace-nowrap">{formatPrice(t.price || 0, currency)}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-            )}
-          </div>
-
-          <div className="space-y-6">
-            <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-              <div className="flex items-center gap-2.5 mb-5">
-                <Calendar className="h-5 w-5 text-gray-400" />
-                <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Rendez-vous</span>
-              </div>
-              <dl className="divide-y divide-gray-100">
+              {!isDuo && booking.room_name && (
                 <div className="flex items-center justify-between gap-4 py-2.5">
-                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Date</dt>
-                  <dd className="text-sm font-medium text-gray-900 text-right capitalize">
-                    {booking.booking_date ? format(new Date(booking.booking_date), "EEEE d MMMM", { locale: fr }) : "-"}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-4 py-2.5">
-                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Horaire</dt>
-                  <dd className="text-sm font-medium text-gray-900 text-right">
-                    {booking.booking_time?.substring(0, 5) || "-"}{totalDuration > 0 && ` · ${totalDuration} min`}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-4 py-2.5">
-                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Lieu</dt>
-                  <dd className="text-sm font-medium text-gray-900 text-right break-words">{hotelInfo?.name || "-"}</dd>
-                </div>
-                {!isDuo && booking.room_name && (
-                  <div className="flex items-center justify-between gap-4 py-2.5">
-                    <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Cabine</dt>
-                    <dd className="text-sm font-medium text-gray-900 text-right break-words">{booking.room_name}</dd>
-                  </div>
-                )}
-              </dl>
-            </section>
-          </div>
-
-          <div className="space-y-6">
-            <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-              <div className="flex items-center gap-2.5 mb-5">
-                <CreditCard className="h-5 w-5 text-gray-400" />
-                <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Paiement</span>
-              </div>
-
-              <p className="text-sm text-gray-400 mb-1">Méthode</p>
-              <p className="text-lg font-bold text-gray-900 capitalize">{methodLabel}</p>
-              {(booking as any).payment_reference && (
-                <p className="mt-1 font-mono text-[11px] text-gray-400">
-                  Réf. voucher : {(booking as any).payment_reference}
-                </p>
-              )}
-
-              <div className="border-t border-gray-100 my-4" />
-
-              <div className="flex justify-between items-center text-base">
-                <span className="text-gray-500">Sous-total</span>
-                <span className="text-gray-500">{formatPrice(subtotal, currency)}</span>
-              </div>
-
-              {hasSurcharge && (
-                <div className="flex justify-between items-center mt-3 text-base font-semibold text-amber-600">
-                  <span className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 shrink-0" />
-                    Majoration hors horaires ({surchargePercent}%)
-                  </span>
-                  <span className="whitespace-nowrap">+{formatPrice(surchargeAmount, currency)}</span>
+                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Cabine</dt>
+                  <dd className="text-sm font-medium text-gray-900 text-right break-words">{booking.room_name}</dd>
                 </div>
               )}
-
-              {isOffert && (
-                <div className="flex justify-between items-center mt-3 text-base font-semibold text-amber-600">
-                  <span>Offert</span>
-                  <span className="whitespace-nowrap">−{formatPrice(offertOriginalPrice, currency)}</span>
-                </div>
-              )}
-
-              <div className="border-t border-gray-100 my-4" />
-
-              <div className="flex justify-between items-baseline">
-                <span className="text-lg text-gray-500">Total</span>
-                <span className="text-3xl font-extrabold text-gray-900">{formatPrice(displayPrice, currency)}</span>
-              </div>
-
-              <div className="border-t border-gray-100 my-4" />
-
-              <div className="flex justify-between items-baseline">
-                <span className="text-gray-500">Payé</span>
-                <span className="text-base">
-                  <span className="font-bold text-gray-900">{formatPrice(paidAmount, currency)}</span>
-                  <span className="text-gray-400"> / {formatPrice(displayPrice, currency)}</span>
-                </span>
-              </div>
-
-              <div className="flex justify-between items-baseline mt-3">
-                <span className="text-gray-500">Reste dû</span>
-                <span className={`text-lg font-bold ${remainingDue > 0 ? "text-amber-600" : "text-emerald-600"}`}>
-                  {formatPrice(remainingDue, currency)}
-                </span>
-              </div>
-
-              {!isPaid && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full mt-5"
-                  onClick={() => { setMarkPaidMethod(booking.payment_method ?? ""); setIsMarkPaidOpen(true); }}
-                >
-                  <CheckCircle2 className="h-4 w-4 mr-2" /> Marquer comme payé
-                </Button>
-              )}
-            </section>
-
-            {showEarnings && (
-              <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                <div>
-                  <p className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase mb-2">Gain thérapeute</p>
-                  {ratesComplete && therapistEarnings != null ? (
-                    <p className="text-xl font-bold text-gray-900">{formatPrice(therapistEarnings, currency)}</p>
-                  ) : (
-                    <p className="text-xs text-amber-600">Tarifs thérapeute incomplets — gain non calculable</p>
-                  )}
-                </div>
-              </section>
-            )}
-            {/* Duo earnings are shown per therapist in the DuoRecapTable "Gain thérapeute" column above. */}
-          </div>
+            </dl>
+          </section>
         </div>
+
+        {/* Ligne 2 : client | paiement — même largeur, même hauteur */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 items-stretch">
+
+          <section
+            onClick={() => (booking as any).customer_id && navigate(`/admin/customers/${(booking as any).customer_id}`)}
+            className={`bg-white rounded-2xl border border-gray-100 p-6 shadow-sm transition-all duration-200 ${(booking as any).customer_id ? 'cursor-pointer hover:border-primary/50 hover:shadow-md group' : ''}`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-muted-foreground uppercase flex items-center gap-2">
+                <User className="h-4 w-4" /> Client
+              </h3>
+              {(booking as any).customer_id && (
+                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 translate-x-[-10px] group-hover:translate-x-0" />
+              )}
+            </div>
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-gray-500">Nom</p>
+                <p className="font-medium">{booking.client_first_name} {booking.client_last_name}</p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-gray-500">Contact</p>
+                <p className="text-sm break-words">
+                  {booking.phone || "-"} /{" "}
+                  {booking.client_email ? (
+                    <a
+                      href={`mailto:${booking.client_email}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-primary hover:underline"
+                    >
+                      {booking.client_email}
+                    </a>
+                  ) : (
+                    "-"
+                  )}
+                </p>
+              </div>
+            </div>
+            {(booking as any).client_note && (
+              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{(booking as any).client_note}</p>
+              </div>
+            )}
+          </section>
+
+          <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+            <div className="flex items-center gap-2.5 mb-5">
+              <CreditCard className="h-5 w-5 text-gray-400" />
+              <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Paiement</span>
+            </div>
+
+            <p className="text-sm text-gray-400 mb-1">Méthode</p>
+            <p className="text-lg font-bold text-gray-900 capitalize">{methodLabel}</p>
+            {(booking as any).payment_reference && (
+              <p className="mt-1 font-mono text-[11px] text-gray-400">
+                Réf. voucher : {(booking as any).payment_reference}
+              </p>
+            )}
+
+            <div className="border-t border-gray-100 my-4" />
+
+            <div className="flex justify-between items-center text-base">
+              <span className="text-gray-500">Sous-total</span>
+              <span className="text-gray-500">{formatPrice(subtotal, currency)}</span>
+            </div>
+
+            {hasSurcharge && (
+              <div className="flex justify-between items-center mt-3 text-base font-semibold text-amber-600">
+                <span className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 shrink-0" />
+                  Majoration hors horaires ({surchargePercent}%)
+                </span>
+                <span className="whitespace-nowrap">+{formatPrice(surchargeAmount, currency)}</span>
+              </div>
+            )}
+
+            {isOffert && (
+              <div className="flex justify-between items-center mt-3 text-base font-semibold text-amber-600">
+                <span>Offert</span>
+                <span className="whitespace-nowrap">−{formatPrice(offertOriginalPrice, currency)}</span>
+              </div>
+            )}
+
+            <div className="border-t border-gray-100 my-4" />
+
+            <div className="flex justify-between items-baseline">
+              <span className="text-lg text-gray-500">Total</span>
+              <span className="text-3xl font-extrabold text-gray-900">{formatPrice(displayPrice, currency)}</span>
+            </div>
+
+            <div className="border-t border-gray-100 my-4" />
+
+            <div className="flex justify-between items-baseline">
+              <span className="text-gray-500">Payé</span>
+              <span className="text-base">
+                <span className="font-bold text-gray-900">{formatPrice(paidAmount, currency)}</span>
+                <span className="text-gray-400"> / {formatPrice(displayPrice, currency)}</span>
+              </span>
+            </div>
+
+            <div className="flex justify-between items-baseline mt-3">
+              <span className="text-gray-500">Reste dû</span>
+              <span className={`text-lg font-bold ${remainingDue > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                {formatPrice(remainingDue, currency)}
+              </span>
+            </div>
+
+            {!isPaid && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-5"
+                onClick={() => { setMarkPaidMethod(booking.payment_method ?? ""); setIsMarkPaidOpen(true); }}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-2" /> Marquer comme payé
+              </Button>
+            )}
+          </section>
+        </div>
+
+        <BookingAmenitiesSection bookingId={booking.id} currency={currency} />
 
           </TabsContent>
 
@@ -833,6 +787,14 @@ export default function BookingDetail() {
         booking={booking}
         initialMode="edit"
         onSuccess={() => setTherapistRefreshKey(k => k + 1)}
+      />
+
+      <ConvertToDuoDialog
+        open={isConvertToDuoOpen}
+        onOpenChange={setIsConvertToDuoOpen}
+        booking={booking}
+        therapists={therapists}
+        onSuccess={() => { refetch(); setTherapistRefreshKey(k => k + 1); }}
       />
       
       <SendPaymentLinkDialog
