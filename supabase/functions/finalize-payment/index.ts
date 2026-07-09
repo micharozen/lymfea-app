@@ -132,6 +132,7 @@ serve(async (req) => {
         customers(email, first_name, last_name),
         booking_treatments(
           treatment_id,
+          therapist_id,
           treatment_menus(name, price, duration)
         ),
         hotels(
@@ -199,6 +200,7 @@ serve(async (req) => {
     const payoutTherapists = await fetchPayoutTherapists(supabase, booking.id, booking.therapist_id);
     const payoutTreatments = (booking.booking_treatments || []).map((bt: any) => ({
       duration: bt.treatment_menus?.duration ?? null,
+      therapist_id: bt.therapist_id ?? null,
     }));
     const { legs: payoutLegs, totalEarned, totalAmount } = buildTherapistPayoutLegs({
       therapists: payoutTherapists,
