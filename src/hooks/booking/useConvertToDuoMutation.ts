@@ -40,11 +40,25 @@ export function useConvertToDuoMutation(
   return useMutation({
     mutationFn: async (params: ConvertToDuoParams) => {
       const treatments = booking.treatments ?? [];
-      const guestCount = treatments.length;
-      const durations = treatments
-        .map((tr) => tr.duration ?? 0)
-        .filter((d) => d > 0);
-      const newDuration = durations.length > 0 ? Math.max(...durations) : booking.duration ?? 60;
+      // Add-ons are supplements, not guests' soins: they never add a guest, and they
+      // extend the leg of the soin they hang off rather than forming their own.
+      const baseTreatments = treatments.filter((tr) => !tr.is_addon);
+      const addonTreatments = treatments.filter((tr) => tr.is_addon);
+      const guestCount = baseTreatments.length;
+
+      const legDurations = baseTreatments.map((tr) => {
+        const addonMinutes = addonTreatments
+          .filter((a) => a.parent_booking_treatment_id === tr.bookingTreatmentId)
+          .reduce((sum, a) => sum + (a.duration ?? 0), 0);
+        return (tr.duration ?? 0) + addonMinutes;
+      });
+      const orphanMinutes = addonTreatments
+        .filter((a) => !a.parent_booking_treatment_id)
+        .reduce((sum, a) => sum + (a.duration ?? 0), 0);
+      const longestLeg = legDurations.filter((d) => d > 0);
+      const newDuration = longestLeg.length > 0
+        ? Math.max(...longestLeg) + orphanMinutes
+        : booking.duration ?? 60;
 
       // Secondary room only when it genuinely differs from the primary room.
       const secondaryRoomId =
@@ -79,8 +93,19 @@ export function useConvertToDuoMutation(
           .eq("id", booking.id);
         if (bookingError) throw bookingError;
 
-        // 2. Stable soin↔therapist link, per line.
-        for (const a of assignments) {
+        // 2. Stable soin↔therapist link, per line. Each add-on follows the therapist
+        //    of the soin it extends; an orphan add-on goes to the primary.
+        const therapistByLine = new Map(assignments.map((a) => [a.bookingTreatmentId, a.therapistId]));
+        const addonAssignments = addonTreatments
+          .filter((a) => a.bookingTreatmentId)
+          .map((a) => ({
+            bookingTreatmentId: a.bookingTreatmentId!,
+            therapistId:
+              (a.parent_booking_treatment_id && therapistByLine.get(a.parent_booking_treatment_id)) ||
+              assignments[0].therapistId,
+          }));
+
+        for (const a of [...assignments, ...addonAssignments]) {
           const { error } = await supabase
             .from("booking_treatments")
             .update({ therapist_id: a.therapistId })

@@ -1481,5 +1481,63 @@
         "step4": "The admin clicks \"Convert to booking\": a booking is created with status 'pending', ready to be assigned to a therapist."
       }
     }
+  },
+  "checkoutIntents": {
+    "title": "Abandoned carts",
+    "description": "Track guests who started an online booking without completing it",
+    "searchPlaceholder": "Search by name or email...",
+    "noIntents": "No cart found",
+    "noIntentsDescription": "Try adjusting your filters",
+    "neverReminded": "Never",
+    "itemName": "carts",
+    "cartSummary": "{{count}} treatment",
+    "cartSummary_plural": "{{count}} treatments",
+    "columns": {
+      "client": "Guest",
+      "email": "Email",
+      "venue": "Venue",
+      "cart": "Cart",
+      "slot": "Requested slot",
+      "createdAt": "Created",
+      "reminder": "Reminder",
+      "status": "Status"
+    },
+    "status": {
+      "converted": "Converted",
+      "abandoned": "Abandoned"
+    },
+    "filters": {
+      "allVenues": "All venues",
+      "allStatuses": "All statuses",
+      "notReminded": "Abandoned, not reminded",
+      "lastDays": "Last {{count}} days",
+      "allTime": "All time"
+    },
+    "kpis": {
+      "conversionRate": "Conversion rate",
+      "conversionHint": "{{converted}} bookings out of {{total}} carts",
+      "abandonedValue": "Recoverable value",
+      "abandonedValueHint": "across {{count}} abandoned cart",
+      "abandonedValueHint_plural": "across {{count}} abandoned carts",
+      "reminded": "Reminders sent",
+      "remindedHint": "{{count}} cart awaiting a reminder",
+      "remindedHint_plural": "{{count}} carts awaiting a reminder"
+    },
+    "actions": {
+      "previewEmail": "Preview reminder",
+      "openBooking": "Open booking"
+    },
+    "cartDialog": {
+      "title": "Cart details",
+      "client": "Guest",
+      "language": "Language",
+      "roomNumber": "Room",
+      "emptyCart": "Empty or unreadable cart",
+      "total": "Total",
+      "onRequest": "On request",
+      "quantity": "×{{count}}",
+      "guests": "{{count}} guest",
+      "guests_plural": "{{count}} guests"
+    }
   }
 }

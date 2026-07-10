@@ -14,7 +14,7 @@ const corsHeaders = {
  *   demand from Resend (GET /emails/:id), which renders and retains the template.
  *
  * The audit row is read with the caller's JWT so RLS decides whether they may
- * see this booking's history.
+ * see it — admins see every audited entity, therapists only their bookings.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -44,7 +44,6 @@ serve(async (req) => {
       .from("audit_log")
       .select("email_html, resend_email_id")
       .eq("id", auditId)
-      .eq("table_name", "bookings")
       .single();
 
     if (error || !row) {

@@ -6,8 +6,12 @@ import { supabaseAdmin } from "./supabase-admin.ts";
  * booking history (audit_log, change_type='action', action='email_sent').
  */
 export interface EmailAuditInfo {
-  /** bookings.id (uuid) — used as audit_log.record_id */
-  bookingId: string;
+  /** bookings.id (uuid) — shorthand for tableName='bookings' + recordId */
+  bookingId?: string;
+  /** Audited entity, when the email is not attached to a booking */
+  tableName?: string;
+  /** Id of the audited row; falls back to `bookingId` */
+  recordId?: string;
   /** Stable email identifier, e.g. 'booking_confirmation' */
   emailType: string;
   /** Admin/user who triggered the send; null for system/cron sends */
@@ -138,10 +142,16 @@ async function logBookingEmail(
   html: string | null,
   resendId: string | null,
 ): Promise<void> {
+  const recordId = audit.recordId ?? audit.bookingId;
+  if (!recordId) {
+    console.error("[send-email] audit requires bookingId or recordId — skipping history line");
+    return;
+  }
+
   try {
     await supabaseAdmin.from("audit_log").insert({
-      table_name: "bookings",
-      record_id: audit.bookingId,
+      table_name: audit.tableName ?? "bookings",
+      record_id: recordId,
       changed_by: audit.actorUserId ?? null,
       change_type: "action",
       old_values: null,

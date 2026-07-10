@@ -133,6 +133,7 @@ serve(async (req) => {
         booking_treatments(
           treatment_id,
           therapist_id,
+          is_addon,
           treatment_menus(name, price, duration)
         ),
         hotels(
@@ -201,6 +202,7 @@ serve(async (req) => {
     const payoutTreatments = (booking.booking_treatments || []).map((bt: any) => ({
       duration: bt.treatment_menus?.duration ?? null,
       therapist_id: bt.therapist_id ?? null,
+      is_addon: bt.is_addon ?? false,
     }));
     const { legs: payoutLegs, totalEarned, totalAmount } = buildTherapistPayoutLegs({
       therapists: payoutTherapists,

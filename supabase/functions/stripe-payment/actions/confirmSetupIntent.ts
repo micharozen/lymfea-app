@@ -3,6 +3,12 @@ import { computeOutOfHoursSurcharge } from "../../_shared/surcharge.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
 import type { ActionContext } from "../index.ts";
 import { tryMarkCheckoutIntentConverted } from "../../_shared/checkoutIntent.ts";
+import {
+  computeSlotDuration,
+  fetchAddonTreatmentIds,
+  insertBookingTreatmentLines,
+  type TreatmentLine,
+} from "../../_shared/bookingTreatmentLines.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -521,20 +527,20 @@ export async function handleConfirmSetupIntent(
   // quantity > 1 (same treatment booked N times) — price, duration and the
   // booking_treatments rows must all scale with it. Fall back to one unit per id
   // for older sessions whose metadata predates the quantity field.
-  const treatmentsPayload: Array<{ treatmentId: string; variantId?: string | null; quantity?: number }> =
-    JSON.parse(meta.treatmentsPayload || "[]");
-  const pricingLines = treatmentsPayload.length > 0
+  const treatmentsPayload: TreatmentLine[] = JSON.parse(meta.treatmentsPayload || "[]");
+  const pricingLines: TreatmentLine[] = treatmentsPayload.length > 0
     ? treatmentsPayload
     : (treatmentIds as string[]).map((id) => ({ treatmentId: id, quantity: 1 }));
 
-  // Duo (guest_count > 1): treatments run simultaneously → slot duration = longest
-  // single treatment (max). Solo: sum. Both stay 'pending' until fully staffed.
+  // Duo (guest_count > 1): the legs run simultaneously → slot duration = longest leg
+  // (a soin plus the add-ons hanging off it). Solo: sum. Both stay 'pending' until
+  // fully staffed.
   const guestCount = Math.max(1, Number(meta.guestCount) || 1);
   const isDuo = guestCount > 1;
 
   const { data: treatments } = await supabase
     .from("treatment_menus")
-    .select("id, price, duration")
+    .select("id, price, duration, is_addon, category")
     .in("id", treatmentIds);
   const priceById = new Map<string, number>(
     (treatments || []).map((t: { id: string; price: number }) => [t.id, t.price || 0]),
@@ -543,17 +549,16 @@ export async function handleConfirmSetupIntent(
     (treatments || []).map((t: { id: string; duration: number }) => [t.id, t.duration || 0]),
   );
 
+  const addonTreatmentIds = await fetchAddonTreatmentIds(supabase, meta.hotelId, treatments || []);
+  const isAddonLine = (treatmentId: string) => addonTreatmentIds.has(treatmentId);
+  const durationOfLine = (line: TreatmentLine) => durationById.get(line.treatmentId) || 0;
+
   let basePrice = 0;
-  let sumDuration = 0;
-  let maxDuration = 0;
   for (const line of pricingLines) {
     const qty = Math.max(1, Number(line.quantity) || 1);
     basePrice += (priceById.get(line.treatmentId) || 0) * qty;
-    const d = durationById.get(line.treatmentId) || 0;
-    sumDuration += d * qty;
-    if (d > maxDuration) maxDuration = d;
   }
-  const totalDuration = (isDuo ? maxDuration : sumDuration) || 30;
+  const totalDuration = computeSlotDuration(pricingLines, isDuo, durationOfLine, isAddonLine) || 30;
 
   const { data: hotel } = await supabase
     .from("hotels")
@@ -683,20 +688,15 @@ export async function handleConfirmSetupIntent(
         .eq("booking_id", bookingId);
     }
 
-    // One row per booked unit — a line with quantity > 1 yields N rows.
-    const treatmentInserts = pricingLines.flatMap((line) => {
-      const qty = Math.max(1, Number(line.quantity) || 1);
-      return Array.from({ length: qty }, () => ({
-        booking_id: bookingId,
-        treatment_id: line.treatmentId,
-        variant_id: line.variantId ?? null,
-      }));
-    });
-
-    if (treatmentInserts.length > 0) {
-      const { error: treatmentsError } = await supabase
-        .from("booking_treatments")
-        .insert(treatmentInserts);
+    // One row per booked unit — a line with quantity > 1 yields N rows. Add-ons are
+    // inserted after the base soins so they can point at the soin they extend.
+    if (pricingLines.length > 0) {
+      const treatmentsError = await insertBookingTreatmentLines(
+        supabase,
+        bookingId,
+        pricingLines,
+        isAddonLine,
+      );
       if (treatmentsError) {
         console.error(
           "[CONFIRM-SETUP] booking_treatments insert error:",

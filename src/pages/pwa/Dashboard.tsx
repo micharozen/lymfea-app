@@ -410,6 +410,7 @@ const PwaDashboard = () => {
         booking_therapists ( status, therapist_id, assigned_at ),
         booking_treatments (
           therapist_id,
+          is_addon,
           treatment_menus (
             name,
             price,
@@ -456,6 +457,7 @@ const PwaDashboard = () => {
             booking_therapists ( status, therapist_id, assigned_at ),
             booking_treatments (
               therapist_id,
+              is_addon,
               treatment_menus (
                 name,
                 price,
@@ -488,6 +490,7 @@ const PwaDashboard = () => {
         booking_therapists ( status, therapist_id, assigned_at ),
         booking_treatments (
           therapist_id,
+          is_addon,
           treatment_menus (
             name,
             price,
@@ -864,8 +867,8 @@ const PwaDashboard = () => {
         .filter((bt) => bt.status === "accepted")
         .sort((x, y) => (x.assigned_at || "").localeCompare(y.assigned_at || ""))
         .map((bt) => bt.therapist_id);
-      const legTreatments = ((b.booking_treatments ?? []) as { therapist_id?: string | null; treatment_menus?: { duration?: number | null } | null }[])
-        .map((t) => ({ therapist_id: t.therapist_id ?? null, duration: t.treatment_menus?.duration ?? null }));
+      const legTreatments = ((b.booking_treatments ?? []) as { therapist_id?: string | null; is_addon?: boolean | null; treatment_menus?: { duration?: number | null } | null }[])
+        .map((t) => ({ therapist_id: t.therapist_id ?? null, duration: t.treatment_menus?.duration ?? null, is_addon: t.is_addon ?? false }));
       return myLegDuration(therapist?.id ?? "", legTreatments, orderedIds, gc);
     };
     const totalMinutes = todayBookings.reduce((sum, b) => sum + myLeg(b), 0);

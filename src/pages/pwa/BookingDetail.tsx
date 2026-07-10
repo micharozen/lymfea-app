@@ -674,14 +674,16 @@ const PwaBookingDetail = () => {
     : 0;
   const estimatedEarnings = (() => {
     const gc = Math.max(booking.guest_count || 1, 1);
-    // Duo: pay on my own soin(s) — stable link (booking_treatments.therapist_id)
-    // when present, positional fallback otherwise. Solo: the full booking duration.
+    // Duo: pay on my own leg — my soin plus the add-ons hanging off it. Stable link
+    // (booking_treatments.therapist_id) when present, positional fallback otherwise.
+    // Solo: the full booking duration.
     const legDuration = gc > 1
       ? myLegDuration(
           myTherapistId ?? "",
           treatments.map((t) => ({
             therapist_id: t.therapist_id ?? null,
             duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? null,
+            is_addon: t.is_addon ?? false,
           })),
           orderedTherapistIds,
           gc,

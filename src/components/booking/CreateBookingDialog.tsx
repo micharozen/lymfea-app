@@ -187,7 +187,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   });
 
   const {
-    cart, setCart, addToCart, incrementCart, decrementCart, setLineOverride,
+    cart, setCart, addToCart, incrementCart, decrementCart, removeCartLine, setLineOverride,
     getCartQuantity, totalPrice, totalDuration,
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
@@ -502,7 +502,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     <>
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleRequestClose(); }}>
       <DialogContent
-        className="h-[92vh] max-w-3xl p-0 gap-0 flex flex-col overflow-hidden"
+        className={cn(
+          "h-[92vh] p-0 gap-0 flex flex-col overflow-hidden",
+          activeTab === "prestations" ? "sm:max-w-[880px]" : "max-w-3xl",
+        )}
         onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
       >
@@ -548,7 +551,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 />
               </TabsContent>
 
-            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-4 pt-1 data-[state=inactive]:hidden">
+            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-0 pb-0 data-[state=inactive]:hidden">
                 <BookingPrestationsStep
                   treatments={treatments}
                   selectedHotel={selectedHotel}
@@ -559,6 +562,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   addToCart={addToCart}
                   incrementCart={incrementCart}
                   decrementCart={decrementCart}
+                  removeCartLine={removeCartLine}
                   setLineOverride={setLineOverride}
                   getCartQuantity={getCartQuantity}
                   totalPrice={totalPrice}

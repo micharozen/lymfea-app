@@ -6,6 +6,7 @@ import { myLegDuration, estimateTherapistShare } from "@/lib/therapistLegDuratio
 
 interface BookingTreatment {
   therapist_id: string | null;
+  is_addon: boolean;
   treatment_menus: {
     name: string;
     price: number;
@@ -117,7 +118,7 @@ async function fetchTherapistEarnings(
   );
 
   const bookingSelect =
-    `*, booking_treatments (therapist_id, treatment_menus (name, price, duration)), booking_therapists (therapist_id, status, assigned_at)`;
+    `*, booking_treatments (therapist_id, is_addon, treatment_menus (name, price, duration)), booking_therapists (therapist_id, status, assigned_at)`;
 
   // Bookings where I'm the primary therapist.
   const { data: primaryData } = await supabase
@@ -186,6 +187,7 @@ async function fetchTherapistEarnings(
     const legTreatments = (b.booking_treatments ?? []).map((t) => ({
       therapist_id: t.therapist_id ?? null,
       duration: t.treatment_menus?.duration ?? null,
+      is_addon: t.is_addon ?? false,
     }));
     let dur = myLegDuration(therapistId, legTreatments, orderedIds, gc);
     // Solo: preserve the previous behaviour — prefer the stored booking duration

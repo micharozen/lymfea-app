@@ -1481,5 +1481,63 @@
         "step4": "L'admin clique sur \"Convertir en réservation\" : une réservation est créée en statut 'pending', prête à être assignée à un thérapeute."
       }
     }
+  },
+  "checkoutIntents": {
+    "title": "Paniers abandonnés",
+    "description": "Suivez les clients qui ont commencé une réservation en ligne sans la finaliser",
+    "searchPlaceholder": "Rechercher par nom ou email...",
+    "noIntents": "Aucun panier trouvé",
+    "noIntentsDescription": "Essayez de modifier vos filtres",
+    "neverReminded": "Jamais",
+    "itemName": "paniers",
+    "cartSummary": "{{count}} soin",
+    "cartSummary_plural": "{{count}} soins",
+    "columns": {
+      "client": "Contact",
+      "email": "Email",
+      "venue": "Lieu",
+      "cart": "Panier",
+      "slot": "Créneau souhaité",
+      "createdAt": "Créé le",
+      "reminder": "Relance",
+      "status": "Statut"
+    },
+    "status": {
+      "converted": "Convertie",
+      "abandoned": "Abandonné"
+    },
+    "filters": {
+      "allVenues": "Tous les lieux",
+      "allStatuses": "Tous les statuts",
+      "notReminded": "Abandonnés non relancés",
+      "lastDays": "{{count}} derniers jours",
+      "allTime": "Tout l'historique"
+    },
+    "kpis": {
+      "conversionRate": "Taux de conversion",
+      "conversionHint": "{{converted}} réservations sur {{total}} paniers",
+      "abandonedValue": "Valeur récupérable",
+      "abandonedValueHint": "réparti sur {{count}} panier abandonné",
+      "abandonedValueHint_plural": "réparti sur {{count}} paniers abandonnés",
+      "reminded": "Relances envoyées",
+      "remindedHint": "{{count}} panier en attente de relance",
+      "remindedHint_plural": "{{count}} paniers en attente de relance"
+    },
+    "actions": {
+      "previewEmail": "Aperçu de la relance",
+      "openBooking": "Ouvrir la réservation"
+    },
+    "cartDialog": {
+      "title": "Détail du panier",
+      "client": "Client",
+      "language": "Langue",
+      "roomNumber": "Chambre",
+      "emptyCart": "Panier vide ou illisible",
+      "total": "Total",
+      "onRequest": "Sur devis",
+      "quantity": "×{{count}}",
+      "guests": "{{count}} personne",
+      "guests_plural": "{{count}} personnes"
+    }
   }
 }

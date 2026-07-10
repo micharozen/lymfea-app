@@ -34,7 +34,12 @@ export function ConvertToDuoDialog({
 }: ConvertToDuoDialogProps) {
   const { t } = useTranslation("admin");
 
-  const treatments = useMemo(() => booking.treatments ?? [], [booking.treatments]);
+  // Only base soins get a therapist here: an add-on is a supplement that follows the
+  // therapist of the soin it extends, so it never adds a guest nor needs its own pick.
+  const treatments = useMemo(
+    () => (booking.treatments ?? []).filter((tr) => !tr.is_addon),
+    [booking.treatments],
+  );
   const guestCount = treatments.length;
   const newDuration = useMemo(() => {
     const durations = treatments.map((tr) => tr.duration ?? 0).filter((d) => d > 0);

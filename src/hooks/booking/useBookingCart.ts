@@ -97,6 +97,9 @@ export function useBookingCart(treatments: Treatment[] | undefined) {
       return p.map(x => x === target ? { ...x, quantity: x.quantity - 1 } : x);
     });
 
+  const removeCartLine = (treatmentId: string, variantId?: string | null) =>
+    setCart(p => p.filter(x => !(x.treatmentId === treatmentId && x.variantId === (variantId ?? null))));
+
   // Set (or clear, with null) the admin per-line price override for a cart entry.
   const setLineOverride = (treatmentId: string, variantId: string | null | undefined, value: number | null) =>
     setCart(p => p.map(x =>
@@ -128,6 +131,7 @@ export function useBookingCart(treatments: Treatment[] | undefined) {
     addToCart,
     incrementCart,
     decrementCart,
+    removeCartLine,
     setLineOverride,
     getCartQuantity,
     flatIds,
