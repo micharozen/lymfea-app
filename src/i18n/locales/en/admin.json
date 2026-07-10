@@ -166,11 +166,9 @@
         "currency": "Currency",
         "status": "Status",
         "paymentStatus": "Payment status",
-        "treatment": "Treatment",
-        "treatmentDuration": "Treatment duration (min)",
-        "treatmentPrice": "Treatment price",
-        "totalDuration": "Total duration (min)",
-        "totalAmount": "Total amount"
+        "treatments": "Treatments",
+        "duration": "Duration (min)",
+        "amount": "Amount"
       },
       "paymentStatusValues": {
         "pending": "Pending",

@@ -166,11 +166,9 @@
         "currency": "Devise",
         "status": "Statut",
         "paymentStatus": "Statut paiement",
-        "treatment": "Prestation",
-        "treatmentDuration": "Durée prestation (min)",
-        "treatmentPrice": "Prix prestation",
-        "totalDuration": "Durée totale (min)",
-        "totalAmount": "Montant total"
+        "treatments": "Prestations",
+        "duration": "Durée (min)",
+        "amount": "Montant"
       },
       "paymentStatusValues": {
         "pending": "En attente",
