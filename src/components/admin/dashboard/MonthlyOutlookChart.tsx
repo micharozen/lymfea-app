@@ -120,17 +120,17 @@ export function MonthlyOutlookChart({ data }: MonthlyOutlookChartProps) {
         <CardTitle className="text-base font-medium text-foreground">
           {t("dashboard.monthlyOutlook.title")}
         </CardTitle>
-        <div className="flex items-center gap-0.5 rounded-md bg-muted p-0.5">
+        <div className="flex items-center gap-4">
           {metricButtons.map((btn) => (
             <button
               key={btn.key}
               type="button"
               onClick={() => setMetric(btn.key)}
               className={cn(
-                "rounded px-2 py-1 text-xs transition-colors",
+                "border-b-2 pb-0.5 text-xs transition-colors",
                 metric === btn.key
-                  ? "bg-card font-medium text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "border-foreground font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {btn.label}
