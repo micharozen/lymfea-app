@@ -207,6 +207,7 @@ export function BookingFilters({
             <SelectItem value="10">10 derniers jours</SelectItem>
             <SelectItem value="30">30 derniers jours</SelectItem>
             <SelectItem value="60">60 derniers jours</SelectItem>
+            <SelectItem value="90">90 derniers jours</SelectItem>
           </SelectContent>
         </Select>
       )}

@@ -1,7 +1,12 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { RefreshCw } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { buildCsv, downloadCsv, formatCsvAmount, type CsvColumn } from "@/lib/csvExport";
+import { bookingStatusConfig, type BookingStatus } from "@/utils/statusStyles";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useUserContext } from "@/hooks/useUserContext";
@@ -22,13 +27,14 @@ import {
 
 export default function BookingsList() {
   const navigate = useNavigate();
+  const { t } = useTranslation("admin");
   const { isAdmin } = useUserContext();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const [searchParams] = useSearchParams();
 
   const [periodDays, setPeriodDays] = useState<number>(() => {
     const stored = Number(localStorage.getItem("bookingsList.periodDays"));
-    return [10, 30, 60].includes(stored) ? stored : 10;
+    return [10, 30, 60, 90].includes(stored) ? stored : 10;
   });
 
   const fromDate = useMemo(() => {
@@ -187,6 +193,53 @@ export default function BookingsList() {
     setIsRefreshing(false);
   };
 
+  // Exporte les réservations filtrées + triées (pas seulement la page affichée).
+  const handleExportCsv = () => {
+    if (sortedBookings.length === 0) {
+      toast.info(t("bookings.export.empty"));
+      return;
+    }
+    const columns: CsvColumn<BookingWithTreatments>[] = [
+      { header: t("bookings.export.columns.bookingNumber"), value: (b) => b.booking_id ?? "" },
+      {
+        header: t("bookings.export.columns.date"),
+        value: (b) => (b.booking_date ? format(parseISO(b.booking_date), "dd/MM/yyyy") : ""),
+      },
+      { header: t("bookings.export.columns.time"), value: (b) => b.booking_time?.slice(0, 5) ?? "" },
+      {
+        header: t("bookings.export.columns.client"),
+        value: (b) => [b.client_first_name, b.client_last_name].filter(Boolean).join(" "),
+      },
+      { header: t("bookings.export.columns.clientType"), value: (b) => b.client_type ?? "" },
+      { header: t("bookings.export.columns.roomNumber"), value: (b) => b.room_number ?? "" },
+      { header: t("bookings.export.columns.venue"), value: (b) => getHotelInfo(b.hotel_id)?.name ?? "" },
+      {
+        header: t("bookings.export.columns.therapist"),
+        value: (b) =>
+          b.therapist_display_names?.length
+            ? b.therapist_display_names.join(", ")
+            : b.therapist_name ?? "",
+      },
+      {
+        header: t("bookings.export.columns.treatments"),
+        value: (b) => b.treatments.map((tr) => tr.name).join(", "),
+      },
+      { header: t("bookings.export.columns.duration"), value: (b) => b.totalDuration ?? "" },
+      { header: t("bookings.export.columns.amount"), value: (b) => formatCsvAmount(b.total_price) },
+      {
+        header: t("bookings.export.columns.currency"),
+        value: (b) => getHotelInfo(b.hotel_id)?.currency ?? "EUR",
+      },
+      {
+        header: t("bookings.export.columns.status"),
+        value: (b) => bookingStatusConfig[b.status as BookingStatus]?.label ?? b.status ?? "",
+      },
+      { header: t("bookings.export.columns.paymentStatus"), value: (b) => b.payment_status ?? "" },
+    ];
+    downloadCsv(buildCsv(sortedBookings, columns), `reservations_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    toast.success(t("bookings.export.success", { count: sortedBookings.length }));
+  };
+
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-3 md:pt-4">
@@ -204,6 +257,16 @@ export default function BookingsList() {
               title="Refresh"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={handleExportCsv}
+              title={t("bookings.export.button")}
+            >
+              <Download className="h-3.5 w-3.5" />
+              CSV
             </Button>
             <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="h-8 text-xs">
               {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}

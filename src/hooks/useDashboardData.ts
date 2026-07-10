@@ -8,6 +8,9 @@ import { formatPrice } from "@/lib/formatPrice";
 import { bookingStatusConfig, type BookingStatus } from "@/utils/statusStyles";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { getDashboardDataForOrg, type DashboardBooking } from "@shared/db";
+import { buildMonthlyOutlook, type MonthlyOutlookPoint } from "@/lib/monthlyOutlook";
+
+export type { MonthlyOutlookPoint } from "@/lib/monthlyOutlook";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -150,6 +153,7 @@ export interface DashboardData {
   salesChartData: ChartPoint[];
   statusDistribution: StatusSlice[];
   weekForecast: ForecastPoint[];
+  monthlyOutlook: MonthlyOutlookPoint[];
   leadTime: LeadTimeData;
   topVenues: RankingItem[];
   topTherapists: RankingItem[];
@@ -587,6 +591,13 @@ export function useDashboardData(
     });
   }, [bookings, selectedHotel]);
 
+  // ── Monthly outlook (fenêtre fixe, indépendante du filtre de période) ──
+  // rates est une dépendance obligatoire : toEUR en dépend via closure.
+  const monthlyOutlook = useMemo<MonthlyOutlookPoint[]>(
+    () => buildMonthlyOutlook(bookings, { venueId: selectedHotel, toEUR }),
+    [bookings, selectedHotel, rates]
+  );
+
   // ── Booking lead time (how far in advance clients book) ───────────
   // Délai = booking_date − created_at (jours calendaires), borné à 0.
   // Filtré sur created_at (réservations FAITES dans la période), pas sur
@@ -714,6 +725,7 @@ export function useDashboardData(
     salesChartData,
     statusDistribution,
     weekForecast,
+    monthlyOutlook,
     leadTime,
     topVenues,
     topTherapists,
