@@ -163,12 +163,24 @@
         "roomNumber": "Room #",
         "venue": "Venue",
         "therapist": "Therapist",
-        "treatments": "Treatments",
-        "duration": "Duration (min)",
-        "amount": "Amount",
         "currency": "Currency",
         "status": "Status",
-        "paymentStatus": "Payment status"
+        "paymentStatus": "Payment status",
+        "treatment": "Treatment",
+        "treatmentDuration": "Treatment duration (min)",
+        "treatmentPrice": "Treatment price",
+        "totalDuration": "Total duration (min)",
+        "totalAmount": "Total amount"
+      },
+      "paymentStatusValues": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "failed": "Failed",
+        "refunded": "Refunded",
+        "charged_to_room": "Charged to room",
+        "pending_partner_billing": "Partner billing",
+        "card_saved": "Card saved",
+        "offert": "Complimentary"
       }
     }
   },

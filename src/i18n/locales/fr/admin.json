@@ -163,12 +163,24 @@
         "roomNumber": "N° chambre",
         "venue": "Lieu",
         "therapist": "Thérapeute",
-        "treatments": "Prestations",
-        "duration": "Durée (min)",
-        "amount": "Montant",
         "currency": "Devise",
         "status": "Statut",
-        "paymentStatus": "Statut paiement"
+        "paymentStatus": "Statut paiement",
+        "treatment": "Prestation",
+        "treatmentDuration": "Durée prestation (min)",
+        "treatmentPrice": "Prix prestation",
+        "totalDuration": "Durée totale (min)",
+        "totalAmount": "Montant total"
+      },
+      "paymentStatusValues": {
+        "pending": "En attente",
+        "paid": "Payé",
+        "failed": "Échoué",
+        "refunded": "Remboursé",
+        "charged_to_room": "Facturé en chambre",
+        "pending_partner_billing": "Paiement partenaire",
+        "card_saved": "Carte enregistrée",
+        "offert": "Offert"
       }
     }
   },

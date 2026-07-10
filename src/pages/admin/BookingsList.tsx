@@ -194,49 +194,85 @@ export default function BookingsList() {
   };
 
   // Exporte les réservations filtrées + triées (pas seulement la page affichée).
+  // Une ligne par prestation ; les totaux (durée, montant) ne figurent que sur
+  // la première ligne du groupe pour rester sommables dans Excel.
   const handleExportCsv = () => {
     if (sortedBookings.length === 0) {
       toast.info(t("bookings.export.empty"));
       return;
     }
-    const columns: CsvColumn<BookingWithTreatments>[] = [
-      { header: t("bookings.export.columns.bookingNumber"), value: (b) => b.booking_id ?? "" },
+
+    type ExportRow = {
+      booking: BookingWithTreatments;
+      treatment: BookingWithTreatments["treatments"][number] | null;
+      isFirst: boolean;
+    };
+    const rows: ExportRow[] = sortedBookings.flatMap((booking) =>
+      booking.treatments.length > 0
+        ? booking.treatments.map((treatment, i) => ({ booking, treatment, isFirst: i === 0 }))
+        : [{ booking, treatment: null, isFirst: true }],
+    );
+
+    const columns: CsvColumn<ExportRow>[] = [
+      { header: t("bookings.export.columns.bookingNumber"), value: (r) => r.booking.booking_id ?? "" },
       {
         header: t("bookings.export.columns.date"),
-        value: (b) => (b.booking_date ? format(parseISO(b.booking_date), "dd/MM/yyyy") : ""),
+        value: (r) => (r.booking.booking_date ? format(parseISO(r.booking.booking_date), "dd/MM/yyyy") : ""),
       },
-      { header: t("bookings.export.columns.time"), value: (b) => b.booking_time?.slice(0, 5) ?? "" },
+      { header: t("bookings.export.columns.time"), value: (r) => r.booking.booking_time?.slice(0, 5) ?? "" },
       {
         header: t("bookings.export.columns.client"),
-        value: (b) => [b.client_first_name, b.client_last_name].filter(Boolean).join(" "),
+        value: (r) => [r.booking.client_first_name, r.booking.client_last_name].filter(Boolean).join(" "),
       },
-      { header: t("bookings.export.columns.clientType"), value: (b) => b.client_type ?? "" },
-      { header: t("bookings.export.columns.roomNumber"), value: (b) => b.room_number ?? "" },
-      { header: t("bookings.export.columns.venue"), value: (b) => getHotelInfo(b.hotel_id)?.name ?? "" },
+      {
+        header: t("bookings.export.columns.clientType"),
+        value: (r) =>
+          r.booking.client_type
+            ? t(`bookings.clientType.${r.booking.client_type}`, { defaultValue: r.booking.client_type })
+            : "",
+      },
+      { header: t("bookings.export.columns.roomNumber"), value: (r) => r.booking.room_number ?? "" },
+      { header: t("bookings.export.columns.venue"), value: (r) => getHotelInfo(r.booking.hotel_id)?.name ?? "" },
       {
         header: t("bookings.export.columns.therapist"),
-        value: (b) =>
-          b.therapist_display_names?.length
-            ? b.therapist_display_names.join(", ")
-            : b.therapist_name ?? "",
+        value: (r) =>
+          r.booking.therapist_display_names?.length
+            ? r.booking.therapist_display_names.join(", ")
+            : r.booking.therapist_name ?? "",
+      },
+      { header: t("bookings.export.columns.treatment"), value: (r) => r.treatment?.name ?? "" },
+      { header: t("bookings.export.columns.treatmentDuration"), value: (r) => r.treatment?.duration ?? "" },
+      {
+        header: t("bookings.export.columns.treatmentPrice"),
+        value: (r) => (r.treatment?.price != null ? formatCsvAmount(r.treatment.price) : ""),
       },
       {
-        header: t("bookings.export.columns.treatments"),
-        value: (b) => b.treatments.map((tr) => tr.name).join(", "),
+        header: t("bookings.export.columns.totalDuration"),
+        value: (r) => (r.isFirst ? r.booking.totalDuration ?? "" : ""),
       },
-      { header: t("bookings.export.columns.duration"), value: (b) => b.totalDuration ?? "" },
-      { header: t("bookings.export.columns.amount"), value: (b) => formatCsvAmount(b.total_price) },
+      {
+        header: t("bookings.export.columns.totalAmount"),
+        value: (r) => (r.isFirst ? formatCsvAmount(r.booking.total_price) : ""),
+      },
       {
         header: t("bookings.export.columns.currency"),
-        value: (b) => getHotelInfo(b.hotel_id)?.currency ?? "EUR",
+        value: (r) => getHotelInfo(r.booking.hotel_id)?.currency ?? "EUR",
       },
       {
         header: t("bookings.export.columns.status"),
-        value: (b) => bookingStatusConfig[b.status as BookingStatus]?.label ?? b.status ?? "",
+        value: (r) => bookingStatusConfig[r.booking.status as BookingStatus]?.label ?? r.booking.status ?? "",
       },
-      { header: t("bookings.export.columns.paymentStatus"), value: (b) => b.payment_status ?? "" },
+      {
+        header: t("bookings.export.columns.paymentStatus"),
+        value: (r) =>
+          r.booking.payment_status
+            ? t(`bookings.export.paymentStatusValues.${r.booking.payment_status}`, {
+                defaultValue: r.booking.payment_status,
+              })
+            : "",
+      },
     ];
-    downloadCsv(buildCsv(sortedBookings, columns), `reservations_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    downloadCsv(buildCsv(rows, columns), `reservations_${format(new Date(), "yyyy-MM-dd")}.csv`);
     toast.success(t("bookings.export.success", { count: sortedBookings.length }));
   };
 
