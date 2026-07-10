@@ -111,5 +111,19 @@
     "policyTitle": "Politique d'annulation",
     "successToast": "Réservation annulée",
     "listCancelTooltip": "Annuler la réservation"
+  },
+  "unsubscribe": {
+    "ask": {
+      "title": "Vous partez déjà ?",
+      "body": "On peut arrêter de vous écrire, c'est promis. Mais sachez que votre corps, lui, continuera de réclamer ce massage.",
+      "confirm": "Oui, ne plus me relancer",
+      "saving": "Un instant…",
+      "stay": "Rester, finalement"
+    },
+    "done": {
+      "title": "C'est fait.",
+      "body": "Plus aucune relance de notre part. Vos confirmations de réservation, elles, continueront d'arriver — on ne va pas vous laisser oublier l'heure de votre soin."
+    },
+    "error": "Ce lien n'est plus valide. Écrivez-nous et nous nous en occupons."
   }
 }

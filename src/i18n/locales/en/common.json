@@ -111,5 +111,19 @@
     "policyTitle": "Cancellation policy",
     "successToast": "Booking cancelled",
     "listCancelTooltip": "Cancel booking"
+  },
+  "unsubscribe": {
+    "ask": {
+      "title": "Leaving already?",
+      "body": "We can stop writing to you, promise. Though your body will keep asking for that massage.",
+      "confirm": "Yes, stop reminding me",
+      "saving": "One moment…",
+      "stay": "Stay, actually"
+    },
+    "done": {
+      "title": "All done.",
+      "body": "No more reminders from us. Your booking confirmations will keep coming though — we're not letting you forget your treatment time."
+    },
+    "error": "This link is no longer valid. Write to us and we'll take care of it."
   }
 }

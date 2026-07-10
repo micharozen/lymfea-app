@@ -9,10 +9,23 @@ import {
   getCheckoutIntentReminderSubject,
 } from "../_shared/templates/checkout-intent-reminder.ts";
 
-const REMIND_AFTER_HOURS = 1;
+// Cadence — two sends, never more. The second only exists to catch a slot that
+// is about to arrive; a guest who abandoned a booking three weeks out is not
+// chased twice.
+const R1_AFTER_HOURS = 1;
+const R2_AFTER_R1_HOURS = 6;
+/** R2 only fires once the requested slot has entered this window. */
+const R2_SLOT_WITHIN_HOURS = 24;
+/** …and never in the last hours before it: too late to be useful, only annoying. */
+const R2_MIN_LEAD_HOURS = 3;
+const MAX_REMINDERS = 2;
 const MAX_AGE_DAYS = 7;
 
+const HOUR_MS = 60 * 60 * 1000;
+
 interface CartSnapshotItem {
+  treatmentId?: string;
+  variantId?: string | null;
   name?: string;
   quantity?: number;
   price?: number | null;
@@ -27,10 +40,11 @@ interface CartSnapshot {
 }
 
 /**
- * Cron-only. Sends a single reminder email for each abandoned checkout intent,
- * one hour after the guest left the flow. Skipped when the requested slot has
- * passed, when the intent is stale (backlog after an outage), or when the
- * customer has booked at that venue since.
+ * Cron-only. Chases abandoned checkout intents with at most two emails: one an
+ * hour after the guest left the flow, a second only when the slot they had
+ * picked is about to come up. Skipped when the slot has passed, when the intent
+ * is stale (backlog after an outage), when the customer has booked at that venue
+ * since, or when the recipient asked not to be reminded again.
  */
 serve(async (_req: Request) => {
   try {
@@ -40,19 +54,19 @@ serve(async (_req: Request) => {
     );
 
     const now = new Date();
-    const remindBefore = new Date(now.getTime() - REMIND_AFTER_HOURS * 60 * 60 * 1000);
-    const oldestAllowed = new Date(now.getTime() - MAX_AGE_DAYS * 24 * 60 * 60 * 1000);
+    const remindBefore = new Date(now.getTime() - R1_AFTER_HOURS * HOUR_MS);
+    const oldestAllowed = new Date(now.getTime() - MAX_AGE_DAYS * 24 * HOUR_MS);
     // Coarse SQL pre-filter: a slot dated yesterday can still be in the future in a
     // venue timezone behind UTC. The exact check happens per intent, below.
-    const earliestDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const earliestDate = new Date(now.getTime() - 24 * HOUR_MS).toISOString().slice(0, 10);
 
     const { data: intents, error: fetchError } = await supabase
       .from("checkout_intents")
       .select(
-        "id, customer_id, hotel_id, client_email, client_first_name, language, booking_date, booking_time, cart_snapshot, resume_token, created_at, hotels ( name, slug, timezone, image, address, postal_code, city, country, contact_email, website_url )",
+        "id, customer_id, hotel_id, client_email, client_first_name, language, booking_date, booking_time, cart_snapshot, resume_token, created_at, reminder_count, reminder_sent_at, hotels ( name, slug, timezone, image, address, postal_code, city, country, contact_email, website_url, client_cancellation_cutoff_hours )",
       )
       .is("converted_at", null)
-      .eq("reminder_count", 0)
+      .lt("reminder_count", MAX_REMINDERS)
       .lt("created_at", remindBefore.toISOString())
       .gt("created_at", oldestAllowed.toISOString())
       .or(`booking_date.is.null,booking_date.gte.${earliestDate}`)
@@ -62,9 +76,12 @@ serve(async (_req: Request) => {
 
     const skipped = {
       slot_past: 0,
+      not_due: 0,
+      opted_out: 0,
       already_booked: 0,
       empty_cart: 0,
       no_venue: 0,
+      no_token: 0,
       email_failed: 0,
       mark_failed: 0,
     };
@@ -74,6 +91,8 @@ serve(async (_req: Request) => {
     }
 
     const bookedSince = await fetchBookedSince(supabase, intents, oldestAllowed);
+    const optedOut = await fetchOptedOut(supabase, intents);
+    const durations = await fetchDurations(supabase, intents);
     const appUrl = Deno.env.get("PUBLIC_APP_URL") ?? `https://${brand.appDomain}`;
 
     let sent = 0;
@@ -85,10 +104,22 @@ serve(async (_req: Request) => {
         continue;
       }
 
+      // The guest asked to stop being reminded. Transactional emails are unaffected.
+      if (optedOut.has(intent.client_email.trim().toLowerCase())) {
+        skipped.opted_out++;
+        continue;
+      }
+
       // The slot the guest had picked is stored as venue-local wall-clock: resolve
-      // it against the venue timezone before deciding it has passed.
-      if (isSlotPast(intent.booking_date, intent.booking_time, venue.timezone, now)) {
+      // it against the venue timezone before deciding anything about it.
+      const slot = resolveSlot(intent.booking_date, intent.booking_time, venue.timezone);
+      if (slot && slot <= now) {
         skipped.slot_past++;
+        continue;
+      }
+
+      if (!isDue(intent, slot, now)) {
+        skipped.not_due++;
         continue;
       }
 
@@ -105,7 +136,11 @@ serve(async (_req: Request) => {
           name: item.name!,
           quantity: item.quantity ?? 1,
           price: item.isPriceOnRequest ? null : (item.price ?? null),
-          meta: item.variantLabel ?? null,
+          variantLabel: item.variantLabel ?? null,
+          // The snapshot never stored durations — resolve them from the catalog,
+          // variant first, so every line shows one.
+          duration: (item.variantId ? durations.get(item.variantId) : undefined) ??
+            (item.treatmentId ? durations.get(item.treatmentId) : undefined) ?? null,
         }));
 
       if (items.length === 0) {
@@ -113,7 +148,27 @@ serve(async (_req: Request) => {
         continue;
       }
 
+      // RGPD: no reminder leaves without a working way to stop the next one.
+      const { data: optOutToken, error: tokenError } = await supabase.rpc(
+        "issue_email_opt_out_token",
+        { _email: intent.client_email, _source: "checkout_intent_reminder" },
+      );
+      if (tokenError || !optOutToken) {
+        console.error(
+          `[CHECKOUT-REMINDER] ❌ No opt-out token for intent ${intent.id}:`,
+          tokenError?.message,
+        );
+        skipped.no_token++;
+        continue;
+      }
+
       const lang: "fr" | "en" = intent.language === "en" ? "en" : "fr";
+      const resumeUrl = `${appUrl}/client/${venue.slug}/resume?token=${intent.resume_token}`;
+      // `resume` lets the opt-out page offer a last "stay, actually" way back in.
+      const unsubscribeUrl =
+        `${appUrl}/unsubscribe?token=${optOutToken}&resume=${encodeURIComponent(resumeUrl)}`;
+      const oneClickUrl =
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/unsubscribe-email?token=${optOutToken}`;
 
       const emailResult = await sendEmail({
         to: intent.client_email,
@@ -127,12 +182,26 @@ serve(async (_req: Request) => {
           total: typeof snapshot.total === "number" ? snapshot.total : null,
           currency: snapshot.currency ?? "EUR",
           bookingDate: intent.booking_date,
-          resumeUrl: `${appUrl}/client/${venue.slug}/resume?token=${intent.resume_token}`,
+          bookingTime: intent.booking_time,
+          slotIsSoon: slot !== null &&
+            slot.getTime() - now.getTime() <= R2_SLOT_WITHIN_HOURS * HOUR_MS,
+          cancellationCutoffHours: venue.client_cancellation_cutoff_hours,
+          resumeUrl,
+          rescheduleUrl: `${resumeUrl}&step=schedule`,
+          unsubscribeUrl,
         }),
+        // One-click unsubscribe: Gmail and Yahoo require it on bulk mail. The POST
+        // lands on the `unsubscribe-email` edge function, never on the React page —
+        // a 200 from the SPA would look like success while recording nothing.
+        headers: {
+          "List-Unsubscribe": `<${oneClickUrl}>, <${unsubscribeUrl}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
         audit: {
           tableName: "checkout_intents",
           recordId: intent.id,
           emailType: "checkout_intent_reminder",
+          metadata: { reminder_number: intent.reminder_count + 1 },
         },
       });
 
@@ -151,7 +220,9 @@ serve(async (_req: Request) => {
         continue;
       }
 
-      console.log(`[CHECKOUT-REMINDER] ✅ Sent to ${intent.client_email} for intent ${intent.id}`);
+      console.log(
+        `[CHECKOUT-REMINDER] ✅ Reminder ${intent.reminder_count + 1}/${MAX_REMINDERS} sent to ${intent.client_email} for intent ${intent.id}`,
+      );
       sent++;
     }
 
@@ -163,19 +234,109 @@ serve(async (_req: Request) => {
   }
 });
 
-/**
- * True when the guest's requested slot lies in the past, resolved in the venue's
- * timezone. Intents with no slot (cart abandoned before scheduling) never expire.
- */
-function isSlotPast(
+/** The requested slot as an instant, resolved in the venue's timezone. */
+function resolveSlot(
   bookingDate: string | null,
   bookingTime: string | null,
   timezone: string | null,
+): Date | null {
+  if (!bookingDate || !bookingTime) return null;
+  return venueLocalToUtc(bookingDate, bookingTime, timezone ?? "UTC");
+}
+
+/**
+ * Whether this intent is due for its next reminder.
+ *
+ * R1 — an hour after the abandon; the SQL pre-filter already guarantees it.
+ * R2 — six hours after R1, and only for a slot that has entered the next 24 h
+ * while still being at least R2_MIN_LEAD_HOURS away. An intent with no slot, or
+ * with a distant one, is therefore reminded exactly once.
+ */
+function isDue(
+  intent: { reminder_count: number; reminder_sent_at: string | null },
+  slot: Date | null,
   now: Date,
 ): boolean {
-  if (!bookingDate || !bookingTime) return false;
-  const slot = venueLocalToUtc(bookingDate, bookingTime, timezone ?? "UTC");
-  return slot !== null && slot <= now;
+  if (intent.reminder_count === 0) return true;
+  if (!slot || !intent.reminder_sent_at) return false;
+
+  const sinceLast = now.getTime() - new Date(intent.reminder_sent_at).getTime();
+  if (sinceLast < R2_AFTER_R1_HOURS * HOUR_MS) return false;
+
+  const untilSlot = slot.getTime() - now.getTime();
+  return untilSlot <= R2_SLOT_WITHIN_HOURS * HOUR_MS && untilSlot >= R2_MIN_LEAD_HOURS * HOUR_MS;
+}
+
+/** Lower-cased recipient addresses that asked to stop receiving reminders. */
+async function fetchOptedOut(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  intents: Array<{ client_email: string | null }>,
+): Promise<Set<string>> {
+  const emails = [
+    ...new Set(
+      intents
+        .map((intent) => intent.client_email?.trim().toLowerCase())
+        .filter((email): email is string => Boolean(email)),
+    ),
+  ];
+  if (emails.length === 0) return new Set();
+
+  const { data, error } = await supabase
+    .from("email_opt_outs")
+    .select("email")
+    .in("email", emails)
+    .not("opted_out_at", "is", null);
+
+  // Failing open here would mail the very people who opted out: abort the run.
+  if (error) {
+    console.error("[CHECKOUT-REMINDER] Failed to load opt-outs:", error.message);
+    throw error;
+  }
+  return new Set((data ?? []).map((row: { email: string }) => row.email));
+}
+
+/**
+ * Minutes per treatment id AND per variant id in one map — both are UUIDs, from
+ * two tables, and never collide. The cart snapshot stores no duration, so the
+ * catalog is the only source; a line whose treatment vanished shows no duration
+ * rather than a stale one.
+ */
+async function fetchDurations(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  intents: Array<{ cart_snapshot: unknown }>,
+): Promise<Map<string, number>> {
+  const treatmentIds = new Set<string>();
+  const variantIds = new Set<string>();
+
+  for (const intent of intents) {
+    for (const item of ((intent.cart_snapshot ?? {}) as CartSnapshot).items ?? []) {
+      if (item.treatmentId) treatmentIds.add(item.treatmentId);
+      if (item.variantId) variantIds.add(item.variantId);
+    }
+  }
+
+  const durations = new Map<string, number>();
+
+  const load = async (table: string, ids: Set<string>) => {
+    if (ids.size === 0) return;
+    const { data, error } = await supabase.from(table).select("id, duration").in("id", [...ids]);
+    if (error) {
+      console.error(`[CHECKOUT-REMINDER] Failed to load ${table} durations:`, error.message);
+      return;
+    }
+    for (const row of (data ?? []) as Array<{ id: string; duration: number | null }>) {
+      if (row.duration) durations.set(row.id, row.duration);
+    }
+  };
+
+  await Promise.all([
+    load("treatments", treatmentIds),
+    load("treatment_variants", variantIds),
+  ]);
+
+  return durations;
 }
 
 /**

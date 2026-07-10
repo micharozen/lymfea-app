@@ -39,6 +39,8 @@ interface TreatmentVariant {
 export default function Resume() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
+  // The reminder's "choose another time" link — restore the cart, drop the slot.
+  const forceSchedule = searchParams.get('step') === 'schedule';
   const navigate = useNavigate();
   const { slug, hotelId } = useClientVenue();
   const { replaceBasket } = useCart();
@@ -128,7 +130,7 @@ export default function Resume() {
       // reminder went out. The stored slot is a preference: restore it and land on
       // guest-info (phone is the only missing field), where a fresh hold is placed.
       // Skipping straight to payment would sell a slot nothing is reserving.
-      if (intent.booking_date && intent.booking_time) {
+      if (!forceSchedule && intent.booking_date && intent.booking_time) {
         setBookingDateTime({
           date: intent.booking_date,
           time: intent.booking_time.slice(0, 5),
@@ -142,6 +144,7 @@ export default function Resume() {
     void restore();
   }, [
     token,
+    forceSchedule,
     slug,
     hotelId,
     navigate,
