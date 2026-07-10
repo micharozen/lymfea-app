@@ -49,6 +49,7 @@ const TreatmentRooms = lazy(() => import("./pages/admin/TreatmentRooms"));
 const TreatmentRoomDetail = lazy(() => import("./pages/admin/TreatmentRoomDetail"));
 const Concierges = lazy(() => import("./pages/admin/Concierges"));
 const Customers = lazy(() => import("./pages/admin/Customers"));
+const CheckoutIntents = lazy(() => import("./pages/admin/CheckoutIntents"));
 const Tasks = lazy(() => import("./pages/admin/Tasks"));
 const EmailInbox = lazy(() => import("./pages/admin/EmailInbox"));
 const CustomerDetail = lazy(() => import("./pages/admin/CustomerDetail"));
@@ -126,6 +127,7 @@ const AdminPwaInstall = lazy(() => import("./pages/admin-pwa/Install"));
 // Client Pages
 const Welcome = lazy(() => import("./pages/client/Welcome"));
 const ClientTreatments = lazy(() => import("./pages/client/Treatments"));
+const ClientResume = lazy(() => import("./pages/client/Resume"));
 const Cart = lazy(() => import("./pages/client/Cart"));
 const Checkout = lazy(() => import("./pages/client/Checkout"));
 const Schedule = lazy(() => import("./pages/client/Schedule"));
@@ -281,6 +283,7 @@ const App = () => {
                       <Route index element={<Welcome />} />
                       <Route path="/treatment/:treatmentSlug" element={<ClientTreatmentLanding />} />
                       <Route path="/treatments" element={<ClientTreatments />} />
+                      <Route path="/resume" element={<ClientResume />} />
                       <Route path="/schedule" element={<Schedule />} />
                       <Route path="/guest-info" element={<GuestInfo />} />
                       <Route path="/payment" element={<Payment />} />
@@ -527,6 +530,7 @@ const App = () => {
                               <Route path="/bookings" element={<BookingsList />} />
                               <Route path="/all-bookings" element={<Navigate to="/admin/bookings" replace />} />
                               <Route path="/bookings/:id" element={<BookingDetail />} />
+                              <Route path="/checkout-intents" element={<CheckoutIntents />} />
                               <Route path="/therapists" element={<Therapists />} />
                               <Route path="/therapists/new" element={<TherapistDetail />} />
                               <Route path="/therapists/:id" element={<TherapistDetail />} />

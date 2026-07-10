@@ -23,6 +23,7 @@ import {
   Contact,
   Inbox,
   Package,
+  ShoppingCart,
   Truck,
   Wallet,
   CreditCard,
@@ -81,6 +82,7 @@ const adminPrimaryItems: MenuItem[] = [
   { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
   { title: "Clients", url: "/admin/customers", icon: Contact },
+  { title: "Paniers abandonnés", url: "/admin/checkout-intents", icon: ShoppingCart, isNew: true },
   { title: "Tâches", url: "/admin/tasks", icon: ListTodo, isNew: true },
   { title: "Inbox", url: "/admin/inbox", icon: Inbox },
   { title: "Alertes", url: "/admin/schedule-alerts", icon: Bell, badge: true },
@@ -308,7 +310,7 @@ export function AppSidebar() {
               </span>
             )}
             {item.isNew && (
-              <span className="ml-auto bg-emerald-500 text-white text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5">
+              <span className="ml-auto inline-flex h-4 items-center rounded-full border border-emerald-500/20 bg-gradient-to-b from-emerald-50 to-emerald-100 px-1.5 text-[8px] font-bold uppercase leading-none tracking-[0.12em] text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] group-data-[collapsible=icon]:hidden dark:border-emerald-400/20 dark:from-emerald-400/15 dark:to-emerald-500/10 dark:text-emerald-300">
                 New
               </span>
             )}
