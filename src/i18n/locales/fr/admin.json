@@ -63,7 +63,21 @@
     "thisWeek": "Cette semaine",
     "thisMonth": "Ce mois",
     "thisYear": "Cette année",
-    "allTime": "Tout le temps"
+    "allTime": "Tout le temps",
+    "monthlyOutlook": {
+      "title": "Projection mensuelle",
+      "metricRevenue": "CA",
+      "metricBookings": "Réservations",
+      "metricAvgBasket": "Panier moyen",
+      "confirmed": "Confirmé",
+      "pending": "En attente",
+      "realized": "Réalisé",
+      "backlog": "Carnet de commandes",
+      "currentMonth": "Mois en cours",
+      "bookingsCount_one": "{{count}} réservation",
+      "bookingsCount_other": "{{count}} réservations",
+      "empty": "Aucune réservation sur la fenêtre"
+    }
   },
   "planning": {
     "title": "Planning",
@@ -134,6 +148,38 @@
       "assigned": "Assigné",
       "completed": "Terminé",
       "cancelled": "Annulé"
+    },
+    "export": {
+      "button": "Exporter en CSV",
+      "success_one": "{{count}} réservation exportée",
+      "success_other": "{{count}} réservations exportées",
+      "empty": "Aucune réservation à exporter",
+      "columns": {
+        "bookingNumber": "N° résa",
+        "date": "Date",
+        "time": "Heure",
+        "client": "Client",
+        "clientType": "Type client",
+        "roomNumber": "N° chambre",
+        "venue": "Lieu",
+        "therapist": "Thérapeute",
+        "currency": "Devise",
+        "status": "Statut",
+        "paymentStatus": "Statut paiement",
+        "treatments": "Prestations",
+        "duration": "Durée (min)",
+        "amount": "Montant"
+      },
+      "paymentStatusValues": {
+        "pending": "En attente",
+        "paid": "Payé",
+        "failed": "Échoué",
+        "refunded": "Remboursé",
+        "charged_to_room": "Facturé en chambre",
+        "pending_partner_billing": "Paiement partenaire",
+        "card_saved": "Carte enregistrée",
+        "offert": "Offert"
+      }
     }
   },
   "hotels": {

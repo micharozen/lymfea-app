@@ -24,6 +24,7 @@ import { SalesChart, StatusDonut, WeekForecast, RoomOccupancyHeatmap, BookingLea
 import { DashboardRankings } from "@/components/admin/dashboard/DashboardRankings";
 import { DashboardOverview } from "@/components/admin/dashboard/DashboardOverview";
 import { DashboardKpiRow } from "@/components/admin/dashboard/DashboardKpiRow";
+import { MonthlyOutlookChart } from "@/components/admin/dashboard/MonthlyOutlookChart";
 import { Ban, BedDouble, CalendarCheck, CalendarDays } from "lucide-react";
 
 export default function Dashboard() {
@@ -154,6 +155,14 @@ export default function Dashboard() {
             <StatusDonut data={data.statusDistribution} />
           </div>
         </div>
+
+        {/* Monthly outlook — fenêtre fixe 6 mois passés / 3 futurs, indépendante
+            du filtre de période (respecte le lieu). Admins only (affiche le CA). */}
+        {!isConcierge && (
+          <div className="mb-6">
+            <MonthlyOutlookChart data={data.monthlyOutlook} />
+          </div>
+        )}
 
         {/* Room occupancy heatmap (per room) */}
         <div className="mb-6">

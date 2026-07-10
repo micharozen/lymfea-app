@@ -4345,6 +4345,14 @@ export type Database = {
         Args: { _booking_id: string; _therapist_id: string }
         Returns: boolean
       }
+      issue_email_opt_out_token: {
+        Args: { _email: string; _source?: string }
+        Returns: string
+      }
+      unsubscribe_email: {
+        Args: { _token: string }
+        Returns: boolean
+      }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_venue_available_on_date: {
         Args: { _check_date: string; _hotel_id: string }

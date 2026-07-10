@@ -63,7 +63,21 @@
     "thisWeek": "This Week",
     "thisMonth": "This Month",
     "thisYear": "This Year",
-    "allTime": "All Time"
+    "allTime": "All Time",
+    "monthlyOutlook": {
+      "title": "Monthly outlook",
+      "metricRevenue": "Revenue",
+      "metricBookings": "Bookings",
+      "metricAvgBasket": "Avg. basket",
+      "confirmed": "Confirmed",
+      "pending": "Pending",
+      "realized": "Actual",
+      "backlog": "On the books",
+      "currentMonth": "Current month",
+      "bookingsCount_one": "{{count}} booking",
+      "bookingsCount_other": "{{count}} bookings",
+      "empty": "No bookings in this window"
+    }
   },
   "planning": {
     "title": "Planning",
@@ -134,6 +148,38 @@
       "assigned": "Assigned",
       "completed": "Completed",
       "cancelled": "Cancelled"
+    },
+    "export": {
+      "button": "Export to CSV",
+      "success_one": "{{count}} booking exported",
+      "success_other": "{{count}} bookings exported",
+      "empty": "No bookings to export",
+      "columns": {
+        "bookingNumber": "Booking #",
+        "date": "Date",
+        "time": "Time",
+        "client": "Client",
+        "clientType": "Client type",
+        "roomNumber": "Room #",
+        "venue": "Venue",
+        "therapist": "Therapist",
+        "currency": "Currency",
+        "status": "Status",
+        "paymentStatus": "Payment status",
+        "treatments": "Treatments",
+        "duration": "Duration (min)",
+        "amount": "Amount"
+      },
+      "paymentStatusValues": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "failed": "Failed",
+        "refunded": "Refunded",
+        "charged_to_room": "Charged to room",
+        "pending_partner_billing": "Partner billing",
+        "card_saved": "Card saved",
+        "offert": "Complimentary"
+      }
     }
   },
   "hotels": {

@@ -89,6 +89,7 @@ const Compare = lazy(() => import("./pages/Compare"));
 const CompareDetail = lazy(() => import("./pages/CompareDetail"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
+const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const RateTherapist = lazy(() => import("./pages/RateTherapist"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
@@ -265,6 +266,7 @@ const App = () => {
             <Route path="/compare/:slug" element={<CompareDetail />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
 
             {/* Smart redirect based on user type (post-login entrypoint) */}
             <Route path="/app" element={<Home />} />
