@@ -1333,7 +1333,6 @@ export default function EditBookingDialog({
                   className="h-8 shrink-0 gap-1.5 px-2.5 text-xs"
                 >
                   Annuler la réservation
-                  <X className="h-3.5 w-3.5" />
                 </Button>
               ) : null}
             </div>

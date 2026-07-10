@@ -22,4 +22,26 @@ describe("computeDuoLegs", () => {
   it("returns [] when there are no therapists", () => {
     expect(computeDuoLegs([], [{ duration: 60 }], 2)).toEqual([]);
   });
+
+  it("combo-duo: add-ons never count as a guest's soin", () => {
+    const legs = computeDuoLegs(
+      ["t1", "t2"],
+      [
+        { duration: 60 },
+        { duration: 90 },
+        { duration: 30, is_addon: true },
+      ],
+      2,
+    );
+    expect(legs.map((l) => l.duration)).toEqual([60, 90]);
+  });
+
+  it("shared-duo: a lone soin plus its add-on stays a shared-duo", () => {
+    const legs = computeDuoLegs(
+      ["t1", "t2"],
+      [{ duration: 60 }, { duration: 30, is_addon: true }],
+      2,
+    );
+    expect(legs.map((l) => l.duration)).toEqual([60, 60]);
+  });
 });

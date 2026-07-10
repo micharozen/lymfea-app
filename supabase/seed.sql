@@ -113,7 +113,7 @@ INSERT INTO auth.identities (
   );
 
 -- 3) Test hotel
-INSERT INTO public.hotels (id, name, status, opening_time, closing_time, timezone, address, city, country, postal_code, landing_subtitle, venue_type, currency, slot_interval, country_code)
+INSERT INTO public.hotels (id, name, status, opening_time, closing_time, timezone, address, city, country, postal_code, landing_subtitle, venue_type, currency, slot_interval, country_code, booking_hold_enabled, client_payment_mode)
 VALUES (
   '00000000-0000-0000-0000-000000000010',
   'Hôtel Hana',
@@ -129,11 +129,13 @@ VALUES (
   'hotel',
   'EUR',
   30,
-  'FR'
+  'FR',
+  false,
+  'pay_at_booking'
 );
 
 -- 3b) Second test venue (spa type)
-INSERT INTO public.hotels (id, name, status, opening_time, closing_time, timezone, address, city, country, postal_code, landing_subtitle, venue_type, currency, slot_interval, country_code)
+INSERT INTO public.hotels (id, name, status, opening_time, closing_time, timezone, address, city, country, postal_code, landing_subtitle, venue_type, currency, slot_interval, country_code, booking_hold_enabled, client_payment_mode)
 VALUES (
   '00000000-0000-0000-0000-000000000011',
   'Spa Nara',
@@ -149,7 +151,9 @@ VALUES (
   'hotel',
   'EUR',
   30,
-  'FR'
+  'FR',
+  false,
+  'pay_at_booking'
 );
 
 -- 4) Admin record (super-admin for local org multitenancy testing)
@@ -166,8 +170,10 @@ VALUES (
   'a0000000-0000-0000-0000-000000000001'
 );
 
--- 5) Therapist records (Compétences mises à jour pour matcher les soins)
-INSERT INTO public.therapists (id, user_id, email, first_name, last_name, phone, status, password_set, country_code, minimum_guarantee, skills, gender, trunks)
+-- 5) Therapist records
+-- skills = les 17 clés de SPECIALTY_OPTIONS (src/lib/specialtyTypes.ts), pour que
+-- chaque thérapeute matche n'importe quel soin seedé.
+INSERT INTO public.therapists (id, user_id, email, first_name, last_name, phone, status, password_set, country_code, minimum_guarantee, skills, gender, trunks, rate_60, rate_75, rate_90)
 VALUES
   (
     '00000000-0000-0000-0000-000000000102',
@@ -179,9 +185,10 @@ VALUES
     true,
     '+33',
     '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}',
-    '{"Massage","Soin du visage","Soin du corps",barber,beauty}', -- Skills harmonisés
+    '{relaxing_massage,deep_tissue,hot_stones,aromatherapy,prenatal_massage,sports_massage,lymphatic_drainage,facial,body_treatment,body_scrub,body_wrap,manicure_pedicure,hair_removal,hydrotherapy,reflexology,ayurveda,yoga}',
     'female',
-    '00000000-0000-0000-0000-000000000030'
+    '00000000-0000-0000-0000-000000000030',
+    50.00, 60.00, 70.00
   ),
   (
     '00000000-0000-0000-0000-000000000104',
@@ -193,9 +200,10 @@ VALUES
     true,
     '+33',
     '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}',
-    '{"Massage","Soin du visage","Soin du corps",barber,beauty}', -- Skills harmonisés
+    '{relaxing_massage,deep_tissue,hot_stones,aromatherapy,prenatal_massage,sports_massage,lymphatic_drainage,facial,body_treatment,body_scrub,body_wrap,manicure_pedicure,hair_removal,hydrotherapy,reflexology,ayurveda,yoga}',
     'male',
-    '00000000-0000-0000-0000-000000000031'
+    '00000000-0000-0000-0000-000000000031',
+    55.00, 65.00, 75.00
   );
 
 -- 6) Concierge record
@@ -254,6 +262,36 @@ VALUES
   ('00000000-0000-0000-0000-000000000044', 'Massage aux pierres chaudes', 'Massage', '00000000-0000-0000-0000-000000000011', 'All', 90, 140.00, 'EUR', 'active', 'Massage avec pierres volcaniques pour une détente profonde', false),
   ('00000000-0000-0000-0000-000000000045', 'Soin hydratant visage', 'Soin du visage', '00000000-0000-0000-0000-000000000011', 'All', 50, 80.00, 'EUR', 'active', 'Soin intensif hydratation et éclat pour peaux sèches', true),
   ('00000000-0000-0000-0000-000000000046', 'Modelage corps relaxant', 'Soin du corps', '00000000-0000-0000-0000-000000000011', 'All', 45, 70.00, 'EUR', 'active', 'Modelage doux aux huiles chaudes pour un bien-être total', false);
+
+-- 9c) Add-on treatments (is_addon = true) — proposés en supplément dans le flow client.
+-- Ils ne s'affichent pas dans le menu principal, seulement via get_public_treatment_addons.
+INSERT INTO public.treatment_menus (id, name, name_en, category, hotel_id, service_for, duration, price, currency, status, description, description_en, is_addon)
+VALUES
+  -- Hôtel Hana
+  ('00000000-0000-0000-0000-000000000050', 'Massage du cuir chevelu', 'Scalp massage',  'Massage',        '00000000-0000-0000-0000-000000000010', 'All', 15, 25.00, 'EUR', 'active', 'Massage crânien relaxant en fin de soin', 'Relaxing scalp massage to close the treatment', true),
+  ('00000000-0000-0000-0000-000000000051', 'Masque hydratant',        'Hydrating mask', 'Soin du visage', '00000000-0000-0000-0000-000000000010', 'All', 15, 30.00, 'EUR', 'active', 'Masque nourrissant à l''acide hyaluronique', 'Nourishing hyaluronic acid mask', true),
+  ('00000000-0000-0000-0000-000000000052', 'Réflexologie plantaire',  'Foot reflexology','Soin du corps', '00000000-0000-0000-0000-000000000010', 'All', 20, 35.00, 'EUR', 'active', 'Pressions ciblées sur les points réflexes des pieds', 'Targeted pressure on the foot reflex points', true),
+  -- Spa Nara
+  ('00000000-0000-0000-0000-000000000060', 'Massage du cuir chevelu', 'Scalp massage',  'Massage',        '00000000-0000-0000-0000-000000000011', 'All', 15, 28.00, 'EUR', 'active', 'Massage crânien relaxant en fin de soin', 'Relaxing scalp massage to close the treatment', true),
+  ('00000000-0000-0000-0000-000000000061', 'Masque hydratant',        'Hydrating mask', 'Soin du visage', '00000000-0000-0000-0000-000000000011', 'All', 15, 32.00, 'EUR', 'active', 'Masque nourrissant à l''acide hyaluronique', 'Nourishing hyaluronic acid mask', true),
+  ('00000000-0000-0000-0000-000000000062', 'Réflexologie plantaire',  'Foot reflexology','Soin du corps', '00000000-0000-0000-0000-000000000011', 'All', 20, 38.00, 'EUR', 'active', 'Pressions ciblées sur les points réflexes des pieds', 'Targeted pressure on the foot reflex points', true);
+
+-- 9d) Chaque soin (non add-on) reçoit les 3 add-ons de son lieu.
+INSERT INTO public.treatment_addons (parent_treatment_id, addon_treatment_id, sort_order)
+SELECT parent.id, addon.id, addon.sort_order
+FROM public.treatment_menus parent
+JOIN (
+  VALUES
+    ('00000000-0000-0000-0000-000000000050'::uuid, 0),
+    ('00000000-0000-0000-0000-000000000051'::uuid, 1),
+    ('00000000-0000-0000-0000-000000000052'::uuid, 2),
+    ('00000000-0000-0000-0000-000000000060'::uuid, 0),
+    ('00000000-0000-0000-0000-000000000061'::uuid, 1),
+    ('00000000-0000-0000-0000-000000000062'::uuid, 2)
+) AS addon(id, sort_order) ON true
+JOIN public.treatment_menus addon_menu ON addon_menu.id = addon.id
+WHERE parent.is_addon = false
+  AND parent.hotel_id = addon_menu.hotel_id;
 
 -- 10) Treatment rooms
 INSERT INTO public.treatment_rooms (id, name, room_number, room_type, status, hotel_id, hotel_name, capacity)

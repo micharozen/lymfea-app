@@ -47,12 +47,41 @@ export function getCartAvailableDays(items: BasketItem[]): number[] {
 /** Composite key for cart items — allows same treatment with different variants as separate items */
 export const getCartKey = (id: string, variantId?: string) => variantId ? `${id}__${variantId}` : id;
 
+export interface TreatmentPayloadItem {
+  treatmentId: string;
+  variantId?: string;
+  quantity: number;
+  note?: string;
+  /** For an add-on: the treatment it extends. Server-side it names the leg — hence the therapist — the add-on belongs to. */
+  parentTreatmentId?: string;
+}
+
+/**
+ * The `treatments[]` payload sent to create-client-booking / create-checkout-session.
+ * Resolves each add-on's `parentCartKey` back to its parent treatment id so the
+ * backend can hang the add-on off the right soin. An add-on whose parent is gone
+ * (removed from the cart) is sent parentless and becomes an orphan.
+ */
+export function buildTreatmentsPayload(items: BasketItem[]): TreatmentPayloadItem[] {
+  return items.map(item => ({
+    treatmentId: item.id,
+    variantId: item.variantId,
+    quantity: item.quantity,
+    ...(item.note !== undefined && { note: item.note }),
+    ...(item.parentCartKey && {
+      parentTreatmentId: items.find(i => getCartKey(i.id, i.variantId) === item.parentCartKey)?.id,
+    }),
+  }));
+}
+
 interface BasketContextType {
   items: BasketItem[];
   addItem: (item: Omit<BasketItem, 'quantity' | 'note'>) => void;
   removeItem: (id: string, variantId?: string) => void;
   updateQuantity: (id: string, quantity: number, variantId?: string) => void;
   updateNote: (id: string, note: string) => void;
+  /** Overwrite the whole basket — used when resuming an abandoned checkout. */
+  replaceBasket: (items: BasketItem[]) => void;
   clearBasket: () => void;
   total: number;
   itemCount: number;
@@ -149,6 +178,10 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
     ));
   };
 
+  const replaceBasket = (next: BasketItem[]) => {
+    setItems(next);
+  };
+
   const clearBasket = () => {
     setItems([]);
     sessionStorage.removeItem(storageKey);
@@ -188,6 +221,7 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
       removeItem,
       updateQuantity,
       updateNote,
+      replaceBasket,
       clearBasket,
       total,
       fixedTotal,

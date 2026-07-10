@@ -42,9 +42,58 @@ describe("myLegDuration", () => {
     expect(myLegDuration("t2", treatments, ["t1", "t2"], 2)).toBe(60);
   });
 
-  it("stable link present but none mine: returns 0", () => {
+  it("shared-duo with the lone soin claimed: the other therapist still works it in parallel", () => {
     const treatments = [{ therapist_id: "other", duration: 60 }];
-    expect(myLegDuration("me", treatments, ["other", "me"], 2)).toBe(0);
+    expect(myLegDuration("me", treatments, ["other", "me"], 2)).toBe(60);
+  });
+
+  it("combo-duo: my leg is my soin plus the add-ons hanging off it", () => {
+    const treatments = [
+      { therapist_id: "me", duration: 60 },
+      { therapist_id: "other", duration: 60 },
+      { therapist_id: "me", duration: 30, is_addon: true },
+    ];
+    expect(myLegDuration("me", treatments, ["me", "other"], 2)).toBe(90);
+    expect(myLegDuration("other", treatments, ["me", "other"], 2)).toBe(60);
+  });
+
+  it("combo-duo: one add-on per soin → each therapist carries their own", () => {
+    const treatments = [
+      { therapist_id: "me", duration: 60 },
+      { therapist_id: "other", duration: 60 },
+      { therapist_id: "me", duration: 30, is_addon: true },
+      { therapist_id: "other", duration: 15, is_addon: true },
+    ];
+    expect(myLegDuration("me", treatments, ["me", "other"], 2)).toBe(90);
+    expect(myLegDuration("other", treatments, ["me", "other"], 2)).toBe(75);
+  });
+
+  it("shared-duo: the add-on's carrier is paid for it, the other is not", () => {
+    const treatments = [
+      { therapist_id: "t1", duration: 60 },
+      { therapist_id: "t1", duration: 30, is_addon: true },
+    ];
+    expect(myLegDuration("t1", treatments, ["t1", "t2"], 2)).toBe(90);
+    expect(myLegDuration("t2", treatments, ["t1", "t2"], 2)).toBe(60);
+  });
+
+  it("solo: sums soins and add-ons alike", () => {
+    const treatments = [
+      { therapist_id: "me", duration: 60 },
+      { therapist_id: null, duration: 45 },
+      { therapist_id: "me", duration: 30, is_addon: true },
+    ];
+    expect(myLegDuration("me", treatments, ["me"], 1)).toBe(135);
+  });
+
+  it("old duo with add-ons but no stable link: positional on soins, add-ons unpaid", () => {
+    const treatments = [
+      { therapist_id: null, duration: 60 },
+      { therapist_id: null, duration: 90 },
+      { therapist_id: null, duration: 30, is_addon: true },
+    ];
+    expect(myLegDuration("t1", treatments, ["t1", "t2"], 2)).toBe(60);
+    expect(myLegDuration("t2", treatments, ["t1", "t2"], 2)).toBe(90);
   });
 });
 

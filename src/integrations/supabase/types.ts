@@ -641,6 +641,8 @@ export type Database = {
           booking_id: string
           created_at: string
           id: string
+          is_addon: boolean
+          parent_booking_treatment_id: string | null
           price_override: number | null
           therapist_id: string | null
           treatment_id: string
@@ -650,6 +652,8 @@ export type Database = {
           booking_id: string
           created_at?: string
           id?: string
+          is_addon?: boolean
+          parent_booking_treatment_id?: string | null
           price_override?: number | null
           therapist_id?: string | null
           treatment_id: string
@@ -659,6 +663,8 @@ export type Database = {
           booking_id?: string
           created_at?: string
           id?: string
+          is_addon?: boolean
+          parent_booking_treatment_id?: string | null
           price_override?: number | null
           therapist_id?: string | null
           treatment_id?: string
@@ -670,6 +676,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_treatments_parent_booking_treatment_id_fkey"
+            columns: ["parent_booking_treatment_id"]
+            isOneToOne: false
+            referencedRelation: "booking_treatments"
             referencedColumns: ["id"]
           },
           {
@@ -1119,6 +1132,9 @@ export type Database = {
           hotel_id: string
           id: string
           language: string
+          reminder_count: number
+          reminder_sent_at: string | null
+          resume_token: string
           room_number: string | null
           updated_at: string
         }
@@ -1136,6 +1152,9 @@ export type Database = {
           hotel_id: string
           id?: string
           language?: string
+          reminder_count?: number
+          reminder_sent_at?: string | null
+          resume_token?: string
           room_number?: string | null
           updated_at?: string
         }
@@ -1153,6 +1172,9 @@ export type Database = {
           hotel_id?: string
           id?: string
           language?: string
+          reminder_count?: number
+          reminder_sent_at?: string | null
+          resume_token?: string
           room_number?: string | null
           updated_at?: string
         }
@@ -3896,6 +3918,10 @@ export type Database = {
         Args: { _booking_id: string; _intent_id: string }
         Returns: undefined
       }
+      mark_checkout_intent_reminded: {
+        Args: { _intent_id: string }
+        Returns: undefined
+      }
       sync_guest_checkout: {
         Args: {
           _booking_date?: string | null
@@ -4387,6 +4413,21 @@ export type Database = {
           _treatment_ids: string[]
         }
         Returns: string
+      }
+      resume_checkout_intent: {
+        Args: { _token: string }
+        Returns: {
+          booking_date: string
+          booking_time: string
+          cart_snapshot: Json
+          client_email: string
+          client_first_name: string
+          client_last_name: string
+          hotel_id: string
+          hotel_slug: string
+          language: string
+          room_number: string
+        }[]
       }
       revert_booking_cancellation_after_stripe_error: {
         Args: {

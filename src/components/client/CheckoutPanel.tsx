@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   Loader2, AlertTriangle, CreditCard, Building, Gift, Calendar, Repeat, X, Package, MapPin, Phone,
 } from 'lucide-react';
-import { useBasket } from '@/pages/client/context/CartContext';
+import { useBasket, buildTreatmentsPayload } from '@/pages/client/context/CartContext';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
 import { useClientVenue } from '@/pages/client/context/ClientVenueContext';
 import { useCreateOffertBooking } from '@/pages/client/hooks/useCreateOffertBooking';
@@ -234,12 +234,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
                 date: bookingDateTime.date,
                 time: bookingDateTime.time,
               },
-              treatments: items.map(item => ({
-                treatmentId: item.id,
-                variantId: item.variantId,
-                quantity: item.quantity,
-                note: item.note,
-              })),
+              treatments: buildTreatmentsPayload(items),
               paymentMethod: 'gift_amount',
               giftAmountUsage: {
                 customerBundleId: selectedBundle.customerBundleId,
@@ -277,11 +272,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
                 time: bookingDateTime.time,
               },
               treatmentIds: items.map(item => item.id),
-              treatments: items.map(item => ({
-                treatmentId: item.id,
-                variantId: item.variantId,
-                quantity: item.quantity,
-              })),
+              treatments: buildTreatmentsPayload(items),
               totalPrice: uncoveredTotal,
               giftAmountUsage: {
                 customerBundleId: selectedBundle.customerBundleId,
@@ -326,12 +317,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               date: bookingDateTime.date,
               time: bookingDateTime.time,
             },
-            treatments: items.map(item => ({
-              treatmentId: item.id,
-              variantId: item.variantId,
-              quantity: item.quantity,
-              note: item.note,
-            })),
+            treatments: buildTreatmentsPayload(items),
             paymentMethod: 'bundle',
             bundleUsage: {
               customerBundleId: selectedBundle.customerBundleId,
@@ -380,7 +366,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
           },
           bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
           treatmentIds: items.map(item => item.id),
-          treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId, quantity: item.quantity })),
+          treatments: buildTreatmentsPayload(items),
           totalPrice: total,
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
@@ -440,7 +426,7 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               hotelId,
               clientData: clientDataPayload,
               bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
-              treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId, quantity: item.quantity, note: item.note })),
+              treatments: buildTreatmentsPayload(items),
               paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
               totalPrice: fixedTotal,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),

@@ -1,6 +1,7 @@
 import { isInBlockedSlot } from "../../_shared/blocked-slots.ts";
 import { computeOutOfHoursSurcharge } from "../../_shared/surcharge.ts";
 import { resolveVerifiedPmsGuest } from "../../_shared/pms-verify.ts";
+import { computeSlotDuration, fetchAddonTreatmentIds } from "../../_shared/bookingTreatmentLines.ts";
 import type { ActionContext } from "../index.ts";
 
 const corsHeaders = {
@@ -69,7 +70,7 @@ export async function handleCreateSetupIntent(
 
   const { data: treatments, error: treatmentsError } = await supabase
     .from("treatment_menus")
-    .select("id, name, price, hotel_id, status, duration")
+    .select("id, name, price, hotel_id, status, duration, is_addon, category")
     .in("id", effectiveTreatmentIds);
 
   if (treatmentsError || !treatments || treatments.length === 0) {
@@ -113,35 +114,46 @@ export async function handleCreateSetupIntent(
     variants = vData || [];
   }
 
-  // Duo (guestCount > 1): treatments run simultaneously → slot duration = longest
-  // single treatment (max). Solo: sequential → sum. Price always sums.
+  // Duo (guestCount > 1): the legs run simultaneously → slot duration = longest leg
+  // (a soin plus the add-ons hanging off it). Solo: sequential → sum. Price always sums.
   // A cart line can carry quantity > 1 (same treatment booked N times) — price and
   // sequential duration must both scale with it.
   const isDuo = Math.max(1, Number(guestCount) || 1) > 1;
-  let rawTotalPrice = 0;
-  let totalDuration = 0;
-  for (const tPayload of safeTreatmentsPayload) {
+  const addonTreatmentIds = await fetchAddonTreatmentIds(supabase, hotelId, treatments);
+  const isAddonLine = (treatmentId: string) => addonTreatmentIds.has(treatmentId);
+
+  const unitOf = (tPayload: any) => {
     const baseTreatment = treatments.find(
       (t: any) => t.id === (tPayload.treatmentId || tPayload.id),
     );
-    if (!baseTreatment) continue;
-    const quantity = Math.max(1, Number(tPayload.quantity) || 1);
-    let unitPrice = 0;
-    let unitDuration = 0;
+    if (!baseTreatment) return null;
     if (tPayload.variantId) {
       const variant = variants.find((v: any) => v.id === tPayload.variantId);
       if (!variant) {
         throw new Error("A requested treatment variant is no longer available.");
       }
-      unitPrice = variant.price ?? baseTreatment.price ?? 0;
-      unitDuration = variant.duration ?? baseTreatment.duration ?? 30;
-    } else {
-      unitPrice = baseTreatment.price ?? 0;
-      unitDuration = baseTreatment.duration ?? 30;
+      return {
+        price: variant.price ?? baseTreatment.price ?? 0,
+        duration: variant.duration ?? baseTreatment.duration ?? 30,
+      };
     }
-    rawTotalPrice += unitPrice * quantity;
-    totalDuration = isDuo ? Math.max(totalDuration, unitDuration) : totalDuration + unitDuration * quantity;
+    return { price: baseTreatment.price ?? 0, duration: baseTreatment.duration ?? 30 };
+  };
+
+  let rawTotalPrice = 0;
+  for (const tPayload of safeTreatmentsPayload) {
+    const unit = unitOf(tPayload);
+    if (!unit) continue;
+    rawTotalPrice += unit.price * Math.max(1, Number(tPayload.quantity) || 1);
   }
+
+  const durationLines = safeTreatmentsPayload.filter((t: any) => unitOf(t) !== null);
+  const totalDuration = computeSlotDuration(
+    durationLines,
+    isDuo,
+    (line: any) => unitOf(line)?.duration ?? 0,
+    isAddonLine,
+  );
 
   const giftDeductionEuros = giftAmountUsage?.amountCents
     ? Math.round(giftAmountUsage.amountCents / 100)

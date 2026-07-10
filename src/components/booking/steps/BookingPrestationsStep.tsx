@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Minus, Loader2, Clock, Ticket, Gift, Search, ChevronDown, Pencil } from "lucide-react";
+import { Plus, Minus, Loader2, Clock, Ticket, Gift, Search, ChevronDown, ShoppingBag, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
@@ -45,6 +45,7 @@ interface BookingPrestationsStepProps {
   addToCart: (id: string, variantId?: string | null) => void;
   incrementCart: (id: string, variantId?: string | null) => void;
   decrementCart: (id: string, variantId?: string | null) => void;
+  removeCartLine?: (treatmentId: string, variantId?: string | null) => void;
   setLineOverride?: (treatmentId: string, variantId: string | null | undefined, value: number | null) => void;
   getCartQuantity: (treatmentId: string, variantId?: string | null) => number;
   totalPrice: number;
@@ -94,6 +95,7 @@ export function BookingPrestationsStep({
   addToCart,
   incrementCart,
   decrementCart,
+  removeCartLine,
   setLineOverride,
   getCartQuantity,
   totalPrice,
@@ -130,498 +132,526 @@ export function BookingPrestationsStep({
 }: BookingPrestationsStepProps) {
   const { t } = useTranslation('admin');
   const [searchQuery, setSearchQuery] = useState("");
-  const [showPriceOverrides, setShowPriceOverrides] = useState(false);
   const [showAmenities, setShowAmenities] = useState(false);
   const voucherSupported = clientType === "hotel" || clientType === "external";
-  const overriddenCount = cartDetails.filter((l) => l.priceOverride != null).length;
   const enabledAmenities = (venueAmenities ?? []).filter((a) => a.is_enabled);
   const selectedAmenityCount = enabledAmenities.filter((a) => selectedAmenityIds?.includes(a.id)).length;
+  const currency = selectedHotel?.currency || 'EUR';
+  const canOverride = isAdmin || isConcierge;
+  const cartCount = cartDetails.reduce((n, x) => n + x.quantity, 0);
+
+  const Stepper = ({ qty, onDec, onInc }: { qty: number; onDec: () => void; onInc: () => void }) => (
+    <div className="flex items-center gap-2 shrink-0">
+      <button
+        type="button"
+        onClick={onDec}
+        className="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-muted transition-colors"
+      >
+        <Minus className="h-3 w-3" />
+      </button>
+      <span className="text-sm font-semibold w-5 text-center tabular-nums">{qty}</span>
+      <button
+        type="button"
+        onClick={onInc}
+        className="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-muted transition-colors"
+      >
+        <Plus className="h-3 w-3" />
+      </button>
+    </div>
+  );
+
+  const AddButton = ({ onClick }: { onClick: () => void }) => (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={onClick}
+      className="shrink-0 h-7 rounded-full gap-1 px-3 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+    >
+      <Plus className="h-3.5 w-3.5" />
+      Ajouter
+    </Button>
+  );
+
+  const OnRequestBadge = () => (
+    <span className="shrink-0 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded">
+      Sur demande
+    </span>
+  );
+
+  const priceLine = (treatment: Treatment, price: number | null | undefined, duration: number | null | undefined) =>
+    treatment.price_on_request
+      ? `${duration} min`
+      : `${formatPrice(price, currency, { decimals: 0 })} • ${duration} min`;
 
   return (
-    <>
-      {/* Treatment search */}
-      <div className="relative shrink-0 mb-3">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t('bookings.searchTreatment', { defaultValue: 'Rechercher un soin…' })}
-          className="h-8 pl-8 text-xs"
-        />
-      </div>
+    <div className="flex-1 flex flex-col md:flex-row min-h-0">
+      {/* ── Colonne gauche : catalogue des soins ── */}
+      <div className="flex-1 flex flex-col min-h-0 px-6 pt-3 pb-3 md:border-r border-border">
+        <div className="relative shrink-0 mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('bookings.searchTreatment', { defaultValue: 'Rechercher un soin…' })}
+            className="h-10 pl-9 text-sm"
+          />
+        </div>
 
-      {/* SERVICE LIST - Scrollable with max height */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        {(() => {
-          const q = searchQuery.trim().toLowerCase();
-          const filtered = (treatments || []).filter(t =>
-            !q ||
-            (t.name?.toLowerCase().includes(q) ?? false) ||
-            (t.category?.toLowerCase().includes(q) ?? false)
-          );
-
-          const grouped: Record<string, typeof filtered> = {};
-          filtered.forEach(t => {
-            const c = t.category || "Autres";
-            if (!grouped[c]) grouped[c] = [];
-            grouped[c].push(t);
-          });
-
-          if (!filtered.length) {
-            return (
-              <div className="h-16 flex items-center justify-center text-xs text-muted-foreground">
-                Aucune prestation disponible
-              </div>
+        <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
+          {(() => {
+            const q = searchQuery.trim().toLowerCase();
+            const filtered = (treatments || []).filter(t =>
+              !q ||
+              (t.name?.toLowerCase().includes(q) ?? false) ||
+              (t.category?.toLowerCase().includes(q) ?? false)
             );
-          }
 
-          return Object.entries(grouped).map(([category, items]) => (
-            <div key={category} className="mb-2">
-              <h3 className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1 pb-0.5 border-b border-border/30">
-                {category}
-              </h3>
+            const grouped: Record<string, typeof filtered> = {};
+            filtered.forEach(t => {
+              const c = t.category || "Autres";
+              if (!grouped[c]) grouped[c] = [];
+              grouped[c].push(t);
+            });
 
-              <div>
-                {items.map((treatment) => {
-                  const totalQty = getCartQuantity(treatment.id);
-                  const variants = treatment.treatment_variants ?? [];
-                  const hasVariantChoice = variants.length >= 2;
+            if (!filtered.length) {
+              return (
+                <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
+                  Aucune prestation disponible
+                </div>
+              );
+            }
 
-                  if (hasVariantChoice) {
-                    return (
-                      <div key={treatment.id} className="border-b border-border/10 last:border-0">
-                        <div className="flex items-center gap-1.5 py-1.5">
-                          <span className="font-medium text-foreground text-xs truncate flex-1">
-                            {treatment.name}
-                          </span>
-                          {treatment.price_on_request && (
-                            <span className="shrink-0 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded">
-                              Sur demande
-                            </span>
-                          )}
-                          {totalQty > 0 && (
-                            <span className="shrink-0 text-[9px] font-bold text-muted-foreground">×{totalQty}</span>
-                          )}
-                        </div>
-                        {variants.map((v, vi) => {
-                          const variantQty = getCartQuantity(treatment.id, v.id);
-                          const label = v.label || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
-                          const displayPrice = v.price ?? treatment.price;
-                          const displayDuration = v.duration ?? treatment.duration;
-                          return (
-                            <div key={v.id} className={cn("flex items-center justify-between pl-2 pb-1", vi === variants.length - 1 && "pb-2")}>
-                              <div className="flex flex-col flex-1 pr-2 min-w-0">
-                                <span className="text-[10px] font-medium text-foreground">{label}</span>
-                                <span className="text-[10px] text-muted-foreground">
-                                  {treatment.price_on_request
-                                    ? `${displayDuration} min`
-                                    : `${formatPrice(displayPrice, selectedHotel?.currency || 'EUR', { decimals: 0 })} • ${displayDuration} min`}
-                                </span>
-                              </div>
-                              {variantQty > 0 ? (
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <button type="button" onClick={() => decrementCart(treatment.id, v.id)}
-                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors">
-                                    <Minus className="h-2.5 w-2.5" />
-                                  </button>
-                                  <span className="text-xs font-bold w-4 text-center">{variantQty}</span>
-                                  <button type="button" onClick={() => incrementCart(treatment.id, v.id)}
-                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors">
-                                    <Plus className="h-2.5 w-2.5" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <button type="button" onClick={() => addToCart(treatment.id, v.id)}
-                                  className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors">
-                                  Ajouter
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  }
+            return Object.entries(grouped).map(([category, items]) => (
+              <div key={category} className="mb-4 last:mb-0">
+                <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/40">
+                  {category}
+                </h3>
 
-                  const qty = totalQty;
-                  const selectedVariant = variants[0] ?? null;
-                  const displayPrice = selectedVariant?.price ?? treatment.price;
-                  const displayDuration = selectedVariant?.duration ?? treatment.duration;
+                <div className="space-y-1">
+                  {items.map((treatment) => {
+                    const variants = treatment.treatment_variants ?? [];
+                    const hasVariantChoice = variants.length >= 2;
+                    const totalQty = getCartQuantity(treatment.id);
 
-                  return (
-                    <div
-                      key={treatment.id}
-                      className="border-b border-border/10 last:border-0"
-                    >
-                      <div className="flex items-center justify-between py-1.5">
-                        <div className="flex flex-col flex-1 pr-2 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-foreground text-xs truncate">
+                    // Treatment with multiple variants → header + one row per variant.
+                    if (hasVariantChoice) {
+                      return (
+                        <div key={treatment.id} className="rounded-lg border border-transparent hover:border-border/60 hover:bg-muted/30 transition-colors px-2 py-1.5">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-normal text-foreground text-sm truncate flex-1">
                               {treatment.name}
                             </span>
-                            {treatment.price_on_request && (
-                              <span className="shrink-0 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded">
-                                Sur demande
-                              </span>
+                            {treatment.price_on_request && <OnRequestBadge />}
+                            {totalQty > 0 && (
+                              <span className="shrink-0 text-xs font-bold text-primary">×{totalQty}</span>
                             )}
                           </div>
-                          <span className="text-[10px] text-muted-foreground">
-                            {treatment.price_on_request
-                              ? `${displayDuration} min`
-                              : `${formatPrice(displayPrice, selectedHotel?.currency || 'EUR', { decimals: 0 })} • ${displayDuration} min`}
+                          {variants.map((v) => {
+                            const variantQty = getCartQuantity(treatment.id, v.id);
+                            const label = v.label || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
+                            return (
+                              <div key={v.id} className="flex items-center justify-between gap-2 pl-3 py-1">
+                                <div className="flex flex-col flex-1 pr-2 min-w-0">
+                                  <span className="text-sm font-medium text-foreground">{label}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {priceLine(treatment, v.price ?? treatment.price, v.duration ?? treatment.duration)}
+                                  </span>
+                                </div>
+                                {variantQty > 0 ? (
+                                  <Stepper
+                                    qty={variantQty}
+                                    onDec={() => decrementCart(treatment.id, v.id)}
+                                    onInc={() => incrementCart(treatment.id, v.id)}
+                                  />
+                                ) : (
+                                  <AddButton onClick={() => addToCart(treatment.id, v.id)} />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    }
+
+                    // Treatment with 0-1 variant → single row.
+                    const selectedVariant = variants[0] ?? null;
+                    return (
+                      <div
+                        key={treatment.id}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-transparent hover:border-border/60 hover:bg-muted/30 transition-colors px-2 py-2"
+                      >
+                        <div className="flex flex-col flex-1 pr-2 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-normal text-foreground text-sm truncate">
+                              {treatment.name}
+                            </span>
+                            {treatment.price_on_request && <OnRequestBadge />}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {priceLine(
+                              treatment,
+                              selectedVariant?.price ?? treatment.price,
+                              selectedVariant?.duration ?? treatment.duration,
+                            )}
                           </span>
                         </div>
 
-                        {qty > 0 ? (
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => decrementCart(treatment.id)}
-                              className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
-                            >
-                              <Minus className="h-2.5 w-2.5" />
-                            </button>
-                            <span className="text-xs font-bold w-4 text-center">{qty}</span>
-                            <button
-                              type="button"
-                              onClick={() => incrementCart(treatment.id)}
-                              className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
-                            >
-                              <Plus className="h-2.5 w-2.5" />
-                            </button>
-                          </div>
+                        {totalQty > 0 ? (
+                          <Stepper
+                            qty={totalQty}
+                            onDec={() => decrementCart(treatment.id)}
+                            onInc={() => incrementCart(treatment.id)}
+                          />
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => addToCart(treatment.id)}
-                            className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors"
-                          >
-                            Ajouter
-                          </button>
+                          <AddButton onClick={() => addToCart(treatment.id)} />
                         )}
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ));
-        })()}
+            ));
+          })()}
+        </div>
       </div>
 
-      {/* Compact Footer */}
-      <div className="shrink-0 border-t border-border bg-background pt-3 mt-3 space-y-3">
-        {/* Admin-only: Custom Price & Duration - ONLY for On Request services */}
-        {(isAdmin || isConcierge) && hasOnRequestService && (
-          <div className="grid grid-cols-2 gap-2 pb-2 border-b border-border/50">
-            <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">Prix personnalisé (€)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={customPrice}
-                onChange={(e) => setCustomPrice(e.target.value)}
-                className="h-7 text-xs"
-                placeholder={String(totalPrice)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">Durée personnalisée (min)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="5"
-                value={customDuration}
-                onChange={(e) => setCustomDuration(e.target.value)}
-                className="h-7 text-xs"
-                placeholder={String(totalDuration)}
-              />
-            </div>
+      {/* ── Colonne droite : panier ── */}
+      <div className="w-full md:w-[300px] shrink-0 flex flex-col min-h-0 bg-muted/30 border-t md:border-t-0 border-border">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+            <span className="font-semibold text-sm">Panier</span>
           </div>
-        )}
+          {cartCount > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {cartCount} soin{cartCount > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
 
-        {/* Admin-only: per-line price override (special rate). Empty = catalog price.
-            Collapsed by default so it doesn't shrink the treatment list. */}
-        {(isAdmin || isConcierge) && setLineOverride && cartDetails.length > 0 && (
-          <div className="pb-2 border-b border-border/50">
-            <button
-              type="button"
-              onClick={() => setShowPriceOverrides((v) => !v)}
-              className="flex w-full items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Pencil className="h-3 w-3 shrink-0" />
-              <span>Prix par prestation</span>
-              {overriddenCount > 0 && (
-                <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5 normal-case">
-                  {overriddenCount} modifié{overriddenCount > 1 ? 's' : ''}
-                </span>
-              )}
-              <ChevronDown
-                className={cn(
-                  "h-3.5 w-3.5 shrink-0 ml-auto transition-transform",
-                  showPriceOverrides && "rotate-180",
-                )}
-              />
-            </button>
-            {showPriceOverrides && (
-            <div className="space-y-1.5 mt-2">
-            {cartDetails.map(({ treatmentId, variantId, treatment, priceOverride }) => (
-              <div key={`ov-${treatmentId}-${variantId ?? 'base'}`} className="flex items-center gap-2">
-                <span className="text-[11px] flex-1 truncate">
-                  {getCartLineDisplayName(treatment, variantId)}
-                </span>
-                {priceOverride != null && (
-                  <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
-                    modifié
-                  </span>
-                )}
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-2">
+          {cartDetails.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center px-4 py-8">
+              <ShoppingBag className="h-8 w-8 text-muted-foreground/40 mb-2" />
+              <p className="text-sm font-medium text-muted-foreground">Votre panier est vide</p>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">Ajoutez des soins depuis la liste</p>
+            </div>
+          ) : (
+            cartDetails.map(({ treatmentId, variantId, quantity, priceOverride, treatment }) => {
+              const unitPrice = getCartLineUnitPrice(treatment, variantId, priceOverride);
+              const lineTotal = unitPrice * quantity;
+              return (
+                <div key={`${treatmentId}-${variantId ?? 'base'}`} className="rounded-lg border border-border bg-background p-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium leading-tight truncate">
+                        {getCartLineDisplayName(treatment, variantId)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatPrice(unitPrice, currency, { decimals: 0 })} / unité
+                      </p>
+                    </div>
+                    {removeCartLine && (
+                      <button
+                        type="button"
+                        onClick={() => removeCartLine(treatmentId, variantId)}
+                        className="shrink-0 text-muted-foreground hover:text-destructive transition-colors p-0.5"
+                        aria-label="Retirer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => decrementCart(treatmentId, variantId)}
+                        className="w-7 h-7 rounded-full border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="text-sm font-semibold w-5 text-center tabular-nums">{quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => incrementCart(treatmentId, variantId)}
+                        className="w-7 h-7 rounded-full border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <span className="text-sm font-bold">{formatPrice(lineTotal, currency, { decimals: 0 })}</span>
+                  </div>
+
+                  {canOverride && setLineOverride && (
+                    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+                      <span className="text-[11px] text-muted-foreground shrink-0">Prix spécial</span>
+                      {priceOverride != null && (
+                        <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
+                          modifié
+                        </span>
+                      )}
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={priceOverride ?? ''}
+                        onChange={(e) =>
+                          setLineOverride(
+                            treatmentId,
+                            variantId,
+                            e.target.value === '' ? null : Number(e.target.value),
+                          )
+                        }
+                        className="h-7 flex-1 min-w-0 text-xs text-right"
+                        placeholder={String(getCartLineUnitPrice(treatment, variantId))}
+                      />
+                      <span className="text-[11px] text-muted-foreground shrink-0">€</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+
+          {/* Admin-only: Custom Price & Duration - ONLY for On Request services */}
+          {canOverride && hasOnRequestService && (
+            <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-background p-2.5">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Prix personnalisé (€)</Label>
                 <Input
                   type="number"
                   min="0"
                   step="0.01"
-                  value={priceOverride ?? ''}
-                  onChange={(e) =>
-                    setLineOverride(
-                      treatmentId,
-                      variantId,
-                      e.target.value === '' ? null : Number(e.target.value),
-                    )
-                  }
-                  className="h-7 w-20 text-xs text-right"
-                  placeholder={String(getCartLineUnitPrice(treatment, variantId))}
+                  value={customPrice}
+                  onChange={(e) => setCustomPrice(e.target.value)}
+                  className="h-7 text-xs"
+                  placeholder={String(totalPrice)}
                 />
-                <span className="text-[10px] text-muted-foreground">€</span>
               </div>
-            ))}
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Durée personnalisée (min)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="5"
+                  value={customDuration}
+                  onChange={(e) => setCustomDuration(e.target.value)}
+                  className="h-7 text-xs"
+                  placeholder={String(totalDuration)}
+                />
+              </div>
             </div>
-            )}
-          </div>
-        )}
+          )}
 
-        {/* Out-of-hours surcharge line */}
-        {/* Amenity access toggles */}
-        {enabledAmenities.length > 0 && onToggleAmenity && (
-          <div className="border rounded-md p-2">
-            <button
-              type="button"
-              onClick={() => setShowAmenities((v) => !v)}
-              className="flex w-full items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span>Accès commodités</span>
-              {selectedAmenityCount > 0 && (
-                <span className="text-[8px] uppercase font-semibold text-emerald-600 bg-emerald-100 rounded px-1 py-0.5">
-                  {selectedAmenityCount} actif{selectedAmenityCount > 1 ? 's' : ''}
-                </span>
-              )}
-              <ChevronDown
-                className={cn(
-                  "h-3.5 w-3.5 shrink-0 ml-auto transition-transform",
-                  showAmenities && "rotate-180",
+          {/* Amenity access toggles */}
+          {enabledAmenities.length > 0 && onToggleAmenity && (
+            <div className="rounded-lg border border-border bg-background p-2.5">
+              <button
+                type="button"
+                onClick={() => setShowAmenities((v) => !v)}
+                className="flex w-full items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span>Accès commodités</span>
+                {selectedAmenityCount > 0 && (
+                  <span className="text-[8px] uppercase font-semibold text-emerald-600 bg-emerald-100 rounded px-1 py-0.5">
+                    {selectedAmenityCount} actif{selectedAmenityCount > 1 ? 's' : ''}
+                  </span>
                 )}
-              />
-            </button>
-            {showAmenities && (
-            <div className="space-y-1.5 mt-2">
-            {enabledAmenities.map((amenity) => {
-              const typeDef = getAmenityType(amenity.type);
-              const Icon = typeDef?.icon;
-              const isSelected = selectedAmenityIds?.includes(amenity.id) ?? false;
-              const priceLabel = amenity.lymfea_access_included
-                ? "Inclus"
-                : formatPrice(Number(amenity.price_lymfea) || 0, amenity.currency || "EUR");
+                <ChevronDown
+                  className={cn(
+                    "h-3.5 w-3.5 shrink-0 ml-auto transition-transform",
+                    showAmenities && "rotate-180",
+                  )}
+                />
+              </button>
+              {showAmenities && (
+                <div className="space-y-1.5 mt-2">
+                  {enabledAmenities.map((amenity) => {
+                    const typeDef = getAmenityType(amenity.type);
+                    const Icon = typeDef?.icon;
+                    const isSelected = selectedAmenityIds?.includes(amenity.id) ?? false;
+                    const amenityPrice = amenity.lymfea_access_included
+                      ? "Inclus"
+                      : formatPrice(Number(amenity.price_lymfea) || 0, amenity.currency || "EUR");
 
-              return (
-                <div key={amenity.id} className="flex items-center justify-between gap-2 py-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {Icon && (
-                      <Icon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: amenity.color }} />
-                    )}
-                    <span className="text-xs truncate">
-                      {amenity.name || getAmenityLabel(amenity.type, "fr")}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {amenity.lymfea_access_duration || amenity.slot_duration}min
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-[10px] text-muted-foreground">{priceLabel}</span>
-                    <Switch
-                      checked={isSelected}
-                      onCheckedChange={(checked) => onToggleAmenity(amenity.id, checked)}
-                      className="scale-75"
-                    />
-                  </div>
+                    return (
+                      <div key={amenity.id} className="flex items-center justify-between gap-2 py-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {Icon && (
+                            <Icon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: amenity.color }} />
+                          )}
+                          <span className="text-xs truncate">
+                            {amenity.name || getAmenityLabel(amenity.type, "fr")}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {amenity.lymfea_access_duration || amenity.slot_duration}min
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[10px] text-muted-foreground">{amenityPrice}</span>
+                          <Switch
+                            checked={isSelected}
+                            onCheckedChange={(checked) => onToggleAmenity(amenity.id, checked)}
+                            className="scale-75"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              )}
             </div>
-            )}
-          </div>
-        )}
+          )}
 
-        {isBookingOutOfHours && surchargeAmount != null && surchargeAmount > 0 && (
-          <div className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-2.5 py-1.5">
-            <span className="flex items-center gap-1.5 text-[10px] text-amber-800 dark:text-amber-300">
-              <Clock className="h-3 w-3 shrink-0" />
-              Majoration hors horaires ({surchargePercent}%)
-            </span>
-            <span className="text-[10px] font-semibold text-amber-800 dark:text-amber-300">
-              +{formatPrice(surchargeAmount, selectedHotel?.currency || 'EUR')}
-            </span>
-          </div>
-        )}
+          {/* Out-of-hours surcharge line */}
+          {isBookingOutOfHours && surchargeAmount != null && surchargeAmount > 0 && (
+            <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-2.5 py-1.5">
+              <span className="flex items-center gap-1.5 text-[10px] text-amber-800 dark:text-amber-300">
+                <Clock className="h-3 w-3 shrink-0" />
+                Majoration hors horaires ({surchargePercent}%)
+              </span>
+              <span className="text-[10px] font-semibold text-amber-800 dark:text-amber-300">
+                +{formatPrice(surchargeAmount, currency)}
+              </span>
+            </div>
+          )}
 
-        {/* Pay-by-voucher block (hotel + external only) */}
-        {voucherSupported && (
-          <div className="space-y-2 rounded-md border border-border px-2.5 py-2">
-            <label className="flex items-start gap-2 cursor-pointer">
+          {/* Pay-by-voucher block (hotel + external only) */}
+          {voucherSupported && (
+            <div className="space-y-2 rounded-lg border border-border bg-background px-2.5 py-2">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <Checkbox
+                  checked={payByVoucher}
+                  onCheckedChange={(checked) => onPayByVoucherChange(!!checked)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1 min-w-0">
+                  <span className="flex items-center gap-1.5 text-xs font-medium">
+                    <Ticket className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    {t('bookings.payByVoucher.label')}
+                  </span>
+                  {payByVoucher && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {t('bookings.payByVoucher.helper')}
+                    </p>
+                  )}
+                </div>
+              </label>
+              {payByVoucher && (
+                <Input
+                  value={voucherReference}
+                  onChange={(e) => onVoucherReferenceChange(e.target.value)}
+                  placeholder={t('bookings.payByVoucher.referenceLabel')}
+                  className="h-7 text-xs"
+                />
+              )}
+            </div>
+          )}
+
+          {/* admin-combo-duo: parallel N solo treatments as one duo booking */}
+          {comboDuoEligible && onComboDuoChange && (
+            <div className="space-y-1.5 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-2.5 py-2">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <Checkbox
+                  checked={comboDuoEnabled}
+                  onCheckedChange={(checked) => onComboDuoChange(!!checked)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium">
+                    {t("booking.comboDuo.toggle", {
+                      count: sessionCount,
+                      defaultValue: `Réserver en duo (${sessionCount} praticiens en parallèle)`,
+                    })}
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {t("booking.comboDuo.helper", {
+                      count: sessionCount,
+                      defaultValue: "Les soins se déroulent en parallèle, chacun avec son praticien.",
+                    })}
+                  </p>
+                </div>
+              </label>
+            </div>
+          )}
+          {variantDuoInCart && sessionCount >= 2 && !comboDuoEligible && (
+            <p className="text-[10px] text-muted-foreground px-0.5">
+              {t("booking.comboDuo.ineligibleVariantDuo", {
+                defaultValue: "Réservation duo via variante catalogue — le mode combo n'est pas disponible.",
+              })}
+            </p>
+          )}
+
+          {/* Offert (gratuit) — admin / concierge, tous types de client */}
+          {canOffer && (
+            <label className="flex items-start gap-2 cursor-pointer rounded-lg border border-border bg-background px-2.5 py-2">
               <Checkbox
-                checked={payByVoucher}
-                onCheckedChange={(checked) => onPayByVoucherChange(!!checked)}
+                checked={isOffert}
+                onCheckedChange={(checked) => onIsOffertChange(!!checked)}
                 className="mt-0.5"
               />
               <div className="flex-1 min-w-0">
                 <span className="flex items-center gap-1.5 text-xs font-medium">
-                  <Ticket className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  {t('bookings.payByVoucher.label')}
+                  <Gift className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  {t('bookings.offert.label')}
                 </span>
-                {payByVoucher && (
+                {isOffert && (
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    {t('bookings.payByVoucher.helper')}
+                    {t('bookings.offert.helper')}
                   </p>
                 )}
               </div>
             </label>
-            {payByVoucher && (
-              <Input
-                value={voucherReference}
-                onChange={(e) => onVoucherReferenceChange(e.target.value)}
-                placeholder={t('bookings.payByVoucher.referenceLabel')}
-                className="h-7 text-xs"
-              />
-            )}
-          </div>
-        )}
-
-        {/* admin-combo-duo: parallel N solo treatments as one duo booking */}
-        {comboDuoEligible && onComboDuoChange && (
-          <div className="space-y-1.5 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-2.5 py-2">
-            <label className="flex items-start gap-2 cursor-pointer">
-              <Checkbox
-                checked={comboDuoEnabled}
-                onCheckedChange={(checked) => onComboDuoChange(!!checked)}
-                className="mt-0.5"
-              />
-              <div className="flex-1 min-w-0">
-                <span className="text-xs font-medium">
-                  {t("booking.comboDuo.toggle", {
-                    count: sessionCount,
-                    defaultValue: `Réserver en duo (${sessionCount} praticiens en parallèle)`,
-                  })}
-                </span>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {t("booking.comboDuo.helper", {
-                    count: sessionCount,
-                    defaultValue: "Les soins se déroulent en parallèle, chacun avec son praticien.",
-                  })}
-                </p>
-              </div>
-            </label>
-          </div>
-        )}
-        {variantDuoInCart && sessionCount >= 2 && !comboDuoEligible && (
-          <p className="text-[10px] text-muted-foreground px-0.5">
-            {t("booking.comboDuo.ineligibleVariantDuo", {
-              defaultValue: "Réservation duo via variante catalogue — le mode combo n'est pas disponible.",
-            })}
-          </p>
-        )}
-
-        {/* Offert (gratuit) — admin / concierge, tous types de client */}
-        {canOffer && (
-          <label className="flex items-start gap-2 cursor-pointer rounded-md border border-border px-2.5 py-2">
-            <Checkbox
-              checked={isOffert}
-              onCheckedChange={(checked) => onIsOffertChange(!!checked)}
-              className="mt-0.5"
-            />
-            <div className="flex-1 min-w-0">
-              <span className="flex items-center gap-1.5 text-xs font-medium">
-                <Gift className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                {t('bookings.offert.label')}
-              </span>
-              {isOffert && (
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {t('bookings.offert.helper')}
-                </p>
-              )}
-            </div>
-          </label>
-        )}
-
-        <div className="flex items-center justify-between gap-3">
-          {/* Back button */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onBack}
-            className="h-7 text-xs px-2 shrink-0"
-          >
-            ← Retour
-          </Button>
-
-          {/* Cart Summary + Price */}
-          <div className="flex-1 min-w-0 flex justify-center">
-            {cart.length > 0 ? (
-              <div className="flex items-center gap-1.5 overflow-x-auto">
-                {cartDetails.slice(0, 3).map(({ treatmentId, variantId, quantity, treatment }) => (
-                  <div key={`${treatmentId}-${variantId ?? 'base'}`} className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 shrink-0">
-                    <span className="text-[9px] font-medium truncate max-w-[60px]">
-                      {getCartLineDisplayName(treatment, variantId)}
-                    </span>
-                    <span className="text-[9px] font-bold">×{quantity}</span>
-                  </div>
-                ))}
-                {cartDetails.length > 3 && (
-                  <span className="text-[9px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
-                )}
-                <span className="font-bold text-sm shrink-0 ml-1">
-                  {isOffert
-                    ? t('bookings.offert.tag')
-                    : formatPrice(finalPriceWithSurcharge ?? finalPrice, selectedHotel?.currency || 'EUR')}
-                </span>
-              </div>
-            ) : (
-              <span className="text-[10px] text-muted-foreground">Aucun service</span>
-            )}
-          </div>
-
-          {/* Staff: go to therapist step — otherwise submit from prestations */}
-          {onNext ? (
-            <Button
-              type="button"
-              disabled={cart.length === 0}
-              size="sm"
-              onClick={onNext}
-              className="h-7 text-xs px-3 shrink-0 bg-foreground text-background hover:bg-foreground/90"
-            >
-              Suivant →
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              disabled={isPending || cart.length === 0}
-              size="sm"
-              className="h-7 text-xs px-3 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700"
-            >
-              {isPending ? "Création..." : "Envoyer la demande"}
-              {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-            </Button>
           )}
         </div>
+
+        <div className="border-t border-border bg-background px-4 py-3 space-y-3 shrink-0">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Total</span>
+            <span className="text-lg font-bold">
+              {isOffert
+                ? t('bookings.offert.tag')
+                : formatPrice(finalPriceWithSurcharge ?? finalPrice, currency)}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onBack}
+              className="flex-1 h-9 text-sm"
+            >
+              ← Retour
+            </Button>
+            {/* Staff: go to therapist step — otherwise submit from prestations */}
+            {onNext ? (
+              <Button
+                type="button"
+                disabled={cart.length === 0}
+                size="sm"
+                onClick={onNext}
+                className="flex-1 h-9 text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                Suivant →
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={isPending || cart.length === 0}
+                size="sm"
+                className="flex-1 h-9 text-sm bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                {isPending ? "Création..." : "Envoyer la demande"}
+                {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
