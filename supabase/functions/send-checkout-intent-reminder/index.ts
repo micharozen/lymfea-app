@@ -63,7 +63,7 @@ serve(async (_req: Request) => {
     const { data: intents, error: fetchError } = await supabase
       .from("checkout_intents")
       .select(
-        "id, customer_id, hotel_id, client_email, client_first_name, language, booking_date, booking_time, cart_snapshot, resume_token, created_at, reminder_count, reminder_sent_at, hotels ( name, slug, timezone, image, address, postal_code, city, country, contact_email, website_url, client_cancellation_cutoff_hours )",
+        "id, customer_id, hotel_id, client_email, language, booking_date, booking_time, cart_snapshot, resume_token, created_at, reminder_count, reminder_sent_at, hotels ( name, slug, timezone, image, cover_image, address, postal_code, city, country )",
       )
       .is("converted_at", null)
       .lt("reminder_count", MAX_REMINDERS)
@@ -93,7 +93,7 @@ serve(async (_req: Request) => {
     const bookedSince = await fetchBookedSince(supabase, intents, oldestAllowed);
     const optedOut = await fetchOptedOut(supabase, intents);
     const durations = await fetchDurations(supabase, intents);
-    const appUrl = Deno.env.get("PUBLIC_APP_URL") ?? `https://${brand.appDomain}`;
+    const appUrl = Deno.env.get("SITE_URL") ?? `https://${brand.appDomain}`;
 
     let sent = 0;
 
@@ -175,19 +175,12 @@ serve(async (_req: Request) => {
         subject: getCheckoutIntentReminderSubject(lang, venue.name),
         html: getCheckoutIntentReminderHtml({
           lang,
-          firstName: intent.client_first_name,
           venueName: venue.name,
           venue,
           items,
           total: typeof snapshot.total === "number" ? snapshot.total : null,
           currency: snapshot.currency ?? "EUR",
-          bookingDate: intent.booking_date,
-          bookingTime: intent.booking_time,
-          slotIsSoon: slot !== null &&
-            slot.getTime() - now.getTime() <= R2_SLOT_WITHIN_HOURS * HOUR_MS,
-          cancellationCutoffHours: venue.client_cancellation_cutoff_hours,
           resumeUrl,
-          rescheduleUrl: `${resumeUrl}&step=schedule`,
           unsubscribeUrl,
         }),
         // One-click unsubscribe: Gmail and Yahoo require it on bulk mail. The POST

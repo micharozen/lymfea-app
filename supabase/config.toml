@@ -224,3 +224,6 @@ verify_jwt = false
 
 [functions.unsubscribe-email]
 verify_jwt = false
+
+[functions.send-checkout-intent-reminder]
+verify_jwt = false
