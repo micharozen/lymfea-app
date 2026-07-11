@@ -669,6 +669,18 @@ export default function EditBookingDialog({
         : null;
       const becameHotelRoomCharge = derivedPayment?.paymentStatus === "charged_to_room";
 
+      // Combo-duo (un soin par invité) : ajouter/retirer un soin change le nombre
+      // d'invités. Sans resynchronisation, guest_count fige le nombre de jambes du
+      // récap duo (DuoRecapTable) sur l'ancienne valeur. Duo-variante (soin partagé,
+      // nb soins ≠ guest_count) : on ne touche pas.
+      const prevGuestCount = booking.guest_count ?? 1;
+      const wasComboDuo =
+        prevGuestCount > 1 && existingTreatments?.length === prevGuestCount;
+      const newGuestCount =
+        wasComboDuo && bookingData.treatments?.length
+          ? bookingData.treatments.length
+          : prevGuestCount;
+
       const { error: bookingError } = await supabase
         .from("bookings")
         .update({
@@ -691,6 +703,7 @@ export default function EditBookingDialog({
           assigned_at: assignedAt,
           client_note: bookingData.client_note ?? null,
           client_type: bookingData.client_type,
+          guest_count: newGuestCount,
           ...(derivedPayment
             ? {
                 payment_status: derivedPayment.paymentStatus,
@@ -761,7 +774,7 @@ export default function EditBookingDialog({
         // Ce delete+re-insert effacerait le lien stable soin↔thérapeute
         // (booking_treatments.therapist_id) — on le repose, même convention
         // positionnelle qu'à la création.
-        const editGuestCount = booking?.guest_count ?? 1;
+        const editGuestCount = newGuestCount;
         const editTherapistIds: string[] = bookingData.therapistIds?.length
           ? bookingData.therapistIds.filter(Boolean)
           : bookingData.therapist_id
