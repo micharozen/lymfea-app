@@ -68,8 +68,6 @@ interface ReminderCopy {
   heading: string;
   totalLabel: string;
   btnResume: string;
-  /** Objection-lifting microcopy under the CTA. */
-  reassurance: string;
   onRequest: string;
   unsubscribe: string;
   subject: (venue: string) => string;
@@ -95,9 +93,9 @@ function wideHero(copy: ReminderCopy): string {
   return `<tr><td class="sao-pad" style="padding:22px 48px 0"><h1 class="sao-h1" style="margin:0;font-family:${FONT_SERIF};font-size:34px;font-weight:400;line-height:1.15;color:${INK}">${copy.heading}</h1></td></tr>`;
 }
 
-/** Compact ink CTA, left-aligned, with the reassurance microcopy below. */
+/** Compact ink CTA, left-aligned. */
 function ctaHtml(copy: ReminderCopy): string {
-  return `<tr><td class="sao-pad" style="padding:24px 48px 0"><a href="{{{resume_url}}}" target="_blank" rel="noopener noreferrer nofollow" style="display:inline-block;text-decoration:none;font-family:${FONT_SANS};font-size:13px;letter-spacing:0.12em;text-transform:uppercase;font-weight:500;padding:17px 34px;border-radius:10px;background-color:${INK};color:#FFFFFF;border:1px solid ${INK}">${copy.btnResume}</a><p style="margin:14px 0 0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_MUTE}">${copy.reassurance}</p></td></tr>`;
+  return `<tr><td class="sao-pad" style="padding:24px 48px 0"><a href="{{{resume_url}}}" target="_blank" rel="noopener noreferrer nofollow" style="display:inline-block;text-decoration:none;font-family:${FONT_SANS};font-size:13px;letter-spacing:0.12em;text-transform:uppercase;font-weight:500;padding:17px 34px;border-radius:10px;background-color:${INK};color:#FFFFFF;border:1px solid ${INK}">${copy.btnResume}</a></td></tr>`;
 }
 
 /** Address-only footer: top rule, mono venue address, opt-out link. */
@@ -131,7 +129,6 @@ const COPY_FR: ReminderCopy = {
   heading: "À quelques instants de <em style=\"font-style:italic;color:" + CLAY + "\">l'évasion</em>.",
   totalLabel: "Total",
   btnResume: "Finaliser ma réservation",
-  reassurance: "Confirmation immédiate · Paiement sécurisé",
   onRequest: "Sur devis",
   unsubscribe: "Se désabonner",
   subject: (venue: string) => `Votre parenthèse chez ${venue} vous attend`,
@@ -143,7 +140,6 @@ const COPY_EN: ReminderCopy = {
   heading: "A few clicks from your <em style=\"font-style:italic;color:" + CLAY + "\">escape</em>.",
   totalLabel: "Total",
   btnResume: "Complete my booking",
-  reassurance: "Instant confirmation · Secure payment",
   onRequest: "On request",
   unsubscribe: "Unsubscribe",
   subject: (venue: string) => `Your escape at ${venue} is waiting`,
