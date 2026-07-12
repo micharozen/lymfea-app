@@ -15,7 +15,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
  */
 serve(async (req: Request) => {
   const token = new URL(req.url).searchParams.get("token");
-  const appUrl = Deno.env.get("PUBLIC_APP_URL") ?? "";
+  const appUrl = Deno.env.get("SITE_URL") ?? "";
 
   if (req.method === "GET") {
     return Response.redirect(`${appUrl}/unsubscribe?token=${token ?? ""}`, 302);

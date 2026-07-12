@@ -1,42 +1,37 @@
-// "Abandoned checkout" reminder email — same sable / clay design system as
-// booking-confirmed.ts (Newsreader + DM Sans + IBM Plex Mono), composed from the
-// shared primitives in email-layout.ts: header with status pill, serif hero with
-// a clay <em>, requested-slot card, cart list + total block, primary button,
-// reassurance line, secondary link, footer + unsubscribe.
+// "Abandoned checkout" reminder email — full-width editorial layout inspired by
+// Staycation's reminder, rendered in the Saoma design system (sable / clay,
+// Newsreader + DM Sans + IBM Plex Mono). Everything left-aligned, no card:
+// logo, one big serif line, a large venue photo, the cart list + total, one
+// compact ink CTA with a reassurance line, then an address-only footer with
+// the opt-out link.
+//
+// This template deliberately does NOT use the shared shell/section primitives
+// from email-layout.ts (they render the framed 600px card used by the
+// transactional emails); it defines its own full-width blocks and only shares
+// the palette and fonts.
 //
 // Urgency copy is deliberately never a countdown: the 5-minute slot hold has
-// long expired when the reminder goes out, so the venue is not holding anything.
-// Claiming otherwise would be a misleading commercial practice — and would read
-// absurd on a slot dated tomorrow. We state scarcity, not a reservation.
+// long expired when the reminder goes out, so the venue is not holding
+// anything. Claiming otherwise would be a misleading commercial practice.
 //
 // The cart lines are pre-rendered into `treatments_html` by
 // buildCheckoutIntentReminderVars(); placeholders are filled by renderTemplate().
 import {
-  AMBER,
-  AMBER_TINT,
   CLAY,
-  type EmailCopy,
+  FONT_MONO,
   FONT_SANS,
   FONT_SERIF,
-  footer,
-  header,
-  hero,
-  ICON_CALENDAR,
   INK,
   INK_MUTE,
-  keyRow,
+  LINE,
   LINE_SOFT,
-  primaryButton,
-  SAND_100,
-  shell,
-  treatmentsSection,
+  SAND_50,
 } from "./email-layout.ts";
 import { renderTemplate } from "./render.ts";
 import {
   currencySymbol,
   type EmailVenue,
   escapeHtml,
-  formatBookingDate,
   formatTotalDuration,
   formatVenueAddress,
   type Lang,
@@ -56,61 +51,72 @@ export interface CheckoutIntentReminderItem {
 
 export interface CheckoutIntentReminderContext {
   lang: Lang;
-  firstName: string;
   venueName: string;
   venue?: EmailVenue | null;
   items: CheckoutIntentReminderItem[];
   total: number | null;
   /** ISO currency code from the cart snapshot. */
   currency: string;
-  /** ISO date of the slot the guest had selected, when there was one. */
-  bookingDate?: string | null;
-  /** "HH:MM[:SS]" wall-clock in the venue timezone, paired with `bookingDate`. */
-  bookingTime?: string | null;
-  /** True when the slot is less than 24 h away (computed in the venue timezone). */
-  slotIsSoon: boolean;
-  /** `hotels.client_cancellation_cutoff_hours` — omitted when the venue has no policy. */
-  cancellationCutoffHours?: number | null;
   resumeUrl: string;
-  /** Same flow, forced back to the schedule step. */
-  rescheduleUrl: string;
   unsubscribeUrl: string;
 }
 
-interface ReminderCopy extends EmailCopy {
-  sectionTitle: string;
-  slotLabel: string;
+interface ReminderCopy {
+  lang: Lang;
+  preheader: string;
+  /** Big serif line, may contain a clay <em>. */
+  heading: string;
+  totalLabel: string;
   btnResume: string;
   onRequest: string;
-  /** Scarcity line above the CTA — never a countdown, never a held slot. */
-  hintNoSlot: string;
-  hintSoon: (dateTime: string) => string;
-  hintOpen: string;
-  cancellation: (hours: number) => string;
-  reschedule: string;
   unsubscribe: string;
   subject: (venue: string) => string;
 }
 
 // ---------------------------------------------------------------------------
-// Template
+// Layout — full-width sand page, 680px left-aligned content column
 // ---------------------------------------------------------------------------
 
+const CONTENT_WIDTH = 680;
+
+function wideShell(copy: ReminderCopy, body: string): string {
+  return `<!DOCTYPE html><html lang="${copy.lang}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><meta name="x-apple-disable-message-reformatting"/><meta name="color-scheme" content="light"/><link href="https://fonts.googleapis.com/css2?family=Newsreader:ital@0;1&family=DM+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/><style>@media only screen and (max-width:520px){.sao-pad{padding-left:24px !important;padding-right:24px !important}.sao-h1{font-size:30px !important;line-height:1.2 !important}}</style></head><body style="margin:0;padding:0;background-color:${SAND_50}"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${copy.preheader}</div><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:${SAND_50}"><tbody><tr><td align="center"><!--[if mso]><table role="presentation" width="${CONTENT_WIDTH}"><tr><td><![endif]--><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;max-width:${CONTENT_WIDTH}px"><tbody>${body}</tbody></table><!--[if mso]></td></tr></table><![endif]--></td></tr></tbody></table></body></html>`;
+}
+
+/** Venue logo alone, left-aligned (the logo carries the venue identity). */
+function wideHeader(): string {
+  return `<tr><td class="sao-pad" style="padding:28px 48px 0"><img src="{{{logo_url}}}" alt="{{{venue_name}}}" height="44" style="display:block;height:44px;max-height:44px"/></td></tr>`;
+}
+
+/** Big serif heading, left-aligned. The only sentence in the email. */
+function wideHero(copy: ReminderCopy): string {
+  return `<tr><td class="sao-pad" style="padding:22px 48px 0"><h1 class="sao-h1" style="margin:0;font-family:${FONT_SERIF};font-size:34px;font-weight:400;line-height:1.15;color:${INK}">${copy.heading}</h1></td></tr>`;
+}
+
+/** Compact ink CTA, left-aligned. */
+function ctaHtml(copy: ReminderCopy): string {
+  return `<tr><td class="sao-pad" style="padding:24px 48px 0"><a href="{{{resume_url}}}" target="_blank" rel="noopener noreferrer nofollow" style="display:inline-block;text-decoration:none;font-family:${FONT_SANS};font-size:13px;letter-spacing:0.12em;text-transform:uppercase;font-weight:500;padding:17px 34px;border-radius:10px;background-color:${INK};color:#FFFFFF;border:1px solid ${INK}">${copy.btnResume}</a></td></tr>`;
+}
+
+/** Address-only footer: top rule, mono venue address, opt-out link. */
+function wideFooter(copy: ReminderCopy): string {
+  return `<tr><td class="sao-pad" style="padding:40px 48px 40px"><div style="border-top:1px solid ${LINE};padding-top:24px"><p style="margin:0;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.14em;line-height:1.8;text-transform:uppercase;color:${INK_MUTE}">{{{venue_address}}}</p><p style="margin:12px 0 0"><a href="{{{unsubscribe_url}}}" target="_blank" rel="noopener noreferrer nofollow" style="font-family:${FONT_SANS};font-size:11px;color:${INK_MUTE};text-decoration:underline">${copy.unsubscribe}</a></p></div></td></tr>`;
+}
+
+/** Cart section: compact item lines, then the total row. */
+function selectionSection(copy: ReminderCopy): string {
+  return `<tr><td class="sao-pad" style="padding:20px 48px 0"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tbody>{{{treatments_html}}}<tr><td style="padding:10px 0 0;font-family:${FONT_MONO};font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:${CLAY}">${copy.totalLabel}</td><td align="right" style="padding:10px 0 0;font-family:${FONT_SERIF};font-size:20px;color:${INK};white-space:nowrap">{{{total_price}}}</td></tr></tbody></table></td></tr>`;
+}
+
 function reminderTemplate(copy: ReminderCopy): string {
-  const button =
-    `<tr><td class="eia-sect" style="padding:20px 40px 0">${primaryButton("{{{resume_url}}}", copy.btnResume)}</td></tr>`;
   const body =
-    header(copy) +
-    hero(copy) +
-    "{{{slot_html}}}" +
-    treatmentsSection(copy) +
-    "{{{hint_html}}}" +
-    button +
-    "{{{cancellation_html}}}" +
-    "{{{reschedule_html}}}" +
-    footer(copy) +
-    "{{{unsubscribe_html}}}";
-  return shell(copy, body);
+    wideHeader() +
+    wideHero(copy) +
+    "{{{photo_html}}}" +
+    selectionSection(copy) +
+    ctaHtml(copy) +
+    wideFooter(copy);
+  return wideShell(copy, body);
 }
 
 // ---------------------------------------------------------------------------
@@ -119,60 +125,24 @@ function reminderTemplate(copy: ReminderCopy): string {
 
 const COPY_FR: ReminderCopy = {
   lang: "fr",
-  preheader: "Votre sélection de soins vous attend encore.",
-  pill: "Votre réservation vous attend",
-  pillColor: AMBER,
-  pillTint: AMBER_TINT,
-  showGreeting: true,
-  greetPrefix: "Bonjour",
+  preheader: "Votre sélection est toujours disponible — il ne reste qu'une étape.",
   heading: "À quelques instants de <em style=\"font-style:italic;color:" + CLAY + "\">l'évasion</em>.",
-  intro: "Votre sélection chez {{{venue_name}}} est toujours là. Reprenez votre réservation là où vous l'avez laissée.",
-  labelWhen: "",
-  labelWhere: "",
   totalLabel: "Total",
-  arriveNote: "",
-  sectionTitle: "Votre sélection",
-  slotLabel: "Votre créneau",
-  btnResume: "Reprendre ma réservation",
+  btnResume: "Finaliser ma réservation",
   onRequest: "Sur devis",
-  hintNoSlot: "Il vous reste une étape : choisir votre créneau.",
-  hintSoon: (dateTime: string) =>
-    `Votre créneau du ${dateTime} est encore libre — les dernières places partent vite.`,
-  hintOpen: "Ce créneau reste ouvert à la réservation tant qu'un autre client ne l'a pas retenu.",
-  cancellation: (hours: number) => `Annulation gratuite jusqu'à ${hours} h avant votre soin.`,
-  reschedule: "Choisir un autre créneau",
-  unsubscribe: "Ne plus recevoir ces rappels",
+  unsubscribe: "Se désabonner",
   subject: (venue: string) => `Votre parenthèse chez ${venue} vous attend`,
-  footerContactLabel: "Une question ? Répondez à ce mail, ou écrivez-nous à",
 };
 
 const COPY_EN: ReminderCopy = {
   lang: "en",
-  preheader: "Your selection of treatments is still waiting.",
-  pill: "Your booking is waiting",
-  pillColor: AMBER,
-  pillTint: AMBER_TINT,
-  showGreeting: true,
-  greetPrefix: "Hello",
+  preheader: "Your selection is still available — just one step left.",
   heading: "A few clicks from your <em style=\"font-style:italic;color:" + CLAY + "\">escape</em>.",
-  intro: "Your selection at {{{venue_name}}} is still there. Pick up your booking right where you left it.",
-  labelWhen: "",
-  labelWhere: "",
   totalLabel: "Total",
-  arriveNote: "",
-  sectionTitle: "Your selection",
-  slotLabel: "Your slot",
-  btnResume: "Resume my booking",
+  btnResume: "Complete my booking",
   onRequest: "On request",
-  hintNoSlot: "One step left: pick your slot.",
-  hintSoon: (dateTime: string) =>
-    `Your ${dateTime} slot is still free — last-minute openings go quickly.`,
-  hintOpen: "This slot stays open until another guest books it.",
-  cancellation: (hours: number) => `Free cancellation up to ${hours} hrs before your treatment.`,
-  reschedule: "Choose another time",
-  unsubscribe: "Stop receiving these reminders",
+  unsubscribe: "Unsubscribe",
   subject: (venue: string) => `Your escape at ${venue} is waiting`,
-  footerContactLabel: "A question? Reply to this email, or write to us at",
 };
 
 const COPY: Record<Lang, ReminderCopy> = { fr: COPY_FR, en: COPY_EN };
@@ -184,36 +154,20 @@ export const CHECKOUT_INTENT_REMINDER_HTML_EN = reminderTemplate(COPY_EN);
 // Fragments + vars
 // ---------------------------------------------------------------------------
 
-/** "15h00" in FR, "15:00" in EN — from a "HH:MM[:SS]" wall-clock string. */
-function formatSlotTime(time: string, lang: Lang): string {
-  const [hours, minutes] = time.split(":");
-  return lang === "fr" ? `${hours}h${minutes}` : `${hours}:${minutes}`;
-}
-
-/** "samedi 11 juillet 2026 à 15h00" — the phrase reused by the hint line. */
-function formatSlot(date: string, time: string, lang: Lang): string {
-  const day = formatBookingDate(date, lang);
-  const at = lang === "fr" ? "à" : "at";
-  return `${day} ${at} ${formatSlotTime(time, lang)}`;
-}
-
-/** Framed card recalling the requested slot — '' when no slot was selected. */
-function slotHtml(copy: ReminderCopy, date: string | null, time: string | null): string {
-  if (!date || !time) return "";
-  const row = keyRow(
-    ICON_CALENDAR,
-    copy.slotLabel,
-    escapeHtml(formatBookingDate(date, copy.lang)),
-    escapeHtml(formatSlotTime(time, copy.lang)),
-    "",
-  );
-  return `<tr><td class="eia-sect" style="padding:28px 40px 0"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:${SAND_100};border:1px solid ${LINE_SOFT};border-radius:14px"><tbody><tr><td class="eia-box" style="padding:22px 22px"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tbody>${row}</tbody></table></td></tr></tbody></table></td></tr>`;
+/** Large rounded venue photo under the heading — '' when the venue has none.
+ * Same https-only rule as the logo: a local-dev URL renders as a broken image. */
+function photoHtml(venue: EmailVenue | null | undefined): string {
+  const url = venue?.cover_image?.trim();
+  if (!url || !/^https:\/\//i.test(url)) return "";
+  // Fixed cropped height keeps the CTA above the fold; object-fit is honoured
+  // by Apple Mail / Gmail, other clients just show the image uncropped.
+  return `<tr><td class="sao-pad" style="padding:20px 48px 0"><img src="${escapeHtml(url)}" alt="{{{venue_name}}}" width="${CONTENT_WIDTH - 96}" height="230" style="display:block;width:100%;height:230px;object-fit:cover;border-radius:12px"/></td></tr>`;
 }
 
 /** A variant label that only restates the duration ("60 min", "1h30"). */
 const BARE_DURATION = /^\d+\s*(min(utes?)?|h|h\s*\d+|heures?)$/i;
 
-/** One cart line per item — name (+ quantity / variant / duration) left, price right. */
+/** One cart line per item — bold name, grey meta below, serif price right. */
 function itemsHtml(items: CheckoutIntentReminderItem[], copy: ReminderCopy, sym: string): string {
   return items
     .map((item) => {
@@ -228,48 +182,13 @@ function itemsHtml(items: CheckoutIntentReminderItem[], copy: ReminderCopy, sym:
       ].filter(Boolean);
       const metaText = [...new Set(parts)].join(" · ");
       const meta = metaText
-        ? `<span style="display:block;margin-top:2px;font-family:${FONT_SANS};font-size:12px;color:${INK_MUTE}">${escapeHtml(metaText)}</span>`
+        ? `<span style="font-family:${FONT_SANS};font-size:12px;font-weight:400;color:${INK_MUTE}"> · ${escapeHtml(metaText)}</span>`
         : "";
       const quantity = item.quantity > 1 ? ` × ${item.quantity}` : "";
       const price = item.price == null ? copy.onRequest : `${item.price} ${sym}`;
-      return `<tr><td style="padding:12px 0;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SANS};font-size:15px;color:${INK}">${escapeHtml(item.name)}${quantity}${meta}</td><td align="right" style="padding:12px 0 12px 16px;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SERIF};font-size:16px;color:${INK};white-space:nowrap;vertical-align:top">${escapeHtml(price)}</td></tr>`;
+      return `<tr><td style="padding:9px 0;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SANS};font-size:15px;font-weight:700;color:${INK}">${escapeHtml(item.name)}${quantity}${meta}</td><td align="right" style="padding:9px 0 9px 16px;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SERIF};font-size:16px;color:${INK};white-space:nowrap;vertical-align:top">${escapeHtml(price)}</td></tr>`;
     })
     .join("");
-}
-
-/** Centered muted line, used for the scarcity hint and the cancellation policy. */
-function mutedLine(text: string, paddingTop: number): string {
-  return `<tr><td align="center" class="eia-sect" style="padding:${paddingTop}px 40px 0;text-align:center"><p style="margin:0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_MUTE}">${escapeHtml(text)}</p></td></tr>`;
-}
-
-/** Scarcity line above the CTA. Truthful in all three states — nothing is held. */
-function hintHtml(copy: ReminderCopy, ctx: CheckoutIntentReminderContext): string {
-  if (!ctx.bookingDate || !ctx.bookingTime) return mutedLine(copy.hintNoSlot, 24);
-  const text = ctx.slotIsSoon
-    ? copy.hintSoon(formatSlot(ctx.bookingDate, ctx.bookingTime, copy.lang))
-    : copy.hintOpen;
-  return mutedLine(text, 24);
-}
-
-/**
- * Reassurance under the CTA. Rendered only when the venue actually declares a
- * cutoff — promising free cancellation at a venue that charges for it would be
- * a worse problem than the missing line.
- */
-function cancellationHtml(copy: ReminderCopy, hours: number | null | undefined): string {
-  if (!hours || hours <= 0) return "";
-  return mutedLine(copy.cancellation(hours), 14);
-}
-
-/** Discreet secondary link — recovers guests blocked by the slot, not the price. */
-function rescheduleHtml(copy: ReminderCopy, hasSlot: boolean): string {
-  if (!hasSlot) return "";
-  return `<tr><td align="center" class="eia-sect" style="padding:14px 40px 0;text-align:center"><a href="{{{reschedule_url}}}" target="_blank" rel="noopener noreferrer nofollow" style="font-family:${FONT_SANS};font-size:12px;color:${INK_MUTE};text-decoration:underline">${copy.reschedule}</a></td></tr>`;
-}
-
-/** RGPD opt-out line, below the footer rule. */
-function unsubscribeHtml(copy: ReminderCopy): string {
-  return `<tr><td align="center" class="eia-sect" style="padding:0 40px 32px;text-align:center"><a href="{{{unsubscribe_url}}}" target="_blank" rel="noopener noreferrer nofollow" style="font-family:${FONT_SANS};font-size:11px;color:${INK_MUTE};text-decoration:underline">${copy.unsubscribe}</a></td></tr>`;
 }
 
 export function getCheckoutIntentReminderSubject(lang: Lang, venueName: string): string {
@@ -281,24 +200,15 @@ export function buildCheckoutIntentReminderVars(
 ): Record<string, string> {
   const copy = COPY[ctx.lang];
   const sym = currencySymbol(ctx.currency);
-  const hasSlot = Boolean(ctx.bookingDate && ctx.bookingTime);
 
   return {
     logo_url: venueLogoUrl(ctx.venue),
     venue_name: escapeHtml(ctx.venueName),
     venue_address: escapeHtml(formatVenueAddress(ctx.venue)),
-    contact_email: escapeHtml(ctx.venue?.contact_email),
-    client_name: escapeHtml(ctx.firstName),
-    section_title: copy.sectionTitle,
-    slot_html: slotHtml(copy, ctx.bookingDate ?? null, ctx.bookingTime ?? null),
+    photo_html: photoHtml(ctx.venue),
     treatments_html: itemsHtml(ctx.items, copy, sym),
     total_price: ctx.total == null ? copy.onRequest : `${ctx.total} ${sym}`,
-    hint_html: hintHtml(copy, ctx),
-    cancellation_html: cancellationHtml(copy, ctx.cancellationCutoffHours),
-    reschedule_html: rescheduleHtml(copy, hasSlot),
-    unsubscribe_html: unsubscribeHtml(copy),
     resume_url: ctx.resumeUrl,
-    reschedule_url: ctx.rescheduleUrl,
     unsubscribe_url: ctx.unsubscribeUrl,
   };
 }
