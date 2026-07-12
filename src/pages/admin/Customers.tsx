@@ -1,10 +1,10 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope } from "@/hooks/useOrgScope";
-import { listCustomersForOrg } from "@shared/db";
+import { listCustomersPageForOrg, type CustomerListSortColumn } from "@shared/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +41,6 @@ import { TableEmptyState } from "@/components/table/TableEmptyState";
 import { SortableTableHead } from "@/components/table/SortableTableHead";
 import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
-import { usePagination } from "@/hooks/usePagination";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTableSort } from "@/hooks/useTableSort";
 import { format } from "date-fns";
@@ -69,15 +68,18 @@ export default function Customers() {
   const navigate = useNavigate();
   const { t } = useTranslation("admin");
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [languageFilter, setLanguageFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [reloadKey, setReloadKey] = useState(0);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
   const { deleteId: deleteCustomerId, openDelete, closeDelete } = useDialogState<string>();
-  const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
+  const { sortConfig, toggleSort, getSortDirection } = useTableSort<string>();
 
   const scope = useOrgScope();
 
@@ -85,9 +87,54 @@ export default function Customers() {
     fetchUserRole();
   }, []);
 
+  // Debounce la saisie avant de déclencher la recherche serveur.
   useEffect(() => {
-    if (scope) fetchCustomers();
-  }, [scope]);
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Retour page 1 quand la recherche, le filtre ou le tri change.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, languageFilter, sortConfig]);
+
+  useEffect(() => {
+    if (!scope || itemsPerPage <= 0) return;
+    let cancelled = false;
+    setLoading(true);
+
+    const serverSortColumns: CustomerListSortColumn[] = ["name", "email", "created_at"];
+    const sort =
+      sortConfig.column && serverSortColumns.includes(sortConfig.column as CustomerListSortColumn)
+        ? {
+            column: sortConfig.column as CustomerListSortColumn,
+            direction: sortConfig.direction,
+          }
+        : undefined;
+
+    listCustomersPageForOrg(supabase, scope, {
+      search: debouncedSearch,
+      language: languageFilter === "all" ? undefined : languageFilter,
+      page: currentPage,
+      pageSize: itemsPerPage,
+      sort,
+    })
+      .then((result) => {
+        if (cancelled) return;
+        setCustomers(result.customers as unknown as Customer[]);
+        setTotal(result.total);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error(t("customers.noCustomers"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scope, debouncedSearch, languageFilter, currentPage, itemsPerPage, sortConfig, reloadKey, t]);
 
   const fetchUserRole = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -106,60 +153,9 @@ export default function Customers() {
 
   const isAdmin = userRole === "admin";
 
-  useEffect(() => {
-    filterCustomers();
-  }, [searchQuery, languageFilter, customers]);
-
-  const fetchCustomers = async () => {
-    if (!scope) return;
-    setLoading(true);
-    try {
-      const data = await listCustomersForOrg(supabase, scope);
-      setCustomers(data as unknown as Customer[]);
-    } catch {
-      toast.error(t("customers.noCustomers"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterCustomers = () => {
-    let filtered = customers;
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (c) =>
-          (c.first_name && c.first_name.toLowerCase().includes(q)) ||
-          (c.last_name && c.last_name.toLowerCase().includes(q)) ||
-          (c.email && c.email.toLowerCase().includes(q)) ||
-          (c.phone && c.phone.includes(searchQuery))
-      );
-    }
-
-    if (languageFilter !== "all") {
-      filtered = filtered.filter((c) => c.language === languageFilter);
-    }
-
-    setFilteredCustomers(filtered);
-  };
-
-  const sortedCustomers = useMemo(() => {
-    return sortItems(filteredCustomers, (customer, column) => {
-      switch (column) {
-        case "name": return `${customer.first_name} ${customer.last_name || ""}`;
-        case "email": return customer.email || "";
-        case "bookings": return customer.booking_count;
-        case "created_at": return customer.created_at;
-        default: return null;
-      }
-    });
-  }, [filteredCustomers, sortItems]);
-
-  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedCustomers, needsPagination } = usePagination({
-    items: sortedCustomers,
-    itemsPerPage,
-  });
+  const totalPages = Math.max(1, Math.ceil(total / Math.max(1, itemsPerPage)));
+  const needsPagination = total > itemsPerPage;
+  const paginatedCustomers = customers;
 
   useOverflowControl(!loading && needsPagination);
 
@@ -184,7 +180,7 @@ export default function Customers() {
 
     toast.success(t("customers.deleteSuccess"));
     closeDelete();
-    fetchCustomers();
+    setReloadKey((k) => k + 1);
   };
 
   return (
@@ -253,9 +249,9 @@ export default function Customers() {
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
                       {t("customers.columns.preferredTherapist")}
                     </TableHead>
-                    <SortableTableHead column="bookings" sortDirection={getSortDirection("bookings")} onSort={toggleSort} align="right" className="w-[90px]">
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right w-[90px]">
                       {t("customers.columns.bookings")}
-                    </SortableTableHead>
+                    </TableHead>
                     <SortableTableHead column="created_at" sortDirection={getSortDirection("created_at")} onSort={toggleSort}>
                       {t("customers.columns.createdAt")}
                     </SortableTableHead>
@@ -360,7 +356,7 @@ export default function Customers() {
             <TablePagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={filteredCustomers.length}
+              totalItems={total}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
               itemName="clients"

@@ -1,9 +1,10 @@
 import { createPortal } from "react-dom";
 import { addMinutes, format, parse } from "date-fns";
-import { Clock, User, DoorOpen, Hotel } from "lucide-react";
+import { Clock, User, Users, DoorOpen, Hotel } from "lucide-react";
 import { getBookingStatusConfig } from "@/utils/statusStyles";
 
 interface PreviewTreatment {
+  therapistShortName?: string | null;
   treatment_menus: { name: string; duration?: number } | null;
 }
 
@@ -16,6 +17,7 @@ export interface BookingPreviewData {
   therapistName?: string | null;
   status: string;
   duration?: number;
+  guest_count?: number | null;
   booking_treatments?: PreviewTreatment[];
 }
 
@@ -38,11 +40,13 @@ function formatEnd(startTime: string, durationMin: number): string {
   return format(addMinutes(parsed, durationMin), "HH:mm");
 }
 
-function treatmentNames(booking: BookingPreviewData): string {
+function treatmentLines(booking: BookingPreviewData): { name: string; therapist: string | null }[] {
   return (booking.booking_treatments ?? [])
-    .map((bt) => bt.treatment_menus?.name)
-    .filter(Boolean)
-    .join(", ");
+    .filter((bt) => bt.treatment_menus?.name)
+    .map((bt) => ({
+      name: bt.treatment_menus!.name,
+      therapist: bt.therapistShortName ?? null,
+    }));
 }
 
 /**
@@ -56,7 +60,7 @@ export function BookingPreviewPopover({ booking, onClose }: BookingPreviewPopove
   const status = getBookingStatusConfig(booking.status);
   const duration = resolveDuration(booking);
   const endTime = formatEnd(booking.booking_time, duration);
-  const treatments = treatmentNames(booking);
+  const treatments = treatmentLines(booking);
   const clientName = [booking.client_first_name, booking.client_last_name]
     .filter(Boolean)
     .join(" ")
@@ -77,8 +81,16 @@ export function BookingPreviewPopover({ booking, onClose }: BookingPreviewPopove
             <Clock className="h-4 w-4 text-muted-foreground" />
             {booking.booking_time?.substring(0, 5)} – {endTime}
           </span>
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${status.badgeClass}`}>
-            {status.label}
+          <span className="flex items-center gap-1">
+            {(booking.guest_count ?? 1) > 1 && (
+              <span className="flex items-center gap-0.5 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                <Users className="h-3 w-3" />
+                Duo
+              </span>
+            )}
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${status.badgeClass}`}>
+              {status.label}
+            </span>
           </span>
         </div>
 
@@ -89,8 +101,15 @@ export function BookingPreviewPopover({ booking, onClose }: BookingPreviewPopove
           </div>
         )}
 
-        {treatments && (
-          <div className="mb-1.5 text-xs text-muted-foreground">{treatments}</div>
+        {treatments.length > 0 && (
+          <div className="mb-1.5 space-y-0.5 text-xs text-muted-foreground">
+            {treatments.map((line, i) => (
+              <div key={i}>
+                {line.name}
+                {line.therapist && <span className="opacity-75"> · {line.therapist}</span>}
+              </div>
+            ))}
+          </div>
         )}
 
         {booking.room_name && (
@@ -107,7 +126,7 @@ export function BookingPreviewPopover({ booking, onClose }: BookingPreviewPopove
           </div>
         )}
 
-        {booking.therapistName && (
+        {booking.therapistName && !treatments.some((t) => t.therapist) && (
           <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
             <User className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{booking.therapistName}</span>

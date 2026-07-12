@@ -70,20 +70,49 @@ async function resolveTherapistNames(therapistIds: string[]): Promise<Record<str
   return names;
 }
 
+/** Resolve treatment_rooms.id (UUID) → room name for room_id values in the audit log. */
+async function resolveRoomNames(roomIds: string[]): Promise<Record<string, string>> {
+  if (roomIds.length === 0) return {};
+
+  const { data } = await supabase
+    .from("treatment_rooms")
+    .select("id, name")
+    .in("id", roomIds);
+
+  const names: Record<string, string> = {};
+  for (const r of data ?? []) {
+    if (r.id) names[r.id] = r.name;
+  }
+  return names;
+}
+
 /**
  * The audit trigger stores `therapist_name` next to `therapist_id`, but it can be
  * null if the booking's name column wasn't populated at change time. Backfill the
  * name from the therapists table so the history never shows a raw UUID.
  */
-function backfillTherapistName(
+function backfillNames(
   vals: Record<string, unknown> | null,
-  names: Record<string, string>,
+  therapistNames: Record<string, string>,
+  roomNames: Record<string, string>,
 ): Record<string, unknown> | null {
   if (!vals) return vals;
-  const id = vals.therapist_id;
-  if (typeof id !== "string" || !id || vals.therapist_name) return vals;
-  const resolved = names[id];
-  return resolved ? { ...vals, therapist_name: resolved } : vals;
+
+  let result = vals;
+
+  const therapistId = vals.therapist_id;
+  if (typeof therapistId === "string" && therapistId && !vals.therapist_name) {
+    const resolved = therapistNames[therapistId];
+    if (resolved) result = { ...result, therapist_name: resolved };
+  }
+
+  const roomId = vals.room_id;
+  if (typeof roomId === "string" && roomId && !vals.room_name) {
+    const resolved = roomNames[roomId];
+    if (resolved) result = { ...result, room_name: resolved };
+  }
+
+  return result;
 }
 
 export function useBookingHistory(bookingId: string | undefined, enabled: boolean) {
@@ -104,24 +133,32 @@ export function useBookingHistory(bookingId: string | undefined, enabled: boolea
       // Resolve user names in one batch
       const userIds = [...new Set(entries.map((e) => e.changed_by).filter(Boolean))] as string[];
 
-      // Collect therapist UUIDs that lack a resolved name in the audit values
+      // Collect therapist and room UUIDs that lack a resolved name in the audit values
       const therapistIds = new Set<string>();
+      const roomIds = new Set<string>();
       for (const e of entries) {
         for (const vals of [e.old_values, e.new_values]) {
-          const id = vals?.therapist_id;
-          if (typeof id === "string" && id && !vals?.therapist_name) therapistIds.add(id);
+          const therapistId = vals?.therapist_id;
+          if (typeof therapistId === "string" && therapistId && !vals?.therapist_name) {
+            therapistIds.add(therapistId);
+          }
+          const roomId = vals?.room_id;
+          if (typeof roomId === "string" && roomId && !vals?.room_name) {
+            roomIds.add(roomId);
+          }
         }
       }
 
-      const [nameMap, therapistNames] = await Promise.all([
+      const [nameMap, therapistNames, roomNames] = await Promise.all([
         resolveUserNames(userIds),
         resolveTherapistNames([...therapistIds]),
+        resolveRoomNames([...roomIds]),
       ]);
 
       return entries.map((entry) => ({
         ...entry,
-        old_values: backfillTherapistName(entry.old_values, therapistNames),
-        new_values: backfillTherapistName(entry.new_values, therapistNames),
+        old_values: backfillNames(entry.old_values, therapistNames, roomNames),
+        new_values: backfillNames(entry.new_values, therapistNames, roomNames),
         changed_by_name: entry.changed_by ? nameMap[entry.changed_by] ?? null : null,
       }));
     },

@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState, useLayoutEffect } from "react";
+import { useEffect, useState, useLayoutEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
@@ -12,6 +12,7 @@ const PwaLayout = () => {
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
   const [therapistId, setTherapistId] = useState<string | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const queryClient = useQueryClient();
   const isMountedRef = useIsMounted();
@@ -39,6 +40,7 @@ const PwaLayout = () => {
   // Scroll to top on every route change - use useLayoutEffect for immediate execution
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
+    mainRef.current?.scrollTo(0, 0);
   }, [location.pathname]);
 
   // Therapists who have a session but haven't finished onboarding (pending status or
@@ -230,8 +232,9 @@ const PwaLayout = () => {
   const shouldShowTabBar = !location.pathname.includes('/pwa/booking/') && !location.pathname.includes('/pwa/new-booking');
 
   return (
-    <div className="notranslate min-h-[100dvh] flex flex-col bg-background">
-      <main 
+    <div className="notranslate h-[100dvh] flex flex-col bg-background">
+      <main
+        ref={mainRef}
         className="flex-1 overflow-y-auto overscroll-y-none"
         style={{ 
           paddingBottom: shouldShowTabBar 
