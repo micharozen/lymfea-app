@@ -49,6 +49,7 @@ const TreatmentRooms = lazy(() => import("./pages/admin/TreatmentRooms"));
 const TreatmentRoomDetail = lazy(() => import("./pages/admin/TreatmentRoomDetail"));
 const Concierges = lazy(() => import("./pages/admin/Concierges"));
 const Customers = lazy(() => import("./pages/admin/Customers"));
+const CheckoutIntents = lazy(() => import("./pages/admin/CheckoutIntents"));
 const Tasks = lazy(() => import("./pages/admin/Tasks"));
 const EmailInbox = lazy(() => import("./pages/admin/EmailInbox"));
 const CustomerDetail = lazy(() => import("./pages/admin/CustomerDetail"));
@@ -88,6 +89,7 @@ const Compare = lazy(() => import("./pages/Compare"));
 const CompareDetail = lazy(() => import("./pages/CompareDetail"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
+const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const RateTherapist = lazy(() => import("./pages/RateTherapist"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
@@ -126,6 +128,7 @@ const AdminPwaInstall = lazy(() => import("./pages/admin-pwa/Install"));
 // Client Pages
 const Welcome = lazy(() => import("./pages/client/Welcome"));
 const ClientTreatments = lazy(() => import("./pages/client/Treatments"));
+const ClientResume = lazy(() => import("./pages/client/Resume"));
 const Cart = lazy(() => import("./pages/client/Cart"));
 const Checkout = lazy(() => import("./pages/client/Checkout"));
 const Schedule = lazy(() => import("./pages/client/Schedule"));
@@ -263,6 +266,7 @@ const App = () => {
             <Route path="/compare/:slug" element={<CompareDetail />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
 
             {/* Smart redirect based on user type (post-login entrypoint) */}
             <Route path="/app" element={<Home />} />
@@ -281,6 +285,7 @@ const App = () => {
                       <Route index element={<Welcome />} />
                       <Route path="/treatment/:treatmentSlug" element={<ClientTreatmentLanding />} />
                       <Route path="/treatments" element={<ClientTreatments />} />
+                      <Route path="/resume" element={<ClientResume />} />
                       <Route path="/schedule" element={<Schedule />} />
                       <Route path="/guest-info" element={<GuestInfo />} />
                       <Route path="/payment" element={<Payment />} />
@@ -514,7 +519,7 @@ const App = () => {
                         </div>
                         <VenueModeBanner />
                         <SubscriptionBanner />
-                        <main className="flex-1 min-h-0 overflow-y-auto md:pr-6">
+                        <main className="flex-1 min-h-0 overflow-y-auto scrollbar-subtle md:pr-6">
                           <Suspense fallback={
                             <div className="flex items-center justify-center h-full min-h-[50vh]">
                               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -527,6 +532,7 @@ const App = () => {
                               <Route path="/bookings" element={<BookingsList />} />
                               <Route path="/all-bookings" element={<Navigate to="/admin/bookings" replace />} />
                               <Route path="/bookings/:id" element={<BookingDetail />} />
+                              <Route path="/checkout-intents" element={<CheckoutIntents />} />
                               <Route path="/therapists" element={<Therapists />} />
                               <Route path="/therapists/new" element={<TherapistDetail />} />
                               <Route path="/therapists/:id" element={<TherapistDetail />} />

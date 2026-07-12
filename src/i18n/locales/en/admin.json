@@ -63,7 +63,21 @@
     "thisWeek": "This Week",
     "thisMonth": "This Month",
     "thisYear": "This Year",
-    "allTime": "All Time"
+    "allTime": "All Time",
+    "monthlyOutlook": {
+      "title": "Monthly outlook",
+      "metricRevenue": "Revenue",
+      "metricBookings": "Bookings",
+      "metricAvgBasket": "Avg. basket",
+      "confirmed": "Confirmed",
+      "pending": "Pending",
+      "realized": "Actual",
+      "backlog": "On the books",
+      "currentMonth": "Current month",
+      "bookingsCount_one": "{{count}} booking",
+      "bookingsCount_other": "{{count}} bookings",
+      "empty": "No bookings in this window"
+    }
   },
   "planning": {
     "title": "Planning",
@@ -134,6 +148,38 @@
       "assigned": "Assigned",
       "completed": "Completed",
       "cancelled": "Cancelled"
+    },
+    "export": {
+      "button": "Export to CSV",
+      "success_one": "{{count}} booking exported",
+      "success_other": "{{count}} bookings exported",
+      "empty": "No bookings to export",
+      "columns": {
+        "bookingNumber": "Booking #",
+        "date": "Date",
+        "time": "Time",
+        "client": "Client",
+        "clientType": "Client type",
+        "roomNumber": "Room #",
+        "venue": "Venue",
+        "therapist": "Therapist",
+        "currency": "Currency",
+        "status": "Status",
+        "paymentStatus": "Payment status",
+        "treatments": "Treatments",
+        "duration": "Duration (min)",
+        "amount": "Amount"
+      },
+      "paymentStatusValues": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "failed": "Failed",
+        "refunded": "Refunded",
+        "charged_to_room": "Charged to room",
+        "pending_partner_billing": "Partner billing",
+        "card_saved": "Card saved",
+        "offert": "Complimentary"
+      }
     }
   },
   "hotels": {
@@ -1016,6 +1062,27 @@
       "optional": "(optional)",
       "madame": "Mrs",
       "monsieur": "Mr"
+    },
+    "convertToDuo": {
+      "button": "Convert to duo",
+      "title": "Convert to duo",
+      "description": "The {{count}} treatments will run in parallel, each with its own practitioner. This conversion is final.",
+      "treatmentPickerLabel": "{{name}} · {{duration}} min",
+      "durationHelper": "Duration: max of treatments → {{duration}} min",
+      "modeAssignTitle": "Assign",
+      "modeBroadcastTitle": "Broadcast",
+      "modeBroadcastHelper": "Practitioners will be assigned on acceptance.",
+      "secondaryRoomLabel": "Secondary room",
+      "roomCapacityWarning": "This room already looks busy for this slot.",
+      "noTherapistAvailable": "No practitioner available",
+      "duplicateWarning": "A practitioner cannot perform two parallel treatments.",
+      "submitAssign": "Convert and assign",
+      "submitBroadcast": "Convert and broadcast",
+      "cancel": "Cancel",
+      "successAssign": "Booking converted to duo.",
+      "successBroadcast": "Duo broadcast to practitioners.",
+      "error": "Failed to convert to duo.",
+      "notificationWarning": "Conversion done, but sending notifications failed."
     }
   },
   "phoneBooking": {
@@ -1459,6 +1526,64 @@
         "step3": "A new entry shows up in /admin/inbox with a confidence score. Ambiguous requests stay manual.",
         "step4": "The admin clicks \"Convert to booking\": a booking is created with status 'pending', ready to be assigned to a therapist."
       }
+    }
+  },
+  "checkoutIntents": {
+    "title": "Abandoned carts",
+    "description": "Track guests who started an online booking without completing it",
+    "searchPlaceholder": "Search by name or email...",
+    "noIntents": "No cart found",
+    "noIntentsDescription": "Try adjusting your filters",
+    "neverReminded": "Never",
+    "itemName": "carts",
+    "cartSummary": "{{count}} treatment",
+    "cartSummary_plural": "{{count}} treatments",
+    "columns": {
+      "client": "Guest",
+      "email": "Email",
+      "venue": "Venue",
+      "cart": "Cart",
+      "slot": "Requested slot",
+      "createdAt": "Created",
+      "reminder": "Reminder",
+      "status": "Status"
+    },
+    "status": {
+      "converted": "Converted",
+      "abandoned": "Abandoned"
+    },
+    "filters": {
+      "allVenues": "All venues",
+      "allStatuses": "All statuses",
+      "notReminded": "Abandoned, not reminded",
+      "lastDays": "Last {{count}} days",
+      "allTime": "All time"
+    },
+    "kpis": {
+      "conversionRate": "Conversion rate",
+      "conversionHint": "{{converted}} bookings out of {{total}} carts",
+      "abandonedValue": "Recoverable value",
+      "abandonedValueHint": "across {{count}} abandoned cart",
+      "abandonedValueHint_plural": "across {{count}} abandoned carts",
+      "reminded": "Reminders sent",
+      "remindedHint": "{{count}} cart awaiting a reminder",
+      "remindedHint_plural": "{{count}} carts awaiting a reminder"
+    },
+    "actions": {
+      "previewEmail": "Preview reminder",
+      "openBooking": "Open booking"
+    },
+    "cartDialog": {
+      "title": "Cart details",
+      "client": "Guest",
+      "language": "Language",
+      "roomNumber": "Room",
+      "emptyCart": "Empty or unreadable cart",
+      "total": "Total",
+      "onRequest": "On request",
+      "quantity": "×{{count}}",
+      "guests": "{{count}} guest",
+      "guests_plural": "{{count}} guests"
     }
   }
 }

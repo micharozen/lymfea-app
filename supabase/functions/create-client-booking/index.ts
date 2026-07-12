@@ -7,6 +7,11 @@ import { computeOutOfHoursSurcharge } from '../_shared/surcharge.ts';
 import { createLogger } from '../_shared/logger.ts';
 import { resolveVerifiedPmsGuest } from '../_shared/pms-verify.ts';
 import { tryMarkCheckoutIntentConverted } from '../_shared/checkoutIntent.ts';
+import {
+  computeSlotDuration,
+  fetchAddonTreatmentIds,
+  insertBookingTreatmentLines,
+} from '../_shared/bookingTreatmentLines.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,6 +65,8 @@ const treatmentSchema = z.object({
   treatmentId: z.string().uuid('Invalid treatment ID format'),
   quantity: z.number().int().min(1).max(10, 'Quantity must be between 1 and 10'),
   variantId: z.string().uuid('Invalid variant ID format').optional(),
+  /** For an add-on: the treatmentId of the soin it extends (its leg). */
+  parentTreatmentId: z.string().uuid('Invalid parent treatment ID format').optional(),
 });
 
 const bundleUsageSchema = z.object({
@@ -279,6 +286,7 @@ async function handleMultiBookingConfirm(
         client_note: sanitizedClientData.note,
         language: clientLanguage,
         status: bookingStatus,
+        source: 'client',
         payment_method: effectivePaymentMethod,
         payment_status: effectivePaymentStatus,
         total_price: itemTotal,
@@ -522,7 +530,7 @@ try {
     const treatmentIds = treatments.map(t => t.treatmentId);
     const { data: validTreatments, error: treatmentValidationError } = await supabase
       .from('treatment_menus')
-      .select('id, price_on_request, duration, lead_time, is_bundle, bundle_id')
+      .select('id, price_on_request, duration, lead_time, is_bundle, bundle_id, is_addon, category')
       .in('id', treatmentIds);
 
     if (treatmentValidationError) {
@@ -550,19 +558,17 @@ try {
       );
     }
 
-    // Calculate booking duration from treatments. Solo: treatments run sequentially
-    // → sum (× quantity). Duo (guestCount > 1): treatments run simultaneously → the
-    // slot lasts as long as the longest single treatment (max).
-    let totalDuration = 0;
-    for (const treatment of treatments) {
-      const treatmentData = validTreatments?.find(t => t.id === treatment.treatmentId);
-      if (treatmentData?.duration) {
-        totalDuration = isDuoBooking
-          ? Math.max(totalDuration, treatmentData.duration)
-          : totalDuration + treatmentData.duration * treatment.quantity;
-      }
-    }
+    // Which lines are add-ons? Never trust the client — recompute server-side.
+    const addonTreatmentIds = await fetchAddonTreatmentIds(supabase, hotelId, validTreatments || []);
+    const isAddonLine = (treatmentId: string) => addonTreatmentIds.has(treatmentId);
+    const durationOfLine = (line: { treatmentId: string }) =>
+      validTreatments?.find(t => t.id === line.treatmentId)?.duration || 0;
+
+    const totalDuration = computeSlotDuration(treatments, isDuoBooking, durationOfLine, isAddonLine);
     console.log('Total booking duration:', totalDuration, 'minutes');
+
+    const insertBookingTreatments = (targetBookingId: string) =>
+      insertBookingTreatmentLines(supabase, targetBookingId, treatments, isAddonLine);
 
     // TOCTOU: Check blocked slots server-side
     if (await isInBlockedSlot(supabase, hotelId, bookingData.date, bookingData.time, totalDuration || 30)) {
@@ -755,14 +761,7 @@ try {
 
       // Re-insert booking_treatments with proper quantity support
       await supabase.from('booking_treatments').delete().eq('booking_id', bookingId);
-      const treatmentInserts = treatments.flatMap(t =>
-        Array.from({ length: t.quantity }, () => ({
-          booking_id: bookingId,
-          treatment_id: t.treatmentId,
-          variant_id: t.variantId || null,
-        }))
-      );
-      const { error: treatmentsError } = await supabase.from('booking_treatments').insert(treatmentInserts);
+      const treatmentsError = await insertBookingTreatments(bookingId);
       if (treatmentsError) console.error('Treatments re-insert error:', treatmentsError);
 
     } else {
@@ -813,18 +812,21 @@ try {
       console.log('Booking created atomically:', bookingId);
 
       // Create booking treatments
-      const treatmentInserts = treatments.flatMap(t =>
-        Array.from({ length: t.quantity }, () => ({
-          booking_id: bookingId,
-          treatment_id: t.treatmentId,
-          variant_id: t.variantId || null,
-        }))
-      );
-      const { error: treatmentsError } = await supabase.from('booking_treatments').insert(treatmentInserts);
+      const treatmentsError = await insertBookingTreatments(bookingId);
       if (treatmentsError) console.error('Treatments creation error:', treatmentsError);
     }
 
     console.log('Booking treatments ready');
+
+    // Tag the booking as originating from the client booking flow. bookings.source
+    // defaults to 'admin', and this function (the only caller) never overrode it —
+    // so online client bookings were previously indistinguishable from staff entries.
+    // Covers all single-mode sub-paths (draft update, expired-draft fallback, atomic reserve).
+    const { error: sourceErr } = await supabase
+      .from('bookings')
+      .update({ source: 'client' })
+      .eq('id', bookingId);
+    if (sourceErr) console.error('Failed to tag booking source=client (non-blocking):', sourceErr);
 
     // Persister les flags de majoration hors horaires sur la réservation
     if (!isOffert && !hasPriceOnRequest && (surcharge.isOutOfHours || surcharge.surchargeAmount > 0)) {

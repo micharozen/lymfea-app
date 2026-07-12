@@ -92,10 +92,25 @@ export const AddTreatmentDialog = ({
 
     setSaving(true);
     try {
+      // Fetch the booking first: we need its total, and — for a solo booking — its
+      // therapist to attach to the add-on lines (stable soin↔therapist link).
+      const { data: bookingData, error: bookingError } = await supabase
+        .from("bookings")
+        .select("total_price, therapist_id, guest_count")
+        .eq("id", bookingId)
+        .single();
+
+      if (bookingError) throw bookingError;
+
+      // Add-on performed by the booking's therapist on a solo; ambiguous on a duo → NULL.
+      const addonTherapistId =
+        (bookingData?.guest_count ?? 1) <= 1 ? bookingData?.therapist_id ?? null : null;
+
       // Insert new booking treatments
       const newTreatments = Array.from(selectedTreatments).map(treatmentId => ({
         booking_id: bookingId,
         treatment_id: treatmentId,
+        therapist_id: addonTherapistId,
       }));
 
       const { error: insertError } = await supabase
@@ -103,15 +118,6 @@ export const AddTreatmentDialog = ({
         .insert(newTreatments);
 
       if (insertError) throw insertError;
-
-      // Get current booking total and calculate new total
-      const { data: bookingData, error: bookingError } = await supabase
-        .from("bookings")
-        .select("total_price")
-        .eq("id", bookingId)
-        .single();
-
-      if (bookingError) throw bookingError;
 
       const currentTotal = bookingData?.total_price || 0;
       const addedTotal = calculateTotal();

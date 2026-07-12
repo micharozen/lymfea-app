@@ -25,6 +25,8 @@ export type Lang = 'fr' | 'en';
 /** Subset of a `hotels` row consumed by the email builders. */
 export interface EmailVenue {
   image?: string | null;
+  /** Large venue photo (hero image) — distinct from `image`, which is the logo. */
+  cover_image?: string | null;
   currency?: string | null;
   contact_email?: string | null;
   address?: string | null;

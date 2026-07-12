@@ -7,6 +7,7 @@ export * from "./concierges.ts";
 export * from "./treatments.ts";
 export * from "./treatment-rooms.ts";
 export * from "./customers.ts";
+export * from "./checkout-intents.ts";
 export * from "./tasks.ts";
 export * from "./bundles.ts";
 export * from "./ledger.ts";

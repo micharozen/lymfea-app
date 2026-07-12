@@ -572,5 +572,8 @@
   "manageBooking": {
     "cancelSuccessTitle": "Réservation annulée",
     "cancelSuccessDescription": "Un email de confirmation vous a été envoyé."
+  },
+  "resume": {
+    "expired": "Ce lien a expiré. Reprenez votre sélection ci-dessous."
   }
 }

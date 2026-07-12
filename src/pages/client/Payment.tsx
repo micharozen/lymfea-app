@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building, Gift, ShieldCheck, Calendar, Clock, Repeat, X, Package, MapPin, Phone } from 'lucide-react';
-import { useBasket } from './context/CartContext';
+import { useBasket, buildTreatmentsPayload } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
 import { useClientVenue } from './context/ClientVenueContext';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
@@ -225,12 +225,7 @@ export default function Payment() {
                 date: bookingDateTime.date,
                 time: bookingDateTime.time,
               },
-              treatments: items.map(item => ({
-                treatmentId: item.id,
-                variantId: item.variantId,
-                quantity: item.quantity,
-                note: item.note,
-              })),
+              treatments: buildTreatmentsPayload(items),
               paymentMethod: 'gift_amount',
               giftAmountUsage: {
                 customerBundleId: selectedBundle.customerBundleId,
@@ -270,11 +265,7 @@ export default function Payment() {
                 time: bookingDateTime.time,
               },
               treatmentIds: items.map(item => item.id),
-              treatments: items.map(item => ({
-                treatmentId: item.id,
-                variantId: item.variantId,
-                quantity: item.quantity,
-              })),
+              treatments: buildTreatmentsPayload(items),
               totalPrice: uncoveredTotal,
               giftAmountUsage: {
                 customerBundleId: selectedBundle.customerBundleId,
@@ -320,12 +311,7 @@ export default function Payment() {
               date: bookingDateTime.date,
               time: bookingDateTime.time,
             },
-            treatments: items.map(item => ({
-              treatmentId: item.id,
-              variantId: item.variantId,
-              quantity: item.quantity,
-              note: item.note,
-            })),
+            treatments: buildTreatmentsPayload(items),
             paymentMethod: 'bundle',
             bundleUsage: {
               customerBundleId: selectedBundle.customerBundleId,
@@ -376,7 +362,7 @@ export default function Payment() {
           },
           bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
           treatmentIds: items.map(item => item.id),
-          treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId, quantity: item.quantity })),
+          treatments: buildTreatmentsPayload(items),
           totalPrice: total,
           language: languageFromCountryCode(clientInfo.countryCode),
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
@@ -438,7 +424,7 @@ export default function Payment() {
               hotelId,
               clientData: clientDataPayload,
               bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
-              treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId, quantity: item.quantity, note: item.note })),
+              treatments: buildTreatmentsPayload(items),
               paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
               totalPrice: fixedTotal,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),

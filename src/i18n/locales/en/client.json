@@ -571,5 +571,8 @@
   "manageBooking": {
     "cancelSuccessTitle": "Booking cancelled",
     "cancelSuccessDescription": "A confirmation email has been sent to you."
+  },
+  "resume": {
+    "expired": "This link has expired. Pick your treatments again below."
   }
 }

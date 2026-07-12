@@ -17,6 +17,7 @@ const ADMIN_ONLY_ROUTE_PATTERNS: RegExp[] = [
   /^\/admin\/analytics(\/|$)/,
   /^\/admin\/support(\/|$)/,
   /^\/admin\/schedule-alerts(\/|$)/,
+  /^\/admin\/checkout-intents(\/|$)/,
 ];
 
 const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {

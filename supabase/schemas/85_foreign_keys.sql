@@ -58,6 +58,9 @@ ALTER TABLE ONLY "public"."booking_treatments"
 ALTER TABLE ONLY "public"."booking_treatments"
     ADD CONSTRAINT "booking_treatments_variant_id_fkey" FOREIGN KEY ("variant_id") REFERENCES "public"."treatment_variants"("id");
 
+ALTER TABLE ONLY "public"."booking_treatments"
+    ADD CONSTRAINT "booking_treatments_therapist_id_fkey" FOREIGN KEY ("therapist_id") REFERENCES "public"."therapists"("id");
+
 ALTER TABLE ONLY "public"."bookings"
     ADD CONSTRAINT "bookings_bundle_usage_id_fkey" FOREIGN KEY ("bundle_usage_id") REFERENCES "public"."bundle_session_usages"("id") ON DELETE SET NULL;
 

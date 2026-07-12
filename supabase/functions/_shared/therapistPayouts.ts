@@ -3,9 +3,10 @@
  * (stripe-webhook, finalize-payment, mark-tap-to-pay-paid).
  *
  * - Solo booking (≤ 1 therapist): the single therapist is paid on the TOTAL
- *   duration of all treatments.
- * - Duo booking (> 1 therapist): each therapist is paid on the duration of THEIR
- *   treatment via the positional mapping (see computeDuoLegs), with their own rates.
+ *   duration of all treatments, add-ons included.
+ * - Duo booking (> 1 therapist): each therapist is paid on their own leg — their
+ *   base soin plus the add-ons hanging off it — with their own rates. See
+ *   myLegDuration for the exact attribution ladder (stable link, then positional).
  *
  * Out-of-hours surcharge: when the booking is flagged out-of-hours, each earning
  * is uplifted by the venue's surcharge percent (same % the client was charged).
@@ -16,7 +17,7 @@
  */
 
 import { computeTherapistEarnings, type TherapistRates } from "./therapistEarnings.ts";
-import { computeDuoLegs } from "./duoLegs.ts";
+import { myLegDuration } from "./therapistLegDuration.ts";
 
 export interface PayoutTherapist {
   therapist_id: string;
@@ -35,7 +36,12 @@ export interface PayoutLeg {
 
 export interface BuildPayoutLegsParams {
   therapists: PayoutTherapist[];
-  treatments: { duration: number | null }[];
+  /**
+   * Treatments with their duration, whether they are add-ons, and when available
+   * the stable soin↔therapist link (booking_treatments.therapist_id). Add-ons are
+   * excluded from the guest-soin count and paid to whoever carries them.
+   */
+  treatments: { duration: number | null; therapist_id?: string | null; is_addon?: boolean | null }[];
   guestCount: number;
   isOutOfHours: boolean;
   /** Venue out_of_hours_surcharge_percent (only applied when isOutOfHours). */
@@ -142,23 +148,20 @@ export function buildTherapistPayoutLegs(
 
   const pct = isOutOfHours ? (Number(surchargePercent) || 0) : 0;
 
-  // Duration per therapist: duo → positional; solo → total treatment duration.
-  const isDuo = ordered.length > 1;
-  const durationByTherapist = isDuo
-    ? computeDuoLegs(ordered.map((t) => t.therapist_id), treatments, guestCount)
-    : ordered.map((t) => ({
-        therapistId: t.therapist_id,
-        duration: treatments.reduce((sum, tr) => sum + (tr.duration || 0), 0),
-        index: 0,
-      }));
+  // Duration per therapist — same ladder the PWA displays (myLegDuration): stable
+  // soin↔therapist link first, positional mapping for legacy/broadcast rows, and
+  // in every case the add-ons this therapist carries on top of their soin.
+  // A lone therapist is paid on everything, whatever guest_count claims.
+  const orderedIds = ordered.map((t) => t.therapist_id);
+  const effectiveGuestCount = ordered.length > 1 ? guestCount : 1;
 
-  const raw = durationByTherapist.map((leg, i) => {
-    const t = ordered[i];
-    const earned = computeTherapistEarnings(t.rates, leg.duration, { surchargePercent: pct }) ?? 0;
+  const raw = ordered.map((t) => {
+    const duration = myLegDuration(t.therapist_id, treatments, orderedIds, effectiveGuestCount);
+    const earned = computeTherapistEarnings(t.rates, duration, { surchargePercent: pct }) ?? 0;
     return {
       therapistId: t.therapist_id,
       stripeAccountId: t.stripe_account_id,
-      duration: leg.duration,
+      duration,
       earned,
     };
   });

@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { brand } from "@/config/brand";
 import { useScheduleCompleteness, fetchTherapistUnavailableDates } from "@/hooks/pwa/useScheduleCompleteness";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
+import { myLegDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
 import { ScheduleReminderBanner } from "@/components/pwa/schedule/ScheduleReminderBanner";
 
 interface Therapist {
@@ -383,15 +384,22 @@ const PwaDashboard = () => {
 
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
 
-    // Fetch hotel images and currency separately (no FK relationship)
+    // Fetch hotel images/currency + commission & surcharge settings separately
+    // (no FK relationship). Commission/surcharge live on the venue, not the booking.
     const { data: hotelData } = await supabase
       .from("hotels")
-      .select("id, image, currency")
+      .select("id, image, currency, global_therapist_commission, therapist_commission, out_of_hours_surcharge_percent")
       .in("id", hotelIds);
 
     if (!isMountedRef.current) return;
 
-    const hotelDataMap = new Map(hotelData?.map(h => [h.id, { image: h.image, currency: h.currency }]) || []);
+    const hotelDataMap = new Map(hotelData?.map(h => [h.id, {
+      image: h.image,
+      currency: h.currency,
+      global_therapist_commission: h.global_therapist_commission === true,
+      therapist_commission: h.therapist_commission,
+      out_of_hours_surcharge_percent: h.out_of_hours_surcharge_percent,
+    }]) || []);
 
     // 1. Get bookings assigned to this therapist (any status)
     const { data: myBookings, error: myError } = await supabase
@@ -399,8 +407,10 @@ const PwaDashboard = () => {
       .select(`
         *,
         treatment_rooms!bookings_trunk_id_fkey ( name ),
-        booking_therapists ( status, therapist_id ),
+        booking_therapists ( status, therapist_id, assigned_at ),
         booking_treatments (
+          therapist_id,
+          is_addon,
           treatment_menus (
             name,
             price,
@@ -444,8 +454,10 @@ const PwaDashboard = () => {
           .from("bookings")
           .select(`
             *,
-            booking_therapists ( status, therapist_id ),
+            booking_therapists ( status, therapist_id, assigned_at ),
             booking_treatments (
+              therapist_id,
+              is_addon,
               treatment_menus (
                 name,
                 price,
@@ -475,8 +487,10 @@ const PwaDashboard = () => {
       .select(`
         *,
         treatment_rooms!bookings_trunk_id_fkey ( name ),
-        booking_therapists ( status, therapist_id ),
+        booking_therapists ( status, therapist_id, assigned_at ),
         booking_treatments (
+          therapist_id,
+          is_addon,
           treatment_menus (
             name,
             price,
@@ -844,19 +858,44 @@ const PwaDashboard = () => {
         b.status !== "noshow"
     );
     const count = todayBookings.length;
-    const totalMinutes = todayBookings.reduce(
-      (sum, b) => sum + calculateTotalDuration(b),
-      0
-    );
+    // My share of a booking: only my own soin(s) in a duo (stable link when
+    // present, positional fallback otherwise); the full duration for a solo.
+    const myLeg = (b: Booking): number => {
+      const gc = (b as { guest_count?: number }).guest_count ?? 1;
+      if (gc <= 1) return calculateTotalDuration(b);
+      const orderedIds = ((b.booking_therapists ?? []) as { therapist_id: string; status: string; assigned_at?: string | null }[])
+        .filter((bt) => bt.status === "accepted")
+        .sort((x, y) => (x.assigned_at || "").localeCompare(y.assigned_at || ""))
+        .map((bt) => bt.therapist_id);
+      const legTreatments = ((b.booking_treatments ?? []) as { therapist_id?: string | null; is_addon?: boolean | null; treatment_menus?: { duration?: number | null } | null }[])
+        .map((t) => ({ therapist_id: t.therapist_id ?? null, duration: t.treatment_menus?.duration ?? null, is_addon: t.is_addon ?? false }));
+      return myLegDuration(therapist?.id ?? "", legTreatments, orderedIds, gc);
+    };
+    const totalMinutes = todayBookings.reduce((sum, b) => sum + myLeg(b), 0);
     const hours = Math.floor(totalMinutes / 60);
     const mins = totalMinutes % 60;
     const hoursLabel = mins > 0 ? `${hours}h${mins.toString().padStart(2, "0")}` : `${hours}h`;
-    const totalRevenue = todayBookings.reduce(
-      (sum, b) => sum + calculateTotalPrice(b),
-      0
+    const earnings = Math.round(
+      todayBookings.reduce((sum, b) => {
+        const hotel = (b as { hotels?: { global_therapist_commission?: boolean; therapist_commission?: number | null; out_of_hours_surcharge_percent?: number | null } }).hotels;
+        const surchargePercent = (b as { is_out_of_hours?: boolean | null }).is_out_of_hours
+          ? Number(hotel?.out_of_hours_surcharge_percent) || 0
+          : 0;
+        return sum + estimateTherapistShare({
+          globalTherapistCommission: hotel?.global_therapist_commission ?? false,
+          guestCount: (b as { guest_count?: number }).guest_count ?? 1,
+          legDuration: myLeg(b),
+          myRates: {
+            rate_60: (therapist as { rate_60?: number | null } | null)?.rate_60 ?? null,
+            rate_75: (therapist as { rate_75?: number | null } | null)?.rate_75 ?? null,
+            rate_90: (therapist as { rate_90?: number | null } | null)?.rate_90 ?? null,
+          },
+          grossPrice: calculateTotalPrice(b),
+          therapistCommissionPercent: hotel?.therapist_commission ?? null,
+          surchargePercent,
+        });
+      }, 0)
     );
-    const totalHT = totalRevenue / 1.2;
-    const earnings = Math.round(totalHT * 0.7);
     return { count, hoursLabel, earnings };
   })();
 

@@ -26,6 +26,7 @@ import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { therapistForTreatment } from "@/lib/therapistForTreatment";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { useAvailableRooms } from "@/hooks/booking/useAvailableRooms";
 import {
@@ -45,7 +46,7 @@ import { computeOutOfHoursSurcharge } from "@/lib/surcharge";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil, Search, DoorOpen, UserX } from "lucide-react";
+import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil, Search, DoorOpen, UserX, ShoppingBag, Trash2 } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
@@ -317,6 +318,8 @@ export default function EditBookingDialog({
   const isConcierge = userRole === "concierge" || isVenueManagerView;
   const canCancelBooking =
     (isAdmin || isConcierge) && canCancelBookingByStatus(booking?.status);
+  const showCancelBookingAction =
+    booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking;
   const canMarkNoShow =
     (isAdmin || isConcierge) &&
     (booking?.status === "confirmed" || booking?.status === "ongoing");
@@ -666,6 +669,18 @@ export default function EditBookingDialog({
         : null;
       const becameHotelRoomCharge = derivedPayment?.paymentStatus === "charged_to_room";
 
+      // Combo-duo (un soin par invité) : ajouter/retirer un soin change le nombre
+      // d'invités. Sans resynchronisation, guest_count fige le nombre de jambes du
+      // récap duo (DuoRecapTable) sur l'ancienne valeur. Duo-variante (soin partagé,
+      // nb soins ≠ guest_count) : on ne touche pas.
+      const prevGuestCount = booking.guest_count ?? 1;
+      const wasComboDuo =
+        prevGuestCount > 1 && existingTreatments?.length === prevGuestCount;
+      const newGuestCount =
+        wasComboDuo && bookingData.treatments?.length
+          ? bookingData.treatments.length
+          : prevGuestCount;
+
       const { error: bookingError } = await supabase
         .from("bookings")
         .update({
@@ -688,6 +703,7 @@ export default function EditBookingDialog({
           assigned_at: assignedAt,
           client_note: bookingData.client_note ?? null,
           client_type: bookingData.client_type,
+          guest_count: newGuestCount,
           ...(derivedPayment
             ? {
                 payment_status: derivedPayment.paymentStatus,
@@ -755,12 +771,23 @@ export default function EditBookingDialog({
       if (deleteTreatmentsError) throw deleteTreatmentsError;
 
       if (bookingData.treatments && bookingData.treatments.length > 0) {
+        // Ce delete+re-insert effacerait le lien stable soin↔thérapeute
+        // (booking_treatments.therapist_id) — on le repose, même convention
+        // positionnelle qu'à la création.
+        const editGuestCount = newGuestCount;
+        const editTherapistIds: string[] = bookingData.therapistIds?.length
+          ? bookingData.therapistIds.filter(Boolean)
+          : bookingData.therapist_id
+          ? [bookingData.therapist_id]
+          : [];
+        const treatmentCount = bookingData.treatments.length;
         const treatmentInserts = bookingData.treatments.map(
-          (t: { treatmentId: string; variantId?: string | null; priceOverride?: number | null }) => ({
+          (t: { treatmentId: string; variantId?: string | null; priceOverride?: number | null }, i: number) => ({
             booking_id: booking.id,
             treatment_id: t.treatmentId,
             variant_id: t.variantId ?? null,
             price_override: t.priceOverride ?? null,
+            therapist_id: therapistForTreatment(i, treatmentCount, editGuestCount, editTherapistIds),
           })
         );
 
@@ -772,16 +799,19 @@ export default function EditBookingDialog({
       }
 
       if (bookingData.therapistIds) {
-        const validIds: string[] = bookingData.therapistIds.filter(Boolean);
+        const validIds: string[] = [...new Set(bookingData.therapistIds.filter(Boolean))];
         const { error: btDeleteError } = await supabase.from("booking_therapists").delete().eq("booking_id", booking.id);
         if (btDeleteError) throw btDeleteError;
         if (validIds.length > 0) {
-          const { error: btError } = await supabase.from("booking_therapists").insert(
+          // upsert (ignore duplicates) : le delete+insert n'est pas atomique — un accept_booking
+          // concurrent peut réinsérer une ligne et provoquer une violation de UNIQUE(booking_id, therapist_id).
+          const { error: btError } = await supabase.from("booking_therapists").upsert(
             validIds.map((tid: string) => ({
               booking_id: booking.id,
               therapist_id: tid,
               status: 'accepted',
-            }))
+            })),
+            { onConflict: "booking_id,therapist_id", ignoreDuplicates: true }
           );
           if (btError) throw btError;
         }
@@ -1204,6 +1234,13 @@ export default function EditBookingDialog({
     });
   };
 
+  // Remove an entire cart line (exact treatment+variant pair), whatever its quantity.
+  const removeCartLine = (treatmentId: string, variantId?: string | null) => {
+    setCart(prev => prev.filter(x =>
+      !(x.treatmentId === treatmentId && (x.variantId ?? null) === (variantId ?? null))
+    ));
+  };
+
   // Without variantId: total across all variants of that treatment. With: that exact pair.
   const getCartQuantity = (treatmentId: string, variantId?: string | null) => {
     if (variantId !== undefined) {
@@ -1222,12 +1259,12 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <DialogHeader className="px-4 py-3 border-b shrink-0">
+      <DialogContent className={cn("max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0 [&>button.absolute]:top-2.5 [&>button.absolute]:right-2.5", viewMode === "edit" && activeTab === "prestations" ? "sm:max-w-[880px]" : "sm:max-w-[700px]")} onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogHeader className="px-4 py-3 border-b shrink-0 bg-primary/10">
           {viewMode === "view" ? (
             <div className="flex items-start justify-between">
               <div>
-                <DialogTitle className="text-lg font-semibold">
+                <DialogTitle className="text-lg font-normal">
                   Détails de la réservation
                 </DialogTitle>
                 <div className="flex items-center gap-2 mt-2">
@@ -1263,7 +1300,7 @@ export default function EditBookingDialog({
                     <TooltipContent side="bottom">Lien paiement</TooltipContent>
                   </Tooltip>
                 )}
-                {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking && (
+                {showCancelBookingAction && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1296,9 +1333,22 @@ export default function EditBookingDialog({
               </ButtonGroup>
             </div>
           ) : (
-            <DialogTitle className="text-lg font-semibold">
-              {viewMode === "quote" ? "Valider le devis" : "Modifier la réservation"}
-            </DialogTitle>
+            <div className="flex items-start justify-between gap-3 pr-10">
+              <DialogTitle className="text-lg font-normal">
+                {viewMode === "quote" ? "Valider le devis" : "Modifier la réservation"}
+              </DialogTitle>
+              {viewMode === "edit" && showCancelBookingAction ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowCancelDialog(true)}
+                  className="h-8 shrink-0 gap-1.5 px-2.5 text-xs"
+                >
+                  Annuler la réservation
+                </Button>
+              ) : null}
+            </div>
           )}
         </DialogHeader>
 
@@ -1576,7 +1626,7 @@ export default function EditBookingDialog({
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <TabsContent value="info" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden overflow-hidden">
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+              <div className="flex-1 overflow-y-auto scrollbar-subtle px-4 py-3 space-y-2">
               {isConcierge && (
                 <Alert className="py-2">
                   <AlertTriangle className="h-4 w-4" />
@@ -2033,17 +2083,6 @@ export default function EditBookingDialog({
               </div>
               <div className="shrink-0 px-4 py-3 border-t bg-background flex justify-between gap-3">
                 <div className="flex gap-2">
-                  {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking ? (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={() => setShowCancelDialog(true)}
-                      className="gap-2"
-                    >
-                      <X className="h-4 w-4" />
-                      Annuler la réservation
-                    </Button>
-                  ) : null}
                   {canMarkNoShow && (
                     <Button
                       type="button"
@@ -2051,8 +2090,8 @@ export default function EditBookingDialog({
                       onClick={() => setShowNoShowDialog(true)}
                       className="gap-2 text-amber-600 hover:text-amber-700"
                     >
-                      <UserX className="h-4 w-4" />
                       Client pas venu
+                      <UserX className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
@@ -2062,9 +2101,9 @@ export default function EditBookingDialog({
               </div>
             </TabsContent>
 
-            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-3 data-[state=inactive]:hidden max-h-[60vh]">
+            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-0 pb-0 data-[state=inactive]:hidden max-h-[70vh]">
               {isConcierge && treatmentsDisabled && (
-                <Alert className="py-2 mb-2">
+                <Alert className="py-2 mx-6 mt-2 mb-0 shrink-0">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription className="text-xs">
                     Les prestations ne sont plus modifiables pour cette réservation.
@@ -2072,250 +2111,301 @@ export default function EditBookingDialog({
                 </Alert>
               )}
 
-              <div className="relative shrink-0 mb-2">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                <Input
-                  value={treatmentSearch}
-                  onChange={(e) => setTreatmentSearch(e.target.value)}
-                  placeholder="Rechercher un soin…"
-                  className="h-8 pl-8 text-xs"
-                />
-              </div>
+              <div className="flex-1 flex flex-col md:flex-row min-h-0">
+                {/* ── Colonne gauche : catalogue des soins ── */}
+                <div className="flex-1 flex flex-col min-h-0 px-6 pt-3 pb-3 md:border-r border-border">
+                  <div className="relative shrink-0 mb-3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      value={treatmentSearch}
+                      onChange={(e) => setTreatmentSearch(e.target.value)}
+                      placeholder="Rechercher un soin…"
+                      className="h-10 pl-9 text-sm"
+                    />
+                  </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                {(() => {
-                  const q = treatmentSearch.trim().toLowerCase();
-                  const filtered = (treatments ?? []).filter((t) => {
-                    if (!q) return true;
-                    return (
-                      (t.name?.toLowerCase().includes(q)) ||
-                      (t.category?.toLowerCase().includes(q))
-                    );
-                  });
+                  <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
+                    {(() => {
+                      const q = treatmentSearch.trim().toLowerCase();
+                      const filtered = (treatments ?? []).filter((t) => {
+                        if (!q) return true;
+                        return (
+                          (t.name?.toLowerCase().includes(q)) ||
+                          (t.category?.toLowerCase().includes(q))
+                        );
+                      });
 
-                  const grouped: Record<string, typeof filtered> = {};
-                  filtered.forEach(t => {
-                    const c = t.category || "Autres";
-                    if (!grouped[c]) grouped[c] = [];
-                    grouped[c].push(t);
-                  });
+                      const grouped: Record<string, typeof filtered> = {};
+                      filtered.forEach(t => {
+                        const c = t.category || "Autres";
+                        if (!grouped[c]) grouped[c] = [];
+                        grouped[c].push(t);
+                      });
 
-                  if (!filtered.length) {
-                    return (
-                      <div className="h-16 flex items-center justify-center text-xs text-muted-foreground">
-                        Aucune prestation disponible
-                      </div>
-                    );
-                  }
+                      if (!filtered.length) {
+                        return (
+                          <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
+                            Aucune prestation disponible
+                          </div>
+                        );
+                      }
 
-                  return Object.entries(grouped).map(([category, items]) => (
-                    <div key={category} className="mb-2">
-                      <h3 className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1 pb-0.5 border-b border-border/30">
-                        {category}
-                      </h3>
-                      
-                      <div>
-                        {items.map((treatment) => {
-                          const variants = treatment.treatment_variants ?? [];
-                          const hasVariantChoice = variants.length >= 2;
-                          const totalQty = getCartQuantity(treatment.id);
+                      const Stepper = ({ qty, onDec, onInc }: { qty: number; onDec: () => void; onInc: () => void }) => (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={onDec}
+                            disabled={treatmentsDisabled}
+                            className="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="text-sm font-semibold w-5 text-center tabular-nums">{qty}</span>
+                          <button
+                            type="button"
+                            onClick={onInc}
+                            disabled={treatmentsDisabled}
+                            className="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      );
 
-                          // Treatment with multiple variants → menu header + one row per variant.
-                          if (hasVariantChoice) {
-                            return (
-                              <div key={treatment.id} className="border-b border-border/10 last:border-0">
-                                <div className="flex items-center gap-1.5 py-1.5">
-                                  <span className="font-medium text-foreground text-xs truncate flex-1">
-                                    {treatment.name}
-                                  </span>
-                                  {totalQty > 0 && (
-                                    <span className="shrink-0 text-[9px] font-bold text-muted-foreground">×{totalQty}</span>
-                                  )}
-                                </div>
-                                {variants.map((v, vi) => {
-                                  const variantQty = getCartQuantity(treatment.id, v.id);
-                                  const label = v.label || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
-                                  const displayPrice = v.price ?? treatment.price;
-                                  const displayDuration = v.duration ?? treatment.duration;
-                                  return (
-                                    <div key={v.id} className={cn("flex items-center justify-between pl-2 pb-1", vi === variants.length - 1 && "pb-2")}>
-                                      <div className="flex flex-col flex-1 pr-2 min-w-0">
-                                        <span className="text-[10px] font-medium text-foreground">{label}</span>
-                                        <span className="text-[10px] text-muted-foreground">
-                                          {displayPrice}€ • {displayDuration} min
-                                        </span>
-                                      </div>
-                                      {variantQty > 0 ? (
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                          <button
-                                            type="button"
-                                            onClick={() => decrementCart(treatment.id, v.id)}
-                                            disabled={treatmentsDisabled}
-                                            className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                                          >
-                                            <Minus className="h-2.5 w-2.5" />
-                                          </button>
-                                          <span className="text-xs font-bold w-4 text-center">{variantQty}</span>
-                                          <button
-                                            type="button"
-                                            onClick={() => incrementCart(treatment.id, v.id)}
-                                            disabled={treatmentsDisabled}
-                                            className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                                          >
-                                            <Plus className="h-2.5 w-2.5" />
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() => addToCart(treatment.id, v.id)}
-                                          disabled={treatmentsDisabled}
-                                          className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-foreground"
-                                        >
-                                          Ajouter
-                                        </button>
+                      const AddButton = ({ onClick }: { onClick: () => void }) => (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={onClick}
+                          disabled={treatmentsDisabled}
+                          className="shrink-0 h-7 rounded-full gap-1 px-3 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Ajouter
+                        </Button>
+                      );
+
+                      return Object.entries(grouped).map(([category, items]) => (
+                        <div key={category} className="mb-4 last:mb-0">
+                          <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/40">
+                            {category}
+                          </h3>
+
+                          <div className="space-y-1">
+                            {items.map((treatment) => {
+                              const variants = treatment.treatment_variants ?? [];
+                              const hasVariantChoice = variants.length >= 2;
+                              const totalQty = getCartQuantity(treatment.id);
+
+                              // Treatment with multiple variants → header + one row per variant.
+                              if (hasVariantChoice) {
+                                return (
+                                  <div key={treatment.id} className="rounded-lg border border-transparent hover:border-border/60 hover:bg-muted/30 transition-colors px-2 py-1.5">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="font-normal text-foreground text-sm truncate flex-1">
+                                        {treatment.name}
+                                      </span>
+                                      {totalQty > 0 && (
+                                        <span className="shrink-0 text-xs font-bold text-primary">×{totalQty}</span>
                                       )}
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            );
-                          }
+                                    {variants.map((v) => {
+                                      const variantQty = getCartQuantity(treatment.id, v.id);
+                                      const label = v.label || (v.guest_count === 1 ? 'Solo' : v.guest_count === 2 ? 'Duo' : `×${v.guest_count}`);
+                                      const displayPrice = v.price ?? treatment.price;
+                                      const displayDuration = v.duration ?? treatment.duration;
+                                      return (
+                                        <div key={v.id} className="flex items-center justify-between gap-2 pl-3 py-1">
+                                          <div className="flex flex-col flex-1 pr-2 min-w-0">
+                                            <span className="text-sm font-medium text-foreground">{label}</span>
+                                            <span className="text-xs text-muted-foreground">
+                                              {displayPrice}€ • {displayDuration} min
+                                            </span>
+                                          </div>
+                                          {variantQty > 0 ? (
+                                            <Stepper
+                                              qty={variantQty}
+                                              onDec={() => decrementCart(treatment.id, v.id)}
+                                              onInc={() => incrementCart(treatment.id, v.id)}
+                                            />
+                                          ) : (
+                                            <AddButton onClick={() => addToCart(treatment.id, v.id)} />
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              }
 
-                          // Treatment with 0-1 variant → single row (default variant resolved by addToCart).
-                          const selectedVariant = variants[0] ?? null;
-                          const displayPrice = selectedVariant?.price ?? treatment.price;
-                          const displayDuration = selectedVariant?.duration ?? treatment.duration;
-                          return (
-                            <div
-                              key={treatment.id}
-                              className="flex items-center justify-between py-1.5 border-b border-border/10 last:border-0"
-                            >
-                              <div className="flex flex-col flex-1 pr-2 min-w-0">
-                                <span className="font-medium text-foreground text-xs truncate">
-                                  {treatment.name}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground">
-                                  {displayPrice}€ • {displayDuration} min
-                                </span>
-                              </div>
+                              // Treatment with 0-1 variant → single row.
+                              const selectedVariant = variants[0] ?? null;
+                              const displayPrice = selectedVariant?.price ?? treatment.price;
+                              const displayDuration = selectedVariant?.duration ?? treatment.duration;
+                              return (
+                                <div
+                                  key={treatment.id}
+                                  className="flex items-center justify-between gap-2 rounded-lg border border-transparent hover:border-border/60 hover:bg-muted/30 transition-colors px-2 py-2"
+                                >
+                                  <div className="flex flex-col flex-1 pr-2 min-w-0">
+                                    <span className="font-normal text-foreground text-sm truncate">
+                                      {treatment.name}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {displayPrice}€ • {displayDuration} min
+                                    </span>
+                                  </div>
 
-                              {totalQty > 0 ? (
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => decrementCart(treatment.id)}
-                                    disabled={treatmentsDisabled}
-                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                                  >
-                                    <Minus className="h-2.5 w-2.5" />
-                                  </button>
-                                  <span className="text-xs font-bold w-4 text-center">{totalQty}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => incrementCart(treatment.id)}
-                                    disabled={treatmentsDisabled}
-                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                                  >
-                                    <Plus className="h-2.5 w-2.5" />
-                                  </button>
+                                  {totalQty > 0 ? (
+                                    <Stepper
+                                      qty={totalQty}
+                                      onDec={() => decrementCart(treatment.id)}
+                                      onInc={() => incrementCart(treatment.id)}
+                                    />
+                                  ) : (
+                                    <AddButton onClick={() => addToCart(treatment.id)} />
+                                  )}
                                 </div>
-                              ) : (
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+
+                {/* ── Colonne droite : panier ── */}
+                <div className="w-full md:w-[300px] shrink-0 flex flex-col min-h-0 bg-muted/30 border-t md:border-t-0 border-border">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+                    <div className="flex items-center gap-2">
+                      <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-semibold text-sm">Panier</span>
+                    </div>
+                    {cartDetails.length > 0 && (() => {
+                      const count = cartDetails.reduce((n, x) => n + x.quantity, 0);
+                      return (
+                        <span className="text-xs text-muted-foreground">
+                          {count} soin{count > 1 ? 's' : ''}
+                        </span>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-2">
+                    {cartDetails.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center px-4 py-8">
+                        <ShoppingBag className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                        <p className="text-sm font-medium text-muted-foreground">Votre panier est vide</p>
+                        <p className="text-xs text-muted-foreground/70 mt-0.5">Ajoutez des soins depuis la liste</p>
+                      </div>
+                    ) : (
+                      cartDetails.map(({ treatmentId, variantId, quantity, priceOverride, treatment }) => {
+                        const unitPrice = getCartLineUnitPrice(treatment, variantId, priceOverride);
+                        const lineTotal = unitPrice * quantity;
+                        const canOverride = (isAdmin || isConcierge) && !treatmentsDisabled;
+                        return (
+                          <div key={`${treatmentId}-${variantId ?? 'base'}`} className="rounded-lg border border-border bg-background p-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium leading-tight truncate">
+                                  {getCartLineDisplayName(treatment, variantId)}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{unitPrice}€ / unité</p>
+                              </div>
+                              {!treatmentsDisabled && (
                                 <button
                                   type="button"
-                                  onClick={() => addToCart(treatment.id)}
-                                  disabled={treatmentsDisabled}
-                                  className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-foreground"
+                                  onClick={() => removeCartLine(treatmentId, variantId)}
+                                  className="shrink-0 text-muted-foreground hover:text-destructive transition-colors p-0.5"
+                                  aria-label="Retirer"
                                 >
-                                  Ajouter
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                               )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-              
-              {/* Admin/concierge: per-line price override (special rate). Empty = catalog price. */}
-              {(isAdmin || isConcierge) && !treatmentsDisabled && cartDetails.length > 0 && (
-                <div className="shrink-0 border-t border-border bg-background pt-2 mt-2 space-y-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Prix par prestation
-                  </span>
-                  {cartDetails.map(({ treatmentId, variantId, treatment, priceOverride }) => (
-                    <div key={`ov-${treatmentId}-${variantId ?? 'base'}`} className="flex items-center gap-2">
-                      <span className="text-[11px] flex-1 truncate">
-                        {getCartLineDisplayName(treatment, variantId)}
-                      </span>
-                      {priceOverride != null && (
-                        <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
-                          modifié
-                        </span>
-                      )}
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={priceOverride ?? ''}
-                        onChange={(e) =>
-                          setCart(prev => prev.map(x =>
-                            x.treatmentId === treatmentId && (x.variantId ?? null) === (variantId ?? null)
-                              ? { ...x, priceOverride: e.target.value === '' ? null : Number(e.target.value) }
-                              : x
-                          ))
-                        }
-                        className="h-7 w-20 text-xs text-right"
-                        placeholder={String(getCartLineUnitPrice(treatment, variantId))}
-                      />
-                      <span className="text-[10px] text-muted-foreground">€</span>
-                    </div>
-                  ))}
-                </div>
-              )}
 
-              <div className="shrink-0 border-t border-border bg-background pt-2 mt-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    {cart.length > 0 ? (
-                      <div className="flex items-center gap-1.5 overflow-x-auto">
-                        {cartDetails.slice(0, 3).map(({ treatmentId, variantId, quantity, treatment }) => (
-                          <div key={`${treatmentId}-${variantId ?? 'base'}`} className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 shrink-0">
-                            <span className="text-[9px] font-medium truncate max-w-[60px]">{getCartLineDisplayName(treatment, variantId)}</span>
-                            <span className="text-[9px] font-bold">×{quantity}</span>
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => decrementCart(treatmentId, variantId)}
+                                  disabled={treatmentsDisabled}
+                                  className="w-7 h-7 rounded-full border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  <Minus className="h-3.5 w-3.5" />
+                                </button>
+                                <span className="text-sm font-semibold w-5 text-center tabular-nums">{quantity}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => incrementCart(treatmentId, variantId)}
+                                  disabled={treatmentsDisabled}
+                                  className="w-7 h-7 rounded-full border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              <span className="text-sm font-bold">{lineTotal}€</span>
+                            </div>
+
+                            {canOverride && (
+                              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+                                <span className="text-[11px] text-muted-foreground shrink-0">Prix spécial</span>
+                                {priceOverride != null && (
+                                  <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
+                                    modifié
+                                  </span>
+                                )}
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={priceOverride ?? ''}
+                                  onChange={(e) =>
+                                    setCart(prev => prev.map(x =>
+                                      x.treatmentId === treatmentId && (x.variantId ?? null) === (variantId ?? null)
+                                        ? { ...x, priceOverride: e.target.value === '' ? null : Number(e.target.value) }
+                                        : x
+                                    ))
+                                  }
+                                  className="h-7 flex-1 min-w-0 text-xs text-right"
+                                  placeholder={String(getCartLineUnitPrice(treatment, variantId))}
+                                />
+                                <span className="text-[11px] text-muted-foreground shrink-0">€</span>
+                              </div>
+                            )}
                           </div>
-                        ))}
-                        {cartDetails.length > 3 && (
-                          <span className="text-[9px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-muted-foreground">Aucun service</span>
+                        );
+                      })
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-bold text-sm">{totalPrice}€</span>
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveTab("info")}
-                      className="h-7 text-xs px-2"
-                    >
-                      ← Retour
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={updateMutation.isPending}
-                      size="sm"
-                      className="bg-foreground text-background hover:bg-foreground/90 h-7 text-xs px-3"
-                    >
-                      {updateMutation.isPending ? "Modification..." : "Modifier"}
-                      {updateMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-                    </Button>
+                  <div className="border-t border-border bg-background px-4 py-3 space-y-3 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total</span>
+                      <span className="text-lg font-bold">{totalPrice}€</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setActiveTab("info")}
+                        className="flex-1 h-9 text-sm"
+                      >
+                        ← Retour
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={updateMutation.isPending}
+                        size="sm"
+                        className="flex-1 h-9 text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        {updateMutation.isPending ? "Modification…" : "Modifier"}
+                        {updateMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 import { getSpecialtySelectOptions } from "@/lib/specialtyTypes";
@@ -77,6 +78,7 @@ export default function AddTherapistDialog({
   onOpenChange,
   onSuccess,
 }: AddTherapistDialogProps) {
+  const navigate = useNavigate();
   const { t, i18n } = useTranslation('common');
   const skillsOptions = getSpecialtySelectOptions(i18n.language);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
@@ -169,6 +171,32 @@ export default function AddTherapistDialog({
       .single();
 
     if (error) {
+      // Doublon (phone, country_code) : un thérapeute avec ce numéro existe déjà.
+      // On récupère sa fiche pour proposer un lien plutôt qu'une erreur brute.
+      if (error.code === "23505") {
+        const { data: existing } = await supabase
+          .from("therapists")
+          .select("id, first_name, last_name")
+          .eq("country_code", formData.country_code)
+          .eq("phone", normalizeTherapistPhone(formData.phone))
+          .maybeSingle();
+
+        const fullName = existing
+          ? `${existing.first_name ?? ""} ${existing.last_name ?? ""}`.trim()
+          : "";
+        toast.error(
+          `Un thérapeute avec ce numéro existe déjà${fullName ? ` : ${fullName}` : ""}`,
+          existing
+            ? {
+                action: {
+                  label: "Voir la fiche",
+                  onClick: () => navigate(`/admin/therapists/${existing.id}`),
+                },
+              }
+            : undefined,
+        );
+        return;
+      }
       toast.error("Erreur lors de l'ajout du thérapeute");
       return;
     }

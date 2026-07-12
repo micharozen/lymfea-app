@@ -418,7 +418,7 @@ serve(async (req) => {
         // Get treatment details for email
         const { data: bookingTreatments } = await supabase
           .from('booking_treatments')
-          .select('treatment_id, price_override, treatment_menus(name, price, price_on_request, duration), treatment_variants(price, duration)')
+          .select('treatment_id, therapist_id, is_addon, price_override, treatment_menus(name, price, price_on_request, duration), treatment_variants(price, duration)')
           .eq('booking_id', booking.id);
 
         const treatmentsForEmail = (bookingTreatments || []).map((bt: any) => ({
@@ -442,6 +442,8 @@ serve(async (req) => {
           const payoutTherapists = await fetchPayoutTherapists(supabase, booking.id, (booking as any).therapist_id);
           const payoutTreatments = (bookingTreatments || []).map((bt: any) => ({
             duration: Number(bt.treatment_variants?.duration ?? bt.treatment_menus?.duration) || 0,
+            therapist_id: bt.therapist_id ?? null,
+            is_addon: bt.is_addon ?? false,
           }));
           const { totalAmount: therapistEarned } = buildTherapistPayoutLegs({
             therapists: payoutTherapists,
@@ -534,7 +536,7 @@ serve(async (req) => {
             *,
             therapist:therapists(id, stripe_account_id, rate_60, rate_75, rate_90),
             hotel:hotels(vat, hotel_commission, out_of_hours_surcharge_percent),
-            booking_treatments(treatment_menus(duration))
+            booking_treatments(therapist_id, is_addon, treatment_menus(duration))
           `)
           .eq('id', bookingId)
           .single();
@@ -553,6 +555,8 @@ serve(async (req) => {
         const payoutTherapists = await fetchPayoutTherapists(supabase, booking.id, booking.therapist_id);
         const payoutTreatments = (booking.booking_treatments || []).map((bt: any) => ({
           duration: bt.treatment_menus?.duration ?? null,
+          therapist_id: bt.therapist_id ?? null,
+          is_addon: bt.is_addon ?? false,
         }));
         const { legs: payoutLegs, totalAmount } = buildTherapistPayoutLegs({
           therapists: payoutTherapists,

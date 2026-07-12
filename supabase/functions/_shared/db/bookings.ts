@@ -5,7 +5,15 @@ type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
 
 export type BookingTreatment = {
   id?: string;
+  /** booking_treatments row id — needed to target a specific line (e.g. set its therapist). */
+  bookingTreatmentId?: string;
   treatment_id?: string;
+  /** Stable soin↔therapist link. NULL/undefined = fall back to positional mapping. */
+  therapist_id?: string | null;
+  /** A supplement hanging off a base soin — never one of the guests' soins. */
+  is_addon?: boolean;
+  /** The booking_treatments row of the soin this add-on extends (its leg). */
+  parent_booking_treatment_id?: string | null;
   name: string;
   duration: number | null;
   price: number | null;
@@ -35,7 +43,11 @@ export type BookingListFilters = {
 
 type RawBookingRow = BookingRow & {
   booking_treatments?: Array<{
+    id: string;
     treatment_id: string | null;
+    therapist_id: string | null;
+    is_addon: boolean | null;
+    parent_booking_treatment_id: string | null;
     variant_id: string | null;
     price_override: number | null;
     treatment_menus: {
@@ -79,7 +91,11 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
       const variantSuffix = variant?.label ? ` · ${variant.label}` : "";
       return {
         id: t.treatment_id ?? undefined,
+        bookingTreatmentId: t.id,
         treatment_id: t.treatment_id ?? undefined,
+        therapist_id: t.therapist_id ?? null,
+        is_addon: t.is_addon ?? false,
+        parent_booking_treatment_id: t.parent_booking_treatment_id ?? null,
         name: (t.treatment_menus!.name ?? "") + variantSuffix,
         duration: variant?.duration ?? t.treatment_menus!.duration,
         price: resolveTreatmentPrice(t),
@@ -121,7 +137,11 @@ export async function listBookings(
       `
       *,
       booking_treatments(
+        id,
         treatment_id,
+        therapist_id,
+        is_addon,
+        parent_booking_treatment_id,
         variant_id,
         price_override,
         treatment_menus(name, duration, price),

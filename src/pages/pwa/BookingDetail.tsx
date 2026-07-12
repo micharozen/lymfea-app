@@ -17,7 +17,7 @@ import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
-import { computeTherapistEarnings } from "@/lib/therapistEarnings";
+import { myLegDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import {
   Drawer,
@@ -123,6 +123,7 @@ const getPaymentStatusBadge = (paymentStatus?: string | null) => {
 interface Treatment {
   id: string;
   treatment_id: string;
+  therapist_id?: string | null;
   variant_id?: string | null;
   price_override?: number | null;
   treatment_menus: {
@@ -183,6 +184,8 @@ const PwaBookingDetail = () => {
   const [acceptedTherapistCount, setAcceptedTherapistCount] = useState(0);
   const [hasAlreadyAccepted, setHasAlreadyAccepted] = useState(false);
   const [myTherapistId, setMyTherapistId] = useState<string | null>(null);
+  // Accepted therapist ids ordered by assigned_at (stable positional fallback).
+  const [orderedTherapistIds, setOrderedTherapistIds] = useState<string[]>([]);
   const isAcceptingRef = useRef(false);
   const isChargingRef = useRef(false);
   const isMountedRef = useIsMounted();
@@ -329,18 +332,24 @@ const PwaBookingDetail = () => {
 
       const { data: btData } = await supabase
         .from("booking_therapists")
-        .select("id, therapist_id")
+        .select("id, therapist_id, assigned_at")
         .eq("booking_id", id)
         .eq("status", "accepted");
 
       if (!isMountedRef.current) return;
 
+      const acceptedRows = (btData ?? []) as { therapist_id: string; assigned_at: string | null }[];
       const isAcceptedParticipant = myTherapistId
-        ? (btData?.some((bt) => (bt as { therapist_id: string }).therapist_id === myTherapistId) ?? false)
+        ? acceptedRows.some((bt) => bt.therapist_id === myTherapistId)
         : false;
 
-      setAcceptedTherapistCount(btData?.length ?? 0);
+      setAcceptedTherapistCount(acceptedRows.length);
       setHasAlreadyAccepted(isAcceptedParticipant);
+      setOrderedTherapistIds(
+        [...acceptedRows]
+          .sort((a, b) => (a.assigned_at || "").localeCompare(b.assigned_at || ""))
+          .map((bt) => bt.therapist_id),
+      );
 
       // Booking no longer belongs to the connected therapist (e.g. reassigned by
       // an admin while the app was open / opened from a stale push notification).
@@ -664,24 +673,35 @@ const PwaBookingDetail = () => {
     ? (Number(booking.out_of_hours_surcharge_percent) || 0)
     : 0;
   const estimatedEarnings = (() => {
-    if (booking.global_therapist_commission === false) {
-      const gc = Math.max(booking.guest_count || 1, 1);
-      // Duo: the therapist is paid on their own soin (per-slot) duration, not the
-      // combined total. Combo-duo (one soin per guest) → first soin duration;
-      // shared-duo (same soin in parallel) → the single soin's total duration.
-      const perTherapistDuration = gc > 1
-        ? (treatments.length === gc
-            ? (treatments[0]?.treatment_menus?.duration || totalDuration / gc)
-            : totalDuration)
-        : totalDuration;
-      return computeTherapistEarnings(
-        { rate_60: booking.therapist_rate_60 ?? null, rate_75: booking.therapist_rate_75 ?? null, rate_90: booking.therapist_rate_90 ?? null },
-        perTherapistDuration,
-        { surchargePercent },
-      ) ?? 0;
-    }
-    const pricePerTherapist = grossPrice / Math.max(booking.guest_count || 1, 1);
-    return Math.round(pricePerTherapist * ((booking.therapist_commission || 70) / 100) * 100) / 100;
+    const gc = Math.max(booking.guest_count || 1, 1);
+    // Duo: pay on my own leg — my soin plus the add-ons hanging off it. Stable link
+    // (booking_treatments.therapist_id) when present, positional fallback otherwise.
+    // Solo: the full booking duration.
+    const legDuration = gc > 1
+      ? myLegDuration(
+          myTherapistId ?? "",
+          treatments.map((t) => ({
+            therapist_id: t.therapist_id ?? null,
+            duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? null,
+            is_addon: t.is_addon ?? false,
+          })),
+          orderedTherapistIds,
+          gc,
+        )
+      : totalDuration;
+    return estimateTherapistShare({
+      globalTherapistCommission: booking.global_therapist_commission,
+      guestCount: gc,
+      legDuration,
+      myRates: {
+        rate_60: booking.therapist_rate_60 ?? null,
+        rate_75: booking.therapist_rate_75 ?? null,
+        rate_90: booking.therapist_rate_90 ?? null,
+      },
+      grossPrice,
+      therapistCommissionPercent: booking.therapist_commission ?? null,
+      surchargePercent,
+    });
   })();
 
   return (
