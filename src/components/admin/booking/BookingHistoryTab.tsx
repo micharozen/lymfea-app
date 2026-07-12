@@ -75,13 +75,15 @@ function getChangedFields(entry: BookingAuditEntry) {
   // Deduplicate: if therapist_id changed, skip therapist_name separately
   const allKeys = new Set([...Object.keys(oldVals), ...Object.keys(newVals)]);
   if (allKeys.has("therapist_id")) allKeys.delete("therapist_name");
+  if (allKeys.has("room_id")) allKeys.delete("room_name");
 
   return Array.from(allKeys)
     .filter((key) => key in FIELD_LABELS)
     .map((key) => {
-      // For therapist_id, display the resolved name only — never fall back to the
-      // raw UUID (shows "—" if the name couldn't be resolved).
-      const displayKey = key === "therapist_id" ? "therapist_name" : key;
+      // For therapist_id / room_id, display the resolved name only — never fall
+      // back to the raw UUID (shows "—" if the name couldn't be resolved).
+      const displayKey =
+        key === "therapist_id" ? "therapist_name" : key === "room_id" ? "room_name" : key;
       return {
         field: key,
         label: FIELD_LABELS[key],

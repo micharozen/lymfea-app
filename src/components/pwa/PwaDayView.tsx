@@ -3,7 +3,7 @@ import { format, addDays, subDays, isToday, addMinutes, parse } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, Euro, Check, DoorOpen, User } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, Euro, Check, DoorOpen, User, Users } from "lucide-react";
 import { getCalendarFlowStage } from "@/utils/statusStyles";
 import { formatPrice } from "@/lib/formatPrice";
 import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
@@ -11,6 +11,7 @@ import { useLongPress } from "@/hooks/pwa/useLongPress";
 import { BookingPreviewPopover } from "@/components/pwa/BookingPreviewPopover";
 
 interface BookingTreatment {
+  therapistShortName?: string | null;
   treatment_menus: {
     name: string;
     price: number;
@@ -34,6 +35,7 @@ export interface DayViewBooking {
   duration?: number;
   isUnassigned?: boolean;
   total_price?: number | null;
+  guest_count?: number | null;
   booking_treatments?: BookingTreatment[];
   therapistName?: string | null;
 }
@@ -56,12 +58,19 @@ const SWIPE_THRESHOLD = 50;
 // Trim a couple px off each block so back-to-back bookings keep a readable seam.
 const BLOCK_GAP = 3;
 
-function getTreatmentNames(booking: DayViewBooking): string {
-  if (!booking.booking_treatments || booking.booking_treatments.length === 0) return "";
+interface TreatmentLine {
+  name: string;
+  therapist: string | null;
+}
+
+function getTreatmentLines(booking: DayViewBooking): TreatmentLine[] {
+  if (!booking.booking_treatments || booking.booking_treatments.length === 0) return [];
   return booking.booking_treatments
-    .map((bt) => bt.treatment_menus?.name)
-    .filter(Boolean)
-    .join(", ");
+    .filter((bt) => bt.treatment_menus?.name)
+    .map((bt) => ({
+      name: bt.treatment_menus!.name,
+      therapist: bt.therapistShortName ?? null,
+    }));
 }
 
 function calculateDuration(booking: DayViewBooking): number {
@@ -78,6 +87,16 @@ function formatEndTime(startTime: string, durationMin: number): string {
   const parsed = parse(startTime.substring(0, 5), "HH:mm", new Date());
   const end = addMinutes(parsed, durationMin);
   return format(end, "HH:mm");
+}
+
+// Solid pill so it stands out on the pastel calendar card backgrounds.
+function DuoTag() {
+  return (
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-600 px-1.5 py-px text-[9px] font-bold uppercase leading-none text-white shrink-0">
+      <Users className="h-2.5 w-2.5" />
+      Duo
+    </span>
+  );
 }
 
 export function PwaDayView({
@@ -332,7 +351,9 @@ export function PwaDayView({
                 const flowStage = getCalendarFlowStage(booking.status, booking.payment_status);
                 const duration = calculateDuration(booking);
                 const endTime = formatEndTime(booking.booking_time, duration);
-                const treatmentNames = getTreatmentNames(booking);
+                const treatmentLines = getTreatmentLines(booking);
+                const isDuo = (booking.guest_count ?? 1) > 1;
+                const hasPerTreatmentTherapists = treatmentLines.some((l) => l.therapist);
 
                 return (
                   <div
@@ -363,14 +384,15 @@ export function PwaDayView({
                             <span className="font-bold text-[12px] leading-none shrink-0">
                               {booking.booking_time?.substring(0, 5)} - {endTime}
                             </span>
+                            {isDuo && <DuoTag />}
                             <span className="text-[11px] font-medium truncate">
                               {booking.isUnassigned
                                 ? booking.client_first_name || t("calendar.toConfirm", "À confirmer")
                                 : booking.client_first_name}
                             </span>
-                            {treatmentNames && (
+                            {treatmentLines.length > 0 && (
                               <span className="text-[10px] opacity-75 truncate">
-                                {treatmentNames}
+                                {treatmentLines.map((l) => l.name).join(", ")}
                               </span>
                             )}
                           </div>
@@ -380,43 +402,46 @@ export function PwaDayView({
                               <span className="font-bold text-[13px] leading-tight shrink-0">
                                 {booking.booking_time?.substring(0, 5)} - {endTime}
                               </span>
+                              {isDuo && <DuoTag />}
                               <span className="text-[12px] font-medium truncate opacity-90">
                                 {booking.isUnassigned
                                   ? booking.client_first_name || t("calendar.toConfirm", "À confirmer")
                                   : `${booking.client_first_name} ${booking.client_last_name}`}
                               </span>
                             </div>
-                            {treatmentNames && (
-                              <div className="text-[11px] opacity-80 truncate">
-                                {treatmentNames}
+                            {treatmentLines.map((line, i) => (
+                              <div key={i} className="text-[11px] opacity-80 truncate">
+                                {line.name}
+                                {line.therapist && (
+                                  <span className="opacity-75"> · {line.therapist}</span>
+                                )}
                               </div>
-                            )}
+                            ))}
                           </>
                         ) : (
                           <div className="flex justify-between gap-1.5 min-w-0">
                             <div className="min-w-0 flex flex-col">
-                              <div className="font-bold text-[13px] leading-tight">
+                              <div className="flex items-center gap-1.5 font-bold text-[13px] leading-tight">
                                 {booking.booking_time?.substring(0, 5)} - {endTime}
+                                {isDuo && <DuoTag />}
                               </div>
                               <div className="font-medium text-[12px] truncate">
                                 {booking.isUnassigned
                                   ? booking.client_first_name || t("calendar.toConfirm", "À confirmer")
                                   : `${booking.client_first_name} ${booking.client_last_name}`}
                               </div>
-                              {treatmentNames && (
-                                <div className="text-[11px] opacity-85 truncate">
-                                  {treatmentNames}
+                              {treatmentLines.map((line, i) => (
+                                <div key={i} className="text-[11px] opacity-85 truncate">
+                                  {line.name}
+                                  {line.therapist && (
+                                    <span className="opacity-75"> · {line.therapist}</span>
+                                  )}
                                 </div>
-                              )}
-                              {height >= 80 && (
-                                <div className="text-[10px] opacity-70 truncate">
-                                  {booking.hotel_name}
-                                </div>
-                              )}
+                              ))}
                             </div>
-                            {(booking.therapistName || booking.room_name) && (
+                            {((booking.therapistName && !hasPerTreatmentTherapists) || booking.room_name) && (
                               <div className="flex flex-col items-end text-right shrink-0 max-w-[45%] gap-0.5">
-                                {booking.therapistName && (
+                                {booking.therapistName && !hasPerTreatmentTherapists && (
                                   <span className="flex items-center gap-0.5 text-[10px] font-medium opacity-80 min-w-0 max-w-full">
                                     <User className="h-2.5 w-2.5 shrink-0" />
                                     <span className="truncate">{booking.therapistName}</span>

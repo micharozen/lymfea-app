@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Calendar, Clock, List, CalendarClock, DoorOpen, User } from "lucide-react";
+import { Calendar, Clock, List, CalendarClock, DoorOpen, User, Users } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -26,6 +26,9 @@ import { useScheduleCompleteness } from "@/hooks/pwa/useScheduleCompleteness";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 
 interface BookingTreatment {
+  therapist_id?: string | null;
+  // Resolved client-side for duo bookings: "Prénom N." of the assigned therapist.
+  therapistShortName?: string | null;
   treatment_menus: {
     name: string;
     price: number;
@@ -49,8 +52,15 @@ interface Booking {
   phone: string;
   duration?: number;
   total_price?: number | null;
+  guest_count?: number | null;
   booking_treatments?: BookingTreatment[];
   therapistName?: string | null;
+}
+
+// Compact display name for the planning: "Prénom N." (last name initial).
+function shortTherapistName(firstName: string, lastName: string): string {
+  const initial = lastName.trim().charAt(0);
+  return `${firstName.trim()}${initial ? ` ${initial.toUpperCase()}.` : ""}`;
 }
 
 type BookingsView = "day" | "calendar" | "list";
@@ -199,13 +209,13 @@ const PwaBookings = () => {
       const venueScope = scope === "venue" && conciergeHotels.length > 0;
 
       const mineSelect =
-        "*, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(treatment_menus(name, price, duration))";
+        "*, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(therapist_id, treatment_menus(name, price, duration))";
 
       let query = supabase
         .from("bookings")
         .select(
           venueScope
-            ? "*, treatment_rooms!bookings_trunk_id_fkey(name), therapists(first_name, last_name), booking_treatments(treatment_menus(name, price, duration))"
+            ? "*, treatment_rooms!bookings_trunk_id_fkey(name), therapists(first_name, last_name), booking_treatments(therapist_id, treatment_menus(name, price, duration))"
             : mineSelect,
         );
 
@@ -267,15 +277,57 @@ const PwaBookings = () => {
         }
       }
 
-      const mapped: Booking[] = rows.map((b) => ({
-        ...b,
-        room_name: b.treatment_rooms?.name ?? null,
-        therapistName: venueScope
-          ? b.therapists
-            ? `${b.therapists.first_name} ${b.therapists.last_name}`.trim()
-            : b.therapist_name ?? null
-          : null,
-      }));
+      // For duo bookings (guest_count > 1), resolve the names of every
+      // accepted therapist via the SECURITY DEFINER RPC — the therapists RLS
+      // only exposes the caller's own profile, so a direct select would miss
+      // the co-therapist.
+      const duoBookingIds = rows
+        .filter((b) => (b.guest_count ?? 1) > 1)
+        .map((b) => b.id);
+
+      const duoNamesByBooking = new Map<string, string[]>();
+      const duoNamesByTherapist = new Map<string, string>();
+      if (duoBookingIds.length > 0) {
+        const { data: duoNames } = await supabase.rpc(
+          "get_booking_therapist_names",
+          { _booking_ids: duoBookingIds },
+        );
+
+        if (!isMountedRef.current) return;
+
+        for (const row of duoNames ?? []) {
+          const name = shortTherapistName(row.first_name, row.last_name);
+          const list = duoNamesByBooking.get(row.booking_id) ?? [];
+          duoNamesByBooking.set(row.booking_id, [...list, name]);
+          duoNamesByTherapist.set(row.therapist_id, name);
+        }
+      }
+
+      const mapped: Booking[] = rows.map((b) => {
+        const isDuo = (b.guest_count ?? 1) > 1;
+        const duoNames = duoNamesByBooking.get(b.id) ?? [];
+
+        return {
+          ...b,
+          room_name: b.treatment_rooms?.name ?? null,
+          booking_treatments: isDuo
+            ? b.booking_treatments?.map((bt) => ({
+                ...bt,
+                therapistShortName: bt.therapist_id
+                  ? duoNamesByTherapist.get(bt.therapist_id) ?? null
+                  : null,
+              }))
+            : b.booking_treatments,
+          therapistName:
+            duoNames.length > 0
+              ? duoNames.join(" + ")
+              : venueScope
+                ? b.therapists
+                  ? shortTherapistName(b.therapists.first_name, b.therapists.last_name)
+                  : b.therapist_name ?? null
+                : null,
+        };
+      });
       setBookings(mapped);
     } catch (error) {
       console.error("Error fetching bookings:", error);
@@ -304,6 +356,7 @@ const PwaBookings = () => {
     phone: b.phone,
     duration: b.duration,
     total_price: b.total_price,
+    guest_count: b.guest_count,
     booking_treatments: b.booking_treatments,
     therapistName: b.therapistName,
   }));
@@ -443,9 +496,17 @@ const PwaBookings = () => {
                         Réservation #{booking.booking_id}
                       </div>
                     </div>
-                    <span className={cn("px-2 py-1 rounded text-xs font-medium", getBookingStatusConfig(booking.status).badgeClass)}>
-                      {getBookingStatusConfig(booking.status).label}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {(booking.guest_count ?? 1) > 1 && (
+                        <span className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                          <Users className="h-3 w-3" />
+                          Duo
+                        </span>
+                      )}
+                      <span className={cn("px-2 py-1 rounded text-xs font-medium", getBookingStatusConfig(booking.status).badgeClass)}>
+                        {getBookingStatusConfig(booking.status).label}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="space-y-2 text-sm">

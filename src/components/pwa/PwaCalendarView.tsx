@@ -25,6 +25,7 @@ interface Booking {
   payment_status?: string | null;
   phone: string;
   duration?: number;
+  guest_count?: number | null;
   therapistName?: string | null;
   booking_treatments?: BookingTreatment[];
 }
@@ -308,8 +309,13 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
                         }}
                       >
                         <div className="p-1 h-full flex flex-col">
-                          <div className="font-bold text-[11px] leading-tight">
+                          <div className="flex items-center gap-1 font-bold text-[11px] leading-tight">
                             {booking.booking_time?.substring(0, 5)}
+                            {(booking.guest_count ?? 1) > 1 && (
+                              <span className="rounded-full bg-blue-600 px-1 py-px text-[8px] font-bold uppercase leading-none text-white shrink-0">
+                                Duo
+                              </span>
+                            )}
                           </div>
                           {height >= 36 && (
                             <div className="truncate text-[9px] opacity-90">
