@@ -12,11 +12,16 @@ export interface LineAssignment {
  * booking's assignment invariants in sync:
  *  - booking_treatments.therapist_id (stable soin↔therapist link)
  *  - booking_therapists roster (drives the PWA dashboard visibility)
- *  - bookings.therapist_id (primary = first line's therapist)
+ *  - bookings.therapist_id / therapist_name (primary = first line's therapist)
+ *  - bookings.status: pending → confirmed once every soin line has a therapist
+ *    (same rule as EditBookingDialog — a manual assignment counts as acceptance)
  *
  * The caller passes the COMPLETE resolved mapping for every line that has a
  * therapist (fallback positions materialized), so the roster can be rebuilt as
  * exactly the set of therapists who now perform at least one soin.
+ *
+ * Returns `becameConfirmed` so the caller can fire the confirmation
+ * notifications (trigger-new-booking-notifications), like the edit dialog does.
  */
 export function useReassignTreatmentTherapists() {
   const [loading, setLoading] = useState(false);
@@ -24,8 +29,8 @@ export function useReassignTreatmentTherapists() {
   const reassign = async (
     bookingId: string,
     assignments: LineAssignment[],
-  ): Promise<void> => {
-    if (assignments.length === 0) return;
+  ): Promise<{ becameConfirmed: boolean }> => {
+    if (assignments.length === 0) return { becameConfirmed: false };
     setLoading(true);
     try {
       // 1. Persist the therapist_id on each line, grouped per therapist to
@@ -71,11 +76,36 @@ export function useReassignTreatmentTherapists() {
       if (upsertError) throw upsertError;
 
       // 3. Primary therapist = first line's therapist (stable line order).
+      const primaryTherapistId = assignments[0].therapistId;
+      const [bookingRes, linesRes, therapistRes] = await Promise.all([
+        supabase.from("bookings").select("status").eq("id", bookingId).single(),
+        supabase.from("booking_treatments").select("id").eq("booking_id", bookingId),
+        supabase.from("therapists").select("first_name, last_name").eq("id", primaryTherapistId).single(),
+      ]);
+      if (bookingRes.error) throw bookingRes.error;
+      if (linesRes.error) throw linesRes.error;
+
+      const assignedLineIds = new Set(assignments.map((a) => a.bookingTreatmentId));
+      const allLinesAssigned = (linesRes.data ?? []).every((l) => assignedLineIds.has(l.id));
+      const becameConfirmed = bookingRes.data.status === "pending" && allLinesAssigned;
+
+      const therapistName = therapistRes.data
+        ? `${therapistRes.data.first_name} ${therapistRes.data.last_name}`.trim()
+        : null;
+
       const { error: bookingError } = await supabase
         .from("bookings")
-        .update({ therapist_id: assignments[0].therapistId })
+        .update({
+          therapist_id: primaryTherapistId,
+          ...(therapistName ? { therapist_name: therapistName } : {}),
+          ...(becameConfirmed
+            ? { status: "confirmed", assigned_at: new Date().toISOString() }
+            : {}),
+        })
         .eq("id", bookingId);
       if (bookingError) throw bookingError;
+
+      return { becameConfirmed };
     } finally {
       setLoading(false);
     }

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { HandHeart, Pencil, Loader2, Check, X, DoorClosed } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -216,8 +217,19 @@ export function TreatmentsByTherapist({
       .filter((a): a is LineAssignment => a !== null);
 
     try {
-      await reassign(bookingId, assignments);
-      toast.success("Thérapeute réassigné.");
+      const { becameConfirmed } = await reassign(bookingId, assignments);
+      if (becameConfirmed) {
+        // Même comportement que le dialog d'édition : la confirmation déclenche
+        // les notifications (email client + push thérapeute). Non bloquant.
+        try {
+          await invokeEdgeFunction("trigger-new-booking-notifications", {
+            body: { bookingId },
+          });
+        } catch (notifError) {
+          console.error("Error sending confirmation notifications:", notifError);
+        }
+      }
+      toast.success(becameConfirmed ? "Thérapeute assigné — réservation confirmée." : "Thérapeute réassigné.");
       cancelEdit();
       onReassigned();
     } catch (err: unknown) {
