@@ -263,6 +263,10 @@ async function handleMultiBookingConfirm(
   const bookingStatus = 'pending';
   const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
   const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : 'pending');
+  // Paiement chambre = résident hôtel. Règle à sens unique : un paiement carte
+  // n'implique pas 'external' (un résident peut payer par carte), mais dans le
+  // flow client public il n'y a pas d'autre signal — on garde le défaut.
+  const effectiveClientType = paymentMethod === 'room' ? 'hotel' : 'external';
 
   // Update each draft with real client data + per-item recomputed totals.
   for (let i = 0; i < items.length; i++) {
@@ -287,6 +291,7 @@ async function handleMultiBookingConfirm(
         language: clientLanguage,
         status: bookingStatus,
         source: 'client',
+        client_type: effectiveClientType,
         payment_method: effectivePaymentMethod,
         payment_status: effectivePaymentStatus,
         total_price: itemTotal,
@@ -652,6 +657,8 @@ try {
         : paymentMethod === 'gift_amount'
           ? 'paid'
           : 'pending';
+    // Paiement chambre = résident hôtel (règle à sens unique, cf. mode multi).
+    const effectiveClientType = paymentMethod === 'room' ? 'hotel' : 'external';
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Find or create customer by phone
@@ -821,10 +828,12 @@ try {
     // Tag the booking as originating from the client booking flow. bookings.source
     // defaults to 'admin', and this function (the only caller) never overrode it —
     // so online client bookings were previously indistinguishable from staff entries.
+    // client_type follows the same route: the column defaults to 'external', so a
+    // hotel guest paying by room charge was wrongly tagged external.
     // Covers all single-mode sub-paths (draft update, expired-draft fallback, atomic reserve).
     const { error: sourceErr } = await supabase
       .from('bookings')
-      .update({ source: 'client' })
+      .update({ source: 'client', client_type: effectiveClientType })
       .eq('id', bookingId);
     if (sourceErr) console.error('Failed to tag booking source=client (non-blocking):', sourceErr);
 
