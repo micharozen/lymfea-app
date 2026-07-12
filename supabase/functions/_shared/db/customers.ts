@@ -8,74 +8,83 @@ export type CustomerWithPreferredTherapist = CustomerRow & {
   booking_count: number;
 };
 
-// Builds a customer_id -> booking count map from booking rows.
-function countBookingsByCustomer(
-  rows: { customer_id: string | null }[] | null,
-): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const row of rows ?? []) {
-    if (!row.customer_id) continue;
-    counts.set(row.customer_id, (counts.get(row.customer_id) ?? 0) + 1);
-  }
-  return counts;
+export type CustomerListSortColumn = "name" | "email" | "created_at";
+
+export type CustomerListPageOptions = {
+  /** Server-side ilike search on first_name/last_name/email/phone. */
+  search?: string;
+  /** Filter on customers.language ("fr", "en"…). Undefined = all. */
+  language?: string;
+  /** 1-based page index. */
+  page: number;
+  pageSize: number;
+  sort?: { column: CustomerListSortColumn; direction: "asc" | "desc" };
+};
+
+export type CustomerListPage = {
+  customers: CustomerWithPreferredTherapist[];
+  total: number;
+};
+
+// Strip characters that would break the PostgREST or() filter syntax.
+function sanitizeSearchTerm(term: string): string {
+  return term.replace(/[%_,()\\]/g, " ").trim();
 }
 
-// Customers are not directly linked to hotels/orgs in the schema. We scope the
-// admin list to customers who have at least one booking in the org's hotels
-// (via bookings.customer_id), which approximates "customers this org has
-// interacted with". The query still respects scope.allOrganizations for
-// super-admins in View All mode.
-export async function listCustomersForOrg(
+// Server-side paginated/filtered version of listCustomersForOrg. Never loads the
+// whole table (PostgREST caps responses at 1000 rows, which silently truncated
+// the old full-table fetch). booking_count is computed by an embedded count
+// aggregate, restricted to the org's hotels when the scope is org-bound.
+export async function listCustomersPageForOrg(
   client: TClient,
   scope: OrgScope,
-): Promise<CustomerWithPreferredTherapist[]> {
+  options: CustomerListPageOptions,
+): Promise<CustomerListPage> {
   const hotelIds = await resolveHotelIdsForOrg(client, scope);
+  if (hotelIds !== null && hotelIds.length === 0) return { customers: [], total: 0 };
 
-  if (hotelIds === null) {
-    const [{ data, error }, { data: bookingRows, error: bookingErr }] =
-      await Promise.all([
-        client
-          .from("customers")
-          .select(
-            "*, preferred_therapist:therapists!customers_preferred_therapist_id_fkey(id, first_name, last_name)",
-          )
-          .order("created_at", { ascending: false }),
-        client.from("bookings").select("customer_id"),
-      ]);
-    if (error) throw error;
-    if (bookingErr) throw bookingErr;
-    const counts = countBookingsByCustomer(bookingRows);
-    return (data ?? []).map((c) => ({
-      ...c,
-      booking_count: counts.get(c.id) ?? 0,
-    })) as CustomerWithPreferredTherapist[];
-  }
-
-  if (hotelIds.length === 0) return [];
-
-  // Distinct customer ids from bookings in scoped hotels, then look up customers.
-  const { data: bookingRows, error: bookingErr } = await client
-    .from("bookings")
-    .select("customer_id")
-    .in("hotel_id", hotelIds);
-  if (bookingErr) throw bookingErr;
-
-  const counts = countBookingsByCustomer(bookingRows);
-  const customerIds = Array.from(counts.keys());
-  if (customerIds.length === 0) return [];
-
-  const { data, error } = await client
+  const scoped = hotelIds !== null;
+  let q = client
     .from("customers")
     .select(
-      "*, preferred_therapist:therapists!customers_preferred_therapist_id_fkey(id, first_name, last_name)",
-    )
-    .in("id", customerIds)
-    .order("created_at", { ascending: false });
+      `*, preferred_therapist:therapists!customers_preferred_therapist_id_fkey(id, first_name, last_name), bookings${scoped ? "!inner" : ""}(count)`,
+      { count: "exact" },
+    );
+
+  if (scoped) q = q.in("bookings.hotel_id", hotelIds as string[]);
+
+  const search = sanitizeSearchTerm(options.search ?? "");
+  if (search.length > 0) {
+    q = q.or(
+      `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`,
+    );
+  }
+
+  if (options.language) q = q.eq("language", options.language);
+
+  const sort = options.sort;
+  if (sort?.column === "name") {
+    q = q
+      .order("first_name", { ascending: sort.direction === "asc" })
+      .order("last_name", { ascending: sort.direction === "asc" });
+  } else if (sort?.column === "email") {
+    q = q.order("email", { ascending: sort.direction === "asc" });
+  } else {
+    q = q.order("created_at", {
+      ascending: sort?.column === "created_at" && sort.direction === "asc",
+    });
+  }
+
+  const from = (options.page - 1) * options.pageSize;
+  const { data, error, count } = await q.range(from, from + options.pageSize - 1);
   if (error) throw error;
-  return (data ?? []).map((c) => ({
-    ...c,
-    booking_count: counts.get(c.id) ?? 0,
-  })) as CustomerWithPreferredTherapist[];
+
+  const customers = (data ?? []).map((row) => {
+    const { bookings, ...rest } = row as typeof row & { bookings?: { count: number }[] };
+    return { ...rest, booking_count: bookings?.[0]?.count ?? 0 };
+  }) as unknown as CustomerWithPreferredTherapist[];
+
+  return { customers, total: count ?? 0 };
 }
 
 export type CustomerSearchResult = Pick<
