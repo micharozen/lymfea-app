@@ -66,7 +66,6 @@ interface ReminderCopy {
   preheader: string;
   /** Big serif line, may contain a clay <em>. */
   heading: string;
-  sectionTitle: string;
   totalLabel: string;
   btnResume: string;
   /** Objection-lifting microcopy under the CTA. */
@@ -88,17 +87,17 @@ function wideShell(copy: ReminderCopy, body: string): string {
 
 /** Venue logo alone, left-aligned (the logo carries the venue identity). */
 function wideHeader(): string {
-  return `<tr><td class="sao-pad" style="padding:40px 48px 0"><img src="{{{logo_url}}}" alt="{{{venue_name}}}" height="48" style="display:block;height:48px;max-height:48px"/></td></tr>`;
+  return `<tr><td class="sao-pad" style="padding:28px 48px 0"><img src="{{{logo_url}}}" alt="{{{venue_name}}}" height="44" style="display:block;height:44px;max-height:44px"/></td></tr>`;
 }
 
 /** Big serif heading, left-aligned. The only sentence in the email. */
 function wideHero(copy: ReminderCopy): string {
-  return `<tr><td class="sao-pad" style="padding:32px 48px 0"><h1 class="sao-h1" style="margin:0;font-family:${FONT_SERIF};font-size:38px;font-weight:400;line-height:1.15;color:${INK}">${copy.heading}</h1></td></tr>`;
+  return `<tr><td class="sao-pad" style="padding:22px 48px 0"><h1 class="sao-h1" style="margin:0;font-family:${FONT_SERIF};font-size:34px;font-weight:400;line-height:1.15;color:${INK}">${copy.heading}</h1></td></tr>`;
 }
 
 /** Compact ink CTA, left-aligned, with the reassurance microcopy below. */
 function ctaHtml(copy: ReminderCopy): string {
-  return `<tr><td class="sao-pad" style="padding:32px 48px 0"><a href="{{{resume_url}}}" target="_blank" rel="noopener noreferrer nofollow" style="display:inline-block;text-decoration:none;font-family:${FONT_SANS};font-size:13px;letter-spacing:0.12em;text-transform:uppercase;font-weight:500;padding:17px 34px;border-radius:10px;background-color:${INK};color:#FFFFFF;border:1px solid ${INK}">${copy.btnResume}</a><p style="margin:14px 0 0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_MUTE}">${copy.reassurance}</p></td></tr>`;
+  return `<tr><td class="sao-pad" style="padding:24px 48px 0"><a href="{{{resume_url}}}" target="_blank" rel="noopener noreferrer nofollow" style="display:inline-block;text-decoration:none;font-family:${FONT_SANS};font-size:13px;letter-spacing:0.12em;text-transform:uppercase;font-weight:500;padding:17px 34px;border-radius:10px;background-color:${INK};color:#FFFFFF;border:1px solid ${INK}">${copy.btnResume}</a><p style="margin:14px 0 0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_MUTE}">${copy.reassurance}</p></td></tr>`;
 }
 
 /** Address-only footer: top rule, mono venue address, opt-out link. */
@@ -106,9 +105,9 @@ function wideFooter(copy: ReminderCopy): string {
   return `<tr><td class="sao-pad" style="padding:40px 48px 40px"><div style="border-top:1px solid ${LINE};padding-top:24px"><p style="margin:0;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.14em;line-height:1.8;text-transform:uppercase;color:${INK_MUTE}">{{{venue_address}}}</p><p style="margin:12px 0 0"><a href="{{{unsubscribe_url}}}" target="_blank" rel="noopener noreferrer nofollow" style="font-family:${FONT_SANS};font-size:11px;color:${INK_MUTE};text-decoration:underline">${copy.unsubscribe}</a></p></div></td></tr>`;
 }
 
-/** Cart section: mono section title, item lines, then the total row. */
+/** Cart section: compact item lines, then the total row. */
 function selectionSection(copy: ReminderCopy): string {
-  return `<tr><td class="sao-pad" style="padding:32px 48px 0"><p style="margin:0 0 6px;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${INK_MUTE}">${copy.sectionTitle}</p><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tbody>{{{treatments_html}}}<tr><td style="padding:16px 0 0;font-family:${FONT_MONO};font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:${CLAY}">${copy.totalLabel}</td><td align="right" style="padding:16px 0 0;font-family:${FONT_SERIF};font-size:24px;color:${INK};white-space:nowrap">{{{total_price}}}</td></tr></tbody></table></td></tr>`;
+  return `<tr><td class="sao-pad" style="padding:20px 48px 0"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tbody>{{{treatments_html}}}<tr><td style="padding:10px 0 0;font-family:${FONT_MONO};font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:${CLAY}">${copy.totalLabel}</td><td align="right" style="padding:10px 0 0;font-family:${FONT_SERIF};font-size:20px;color:${INK};white-space:nowrap">{{{total_price}}}</td></tr></tbody></table></td></tr>`;
 }
 
 function reminderTemplate(copy: ReminderCopy): string {
@@ -130,7 +129,6 @@ const COPY_FR: ReminderCopy = {
   lang: "fr",
   preheader: "Votre sélection est toujours disponible — il ne reste qu'une étape.",
   heading: "À quelques instants de <em style=\"font-style:italic;color:" + CLAY + "\">l'évasion</em>.",
-  sectionTitle: "Votre sélection",
   totalLabel: "Total",
   btnResume: "Finaliser ma réservation",
   reassurance: "Confirmation immédiate · Paiement sécurisé",
@@ -143,7 +141,6 @@ const COPY_EN: ReminderCopy = {
   lang: "en",
   preheader: "Your selection is still available — just one step left.",
   heading: "A few clicks from your <em style=\"font-style:italic;color:" + CLAY + "\">escape</em>.",
-  sectionTitle: "Your selection",
   totalLabel: "Total",
   btnResume: "Complete my booking",
   reassurance: "Instant confirmation · Secure payment",
@@ -166,7 +163,9 @@ export const CHECKOUT_INTENT_REMINDER_HTML_EN = reminderTemplate(COPY_EN);
 function photoHtml(venue: EmailVenue | null | undefined): string {
   const url = venue?.cover_image?.trim();
   if (!url || !/^https:\/\//i.test(url)) return "";
-  return `<tr><td class="sao-pad" style="padding:28px 48px 0"><img src="${escapeHtml(url)}" alt="{{{venue_name}}}" width="${CONTENT_WIDTH - 96}" style="display:block;width:100%;height:auto;border-radius:12px"/></td></tr>`;
+  // Fixed cropped height keeps the CTA above the fold; object-fit is honoured
+  // by Apple Mail / Gmail, other clients just show the image uncropped.
+  return `<tr><td class="sao-pad" style="padding:20px 48px 0"><img src="${escapeHtml(url)}" alt="{{{venue_name}}}" width="${CONTENT_WIDTH - 96}" height="230" style="display:block;width:100%;height:230px;object-fit:cover;border-radius:12px"/></td></tr>`;
 }
 
 /** A variant label that only restates the duration ("60 min", "1h30"). */
@@ -187,11 +186,11 @@ function itemsHtml(items: CheckoutIntentReminderItem[], copy: ReminderCopy, sym:
       ].filter(Boolean);
       const metaText = [...new Set(parts)].join(" · ");
       const meta = metaText
-        ? `<span style="display:block;margin-top:3px;font-family:${FONT_SANS};font-size:13px;font-weight:400;color:${INK_MUTE}">${escapeHtml(metaText)}</span>`
+        ? `<span style="font-family:${FONT_SANS};font-size:12px;font-weight:400;color:${INK_MUTE}"> · ${escapeHtml(metaText)}</span>`
         : "";
       const quantity = item.quantity > 1 ? ` × ${item.quantity}` : "";
       const price = item.price == null ? copy.onRequest : `${item.price} ${sym}`;
-      return `<tr><td style="padding:14px 0;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SANS};font-size:17px;font-weight:700;color:${INK}">${escapeHtml(item.name)}${quantity}${meta}</td><td align="right" style="padding:14px 0 14px 16px;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SERIF};font-size:17px;color:${INK};white-space:nowrap;vertical-align:top">${escapeHtml(price)}</td></tr>`;
+      return `<tr><td style="padding:9px 0;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SANS};font-size:15px;font-weight:700;color:${INK}">${escapeHtml(item.name)}${quantity}${meta}</td><td align="right" style="padding:9px 0 9px 16px;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SERIF};font-size:16px;color:${INK};white-space:nowrap;vertical-align:top">${escapeHtml(price)}</td></tr>`;
     })
     .join("");
 }
