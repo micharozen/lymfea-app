@@ -74,6 +74,7 @@
       "realized": "Réalisé",
       "backlog": "Carnet de commandes",
       "currentMonth": "Mois en cours",
+      "byVenue": "Par lieu",
       "bookingsCount_one": "{{count}} réservation",
       "bookingsCount_other": "{{count}} réservations",
       "empty": "Aucune réservation sur la fenêtre"
