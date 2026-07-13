@@ -113,6 +113,7 @@ export async function handleFinalizePayment(
         booking_id,
         hotel_id,
         therapist_id,
+        payment_status,
         client_email,
         client_first_name,
         client_last_name,
@@ -220,6 +221,52 @@ export async function handleFinalizePayment(
     }
 
     if (payment_method === "card") {
+      // Un acompte a pu déjà être encaissé (ex : lien de paiement payé avant
+      // la finalisation, puis soins ajoutés). On ne rétrograde jamais un
+      // booking payé : le lien créé ici ne porte que le solde restant dû.
+      let alreadyPaidTTC = 0;
+      if (booking.payment_status === "paid") {
+        const { data: paymentInfo } = await supabase
+          .from("booking_payment_infos")
+          .select("stripe_payment_intent_id")
+          .eq("booking_id", booking.id)
+          .maybeSingle();
+        if (paymentInfo?.stripe_payment_intent_id) {
+          try {
+            const priorIntent = await stripe.paymentIntents.retrieve(
+              paymentInfo.stripe_payment_intent_id,
+            );
+            alreadyPaidTTC = (priorIntent.amount_received ?? 0) / 100;
+          } catch (piError) {
+            log("Failed to retrieve prior payment intent", {
+              error: piError instanceof Error ? piError.message : String(piError),
+            });
+          }
+        }
+      }
+      const remainingTTC = Math.round((totalTTC - alreadyPaidTTC) * 100) / 100;
+
+      if (booking.payment_status === "paid" && remainingTTC <= 0) {
+        await supabase
+          .from("bookings")
+          .update({
+            payment_method: "card",
+            total_price: totalTTC,
+            client_signature: signature_data || null,
+            signed_at: signature_data ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", booking_id);
+
+        return jsonResponse({
+          ...result,
+          success: true,
+          payment_method: "card",
+          already_paid: true,
+          message: "Booking already fully paid. No payment link created.",
+        });
+      }
+
       const treatmentNames =
         booking.booking_treatments
           ?.map((bt: { treatment_menus?: { name?: string } }) =>
@@ -239,7 +286,7 @@ export async function handleFinalizePayment(
                 name: `Prestations bien-être ${brand.name}`,
                 description: treatmentNames,
               },
-              unit_amount: Math.round(totalTTC * 100),
+              unit_amount: Math.round(remainingTTC * 100),
             },
             quantity: 1,
           },
@@ -273,6 +320,11 @@ export async function handleFinalizePayment(
           client_signature: signature_data || null,
           signed_at: signature_data ? new Date().toISOString() : null,
           updated_at: new Date().toISOString(),
+          ...(alreadyPaidTTC > 0
+            ? {
+                payment_reference: `Acompte ${alreadyPaidTTC} ${currency.toUpperCase()} déjà réglé — solde ${remainingTTC} ${currency.toUpperCase()}`,
+              }
+            : {}),
         })
         .eq("id", booking_id);
 

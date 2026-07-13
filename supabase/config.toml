@@ -227,3 +227,6 @@ verify_jwt = false
 
 [functions.send-checkout-intent-reminder]
 verify_jwt = false
+
+[functions.complete-past-paid-bookings]
+verify_jwt = false
