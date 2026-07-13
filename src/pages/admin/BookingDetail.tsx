@@ -14,7 +14,7 @@ import {
   Calendar, Clock, Building2, MoreHorizontal, ChevronDown,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
-  FileText, CreditCard, ListTodo
+  FileText, CreditCard, ListTodo, Undo2
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingTasksTab } from "@/components/admin/tasks/BookingTasksTab";
@@ -176,7 +176,7 @@ export default function BookingDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from("booking_payment_infos")
-        .select("payment_at, cancelled_at, cancelled_by")
+        .select("payment_at, cancelled_at, cancelled_by, refund_amount, stripe_refund_id")
         .eq("booking_id", booking!.id)
         .maybeSingle();
       return data ?? null;
@@ -332,6 +332,10 @@ export default function BookingDetail() {
   const paidAtDetail = paymentMeta?.payment_at
     ? format(new Date(paymentMeta.payment_at), "d MMM à HH:mm", { locale: fr })
     : undefined;
+
+  // Remboursement (source de vérité = booking_payment_infos.refund_amount, en €).
+  const refundedAmount = Number(paymentMeta?.refund_amount ?? 0);
+  const hasRefund = refundedAmount > 0;
 
   const bookingStatusConfig = getBookingStatusConfig(booking.status);
 
@@ -689,6 +693,17 @@ export default function BookingDetail() {
                   {remainingDue > 0 ? `Reste ${formatPrice(remainingDue, currency)}` : "Soldé"}
                 </span>
               </div>
+
+              {hasRefund && (
+                <div className="mt-2 flex justify-between text-sm">
+                  <span className="flex items-center gap-1.5 text-rose-600">
+                    <Undo2 className="h-3.5 w-3.5 shrink-0" /> Remboursé
+                  </span>
+                  <span className="font-medium tabular-nums text-rose-600">
+                    −{formatPrice(refundedAmount, currency)}
+                  </span>
+                </div>
+              )}
 
               <div className="mt-4">
                 {showPaymentSuccess ? (

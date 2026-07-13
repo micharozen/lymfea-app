@@ -4,6 +4,7 @@ import { fr } from "date-fns/locale";
 import { Loader2, History, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBookingHistory, type BookingAuditEntry } from "@/hooks/booking/useBookingHistory";
+import { formatPrice } from "@/lib/formatPrice";
 import { EmailPreviewDialog } from "./EmailPreviewDialog";
 
 const FIELD_LABELS: Record<string, string> = {
@@ -128,6 +129,13 @@ function renderActionLabel(entry: BookingAuditEntry): string | null {
     const base = EMAIL_TYPE_LABELS[emailType] ?? "Email envoyé";
     const recipients = Array.isArray(newVals.recipients) ? (newVals.recipients as string[]) : [];
     return recipients.length ? `${base} (${recipients.join(", ")})` : base;
+  }
+
+  if (action === "refund") {
+    const amount = typeof newVals.amount === "number" ? newVals.amount : null;
+    const isPartial = newVals.is_partial === true;
+    const amountLabel = amount != null ? ` de ${formatPrice(amount)}` : "";
+    return `Remboursement${amountLabel}${isPartial ? " (partiel)" : ""}`;
   }
 
   if (action === "payment_link_sent") {
