@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { RefreshCw, Waves } from "lucide-react";
+import { RefreshCw, Waves, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { QuickActionsDialog } from "@/components/admin/quick-actions/QuickActionsDialog";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
@@ -55,6 +56,7 @@ export default function Booking() {
   // UI state
   const [view, setView] = useState<"calendar" | "list">("calendar");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -318,6 +320,17 @@ useEffect(() => {
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
+              {!isConcierge && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs transition-transform duration-100 active:scale-90"
+                  onClick={() => setIsQuickActionsOpen(true)}
+                >
+                  <Zap className="h-3.5 w-3.5 mr-1" />
+                  Actions paiement
+                </Button>
+              )}
               <Button
                 size="sm"
                 className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700 text-white transition-transform duration-100 active:scale-90"

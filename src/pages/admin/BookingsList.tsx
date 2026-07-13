@@ -1,12 +1,20 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Download, RefreshCw } from "lucide-react";
+import { Download, RefreshCw, ChevronDown, CreditCard, RotateCcw } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { buildCsv, downloadCsv, formatCsvAmount, type CsvColumn } from "@/lib/csvExport";
 import { bookingStatusConfig, type BookingStatus } from "@/utils/statusStyles";
+import { QuickActionsDialog } from "@/components/admin/quick-actions/QuickActionsDialog";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useUserContext } from "@/hooks/useUserContext";
@@ -24,6 +32,7 @@ import {
   type BookingSortKey,
   type SortDirection,
 } from "@/components/booking";
+import type { PageSize } from "@/components/table/TablePagination";
 
 export default function BookingsList() {
   const navigate = useNavigate();
@@ -47,6 +56,8 @@ export default function BookingsList() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
+  const [quickAction, setQuickAction] = useState<"payment" | "refund">("payment");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -120,7 +131,24 @@ export default function BookingsList() {
   }, [filteredBookings, sortKey, sortDirection, getHotelInfo]);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(15);
+  // Nombre de lignes calculé pour remplir l'écran (mode "auto").
+  const [autoRows, setAutoRows] = useState(15);
+  const [pageSize, setPageSize] = useState<PageSize>(() => {
+    const stored = localStorage.getItem("bookingsList.pageSize");
+    if (stored && stored !== "auto" && [20, 50, 100].includes(Number(stored))) {
+      return Number(stored);
+    }
+    return "auto";
+  });
+
+  const isAutoPageSize = pageSize === "auto";
+  const itemsPerPage = isAutoPageSize ? autoRows : pageSize;
+
+  const handlePageSizeChange = (size: PageSize) => {
+    setPageSize(size);
+    localStorage.setItem("bookingsList.pageSize", String(size));
+    setCurrentPage(1);
+  };
 
   const handlePeriodDaysChange = (days: number) => {
     setPeriodDays(days);
@@ -159,7 +187,7 @@ export default function BookingsList() {
     const availableForRows = window.innerHeight - usedHeight;
     const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
 
-    setItemsPerPage(rows);
+    setAutoRows(rows);
   }, []);
 
   useEffect(() => {
@@ -173,7 +201,10 @@ export default function BookingsList() {
     currentPage * itemsPerPage
   );
   const totalListColumns = 11;
-  const emptyRowsCount = Math.max(0, itemsPerPage - paginatedBookings.length);
+  // En mode "auto" on remplit l'écran avec des lignes vides ; en taille fixe, le tableau défile.
+  const emptyRowsCount = isAutoPageSize
+    ? Math.max(0, itemsPerPage - paginatedBookings.length)
+    : 0;
   const totalPages = Math.max(1, Math.ceil(sortedBookings.length / itemsPerPage));
 
   const handleBookingClick = (booking: typeof selectedBooking) => {
@@ -273,16 +304,45 @@ export default function BookingsList() {
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 text-xs"
-              onClick={handleExportCsv}
-              title={t("bookings.export.button")}
-            >
-              <Download className="h-3.5 w-3.5" />
-              CSV
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                  Actions
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {!isConcierge && (
+                  <>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => {
+                        setQuickAction("payment");
+                        setIsQuickActionsOpen(true);
+                      }}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Créer un lien de paiement
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => {
+                        setQuickAction("refund");
+                        setIsQuickActionsOpen(true);
+                      }}
+                    >
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Rembourser une réservation
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem className="cursor-pointer" onClick={handleExportCsv}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exporter en CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="h-8 text-xs">
               {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
             </Button>
@@ -330,9 +390,19 @@ export default function BookingsList() {
             sortKey={sortKey}
             sortDirection={sortDirection}
             onSort={handleSort}
+            pageSize={pageSize}
+            pageSizeOptions={[20, 50, 100]}
+            onPageSizeChange={handlePageSizeChange}
+            scrollable={!isAutoPageSize}
           />
         </div>
       </div>
+
+      <QuickActionsDialog
+        open={isQuickActionsOpen}
+        onOpenChange={setIsQuickActionsOpen}
+        initialAction={quickAction}
+      />
 
       <CreateBookingDialog
         open={isCreateDialogOpen}
