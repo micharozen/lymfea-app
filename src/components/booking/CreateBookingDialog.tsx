@@ -48,6 +48,7 @@ import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
 import { useAvailableRooms } from "@/hooks/booking/useAvailableRooms";
 import { BookingPrestationsStep } from "./steps/BookingPrestationsStep";
 import { BookingTherapistStep } from "./steps/BookingTherapistStep";
+import { useAvailableTherapistsForSlot } from "@/hooks/booking/useAvailableTherapistsForSlot";
 import { BookingPaymentStep } from "./steps/BookingPaymentStep";
 import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities";
 import type { AmenityAccessPayload } from "@/hooks/booking/useCreateBookingMutation";
@@ -304,6 +305,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const surchargePercent = selectedHotel?.out_of_hours_surcharge_percent || 0;
   const surchargeAmount = isBookingOutOfHours ? Math.round(finalPrice * surchargePercent / 100) : 0;
   const finalPriceWithSurcharge = finalPrice + surchargeAmount;
+
+  // Liste annotée pour l'étape d'assignation : sections « Disponibles » / « Autres ».
+  // Pas de treatmentIds : même population que la liste plate (thérapeutes actifs du lieu).
+  const { data: slotTherapists } = useAvailableTherapistsForSlot({
+    hotelId,
+    date,
+    time,
+    durationMinutes: finalDuration || 60,
+  });
 
   const mutation = useCreateBookingMutation({
     hotels,
@@ -616,7 +626,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
             <TabsContent value="therapist" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden">
                 <BookingTherapistStep
-                  therapists={therapists}
+                  therapists={slotTherapists ?? therapists}
                   therapistId={form.watch("therapistId")}
                   onTherapistChange={(id) => form.setValue("therapistId", id)}
                   requiredGuestCount={requiredGuestCount}

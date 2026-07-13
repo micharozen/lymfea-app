@@ -55,7 +55,9 @@ import { useBookingCart } from "@/hooks/booking/useBookingCart";
 import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
 import {
   useAvailableTherapistsForSlot,
+  partitionTherapistsForSlot,
   type AvailableTherapist,
+  type SlotTherapist,
 } from "@/hooks/booking/useAvailableTherapistsForSlot";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
@@ -1057,8 +1059,8 @@ function SlotStep({
 }
 
 interface TherapistStepProps {
-  t: (k: string) => string;
-  therapists: AvailableTherapist[];
+  t: (k: string, opts?: Record<string, unknown>) => string;
+  therapists: SlotTherapist[];
   isLoading: boolean;
   therapistId: string;
   requiredGuestCount?: number;
@@ -1131,50 +1133,86 @@ function TherapistStep({
             {t("phoneBooking.therapist.empty")}
           </div>
         ) : (
-          therapists.filter(th => !exclude.includes(th.id) || th.id === selectedId).map((th) => {
-            const selected = selectedId === th.id;
-            const g = genderLabel((th as any).gender);
-            return (
-              <button
-                key={th.id}
-                type="button"
-                onClick={() => onPickTherapist(th.id, slotIndex)}
-                className={cn(
-                  "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
-                  selected ? "border-primary bg-primary/5" : "hover:bg-muted",
-                )}
-              >
-                <Avatar className="h-10 w-10">
-                  {th.profile_image && (
-                    <AvatarImage
-                      src={th.profile_image}
-                      alt={`${th.first_name} ${th.last_name}`}
-                    />
-                  )}
-                  <AvatarFallback>
-                    {getInitials(th.first_name, th.last_name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate flex items-center gap-1.5">
-                    <span className="truncate">{th.first_name} {th.last_name}</span>
-                    {g && (
-                      <span className="shrink-0 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
-                        {g}
-                      </span>
+          (() => {
+            const visible = therapists.filter(th => !exclude.includes(th.id) || th.id === selectedId);
+            const { available, others } = partitionTherapistsForSlot(visible);
+            const renderCards = (list: typeof visible) =>
+              list.map((th) => {
+                const selected = selectedId === th.id;
+                const g = genderLabel(th.gender);
+                return (
+                  <button
+                    key={th.id}
+                    type="button"
+                    onClick={() => onPickTherapist(th.id, slotIndex)}
+                    className={cn(
+                      "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                      selected ? "border-primary bg-primary/5" : "hover:bg-muted",
                     )}
-                  </p>
-                  {th.skills && th.skills.length > 0 && (
-                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      {th.skills.slice(0, 3).join(" · ")}
+                  >
+                    <div className="relative shrink-0">
+                      <Avatar className="h-10 w-10">
+                        {th.profile_image && (
+                          <AvatarImage
+                            src={th.profile_image}
+                            alt={`${th.first_name} ${th.last_name}`}
+                          />
+                        )}
+                        <AvatarFallback>
+                          {getInitials(th.first_name, th.last_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {th.isAvailableForSlot && (
+                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate flex items-center gap-1.5">
+                        <span className="truncate">{th.first_name} {th.last_name}</span>
+                        {g && (
+                          <span className="shrink-0 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
+                            {g}
+                          </span>
+                        )}
+                      </p>
+                      {th.skills && th.skills.length > 0 && (
+                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          {th.skills.slice(0, 3).join(" · ")}
+                        </p>
+                      )}
+                      {th.shiftEndsBeforeSlotEnd && (
+                        <p className="text-[10px] font-medium text-amber-600 truncate">
+                          {t("booking.therapistSections.shiftEnds", { time: th.shiftEndsBeforeSlotEnd })}
+                        </p>
+                      )}
+                    </div>
+                    {selected && <Check className="h-4 w-4 text-primary" />}
+                  </button>
+                );
+              });
+            return (
+              <>
+                {available.length > 0 && (
+                  <>
+                    <p className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-500 px-1">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      {t("booking.therapistSections.available")}
                     </p>
-                  )}
-                </div>
-                {selected && <Check className="h-4 w-4 text-primary" />}
-              </button>
+                    {renderCards(available)}
+                  </>
+                )}
+                {others.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground px-1">
+                      {t("booking.therapistSections.others")}
+                    </p>
+                    {renderCards(others)}
+                  </>
+                )}
+              </>
             );
-          })
+          })()
         )}
       </div>
     </ScrollArea>

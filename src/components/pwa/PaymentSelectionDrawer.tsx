@@ -238,14 +238,16 @@ export const PaymentSelectionDrawer = ({
           throw new Error(data?.error || t('payment.errorCreating'));
         }
       } else {
-        const { data, error } = await invokeStripe<{ payment_url?: string }>('finalize-payment', {
+        const { data, error } = await invokeStripe<{ payment_url?: string; already_paid?: boolean }>('finalize-payment', {
           booking_id: bookingId,
           hotelId,
           payment_method: 'card',
           final_amount: totalPrice,
         });
         if (error) throw error;
-        if (data?.payment_url) {
+        if (data?.already_paid) {
+          setStep('success');
+        } else if (data?.payment_url) {
           setPaymentUrl(data.payment_url);
           setStep('card-ready');
         } else {
