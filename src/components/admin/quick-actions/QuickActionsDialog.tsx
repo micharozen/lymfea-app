@@ -20,6 +20,12 @@ import { toast } from "sonner";
 interface QuickActionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Action pré-sélectionnée : après le choix de la réservation, on saute
+   * l'étape de choix et on ouvre directement le lien de paiement ou le
+   * remboursement. Absent → l'utilisateur choisit via les deux boutons.
+   */
+  initialAction?: "payment" | "refund";
 }
 
 type View = "select" | "payment-amount";
@@ -50,7 +56,7 @@ async function fetchBookingData(id: string): Promise<BookingData> {
   };
 }
 
-export function QuickActionsDialog({ open, onOpenChange }: QuickActionsDialogProps) {
+export function QuickActionsDialog({ open, onOpenChange, initialAction }: QuickActionsDialogProps) {
   const [booking, setBooking] = useState<BookingSearchResult | null>(null);
   const [fullBooking, setFullBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,6 +64,14 @@ export function QuickActionsDialog({ open, onOpenChange }: QuickActionsDialogPro
   const [amount, setAmount] = useState<string>("");
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
+
+  // Remboursement : seules les réservations payées (et pas déjà remboursées,
+  // dont le statut passe à `refunded`) sont éligibles.
+  const searchForAction = (query: string) =>
+    searchBookings(
+      query,
+      initialAction === "refund" ? { paymentStatusIn: ["paid"] } : {},
+    );
 
   const resetAll = () => {
     setBooking(null);
@@ -85,6 +99,12 @@ export function QuickActionsDialog({ open, onOpenChange }: QuickActionsDialogPro
       const full = await fetchBookingData(b.id);
       setFullBooking(full);
       setAmount(full.total_price ? String(full.total_price) : "");
+      // Action pré-sélectionnée depuis le menu : on saute l'étape de choix.
+      if (initialAction === "payment") {
+        setView("payment-amount");
+      } else if (initialAction === "refund") {
+        setRefundOpen(true);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Impossible de charger la réservation");
       setBooking(null);
@@ -125,7 +145,7 @@ export function QuickActionsDialog({ open, onOpenChange }: QuickActionsDialogPro
               <EntitySearchCombobox<BookingSearchResult>
                 value={booking}
                 onChange={handleSelect}
-                search={searchBookings}
+                search={searchForAction}
                 getKey={(b) => b.id}
                 getLabel={(b) =>
                   `#${b.booking_id ?? "?"} · ${b.client_first_name ?? ""} ${b.client_last_name ?? ""}`.trim()

@@ -4,6 +4,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Legend,
   Line,
   LineChart,
@@ -28,6 +29,8 @@ const CONFIRMED_COLOR = "hsl(18, 55%, 52%)";
 const PENDING_COLOR = "#f59e0b";
 // Mois courant + futurs = carnet de commandes, atténués vs le réalisé.
 const BACKLOG_OPACITY = 0.55;
+// Barres fines et aérées plutôt que remplissant tout le créneau.
+const BAR_MAX_WIDTH = 28;
 
 // Palette pour la vue « une ligne par lieu ». Le 1er lieu reprend la couleur
 // de marque, les suivants sont des teintes distinctes et lisibles.
@@ -48,6 +51,7 @@ interface OutlookChartRow extends MonthlyOutlookPoint {
   label: string;
   confirmed: number;
   pending: number;
+  total: number; // valeur affichée en label au-dessus de la barre (selon métrique)
 }
 
 interface MonthlyOutlookChartProps {
@@ -57,6 +61,14 @@ interface MonthlyOutlookChartProps {
 
 function formatCompactEuro(value: number): string {
   return value >= 1000 ? `${Math.round(value / 1000)}k €` : `${Math.round(value)} €`;
+}
+
+// Label affiché au-dessus de chaque barre : masqué si nul pour éviter le bruit.
+function barLabelFormatter(metric: OutlookMetric) {
+  return (value: number) => {
+    if (!value) return "";
+    return metric === "bookings" ? String(value) : formatCompactEuro(value);
+  };
 }
 
 function OutlookTooltip({
@@ -181,6 +193,12 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
         label: format(parseISO(`${p.monthKey}-01`), "MMM yy", { locale }),
         confirmed: metric === "bookings" ? p.confirmedCount : p.confirmedRevenue,
         pending: metric === "bookings" ? p.pendingCount : p.pendingRevenue,
+        total:
+          metric === "bookings"
+            ? p.totalCount
+            : metric === "avgBasket"
+              ? p.averageBasket
+              : p.totalRevenue,
       })),
     [data, metric, locale],
   );
@@ -290,7 +308,15 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
                   strokeWidth={2}
                   dot={{ r: 2 }}
                   activeDot={{ r: 4 }}
-                />
+                >
+                  <LabelList
+                    dataKey={v.id}
+                    position="top"
+                    fontSize={10}
+                    fill={VENUE_COLORS[i % VENUE_COLORS.length]}
+                    formatter={barLabelFormatter(metric)}
+                  />
+                </Line>
               ))}
             </LineChart>
           </ResponsiveContainer>
@@ -323,19 +349,22 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
                 />
               )}
               {metric === "avgBasket" ? (
-                <Bar dataKey="averageBasket" name={t("dashboard.monthlyOutlook.metricAvgBasket")} fill={CONFIRMED_COLOR} radius={[4, 4, 0, 0]}>
+                <Bar dataKey="averageBasket" name={t("dashboard.monthlyOutlook.metricAvgBasket")} fill={CONFIRMED_COLOR} radius={[4, 4, 0, 0]} maxBarSize={BAR_MAX_WIDTH}>
                   {chartData.map((p) => (
                     <Cell key={p.monthKey} fillOpacity={p.isCurrent || p.isFuture ? BACKLOG_OPACITY : 1} />
                   ))}
+                  <LabelList dataKey="total" position="top" fontSize={11} fill="#666" formatter={barLabelFormatter(metric)} />
                 </Bar>
               ) : (
                 <>
-                  <Bar dataKey="confirmed" name={t("dashboard.monthlyOutlook.confirmed")} stackId="a" fill={CONFIRMED_COLOR}>
+                  <Bar dataKey="confirmed" name={t("dashboard.monthlyOutlook.confirmed")} stackId="a" fill={CONFIRMED_COLOR} maxBarSize={BAR_MAX_WIDTH}>
                     {chartData.map((p) => (
                       <Cell key={p.monthKey} fillOpacity={p.isCurrent || p.isFuture ? BACKLOG_OPACITY : 1} />
                     ))}
                   </Bar>
-                  <Bar dataKey="pending" name={t("dashboard.monthlyOutlook.pending")} stackId="a" fill={PENDING_COLOR} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="pending" name={t("dashboard.monthlyOutlook.pending")} stackId="a" fill={PENDING_COLOR} radius={[4, 4, 0, 0]} maxBarSize={BAR_MAX_WIDTH}>
+                    <LabelList dataKey="total" position="top" fontSize={11} fill="#666" formatter={barLabelFormatter(metric)} />
+                  </Bar>
                 </>
               )}
             </BarChart>
