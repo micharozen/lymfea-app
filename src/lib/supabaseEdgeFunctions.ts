@@ -148,7 +148,8 @@ export type StripeAction =
   | "handle-checkout-success"
   | "finalize-payment"
   | "send-payment-link"
-  | "check-expired-payment-links";
+  | "check-expired-payment-links"
+  | "refund";
 
 // Actions already migrated to the Hono backend. Once an action ships
 // here, add it to route through the backend transparently.

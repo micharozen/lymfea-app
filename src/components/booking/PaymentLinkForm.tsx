@@ -43,6 +43,11 @@ interface PaymentLinkFormProps {
   onSuccess?: () => void;
   onSkip?: () => void;
   showSkipButton?: boolean;
+  /**
+   * Montant libre (unités de devise) fixé par un admin. Quand présent (> 0),
+   * il remplace le total du booking pour le lien Stripe généré et envoyé.
+   */
+  amountOverride?: number;
 }
 
 type Language = "fr" | "en";
@@ -55,13 +60,13 @@ interface SendResult {
   error?: string;
 }
 
-function buildDefaultSmsBody(language: Language, booking: BookingData): string {
+function buildDefaultSmsBody(language: Language, booking: BookingData, amount?: number): string {
   const formattedDate = new Date(booking.booking_date).toLocaleDateString(
     language === "fr" ? "fr-FR" : "en-US",
     { day: "numeric", month: "long" }
   );
   const time = booking.booking_time?.substring(0, 5) ?? "";
-  const total = formatPrice(booking.total_price, booking.currency || "EUR");
+  const total = formatPrice(amount ?? booking.total_price, booking.currency || "EUR");
   const venue = booking.hotel_name || (language === "fr" ? "votre établissement" : "your venue");
 
   if (language === "fr") {
@@ -75,13 +80,16 @@ export function PaymentLinkForm({
   onSuccess,
   onSkip,
   showSkipButton = false,
+  amountOverride,
 }: PaymentLinkFormProps) {
+  const hasAmountOverride = typeof amountOverride === "number" && amountOverride > 0;
+  const displayAmount = hasAmountOverride ? amountOverride : booking.total_price;
   const [language, setLanguage] = useState<Language>("fr");
   const [sendEmail, setSendEmail] = useState(true);
   const [sendSms, setSendSms] = useState(false);
   const [clientEmail, setClientEmail] = useState(booking.client_email || "");
   const [clientPhone, setClientPhone] = useState(booking.phone || "");
-  const [smsBody, setSmsBody] = useState(() => buildDefaultSmsBody("fr", booking));
+  const [smsBody, setSmsBody] = useState(() => buildDefaultSmsBody("fr", booking, displayAmount));
   const smsEditedRef = useRef(false);
   const [isSending, setIsSending] = useState(false);
   const [result, setResult] = useState<SendResult | null>(null);
@@ -96,10 +104,15 @@ export function PaymentLinkForm({
       setGenerateError(null);
       try {
         const { data, error } = await invokeEdgeFunction<
-          { bookingId: string; language: Language; mode: 'generate' },
+          { bookingId: string; language: Language; mode: 'generate'; amountOverride?: number },
           { success: boolean; paymentLinkUrl: string }
         >("send-payment-link", {
-          body: { bookingId: booking.id, language: 'fr', mode: 'generate' },
+          body: {
+            bookingId: booking.id,
+            language: 'fr',
+            mode: 'generate',
+            ...(hasAmountOverride ? { amountOverride } : {}),
+          },
         });
         if (cancelled) return;
         if (error) {
@@ -116,7 +129,7 @@ export function PaymentLinkForm({
       }
     })();
     return () => { cancelled = true; };
-  }, [booking.id]);
+  }, [booking.id, amountOverride, hasAmountOverride]);
 
   const handleCopyGeneratedLink = async () => {
     if (!paymentLinkUrl) return;
@@ -130,9 +143,9 @@ export function PaymentLinkForm({
 
   useEffect(() => {
     if (!smsEditedRef.current) {
-      setSmsBody(buildDefaultSmsBody(language, booking));
+      setSmsBody(buildDefaultSmsBody(language, booking, displayAmount));
     }
-  }, [language, booking]);
+  }, [language, booking, displayAmount]);
 
   const handleSmsBodyChange = (value: string) => {
     smsEditedRef.current = true;
@@ -172,6 +185,7 @@ export function PaymentLinkForm({
           clientPhone?: string;
           smsBody?: string;
           mode: "send";
+          amountOverride?: number;
         },
         {
           success: boolean;
@@ -189,6 +203,7 @@ export function PaymentLinkForm({
           clientPhone: sendSms ? clientPhone : undefined,
           smsBody: sendSms ? smsBody : undefined,
           mode: "send",
+          ...(hasAmountOverride ? { amountOverride } : {}),
         },
       });
 
@@ -297,8 +312,13 @@ export function PaymentLinkForm({
       <div className="p-3 bg-muted/50 rounded-lg text-sm">
         <p className="font-medium">Réservation #{booking.booking_id}</p>
         <p className="text-muted-foreground">
-          {booking.client_first_name} {booking.client_last_name} - {formatPrice(booking.total_price, booking.currency || 'EUR')}
+          {booking.client_first_name} {booking.client_last_name} - {formatPrice(displayAmount, booking.currency || 'EUR')}
         </p>
+        {hasAmountOverride && (
+          <p className="text-xs text-amber-600 mt-1">
+            Montant personnalisé (total réservation&nbsp;: {formatPrice(booking.total_price, booking.currency || 'EUR')})
+          </p>
+        )}
       </div>
 
       <div className="p-3 border rounded-lg bg-muted/30 space-y-2">

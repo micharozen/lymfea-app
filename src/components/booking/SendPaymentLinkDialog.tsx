@@ -9,6 +9,8 @@ interface SendPaymentLinkDialogProps {
   onOpenChange: (open: boolean) => void;
   booking: BookingData;
   onSuccess?: () => void;
+  /** Montant libre (unités de devise) fixé par un admin, transmis à PaymentLinkForm. */
+  amountOverride?: number;
 }
 
 export function SendPaymentLinkDialog({
@@ -16,6 +18,7 @@ export function SendPaymentLinkDialog({
   onOpenChange,
   booking,
   onSuccess,
+  amountOverride,
 }: SendPaymentLinkDialogProps) {
   const handleClose = () => {
     onOpenChange(false);
@@ -33,6 +36,7 @@ export function SendPaymentLinkDialog({
           booking={booking}
           onSuccess={handleSuccess}
           onSkip={handleClose}
+          amountOverride={amountOverride}
         />
       </DialogContent>
     </Dialog>

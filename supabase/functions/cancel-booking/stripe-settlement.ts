@@ -1,4 +1,9 @@
 import type Stripe from "https://esm.sh/stripe@18.5.0";
+import {
+  getRefundedAmountForPaymentIntent,
+  isRecoverableStripeStateError,
+  refundPaymentIntentWithVerification,
+} from "../_shared/stripe-refund.ts";
 
 export interface BookingPaymentInfo {
   stripe_payment_intent_id: string | null;
@@ -22,60 +27,6 @@ export interface StripeSettlementResult {
   stripeRefundId: string | null;
   setupIntentCancelled: boolean;
   warnings: string[];
-}
-
-function getStripeErrorCode(err: unknown): string | undefined {
-  if (err && typeof err === "object" && "code" in err) {
-    return String((err as { code?: string }).code);
-  }
-  return undefined;
-}
-
-function getStripeErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-function isRecoverableStripeStateError(err: unknown): boolean {
-  const code = getStripeErrorCode(err);
-  const message = getStripeErrorMessage(err).toLowerCase();
-  return (
-    code === "charge_already_refunded" ||
-    code === "payment_intent_unexpected_state" ||
-    message.includes("already been refunded") ||
-    message.includes("already canceled") ||
-    message.includes("already cancelled") ||
-    message.includes("has already been canceled") ||
-    message.includes("has already been cancelled")
-  );
-}
-
-async function getRefundedAmountForPaymentIntent(
-  stripe: Stripe,
-  paymentIntentId: string,
-): Promise<{ refundedCents: number; refundId: string | null }> {
-  let refundedCents = 0;
-  let refundId: string | null = null;
-  let startingAfter: string | undefined;
-
-  do {
-    const refunds = await stripe.refunds.list({
-      payment_intent: paymentIntentId,
-      limit: 100,
-      ...(startingAfter ? { starting_after: startingAfter } : {}),
-    });
-
-    for (const refund of refunds.data) {
-      if (refund.status === "failed" || refund.status === "canceled") continue;
-      refundedCents += refund.amount;
-      refundId ??= refund.id;
-    }
-
-    startingAfter = refunds.has_more
-      ? refunds.data[refunds.data.length - 1]?.id
-      : undefined;
-  } while (startingAfter);
-
-  return { refundedCents, refundId };
 }
 
 async function capturePaymentIntentWithVerification(
@@ -120,33 +71,6 @@ async function cancelPaymentIntentWithVerification(
     const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
     if (pi.status === "canceled") {
       return ["pi_cancel_already_applied_verified"];
-    }
-    throw err;
-  }
-}
-
-async function refundPaymentIntentWithVerification(
-  stripe: Stripe,
-  bookingId: string,
-  paymentIntentId: string,
-  refundCents: number,
-  preExistingRefundedCents: number | null,
-): Promise<{ stripeRefundId: string | null; warnings: string[] }> {
-  try {
-    const refund = await stripe.refunds.create({
-      payment_intent: paymentIntentId,
-      amount: refundCents,
-    }, {
-      idempotencyKey: `cancel-booking:${bookingId}:refund`,
-    });
-    return { stripeRefundId: refund.id, warnings: [] };
-  } catch (err) {
-    if (!isRecoverableStripeStateError(err)) throw err;
-
-    const { refundedCents, refundId } = await getRefundedAmountForPaymentIntent(stripe, paymentIntentId);
-    const expectedRefundedCents = (preExistingRefundedCents ?? 0) + refundCents;
-    if (refundedCents >= expectedRefundedCents) {
-      return { stripeRefundId: refundId, warnings: ["refund_already_applied_verified"] };
     }
     throw err;
   }
@@ -207,7 +131,7 @@ async function settlePaymentIntent(
     if (refundCents > 0) {
       const refundResult = await refundPaymentIntentWithVerification(
         stripe,
-        bookingId,
+        `cancel-booking:${bookingId}:refund`,
         pi.id,
         refundCents,
         preExistingRefundedCents,

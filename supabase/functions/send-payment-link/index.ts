@@ -28,6 +28,11 @@ interface SendPaymentLinkRequest {
   clientPhone?: string;
   smsBody?: string;
   mode?: 'generate' | 'send';
+  /**
+   * Montant libre (unités de devise) fixé par un admin. Quand présent (> 0),
+   * il remplace la somme des soins pour le lien Stripe et l'affichage email/SMS.
+   */
+  amountOverride?: number;
 }
 
 function buildDefaultSmsBody(
@@ -72,7 +77,7 @@ serve(async (req: Request) => {
   try {
     console.log("[SEND-PAYMENT-LINK] Starting payment link generation");
 
-    const { bookingId, language, channels, clientEmail, clientPhone, smsBody, mode = 'send' } = await req.json() as SendPaymentLinkRequest;
+    const { bookingId, language, channels, clientEmail, clientPhone, smsBody, mode = 'send', amountOverride } = await req.json() as SendPaymentLinkRequest;
 
     console.log("[SEND-PAYMENT-LINK] Request parsed:", JSON.stringify({
       bookingId,
@@ -201,7 +206,11 @@ serve(async (req: Request) => {
     // Fall back to booking.total_price only when there are no treatment lines at
     // all — a sum of 0 across existing lines is a legitimate amount (e.g. comped).
     const verifiedTotalPrice = treatments.reduce((sum: number, t: any) => sum + t.price, 0);
-    const totalPrice = treatments.length > 0 ? verifiedTotalPrice : booking.total_price;
+    const baseTotalPrice = treatments.length > 0 ? verifiedTotalPrice : booking.total_price;
+    // Un admin peut imposer un montant libre (ex. acompte, ajustement). Il prime
+    // sur la somme des soins pour le lien Stripe ET l'affichage email/SMS.
+    const hasAmountOverride = typeof amountOverride === 'number' && amountOverride > 0;
+    const totalPrice = hasAmountOverride ? amountOverride : baseTotalPrice;
 
     const currency = hotelCurrency;
     const currencySymbol = currency === 'eur' ? '€' : currency.toUpperCase();
@@ -558,6 +567,8 @@ serve(async (req: Request) => {
           language,
           email: results.email ? email : undefined,
           phone: results.sms ? phone : undefined,
+          amount: totalPrice,
+          custom_amount: hasAmountOverride ? amountOverride : undefined,
         },
         source: 'admin',
         metadata: {
