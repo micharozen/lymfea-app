@@ -2126,6 +2126,65 @@ $$;
 
 ALTER FUNCTION "public"."log_booking_change"() OWNER TO "postgres";
 
+CREATE OR REPLACE FUNCTION "public"."prevent_overlapping_treatment_room_bookings"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  _new_start       INTEGER;
+  _new_end         INTEGER;
+  _turnover_buffer INTEGER;
+  _room_ids        UUID[];
+BEGIN
+  IF NEW.room_id IS NULL AND NEW.secondary_room_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.status IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow') THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.payment_status = 'awaiting_payment'
+     AND NEW.created_at < NOW() - INTERVAL '10 minutes'
+  THEN
+    RETURN NEW;
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtext(NEW.hotel_id::text || ':' || NEW.booking_date::text));
+
+  _new_start := EXTRACT(HOUR FROM NEW.booking_time) * 60 + EXTRACT(MINUTE FROM NEW.booking_time);
+  _new_end   := _new_start + COALESCE(NEW.duration, 30);
+
+  SELECT COALESCE(room_turnover_buffer_minutes, 0)
+  INTO _turnover_buffer
+  FROM hotels
+  WHERE id = NEW.hotel_id;
+
+  _room_ids := array_remove(ARRAY[NEW.room_id, NEW.secondary_room_id], NULL::uuid);
+
+  IF EXISTS (
+    SELECT 1
+    FROM bookings b
+    WHERE b.id <> NEW.id
+      AND b.hotel_id = NEW.hotel_id
+      AND b.booking_date = NEW.booking_date
+      AND b.status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
+      AND NOT (b.payment_status = 'awaiting_payment' AND b.created_at < NOW() - INTERVAL '10 minutes')
+      AND (b.room_id = ANY(_room_ids) OR b.secondary_room_id = ANY(_room_ids))
+      AND (
+        _new_start < (EXTRACT(HOUR FROM b.booking_time) * 60 + EXTRACT(MINUTE FROM b.booking_time)) + COALESCE(b.duration, 30) + _turnover_buffer
+        AND _new_end + _turnover_buffer > (EXTRACT(HOUR FROM b.booking_time) * 60 + EXTRACT(MINUTE FROM b.booking_time))
+      )
+  ) THEN
+    RAISE EXCEPTION 'ROOM_ALREADY_BOOKED';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+ALTER FUNCTION "public"."prevent_overlapping_treatment_room_bookings"() OWNER TO "postgres";
+
 CREATE OR REPLACE FUNCTION "public"."log_therapist_availability_change"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$

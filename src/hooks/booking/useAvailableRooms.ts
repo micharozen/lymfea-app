@@ -11,14 +11,38 @@ export interface AvailableRoom {
 
 export interface AvailableRoomsResult {
   rooms: AvailableRoom[];
-  /** Salles pleines (occupation >= capacité) au créneau choisi. */
+  /** Salles indisponibles au créneau choisi. */
   occupiedRoomIds: Set<string>;
-  /** Nombre de réservations occupant chaque salle au créneau choisi. */
+  /** Occupation affichée par salle au créneau choisi. Une salle occupée vaut sa capacité. */
   roomOccupancy: Map<string, number>;
 }
 
 // Statuts pour lesquels une salle n'est plus considérée comme occupée.
-const RELEASED_STATUSES = ["Annulé", "Terminé", "cancelled"];
+const RELEASED_STATUSES = ["Annulé", "Terminé", "cancelled", "completed", "noshow"];
+
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function overlapsSlot(
+  slotTime: string,
+  slotDuration: number,
+  bookingTime: string,
+  bookingDuration: number | null,
+  turnoverMinutes: number,
+): boolean {
+  const slotStart = timeToMinutes(slotTime);
+  const slotEnd = slotStart + slotDuration + turnoverMinutes;
+  const bookingStart = timeToMinutes(bookingTime);
+  const bookingEnd = bookingStart + (bookingDuration ?? 30) + turnoverMinutes;
+  return slotStart < bookingEnd && slotEnd > bookingStart;
+}
+
+function isStaleAwaitingPayment(paymentStatus: string | null, createdAt: string | null): boolean {
+  if (paymentStatus !== "awaiting_payment" || !createdAt) return false;
+  return new Date(createdAt).getTime() < Date.now() - 10 * 60 * 1000;
+}
 
 /**
  * Liste les salles de soin actives d'un lieu et leur occupation au créneau
@@ -31,10 +55,11 @@ export function useAvailableRooms(
   hotelId: string | undefined,
   date: string | undefined,
   time: string | undefined,
+  durationMinutes = 30,
   excludeBookingId?: string,
 ): AvailableRoomsResult {
   const { data } = useQuery({
-    queryKey: ["available-rooms", hotelId, date, time, excludeBookingId ?? null],
+    queryKey: ["available-rooms", hotelId, date, time, durationMinutes, excludeBookingId ?? null],
     enabled: !!hotelId,
     queryFn: async (): Promise<AvailableRoomsResult> => {
       const { data: rooms, error: roomsError } = await supabase
@@ -45,32 +70,43 @@ export function useAvailableRooms(
         .order("name");
       if (roomsError) throw roomsError;
 
+      const { data: hotelSettings, error: hotelError } = await supabase
+        .from("hotels")
+        .select("room_turnover_buffer_minutes")
+        .eq("id", hotelId!)
+        .maybeSingle();
+      if (hotelError) throw hotelError;
+      const turnoverBuffer = hotelSettings?.room_turnover_buffer_minutes ?? 0;
+
       const normalizedRooms: AvailableRoom[] = (rooms ?? []).map((r) => ({
         id: r.id,
         name: r.name,
         room_number: r.room_number,
         capacity: r.capacity && r.capacity > 0 ? r.capacity : 1,
       }));
+      const capacityByRoom = new Map(normalizedRooms.map((r) => [r.id, r.capacity]));
 
       const roomOccupancy = new Map<string, number>();
       if (date && time) {
-        // Une salle est occupée si elle est utilisée comme salle principale (room_id)
-        // OU comme salle secondaire (secondary_room_id) d'un booking Duo scindé.
+        // Une salle déjà utilisée par une réservation distincte n'est pas partageable,
+        // même si sa capacité est > 1. Les lits multiples servent uniquement à un duo/trio
+        // au sein d'une même réservation.
         let q = supabase
           .from("bookings")
-          .select("room_id, secondary_room_id")
+          .select("room_id, secondary_room_id, booking_time, duration, payment_status, created_at")
           .eq("hotel_id", hotelId!)
           .eq("booking_date", date)
-          .eq("booking_time", time)
           .not("status", "in", `(${RELEASED_STATUSES.map((s) => `"${s}"`).join(",")})`);
         if (excludeBookingId) q = q.neq("id", excludeBookingId);
 
         const { data: busy, error: busyError } = await q;
         if (busyError) throw busyError;
         for (const b of busy ?? []) {
+          if (isStaleAwaitingPayment(b.payment_status, b.created_at)) continue;
+          if (!overlapsSlot(time, durationMinutes, b.booking_time, b.duration, turnoverBuffer)) continue;
           for (const id of [b.room_id, b.secondary_room_id]) {
             if (!id) continue;
-            roomOccupancy.set(id, (roomOccupancy.get(id) ?? 0) + 1);
+            roomOccupancy.set(id, capacityByRoom.get(id) ?? 1);
           }
         }
       }

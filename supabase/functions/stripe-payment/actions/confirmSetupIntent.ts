@@ -175,6 +175,29 @@ async function atomicReserveSingle(
   });
 }
 
+/**
+ * Refund a captured charge when booking creation fails after the client was
+ * already debited (pay_at_booking mode charges at Checkout, before the booking
+ * exists). Without this, a failed reservation left the client charged with no
+ * booking — and free to pay again. Best-effort: a failed refund (e.g. already
+ * refunded on a retry of the same session) is logged, never fatal.
+ */
+async function refundChargeAfterFailure(
+  stripe: Stripe,
+  paymentIntentId: string,
+  logPrefix: string,
+): Promise<void> {
+  try {
+    await stripe.refunds.create({ payment_intent: paymentIntentId });
+    console.log(`${logPrefix} Refunded PaymentIntent ${paymentIntentId} after booking failure`);
+  } catch (refundErr) {
+    console.error(
+      `${logPrefix} Refund failed for PaymentIntent ${paymentIntentId}:`,
+      refundErr instanceof Error ? refundErr.message : refundErr,
+    );
+  }
+}
+
 async function triggerBookingNotifications(
   supabase: ActionContext["supabase"],
   bookingIds: string[],
@@ -322,6 +345,14 @@ export async function handleConfirmSetupIntent(
     console.log("[CONFIRM-SETUP] resolved paymentMethodId from SI:", resolvedPaymentMethodId);
   }
 
+  // From here on the client has already been charged (pay_at_booking). If any
+  // step of the reservation throws before a booking row exists, refund the
+  // charge so we never keep money without a booking. `bookingCreated` flips true
+  // once the booking row(s) exist — a later failure (notifications, payment-info
+  // write) must NOT trigger a refund, since the booking stands and the charge is
+  // legitimately owed.
+  let bookingCreated = false;
+  try {
   // ── MULTI-BOOKING PATH ───────────────────────────────────────────
   if (meta.isMulti === "1") {
     let multiBookingIds: string[] = [];
@@ -429,6 +460,7 @@ export async function handleConfirmSetupIntent(
         slotCreatedIds.push(newId);
         slotPriceById.set(newId, slotSurcharge.totalWithSurcharge);
       }
+      bookingCreated = true;
 
       if (resolvedPaymentMethodId && (setupIntent || paymentIntent)) {
         // One payment-info row per booking so each is chargeable independently
@@ -481,6 +513,7 @@ export async function handleConfirmSetupIntent(
         `Erreur lors de la promotion des drafts multi : ${updErr.message}`,
       );
     }
+    bookingCreated = true;
 
     // One payment-info row per booking (each carries its own price) so every
     // booking of the group is chargeable independently after its treatment.
@@ -679,6 +712,7 @@ export async function handleConfirmSetupIntent(
       "Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.",
     );
   }
+  bookingCreated = true;
 
   if (treatmentIds && treatmentIds.length > 0) {
     if (meta.draftBookingId) {
@@ -745,4 +779,12 @@ export async function handleConfirmSetupIntent(
   await tryMarkCheckoutIntentConverted(supabase, meta.checkoutIntentId, bookingId, "[CONFIRM-SETUP]");
 
   return jsonResponse({ success: true, bookingId });
+  } catch (err) {
+    // Reservation failed after the client was charged (pay_at_booking) and no
+    // booking row was created → refund so we never keep money without a booking.
+    if (payAtBooking && paymentIntent?.id && !bookingCreated) {
+      await refundChargeAfterFailure(stripe, paymentIntent.id, "[CONFIRM-SETUP]");
+    }
+    throw err;
+  }
 }
