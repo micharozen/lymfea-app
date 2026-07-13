@@ -1150,17 +1150,22 @@ function TherapistStep({
                       selected ? "border-primary bg-primary/5" : "hover:bg-muted",
                     )}
                   >
-                    <Avatar className="h-10 w-10">
-                      {th.profile_image && (
-                        <AvatarImage
-                          src={th.profile_image}
-                          alt={`${th.first_name} ${th.last_name}`}
-                        />
+                    <div className="relative shrink-0">
+                      <Avatar className="h-10 w-10">
+                        {th.profile_image && (
+                          <AvatarImage
+                            src={th.profile_image}
+                            alt={`${th.first_name} ${th.last_name}`}
+                          />
+                        )}
+                        <AvatarFallback>
+                          {getInitials(th.first_name, th.last_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {th.isAvailableForSlot && (
+                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
                       )}
-                      <AvatarFallback>
-                        {getInitials(th.first_name, th.last_name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate flex items-center gap-1.5">
                         <span className="truncate">{th.first_name} {th.last_name}</span>
@@ -1190,7 +1195,8 @@ function TherapistStep({
               <>
                 {available.length > 0 && (
                   <>
-                    <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground px-1">
+                    <p className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-500 px-1">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
                       {t("booking.therapistSections.available")}
                     </p>
                     {renderCards(available)}
