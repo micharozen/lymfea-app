@@ -68,6 +68,15 @@ Deno.test("doesBookingBlockSlot: turnover buffer extends block window", () => {
   assertStrictEquals(doesBookingBlockSlot("11:15:00", 60, "10:00:00", 60, 15), false);
 });
 
+Deno.test("doesBookingBlockSlot: turnover is required after the slot too", () => {
+  // Regression (Cap d'Antibes double-charge): slot 14:30-16:00 (90min) ends
+  // exactly when a 16:00 booking starts. With a 30min turnover the RPC rejects
+  // it (needs a gap before the next booking), so availability must too.
+  assertStrictEquals(doesBookingBlockSlot("14:30:00", 90, "16:00:00", 60, 30), true);
+  // With no turnover the back-to-back slot is fine (matches the RPC).
+  assertStrictEquals(doesBookingBlockSlot("14:30:00", 90, "16:00:00", 60, 0), false);
+});
+
 Deno.test("doesBookingBlockSlot: long slot starting before booking blocks", () => {
   // Slot 09:00-11:00 (120min), booking 10:00-11:00 → blocking
   assertStrictEquals(doesBookingBlockSlot("09:00:00", 120, "10:00:00", 60, 0), true);
@@ -190,30 +199,29 @@ Deno.test("requiredGuestCount=2 with single room fails", () => {
 });
 
 // ---------------------------------------------------------------------------
-// isSlotAvailable — multi-bed rooms (capacity = simultaneous occupations)
+// isSlotAvailable — multi-bed rooms (capacity = duo-only sharing)
 // ---------------------------------------------------------------------------
 
-Deno.test("multi-bed room (capacity 2): one overlapping booking still leaves a free bed", () => {
-  // Room with 2 beds, 1 booking (1 bed) + 1 free therapist → still available.
+Deno.test("multi-bed room (capacity 2): one overlapping solo booking blocks the room", () => {
+  // Beds inside one room can only be shared by guests of the same duo/trio booking.
+  // A second independent booking must use another room, even if capacity > 1.
   const result = isSlotAvailable(input({
     rooms: [ROOM_DUO],
     bookings: [booking({ room_id: ROOM_DUO.id, therapist_id: THERAPIST_1 })],
   }));
-  assertStrictEquals(result, true);
+  assertStrictEquals(result, false);
 });
 
-Deno.test("multi-bed room (capacity 2): two overlapping solo bookings fill it", () => {
+Deno.test("multi-bed room (capacity 2): occupied room cannot host another duo", () => {
   const result = isSlotAvailable(input({
     rooms: [ROOM_DUO],
-    bookings: [
-      booking({ room_id: ROOM_DUO.id, therapist_id: THERAPIST_1 }),
-      booking({ room_id: ROOM_DUO.id, therapist_id: THERAPIST_2 }),
-    ],
+    bookings: [booking({ room_id: ROOM_DUO.id, therapist_id: THERAPIST_1 })],
+    requiredGuestCount: 2,
   }));
   assertStrictEquals(result, false);
 });
 
-Deno.test("multi-bed room (capacity 2): a duo booking (guest_count 2) fills both beds", () => {
+Deno.test("multi-bed room (capacity 2): duo booking blocks the whole room", () => {
   const result = isSlotAvailable(input({
     rooms: [ROOM_DUO],
     bookings: [booking({ room_id: ROOM_DUO.id, guest_count: 2, therapist_id: THERAPIST_1 })],
@@ -420,14 +428,13 @@ Deno.test("BUG SCENARIO: Hôtel de Buci — 1 room, 2 pending card_saved holds (
     isSlotAvailable(input({ slot: "19:30:00", bookings })),
     false,
   );
-  // Slot 18:30 → blocked (overlaps 19:30 booking via turnover from preceding)
-  // 18:30+60=19:30, vs booking 19:30-20:30+15=20:45 → 18:30<20:45 && 19:30>19:30 false
-  // Actually 19:30>19:30 is false → not blocking from 19:30 booking.
-  // But turnover from 17:00 booking: 17:00-18:00+15=18:15. 18:30<18:15? false → ok.
-  // 18:30 should be free.
+  // Slot 18:30 → blocked: 18:30+60=19:30 ends exactly when the 19:30 booking
+  // starts, leaving no turnover gap before it. Turnover applies on both sides
+  // (matching reserve_trunk_atomically), so the RPC would reject it too:
+  // slotEnd+15 = 19:45 > 19:30. Availability must reject it as well.
   assertStrictEquals(
     isSlotAvailable(input({ slot: "18:30:00", bookings })),
-    true,
+    false,
   );
   // Slot 18:15 → free? bookings 17:00-18:15 (with turnover), slot 18:15-19:15.
   // 18:15<18:15 false → not blocked by 17:00. 18:15<20:45 && 19:15>19:30 false → free.

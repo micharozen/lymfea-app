@@ -53,10 +53,14 @@ export const timeToMinutes = (time: string): number => {
   return h * 60 + m;
 };
 
-// A booking overlaps the requested slot when their intervals intersect, taking
-// the room turnover buffer into account on the booking side.
-// Slot interval:    [slotStart, slotStart + requestedDuration)
-// Booking interval: [bookingStart, bookingEnd + turnover)
+// A booking overlaps the requested slot when their intervals intersect, with the
+// room turnover buffer applied symmetrically — a turnover gap is required both
+// after the existing booking AND after the requested slot. This matches
+// reserve_trunk_atomically's conflict test exactly:
+//   _new_start < bookingEnd + turnover  AND  _new_end + turnover > bookingStart
+// Applying turnover only on the booking side (as before) let a slot that ends
+// right when a booking starts pass availability but be rejected by the RPC —
+// the client was charged, then the reservation failed (NO_ROOM_AVAILABLE).
 export const doesBookingBlockSlot = (
   slot: string,
   requestedDuration: number,
@@ -65,7 +69,7 @@ export const doesBookingBlockSlot = (
   turnoverMinutes: number,
 ): boolean => {
   const slotStart = timeToMinutes(slot);
-  const slotEnd = slotStart + requestedDuration;
+  const slotEnd = slotStart + requestedDuration + turnoverMinutes;
   const bookingStart = timeToMinutes(bookingTime);
   const bookingEnd = bookingStart + (bookingDuration ?? 30) + turnoverMinutes;
   return slotStart < bookingEnd && slotEnd > bookingStart;
@@ -108,41 +112,36 @@ export function computeSlotCapacity(input: SlotAvailabilityInput): SlotCapacity 
     doesBookingBlockSlot(slot, requestedDuration, b.booking_time, b.duration, roomTurnoverBuffer)
   );
 
-  // Room capacity: a room has `capacity` beds (simultaneous occupations). Each
-  // blocking booking consumes `guest_count` beds. A room stays partly available
-  // until its beds are full — matching reserve_trunk_atomically.
-  // Bed-attribution rule (shared with the RPC): a booking debits
-  // LEAST(guest_count, capacity(room_id)) beds to room_id and the remainder to
-  // secondary_room_id — so a duo spanning two capacity-1 rooms debits 1 bed from
-  // each. Bookings without an assigned room (card-saved holds awaiting broadcast),
-  // and legacy overflow with no secondary_room_id, drain the generic pool.
+  // Room capacity is bookable only when the room is empty. A multi-bed room can
+  // host a duo/trio as one booking, but it cannot be shared by separate bookings.
+  // A blocking booking therefore closes its room(s) completely. Bookings without
+  // an assigned room, and legacy overflow with no secondary_room_id, drain the
+  // generic pool by guest_count.
   const capacityById = new Map(rooms.map((r) => [r.id, r.capacity || 1]));
-  const occupiedBedsByRoom = new Map<string, number>();
-  let bedsWithoutRoom = 0;
+  const occupiedRoomIds = new Set<string>();
+  let capacityWithoutRoom = 0;
   for (const b of blocking) {
     const g = b.guest_count ?? 1;
     if (!b.room_id) {
-      bedsWithoutRoom += g;
+      capacityWithoutRoom += g;
       continue;
     }
+    occupiedRoomIds.add(b.room_id);
+
     const primaryBeds = Math.min(g, capacityById.get(b.room_id) ?? 1);
-    occupiedBedsByRoom.set(b.room_id, (occupiedBedsByRoom.get(b.room_id) ?? 0) + primaryBeds);
     const overflow = g - primaryBeds;
     if (overflow > 0) {
       if (b.secondary_room_id) {
-        occupiedBedsByRoom.set(
-          b.secondary_room_id,
-          (occupiedBedsByRoom.get(b.secondary_room_id) ?? 0) + overflow,
-        );
+        occupiedRoomIds.add(b.secondary_room_id);
       } else {
-        bedsWithoutRoom += overflow;
+        capacityWithoutRoom += overflow;
       }
     }
   }
   const freeRoomCapacity = rooms.reduce(
-    (sum, r) => sum + Math.max(0, (r.capacity || 1) - (occupiedBedsByRoom.get(r.id) ?? 0)),
+    (sum, r) => sum + (occupiedRoomIds.has(r.id) ? 0 : (r.capacity || 1)),
     0,
-  ) - bedsWithoutRoom;
+  ) - capacityWithoutRoom;
 
   const overlappingHolds = pendingHolds.filter((h) => {
     const hs = timeToMinutes(h.time);

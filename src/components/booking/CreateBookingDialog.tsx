@@ -116,9 +116,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const roomId = form.watch("roomId");
   const secondaryRoomId = form.watch("secondaryRoomId");
 
-  // Salles de soin disponibles au créneau choisi (pré-sélection auto + override).
+  // Date normalisée pour les requêtes de disponibilité.
   const dateStr = date ? format(date, "yyyy-MM-dd") : undefined;
-  const { rooms, occupiedRoomIds, roomOccupancy } = useAvailableRooms(hotelId, dateStr, time);
 
   // Clear roomNumber when clientType switches away from 'hotel'
   // and reset voucher when moving to partner client types.
@@ -295,6 +294,14 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const finalDuration = canEditPrice && hasOnRequestService && customDuration
     ? Number(customDuration)
     : catalogDuration;
+
+  // Salles de soin disponibles au créneau choisi (pré-sélection auto + override).
+  const { rooms, occupiedRoomIds, roomOccupancy } = useAvailableRooms(
+    hotelId,
+    dateStr,
+    time,
+    finalDuration || 30,
+  );
 
   // Out-of-hours surcharge detection
   const isBookingOutOfHours = useMemo(() => {

@@ -21,6 +21,45 @@ export function totalTreatmentCount(baseItems: BasketItem[]): number {
   return baseItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
 }
 
+/**
+ * Slot duration in minutes for the shared/single-slot flow, mirroring the
+ * server's `computeSlotDuration` (supabase/functions/_shared/bookingTreatmentLines.ts)
+ * so the availability check and hold reserve the same window the booking will.
+ *  - Solo: everything runs sequentially → sum (× quantity), add-ons included.
+ *  - Duo: one leg per base soin, legs run in parallel → longest leg wins. An
+ *    add-on extends its parent's leg; an orphan add-on (parent not in the cart)
+ *    is added on top.
+ * Excluding add-on durations here (as the previous `max base duration` did) made
+ * availability promise a slot the RPC then rejected — the client was charged and
+ * the reservation failed. Keep this in lockstep with the server helper.
+ */
+export function computeClientSlotDuration(items: BasketItem[], isDuo: boolean): number {
+  const relevant = items.filter((i) => !i.isBundle);
+  const qty = (i: BasketItem) => Math.max(1, i.quantity || 1);
+
+  if (!isDuo) {
+    return relevant.reduce((sum, i) => sum + (i.duration || 0) * qty(i), 0);
+  }
+
+  const legByCartKey = new Map<string, number>();
+  for (const item of relevant) {
+    if (!item.isAddon) legByCartKey.set(getCartKey(item.id, item.variantId), item.duration || 0);
+  }
+
+  let orphanDuration = 0;
+  for (const item of relevant) {
+    if (!item.isAddon) continue;
+    const minutes = (item.duration || 0) * qty(item);
+    if (item.parentCartKey && legByCartKey.has(item.parentCartKey)) {
+      legByCartKey.set(item.parentCartKey, legByCartKey.get(item.parentCartKey)! + minutes);
+    } else {
+      orphanDuration += minutes;
+    }
+  }
+
+  return Math.max(0, ...legByCartKey.values()) + orphanDuration;
+}
+
 /** A single schedulable unit — one instance of a cart line (quantity expanded). */
 export interface BaseUnit {
   item: BasketItem;

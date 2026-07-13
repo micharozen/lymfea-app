@@ -18,7 +18,7 @@ import { useFeasibleAddons } from '@/hooks/client/useFeasibleAddons';
 import { useQuery } from '@tanstack/react-query';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { PerItemScheduler } from '@/components/client/PerItemScheduler';
-import { buildMultiBookingItems, expandBaseUnits, totalTreatmentCount } from '@/lib/multiTimeBooking';
+import { buildMultiBookingItems, computeClientSlotDuration, expandBaseUnits, totalTreatmentCount } from '@/lib/multiTimeBooking';
 import { DatePillsRow } from '@/components/client/scheduler/DatePillsRow';
 import { useDateOptions } from '@/components/client/scheduler/useDateOptions';
 import { useTimeSlots } from '@/components/client/scheduler/useTimeSlots';
@@ -130,18 +130,19 @@ export function SchedulePanel({
   const totalTreatments = useMemo(() => totalTreatmentCount(baseItems), [baseItems]);
 
   // "Same time" = duo: treatments run simultaneously, so the slot lasts as long
-  // as the longest single treatment (max), not the sum, and consumes one bed +
-  // one therapist per treatment.
+  // as the longest single leg (soin + its add-ons), not the sum, and consumes one
+  // bed + one therapist per treatment.
   const isDuoMode = scheduleMode === 'shared' && totalTreatments > 1;
-  const maxUnitDuration = useMemo(
-    () => Math.max(0, ...baseItems.map(i => i.duration || 0)),
-    [baseItems],
-  );
   const duoGuestCount = isDuoMode
     ? Math.max(requiredGuestCount, totalTreatments)
     : requiredGuestCount;
-  // Availability/hold duration: simultaneous (max) in duo, sequential (sum) otherwise.
-  const effectiveDuration = isDuoMode ? maxUnitDuration : totalBaseDuration;
+  // Availability/hold duration: mirror the server's computeSlotDuration exactly
+  // (longest leg in duo, sequential sum otherwise), add-ons included — so the slot
+  // we check and hold is the one the RPC will actually reserve.
+  const effectiveDuration = useMemo(
+    () => computeClientSlotDuration(items, isDuoMode),
+    [items, isDuoMode],
+  );
 
   const formatBaseEndTime = (time: string): string => {
     if (!time) return '';
