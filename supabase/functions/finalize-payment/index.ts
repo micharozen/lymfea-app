@@ -4,7 +4,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand } from "../_shared/brand.ts";
 import {
   buildTherapistPayoutLegs,
-  fetchPaidTherapistIds,
   fetchPayoutTherapists,
 } from "../_shared/therapistPayouts.ts";
 import { createLogger } from "../_shared/logger.ts";
@@ -122,6 +121,7 @@ serve(async (req) => {
         booking_id,
         hotel_id,
         therapist_id,
+        payment_status,
         guest_count,
         is_out_of_hours,
         client_email,
@@ -251,6 +251,51 @@ serve(async (req) => {
       // ===== PAIEMENT CARTE =====
       log("Processing CARD payment with Payment Link");
 
+      // Un acompte a pu déjà être encaissé (ex : lien de paiement payé avant
+      // la finalisation, puis soins ajoutés). On ne rétrograde jamais un
+      // booking payé : le lien créé ici ne porte que le solde restant dû.
+      let alreadyPaidTTC = 0;
+      if (booking.payment_status === 'paid') {
+        const { data: paymentInfo } = await supabase
+          .from('booking_payment_infos')
+          .select('stripe_payment_intent_id')
+          .eq('booking_id', booking.id)
+          .maybeSingle();
+        if (paymentInfo?.stripe_payment_intent_id) {
+          try {
+            const priorIntent = await stripe.paymentIntents.retrieve(paymentInfo.stripe_payment_intent_id);
+            alreadyPaidTTC = (priorIntent.amount_received ?? 0) / 100;
+          } catch (piError) {
+            log("Failed to retrieve prior payment intent", { error: piError instanceof Error ? piError.message : String(piError) });
+          }
+        }
+      }
+      const remainingTTC = Math.round((totalTTC - alreadyPaidTTC) * 100) / 100;
+
+      if (booking.payment_status === 'paid' && remainingTTC <= 0) {
+        await supabase
+          .from('bookings')
+          .update({
+            payment_method: 'card',
+            total_price: totalTTC,
+            client_signature: signature_data || null,
+            signed_at: signature_data ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', booking_id);
+
+        result = {
+          ...result,
+          success: true,
+          payment_method: 'card',
+          already_paid: true,
+          message: "Booking already fully paid. No payment link created.",
+        };
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       // Build description with treatments
       const treatmentNames = booking.booking_treatments
         ?.map((bt: any) => bt.treatment_menus?.name)
@@ -268,7 +313,7 @@ serve(async (req) => {
               name: `Prestations bien-être ${brand.name}`,
               description: treatmentNames,
             },
-            unit_amount: Math.round(totalTTC * 100),
+            unit_amount: Math.round(remainingTTC * 100),
           },
           quantity: 1,
         }],
@@ -304,6 +349,9 @@ serve(async (req) => {
           client_signature: signature_data || null,
           signed_at: signature_data ? new Date().toISOString() : null,
           updated_at: new Date().toISOString(),
+          ...(alreadyPaidTTC > 0
+            ? { payment_reference: `Acompte ${alreadyPaidTTC} ${currency.toUpperCase()} déjà réglé — solde ${remainingTTC} ${currency.toUpperCase()}` }
+            : {}),
         })
         .eq('id', booking_id);
 
@@ -400,91 +448,6 @@ serve(async (req) => {
         })
         .eq('id', booking_id);
 
-      // Cash Advance: transfer immediately to each therapist. Duo → one transfer
-      // per accepted therapist (their own share); solo → single transfer. Already
-      // paid therapists are skipped so retries don't double-pay.
-      const paidTherapistIds = await fetchPaidTherapistIds(supabase, booking.id);
-      const transfers: any[] = [];
-      for (const leg of payoutLegs) {
-        if (paidTherapistIds.has(leg.therapistId)) {
-          log("Therapist already paid, skipping", { therapist_id: leg.therapistId });
-          continue;
-        }
-        if (!leg.stripeAccountId || leg.amount <= 0) {
-          log("No therapist Stripe account or zero share, skipping transfer", { therapist_id: leg.therapistId });
-          transfers.push({
-            therapist_id: leg.therapistId,
-            success: false,
-            error: leg.stripeAccountId ? "Therapist share is zero" : "Therapist has no Stripe account connected",
-          });
-          continue;
-        }
-        try {
-          log("Initiating cash advance transfer to therapist", {
-            therapist_id: leg.therapistId,
-            amount: leg.amount,
-            destination: leg.stripeAccountId,
-          });
-
-          const transfer = await stripe.transfers.create({
-            amount: Math.round(leg.amount * 100), // En centimes
-            currency: currency,
-            destination: leg.stripeAccountId,
-            transfer_group: `booking_${booking.booking_id}`,
-            metadata: {
-              booking_id: booking.id,
-              booking_number: booking.booking_id.toString(),
-              therapist_id: leg.therapistId,
-              type: 'cash_advance',
-              payment_method: 'room',
-            },
-          });
-
-          log("Transfer successful", { therapist_id: leg.therapistId, transfer_id: transfer.id });
-
-          await supabase
-            .from('therapist_payouts')
-            .insert({
-              therapist_id: leg.therapistId,
-              booking_id: booking.id,
-              amount: leg.amount,
-              stripe_transfer_id: transfer.id,
-              status: 'completed',
-            });
-
-          transfers.push({
-            therapist_id: leg.therapistId,
-            success: true,
-            transfer_id: transfer.id,
-            amount: leg.amount,
-          });
-        } catch (transferError: any) {
-          log("Transfer failed", { therapist_id: leg.therapistId, error: transferError.message });
-          remoteLog.error("payment.transfer_failed", transferError, {
-            therapist_id: leg.therapistId,
-            amount: leg.amount,
-            stripe_account: leg.stripeAccountId,
-          });
-
-          await supabase
-            .from('therapist_payouts')
-            .insert({
-              therapist_id: leg.therapistId,
-              booking_id: booking.id,
-              amount: leg.amount,
-              status: 'failed',
-              error_message: transferError.message,
-            });
-
-          transfers.push({
-            therapist_id: leg.therapistId,
-            success: false,
-            error: transferError.message,
-          });
-        }
-      }
-      const transferResult = { success: transfers.every((t) => t.success), transfers };
-
       // Ajouter au Ledger (Hôtel doit à Eïa)
       // Formula: ledgerDebt = total - (baseHT * hotelCommissionRate * (1 + vatRate))
       // This ensures hotel keeps its commission TTC, rest goes to OOM
@@ -552,11 +515,10 @@ serve(async (req) => {
         ...result,
         success: true,
         payment_method: 'room',
-        transfer: transferResult,
         ledger_amount: ledgerAmount,
         invoice_url: paidInvoice.hosted_invoice_url,
         invoice_pdf: paidInvoice.invoice_pdf,
-        message: "Room payment finalized. Stripe Invoice created. Therapist paid (cash advance). Concierge notified.",
+        message: "Room payment finalized. Stripe Invoice created. Concierge notified.",
       };
     }
 
