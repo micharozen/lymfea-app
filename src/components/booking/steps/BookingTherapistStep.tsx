@@ -16,6 +16,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { useTranslation } from "react-i18next";
 import type { CartItem } from "../CreateBookingDialog.schema";
 import type { AvailableRoom } from "@/hooks/booking/useAvailableRooms";
+import { partitionTherapistsForSlot } from "@/hooks/booking/useAvailableTherapistsForSlot";
 
 interface Therapist {
   id: string;
@@ -24,6 +25,8 @@ interface Therapist {
   profile_image?: string | null;
   skills?: string[] | null;
   gender?: string | null;
+  isAvailableForSlot?: boolean;
+  shiftEndsBeforeSlotEnd?: string | null;
 }
 
 interface Treatment {
@@ -187,6 +190,129 @@ function BroadcastCard({ broadcast, onToggle, violet = false }: BroadcastCardPro
   );
 }
 
+interface TherapistCardProps {
+  therapist: Therapist;
+  selected: boolean;
+  onClick: () => void;
+}
+
+function TherapistCard({ therapist: th, selected, onClick }: TherapistCardProps) {
+  const { t } = useTranslation("admin");
+  const g = genderLabel(th.gender);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+        selected ? "border-primary bg-primary/5" : "hover:bg-muted border-border",
+      )}
+    >
+      <div className="relative shrink-0">
+        <Avatar className="h-10 w-10">
+          {th.profile_image && (
+            <AvatarImage src={th.profile_image} alt={`${th.first_name} ${th.last_name}`} />
+          )}
+          <AvatarFallback>{getInitials(th.first_name, th.last_name)}</AvatarFallback>
+        </Avatar>
+        {th.isAvailableForSlot && (
+          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm flex items-center gap-1.5">
+          <span className="truncate">{th.first_name} {th.last_name}</span>
+          {g && (
+            <span className="shrink-0 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
+              {g}
+            </span>
+          )}
+        </p>
+        {th.skills && th.skills.length > 0 && (
+          <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+            <Sparkles className="h-3 w-3 shrink-0" />
+            {th.skills.slice(0, 3).join(" · ")}
+          </p>
+        )}
+        {th.shiftEndsBeforeSlotEnd && (
+          <p className="text-[10px] font-medium text-amber-600 dark:text-amber-500 truncate">
+            {t("booking.therapistSections.shiftEnds", { time: th.shiftEndsBeforeSlotEnd })}
+          </p>
+        )}
+      </div>
+      {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
+    </button>
+  );
+}
+
+interface SectionedTherapistCardsProps {
+  therapists: Therapist[] | undefined;
+  selectedId: string;
+  broadcast: boolean;
+  exclude?: string[];
+  onPick: (id: string) => void;
+}
+
+/** Cartes thérapeutes groupées « Disponibles » / « Autres thérapeutes du lieu ».
+ * Sans flag de disponibilité (liste plate legacy), rend une liste unique sans en-têtes. */
+function SectionedTherapistCards({
+  therapists,
+  selectedId,
+  broadcast,
+  exclude = [],
+  onPick,
+}: SectionedTherapistCardsProps) {
+  const { t } = useTranslation("admin");
+  const visible = (therapists || []).filter(
+    (th) => !exclude.includes(th.id) || th.id === selectedId,
+  );
+
+  if (visible.length === 0) {
+    return (
+      <div className="py-6 text-center text-sm text-muted-foreground">
+        Aucun thérapeute disponible
+      </div>
+    );
+  }
+
+  const hasFlags = visible.some((th) => th.isAvailableForSlot !== undefined);
+  const { available, others } = partitionTherapistsForSlot(visible);
+
+  const renderCards = (list: Therapist[]) =>
+    list.map((th) => (
+      <TherapistCard
+        key={th.id}
+        therapist={th}
+        selected={selectedId === th.id && !broadcast}
+        onClick={() => onPick(th.id)}
+      />
+    ));
+
+  if (!hasFlags) return <>{renderCards(visible)}</>;
+
+  return (
+    <>
+      {available.length > 0 && (
+        <>
+          <p className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-500 px-1">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            {t("booking.therapistSections.available")}
+          </p>
+          {renderCards(available)}
+        </>
+      )}
+      {others.length > 0 && (
+        <>
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground px-1">
+            {t("booking.therapistSections.others")}
+          </p>
+          {renderCards(others)}
+        </>
+      )}
+    </>
+  );
+}
+
 interface TherapistListProps {
   therapists: Therapist[] | undefined;
   selectedId: string;
@@ -207,53 +333,13 @@ function TherapistList({
   return (
     <ScrollArea className="h-[200px] pr-2">
       <div className="space-y-2">
-        {therapists?.length === 0 ? (
-          <div className="py-6 text-center text-sm text-muted-foreground">
-            Aucun thérapeute disponible
-          </div>
-        ) : (
-          therapists
-            ?.filter((th) => !exclude.includes(th.id) || th.id === selectedId)
-            .map((th) => {
-              const selected = selectedId === th.id && !broadcast;
-              const g = genderLabel(th.gender);
-              return (
-                <button
-                  key={th.id}
-                  type="button"
-                  onClick={() => onPick(th.id, slotIndex)}
-                  className={cn(
-                    "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
-                    selected ? "border-primary bg-primary/5" : "hover:bg-muted border-border",
-                  )}
-                >
-                  <Avatar className="h-10 w-10 shrink-0">
-                    {th.profile_image && (
-                      <AvatarImage src={th.profile_image} alt={`${th.first_name} ${th.last_name}`} />
-                    )}
-                    <AvatarFallback>{getInitials(th.first_name, th.last_name)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm flex items-center gap-1.5">
-                      <span className="truncate">{th.first_name} {th.last_name}</span>
-                      {g && (
-                        <span className="shrink-0 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
-                          {g}
-                        </span>
-                      )}
-                    </p>
-                    {th.skills && th.skills.length > 0 && (
-                      <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                        <Sparkles className="h-3 w-3 shrink-0" />
-                        {th.skills.slice(0, 3).join(" · ")}
-                      </p>
-                    )}
-                  </div>
-                  {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
-                </button>
-              );
-            })
-        )}
+        <SectionedTherapistCards
+          therapists={therapists}
+          selectedId={selectedId}
+          broadcast={broadcast}
+          exclude={exclude}
+          onPick={(id) => onPick(id, slotIndex)}
+        />
       </div>
     </ScrollArea>
   );
@@ -418,45 +504,12 @@ export function BookingTherapistStep({
             <ScrollArea className="h-[280px] pr-2">
               <div className="space-y-2">
                 <BroadcastCard broadcast={broadcast} onToggle={handleToggleBroadcast} />
-                {therapists?.map((th) => {
-                  const selected = therapistId === th.id && !broadcast;
-                  const g = genderLabel(th.gender);
-                  return (
-                    <button
-                      key={th.id}
-                      type="button"
-                      onClick={() => handlePickTherapist(th.id, 0)}
-                      className={cn(
-                        "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
-                        selected ? "border-primary bg-primary/5" : "hover:bg-muted border-border",
-                      )}
-                    >
-                      <Avatar className="h-10 w-10 shrink-0">
-                        {th.profile_image && (
-                          <AvatarImage src={th.profile_image} alt={`${th.first_name} ${th.last_name}`} />
-                        )}
-                        <AvatarFallback>{getInitials(th.first_name, th.last_name)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm flex items-center gap-1.5">
-                          <span className="truncate">{th.first_name} {th.last_name}</span>
-                          {g && (
-                            <span className="shrink-0 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
-                              {g}
-                            </span>
-                          )}
-                        </p>
-                        {th.skills && th.skills.length > 0 && (
-                          <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                            <Sparkles className="h-3 w-3 shrink-0" />
-                            {th.skills.slice(0, 3).join(" · ")}
-                          </p>
-                        )}
-                      </div>
-                      {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
-                    </button>
-                  );
-                })}
+                <SectionedTherapistCards
+                  therapists={therapists}
+                  selectedId={therapistId}
+                  broadcast={broadcast}
+                  onPick={(id) => handlePickTherapist(id, 0)}
+                />
               </div>
             </ScrollArea>
           </div>

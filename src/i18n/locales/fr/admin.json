@@ -1051,6 +1051,11 @@
     }
   },
   "booking": {
+    "therapistSections": {
+      "available": "Disponibles",
+      "others": "Autres thérapeutes du lieu",
+      "shiftEnds": "Fin de shift à {{time}}"
+    },
     "comboDuo": {
       "toggle": "Réserver en duo ({{count}} praticiens en parallèle)",
       "helper": "Les {{count}} soins se déroulent en parallèle, chacun avec son praticien.",

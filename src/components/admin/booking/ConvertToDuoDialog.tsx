@@ -5,13 +5,16 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { useAvailableTherapistsForSlot } from "@/hooks/booking/useAvailableTherapistsForSlot";
+import {
+  useAvailableTherapistsForSlot,
+  partitionTherapistsForSlot,
+} from "@/hooks/booking/useAvailableTherapistsForSlot";
 import { useAvailableRooms } from "@/hooks/booking/useAvailableRooms";
 import { useConvertToDuoMutation, type ConvertAssignment } from "@/hooks/booking/useConvertToDuoMutation";
 import type { BookingListItem } from "@shared/db";
@@ -192,6 +195,14 @@ export function ConvertToDuoDialog({
               // current selection (safety net even if it dropped out of availability).
               const options = available.filter((a) => !otherIds.has(a.id) || a.id === currentId);
               const currentInOptions = options.some((o) => o.id === currentId);
+              const { available: openOptions, others: otherOptions } = partitionTherapistsForSlot(options);
+              const renderOption = (a: (typeof options)[number]) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.first_name} {a.last_name}
+                  {a.shiftEndsBeforeSlotEnd &&
+                    ` — ${t("booking.therapistSections.shiftEnds", { time: a.shiftEndsBeforeSlotEnd })}`}
+                </SelectItem>
+              );
 
               return (
                 <div key={lineId || idx} className="space-y-1.5">
@@ -216,11 +227,20 @@ export function ConvertToDuoDialog({
                           {t("booking.convertToDuo.noTherapistAvailable")}
                         </div>
                       ) : (
-                        options.map((a) => (
-                          <SelectItem key={a.id} value={a.id}>
-                            {a.first_name} {a.last_name}
-                          </SelectItem>
-                        ))
+                        <>
+                          {openOptions.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>{t("booking.therapistSections.available")}</SelectLabel>
+                              {openOptions.map(renderOption)}
+                            </SelectGroup>
+                          )}
+                          {otherOptions.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>{t("booking.therapistSections.others")}</SelectLabel>
+                              {otherOptions.map(renderOption)}
+                            </SelectGroup>
+                          )}
+                        </>
                       )}
                     </SelectContent>
                   </Select>

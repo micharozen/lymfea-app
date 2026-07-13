@@ -12,6 +12,26 @@ export interface AvailableTherapist {
   gender: string | null;
 }
 
+export interface SlotTherapist extends AvailableTherapist {
+  /** Déclaré ouvert sur le créneau (therapist_availability) ET sans booking en conflit. */
+  isAvailableForSlot: boolean;
+  /** Heure de fin du shift ("HH:mm") quand le shift couvre le début du soin mais pas la fin, sinon null. */
+  shiftEndsBeforeSlotEnd: string | null;
+}
+
+/** Sépare une liste annotée en « Disponibles » / « Autres thérapeutes du lieu ».
+ * Les items sans flag (listes plates legacy) sont traités comme disponibles. */
+export function partitionTherapistsForSlot<T extends { isAvailableForSlot?: boolean }>(
+  list: T[] | undefined,
+): { available: T[]; others: T[] } {
+  const available: T[] = [];
+  const others: T[] = [];
+  (list || []).forEach((t) => {
+    (t.isAvailableForSlot === false ? others : available).push(t);
+  });
+  return { available, others };
+}
+
 interface UseAvailableTherapistsForSlotParams {
   hotelId: string | undefined;
   date: Date | undefined;
@@ -55,7 +75,7 @@ export function useAvailableTherapistsForSlot({
     queryKey: ["available-therapists-for-slot", hotelId, dateStr, time, durationMinutes, sortedTreatmentIds, excludeBookingId ?? null],
     enabled,
     staleTime: 30_000,
-    queryFn: async (): Promise<AvailableTherapist[]> => {
+    queryFn: async (): Promise<SlotTherapist[]> => {
       if (!hotelId || !dateStr || !time) return [];
 
       // 1. Récupérer le buffer de rotation des salles
@@ -121,7 +141,7 @@ export function useAvailableTherapistsForSlot({
         if (bStart < requestedEnd && bEnd > requestedStart) busyTherapistIds.add(bt.therapist_id);
       });
 
-      let filtered = venueTherapists.filter((t) => !busyTherapistIds.has(t.id));
+      let filtered = venueTherapists;
 
       // 5. Filtre par compétences (case-insensitive)
       if (sortedTreatmentIds.length > 0) {
@@ -144,7 +164,52 @@ export function useAvailableTherapistsForSlot({
         }
       }
 
-      return filtered.sort((a, b) => a.first_name.localeCompare(b.first_name));
+      // 6. Disponibilité déclarée (therapist_availability) — strictement déclarative :
+      // sans déclaration pour le jour, le thérapeute n'est PAS considéré disponible
+      // (contrairement au moteur de créneaux edge). Fail-open sur erreur de requête.
+      const { data: dayAvailability } = await supabase
+        .from("therapist_availability")
+        .select("therapist_id, is_available, shifts")
+        .eq("date", dateStr)
+        .in("therapist_id", filtered.map((t) => t.id));
+
+      const availabilityByTherapist = new Map(
+        (dayAvailability || []).map((row) => [row.therapist_id, row]),
+      );
+
+      type Shift = { start: string; end: string };
+      const declaredAvailability = (id: string): { open: boolean; shiftEnd: string | null } => {
+        const row = availabilityByTherapist.get(id);
+        if (!row || row.is_available === false) return { open: false, shiftEnd: null };
+        const shifts = Array.isArray(row.shifts) ? (row.shifts as Shift[]) : [];
+        if (shifts.length === 0) return { open: true, shiftEnd: null };
+        const shift = shifts.find(
+          (s) =>
+            s?.start && s?.end &&
+            timeToMinutes(s.start) <= requestedStart &&
+            requestedStart < timeToMinutes(s.end),
+        );
+        if (!shift) return { open: false, shiftEnd: null };
+        // Le soin déborde du shift (buffer de rotation exclu) : dispo pour le début, pas la fin.
+        const overflows = requestedStart + durationMinutes > timeToMinutes(shift.end);
+        return { open: true, shiftEnd: overflows ? shift.end.slice(0, 5) : null };
+      };
+
+      const annotated: SlotTherapist[] = filtered.map((t) => {
+        const { open, shiftEnd } = declaredAvailability(t.id);
+        const isAvailableForSlot = open && !busyTherapistIds.has(t.id);
+        return {
+          ...t,
+          isAvailableForSlot,
+          shiftEndsBeforeSlotEnd: isAvailableForSlot ? shiftEnd : null,
+        };
+      });
+
+      return annotated.sort((a, b) =>
+        a.isAvailableForSlot === b.isAvailableForSlot
+          ? a.first_name.localeCompare(b.first_name)
+          : a.isAvailableForSlot ? -1 : 1,
+      );
     },
   });
 }
