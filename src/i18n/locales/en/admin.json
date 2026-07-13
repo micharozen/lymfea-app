@@ -74,6 +74,7 @@
       "realized": "Actual",
       "backlog": "On the books",
       "currentMonth": "Current month",
+      "byVenue": "By venue",
       "bookingsCount_one": "{{count}} booking",
       "bookingsCount_other": "{{count}} bookings",
       "empty": "No bookings in this window"

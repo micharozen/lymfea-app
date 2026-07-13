@@ -160,7 +160,7 @@ export default function Dashboard() {
             du filtre de période (respecte le lieu). Admins only (affiche le CA). */}
         {!isConcierge && (
           <div className="mb-6">
-            <MonthlyOutlookChart data={data.monthlyOutlook} />
+            <MonthlyOutlookChart data={data.monthlyOutlook} byVenue={data.monthlyOutlookByVenue} />
           </div>
         )}
 

@@ -376,6 +376,7 @@ export default function EditBookingDialog({
     queryHotelId,
     date ? format(date, "yyyy-MM-dd") : undefined,
     time,
+    totalDuration || booking?.duration || 30,
     booking?.id,
   );
 

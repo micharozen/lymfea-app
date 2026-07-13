@@ -8,9 +8,14 @@ import { formatPrice } from "@/lib/formatPrice";
 import { bookingStatusConfig, type BookingStatus } from "@/utils/statusStyles";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { getDashboardDataForOrg, type DashboardBooking } from "@shared/db";
-import { buildMonthlyOutlook, type MonthlyOutlookPoint } from "@/lib/monthlyOutlook";
+import {
+  buildMonthlyOutlook,
+  buildMonthlyOutlookByVenue,
+  type MonthlyOutlookByVenue,
+  type MonthlyOutlookPoint,
+} from "@/lib/monthlyOutlook";
 
-export type { MonthlyOutlookPoint } from "@/lib/monthlyOutlook";
+export type { MonthlyOutlookPoint, MonthlyOutlookByVenue } from "@/lib/monthlyOutlook";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -154,6 +159,7 @@ export interface DashboardData {
   statusDistribution: StatusSlice[];
   weekForecast: ForecastPoint[];
   monthlyOutlook: MonthlyOutlookPoint[];
+  monthlyOutlookByVenue: MonthlyOutlookByVenue;
   leadTime: LeadTimeData;
   topVenues: RankingItem[];
   topTherapists: RankingItem[];
@@ -598,6 +604,17 @@ export function useDashboardData(
     [bookings, selectedHotel, rates]
   );
 
+  // Décomposition par lieu — toujours sur tous les lieux (indépendante du
+  // filtre de lieu), pour la vue « une ligne par lieu ».
+  const monthlyOutlookByVenue = useMemo<MonthlyOutlookByVenue>(
+    () =>
+      buildMonthlyOutlookByVenue(bookings, {
+        venues: hotels.map((h) => ({ id: h.id, name: h.name })),
+        toEUR,
+      }),
+    [bookings, hotels, rates]
+  );
+
   // ── Booking lead time (how far in advance clients book) ───────────
   // Délai = booking_date − created_at (jours calendaires), borné à 0.
   // Filtré sur created_at (réservations FAITES dans la période), pas sur
@@ -726,6 +743,7 @@ export function useDashboardData(
     statusDistribution,
     weekForecast,
     monthlyOutlook,
+    monthlyOutlookByVenue,
     leadTime,
     topVenues,
     topTherapists,

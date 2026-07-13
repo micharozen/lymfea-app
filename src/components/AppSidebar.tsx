@@ -128,7 +128,7 @@ export function AppSidebar() {
   const [redFlagCount, setRedFlagCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [moreOpen, setMoreOpen] = useState(() => {
-    try { return localStorage.getItem(STORAGE_KEY) !== "false"; } catch { /* storage unavailable */ return true; }
+    try { return localStorage.getItem(STORAGE_KEY) === "true"; } catch { /* storage unavailable */ return false; }
   });
 
   const handleMoreToggle = (open: boolean) => {

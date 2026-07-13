@@ -5,7 +5,6 @@ import * as z from "zod";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Loader2, Trash2, Maximize2, Minimize2, ExternalLink } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { searchCustomers, type CustomerSearchResult } from "@shared/db";
 import { useUser } from "@/contexts/UserContext";
@@ -14,6 +13,7 @@ import { useOrgAdmins } from "@/hooks/tasks/useOrgAdmins";
 import type { Task, TaskPriority, TaskStatus } from "@/hooks/tasks/useTasks";
 import { PRIORITY_META, PRIORITY_ORDER, STATUS_META, TASK_STATUS_ORDER } from "./taskConstants";
 import { EntitySearchCombobox } from "./EntitySearchCombobox";
+import { searchBookings, type BookingSearchResult } from "@/lib/bookingSearch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -53,20 +53,6 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface BookingSearchResult {
-  id: string;
-  booking_id: number | null;
-  client_first_name: string | null;
-  client_last_name: string | null;
-  customer: {
-    id: string;
-    first_name: string | null;
-    last_name: string | null;
-    phone: string | null;
-    email: string | null;
-  } | null;
-}
-
 interface TaskDialogProps {
   open: boolean;
   onClose: () => void;
@@ -90,29 +76,6 @@ const DUE_DATE_PRESETS: { key: string; days: number }[] = [
   { key: "in3days", days: 3 },
   { key: "in7days", days: 7 },
 ];
-
-async function searchBookings(query: string): Promise<BookingSearchResult[]> {
-  const trimmed = query.trim();
-  if (trimmed.length < 2) return [];
-  const numeric = Number.parseInt(trimmed, 10);
-  let q = supabase
-    .from("bookings")
-    .select(
-      "id, booking_id, client_first_name, client_last_name, customer:customers(id, first_name, last_name, phone, email)",
-    )
-    .order("created_at", { ascending: false })
-    .limit(20);
-  if (!Number.isNaN(numeric)) {
-    q = q.eq("booking_id", numeric);
-  } else {
-    q = q.or(
-      `client_first_name.ilike.%${trimmed}%,client_last_name.ilike.%${trimmed}%`,
-    );
-  }
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data ?? []) as BookingSearchResult[];
-}
 
 // Red asterisk marking a required field.
 function Req() {

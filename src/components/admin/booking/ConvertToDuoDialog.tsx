@@ -86,6 +86,7 @@ export function ConvertToDuoDialog({
     booking.hotel_id ?? undefined,
     booking.booking_date ?? undefined,
     booking.booking_time ?? undefined,
+    newDuration || booking.duration || 30,
     booking.id,
   );
 
@@ -116,6 +117,7 @@ export function ConvertToDuoDialog({
 
   const canSubmit =
     !mutation.isPending &&
+    !(secondaryRoomEnabled && secondaryRoomOccupied) &&
     (mode === "broadcast" || (allAssigned && !hasDuplicate));
 
   const handleSubmit = () => {
@@ -279,7 +281,7 @@ export function ConvertToDuoDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {secondaryRoomOptions.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
+                      <SelectItem key={r.id} value={r.id} disabled={occupiedRoomIds.has(r.id)}>
                         {r.name}
                       </SelectItem>
                     ))}

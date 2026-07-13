@@ -25,6 +25,7 @@ import { handleHandleCheckoutSuccess } from "./actions/handleCheckoutSuccess.ts"
 import { handleFinalizePayment } from "./actions/finalizePayment.ts";
 import { handleSendPaymentLink } from "./actions/sendPaymentLink.ts";
 import { handleCheckExpiredPaymentLinks } from "./actions/checkExpiredPaymentLinks.ts";
+import { handleRefund } from "./actions/refund.ts";
 
 export interface ActionContext {
   req: Request;
@@ -65,6 +66,7 @@ const actions: Record<string, ActionHandler> = {
   "finalize-payment": handleFinalizePayment,
   "send-payment-link": handleSendPaymentLink,
   "check-expired-payment-links": handleCheckExpiredPaymentLinks,
+  "refund": handleRefund,
 };
 
 serve(async (req) => {

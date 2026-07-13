@@ -107,38 +107,98 @@ interface UseCreateBookingMutationOptions {
   onSuccess: (data: any) => void;
 }
 
+function isOverlappingSlot(
+  slotTime: string,
+  slotDuration: number,
+  bookingTime: string,
+  bookingDuration: number | null,
+  turnoverMinutes: number,
+): boolean {
+  const [slotHour, slotMinute] = slotTime.split(":").map(Number);
+  const slotStart = slotHour * 60 + slotMinute;
+  const slotEnd = slotStart + slotDuration + turnoverMinutes;
+  const [bookingHour, bookingMinute] = bookingTime.split(":").map(Number);
+  const bookingStart = bookingHour * 60 + bookingMinute;
+  const bookingEnd = bookingStart + (bookingDuration ?? 30) + turnoverMinutes;
+  return slotStart < bookingEnd && slotEnd > bookingStart;
+}
+
+function isStaleAwaitingPayment(paymentStatus: string | null, createdAt: string | null): boolean {
+  if (paymentStatus !== "awaiting_payment" || !createdAt) return false;
+  return new Date(createdAt).getTime() < Date.now() - 10 * 60 * 1000;
+}
+
 async function pickFreeRoom(
   hotelId: string,
   date: string,
   time: string,
+  durationMinutes: number,
+  turnoverMinutes: number,
   excludeRoomIds: Set<string>,
 ): Promise<string | null> {
   const { data: treatmentRooms } = await supabase
     .from("treatment_rooms")
     .select("id")
     .eq("hotel_id", hotelId)
-    .eq("status", "active");
+    .eq("status", "active")
+    .order("id");
 
   if (!treatmentRooms?.length) return null;
 
   const { data: bookingsWithRooms } = await supabase
     .from("bookings")
-    .select("room_id")
+    .select("room_id, secondary_room_id, booking_time, duration, payment_status, created_at")
     .eq("hotel_id", hotelId)
     .eq("booking_date", date)
-    .eq("booking_time", time)
-    .not("room_id", "is", null)
-    .not("status", "in", '("Annulé","Terminé","cancelled")');
+    .not("status", "in", '("Annulé","Terminé","cancelled","completed","noshow")');
 
   const usedRoomIds = new Set([
-    ...(bookingsWithRooms?.map((b) => b.room_id) || []),
     ...excludeRoomIds,
   ]);
+
+  for (const booking of bookingsWithRooms ?? []) {
+    if (isStaleAwaitingPayment(booking.payment_status, booking.created_at)) continue;
+    if (!isOverlappingSlot(time, durationMinutes, booking.booking_time, booking.duration, turnoverMinutes)) continue;
+    for (const id of [booking.room_id, booking.secondary_room_id]) {
+      if (id) usedRoomIds.add(id);
+    }
+  }
 
   for (const room of treatmentRooms) {
     if (!usedRoomIds.has(room.id)) return room.id;
   }
   return null;
+}
+
+async function assertRoomsFree(
+  hotelId: string,
+  date: string,
+  time: string,
+  durationMinutes: number,
+  turnoverMinutes: number,
+  roomIds: string[],
+) {
+  const selectedRoomIds = roomIds.filter(Boolean);
+  if (!selectedRoomIds.length) return;
+
+  const { data: bookingsWithRooms, error } = await supabase
+    .from("bookings")
+    .select("room_id, secondary_room_id, booking_time, duration, payment_status, created_at")
+    .eq("hotel_id", hotelId)
+    .eq("booking_date", date)
+    .not("status", "in", '("Annulé","Terminé","cancelled","completed","noshow")');
+  if (error) throw error;
+
+  for (const booking of bookingsWithRooms ?? []) {
+    if (isStaleAwaitingPayment(booking.payment_status, booking.created_at)) continue;
+    if (!isOverlappingSlot(time, durationMinutes, booking.booking_time, booking.duration, turnoverMinutes)) continue;
+
+    if (
+      selectedRoomIds.some((id) => id === booking.room_id || id === booking.secondary_room_id)
+    ) {
+      throw new Error("La salle sélectionnée est déjà réservée sur ce créneau.");
+    }
+  }
 }
 
 async function insertSingleBooking(
@@ -245,6 +305,8 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
   return useMutation({
     mutationFn: async (d: CreateBookingPayload) => {
       const hotel = hotels?.find(h => h.id === d.hotelId);
+      const turnoverValue = hotel?.["room_turnover_buffer_minutes"];
+      const roomTurnoverBuffer = typeof turnoverValue === "number" ? turnoverValue : 0;
 
       const clientType: BookingClientType = d.clientType ?? "external";
       const isOffert = d.isOffert ?? false;
@@ -279,7 +341,14 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
 
       let roomId: string | null = d.roomId?.trim() ? d.roomId.trim() : null;
       if (!roomId) {
-        roomId = await pickFreeRoom(d.hotelId, d.date, d.time, new Set());
+        roomId = await pickFreeRoom(
+          d.hotelId,
+          d.date,
+          d.time,
+          d.totalDuration || 30,
+          roomTurnoverBuffer,
+          new Set(),
+        );
       }
 
       // Salle secondaire (Duo scindé) : undefined = non scindé. "" = auto-pick d'une
@@ -292,10 +361,21 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
             d.hotelId,
             d.date,
             d.time,
+            d.totalDuration || 30,
+            roomTurnoverBuffer,
             new Set([roomId]),
           );
         }
       }
+
+      await assertRoomsFree(
+        d.hotelId,
+        d.date,
+        d.time,
+        d.totalDuration || 30,
+        roomTurnoverBuffer,
+        [roomId, secondaryRoomId].filter((id): id is string => !!id),
+      );
 
       const { booking, status } = await insertSingleBooking(
         d,
