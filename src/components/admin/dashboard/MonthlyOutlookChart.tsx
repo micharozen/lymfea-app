@@ -308,7 +308,15 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
                   strokeWidth={2}
                   dot={{ r: 2 }}
                   activeDot={{ r: 4 }}
-                />
+                >
+                  <LabelList
+                    dataKey={v.id}
+                    position="top"
+                    fontSize={10}
+                    fill={VENUE_COLORS[i % VENUE_COLORS.length]}
+                    formatter={barLabelFormatter(metric)}
+                  />
+                </Line>
               ))}
             </LineChart>
           </ResponsiveContainer>
@@ -345,6 +353,7 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
                   {chartData.map((p) => (
                     <Cell key={p.monthKey} fillOpacity={p.isCurrent || p.isFuture ? BACKLOG_OPACITY : 1} />
                   ))}
+                  <LabelList dataKey="total" position="top" fontSize={11} fill="#666" formatter={barLabelFormatter(metric)} />
                 </Bar>
               ) : (
                 <>
@@ -353,7 +362,9 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
                       <Cell key={p.monthKey} fillOpacity={p.isCurrent || p.isFuture ? BACKLOG_OPACITY : 1} />
                     ))}
                   </Bar>
-                  <Bar dataKey="pending" name={t("dashboard.monthlyOutlook.pending")} stackId="a" fill={PENDING_COLOR} radius={[4, 4, 0, 0]} maxBarSize={BAR_MAX_WIDTH} />
+                  <Bar dataKey="pending" name={t("dashboard.monthlyOutlook.pending")} stackId="a" fill={PENDING_COLOR} radius={[4, 4, 0, 0]} maxBarSize={BAR_MAX_WIDTH}>
+                    <LabelList dataKey="total" position="top" fontSize={11} fill="#666" formatter={barLabelFormatter(metric)} />
+                  </Bar>
                 </>
               )}
             </BarChart>
