@@ -142,7 +142,9 @@ serve(async (req) => {
           hotel_commission,
           currency,
           venue_type,
-          out_of_hours_surcharge_percent
+          out_of_hours_surcharge_percent,
+          pms_type,
+          pms_auto_charge_room
         ),
         therapists(
           first_name,
@@ -507,6 +509,9 @@ serve(async (req) => {
         .update({
           status: 'completed',
           payment_status: 'charged_to_room',
+          // pms-post-charge exige payment_method='room' sur la ligne booking ; une résa
+          // créée en carte puis soldée en chambre l'aurait sinon encore à 'card'.
+          payment_method: 'room',
           ...(signature_data ? { signed_at: new Date().toISOString(), client_signature: signature_data } : {}),
           updated_at: new Date().toISOString(),
         })
@@ -520,6 +525,27 @@ serve(async (req) => {
         log("Concierge notified for room payment completion");
       } catch (notifyError: any) {
         log("Failed to notify concierge", { error: notifyError.message });
+      }
+
+      // Poster la charge sur le PMS (non bloquant, le concierge est déjà notifié en fallback)
+      if (hotel.pms_auto_charge_room && hotel.pms_type) {
+        try {
+          log("Attempting PMS auto-charge", { pms_type: hotel.pms_type });
+          const pmsResponse = await supabase.functions.invoke('pms-post-charge', {
+            body: { bookingId: booking.id }
+          });
+
+          if (pmsResponse.error || pmsResponse.data?.fallbackToManual) {
+            log("PMS auto-charge failed, manual process required", {
+              error: pmsResponse.error?.message || pmsResponse.data?.error,
+            });
+          } else {
+            log("PMS charge posted successfully", { chargeId: pmsResponse.data?.chargeId });
+          }
+        } catch (pmsError: any) {
+          log("Error during PMS auto-charge", { error: pmsError.message });
+          // Silent fail — concierge notification already sent
+        }
       }
 
       result = {
