@@ -1051,6 +1051,11 @@
     }
   },
   "booking": {
+    "therapistSections": {
+      "available": "Available",
+      "others": "Other venue therapists",
+      "shiftEnds": "Shift ends at {{time}}"
+    },
     "comboDuo": {
       "toggle": "Book as duo ({{count}} practitioners in parallel)",
       "helper": "The {{count}} treatments run in parallel, each with their own practitioner.",
