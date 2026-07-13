@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowDownNarrowWide, ArrowUpNarrowWide } from "lucide-react";
-import { TablePagination } from "@/components/table/TablePagination";
+import { TablePagination, type PageSize } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
@@ -90,6 +90,11 @@ interface BookingListViewProps {
   sortKey?: BookingSortKey;
   sortDirection?: SortDirection;
   onSort?: (key: BookingSortKey) => void;
+  pageSize?: PageSize;
+  pageSizeOptions?: number[];
+  onPageSizeChange?: (size: PageSize) => void;
+  /** Quand true, le tableau défile verticalement (taille de page fixe > écran). */
+  scrollable?: boolean;
 }
 
 export function BookingListView({
@@ -111,6 +116,10 @@ export function BookingListView({
   sortKey,
   sortDirection,
   onSort,
+  pageSize,
+  pageSizeOptions,
+  onPageSizeChange,
+  scrollable = false,
 }: BookingListViewProps) {
   const { t } = useTranslation("common");
   const navigate = useNavigate();
@@ -337,7 +346,11 @@ export function BookingListView({
       </div>
 
       {/* ── Desktop table view (≥md) ────────────────────────── */}
-      <div className="hidden md:flex flex-1 overflow-x-auto overflow-y-hidden bg-card flex-col">
+      <div
+        className={`hidden md:flex flex-1 overflow-x-auto bg-card flex-col ${
+          scrollable ? "overflow-y-auto" : "overflow-y-hidden"
+        }`}
+      >
         <Table className="text-xs w-full min-w-[960px] table-fixed">
           <colgroup>
             <col className="w-[6%]" />
@@ -523,6 +536,9 @@ export function BookingListView({
         itemsPerPage={itemsPerPage}
         onPageChange={onPageChange}
         itemName="réservations"
+        pageSize={pageSize}
+        pageSizeOptions={pageSizeOptions}
+        onPageSizeChange={onPageSizeChange}
       />
     </div>
   );
