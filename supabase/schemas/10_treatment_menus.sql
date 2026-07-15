@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS "public"."treatment_menus" (
     "is_addon" boolean DEFAULT false NOT NULL,
     "slug" "text" NOT NULL,
     "available_days" integer[],
+    "amenity_id" "uuid",
     CONSTRAINT "treatment_menus_slug_pattern_check" CHECK ((("slug" ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'::"text") AND (("length"("slug") >= 2) AND ("length"("slug") <= 60))))
 );
 
@@ -40,6 +41,8 @@ COMMENT ON COLUMN "public"."treatment_menus"."bundle_id" IS 'Reference to the bu
 
 COMMENT ON COLUMN "public"."treatment_menus"."available_days" IS 'Jours autorisés : 0=Dim, 1=Lun, ..., 6=Sam. NULL = disponible tous les jours.';
 
+COMMENT ON COLUMN "public"."treatment_menus"."amenity_id" IS 'Si renseigné, ce treatment est un accès à un équipement (piscine, sauna...). Disponibilité = capacité du venue_amenity ; sa réservation crée un amenity_booking lié.';
+
 ALTER TABLE ONLY "public"."treatment_menus"
     ADD CONSTRAINT "treatment_menus_hotel_slug_key" UNIQUE ("hotel_id", "slug");
 
@@ -49,6 +52,8 @@ ALTER TABLE ONLY "public"."treatment_menus"
 CREATE INDEX "idx_treatment_menus_bundle" ON "public"."treatment_menus" USING "btree" ("bundle_id") WHERE ("bundle_id" IS NOT NULL);
 
 CREATE INDEX "idx_treatment_menus_is_addon" ON "public"."treatment_menus" USING "btree" ("hotel_id", "is_addon") WHERE ("is_addon" = true);
+
+CREATE INDEX "idx_treatment_menus_amenity" ON "public"."treatment_menus" USING "btree" ("amenity_id") WHERE ("amenity_id" IS NOT NULL);
 
 ALTER TABLE "public"."treatment_menus" ENABLE ROW LEVEL SECURITY;
 

@@ -43,6 +43,7 @@ interface Treatment {
   category: string;
   price_on_request: boolean | null;
   currency: string | null;
+  amenity_id?: string | null;
   available_days?: number[] | null;
 }
 
@@ -218,6 +219,7 @@ export default function Welcome() {
       image: treatment.image || undefined,
       category: treatment.category,
       isPriceOnRequest: treatment.price_on_request || false,
+      isAmenity: !!treatment.amenity_id,
       availableDays: treatment.available_days ?? null,
     });
 

@@ -22,7 +22,6 @@ import { TreatmentsByTherapist } from "@/components/admin/booking/TreatmentsByTh
 import { ConvertToDuoDialog } from "@/components/admin/booking/ConvertToDuoDialog";
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
 import { BookingNotesSection } from "@/components/admin/details/BookingNotesSection";
-import { BookingAmenitiesSection } from "@/components/admin/details/BookingAmenitiesSection";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -309,11 +308,17 @@ export default function BookingDetail() {
   const totalDuration = booking.totalDuration || booking.treatmentsTotalDuration || 0;
   const guestCount = (booking as any)?.guest_count ?? 1;
   const isDuo = guestCount > 1;
+  // Un accès « amenity » (piscine, sauna…) ne consomme ni salle ni thérapeute.
+  // hasService = au moins un vrai soin ; un booking 100% accès n'a aucun
+  // praticien à afficher/assigner (TreatmentsByTherapist s'en charge au rendu).
+  const treatmentsList = booking.treatments ?? [];
+  const hasService = treatmentsList.some((t) => !t.is_amenity);
   // One-way conversion solo → duo (dispatch a therapist per soin). Requires ≥ 2
   // soins and a live booking. awaiting_hairdresser_selection was removed.
   const canConvertToDuo =
     !isDuo &&
-    (booking.treatments?.length ?? 0) > 1 &&
+    hasService &&
+    treatmentsList.filter((t) => !t.is_amenity).length > 1 &&
     ["pending", "confirmed"].includes(booking.status);
   const clientType = (booking as any).client_type || (booking.room_number ? "hotel" : "external");
   const isExternal = clientType === "external";
@@ -516,7 +521,7 @@ export default function BookingDetail() {
                 ) : clientType === "hotel" && (
                   <><span className="text-gray-300">·</span><span className="text-amber-600">Chambre à renseigner</span></>
                 )}
-                {isDuo && (
+                {isDuo && hasService && (
                   <><span className="text-gray-300">·</span>
                   <span className="inline-flex items-center gap-1 text-purple-700">
                     <Users className="w-3 h-3" /> Duo {acceptedTherapists.length}/{guestCount}
@@ -622,7 +627,7 @@ export default function BookingDetail() {
               bookingId={booking.id}
               hotelId={booking.hotel_id}
               guestCount={guestCount}
-              treatments={booking.treatments ?? []}
+              treatments={treatmentsList}
               primaryTherapistId={booking.therapist_id}
               acceptedTherapists={acceptedTherapists}
               roomName={booking.room_name}
@@ -683,8 +688,6 @@ export default function BookingDetail() {
                 </div>
               )}
             </section>
-
-            <BookingAmenitiesSection bookingId={booking.id} currency={currency} />
 
             {/* Zone Activité : historique / notes / tâches en sous-onglets */}
             <section className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">

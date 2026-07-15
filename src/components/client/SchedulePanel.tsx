@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Loader2, Calendar as CalendarIcon, Clock, AlertTriangle, CalendarDays } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, Clock, AlertTriangle, CalendarDays, Sunrise, Sunset } from 'lucide-react';
 import { useBasket, getCartAvailableDays } from '@/pages/client/context/CartContext';
 import { TherapistGenderSelector } from '@/components/client/TherapistGenderSelector';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
@@ -76,6 +76,8 @@ export function SchedulePanel({
     setScheduleMode,
     perItemSchedule,
     setItemSchedule,
+    amenityTiming,
+    setAmenityTiming,
     bookingIds,
     setBookingIds,
     setGroupId,
@@ -104,9 +106,10 @@ export function SchedulePanel({
   const [noTherapists, setNoTherapists] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
 
-  // Max guest_count across all items determines therapist/room capacity needed
+  // Max guest_count determines therapist/room capacity needed. Amenity accesses
+  // consume no therapist/bed, so they never raise guest_count.
   const requiredGuestCount = useMemo(
-    () => Math.max(1, ...items.map(i => i.guestCount ?? 1)),
+    () => Math.max(1, ...items.filter(i => !i.isAmenity).map(i => i.guestCount ?? 1)),
     [items]
   );
   const { trackAction, trackPageView } = useClientAnalytics(hotelId);
@@ -126,8 +129,32 @@ export function SchedulePanel({
     [baseItems],
   );
 
+  // Un accès amenity (piscine, sauna…) n'a ni praticien ni lit : il ne compte
+  // pas dans la décision « Duo » ni dans guest_count. Seuls les vrais soins
+  // déterminent le duo et la capacité requise.
+  const duoEligibleItems = useMemo(() => baseItems.filter((i) => !i.isAmenity), [baseItems]);
+
+  // Panier mixte : au moins un accès amenity ET au moins un vrai soin → on propose
+  // de placer l'accès avant ou après le soin (le back le colle au créneau du soin).
+  const amenityBaseItems = useMemo(() => baseItems.filter((i) => i.isAmenity), [baseItems]);
+  const hasAmenityWithService = amenityBaseItems.length > 0 && duoEligibleItems.length > 0;
+  // Durée cumulée des vrais soins (référence pour placer l'accès « après »), et
+  // durée de l'accès quand il est unique (permet d'afficher la fenêtre exacte).
+  const serviceDurationSum = useMemo(
+    () => duoEligibleItems.reduce((sum, i) => sum + (i.duration || 0) * (i.quantity || 1), 0),
+    [duoEligibleItems],
+  );
+  const singleAmenityDuration = amenityBaseItems.length === 1 ? (amenityBaseItems[0].duration || 0) : null;
+  // Repli de la section date/heure du soin une fois le créneau choisi (panier mixte).
+  const [editSoinSlot, setEditSoinSlot] = useState(false);
+  const soinSlotCollapsed = hasAmenityWithService && !!selectedDate && !!selectedTime && !editSoinSlot;
+  // Panier mixte : tant que le placement de l'accès n'est pas choisi, on bloque
+  // le bouton Continuer (aucune valeur par défaut).
+  const amenityChoiceMissing = hasAmenityWithService && !amenityTiming;
+
   // Total treatments counting quantity — a treatment added twice counts as 2.
-  const totalTreatments = useMemo(() => totalTreatmentCount(baseItems), [baseItems]);
+  // Amenities excluded: they never drive the duo prompt or guest_count.
+  const totalTreatments = useMemo(() => totalTreatmentCount(duoEligibleItems), [duoEligibleItems]);
 
   // "Same time" = duo: treatments run simultaneously, so the slot lasts as long
   // as the longest single leg (soin + its add-ons), not the sum, and consumes one
@@ -151,6 +178,25 @@ export function SchedulePanel({
     const eh = Math.floor(total / 60);
     const em = total % 60;
     return `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
+  };
+
+  // Décale un horaire "HH:MM" de N minutes (borné sur 24h), pour afficher la
+  // fenêtre exacte de l'accès amenity selon le placement choisi.
+  const shiftTime = (time: string, deltaMin: number): string => {
+    if (!time) return '';
+    const [h, m] = time.split(':').map(Number);
+    const total = ((((h || 0) * 60 + (m || 0) + deltaMin) % 1440) + 1440) % 1440;
+    return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
+  };
+
+  // Fenêtre "HH:MM – HH:MM" de l'accès pour chaque placement (si accès unique).
+  const amenityWindow = (timing: 'before' | 'after'): string | null => {
+    if (singleAmenityDuration == null || !selectedTime) return null;
+    const start = timing === 'before'
+      ? shiftTime(selectedTime, -singleAmenityDuration)
+      : shiftTime(selectedTime, serviceDurationSum);
+    const end = shiftTime(start, singleAmenityDuration);
+    return `${start} – ${end}`;
   };
 
   const { feasibleAddons, isChecking: isCheckingAddons, isReady: addonsReady } =
@@ -552,6 +598,10 @@ export function SchedulePanel({
     setShowSlotTakenBanner(false);
     if (selectedDate) setUrlDateTime(selectedDate, time);
     trackAction('select_time_slot', { date: selectedDate, time });
+    // Panier mixte : une fois le créneau du soin choisi, on replie la section
+    // date/heure (comme le récap multi-créneaux) pour mettre en avant le choix
+    // du placement de l'accès.
+    setEditSoinSlot(false);
 
     // Note: le hold ne démarre que sur "Continuer", pas au clic du créneau
   };
@@ -779,6 +829,36 @@ export function SchedulePanel({
       {/* Date Selection (shared single-slot mode) */}
       {scheduleMode === 'shared' && (totalTreatments <= 1 || scheduleModeChosen) && (
       <>
+      {/* Récap replié du créneau soin (panier mixte) — même pattern que le multi. */}
+      {soinSlotCollapsed && (
+        <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 animate-fade-in">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-gray-400">
+              {t('checkout.dateTime').split('&')[0].trim()}
+            </p>
+            <p className="text-sm font-medium text-gray-900 capitalize">
+              {(dateOptions.find((d) => d.value === selectedDate)?.label ?? selectedDate)} · {selectedTime.slice(0, 5)}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="text-xs font-medium text-gray-900 underline underline-offset-2"
+            onClick={() => setEditSoinSlot(true)}
+          >
+            {t('datetime.multiTime.change', 'Modifier')}
+          </button>
+        </div>
+      )}
+
+      {/* Section date/heure : repli/déploiement en douceur (grid-rows + opacité)
+          plutôt qu'un montage/démontage brutal. */}
+      <div
+        className={cn(
+          "grid transition-all duration-700 ease-in-out",
+          soinSlotCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
+        )}
+      >
+      <div className="overflow-hidden min-h-0 space-y-8">
       <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.2s' }}>
         <DatePillsRow
           dateOptions={dateOptions}
@@ -828,6 +908,53 @@ export function SchedulePanel({
           />
         )}
       </div>
+      </div>
+      </div>
+
+      {/* Placement de l'accès (bassin, sauna…) : proposé une fois le créneau du
+          soin choisi, avec la fenêtre horaire exacte quand l'accès est unique.
+          Style aligné sur le sélecteur de créneau (police identique). */}
+      {hasAmenityWithService && selectedTime && (
+        <div className="space-y-3">
+          <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
+            {t('datetime.amenityTiming.label', 'Votre accès bien-être')}
+          </h4>
+          <p className="text-xs text-gray-500">
+            {t('datetime.amenityTiming.question', "Souhaitez-vous en profiter avant ou après votre soin ?")}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {(['before', 'after'] as const).map((timing) => {
+              const window = amenityWindow(timing);
+              const selected = amenityTiming === timing;
+              return (
+                <button
+                  key={timing}
+                  type="button"
+                  onClick={() => setAmenityTiming(timing)}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-0.5 py-3 min-h-[44px] rounded-lg text-sm transition-all duration-200",
+                    selected
+                      ? "bg-gold-400 text-black font-medium"
+                      : timing === 'before'
+                        ? "bg-gray-50 text-gray-900 font-light hover:bg-gray-100"
+                        : "bg-stone-100 text-gray-900 font-light hover:bg-stone-200",
+                  )}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {timing === 'before'
+                      ? <Sunrise className="w-4 h-4 shrink-0" />
+                      : <Sunset className="w-4 h-4 shrink-0" />}
+                    {timing === 'before'
+                      ? t('datetime.amenityTiming.before', 'Avant le soin')
+                      : t('datetime.amenityTiming.after', 'Après le soin')}
+                  </span>
+                  {window && <span>{window}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       </>
       )}
 
@@ -839,7 +966,7 @@ export function SchedulePanel({
             disabled={
               scheduleMode === 'per_item'
                 ? !allItemsScheduled || isBusy
-                : !selectedDate || !selectedTime || isBusy
+                : !selectedDate || !selectedTime || isBusy || amenityChoiceMissing
             }
             className="w-full h-12 bg-[var(--venue-button-bg,theme(colors.gray.900))] text-[var(--venue-button-text,#fff)] hover:opacity-90 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
           >
@@ -867,7 +994,7 @@ export function SchedulePanel({
               disabled={
               scheduleMode === 'per_item'
                 ? !allItemsScheduled || isBusy
-                : !selectedDate || !selectedTime || isBusy
+                : !selectedDate || !selectedTime || isBusy || amenityChoiceMissing
             }
               className="w-full h-12 sm:h-14 md:h-16 bg-[var(--venue-button-bg,theme(colors.gray.900))] text-[var(--venue-button-text,#fff)] hover:opacity-90 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
             >

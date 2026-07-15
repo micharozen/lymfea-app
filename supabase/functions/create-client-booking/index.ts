@@ -112,6 +112,8 @@ const requestSchema = z.object({
     amountCents: z.number().int().min(1, 'Amount must be positive'),
   }).optional(),
   checkoutIntentId: z.string().uuid().optional(),
+  // Placement d'un accès amenity par rapport au soin (panier mixte).
+  amenityTiming: z.enum(['before', 'after', 'same']).optional(),
 });
 
 // Sanitize string to prevent injection
@@ -454,9 +456,11 @@ try {
       guestCount,
       giftAmountUsage,
       checkoutIntentId,
+      amenityTiming,
     } = validationResult.data;
 
     const effectiveGuestCount = Math.max(1, guestCount ?? 1);
+    const effectiveAmenityTiming = amenityTiming ?? 'same';
     const isDuoBooking = effectiveGuestCount > 1;
 
     log.bind({ hotelId, paymentMethod, isDuoBooking, draftBookingId });
@@ -718,6 +722,7 @@ try {
           _customer_id: customerId || null,
           _therapist_gender: therapistGender || null,
           _guest_count: effectiveGuestCount,
+          _amenity_timing: effectiveAmenityTiming,
         });
         if (fallbackError) {
           if (fallbackError.message?.includes('NO_ROOM_AVAILABLE')) {
@@ -794,6 +799,7 @@ try {
         _customer_id: customerId || null,
         _therapist_gender: therapistGender || null,
         _guest_count: effectiveGuestCount,
+        _amenity_timing: effectiveAmenityTiming,
       });
 
       if (rpcError) {

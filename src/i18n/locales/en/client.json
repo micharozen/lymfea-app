@@ -119,6 +119,12 @@
       "recapShared": "Duo — same time slot for all treatments",
       "recapSeparate": "Separate time slot per treatment",
       "change": "Change"
+    },
+    "amenityTiming": {
+      "label": "Your wellness access",
+      "question": "Would you like to enjoy it before or after your treatment?",
+      "before": "Before the treatment",
+      "after": "After the treatment"
     }
   },
   "info": {

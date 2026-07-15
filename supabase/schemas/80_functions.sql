@@ -1713,7 +1713,7 @@ $$;
 
 ALTER FUNCTION "public"."get_public_treatment_addons"("_parent_id" "uuid") OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") RETURNS TABLE("id" "uuid", "slug" "text", "name" "text", "name_en" "text", "description" "text", "description_en" "text", "category" "text", "service_for" "text", "duration" integer, "price" numeric, "price_on_request" boolean, "lead_time" integer, "image" "text", "sort_order" integer, "currency" "text", "is_bestseller" boolean, "is_addon" boolean, "is_bundle" boolean, "bundle_id" "uuid", "available_days" integer[], "variants" "jsonb")
+CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") RETURNS TABLE("id" "uuid", "slug" "text", "name" "text", "name_en" "text", "description" "text", "description_en" "text", "category" "text", "service_for" "text", "duration" integer, "price" numeric, "price_on_request" boolean, "lead_time" integer, "image" "text", "sort_order" integer, "currency" "text", "is_bestseller" boolean, "is_addon" boolean, "is_bundle" boolean, "bundle_id" "uuid", "available_days" integer[], "amenity_id" "uuid", "amenity_type" "text", "variants" "jsonb")
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
@@ -1728,6 +1728,8 @@ CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") 
     COALESCE(t.is_bundle, false) AS is_bundle,
     t.bundle_id,
     t.available_days,
+    t.amenity_id,
+    va.type AS amenity_type,
     COALESCE(
       (SELECT jsonb_agg(
         jsonb_build_object(
@@ -1745,6 +1747,8 @@ CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") 
   FROM public.treatment_menus t
   LEFT JOIN public.treatment_categories tc
     ON tc.name = t.category AND tc.hotel_id = t.hotel_id
+  LEFT JOIN public.venue_amenities va
+    ON va.id = t.amenity_id
   WHERE t.status = 'active' AND t.hotel_id = _hotel_id
   ORDER BY t.sort_order, t.name;
 $$;
@@ -2639,32 +2643,45 @@ $$;
 
 ALTER FUNCTION "public"."reactivate_prereservation"("_booking_id" "uuid") OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text" DEFAULT NULL::"text", "_therapist_gender" "text" DEFAULT NULL::"text", "_stripe_session_id" "text" DEFAULT NULL::"text", "_guest_count" integer DEFAULT 1) RETURNS "uuid"
+CREATE OR REPLACE FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text" DEFAULT NULL::"text", "_therapist_gender" "text" DEFAULT NULL::"text", "_stripe_session_id" "text" DEFAULT NULL::"text", "_guest_count" integer DEFAULT 1, "_amenity_timing" "text" DEFAULT 'same'::"text") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
 DECLARE
-  _room_id               UUID;
   _booking_id            UUID;
   _room                  RECORD;
   _new_start             INTEGER;
   _new_end               INTEGER;
   _has_conflict          BOOLEAN;
-  _occupied_beds         INTEGER;
+  _room_blocked          BOOLEAN;
   _required_specialties  TEXT[];
   _therapist_id          UUID := NULL;
+  _solo_therapist_id     UUID := NULL;
   _therapist_skills      TEXT[];
   _travel_buffer         INTEGER;
   _turnover_buffer       INTEGER;
   _requested_dow         INTEGER;
   _treatment_record      RECORD;
   _is_duo                BOOLEAN;
+  _guests                INTEGER;
+  _qualified_available   INTEGER;
+  _primary_room_id       UUID := NULL;
+  _secondary_room_id     UUID := NULL;
+  _remaining             INTEGER;
+  _free                  INTEGER;
+  _has_soin              BOOLEAN;
+  _am                    RECORD;
+  _am_occ                INTEGER;
+  _am_start              TIME;
+  _am_end                TIME;
+  _soin_duration         INTEGER := 0;
 BEGIN
   _therapist_gender := NULLIF(NULLIF(NULLIF(_therapist_gender, 'undefined'), 'null'), '');
   _customer_id      := NULLIF(NULLIF(NULLIF(_customer_id,     'undefined'), 'null'), '');
-  _is_duo           := COALESCE(_guest_count, 1) > 1;
+  _guests           := GREATEST(1, COALESCE(_guest_count, 1));
+  _is_duo           := _guests > 1;
 
-  -- Anti-race lock: block concurrent writes on same hotel+date
+  -- Anti-race lock: block concurrent writes on same hotel+date.
   PERFORM id FROM bookings
   WHERE hotel_id::text = _hotel_id
     AND booking_date = _booking_date
@@ -2682,7 +2699,7 @@ BEGIN
 
   _requested_dow := EXTRACT(DOW FROM _booking_date)::integer;
 
-  -- Day-of-week constraint check per treatment
+  -- Day-of-week constraint check per treatment.
   IF _treatment_ids IS NOT NULL AND array_length(_treatment_ids, 1) > 0 THEN
     FOR _treatment_record IN
       SELECT name, available_days FROM treatment_menus WHERE id::text = ANY(_treatment_ids)
@@ -2696,38 +2713,61 @@ BEGIN
     END LOOP;
   END IF;
 
-  IF _treatment_ids IS NOT NULL AND array_length(_treatment_ids, 1) > 0 THEN
-    SELECT array_agg(DISTINCT treatment_type) INTO _required_specialties
-    FROM treatment_menus
-    WHERE id::text = ANY(_treatment_ids)
-      AND treatment_type IS NOT NULL
-      AND treatment_type != '';
-  END IF;
+  -- Un booking a besoin de salle/thérapeute uniquement s'il contient au moins un
+  -- vrai soin (treatment sans amenity_id). Un booking 100% amenity ne consomme ni
+  -- salle ni thérapeute : seule la capacité de l'amenity compte.
+  _has_soin := EXISTS (
+    SELECT 1 FROM treatment_menus
+    WHERE id::text = ANY(_treatment_ids) AND amenity_id IS NULL
+  );
 
-  <<room_loop>>
-  FOR _room IN
-    SELECT id, capacity FROM treatment_rooms
-    WHERE hotel_id::text = _hotel_id AND LOWER(status) IN ('active', 'actif')
-    ORDER BY id
+  -- Durée cumulée des vrais soins (hors amenity) : sert de référence pour placer
+  -- un accès amenity « après » le soin (_am_start = booking_time + durée soin).
+  SELECT COALESCE(SUM(duration), 0)::INTEGER INTO _soin_duration
+  FROM treatment_menus
+  WHERE id::text = ANY(_treatment_ids) AND amenity_id IS NULL;
+
+  -- ----- Capacité amenity : verrou + contrôle atomique (avant tout insert) -----
+  FOR _am IN
+    SELECT tm.amenity_id, tm.duration AS am_duration, tm.price AS am_price, va.capacity_per_slot
+    FROM treatment_menus tm
+    JOIN venue_amenities va ON va.id = tm.amenity_id
+    WHERE tm.id::text = ANY(_treatment_ids) AND tm.amenity_id IS NOT NULL
   LOOP
-    -- Room capacity check: a room has `capacity` beds (simultaneous occupations).
-    -- Sum the beds (guest_count) of overlapping bookings; skip the room only when
-    -- adding this booking would exceed its bed capacity. A duo (guest_count = 2)
-    -- consumes 2 beds.
-    SELECT COALESCE(SUM(COALESCE(guest_count, 1)), 0) INTO _occupied_beds
-    FROM bookings
-    WHERE room_id = _room.id
+    PERFORM pg_advisory_xact_lock(hashtext(_am.amenity_id::text || ':' || _booking_date::text));
+    -- Placement de l'accès par rapport au soin (collé, sans trou) :
+    --   before → l'accès se termine au début du soin ; after → l'accès démarre à
+    --   la fin du soin ; same (défaut) → même horaire que le soin.
+    _am_start := CASE _amenity_timing
+      WHEN 'before' THEN (_booking_time - make_interval(mins => COALESCE(_am.am_duration, _duration, 60)))::time
+      WHEN 'after'  THEN (_booking_time + make_interval(mins => _soin_duration))::time
+      ELSE _booking_time
+    END;
+    _am_end := (_am_start + make_interval(mins => COALESCE(_am.am_duration, _duration, 60)))::time;
+    SELECT COALESCE(SUM(num_guests), 0)::INTEGER INTO _am_occ
+    FROM amenity_bookings
+    WHERE venue_amenity_id = _am.amenity_id
       AND booking_date = _booking_date
-      AND status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
-      AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '10 minutes')
-      AND (_new_start < (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)) + COALESCE(duration, 30) + _turnover_buffer
-           AND _new_end + _turnover_buffer > (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)));
+      AND status NOT IN ('cancelled')
+      AND booking_time < _am_end
+      AND end_time > _am_start;
+    IF _am_occ + _guests > _am.capacity_per_slot THEN
+      RAISE EXCEPTION 'AMENITY_FULL';
+    END IF;
+  END LOOP;
 
-    IF _occupied_beds + COALESCE(_guest_count, 1) > COALESCE(_room.capacity, 1) THEN
-      CONTINUE room_loop;
+  IF _has_soin THEN
+    IF _treatment_ids IS NOT NULL AND array_length(_treatment_ids, 1) > 0 THEN
+      SELECT array_agg(DISTINCT treatment_type) INTO _required_specialties
+      FROM treatment_menus
+      WHERE id::text = ANY(_treatment_ids)
+        AND COALESCE(is_addon, false) = false
+        AND amenity_id IS NULL
+        AND treatment_type IS NOT NULL
+        AND treatment_type != '';
     END IF;
 
-    -- Validate at least one qualified therapist exists (gender-aware for solo)
+    _qualified_available := 0;
     FOR _therapist_id, _therapist_skills IN
       SELECT t.id, t.skills
       FROM therapist_venues tv
@@ -2746,7 +2786,6 @@ BEGIN
         END IF;
       END IF;
 
-      -- Therapist schedule: skip explicitly unavailable days
       IF EXISTS (
         SELECT 1 FROM therapist_availability ta
         WHERE ta.therapist_id = _therapist_id
@@ -2756,7 +2795,6 @@ BEGIN
         CONTINUE;
       END IF;
 
-      -- Therapist schedule: skip when shifts exist but booking time is outside all shifts
       IF EXISTS (
         SELECT 1 FROM therapist_availability ta
         WHERE ta.therapist_id = _therapist_id
@@ -2801,39 +2839,113 @@ BEGIN
       ) INTO _has_conflict;
 
       IF NOT _has_conflict THEN
-        _room_id := _room.id;
-        EXIT room_loop;
+        _qualified_available := _qualified_available + 1;
+        IF _solo_therapist_id IS NULL THEN
+          _solo_therapist_id := _therapist_id;
+        END IF;
       END IF;
     END LOOP;
-  END LOOP;
 
-  IF _room_id IS NULL THEN RAISE EXCEPTION 'NO_ROOM_AVAILABLE'; END IF;
+    IF _qualified_available < _guests THEN
+      RAISE EXCEPTION 'NO_ROOM_AVAILABLE';
+    END IF;
+
+    _remaining := _guests;
+    <<room_loop>>
+    FOR _room IN
+      SELECT id, capacity FROM treatment_rooms
+      WHERE hotel_id::text = _hotel_id AND LOWER(status) IN ('active', 'actif')
+      ORDER BY id
+    LOOP
+      SELECT EXISTS(
+        SELECT 1
+        FROM bookings b
+        WHERE (b.room_id = _room.id OR b.secondary_room_id = _room.id)
+          AND b.booking_date = _booking_date
+          AND b.status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
+          AND NOT (b.payment_status = 'awaiting_payment' AND b.created_at < NOW() - INTERVAL '10 minutes')
+          AND (
+            _new_start < (EXTRACT(HOUR FROM b.booking_time) * 60 + EXTRACT(MINUTE FROM b.booking_time)) + COALESCE(b.duration, 30) + _turnover_buffer
+            AND _new_end + _turnover_buffer > (EXTRACT(HOUR FROM b.booking_time) * 60 + EXTRACT(MINUTE FROM b.booking_time))
+          )
+      ) INTO _room_blocked;
+
+      IF _room_blocked THEN CONTINUE room_loop; END IF;
+
+      _free := GREATEST(1, COALESCE(_room.capacity, 1));
+
+      IF _primary_room_id IS NULL THEN
+        _primary_room_id := _room.id;
+        _remaining := _remaining - LEAST(_remaining, _free);
+      ELSE
+        _secondary_room_id := _room.id;
+        _remaining := _remaining - LEAST(_remaining, _free);
+      END IF;
+
+      EXIT room_loop WHEN _remaining <= 0;
+    END LOOP;
+
+    IF _primary_room_id IS NULL OR _remaining > 0 THEN
+      RAISE EXCEPTION 'NO_ROOM_AVAILABLE';
+    END IF;
+  END IF;
 
   INSERT INTO bookings (
     hotel_id, hotel_name, client_first_name, client_last_name, client_email, phone,
-    booking_date, booking_time, status, room_id, therapist_id, total_price, duration,
+    booking_date, booking_time, status, room_id, secondary_room_id, therapist_id, total_price, duration,
     room_number, customer_id, payment_method, payment_status, language, guest_count,
     therapist_gender_preference
   ) VALUES (
     _hotel_id::uuid, _hotel_name, _client_first_name, _client_last_name, _client_email, _phone,
-    _booking_date, _booking_time, _status, _room_id,
-    CASE WHEN _is_duo THEN NULL ELSE _therapist_id END,
+    _booking_date, _booking_time, _status, _primary_room_id, _secondary_room_id,
+    CASE WHEN _is_duo THEN NULL ELSE _solo_therapist_id END,
     _total_price, _duration,
     COALESCE(_room_number, 'TBD'),
     CASE WHEN _customer_id IS NOT NULL THEN _customer_id::uuid ELSE NULL END,
     _payment_method,
     CASE WHEN _payment_status = 'card_saved' THEN 'pending' ELSE _payment_status END,
     _language,
-    COALESCE(_guest_count, 1),
-    -- Only store gender preference for non-duo solo bookings
+    _guests,
     CASE WHEN NOT _is_duo THEN _therapist_gender ELSE NULL END
   ) RETURNING id INTO _booking_id;
+
+  -- ----- Insert des amenity_bookings liés (capacité déjà verrouillée ci-dessus) -----
+  FOR _am IN
+    SELECT tm.amenity_id, tm.duration AS am_duration, tm.price AS am_price
+    FROM treatment_menus tm
+    WHERE tm.id::text = ANY(_treatment_ids) AND tm.amenity_id IS NOT NULL
+  LOOP
+    -- Même placement que dans le contrôle de capacité ci-dessus (before/after/same).
+    _am_start := CASE _amenity_timing
+      WHEN 'before' THEN (_booking_time - make_interval(mins => COALESCE(_am.am_duration, _duration, 60)))::time
+      WHEN 'after'  THEN (_booking_time + make_interval(mins => _soin_duration))::time
+      ELSE _booking_time
+    END;
+    _am_end := (_am_start + make_interval(mins => COALESCE(_am.am_duration, _duration, 60)))::time;
+    INSERT INTO amenity_bookings (
+      hotel_id, venue_amenity_id, booking_date, booking_time, duration, end_time,
+      customer_id, client_type, room_number, linked_booking_id, num_guests,
+      price, payment_method, payment_status, status
+    ) VALUES (
+      _hotel_id, _am.amenity_id, _booking_date, _am_start,
+      COALESCE(_am.am_duration, _duration, 60), _am_end,
+      CASE WHEN _customer_id IS NOT NULL THEN _customer_id::uuid ELSE NULL END,
+      'external',
+      NULLIF(_room_number, 'TBD'),
+      _booking_id,
+      _guests,
+      COALESCE(_am.am_price, 0),
+      _payment_method,
+      CASE WHEN _payment_status = 'card_saved' THEN 'pending' ELSE _payment_status END,
+      'confirmed'
+    );
+  END LOOP;
 
   RETURN _booking_id;
 END;
 $$;
 
-ALTER FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer) OWNER TO "postgres";
+ALTER FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."rls_auto_enable"() RETURNS "event_trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -3631,11 +3743,11 @@ GRANT ALL ON FUNCTION "public"."reactivate_prereservation"("_booking_id" "uuid")
 
 GRANT ALL ON FUNCTION "public"."reactivate_prereservation"("_booking_id" "uuid") TO "service_role";
 
-GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") TO "anon";
 
-GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") TO "authenticated";
 
-GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer) TO "service_role";
+GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "anon";
 

@@ -119,6 +119,12 @@
       "recapShared": "Duo — même créneau pour tous les soins",
       "recapSeparate": "Un créneau distinct par soin",
       "change": "Modifier"
+    },
+    "amenityTiming": {
+      "label": "Votre accès bien-être",
+      "question": "Souhaitez-vous en profiter avant ou après votre soin ?",
+      "before": "Avant le soin",
+      "after": "Après le soin"
     }
   },
   "info": {
