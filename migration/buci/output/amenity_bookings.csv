@@ -1,0 +1,42 @@
+hotel_id,venue_amenity_id,booking_date,booking_time,duration,end_time,customer_key,client_type,num_guests,price,payment_status,status,notes
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-09-19,17:00,90,18:30:00,n:chloe goutille,sezame,1,150,pending,confirmed,Rituel Chaud Froid Solo ou Duo
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-09-19,18:30,90,20:00:00,n:cassandre lecuyer,external,1,150,paid,confirmed,Rituel Chaud Froid Solo ou Duo
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-09-13,17:00,90,18:30:00,n:cassandre lecuyer,sezame,1,150,pending,confirmed,Rituel Chaud Froid Solo ou Duo — initialment prévu le 13-06
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-08-15,19:00,45,19:45:00,n:lauriane breal,external,1,0,pending,confirmed,"Privatisation spa 45"" Staycation"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-25,16:00,45,16:45:00,n:elhadj diallo,sezame,2,175,pending,confirmed,Spa et Tea time Duo
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-23,17:00,45,17:45:00,n:olivia ptito,internal,1,0,paid,confirmed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-22,10:00,45,10:45:00,n:avril verrier,sezame,1,115,pending,confirmed,Privatisation Espace Bassin (Semaine)
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-22,17:00,45,17:45:00,n:olivia ptito,internal,1,0,paid,confirmed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-21,17:00,45,17:45:00,n:olivia ptito,internal,1,0,paid,confirmed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-20,17:00,45,17:45:00,n:olivia ptito,internal,1,0,paid,confirmed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-11,10:00,45,10:45:00,n:manon schlaepfer,internal,1,0,paid,confirmed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-11,18:30,45,19:15:00,n:louise kerouanton,internal,1,0,paid,confirmed,"Privatisation spa 45"" Staycation"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-11,17:00,45,17:45:00,n:boris etienne,internal,1,0,paid,confirmed,"Privatisation spa 45"" Staycation"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-11,16:00,45,16:45:00,n:myriam bambara,sezame,2,175,pending,confirmed,Spa et Tea time Duo
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-10,18:15,90,19:45:00,n:hiba tihousse,external,1,150,pending,confirmed,Rituel Chaud Froid Solo ou Duo — (staycation du 19/06)
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-10,17:00,45,17:45:00,n:jerome gathon,internal,1,0,paid,confirmed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-09,18:00,90,19:30:00,n:apolline labrosse,sezame,1,150,pending,confirmed,Rituel Chaud Froid Solo ou Duo
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-08,16:15,45,17:00:00,n:camille blin,external,2,175,pending,confirmed,Spa et Tea time Duo
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-08,18:00,45,18:45:00,n:jerome gathon,internal,1,0,paid,confirmed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-07,17:30,45,18:15:00,n:pascale giroud porter,internal,1,0,paid,confirmed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-07,16:00,45,16:45:00,n:matthew richard fisher,internal,1,0,paid,confirmed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-06,16:15,45,17:00:00,n:pascale giroud porter,internal,1,0,paid,completed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-06,19:00,45,19:45:00,n:francois orierou,internal,1,0,paid,completed,"Privatisation spa 45"" Staycation — 19h 19h45!!!!!!"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-06,18:00,45,18:45:00,n:jerome gathon,internal,1,0,paid,completed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-05,19:00,45,19:45:00,n:matthew richard fisher,internal,1,0,paid,completed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-05,16:00,45,16:45:00,n:tom ghirardi,sezame,1,145,pending,completed,Private Use of the Pool Area (Weekend) New
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-05,17:30,45,18:15:00,n:martin lepeu,external,1,115,pending,completed,Privatisation Espace Bassin (Semaine) — STRIPE OK
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-05,10:00,45,10:45:00,n:rose thebault,sezame,1,145,pending,completed,Private Use of the Pool Area (Weekend) New
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-04,15:00,45,15:45:00,n:francois joly,internal,1,0,paid,completed,"Privatisation spa 45"" Staycation"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-04,10:00,45,10:45:00,n:janet christensen,internal,1,0,paid,completed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-04,17:30,90,19:00:00,n:saraga yoan,external,3,195,pending,completed,Rituel Chaud Froid - 3 personnes — reservation du 23/05 prise le 06/06
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-04,16:15,45,17:00:00,n:ghislane farih,internal,1,0,paid,completed,"Privatisation spa 45"" Staycation — Client Hotel Staycation 
+Accès spa privé 45min • Accès pisci"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-03,19:15,45,20:00:00,n:arnaud rochefort,internal,1,0,paid,completed,"Privatisation spa 45"" Staycation — 19h15 - 20h00 !!!!!"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-03,11:15,45,12:00:00,n:courtney ann moller,internal,1,0,paid,completed,"Privatisation du SPA 45"" Client Hotel 0 — 5 PAX"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-03,10:00,45,10:45:00,n:yelizaveta babayan,internal,1,0,paid,completed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-03,16:15,45,17:00:00,n:janet christensen,external,1,0,pending,cancelled,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-02,18:00,45,18:45:00,n:pascale giroud porter,internal,1,0,paid,completed,"Privatisation du SPA 45"" Client Hotel 0"
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-02,15:00,30,15:30:00,n:mme aurelia,external,1,30,offert,completed,Privatisation Espace Bassin (client massage) — kundalini
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-02,10:00,45,10:45:00,n:baroin constance,external,1,115,pending,completed,Privatisation Espace Bassin (Semaine) — paiement OK MEWS
+cc327810-c287-4f0f-bc32-2e6f37094ca3,feff910d-0b5f-4cb2-a2cf-32a25a108976,2026-07-02,19:15,45,20:00:00,n:yelizaveta babayan,internal,1,0,paid,completed,"Privatisation du SPA 45"" Client Hotel 0"

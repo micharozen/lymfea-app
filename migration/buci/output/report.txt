@@ -1,0 +1,13 @@
+Mode: commit — DB: https://wvderlgzetpptehxndqf.supabase.co
+Clients fichier: 35 (sur 35 lignes)
+Réservations Excel: 51
+→ bookings (cabine): 5
+→ amenity_bookings (bassin): 40
+→ customers totaux (fichier + réservations): 38
+   dont déjà en DB (dédup, non réinsérés): 4 | nouveaux: 34
+Clients sans téléphone: 20
+Dédup DB — bookings ignorés: 6, amenities ignorés: 0
+Clients déjà en DB (liés, non réinsérés): 4
+✓ 34 customers insérés (nouveaux)
+✓ 5 bookings insérés
+✓ 40 amenity_bookings insérés

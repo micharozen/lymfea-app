@@ -1,0 +1,13 @@
+Mode: commit — DB: https://wvderlgzetpptehxndqf.supabase.co
+Clients fichier: 25 (sur 25 lignes)
+Réservations Excel: 66
+→ bookings: 54
+→ customers totaux (fichier + réservations): 25
+   dont déjà en DB (dédup nom/tél, non réinsérés): 6 | nouveaux: 19
+Clients sans téléphone: 11
+Dédup DB — bookings déjà en base ignorés: 12
+⚠ Thérapeutes non résolus: Pénélope, Florence
+⚠ Soins non résolus (pas de lien): Massage lympho-fascia ILSE
+Clients déjà en DB (liés, non réinsérés): 6
+✓ 19 customers insérés (nouveaux)
+✓ 54 bookings insérés

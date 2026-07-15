@@ -26,7 +26,7 @@ import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
-import { therapistForTreatment } from "@/lib/therapistForTreatment";
+import { resolveLineTherapistIds } from "@/lib/therapistForTreatment";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { useAvailableRooms } from "@/hooks/booking/useAvailableRooms";
 import {
@@ -529,8 +529,9 @@ export default function EditBookingDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("booking_treatments")
-        .select("treatment_id, variant_id, price_override")
-        .eq("booking_id", booking!.id);
+        .select("treatment_id, variant_id, price_override, therapist_id, is_addon")
+        .eq("booking_id", booking!.id)
+        .order("id");
       if (error) throw error;
       return data;
     },
@@ -619,14 +620,44 @@ export default function EditBookingDialog({
     }
   }, [cart, treatments, therapistCount]);
 
+  // Seed les slots « Thérapeute i » depuis booking_treatments.therapist_id, dans
+  // le MÊME ordre group-then-expand que le cart utilise à l'insert (cf. l'effet
+  // cart plus haut et submittedTreatments). C'est ce qui aligne slot i ↔ ligne i
+  // et fait round-tripper l'assignation par soin comme le stylet. Fallback sur le
+  // roster (ordre d'acceptation) pour les liens legacy NULL ou le shared-duo.
   useEffect(() => {
-    if ((booking?.guest_count ?? 1) > 1 && acceptedTherapists) {
-      const n = booking?.guest_count ?? 2;
+    const guestCount = booking?.guest_count ?? 1;
+    if (guestCount <= 1 || !existingTreatments) return;
+
+    const rosterIds = (acceptedTherapists ?? []).map((a) => a.therapist_id);
+    // Base soins = les jambes du duo (les add-ons sont des suppléments rattachés
+    // à une jambe). N base soins = N invités → combo-duo. `.order("id")` garantit
+    // que les lignes de base sont dans l'ordre des jambes (insert base-first).
+    const baseLines = existingTreatments.filter(
+      (t) => !(t as { is_addon?: boolean | null }).is_addon,
+    );
+    const comboDuo = baseLines.length === guestCount;
+
+    if (comboDuo) {
+      // Slot i ← thérapeute de la i-ème base soin (parité stylet). Fallback roster
+      // (ordre d'acceptation) pour les liens legacy NULL.
       setTherapistIds(
-        Array.from({ length: n }, (_, i) => acceptedTherapists[i]?.therapist_id ?? '')
+        Array.from(
+          { length: guestCount },
+          (_, i) =>
+            (baseLines[i] as { therapist_id?: string | null } | undefined)?.therapist_id ||
+            rosterIds[i] ||
+            "",
+        ),
+      );
+    } else {
+      // Shared-duo (1 soin, N thérapeutes) : les lignes sont NULL par design, le
+      // roster est la source → on garde le seed en ordre d'acceptation.
+      setTherapistIds(
+        Array.from({ length: guestCount }, (_, i) => rosterIds[i] ?? "")
       );
     }
-  }, [acceptedTherapists, booking?.guest_count, open]);
+  }, [existingTreatments, acceptedTherapists, booking?.guest_count, open]);
 
   useEffect(() => {
     if (bookingTreatments && bookingTreatments.length > 0 && viewMode === "view") {
@@ -788,36 +819,95 @@ export default function EditBookingDialog({
 
       if (deleteTreatmentsError) throw deleteTreatmentsError;
 
-      if (bookingData.treatments && bookingData.treatments.length > 0) {
+      // Lien stable soin↔thérapeute par ligne, add-on aware (parité création /
+      // stylet). Déclaré ici pour que le bloc roster plus bas le réutilise.
+      type EditLine = {
+        treatmentId: string;
+        variantId?: string | null;
+        priceOverride?: number | null;
+        isAddon?: boolean;
+      };
+      const editGuestCount = newGuestCount;
+      const editLines: EditLine[] = bookingData.treatments ?? [];
+      // Combo-duo = N base soins (add-ons exclus) = N invités. Avec des add-ons,
+      // treatments.length > guestCount, d'où l'ancien bug (tout passait NULL).
+      const baseCount = editLines.filter((l) => !l.isAddon).length;
+      const isComboDuo = editGuestCount > 1 && baseCount === editGuestCount;
+      let lineTherapistIds: (string | null)[] = [];
+
+      if (editLines.length > 0) {
         // Ce delete+re-insert effacerait le lien stable soin↔thérapeute
         // (booking_treatments.therapist_id) — on le repose, même convention
-        // positionnelle qu'à la création.
-        const editGuestCount = newGuestCount;
+        // qu'à la création (base soins = jambes, add-ons rattachés round-robin).
         const editTherapistIds: string[] = bookingData.therapistIds?.length
-          ? bookingData.therapistIds.filter(Boolean)
+          ? bookingData.therapistIds
           : bookingData.therapist_id
           ? [bookingData.therapist_id]
           : [];
-        const treatmentCount = bookingData.treatments.length;
-        const treatmentInserts = bookingData.treatments.map(
-          (t: { treatmentId: string; variantId?: string | null; priceOverride?: number | null }, i: number) => ({
-            booking_id: booking.id,
-            treatment_id: t.treatmentId,
-            variant_id: t.variantId ?? null,
-            price_override: t.priceOverride ?? null,
-            therapist_id: therapistForTreatment(i, treatmentCount, editGuestCount, editTherapistIds),
-          })
-        );
+        lineTherapistIds = resolveLineTherapistIds(editLines, editGuestCount, editTherapistIds);
 
-        const { error: treatmentsError } = await supabase
-          .from("booking_treatments")
-          .insert(treatmentInserts);
+        if (isComboDuo) {
+          // Insert base-first pour que chaque add-on pointe sur la base de sa
+          // jambe (parent_booking_treatment_id), comme insertSingleBooking.
+          const withTherapist = editLines.map((l, i) => ({ ...l, therapistId: lineTherapistIds[i] }));
+          const baseLines = withTherapist.filter((l) => !l.isAddon);
+          const addonLines = withTherapist.filter((l) => l.isAddon);
 
-        if (treatmentsError) throw treatmentsError;
+          const { data: baseRows, error: baseErr } = await supabase
+            .from("booking_treatments")
+            .insert(
+              baseLines.map((l) => ({
+                booking_id: booking.id,
+                treatment_id: l.treatmentId,
+                variant_id: l.variantId ?? null,
+                price_override: l.priceOverride ?? null,
+                therapist_id: l.therapistId,
+              })),
+            )
+            .select("id");
+          if (baseErr) throw baseErr;
+
+          // baseRows revient dans l'ordre d'insertion → index i = jambe i.
+          const baseRowByLeg = new Map<number, string>();
+          (baseRows ?? []).forEach((row: { id: string }, i: number) => baseRowByLeg.set(i, row.id));
+
+          if (addonLines.length > 0) {
+            const { error: addonErr } = await supabase.from("booking_treatments").insert(
+              addonLines.map((l, j) => ({
+                booking_id: booking.id,
+                treatment_id: l.treatmentId,
+                variant_id: l.variantId ?? null,
+                price_override: l.priceOverride ?? null,
+                therapist_id: l.therapistId,
+                is_addon: true,
+                parent_booking_treatment_id: baseRowByLeg.get(j % editGuestCount) ?? null,
+              })),
+            );
+            if (addonErr) throw addonErr;
+          }
+        } else {
+          // Solo / shared-duo : insert simple, on conserve l'ordre et le flag add-on.
+          const { error: treatmentsError } = await supabase.from("booking_treatments").insert(
+            editLines.map((l, i) => ({
+              booking_id: booking.id,
+              treatment_id: l.treatmentId,
+              variant_id: l.variantId ?? null,
+              price_override: l.priceOverride ?? null,
+              therapist_id: lineTherapistIds[i],
+              is_addon: l.isAddon ?? false,
+            })),
+          );
+          if (treatmentsError) throw treatmentsError;
+        }
       }
 
       if (bookingData.therapistIds) {
-        const validIds: string[] = [...new Set(bookingData.therapistIds.filter(Boolean))];
+        // Combo-duo : le roster suit les thérapeutes réellement posés sur les
+        // lignes (parité stylet, purge une jambe retirée). Shared-duo : les slots
+        // sont la source (lignes NULL par design).
+        const validIds: string[] = isComboDuo
+          ? [...new Set(lineTherapistIds.filter((x): x is string => !!x))]
+          : [...new Set<string>(bookingData.therapistIds.filter(Boolean))];
         const { error: btDeleteError } = await supabase.from("booking_therapists").delete().eq("booking_id", booking.id);
         if (btDeleteError) throw btDeleteError;
         if (validIds.length > 0) {
@@ -1165,19 +1255,25 @@ export default function EditBookingDialog({
           treatmentId: t.treatment_id,
           variantId: t.variant_id ?? null,
           priceOverride: (t as { price_override?: number | null }).price_override ?? null,
+          isAddon: (t as { is_addon?: boolean | null }).is_addon ?? false,
         })) || [])
-      : cart.flatMap(item =>
-          Array.from({ length: item.quantity }, () => ({
+      : cart.flatMap(item => {
+          const isAddon = treatments?.find(t => t.id === item.treatmentId)?.is_addon ?? false;
+          return Array.from({ length: item.quantity }, () => ({
             treatmentId: item.treatmentId,
             variantId: item.variantId ?? null,
             priceOverride: item.priceOverride ?? null,
-          }))
-        );
+            isAddon,
+          }));
+        });
 
     const primaryTherapistId = isConcierge
       ? (booking?.therapist_id || null)
       : isDuo
-        ? (therapistIds.find(id => !!id) || null)
+        // Primaire = thérapeute de la 1re ligne de soin (parité stylet) pour que
+        // bookings.therapist_name suive le 1er soin ; .find n'est qu'un fallback
+        // si le slot 0 est vide.
+        ? (therapistIds[0] || therapistIds.find(id => !!id) || null)
         : (therapistId === "none" ? null : therapistId);
 
     // Reconcile the out-of-hours surcharge against the (possibly edited) time and

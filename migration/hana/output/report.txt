@@ -1,0 +1,14 @@
+Mode: commit — DB: https://wvderlgzetpptehxndqf.supabase.co
+Clients fichier: 29 (sur 29 lignes)
+Réservations Excel: 41
+→ bookings: 12
+→ amenity_bookings (piscine): 2
+→ customers totaux (fichier + réservations): 29
+   dont déjà en DB (dédup, non réinsérés): 17 | nouveaux: 12
+Clients sans téléphone: 8
+Dédup DB — bookings déjà en base ignorés: 29
+⚠ Thérapeutes non résolus: Pénélope, Florence
+Clients déjà en DB (liés, non réinsérés): 17
+✓ 12 customers insérés (nouveaux)
+✓ 12 bookings insérés
+✓ 2 amenity_bookings insérés
