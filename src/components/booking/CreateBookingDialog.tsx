@@ -56,6 +56,7 @@ import {
   buildComboDuoBookingParams,
   computeStaffingCount,
   expandCartToSessions,
+  getBaseSessionCount,
   getSessionCount,
   isComboDuoEligible,
 } from "@/features/admin-combo-duo";
@@ -213,6 +214,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   // admin-combo-duo
   const sessions = useMemo(() => expandCartToSessions(cartDetails), [cartDetails]);
   const sessionCount = useMemo(() => getSessionCount(cartDetails), [cartDetails]);
+  // Base soins only (add-ons aren't parallel guests) → drives practitioner count.
+  const baseSessionCount = useMemo(() => getBaseSessionCount(sessions), [sessions]);
   const comboDuoEligible = isComboDuoEligible(sessions) && requiredGuestCount <= 1;
   const [comboDuoEnabled, setComboDuoEnabled] = useState(false);
 
@@ -220,7 +223,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     if (!comboDuoEligible && comboDuoEnabled) setComboDuoEnabled(false);
   }, [comboDuoEligible, comboDuoEnabled]);
 
-  const staffingCount = computeStaffingCount(comboDuoEnabled, sessionCount, requiredGuestCount);
+  const staffingCount = computeStaffingCount(comboDuoEnabled, baseSessionCount, requiredGuestCount);
 
   // Additional therapist IDs for duo/trio bookings (index 0 = therapist 2, etc.)
   const [additionalTherapistIds, setAdditionalTherapistIds] = useState<string[]>([]);
@@ -623,6 +626,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   comboDuoEnabled={comboDuoEnabled}
                   onComboDuoChange={setComboDuoEnabled}
                   sessionCount={sessionCount}
+                  practitionerCount={baseSessionCount}
                   variantDuoInCart={requiredGuestCount > 1}
                   canOffer={canAssignTherapist}
                   isOffert={isOffert}

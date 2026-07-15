@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { AppLoader } from '@/components/AppLoader';
 
 interface ClientSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -32,9 +33,5 @@ export function ClientSpinner({ size = 'md', className }: ClientSpinnerProps) {
  * Use this as a fallback while lazy-loading client pages.
  */
 export function ClientPageLoading() {
-  return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
-      <ClientSpinner size="lg" />
-    </div>
-  );
+  return <AppLoader className="bg-white" />;
 }

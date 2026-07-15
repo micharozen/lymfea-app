@@ -12,6 +12,8 @@ export interface AdminBookingSession {
   duration: number;
   guestCount: number;
   unitPrice: number;
+  /** An add-on is a supplement performed after a base soin, never a guest's own soin. */
+  isAddon: boolean;
 }
 
 interface TreatmentLike {
@@ -19,6 +21,7 @@ interface TreatmentLike {
   name?: string;
   duration?: number | null;
   price?: number | null;
+  is_addon?: boolean | null;
   treatment_variants?: Array<{
     id: string;
     duration?: number | null;
@@ -43,6 +46,8 @@ export function expandCartToSessions(cartDetails: CartDetail[]): AdminBookingSes
     const baseLabel = treatment?.name ?? 'Soin';
     const variantSuffix = variant?.label ? ` (${variant.label})` : '';
 
+    const isAddon = treatment?.is_addon ?? false;
+
     for (let i = 0; i < item.quantity; i++) {
       const indexSuffix = item.quantity > 1 ? ` #${i + 1}` : '';
       sessions.push({
@@ -53,6 +58,7 @@ export function expandCartToSessions(cartDetails: CartDetail[]): AdminBookingSes
         duration,
         guestCount,
         unitPrice,
+        isAddon,
       });
     }
   }
@@ -63,31 +69,69 @@ export function getSessionCount(cartDetails: Array<CartItem & { treatment: unkno
   return cartDetails.reduce((sum, item) => sum + item.quantity, 0);
 }
 
-/** N >= 2 solo sessions (guest_count === 1 on each). */
-export function isComboDuoEligible(sessions: AdminBookingSession[]): boolean {
-  if (!ADMIN_COMBO_DUO_ENABLED) return false;
-  return sessions.length >= 2 && sessions.every((s) => s.guestCount === 1);
+/** How many base soins (guests) are in the cart — add-ons don't count. */
+export function getBaseSessionCount(sessions: AdminBookingSession[]): number {
+  return sessions.filter((s) => !s.isAddon).length;
 }
 
+/**
+ * Eligible when there are >= 2 base solo soins (add-ons excluded): those are the
+ * guests done in parallel. A single base + an add-on is a solo + supplement, not
+ * a duo. A base already carrying a variant-duo (guest_count > 1) disqualifies it.
+ */
+export function isComboDuoEligible(sessions: AdminBookingSession[]): boolean {
+  if (!ADMIN_COMBO_DUO_ENABLED) return false;
+  const bases = sessions.filter((s) => !s.isAddon);
+  return bases.length >= 2 && bases.every((s) => s.guestCount === 1);
+}
+
+/**
+ * Combo-duo params. Base soins are the parallel legs (one guest each); add-ons
+ * are attributed to a guest round-robin and run after that guest's soin, so the
+ * slot lasts as long as the longest leg (base + its add-ons) — mirroring the
+ * server's computeSlotDuration. Each line carries its `legIndex` (the person)
+ * so the creator sets a consistent therapist_id and parent link at insert time.
+ */
 export function buildComboDuoBookingParams(sessions: AdminBookingSession[]) {
+  const bases = sessions.filter((s) => !s.isAddon);
+  const addons = sessions.filter((s) => s.isAddon);
+  const guestCount = bases.length;
+
+  const legDurations = bases.map((s) => s.duration);
+  const baseLines = bases.map(
+    (s, legIndex): TreatmentPayload => ({
+      treatmentId: s.treatmentId,
+      variantId: s.variantId ?? undefined,
+      isAddon: false,
+      legIndex,
+    }),
+  );
+
+  const addonLines = addons.map((s, j): TreatmentPayload => {
+    const legIndex = guestCount > 0 ? j % guestCount : 0;
+    legDurations[legIndex] = (legDurations[legIndex] ?? 0) + s.duration;
+    return {
+      treatmentId: s.treatmentId,
+      variantId: s.variantId ?? undefined,
+      isAddon: true,
+      legIndex,
+      parentTreatmentId: bases[legIndex]?.treatmentId ?? null,
+    };
+  });
+
   return {
-    guestCount: sessions.length,
-    duration: Math.max(...sessions.map((s) => s.duration)),
-    treatments: sessions.map(
-      (s): TreatmentPayload => ({
-        treatmentId: s.treatmentId,
-        variantId: s.variantId ?? undefined,
-      }),
-    ),
+    guestCount,
+    duration: legDurations.length ? Math.max(...legDurations) : 0,
+    treatments: [...baseLines, ...addonLines],
   };
 }
 
-/** Staffing pickers count: combo duo → N sessions; variant duo → requiredGuestCount. */
+/** Staffing pickers count: combo duo → one per base soin; variant duo → requiredGuestCount. */
 export function computeStaffingCount(
   comboDuoEnabled: boolean,
-  sessionCount: number,
+  baseSessionCount: number,
   requiredGuestCount: number,
 ): number {
-  if (comboDuoEnabled) return sessionCount;
+  if (comboDuoEnabled) return baseSessionCount;
   return requiredGuestCount;
 }

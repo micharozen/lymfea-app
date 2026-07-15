@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/formatPrice";
 import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
-import { therapistForTreatment } from "@/lib/therapistForTreatment";
+import { resolveLineTherapistIds } from "@/lib/therapistForTreatment";
 import { useReassignTreatmentTherapists, type LineAssignment } from "@/hooks/booking/useReassignTreatmentTherapists";
 import type { BookingTreatment } from "@/hooks/booking/useBookingData";
 
@@ -127,19 +127,18 @@ export function TreatmentsByTherapist({
 
   const rosterIds = useMemo(() => acceptedTherapists.map((t) => t.id), [acceptedTherapists]);
 
-  // Effective therapist per line: explicit link first, then the positional
-  // (combo-duo) / solo fallback used elsewhere in the app.
-  const resolveTherapistId = (line: BookingTreatment, index: number): string | null => {
-    if (line.therapist_id) return line.therapist_id;
-    if (guestCount <= 1) return primaryTherapistId ?? null;
-    return therapistForTreatment(index, treatments.length, guestCount, rosterIds);
-  };
-
-  const lineTherapistIds = useMemo(
-    () => treatments.map((t, i) => resolveTherapistId(t, i)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [treatments, guestCount, primaryTherapistId, rosterIds],
-  );
+  // Effective therapist per line: explicit link first, then the add-on aware
+  // positional (combo-duo) / solo fallback used elsewhere in the app. The
+  // fallback covers legacy lines whose therapist_id is still NULL.
+  const lineTherapistIds = useMemo(() => {
+    const legIds = guestCount <= 1 ? (primaryTherapistId ? [primaryTherapistId] : []) : rosterIds;
+    const fallback = resolveLineTherapistIds(
+      treatments.map((t) => ({ isAddon: t.is_addon })),
+      guestCount,
+      legIds,
+    );
+    return treatments.map((t, i) => t.therapist_id ?? fallback[i]);
+  }, [treatments, guestCount, primaryTherapistId, rosterIds]);
 
   const groups = useMemo<TherapistGroup[]>(() => {
     const order: (string | null)[] = [];
