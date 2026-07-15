@@ -202,6 +202,9 @@ export default function EditBookingDialog({
   const [countryCode, setCountryCode] = useState("+33");
   const [roomNumber, setRoomNumber] = useState("");
   const [clientNote, setClientNote] = useState("");
+  // Note persistante du client (customers.health_notes) — chargée/persistée via
+  // customer_id, comme la civilité.
+  const [customerNote, setCustomerNote] = useState("");
   const [clientType, setClientType] = useState<BookingClientType>("external");
   // Civilité du client, stockée sur la fiche customer (pas sur le booking).
   // Chargée et persistée séparément via customer_id.
@@ -277,19 +280,22 @@ export default function EditBookingDialog({
     if (!open || !booking?.id) {
       setCivility("");
       setCustomerId(null);
+      setCustomerNote("");
       return;
     }
     let cancelled = false;
     (async () => {
       const { data } = await supabase
         .from("bookings")
-        .select("customer_id, customers(civility)")
+        .select("customer_id, customers(civility, health_notes)")
         .eq("id", booking.id)
         .single();
       if (cancelled) return;
       setCustomerId(data?.customer_id ?? null);
-      const civ = (data?.customers as { civility?: string | null } | null)?.civility;
+      const customer = data?.customers as { civility?: string | null; health_notes?: string | null } | null;
+      const civ = customer?.civility;
       setCivility(civ === "madame" || civ === "monsieur" ? civ : "");
+      setCustomerNote(customer?.health_notes ?? "");
     })();
     return () => {
       cancelled = true;
@@ -735,6 +741,10 @@ export default function EditBookingDialog({
               last_name: bookingData.client_last_name || null,
               phone: normalizedPhone,
               civility: bookingData.civility ?? null,
+              // Note client persistante — undefined (concierge) = ne pas toucher.
+              ...(bookingData.customerNote !== undefined
+                ? { health_notes: bookingData.customerNote.trim() || null }
+                : {}),
             })
             .eq("id", customerId);
           if (customerError) {
@@ -760,6 +770,13 @@ export default function EditBookingDialog({
               .from("bookings")
               .update({ customer_id: newCustomerId })
               .eq("id", booking.id);
+            // Note client sur la fiche fraîchement créée/reliée.
+            if (bookingData.customerNote?.trim()) {
+              await supabase
+                .from("customers")
+                .update({ health_notes: bookingData.customerNote.trim() })
+                .eq("id", newCustomerId);
+            }
           }
         }
       }
@@ -1192,6 +1209,9 @@ export default function EditBookingDialog({
       client_note: isConcierge
         ? (booking?.client_note ?? null)
         : (clientNote.trim() ? clientNote.trim() : null),
+      // Note client persistante — éditable par l'admin uniquement.
+      // undefined = ne pas toucher la fiche customer (concierge).
+      customerNote: isConcierge ? undefined : customerNote,
       client_type: clientType,
       // Civilité éditable par l'admin uniquement (champs client désactivés pour
       // le concierge). undefined = ne pas toucher la fiche customer.
@@ -2079,16 +2099,33 @@ export default function EditBookingDialog({
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="edit-client-note" className="text-xs">Note</Label>
-                <Textarea
-                  id="edit-client-note"
-                  value={clientNote}
-                  onChange={(e) => setClientNote(e.target.value)}
-                  disabled={clientFieldsDisabled}
-                  placeholder="Ajouter une note pour cette réservation…"
-                  rows={3}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-client-note" className="text-xs flex items-center gap-1">
+                    <CalendarIcon className="h-3 w-3" /> Note réservation
+                  </Label>
+                  <Textarea
+                    id="edit-client-note"
+                    value={clientNote}
+                    onChange={(e) => setClientNote(e.target.value)}
+                    disabled={clientFieldsDisabled}
+                    placeholder="Note pour cette réservation…"
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-customer-note" className="text-xs flex items-center gap-1">
+                    <User className="h-3 w-3" /> Note client
+                  </Label>
+                  <Textarea
+                    id="edit-customer-note"
+                    value={customerNote}
+                    onChange={(e) => setCustomerNote(e.target.value)}
+                    disabled={clientFieldsDisabled}
+                    placeholder="Note permanente (VIP, préférences…), sur toutes ses réservations"
+                    rows={3}
+                  />
+                </div>
               </div>
 
               </div>
