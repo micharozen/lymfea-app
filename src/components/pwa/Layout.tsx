@@ -151,7 +151,11 @@ const PwaLayout = () => {
             },
           });
 
-          // Prefetch pending bookings
+          // Prefetch pending bookings. Mirror the Dashboard's real request feed:
+          // status 'pending', and keep open duos visible even once the first
+          // therapist has accepted (therapist_id is set but guest_count > 1).
+          // The old `.is("therapist_id", null)` dropped a still-open duo from
+          // this cache as soon as one therapist claimed a leg.
           queryClient.prefetchQuery({
             queryKey: ["pendingBookings", therapistData.id],
             queryFn: async () => {
@@ -159,6 +163,7 @@ const PwaLayout = () => {
                 .from("bookings")
                 .select(`
                   *,
+                  booking_therapists ( status, therapist_id, assigned_at ),
                   booking_treatments (
                     treatment_menus (
                       price,
@@ -167,8 +172,8 @@ const PwaLayout = () => {
                   )
                 `)
                 .in("hotel_id", hotelIds)
-                .is("therapist_id", null)
-                .in("status", ["En attente", "Pending"]);
+                .eq("status", "pending")
+                .or("therapist_id.is.null,guest_count.gt.1");
               return data;
             },
           });

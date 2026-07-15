@@ -468,7 +468,10 @@ try {
     } = validationResult.data;
 
     const effectiveGuestCount = Math.max(1, guestCount ?? 1);
-    const effectiveAmenityTiming = amenityTiming ?? 'same';
+    // A soin and its amenity access are never at the same time — the client always
+    // picks 'before' or 'after'. Fall back to 'after' (never 'same') so a missing
+    // choice can't overlap the amenity block on top of the soin block.
+    const effectiveAmenityTiming = amenityTiming ?? 'after';
     const isDuoBooking = effectiveGuestCount > 1;
 
     log.bind({ hotelId, paymentMethod, isDuoBooking, draftBookingId });
@@ -547,7 +550,7 @@ try {
     const treatmentIds = treatments.map(t => t.treatmentId);
     const { data: validTreatments, error: treatmentValidationError } = await supabase
       .from('treatment_menus')
-      .select('id, price_on_request, duration, lead_time, is_bundle, bundle_id, is_addon, category')
+      .select('id, price_on_request, duration, lead_time, is_bundle, bundle_id, is_addon, category, amenity_id')
       .in('id', treatmentIds);
 
     if (treatmentValidationError) {
@@ -578,10 +581,15 @@ try {
     // Which lines are add-ons? Never trust the client — recompute server-side.
     const addonTreatmentIds = await fetchAddonTreatmentIds(supabase, hotelId, validTreatments || []);
     const isAddonLine = (treatmentId: string) => addonTreatmentIds.has(treatmentId);
+    // Amenity lines occupy their own block — exclude them from the soin duration.
+    const amenityLineIds = new Set(
+      (validTreatments || []).filter(t => t.amenity_id != null).map(t => t.id),
+    );
+    const isAmenityLine = (treatmentId: string) => amenityLineIds.has(treatmentId);
     const durationOfLine = (line: { treatmentId: string }) =>
       validTreatments?.find(t => t.id === line.treatmentId)?.duration || 0;
 
-    const totalDuration = computeSlotDuration(treatments, isDuoBooking, durationOfLine, isAddonLine);
+    const totalDuration = computeSlotDuration(treatments, isDuoBooking, durationOfLine, isAddonLine, isAmenityLine);
     console.log('Total booking duration:', totalDuration, 'minutes');
 
     const insertBookingTreatments = (targetBookingId: string) =>
@@ -651,12 +659,19 @@ try {
     // Check if any treatment is price_on_request
     const hasPriceOnRequest = validTreatments?.some(t => t.price_on_request) || false;
     const isOffert = !!hotel.offert || !!hotel.company_offered;
-    // Duo bookings start 'pending' (like solo) and stay pending until every
-    // practitioner has accepted via the broadcast-accept flow (accept_booking
-    // RPC), which then flips the booking to 'confirmed'.
+    // An amenity-only booking (every line is an amenity access, e.g. pool) needs
+    // no therapist assignment, so there is nothing to wait for — it is confirmed
+    // right away (the amenity_bookings rows are auto-confirmed too). A mixed or
+    // soin-only cart stays 'pending' until every practitioner has accepted via
+    // the broadcast-accept flow (accept_booking RPC), which flips it to
+    // 'confirmed'. Duo bookings also start 'pending', like solo.
+    const isAmenityOnly = treatments.length > 0
+      && treatments.every(t => amenityLineIds.has(t.treatmentId));
     const bookingStatus = (!isOffert && hasPriceOnRequest)
       ? 'quote_pending'
-      : 'pending';
+      : isAmenityOnly
+        ? 'confirmed'
+        : 'pending';
     // Recalcul serveur de la majoration hors horaires (source de vérité — ignore le totalPrice client)
     const basePrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
     const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);

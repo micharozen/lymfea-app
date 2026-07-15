@@ -85,8 +85,14 @@ type RawBookingRow = BookingRow & {
 function computeBookingItem(row: RawBookingRow): BookingListItem {
   const treatmentsJoin = row.booking_treatments ?? [];
 
+  // Amenity lines (pool/sauna access) occupy their own block, not the soin slot —
+  // exclude them so the booking's soin duration is not inflated. Mirrors
+  // computeSlotDuration server-side.
   const treatmentsTotalDuration = treatmentsJoin.reduce(
-    (sum, t) => sum + (t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0),
+    (sum, t) =>
+      t.treatment_menus?.amenity_id != null
+        ? sum
+        : sum + (t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0),
     0,
   );
   const treatmentsTotalPrice = treatmentsJoin.reduce(
