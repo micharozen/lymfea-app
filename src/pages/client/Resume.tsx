@@ -106,6 +106,7 @@ export default function Resume() {
           category: treatment.category,
           isPriceOnRequest: variant?.price_on_request ?? treatment.price_on_request ?? false,
           isBundle: treatment.is_bundle || false,
+          isAmenity: !!treatment.amenity_id,
           guestCount: line.guestCount,
           availableDays: treatment.available_days ?? null,
         });

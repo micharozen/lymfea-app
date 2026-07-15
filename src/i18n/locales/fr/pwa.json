@@ -155,7 +155,6 @@
     "price": "Prix",
     "outOfHoursSurcharge": "Dont majoration hors horaires",
     "name": "Nom",
-    "add": "Ajouter",
     "noTreatments": "Aucun traitement ajouté",
     "contactConcierge": "Contacter l'équipe lieu",
     "contactBrand": "Contacter {{brandName}}",
@@ -403,8 +402,24 @@
     },
     "settlement": {
       "room": "Facturé en chambre",
-      "partner": "Facturé au partenaire"
-    }
+      "partner": "Facturé au partenaire",
+      "title": "Encaissement"
+    },
+    "bookingCreatedTitle": "Réservation créée",
+    "continue": "Continuer",
+    "treatmentsCount": "soin",
+    "treatmentsCountPlural": "soins",
+    "onRequest": "Sur demande",
+    "chooseDate": "Choisir",
+    "duration": "Durée",
+    "totalClient": "Total client",
+    "creating": "Création…",
+    "bookingDone": "C’est réservé !",
+    "bookingNumber": "Réservation",
+    "done": "Terminé",
+    "loadingTreatments": "Chargement…",
+    "noTreatment": "Aucune prestation disponible",
+    "add": "Ajouter"
   },
   "tabs": {
     "home": "Accueil",

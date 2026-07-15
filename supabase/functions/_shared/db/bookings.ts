@@ -14,6 +14,12 @@ export type BookingTreatment = {
   is_addon?: boolean;
   /** The booking_treatments row of the soin this add-on extends (its leg). */
   parent_booking_treatment_id?: string | null;
+  /** true = accès à une commodité (amenity_id non null) : ni salle ni thérapeute. */
+  is_amenity?: boolean;
+  /** Type de la commodité liée (piscine, sauna…) — null si ce n'est pas un accès. */
+  amenity_type?: string | null;
+  /** Nom de la commodité liée — null si ce n'est pas un accès. */
+  amenity_name?: string | null;
   name: string;
   duration: number | null;
   price: number | null;
@@ -57,6 +63,8 @@ type RawBookingRow = BookingRow & {
       name: string | null;
       duration: number | null;
       price: number | null;
+      amenity_id: string | null;
+      venue_amenities: { type: string | null; name: string | null } | null;
     } | null;
     treatment_variants: {
       id: string;
@@ -100,6 +108,9 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
         therapist_id: t.therapist_id ?? null,
         is_addon: t.is_addon ?? false,
         parent_booking_treatment_id: t.parent_booking_treatment_id ?? null,
+        is_amenity: t.treatment_menus!.amenity_id != null,
+        amenity_type: t.treatment_menus!.venue_amenities?.type ?? null,
+        amenity_name: t.treatment_menus!.venue_amenities?.name ?? null,
         name: (t.treatment_menus!.name ?? "") + variantSuffix,
         duration: variant?.duration ?? t.treatment_menus!.duration,
         price: resolveTreatmentPrice(t),
@@ -150,7 +161,7 @@ export async function listBookings(
         parent_booking_treatment_id,
         variant_id,
         price_override,
-        treatment_menus(name, duration, price),
+        treatment_menus(name, duration, price, amenity_id, venue_amenities(type, name)),
         treatment_variants(id, label, duration, price)
       ),
       booking_therapists(status, therapist_id),

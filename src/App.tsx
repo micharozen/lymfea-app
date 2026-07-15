@@ -18,7 +18,8 @@ import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
 import { SubscriptionBanner } from "@/components/billing/SubscriptionBanner";
 import { UpdateAvailableBanner } from "@/components/UpdateAvailableBanner";
 import { NotificationsBellButton } from "@/components/admin/NotificationsBellButton";
-import { brand, brandLogos } from "@/config/brand";
+import { brand } from "@/config/brand";
+import { AppLoader } from "@/components/AppLoader";
 import BookingDetail from "./pages/admin/BookingDetail";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import TherapistProtectedRoute from "./components/TherapistProtectedRoute";
@@ -161,23 +162,10 @@ const queryClient = new QueryClient({
 });
 
 // Loading fallback component
-const PageLoader = () => (
-  <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-    <span className="text-2xl font-serif font-semibold tracking-wide text-primary">Eïa</span>
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-  </div>
-);
+const PageLoader = () => <AppLoader />;
 
 // Client-specific loader
-const ClientPageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen bg-white">
-    <img
-      src={brandLogos.primary}
-      alt={brand.name}
-      className="h-12 animate-pulse"
-    />
-  </div>
-);
+const ClientPageLoader = () => <AppLoader className="bg-white" />;
 
 // Syncs authenticated user's language preference from profiles table
 const AuthLanguageSync = () => {

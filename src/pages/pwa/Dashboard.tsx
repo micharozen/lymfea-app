@@ -1112,12 +1112,7 @@ const PwaDashboard = () => {
                       <div className="d">{calculateTotalDuration(b)} min</div>
                     </div>
                     <div className="bk-main">
-                      <div className="who">
-                        {b.hotel_name}
-                        {(b.guest_count || 1) > 1 && (
-                          <span className="status info"><span className="dot" />{acceptedCount(b)}/{b.guest_count}</span>
-                        )}
-                      </div>
+                      <div className="who">{b.hotel_name}</div>
                       <div className="what">{treatmentsLabel(b)}</div>
                       {(b.room_name || toConfirm) && (
                         <div className="meta">
@@ -1127,7 +1122,12 @@ const PwaDashboard = () => {
                     </div>
                     <div className="bk-right">
                       <div className="price">{formatPrice(calculateTotalPrice(b), getHotelCurrency(b), { decimals: 0 })}</div>
-                      <PaymentStatus status={getPaymentDesignStatus(b.payment_status, t)} />
+                      <div className="bk-status">
+                        {(b.guest_count || 1) > 1 && (
+                          <span className="status info">{acceptedCount(b)}/{b.guest_count}</span>
+                        )}
+                        <PaymentStatus status={getPaymentDesignStatus(b.payment_status, t)} />
+                      </div>
                     </div>
                   </button>
                 );

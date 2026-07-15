@@ -172,6 +172,7 @@ async function atomicReserveSingle(
     _total_price: verifiedPrice,
     _treatment_ids: treatmentIds,
     _guest_count: guestCount,
+    _amenity_timing: meta.amenityTiming || "same",
   });
 }
 

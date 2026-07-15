@@ -78,6 +78,8 @@ interface BookingPrestationsStepProps {
   comboDuoEnabled?: boolean;
   onComboDuoChange?: (enabled: boolean) => void;
   sessionCount?: number;
+  /** Base soins only — the number of practitioners a combo-duo needs. */
+  practitionerCount?: number;
   variantDuoInCart?: boolean;
   // Offert (gratuit) — réservé admin/concierge
   canOffer: boolean;
@@ -125,6 +127,7 @@ export function BookingPrestationsStep({
   comboDuoEnabled = false,
   onComboDuoChange,
   sessionCount = 0,
+  practitionerCount = 0,
   variantDuoInCart = false,
   canOffer,
   isOffert,
@@ -563,13 +566,13 @@ export function BookingPrestationsStep({
                 <div className="flex-1 min-w-0">
                   <span className="text-xs font-medium">
                     {t("booking.comboDuo.toggle", {
-                      count: sessionCount,
-                      defaultValue: `Réserver en duo (${sessionCount} praticiens en parallèle)`,
+                      count: practitionerCount,
+                      defaultValue: `Réserver en duo (${practitionerCount} praticiens en parallèle)`,
                     })}
                   </span>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
                     {t("booking.comboDuo.helper", {
-                      count: sessionCount,
+                      count: practitionerCount,
                       defaultValue: "Les soins se déroulent en parallèle, chacun avec son praticien.",
                     })}
                   </p>

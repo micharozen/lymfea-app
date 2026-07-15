@@ -27,3 +27,4 @@ Icon?
 .env.old
 supabase/functions/.env
 supabase/snippets/
+migration/

@@ -200,6 +200,9 @@ ALTER TABLE ONLY "public"."treatment_categories"
     ADD CONSTRAINT "treatment_categories_hotel_id_fkey" FOREIGN KEY ("hotel_id") REFERENCES "public"."hotels"("id") ON DELETE CASCADE;
 
 ALTER TABLE ONLY "public"."treatment_menus"
+    ADD CONSTRAINT "treatment_menus_amenity_id_fkey" FOREIGN KEY ("amenity_id") REFERENCES "public"."venue_amenities"("id") ON DELETE SET NULL;
+
+ALTER TABLE ONLY "public"."treatment_menus"
     ADD CONSTRAINT "treatment_menus_bundle_id_fkey" FOREIGN KEY ("bundle_id") REFERENCES "public"."treatment_bundles"("id") ON DELETE SET NULL;
 
 ALTER TABLE ONLY "public"."treatment_menus"
