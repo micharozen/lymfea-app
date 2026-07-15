@@ -32,6 +32,9 @@ export type BookingListItem = BookingRow & {
   therapist_display_names?: string[];
   booking_therapists?: { status: string; therapist_id: string }[];
   booking_payment_infos?: { payment_status: string | null; stripe_payment_method_id: string | null } | null;
+  // Note persistante du client (customers.health_notes), remontée pour l'affichage
+  // sur la fiche booking. NULL si pas de client lié ou pas de note.
+  customer_health_notes: string | null;
 };
 
 export type BookingListFilters = {
@@ -68,6 +71,7 @@ type RawBookingRow = BookingRow & {
     | null;
   treatment_rooms?: { name: string | null } | null;
   secondary_room?: { name: string | null } | null;
+  customers?: { health_notes: string | null } | null;
 };
 
 function computeBookingItem(row: RawBookingRow): BookingListItem {
@@ -111,6 +115,7 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
     booking_payment_infos: _pi,
     treatment_rooms: roomJoin,
     secondary_room: secondaryRoomJoin,
+    customers: customerJoin,
     ...booking
   } = row;
   return {
@@ -122,6 +127,7 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
     room_name: roomJoin?.name ?? null,
     secondary_room_name: secondaryRoomJoin?.name ?? null,
     booking_payment_infos: paymentInfos,
+    customer_health_notes: customerJoin?.health_notes ?? null,
   };
 }
 
@@ -151,6 +157,7 @@ export async function listBookings(
       booking_payment_infos(payment_status, stripe_payment_method_id),
       treatment_rooms!room_id(name),
       secondary_room:treatment_rooms!secondary_room_id(name),
+      customers(health_notes),
       hotels!inner(id, organization_id)
     `,
     )

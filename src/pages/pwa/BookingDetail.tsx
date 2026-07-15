@@ -4,16 +4,16 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
-import { Calendar, Clock, Timer, Euro, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2, Package, CalendarDays, ShieldCheck, FileCheck, UserX, Hourglass, Plus, MapPin, DoorOpen, Users, CreditCard } from "lucide-react";
+import { Euro, MoreVertical, Trash2, X, User, MessageSquare, Wallet, Loader2, ShieldCheck, UserX, UserMinus, CalendarX, Hourglass, MapPin, DoorOpen, CreditCard, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
+import { fr, enUS } from "date-fns/locale";
+import i18n from "@/i18n";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
 import { ProposeAlternativeDialog } from "./ProposeAlternativeDialog";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
-import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
@@ -61,6 +61,7 @@ interface Booking {
   hotel_city?: string;
   client_signature?: string | null;
   client_note?: string | null;
+  customer_health_notes?: string | null;
   client_email?: string | null;
   hotel_vat?: number;
   payment_status?: string | null;
@@ -96,6 +97,7 @@ interface CustomerResult {
   last_name: string | null;
   email: string | null;
   phone: string | null;
+  health_notes: string | null;
 }
 
 interface BundleUsageResult {
@@ -107,15 +109,17 @@ interface BundleUsageResult {
   } | null;
 }
 
-const getPaymentStatusBadge = (paymentStatus?: string | null) => {
+type PaymentKind = { kind: 'ok' | 'due' | 'warn' | 'info'; label: string };
+
+const getPaymentKind = (paymentStatus?: string | null): PaymentKind | null => {
   if (!paymentStatus) return null;
   switch (paymentStatus) {
-    case 'paid': return { label: 'Payé', className: 'bg-green-100 text-green-700' };
-    case 'charged_to_room': return { label: 'Facturé chambre', className: 'bg-blue-100 text-blue-700' };
-    case 'card_saved': return { label: 'Carte enregistrée', className: 'bg-purple-100 text-purple-700' };
-    case 'pending': return { label: 'Paiement requis', className: 'bg-yellow-100 text-yellow-700' };
-    case 'pending_partner_billing': return { label: 'Paiement partenaire', className: 'bg-indigo-100 text-indigo-700' };
-    case 'failed': return { label: 'Échoué', className: 'bg-red-100 text-red-700' };
+    case 'paid': return { kind: 'ok', label: 'Payé' };
+    case 'charged_to_room': return { kind: 'info', label: 'Facturé chambre' };
+    case 'card_saved': return { kind: 'info', label: 'Carte enregistrée' };
+    case 'pending': return { kind: 'due', label: 'Paiement requis' };
+    case 'pending_partner_billing': return { kind: 'info', label: 'Paiement partenaire' };
+    case 'failed': return { kind: 'warn', label: 'Échoué' };
     default: return null;
   }
 };
@@ -255,7 +259,7 @@ const PwaBookingDetail = () => {
     try {
       const { data: bookingData, error: bookingError } = await supabase
         .from("bookings")
-        .select("*, booking_therapists(status), booking_payment_infos(payment_status, card_brand, card_last4), customers(first_name, last_name, email, phone), treatment_rooms!bookings_trunk_id_fkey(name)")
+        .select("*, booking_therapists(status), booking_payment_infos(payment_status, card_brand, card_last4), customers(first_name, last_name, email, phone, health_notes), treatment_rooms!bookings_trunk_id_fkey(name)")
         .eq("id", id)
         .single();
 
@@ -306,6 +310,7 @@ const PwaBookingDetail = () => {
         client_first_name: customer?.first_name || bookingData.client_first_name,
         client_last_name: customer?.last_name || bookingData.client_last_name,
         client_email: customer?.email || bookingData.client_email,
+        customer_health_notes: customer?.health_notes || null,
         phone: customer?.phone || bookingData.phone,
         hotel_image_url: hotelData?.image,
         hotel_address: hotelData?.address,
@@ -704,349 +709,298 @@ const PwaBookingDetail = () => {
     });
   })();
 
+  const locale = i18n.language?.startsWith('en') ? enUS : fr;
+  const payKind = getPaymentKind(booking.effective_payment_status);
+  const acceptedTotal = booking.booking_therapists?.filter((bt) => bt.status === 'accepted').length || 0;
+  const isToday = booking.booking_date === format(new Date(), "yyyy-MM-dd");
+  const isConfirmed = booking.status === "confirmed";
+  const isPaidLike = ['paid', 'charged_to_room', 'pending_partner_billing'].includes(booking.effective_payment_status || '');
+  const canExtend = ['confirmed', 'ongoing'].includes(booking.status) && !!booking.room_id && (!roomGap || roomGap.gapMinutes >= 15);
+
+  const goBack = () => {
+    const from = (location.state as { from?: string } | null)?.from;
+    if (from) navigate(from);
+    else if (window.history.length > 1) navigate(-1);
+    else navigate('/pwa/dashboard');
+  };
+
   return (
-    <div className="flex flex-1 flex-col bg-background h-full overflow-hidden">
-      <PwaHeader
-        title={t('bookingDetail.myBooking')}
-        showBack
-        onBack={() => {
-          const from = (location.state as { from?: string } | null)?.from;
-          if (from) {
-            navigate(from);
-          } else if (window.history.length > 1) {
-            navigate(-1);
-          } else {
-            navigate('/pwa/dashboard');
-          }
-        }}
-        rightSlot={
-          booking.status !== 'pending' ? (
-            <button onClick={() => setShowContactDrawer(true)} className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-muted">
-              <MoreVertical className="w-5 h-5" />
-            </button>
-          ) : undefined
-        }
-      />
-      <div className="flex-1 overflow-y-auto pb-48 px-4 pt-3">
-        {/* Header: venue + client (left) / date + time (right) */}
-        <div className="flex gap-3 mb-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start gap-2.5">
-              <img src={booking.hotel_image_url || ""} className="w-10 h-10 object-cover rounded-lg bg-muted shrink-0" />
-              <div className="min-w-0">
-                <h2 className="font-semibold text-sm truncate">{booking.hotel_name}</h2>
-                <p className="text-[10px] text-muted-foreground truncate">{booking.hotel_address}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {booking.effective_payment_status && <Badge className={getPaymentStatusBadge(booking.effective_payment_status)?.className}>{getPaymentStatusBadge(booking.effective_payment_status)?.label}</Badge>}
-              {bundleInfo && (
-                <Badge className="bg-amber-100 text-amber-800 border-amber-200">
-                  <Package className="w-3 h-3 mr-1" />
-                  {t('bundleSession')}
-                </Badge>
-              )}
-            </div>
-            {bundleInfo && (
-              <div className="mt-1 text-[10px] text-amber-700">
-                {bundleInfo.bundleName} — {t('bundleRemaining', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })}
-              </div>
+    <div className="app-refonte flex flex-1 flex-col h-full overflow-hidden">
+      <div className="sub-hdr" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}>
+        <button className="back-btn" onClick={goBack} aria-label={t('common:back', 'Retour')}>
+          <ChevronLeft size={18} />
+        </button>
+        <span className="ttl">
+          {booking.status === 'pending' ? t('bookingDetail.request', 'Demande') : t('bookingDetail.booking', 'Réservation')}{' '}
+          <span style={{ color: 'var(--ink-mute)', fontWeight: 500 }}>#{booking.booking_id}</span>
+        </span>
+        {booking.status !== 'pending' ? (
+          <button className="back-btn" onClick={() => setShowContactDrawer(true)} aria-label={t('common:more', 'Plus')}>
+            <MoreVertical size={18} />
+          </button>
+        ) : (
+          <span style={{ width: 38 }} />
+        )}
+      </div>
+      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 170 }}>
+        {/* En-tête lieu */}
+        <div className="fiche-head">
+          <div className="venue">{booking.hotel_name}</div>
+          {(booking.hotel_address || booking.hotel_city) && (
+            <div className="addr">{[booking.hotel_address, booking.hotel_city].filter(Boolean).join(', ')}</div>
+          )}
+          <div className="statusline">
+            {payKind && <span className={'status ' + payKind.kind}><span className="dot" />{payKind.label}</span>}
+            {(booking.guest_count || 1) > 1 && (
+              <span className={'status ' + (acceptedTotal >= (booking.guest_count || 1) ? 'ok' : 'warn')}><span className="dot" />{t('bookingDetail.duoAccepted', { accepted: acceptedTotal, total: booking.guest_count })}</span>
             )}
+            {bundleInfo && <span className="status due"><span className="dot" />{t('bundleSession')}</span>}
           </div>
-          <div className="shrink-0 text-right space-y-1">
-            <div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('booking.date')}</div>
-              <div className="text-sm font-semibold">{format(new Date(booking.booking_date), "d MMM yyyy")}</div>
+          {bundleInfo && (
+            <div className="addr" style={{ marginTop: 6 }}>
+              {bundleInfo.bundleName} — {t('bundleRemaining', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })}
             </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('booking.time')}</div>
-              <div className="text-sm font-semibold">{booking.booking_time.substring(0, 5)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Réf.</div>
-              <div className="text-sm font-semibold text-muted-foreground">#{booking.booking_id}</div>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Therapist check-in */}
-        {booking.status === "confirmed" && booking.booking_date === format(new Date(), "yyyy-MM-dd") && (
-          <div className="mb-3">
-            {booking.therapist_checked_in_at ? (
-              <div className="rounded-xl border border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-900/10 p-3 flex items-center gap-2.5">
-                <MapPin className="w-4 h-4 text-green-700 dark:text-green-400" />
-                <span className="text-xs font-medium text-green-900 dark:text-green-100">
-                  {t('bookingDetail.arrivedAt', { time: format(new Date(booking.therapist_checked_in_at), "HH:mm") })}
-                </span>
-              </div>
-            ) : (
-              <button
-                onClick={handleCheckIn}
-                disabled={checkInLoading}
-                className="w-full rounded-xl bg-primary text-white p-3 flex items-center justify-center gap-2 font-semibold text-sm disabled:opacity-50"
-              >
-                {checkInLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
-                {t('bookingDetail.arrived')}
-              </button>
-            )}
-          </div>
-        )}
+        {/* Date / Heure / Durée */}
+        <div className="fiche-when">
+          <div className="cell"><div className="v">{format(new Date(booking.booking_date), "EEE d MMM", { locale })}</div><div className="l">{t('booking.date')}</div></div>
+          <div className="cell"><div className="v">{booking.booking_time.substring(0, 5)}</div><div className="l">{t('booking.time')}</div></div>
+          <div className="cell"><div className="v">{totalDuration} min</div><div className="l">{t('booking.duration')}</div></div>
+        </div>
 
-        <div className="border-t pt-3">
-          {/* Duration & Price */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl border bg-card p-3 flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Timer className="w-4 h-4 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('booking.duration')}</div>
-                <div className="text-sm font-semibold truncate">{totalDuration} min</div>
-              </div>
-            </div>
-            <div className="rounded-xl border bg-card p-3 flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Euro className="w-4 h-4 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('bookingDetail.price')}</div>
-                <div className="text-sm font-semibold truncate">{formatPrice(totalPrice, booking.hotel_currency)}</div>
-                {booking.is_out_of_hours && (booking.surcharge_amount ?? 0) > 0 && (
-                  <div className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1">
-                    <Clock className="w-2.5 h-2.5 shrink-0" />
-                    <span className="truncate">
-                      {t('bookingDetail.outOfHoursSurcharge')}
-                      {booking.out_of_hours_surcharge_percent ? ` (+${booking.out_of_hours_surcharge_percent}%)` : ''}
-                      {' '}+{formatPrice(booking.surcharge_amount!, booking.hotel_currency)}
-                    </span>
-                  </div>
-                )}
-                {giftAppliedCents > 0 && (
-                  <div className="text-[10px] text-amber-600 mt-0.5">
-                    -{formatPrice(giftAppliedCents / 100, booking.hotel_currency)} carte cadeau
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Client info */}
-          <div className="mt-3 rounded-xl border bg-card p-3 space-y-1.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <User className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs font-medium">{booking.client_first_name} {booking.client_last_name || ''}</span>
+        {/* Infos client */}
+        <div className="info-list">
+          <div className="info-row">
+            <span className="ic"><User size={18} /></span>
+            <span className="lab">{t('bookingDetail.client', 'Client')}</span>
+            <span className="val">
+              {booking.client_last_name
+                ? `${booking.client_first_name?.[0] ? booking.client_first_name[0].toUpperCase() + '. ' : ''}${booking.client_last_name}`
+                : booking.client_first_name}
               {booking.client_type && (
-                <ClientTypeBadge clientType={booking.client_type} size="sm" />
+                <span style={{ display: 'inline-flex', marginLeft: 6, verticalAlign: 'middle' }}>
+                  <ClientTypeBadge clientType={booking.client_type} size="sm" />
+                </span>
               )}
-            </div>
-            {booking.room_number && (
-              <div className="flex items-center gap-2.5">
-                <DoorOpen className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{t('bookingDetail.roomNumber', { number: booking.room_number })}</span>
-              </div>
-            )}
-            {booking.room_name && (
-              <div className="flex items-center gap-2.5">
-                <MapPin className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{t('bookingDetail.treatmentRoom', { name: booking.room_name })}</span>
-              </div>
-            )}
-            {booking.client_note && (
-              <div className="flex items-center gap-2.5">
-                <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground italic">{booking.client_note}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-900/10 p-3 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
-                <Wallet className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-              </div>
-              <span className="text-xs font-medium text-emerald-900 dark:text-emerald-100">
-                {t('bookingDetail.yourEarnings')}
-              </span>
-            </div>
-            <span className="text-base font-bold text-emerald-700 dark:text-emerald-400">
-              {formatPrice(estimatedEarnings, booking.hotel_currency)}
             </span>
           </div>
-
-          {booking.effective_payment_status === 'card_saved' && (
-            <div className="mt-3 rounded-xl border border-purple-200 bg-purple-50 dark:border-purple-900/40 dark:bg-purple-900/10 p-3 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center shrink-0">
-                <CreditCard className="w-4 h-4 text-purple-700 dark:text-purple-400" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-medium text-purple-900 dark:text-purple-100 block">
-                  Carte pré-enregistrée
-                </span>
-                <span className="text-[10px] text-purple-700/70 dark:text-purple-400/70">
-                  {booking.card_brand && booking.card_last4
-                    ? `${booking.card_brand.charAt(0).toUpperCase() + booking.card_brand.slice(1)} •••• ${booking.card_last4} — sera débitée à la finalisation`
-                    : 'Sera débitée à la finalisation de la prestation'}
-                </span>
-              </div>
+          {booking.room_number && (
+            <div className="info-row">
+              <span className="ic"><DoorOpen size={18} /></span>
+              <span className="lab">{t('bookingDetail.roomLabel', 'Chambre')}</span>
+              <span className="val">{booking.room_number}</span>
+            </div>
+          )}
+          {booking.room_name && (
+            <div className="info-row">
+              <span className="ic"><MapPin size={18} /></span>
+              <span className="lab">{t('bookingDetail.roomTreatment', 'Salle')}</span>
+              <span className="val">{booking.room_name}</span>
+            </div>
+          )}
+          {['confirmed', 'ongoing'].includes(booking.status) && booking.room_id && (
+            <div className="info-row">
+              <span className="ic"><Hourglass size={18} /></span>
+              <span className="lab">{t('bookingDetail.afterLabel', 'Après')}</span>
+              <span className="val">{roomGap ? t('bookingDetail.marginMinutes', { minutes: roomGap.gapMinutes }) : t('bookingDetail.noConstraint')}</span>
+            </div>
+          )}
+          {booking.client_note && (
+            <div className="info-row">
+              <span className="ic"><MessageSquare size={18} /></span>
+              <span className="lab">{t('bookingDetail.noteLabel', 'Note')}</span>
+              <span className="val" style={{ fontStyle: 'italic', fontWeight: 400 }}>{booking.client_note}</span>
+            </div>
+          )}
+          {booking.customer_health_notes && (
+            <div className="info-row">
+              <span className="ic"><MessageSquare size={18} /></span>
+              <span className="lab">{t('bookingDetail.healthLabel', 'Santé')}</span>
+              <span className="val" style={{ fontStyle: 'italic', fontWeight: 400, whiteSpace: 'pre-wrap' }}>{booking.customer_health_notes}</span>
             </div>
           )}
         </div>
 
-        {/* Health Form / Waiver Status */}
-        {booking.status === "confirmed" && (
-          <div className="mt-3">
-            {booking.client_signature ? (
-              <div className="rounded-xl border border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-900/10 p-3 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center">
-                  <FileCheck className="w-4 h-4 text-green-700 dark:text-green-400" />
-                </div>
-                <span className="text-xs font-medium text-green-900 dark:text-green-100">
-                  {t('bookingDetail.waiverSigned')}
-                </span>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowHealthFormDialog(true)}
-                className="w-full rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-900/10 p-3 flex items-center gap-2.5"
-              >
-                <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4 text-amber-700 dark:text-amber-400" />
-                </div>
-                <div className="text-left">
-                  <span className="text-xs font-medium text-amber-900 dark:text-amber-100 block">
-                    {t('bookingDetail.healthForm')}
-                  </span>
-                  <span className="text-[10px] text-amber-700/70 dark:text-amber-400/70">
-                    {t('bookingDetail.healthFormHint')}
-                  </span>
-                </div>
-              </button>
-            )}
-          </div>
-        )}
+        {/* Honoraires */}
+        <div className="fee-row">
+          <Wallet size={20} />
+          <span className="t">{t('bookingDetail.yourEarnings')}</span>
+          <span className="v">{formatPrice(estimatedEarnings, booking.hotel_currency)}</span>
+        </div>
 
-        {/* Room margin & extension */}
-        {['confirmed', 'ongoing'].includes(booking.status) && booking.room_id && (
-          <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-900/40 dark:bg-blue-900/10 p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
-                  <Hourglass className="w-4 h-4 text-blue-700 dark:text-blue-400" />
-                </div>
-                <div>
-                  <span className="text-xs font-medium text-blue-900 dark:text-blue-100 block">
-                    {t('bookingDetail.margin')}
-                  </span>
-                  <span className="text-[10px] text-blue-700/70 dark:text-blue-400/70">
-                    {roomGap ? t('bookingDetail.marginMinutes', { minutes: roomGap.gapMinutes }) : t('bookingDetail.noConstraint')}
-                  </span>
-                </div>
-              </div>
-              {(!roomGap || roomGap.gapMinutes >= 15) && (
-                <button
-                  onClick={() => setShowExtendDialog(true)}
-                  className="flex items-center gap-1 text-[10px] font-semibold bg-blue-600 text-white px-3 py-1.5 rounded-lg"
-                >
-                  <Plus className="w-3 h-3" /> {t('bookingDetail.extend')}
-                </button>
-              )}
+        {/* Carte pré-enregistrée */}
+        {booking.effective_payment_status === 'card_saved' && (
+          <div className="info-list" style={{ marginTop: 12 }}>
+            <div className="info-row">
+              <span className="ic"><CreditCard size={18} /></span>
+              <span className="val">
+                {t('bookingDetail.savedCard', 'Carte pré-enregistrée')}
+                <small>
+                  {booking.card_brand && booking.card_last4
+                    ? `${booking.card_brand.charAt(0).toUpperCase() + booking.card_brand.slice(1)} •••• ${booking.card_last4} — débitée à la finalisation`
+                    : 'Sera débitée à la finalisation de la prestation'}
+                </small>
+              </span>
             </div>
           </div>
         )}
 
-        <div className="mt-6">
-          {/* NOUVEL ENCART SOIN MULTI-PRATICIENS */}
-          {(booking.guest_count || 1) > 1 && (
-            <div className="flex items-center justify-between p-3 bg-blue-50/50 border border-blue-100 rounded-xl mb-4">
-              <div className="flex items-center gap-2 text-blue-700">
-                <Users className="w-4 h-4" />
-                <span className="font-medium text-sm">{t('bookingDetail.duoService', { count: booking.guest_count })}</span>
+        {/* Avant la séance */}
+        {isConfirmed && (() => {
+          const items: { key: string; done: boolean; icon: JSX.Element; title: string; sub: string; onClick: () => void }[] = [];
+          if (!isPaidLike && booking.effective_payment_status !== 'card_saved') {
+            items.push({ key: 'pay', done: false, icon: <Euro size={14} />, title: t('bookingDetail.checklistPay', 'Paiement à encaisser'), sub: formatPrice(totalPrice, booking.hotel_currency), onClick: () => setShowPaymentSelection(true) });
+          }
+          items.push({ key: 'waiver', done: !!booking.client_signature, icon: <ShieldCheck size={14} />, title: t('bookingDetail.healthForm'), sub: booking.client_signature ? t('bookingDetail.waiverSigned') : t('bookingDetail.healthFormHint'), onClick: () => { if (!booking.client_signature) setShowHealthFormDialog(true); } });
+          if (isToday) {
+            items.push({ key: 'presence', done: !!booking.therapist_checked_in_at, icon: <MapPin size={14} />, title: t('bookingDetail.arrived'), sub: booking.therapist_checked_in_at ? t('bookingDetail.arrivedAt', { time: format(new Date(booking.therapist_checked_in_at), "HH:mm") }) : t('bookingDetail.presenceHint', 'Signalez votre arrivée'), onClick: () => { if (!booking.therapist_checked_in_at) handleCheckIn(); } });
+          }
+          return (
+            <>
+              <div className="sec-label">{t('bookingDetail.beforeSession', 'Avant la séance')}</div>
+              <div className="check-list">
+                {items.map((c) => (
+                  <button className="check-item" key={c.key} onClick={c.onClick}>
+                    <span className={'st ' + (c.done ? 'done' : 'todo')}>{c.done ? <Check size={14} /> : c.icon}</span>
+                    <span className="tx"><span className="t">{c.title}</span><span className="s">{c.sub}</span></span>
+                    <span className="go"><ChevronRight size={16} /></span>
+                  </button>
+                ))}
               </div>
-              <Badge variant="outline" className="bg-white text-blue-700 border-blue-200 shadow-sm">
-                {t('bookingDetail.duoAccepted', {
-                  accepted: booking.booking_therapists?.filter(bt => bt.status === 'accepted').length || 0,
-                  total: booking.guest_count,
-                })}
-              </Badge>
-            </div>
-          )}
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-xs font-semibold">Soins</h3>
-            {booking.status === "confirmed" && <button onClick={() => setShowAddTreatmentDialog(true)} className="text-[10px] bg-primary text-white px-3 py-1 rounded">+ Ajouter</button>}
-          </div>
-          {treatments.map(t => {
-            const effectiveDuration = t.treatment_variants?.duration ?? t.treatment_menus?.duration;
-            const effectivePrice = treatmentLinePrice(t);
-            const variantLabel = t.treatment_variants?.label;
+            </>
+          );
+        })()}
+
+        {/* Prolonger la séance */}
+        {canExtend && (
+          <button className="quiet-row" onClick={() => setShowExtendDialog(true)} style={{ marginTop: 12 }}>
+            <Hourglass size={18} />
+            {t('bookingDetail.extendCta', 'Prolonger la séance')}
+            <span className="chev"><ChevronRight size={16} /></span>
+          </button>
+        )}
+
+        {/* Soins */}
+        <div className="sec-label">
+          {t('bookingDetail.treatments', 'Soins')} · {treatments.length}
+          {isConfirmed && <button className="sec-action" onClick={() => setShowAddTreatmentDialog(true)}>+ {t('bookingDetail.add', 'Ajouter')}</button>}
+        </div>
+        <div className="card">
+          {treatments.map((tr) => {
+            const effectiveDuration = tr.treatment_variants?.duration ?? tr.treatment_menus?.duration;
+            const variantLabel = tr.treatment_variants?.label;
+            // La durée a déjà sa propre colonne : on n'affiche le label de variante
+            // que s'il apporte une info autre qu'une durée (ex. « Dos », « Corps »).
+            const showVariant = variantLabel && !/^\s*\d+\s*(min|minutes|mn|')?\s*$/i.test(variantLabel);
             return (
-              <div key={t.id} className="flex justify-between items-center py-2 border-b border-border/50">
-                <div className="text-xs">
-                  <p className="font-medium">{t.treatment_menus?.name}{variantLabel ? ` · ${variantLabel}` : ''}</p>
-                  <p className="text-[10px] text-muted-foreground">{effectiveDuration}min</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs">{formatPrice(effectivePrice, booking.hotel_currency)}</span>
-                  {booking.status !== "completed" && <button onClick={() => setTreatmentToDelete(t.id)}><Trash2 className="w-3.5 h-3.5 text-destructive"/></button>}
-                </div>
+              <div key={tr.id} className="soin-row">
+                <span className="nm">{tr.treatment_menus?.name}{showVariant ? ` · ${variantLabel}` : ''}</span>
+                <span className="dur">{effectiveDuration} min</span>
+                <span className="pr">{formatPrice(treatmentLinePrice(tr), booking.hotel_currency)}</span>
+                {booking.status !== "completed" && (
+                  <button onClick={() => setTreatmentToDelete(tr.id)} aria-label={t('bookingDetail.deleteTreatment', 'Supprimer')} style={{ background: 'none', border: 'none', color: 'var(--clay)', padding: 0, display: 'flex' }}>
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             );
           })}
+          <div className="soin-row" style={{ background: 'var(--sand-100)' }}>
+            <span className="nm" style={{ fontWeight: 600 }}>{t('bookingDetail.clientTotal', 'Total client')}</span>
+            <span className="pr" style={{ fontSize: 17 }}>{formatPrice(totalPrice, booking.hotel_currency)}</span>
+          </div>
         </div>
+
+        {((booking.is_out_of_hours && (booking.surcharge_amount ?? 0) > 0) || giftAppliedCents > 0) && (
+          <div style={{ margin: '8px 16px 0', fontSize: 12, color: 'var(--ink-mute)' }}>
+            {booking.is_out_of_hours && (booking.surcharge_amount ?? 0) > 0 && (
+              <div>
+                {t('bookingDetail.outOfHoursSurcharge')}
+                {booking.out_of_hours_surcharge_percent ? ` (+${booking.out_of_hours_surcharge_percent}%)` : ''} +{formatPrice(booking.surcharge_amount!, booking.hotel_currency)}
+              </div>
+            )}
+            {giftAppliedCents > 0 && <div>-{formatPrice(giftAppliedCents / 100, booking.hotel_currency)} {t('bookingDetail.giftCard', 'carte cadeau')}</div>}
+          </div>
+        )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t p-4 pb-safe z-30">
+      <div
+        className="fiche-foot"
+        style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, paddingBottom: 'calc(18px + env(safe-area-inset-bottom))' }}
+      >
         {booking.status === "pending" && (booking.guest_count ?? 1) > 1 && (
-          <div className="mb-3 rounded-xl bg-violet-50 border border-violet-200 px-3 py-2 flex items-center gap-2">
-            <Hourglass className="w-4 h-4 text-violet-600 shrink-0" />
-            <span className="text-xs font-medium text-violet-800">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, padding: '10px 14px', borderRadius: 14, background: 'var(--gold-soft)', color: 'var(--gold-deep)' }}>
+            <Hourglass size={16} />
+            <span style={{ fontSize: 12, fontWeight: 500 }}>
               {t('bookingDetail.duoTherapistsJoined', { accepted: acceptedTherapistCount, total: booking.guest_count ?? 2 })}
             </span>
           </div>
         )}
         {(booking.status === "pending" && (booking.guest_count ?? 1) <= 1 && (!booking.therapist_id || booking.therapist_id === myTherapistId)) ||
          (booking.status === "pending" && (booking.guest_count ?? 1) > 1 && !hasAlreadyAccepted) ? (
-          <div className="flex gap-2">
-            <button onClick={() => setShowDeclineDialog(true)} className="w-12 h-12 rounded-full border-2 border-destructive flex items-center justify-center"><X className="text-destructive"/></button>
-            <button onClick={handleAcceptBooking} disabled={updating} className="flex-1 bg-primary text-white rounded-full font-bold">
+          <>
+            <button className="btn-primary-lg" onClick={handleAcceptBooking} disabled={updating}>
               {(booking.guest_count ?? 1) > 1 ? t('bookingDetail.duoJoin') : t('dashboard.accept')}
             </button>
-          </div>
-        ) : booking.status === "pending" && (booking.guest_count ?? 1) > 1 && hasAlreadyAccepted ? (
-          <div className="w-full rounded-full border border-violet-300 bg-violet-50 py-3 text-center">
-            <span className="text-sm font-medium text-violet-700">{t('bookingDetail.duoWaiting')}</span>
-          </div>
-        ) : (
-          <>
-            {['confirmed', 'ongoing'].includes(booking.status) && (
-              <div>
-                {booking.effective_payment_status === 'card_saved' ? (
-                  <button
-                    onClick={() => handleChargeSavedCard(totalPrice)}
-                    disabled={updating}
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-full font-bold flex items-center justify-center gap-2 h-12 shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
-                  >
-                    {updating ? <Loader2 className="animate-spin w-4 h-4"/> : <Wallet className="w-4 h-4"/>}
-                    Finaliser la prestation ({formatPrice(totalPrice, booking.hotel_currency)})
-                  </button>
-                ) : !['paid', 'charged_to_room', 'pending_partner_billing'].includes(booking.effective_payment_status || '') ? (
-                  <button onClick={() => setShowPaymentSelection(true)} className="w-full h-12 bg-primary text-white rounded-full font-bold">Finaliser la prestation</button>
-                ) : (
-                  <button onClick={() => setShowSignatureDialog(true)} className="w-full h-12 bg-primary text-white rounded-full font-bold">Terminer la prestation</button>
-                )}
-              </div>
-            )}
+            <button className="btn-ghost" onClick={() => setShowDeclineDialog(true)}>
+              {t('bookingDetail.declineCta', 'Refuser cette demande')}
+            </button>
           </>
-        )}
-        
+        ) : booking.status === "pending" && (booking.guest_count ?? 1) > 1 && hasAlreadyAccepted ? (
+          <div style={{ textAlign: 'center', padding: 12, borderRadius: 999, border: '1px solid var(--line)', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 500 }}>
+            {t('bookingDetail.duoWaiting')}
+          </div>
+        ) : ['confirmed', 'ongoing'].includes(booking.status) ? (
+          booking.effective_payment_status === 'card_saved' ? (
+            <button
+              className="btn-primary-lg"
+              onClick={() => handleChargeSavedCard(totalPrice)}
+              disabled={updating}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 500 }}
+            >
+              {updating ? <Loader2 className="animate-spin" size={18} /> : <Wallet size={18} />}
+              {t('bookingDetail.finalize', 'Finaliser la prestation')} ({formatPrice(totalPrice, booking.hotel_currency)})
+            </button>
+          ) : !isPaidLike ? (
+            <button className="btn-primary-lg" onClick={() => setShowPaymentSelection(true)} style={{ fontWeight: 500 }}>
+              {t('bookingDetail.finalize', 'Finaliser la prestation')}
+            </button>
+          ) : (
+            <button className="btn-primary-lg" onClick={() => setShowSignatureDialog(true)}>
+              {t('bookingDetail.finish', 'Terminer la prestation')}
+            </button>
+          )
+        ) : null}
       </div>
 
       <Drawer open={showContactDrawer} onOpenChange={setShowContactDrawer}>
-        <DrawerContent className="pb-safe">
-          <div className="p-4 space-y-2">
-            <button onClick={() => { setShowContactDrawer(false); setShowNoShowDialog(true); }} className="flex items-center gap-3 p-4 bg-amber-50 text-amber-800 rounded-xl w-full font-medium"><UserX className="w-5 h-5"/> {t('bookingDetail.noShow')}</button>
-            <button onClick={() => setShowUnassignDialog(true)} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X/> Désassigner</button>
+        <DrawerContent className="app-refonte pb-safe">
+          <div className="act-sheet">
+            <div className="act-hdr">{t('bookingDetail.manageBooking', 'Gérer la réservation')}</div>
+            <button onClick={() => { setShowContactDrawer(false); setShowNoShowDialog(true); }} className="act-row warn">
+              <span className="ic"><UserX size={18} /></span>
+              <span className="tx">
+                <span className="t">{t('bookingDetail.noShow')}</span>
+                <span className="s">{t('bookingDetail.noShowRowHint', "Le client ne s'est pas présenté")}</span>
+              </span>
+            </button>
+            {/* <button onClick={() => { setShowContactDrawer(false); setShowUnassignDialog(true); }} className="act-row">
+              <span className="ic"><UserMinus size={18} /></span>
+              <span className="tx">
+                <span className="t">{t('bookingDetail.unassignBooking')}</span>
+                <span className="s">{t('bookingDetail.unassignRowHint', "La réservation sera proposée à d'autres thérapeutes")}</span>
+              </span>
+            </button> */}
             {['pending', 'confirmed'].includes(booking.status) && (
-              <button onClick={() => { setShowContactDrawer(false); setShowCancelDialog(true); }} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X className="w-5 h-5"/> {t("booking.cancelBooking")}</button>
+              <button onClick={() => { setShowContactDrawer(false); setShowCancelDialog(true); }} className="act-row danger">
+                <span className="ic"><CalendarX size={18} /></span>
+                <span className="tx">
+                  <span className="t">{t('booking.cancelBooking')}</span>
+                  <span className="s">{t('bookingDetail.cancelRowHint', 'Annulation définitive de la réservation')}</span>
+                </span>
+              </button>
             )}
           </div>
         </DrawerContent>

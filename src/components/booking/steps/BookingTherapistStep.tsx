@@ -1,5 +1,7 @@
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, Loader2, Sparkles, Users, DoorOpen } from "lucide-react";
+import { Check, Loader2, Sparkles, Users, DoorOpen, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { useTranslation } from "react-i18next";
@@ -187,6 +189,25 @@ function BroadcastCard({ broadcast, onToggle, violet = false }: BroadcastCardPro
         <Check className={cn("h-4 w-4 shrink-0", violet ? "text-violet-600" : "text-primary")} />
       )}
     </button>
+  );
+}
+
+interface TherapistSearchProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function TherapistSearch({ value, onChange }: TherapistSearchProps) {
+  return (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Rechercher un thérapeute…"
+        className="h-9 pl-9"
+      />
+    </div>
   );
 }
 
@@ -373,9 +394,26 @@ export function BookingTherapistStep({
   onSecondaryRoomEnabledChange,
 }: BookingTherapistStepProps) {
   const { t } = useTranslation("admin");
+  const [search, setSearch] = useState("");
   const broadcast = duoMode === "broadcast";
   const effectiveStaffing = staffingCountProp ?? requiredGuestCount;
   const isDuo = effectiveStaffing > 1;
+
+  // Filtre par nom ou spécialité ; garde les praticiens déjà sélectionnés visibles.
+  const selectedIds = useMemo(
+    () => new Set([therapistId, ...additionalTherapistIds].filter(Boolean)),
+    [therapistId, additionalTherapistIds],
+  );
+  const filteredTherapists = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return therapists;
+    return (therapists ?? []).filter((th) => {
+      if (selectedIds.has(th.id)) return true;
+      const name = `${th.first_name} ${th.last_name}`.toLowerCase();
+      const skills = (th.skills ?? []).join(" ").toLowerCase();
+      return name.includes(query) || skills.includes(query);
+    });
+  }, [therapists, search, selectedIds]);
 
   // Il faut soit diffuser à tous, soit avoir affecté tous les praticiens requis.
   const assignedCount = [therapistId, ...additionalTherapistIds].filter(Boolean).length;
@@ -417,9 +455,9 @@ export function BookingTherapistStep({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-2 space-y-4">
+      <div className="flex-1 flex flex-col min-h-0 px-6 pt-4 pb-2">
         {/* Salle de soin — pré-sélection auto, modifiable selon la dispo. */}
-        <div className="space-y-1.5">
+        <div className="shrink-0 space-y-1.5 mb-4">
           <Label className="text-xs font-medium flex items-center gap-1.5">
             <DoorOpen className="h-3.5 w-3.5" />
             Salle de soin
@@ -465,47 +503,57 @@ export function BookingTherapistStep({
         </div>
 
         {isDuo ? (
-          <div className="space-y-4">
-            <div className="rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 p-3 text-xs text-violet-800 dark:text-violet-300">
-              Soin à plusieurs — {effectiveStaffing} praticiens requis. Vous pouvez diffuser la demande à toute l'équipe, ou assigner manuellement.
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="shrink-0 space-y-3 mb-3">
+              <div className="rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 p-3 text-xs text-violet-800 dark:text-violet-300">
+                Soin à plusieurs — {effectiveStaffing} praticiens requis. Vous pouvez diffuser la demande à toute l'équipe, ou assigner manuellement.
+              </div>
+
+              <BroadcastCard violet broadcast={broadcast} onToggle={handleToggleBroadcast} />
+
+              {!broadcast && <TherapistSearch value={search} onChange={setSearch} />}
             </div>
 
-            <BroadcastCard violet broadcast={broadcast} onToggle={handleToggleBroadcast} />
-
-            {!broadcast &&
-              Array.from({ length: effectiveStaffing }).map((_, idx) => {
-                const currentId =
-                  idx === 0 ? therapistId : (additionalTherapistIds[idx - 1] ?? "");
-                const otherIds = Array.from({ length: effectiveStaffing }, (_, i) =>
-                  i === 0 ? therapistId : (additionalTherapistIds[i - 1] ?? "")
-                ).filter((id, i) => i !== idx && id !== "");
-                return (
-                  <div key={idx} className="space-y-1.5">
-                    <Label className="text-xs font-medium">
-                      {t("booking.comboDuo.practitionerLabel", { index: idx + 1, defaultValue: `Praticien ${idx + 1}` })}
-                    </Label>
-                    <TherapistList
-                      therapists={therapists}
-                      selectedId={currentId}
-                      slotIndex={idx}
-                      broadcast={broadcast}
-                      exclude={otherIds}
-                      onPick={handlePickTherapist}
-                    />
-                  </div>
-                );
-              })}
+            {!broadcast && (
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-4">
+                {Array.from({ length: effectiveStaffing }).map((_, idx) => {
+                  const currentId =
+                    idx === 0 ? therapistId : (additionalTherapistIds[idx - 1] ?? "");
+                  const otherIds = Array.from({ length: effectiveStaffing }, (_, i) =>
+                    i === 0 ? therapistId : (additionalTherapistIds[i - 1] ?? "")
+                  ).filter((id, i) => i !== idx && id !== "");
+                  return (
+                    <div key={idx} className="space-y-1.5">
+                      <Label className="text-xs font-medium">
+                        {t("booking.comboDuo.practitionerLabel", { index: idx + 1, defaultValue: `Praticien ${idx + 1}` })}
+                      </Label>
+                      <TherapistList
+                        therapists={filteredTherapists}
+                        selectedId={currentId}
+                        slotIndex={idx}
+                        broadcast={broadcast}
+                        exclude={otherIds}
+                        onPick={handlePickTherapist}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : (
-          <div className="space-y-2">
-            <Label className="text-xs font-medium block mb-2">
+          <div className="flex-1 flex flex-col min-h-0">
+            <Label className="shrink-0 text-xs font-medium block mb-2">
               Thérapeute / Prestataire
             </Label>
-            <ScrollArea className="h-[280px] pr-2">
+            <div className="shrink-0 mb-2">
+              <TherapistSearch value={search} onChange={setSearch} />
+            </div>
+            <ScrollArea className="flex-1 min-h-0 pr-2">
               <div className="space-y-2">
                 <BroadcastCard broadcast={broadcast} onToggle={handleToggleBroadcast} />
                 <SectionedTherapistCards
-                  therapists={therapists}
+                  therapists={filteredTherapists}
                   selectedId={therapistId}
                   broadcast={broadcast}
                   onPick={(id) => handlePickTherapist(id, 0)}

@@ -44,6 +44,8 @@ export interface CreateBookingPayload {
   language?: "fr" | "en";
   roomNumber: string;
   clientNote?: string;
+  /** Note persistante du client → customers.health_notes (écrite si customer résolu). */
+  customerNote?: string;
   date: string;
   time: string;
   therapistId: string;
@@ -331,6 +333,16 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           _civility: d.civility ?? null,
         });
         customerId = data ?? null;
+      }
+
+      // Note client persistante → customers.health_notes. On n'écrit que si un
+      // client est résolu et que la note n'est pas vide (l'effacement se fait
+      // depuis la fiche client, pas depuis le formulaire de réservation).
+      if (customerId && d.customerNote?.trim()) {
+        await supabase
+          .from("customers")
+          .update({ health_notes: d.customerNote.trim() })
+          .eq("id", customerId);
       }
 
       const guestCount = d.guestCount ?? 1;

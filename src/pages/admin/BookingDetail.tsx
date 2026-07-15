@@ -69,6 +69,17 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   partner_billed: "Facturé au partenaire (fin de mois)",
 };
 
+// Origine de la réservation (colonne bookings.source) → label FR affiché dans le header.
+const SOURCE_LABELS: Record<string, string> = {
+  client: "Site",
+  admin: "Admin",
+  concierge: "Gestion du lieu",
+  pwa: "App thérapeute",
+  phone: "Téléphone",
+  email: "Email",
+  api: "API",
+};
+
 const PAYMENT_METHOD_ICONS: Record<string, typeof CreditCard> = {
   room: Building2,
   card: CreditCard,
@@ -299,6 +310,7 @@ export default function BookingDetail() {
     ["pending", "confirmed"].includes(booking.status);
   const clientType = (booking as any).client_type || (booking.room_number ? "hotel" : "external");
   const isExternal = clientType === "external";
+  const sourceLabel = SOURCE_LABELS[(booking as any).source] ?? null;
   const paymentInfos = booking.booking_payment_infos;
   const hasSavedCard = !!paymentInfos
     && paymentInfos.payment_status === "card_saved"
@@ -455,6 +467,9 @@ export default function BookingDetail() {
               </div>
               <p className="mt-0.5 text-xs text-gray-500 flex items-center gap-1.5 flex-wrap">
                 <span>{clientType === "hotel" ? "Client hôtel" : "Client externe"}</span>
+                {sourceLabel && (
+                  <><span className="text-gray-300">·</span><span>{sourceLabel}</span></>
+                )}
                 {booking.room_number && booking.room_number !== "TBD" ? (
                   <><span className="text-gray-300">·</span><span>Ch. {booking.room_number}</span></>
                 ) : clientType === "hotel" && (
@@ -616,8 +631,14 @@ export default function BookingDetail() {
               </div>
               {(booking as any).client_note && (
                 <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note réservation</p>
                   <p className="text-sm text-foreground whitespace-pre-wrap">{(booking as any).client_note}</p>
+                </div>
+              )}
+              {booking.customer_health_notes && (
+                <div className="mt-4 p-3 bg-sky-500/10 border border-sky-500/30 rounded-lg">
+                  <p className="text-xs text-sky-700 dark:text-sky-400 mb-1 font-medium">Note client</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{booking.customer_health_notes}</p>
                 </div>
               )}
             </section>

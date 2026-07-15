@@ -34,7 +34,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { AlertTriangle, CalendarIcon, Check, ChevronDown, ChevronsUpDown, Clock, Globe, Info, Loader2, Plus, X } from "lucide-react";
+import { AlertTriangle, CalendarIcon, Check, ChevronDown, ChevronsUpDown, Clock, Globe, Info, Loader2, Plus, User, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentOffset } from "@/lib/timezones";
 import { countries, formatPhoneNumber, languageFromCountryCode } from "@/lib/phone";
@@ -176,7 +176,7 @@ export function BookingInfoStep({
     queryFn: async () => {
       let q = supabase
         .from("customers")
-        .select("id, first_name, last_name, phone, email, language, civility")
+        .select("id, first_name, last_name, phone, email, language, civility, health_notes")
         .limit(5);
       if (isPhoneSearch) {
         const normalized = trimmedCustomerSearch.replace(/\s/g, "");
@@ -187,12 +187,13 @@ export function BookingInfoStep({
         );
       }
       const { data } = await q;
-      return (data as Array<{ id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null; civility: string | null }>) || [];
+      return (data as Array<{ id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null; civility: string | null; health_notes: string | null }>) || [];
     },
   });
 
-  const handleSelectCustomer = (c: { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null; civility: string | null }) => {
+  const handleSelectCustomer = (c: { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null; civility: string | null; health_notes: string | null }) => {
     setSelectedCustomerId(c.id);
+    if (c.health_notes) form.setValue("customerNote", c.health_notes);
     if (c.civility === "madame" || c.civility === "monsieur") form.setValue("civility", c.civility);
     if (c.first_name) form.setValue("clientFirstName", c.first_name);
     if (c.last_name) form.setValue("clientLastName", c.last_name);
@@ -1019,23 +1020,47 @@ export function BookingInfoStep({
           </div>
         )}
 
-        <FormField
-          control={form.control}
-          name="clientNote"
-          render={({ field }) => (
-            <FormItem className="space-y-1 md:col-span-2">
-              <FormLabel className="text-xs">Note</FormLabel>
-              <FormControl>
-                <Textarea
-                  {...field}
-                  rows={3}
-                  placeholder="Ajouter une note pour cette réservation…"
-                />
-              </FormControl>
-              <FormMessage className="text-xs" />
-            </FormItem>
-          )}
-        />
+        <div className="md:col-span-2 grid grid-cols-2 gap-3">
+          <FormField
+            control={form.control}
+            name="clientNote"
+            render={({ field }) => (
+              <FormItem className="space-y-1">
+                <FormLabel className="text-xs flex items-center gap-1">
+                  <CalendarIcon className="h-3 w-3" /> Note réservation
+                </FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    rows={3}
+                    placeholder="Note pour cette réservation…"
+                  />
+                </FormControl>
+                <FormMessage className="text-xs" />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="customerNote"
+            render={({ field }) => (
+              <FormItem className="space-y-1">
+                <FormLabel className="text-xs flex items-center gap-1">
+                  <User className="h-3 w-3" /> Note client
+                </FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    rows={3}
+                    placeholder="Note permanente (VIP, préférences…), sur toutes ses réservations"
+                  />
+                </FormControl>
+                <FormMessage className="text-xs" />
+              </FormItem>
+            )}
+          />
+        </div>
       </div>
 
       </div>
