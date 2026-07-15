@@ -857,7 +857,17 @@ export default function EditBookingDialog({
       if ((result?.wasAssigned || result?.therapistChanged || result?.becameConfirmed) && booking?.id) {
         try {
           await invokeEdgeFunction('trigger-new-booking-notifications', {
-            body: { bookingId: booking.id }
+            body: {
+              bookingId: booking.id,
+              // Le push thérapeute part à chaque réassignation, mais le mail
+              // client ne doit repartir que sur une vraie transition d'état
+              // (pending → confirmed). Une simple édition ne renvoie plus de
+              // mail au client (évite les doublons type booking #678).
+              notifyClient: result.becameConfirmed === true,
+              // Cohérence avec la création : jamais de lien de paiement auto
+              // sur édition, l'opérateur l'envoie manuellement.
+              sendPaymentLink: false,
+            }
           });
         } catch (notifError) {
           console.error("Error sending push notification:", notifError);
