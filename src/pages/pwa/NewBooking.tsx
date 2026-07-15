@@ -358,10 +358,6 @@ const PwaNewBooking = () => {
         toast.error("Veuillez renseigner le prénom et le nom du client");
         return;
       }
-      if (!phone.trim()) {
-        toast.error("Veuillez renseigner le numéro de téléphone");
-        return;
-      }
       if (!selectedDate) {
         toast.error("Veuillez sélectionner une date");
         return;

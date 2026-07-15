@@ -332,7 +332,7 @@ export function ClientInfoStep({
         {/* Phone */}
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">
-            {t("newBooking.phone", "Téléphone")} <span className="text-primary">*</span>
+            {t("newBooking.phone", "Téléphone")}
           </Label>
           <PhoneNumberField
             value={phone}
