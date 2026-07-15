@@ -11,95 +11,55 @@ const TabBar = ({ unreadCount = 0, scheduleIncomplete = false }: TabBarProps) =>
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation('pwa');
-  
+
   const isActive = (path: string) => location.pathname === path;
 
-  const handleNavigation = (path: string) => {
-    if (location.pathname !== path) {
-      navigate(path);
-    }
+  const go = (path: string) => {
+    if (location.pathname !== path) navigate(path);
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 w-full">
-      <div className="absolute left-1/2 -translate-x-1/2 -top-7 z-10">
-        <button
-          onClick={() => handleNavigation("/pwa/new-booking")}
-          className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform"
-        >
-          <Plus className="w-7 h-7 text-primary-foreground" strokeWidth={2.5} />
-        </button>
-      </div>
+    <nav className="app-refonte tabbar fixed bottom-0 left-0 right-0 z-50">
+      <button
+        className={"tab" + (isActive("/pwa/dashboard") ? " active" : "")}
+        onClick={() => go("/pwa/dashboard")}
+      >
+        <Home size={21} strokeWidth={isActive("/pwa/dashboard") ? 2.4 : 1.7} />
+        {t('tabs.home')}
+      </button>
 
-      <div className="bg-card border-t border-border/40">
-        <div className="flex items-center justify-around pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">
-          <button
-            onClick={() => handleNavigation("/pwa/dashboard")}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
-          >
-            <Home
-              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/dashboard") ? "text-primary" : "text-muted-foreground"}`}
-              strokeWidth={isActive("/pwa/dashboard") ? 2.5 : 1.5}
-            />
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/dashboard") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
-              {t('tabs.home')}
-            </span>
-          </button>
+      <button
+        className={"tab" + (isActive("/pwa/bookings") ? " active" : "")}
+        onClick={() => go("/pwa/bookings")}
+      >
+        <span className="relative">
+          <Calendar size={21} strokeWidth={isActive("/pwa/bookings") ? 2.4 : 1.7} />
+          {scheduleIncomplete && <span className="dot-badge" />}
+        </span>
+        {t('tabs.agenda')}
+      </button>
 
-          <button
-            onClick={() => handleNavigation("/pwa/bookings")}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all relative"
-          >
-            <div className="relative">
-              <Calendar
-                className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/bookings") ? "text-primary" : "text-muted-foreground"}`}
-                strokeWidth={isActive("/pwa/bookings") ? 2.5 : 1.5}
-              />
-              {scheduleIncomplete && (
-                <span className="absolute -top-1 -right-1.5 bg-amber-500 rounded-full w-2 h-2" />
-              )}
-            </div>
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/bookings") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
-              {t('tabs.agenda')}
-            </span>
-          </button>
+      <button className="tab-plus" onClick={() => go("/pwa/new-booking")} title={t('tabs.newBooking')}>
+        <span className="disc"><Plus size={20} strokeWidth={2.4} /></span>
+      </button>
 
-          <div className="flex-1" />
+      <button
+        className={"tab" + (isActive("/pwa/statistics") ? " active" : "")}
+        onClick={() => go("/pwa/statistics")}
+      >
+        <BarChart3 size={21} strokeWidth={isActive("/pwa/statistics") ? 2.4 : 1.7} />
+        {t('tabs.stats')}
+      </button>
 
-          <button
-            onClick={() => handleNavigation("/pwa/statistics")}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
-          >
-            <BarChart3
-              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/statistics") ? "text-primary" : "text-muted-foreground"}`}
-              strokeWidth={isActive("/pwa/statistics") ? 2.5 : 1.5}
-            />
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/statistics") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
-              {t('tabs.stats')}
-            </span>
-          </button>
-
-          <button
-            onClick={() => handleNavigation("/pwa/notifications")}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all relative"
-          >
-            <div className="relative">
-              <Bell
-                className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/notifications") ? "text-primary" : "text-muted-foreground"}`}
-                strokeWidth={isActive("/pwa/notifications") ? 2.5 : 1.5}
-              />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              )}
-            </div>
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/notifications") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
-              {t('tabs.notifications')}
-            </span>
-          </button>
-        </div>
-      </div>
+      <button
+        className={"tab" + (isActive("/pwa/notifications") ? " active" : "")}
+        onClick={() => go("/pwa/notifications")}
+      >
+        <span className={unreadCount > 0 ? "bdg" : ""} data-n={unreadCount > 99 ? "99+" : unreadCount}>
+          <Bell size={21} strokeWidth={isActive("/pwa/notifications") ? 2.4 : 1.7} />
+        </span>
+        {t('tabs.notifications')}
+      </button>
     </nav>
   );
 };

@@ -176,7 +176,7 @@ export function BookingInfoStep({
     queryFn: async () => {
       let q = supabase
         .from("customers")
-        .select("id, first_name, last_name, phone, email, language, civility")
+        .select("id, first_name, last_name, phone, email, language, civility, health_notes")
         .limit(5);
       if (isPhoneSearch) {
         const normalized = trimmedCustomerSearch.replace(/\s/g, "");
@@ -187,12 +187,13 @@ export function BookingInfoStep({
         );
       }
       const { data } = await q;
-      return (data as Array<{ id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null; civility: string | null }>) || [];
+      return (data as Array<{ id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null; civility: string | null; health_notes: string | null }>) || [];
     },
   });
 
-  const handleSelectCustomer = (c: { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null; civility: string | null }) => {
+  const handleSelectCustomer = (c: { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null; language: string | null; civility: string | null; health_notes: string | null }) => {
     setSelectedCustomerId(c.id);
+    if (c.health_notes) form.setValue("customerNote", c.health_notes);
     if (c.civility === "madame" || c.civility === "monsieur") form.setValue("civility", c.civility);
     if (c.first_name) form.setValue("clientFirstName", c.first_name);
     if (c.last_name) form.setValue("clientLastName", c.last_name);
@@ -1024,12 +1025,30 @@ export function BookingInfoStep({
           name="clientNote"
           render={({ field }) => (
             <FormItem className="space-y-1 md:col-span-2">
-              <FormLabel className="text-xs">Note</FormLabel>
+              <FormLabel className="text-xs">Note réservation</FormLabel>
               <FormControl>
                 <Textarea
                   {...field}
                   rows={3}
                   placeholder="Ajouter une note pour cette réservation…"
+                />
+              </FormControl>
+              <FormMessage className="text-xs" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="customerNote"
+          render={({ field }) => (
+            <FormItem className="space-y-1 md:col-span-2">
+              <FormLabel className="text-xs">Note client</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  rows={3}
+                  placeholder="Note permanente sur ce client (VIP, préférences…), visible sur toutes ses réservations"
                 />
               </FormControl>
               <FormMessage className="text-xs" />

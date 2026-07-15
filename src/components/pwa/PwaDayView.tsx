@@ -2,8 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { format, addDays, subDays, isToday, addMinutes, parse } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, Euro, Check, DoorOpen, User, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, DoorOpen, User, Users } from "lucide-react";
 import { getCalendarFlowStage } from "@/utils/statusStyles";
 import { formatPrice } from "@/lib/formatPrice";
 import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
@@ -237,107 +236,67 @@ export function PwaDayView({
 
   return (
     <div
-      className="flex flex-col h-full overflow-hidden"
+      className="app-refonte flex flex-col h-full overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="flex items-center justify-between px-3 py-2.5 border-b bg-background">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onDateChange(subDays(selectedDate, 1))}
-          className="px-2"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold text-center capitalize">
+      <div className="ag-datenav">
+        <button className="navb" onClick={() => onDateChange(subDays(selectedDate, 1))} aria-label={t("calendar.prevDay", "Jour précédent")}>
+          <ChevronLeft size={16} />
+        </button>
+        <div className="cur">
+          <div className="d" style={{ textTransform: "capitalize" }}>
             {format(selectedDate, "EEEE d MMMM", { locale: dateLocale })}
-          </h2>
-          {!isTodaySelected && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2.5 text-xs font-medium"
-              onClick={() => onDateChange(new Date())}
-            >
-              {t("calendar.today", "Aujourd'hui")}
-            </Button>
-          )}
-        </div>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onDateChange(addDays(selectedDate, 1))}
-          className="px-2"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </Button>
-      </div>
-
-      <div className={`grid ${hideEarnings ? "grid-cols-2" : "grid-cols-3"} gap-2 px-3 py-2.5 border-b bg-muted/20`}>
-        <div className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 shadow-sm">
-          <CalendarDays className="h-4 w-4 text-primary shrink-0" />
-          <div className="min-w-0">
-            <div className="text-sm font-bold">{daySummary.count}</div>
-            <div className="text-[10px] text-muted-foreground truncate">
-              {t("calendar.appointments", "Rendez-vous")}
-            </div>
+          </div>
+          <div className="s">
+            {daySummary.count > 0 ? (
+              <>
+                <b>{daySummary.count} {t("calendar.appointments", "Rendez-vous")}</b> · {daySummary.hoursLabel}
+                {!hideEarnings && ` · ${formatPrice(Math.round(daySummary.totalEarnings), "EUR", { decimals: 0 })}`}
+              </>
+            ) : (
+              t("calendar.noBookings", "Aucun rendez-vous")
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 shadow-sm">
-          <Clock className="h-4 w-4 text-primary shrink-0" />
-          <div className="min-w-0">
-            <div className="text-sm font-bold">{daySummary.hoursLabel}</div>
-            <div className="text-[10px] text-muted-foreground truncate">
-              {t("calendar.hoursWorked", "Heures")}
-            </div>
-          </div>
-        </div>
-        {!hideEarnings && (
-          <div className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 shadow-sm">
-            <Euro className="h-4 w-4 text-primary shrink-0" />
-            <div className="min-w-0">
-              <div className="text-sm font-bold">
-                {formatPrice(Math.round(daySummary.totalEarnings), "EUR", { decimals: 0 })}
-              </div>
-              <div className="text-[10px] text-muted-foreground truncate">
-                {t("calendar.estimatedEarnings", "Revenus estimés")}
-              </div>
-            </div>
-          </div>
+        {isTodaySelected ? (
+          <span style={{ width: 34 }} />
+        ) : (
+          <button className="ag-today" onClick={() => onDateChange(new Date())}>
+            {t("calendar.today", "Aujourd'hui")}
+          </button>
         )}
+        <button className="navb" onClick={() => onDateChange(addDays(selectedDate, 1))} aria-label={t("calendar.nextDay", "Jour suivant")}>
+          <ChevronRight size={16} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-auto" ref={scrollRef}>
         <div className="min-h-full">
           <div className="grid grid-cols-[50px_1fr]">
-            <div className="border-r bg-muted/20">
+            <div style={{ borderRight: "1px solid var(--line-soft)" }}>
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className="border-b flex items-start justify-end pr-2 pt-1"
-                  style={{ height: `${HOUR_HEIGHT}px` }}
+                  className="flex items-start justify-end pr-2 pt-1"
+                  style={{ height: `${HOUR_HEIGHT}px`, borderBottom: "1px solid var(--line-soft)" }}
                 >
-                  <span className="text-[10px] font-medium text-muted-foreground">
+                  <span className="text-[10px] font-medium" style={{ color: "var(--ink-mute)" }}>
                     {hour.toString().padStart(2, "0")}:00
                   </span>
                 </div>
               ))}
             </div>
 
-            <div className={`relative ${isTodaySelected ? "bg-primary/[0.02]" : ""}`}>
+            <div
+              className="relative"
+              style={isTodaySelected ? { background: "color-mix(in srgb, var(--accent) 4%, transparent)" } : undefined}
+            >
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className={`border-b ${
-                    onSlotClick
-                      ? "cursor-pointer hover:bg-primary/5 active:bg-primary/10 transition-colors"
-                      : ""
-                  }`}
-                  style={{ height: `${HOUR_HEIGHT}px` }}
+                  className={onSlotClick ? "cursor-pointer transition-colors" : ""}
+                  style={{ height: `${HOUR_HEIGHT}px`, borderBottom: "1px solid var(--line-soft)" }}
                   onClick={() => {
                     if (onSlotClick) {
                       onSlotClick(dateStr, `${hour.toString().padStart(2, "0")}:00`);
@@ -478,10 +437,10 @@ export function PwaDayView({
 
               {showIndicator && (
                 <div
-                  className="absolute left-0 right-0 h-0.5 bg-destructive z-20 pointer-events-none"
-                  style={{ top: `${currentTimeTop}px` }}
+                  className="absolute left-0 right-0 z-20 pointer-events-none"
+                  style={{ top: `${currentTimeTop}px`, height: 0, borderTop: "1.5px solid var(--clay)" }}
                 >
-                  <div className="absolute -left-1 -top-1 w-2.5 h-2.5 bg-destructive rounded-full" />
+                  <div className="absolute -left-1 -top-1 w-2.5 h-2.5 rounded-full" style={{ background: "var(--clay)" }} />
                 </div>
               )}
             </div>

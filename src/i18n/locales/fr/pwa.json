@@ -48,6 +48,18 @@
     "privacyPolicy": "Politique de confidentialité"
   },
   "dashboard": {
+    "greeting": "Bonjour",
+    "nextAppointment": "Prochain rendez-vous",
+    "inTime": "dans {{time}}",
+    "todayLabel": "Aujourd'hui",
+    "rdvShort": "RDV",
+    "ofCare": "de soins",
+    "estimated": "estimés",
+    "freeDay": "Journée libre",
+    "noAppointmentToday": "Aucun rendez-vous aujourd'hui",
+    "myAvailability": "Mes disponibilités",
+    "paymentCardSaved": "Carte enregistrée",
+    "loading": "Chargement…",
     "refresh": "Actualiser",
     "title": "Tableau de bord",
     "myBookings": "MES RÉSERVATIONS",
@@ -116,6 +128,27 @@
     "bookingId": "ID Réservation"
   },
   "bookingDetail": {
+    "request": "Demande",
+    "booking": "Réservation",
+    "client": "Client",
+    "roomLabel": "Chambre",
+    "roomTreatment": "Salle",
+    "afterLabel": "Après",
+    "noteLabel": "Note",
+    "healthLabel": "Santé",
+    "savedCard": "Carte pré-enregistrée",
+    "beforeSession": "Avant la séance",
+    "checklistPay": "Paiement à encaisser",
+    "presenceHint": "Signalez votre arrivée",
+    "extendCta": "Prolonger la séance",
+    "treatments": "Soins",
+    "add": "Ajouter",
+    "clientTotal": "Total client",
+    "giftCard": "carte cadeau",
+    "deleteTreatment": "Supprimer",
+    "finalize": "Finaliser la prestation",
+    "finish": "Terminer la prestation",
+    "declineCta": "Refuser cette demande",
     "reassignedAway": "Cette réservation a été réassignée à un autre thérapeute.",
     "myBooking": "Ma réservation",
     "notFound": "Réservation introuvable",
@@ -177,7 +210,11 @@
     "duoAccepted": "{{accepted}}/{{total}} acceptés",
     "duoTherapistsJoined": "{{accepted}}/{{total}} thérapeute(s) ont rejoint le soin",
     "duoJoin": "Rejoindre le soin",
-    "duoWaiting": "En attente d'un autre thérapeute…"
+    "duoWaiting": "En attente d'un autre thérapeute…",
+    "manageBooking": "Gérer la réservation",
+    "noShowRowHint": "Le client ne s'est pas présenté",
+    "unassignRowHint": "La réservation sera proposée à d'autres thérapeutes",
+    "cancelRowHint": "Annulation définitive de la réservation"
   },
   "hotels": {
     "title": "Mes Hôtels",
@@ -378,10 +415,17 @@
     "profile": "Profil",
     "wallet": "Wallet",
     "agenda": "Agenda",
-    "stats": "Stats"
+    "stats": "Stats",
+    "newBooking": "Nouveau rendez-vous"
   },
   "bookings": {
     "title": "Agenda",
+    "viewDay": "Jour",
+    "view3Days": "3 jours",
+    "viewList": "Liste",
+    "scopeMine": "Mes RDV",
+    "scopeVenue": "Tout le lieu",
+    "empty": "Aucune réservation trouvée",
     "editSchedule": "Mes disponibilités",
     "scheduleIncomplete": "Mettez à jour vos dispos pour les 2 prochaines semaines"
   },
