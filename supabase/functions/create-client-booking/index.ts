@@ -135,6 +135,23 @@ function languageFromPhone(phone: string | null): 'fr' | 'en' {
   return p.startsWith('+33') ? 'fr' : 'en';
 }
 
+// Run work in the background so the HTTP response can return immediately. On the
+// Supabase runtime EdgeRuntime.waitUntil keeps the worker alive until it settles;
+// locally (no waitUntil) we await inline so notifications still fire.
+async function runInBackground(work: Promise<unknown>, label: string): Promise<void> {
+  const guarded = Promise.resolve(work).catch((err) =>
+    console.error(`${label} failed:`, err)
+  );
+  const edgeRuntime = (globalThis as {
+    EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void };
+  }).EdgeRuntime;
+  if (edgeRuntime?.waitUntil) {
+    edgeRuntime.waitUntil(guarded);
+  } else {
+    await guarded;
+  }
+}
+
 async function handleMultiBookingConfirm(
   supabase: any,
   data: z.infer<typeof multiRequestSchema>,
@@ -346,31 +363,38 @@ async function handleMultiBookingConfirm(
   );
   const bookingNumbers = bookingIds.map(id => idToNumber.get(id) ?? null);
 
-  // Notifications: pass groupId — emails handlers detect and aggregate.
-  // Single admin email for the whole group.
-  try {
-    await supabase.functions.invoke('notify-admin-new-booking', {
-      body: { bookingId: bookingIds[0], groupId },
-    });
-  } catch (err) {
-    console.error('notify-admin-new-booking error:', err);
-  }
-
-  // Smart dispatch: send 1 dispatch per booking (each may need a different therapist).
-  for (const bookingId of bookingIds) {
+  // Notifications run AFTER responding (same reason as single-mode): a synchronous
+  // admin email + one dispatch per booking kept the response open long enough for
+  // slow networks to drop the fetch, even though every draft was already promoted.
+  const runMultiNotifications = async () => {
+    // Notifications: pass groupId — emails handlers detect and aggregate.
+    // Single admin email for the whole group.
     try {
-      await supabase.functions.invoke('dispatch-booking-therapist', { body: { bookingId } });
+      await supabase.functions.invoke('notify-admin-new-booking', {
+        body: { bookingId: bookingIds[0], groupId },
+      });
     } catch (err) {
-      console.error('dispatch-booking-therapist error:', err);
+      console.error('notify-admin-new-booking error:', err);
     }
-  }
 
-  // Single client confirmation email when applicable (here: pending state ⇒ no
-  // confirmation yet — same rule as single-mode; quote_pending is not allowed
-  // in multi). We skip sending here; therapist acceptance triggers
-  // notify-booking-confirmed which will aggregate the group.
+    // Smart dispatch: send 1 dispatch per booking (each may need a different therapist).
+    for (const bookingId of bookingIds) {
+      try {
+        await supabase.functions.invoke('dispatch-booking-therapist', { body: { bookingId } });
+      } catch (err) {
+        console.error('dispatch-booking-therapist error:', err);
+      }
+    }
 
-  await tryMarkCheckoutIntentConverted(supabase, data.checkoutIntentId, bookingIds[0], '[create-client-booking]');
+    // Single client confirmation email when applicable (here: pending state ⇒ no
+    // confirmation yet — same rule as single-mode; quote_pending is not allowed
+    // in multi). We skip sending here; therapist acceptance triggers
+    // notify-booking-confirmed which will aggregate the group.
+
+    await tryMarkCheckoutIntentConverted(supabase, data.checkoutIntentId, bookingIds[0], '[create-client-booking]');
+  };
+
+  await runInBackground(runMultiNotifications(), 'Background multi-booking notifications');
 
   return new Response(
     JSON.stringify({ success: true, groupId, bookingIds, bookingNumbers }),
@@ -1073,6 +1097,14 @@ try {
     // send-booking-confirmation here too would duplicate the client email.
     const shouldSendConfirmationEmail = bookingStatus === 'quote_pending';
 
+    // Fire the notification fan-out AFTER responding: the browser only needs the
+    // booking id. Broadcasting to every therapist + admin/concierge emails
+    // synchronously kept the response open ~4-5s (some venues have ~30 active
+    // therapists), so slow/mobile networks saw the fetch drop ("Failed to send a
+    // request to the Edge Function") even though the booking had committed — and a
+    // retry could produce a double booking. EdgeRuntime.waitUntil keeps the worker
+    // alive to finish this work in the background.
+    const runBookingNotifications = async () => {
     if (sanitizedClientData.email && shouldSendConfirmationEmail) {
       try {
         const emailResponse = await fetch(
@@ -1256,6 +1288,10 @@ try {
     }
 
     await tryMarkCheckoutIntentConverted(supabase, checkoutIntentId, bookingId, '[create-client-booking]');
+    };
+
+    // Respond as soon as the booking exists; run notifications in the background.
+    await runInBackground(runBookingNotifications(), 'Background booking notifications');
 
     return new Response(
       JSON.stringify({
