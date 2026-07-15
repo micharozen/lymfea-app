@@ -3,6 +3,7 @@ import { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { UserProvider } from "./contexts/UserContext";
+import { AppLoader } from "./components/AppLoader";
 import "./index.css";
 import "./i18n";
 
@@ -21,11 +22,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const LandingLoader = () => (
-  <div className="flex min-h-screen items-center justify-center bg-background">
-    <span className="font-serif text-2xl tracking-wide text-primary">Saoma</span>
-  </div>
-);
+const LandingLoader = () => <AppLoader />;
 
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>

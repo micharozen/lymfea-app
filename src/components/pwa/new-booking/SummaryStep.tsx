@@ -1,10 +1,9 @@
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { formatPrice } from "@/lib/formatPrice";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Loader2, Gift } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Treatment {
   id: string;
@@ -45,7 +44,6 @@ interface SummaryStepProps {
   onIsOffertChange: (value: boolean) => void;
   isPending: boolean;
   onCreate: () => void;
-  onBack: () => void;
 }
 
 export function SummaryStep({
@@ -69,157 +67,123 @@ export function SummaryStep({
   onIsOffertChange,
   isPending,
   onCreate,
-  onBack,
 }: SummaryStepProps) {
   const { t } = useTranslation("pwa");
 
+  const nbSoins = cartDetails.reduce((a, i) => a + i.quantity, 0);
+  const grandTotal = totalPrice + surchargeAmount;
+
+  const clientLine = [
+    `${clientFirstName} ${clientLastName}`.trim(),
+    [countryCode, phone].filter(Boolean).join(" "),
+    email,
+    roomNumber && `${t("newBooking.room", "Chambre")} ${roomNumber}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <div className="flex-1 flex flex-col">
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="border border-primary/20 rounded-xl overflow-hidden">
-          {/* Header */}
-          <div className="px-4 pt-5 pb-3 text-center">
-            <h2 className="font-serif text-lg text-foreground">Votre réservation</h2>
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="app-scroll flex-1" data-screen-label="Étape récap">
+        {/* En-tête fiche */}
+        <div className="fiche-head" style={{ paddingTop: "calc(10px*var(--sp))" }}>
+          <div className="venue">{hotelName}</div>
+          <div className="addr">{clientLine}</div>
+        </div>
+
+        {/* Date / Heure / Durée */}
+        <div className="fiche-when">
+          <div className="cell">
+            <div className="v">{format(selectedDate, "EEE d MMM", { locale: fr })}</div>
+            <div className="l">Date</div>
           </div>
-
-          {/* Lieu */}
-          <div className="px-4 py-3">
-            <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-1">Lieu</p>
-            <p className="text-sm font-medium">{hotelName}</p>
+          <div className="cell">
+            <div className="v">{selectedTime}</div>
+            <div className="l">{t("newBooking.time", "Heure")}</div>
           </div>
-
-          <div className="h-px bg-primary/15 mx-4" />
-
-          {/* Client */}
-          <div className="px-4 py-3">
-            <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-1">Client</p>
-            <p className="text-sm font-medium">
-              {clientFirstName} {clientLastName}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {countryCode} {phone}
-              {email && ` · ${email}`}
-              {roomNumber && ` · Chambre ${roomNumber}`}
-            </p>
-          </div>
-
-          <div className="h-px bg-primary/15 mx-4" />
-
-          {/* Date/Time */}
-          <div className="px-4 py-3">
-            <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-1">
-              Date & heure
-            </p>
-            <p className="text-sm font-medium">
-              {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}{" "}
-              à {selectedTime}
-            </p>
-          </div>
-
-          <div className="h-px bg-primary/15 mx-4" />
-
-          {/* Treatments */}
-          <div className="px-4 py-3">
-            <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-2">
-              Prestations
-            </p>
-            <div className="space-y-1.5">
-              {cartDetails.map(({ treatmentId, quantity, treatment, priceOverride }) => (
-                <div
-                  key={treatmentId}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <span>
-                    {treatment?.name}{" "}
-                    {quantity > 1 && (
-                      <span className="text-muted-foreground">
-                        x{quantity}
-                      </span>
-                    )}
-                  </span>
-                  <span className="font-medium">
-                    {formatPrice(
-                      (priceOverride ?? treatment?.price ?? 0) * quantity,
-                      currency
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Majoration hors horaires */}
-            {!isOffert && isOutOfHours && surchargeAmount > 0 && (
-              <div className="flex items-center justify-between text-sm mt-2 text-amber-600">
-                <span>
-                  {t("newBooking.outOfHoursSurcharge", "Majoration hors horaires")}{" "}
-                  ({surchargePercent}%)
-                </span>
-                <span className="font-medium">
-                  +{formatPrice(surchargeAmount, currency)}
-                </span>
-              </div>
-            )}
-
-            {/* Total */}
-            <div className="bg-primary/10 rounded-lg p-3 mt-3 flex items-center justify-between">
-              <span className="text-sm font-semibold">Total</span>
-              <span className="text-sm font-bold text-primary">
-                {isOffert
-                  ? t("newBooking.offert.tag", "Offert")
-                  : formatPrice(totalPrice + surchargeAmount, currency)}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2 italic">
-              Durée estimée : {totalDuration} min
-            </p>
-
-            {/* Offert (gratuit) */}
-            <label className="flex items-start gap-2 cursor-pointer rounded-lg border border-primary/20 px-3 py-2.5 mt-3">
-              <Checkbox
-                checked={isOffert}
-                onCheckedChange={(checked) => onIsOffertChange(!!checked)}
-                className="mt-0.5"
-              />
-              <div className="flex-1 min-w-0">
-                <span className="flex items-center gap-1.5 text-sm font-medium">
-                  <Gift className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  {t("newBooking.offert.label", "Offert (gratuit)")}
-                </span>
-                {isOffert && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("newBooking.offert.helper", "Cette réservation est offerte : aucun paiement, prix à 0.")}
-                  </p>
-                )}
-              </div>
-            </label>
+          <div className="cell">
+            <div className="v">{totalDuration} min</div>
+            <div className="l">{t("newBooking.duration", "Durée")}</div>
           </div>
         </div>
+
+        {/* Soins */}
+        <div className="sec-label">
+          {t("newBooking.treatments", "Soins")} <span className="count">{nbSoins}</span>
+        </div>
+        <div className="card">
+          {cartDetails.map(({ treatmentId, quantity, treatment, priceOverride }) => (
+            <div className="soin-row" key={treatmentId}>
+              <span className="nm">
+                {treatment?.name}
+                {quantity > 1 ? ` × ${quantity}` : ""}
+              </span>
+              <span className="dur">{(treatment?.duration || 0) * quantity} min</span>
+              <span className="pr">
+                {formatPrice((priceOverride ?? treatment?.price ?? 0) * quantity, currency)}
+              </span>
+            </div>
+          ))}
+
+          {/* Majoration hors horaires (préservée) */}
+          {!isOffert && isOutOfHours && surchargeAmount > 0 && (
+            <div className="soin-row">
+              <span className="nm" style={{ color: "var(--clay)" }}>
+                {t("newBooking.outOfHoursSurcharge", "Majoration hors horaires")} ({surchargePercent}%)
+              </span>
+              <span className="pr" style={{ color: "var(--clay)" }}>
+                +{formatPrice(surchargeAmount, currency)}
+              </span>
+            </div>
+          )}
+
+          {/* Total */}
+          <div className="soin-row" style={{ background: "var(--sand-100)" }}>
+            <span className="nm" style={{ fontWeight: 600 }}>
+              {t("newBooking.totalClient", "Total client")}
+            </span>
+            {isOffert ? (
+              <>
+                <span className="pr" style={{ textDecoration: "line-through", opacity: 0.45 }}>
+                  {formatPrice(grandTotal, currency)}
+                </span>
+                <span className="pr" style={{ fontWeight: 600 }}>
+                  {formatPrice(0, currency)}
+                </span>
+              </>
+            ) : (
+              <span className="pr" style={{ fontWeight: 600 }}>
+                {formatPrice(grandTotal, currency)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Soin offert */}
+        <button
+          type="button"
+          className="quiet-row"
+          onClick={() => onIsOffertChange(!isOffert)}
+        >
+          <span className={cn("chk", isOffert && "on")}>{isOffert && <Check size={13} />}</span>
+          {t("newBooking.offert.label", "Soin offert (gratuit)")}
+        </button>
+
+        <div style={{ height: 16 }} />
       </div>
 
       {/* Footer */}
-      <div className="px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] border-t border-primary/20 shrink-0 space-y-2">
-        <Button
-          className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
-          onClick={onCreate}
-          disabled={isPending}
-        >
+      <div className="fiche-foot">
+        <button type="button" className="btn-primary-lg" onClick={onCreate} disabled={isPending}>
           {isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Création...
-            </>
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {t("newBooking.creating", "Création…")}
+            </span>
           ) : (
             t("newBooking.create", "Créer la réservation")
           )}
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={onBack}
-          disabled={isPending}
-        >
-          {t("newBooking.back", "Retour")}
-        </Button>
+        </button>
       </div>
     </div>
   );

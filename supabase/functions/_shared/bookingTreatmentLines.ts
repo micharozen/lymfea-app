@@ -50,11 +50,18 @@ export async function fetchAddonTreatmentIds(
 const qtyOf = (line: TreatmentLine) => Math.max(1, Number(line.quantity) || 1);
 
 /**
- * Slot duration in minutes.
+ * Slot duration in minutes — the duration of the SOIN block only.
  *  - Solo: everything runs sequentially → sum (× quantity).
  *  - Duo: one leg per guest, legs run in parallel → the longest leg wins. An
  *    add-on extends its parent's leg; an orphan add-on (parent removed from the
  *    cart) is added on top, since whoever claims it performs it after their soin.
+ *
+ * Amenity lines (pool/sauna access) occupy their OWN block — an amenity_bookings
+ * row placed independently by reserve_trunk_atomically (before/after/same). They
+ * must never inflate the soin slot, otherwise the soin block on the planning is
+ * too long and swallows the amenity block. For an amenity-only cart there is no
+ * soin slot, so we fall back to the amenity lines themselves so the booking still
+ * has a sensible duration.
  */
 export function computeSlotDuration(
   lines: TreatmentLine[],
@@ -62,18 +69,22 @@ export function computeSlotDuration(
   /** Unit duration of one line — callers resolve the variant's duration when there is one. */
   durationOfLine: (line: TreatmentLine) => number,
   isAddon: (treatmentId: string) => boolean,
+  isAmenity: (treatmentId: string) => boolean = () => false,
 ): number {
+  const soinLines = lines.filter((line) => !isAmenity(line.treatmentId));
+  const effectiveLines = soinLines.length > 0 ? soinLines : lines;
+
   if (!isDuo) {
-    return lines.reduce((sum, line) => sum + durationOfLine(line) * qtyOf(line), 0);
+    return effectiveLines.reduce((sum, line) => sum + durationOfLine(line) * qtyOf(line), 0);
   }
 
   const legDurations = new Map<string, number>();
-  for (const line of lines) {
+  for (const line of effectiveLines) {
     if (!isAddon(line.treatmentId)) legDurations.set(line.treatmentId, durationOfLine(line));
   }
 
   let orphanDuration = 0;
-  for (const line of lines) {
+  for (const line of effectiveLines) {
     if (!isAddon(line.treatmentId)) continue;
     const minutes = durationOfLine(line) * qtyOf(line);
     const parentId = line.parentTreatmentId;

@@ -14,6 +14,12 @@ export type BookingTreatment = {
   is_addon?: boolean;
   /** The booking_treatments row of the soin this add-on extends (its leg). */
   parent_booking_treatment_id?: string | null;
+  /** true = accès à une commodité (amenity_id non null) : ni salle ni thérapeute. */
+  is_amenity?: boolean;
+  /** Type de la commodité liée (piscine, sauna…) — null si ce n'est pas un accès. */
+  amenity_type?: string | null;
+  /** Nom de la commodité liée — null si ce n'est pas un accès. */
+  amenity_name?: string | null;
   name: string;
   duration: number | null;
   price: number | null;
@@ -32,6 +38,9 @@ export type BookingListItem = BookingRow & {
   therapist_display_names?: string[];
   booking_therapists?: { status: string; therapist_id: string }[];
   booking_payment_infos?: { payment_status: string | null; stripe_payment_method_id: string | null } | null;
+  // Note persistante du client (customers.health_notes), remontée pour l'affichage
+  // sur la fiche booking. NULL si pas de client lié ou pas de note.
+  customer_health_notes: string | null;
 };
 
 export type BookingListFilters = {
@@ -54,6 +63,8 @@ type RawBookingRow = BookingRow & {
       name: string | null;
       duration: number | null;
       price: number | null;
+      amenity_id: string | null;
+      venue_amenities: { type: string | null; name: string | null } | null;
     } | null;
     treatment_variants: {
       id: string;
@@ -68,13 +79,20 @@ type RawBookingRow = BookingRow & {
     | null;
   treatment_rooms?: { name: string | null } | null;
   secondary_room?: { name: string | null } | null;
+  customers?: { health_notes: string | null } | null;
 };
 
 function computeBookingItem(row: RawBookingRow): BookingListItem {
   const treatmentsJoin = row.booking_treatments ?? [];
 
+  // Amenity lines (pool/sauna access) occupy their own block, not the soin slot —
+  // exclude them so the booking's soin duration is not inflated. Mirrors
+  // computeSlotDuration server-side.
   const treatmentsTotalDuration = treatmentsJoin.reduce(
-    (sum, t) => sum + (t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0),
+    (sum, t) =>
+      t.treatment_menus?.amenity_id != null
+        ? sum
+        : sum + (t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0),
     0,
   );
   const treatmentsTotalPrice = treatmentsJoin.reduce(
@@ -96,6 +114,9 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
         therapist_id: t.therapist_id ?? null,
         is_addon: t.is_addon ?? false,
         parent_booking_treatment_id: t.parent_booking_treatment_id ?? null,
+        is_amenity: t.treatment_menus!.amenity_id != null,
+        amenity_type: t.treatment_menus!.venue_amenities?.type ?? null,
+        amenity_name: t.treatment_menus!.venue_amenities?.name ?? null,
         name: (t.treatment_menus!.name ?? "") + variantSuffix,
         duration: variant?.duration ?? t.treatment_menus!.duration,
         price: resolveTreatmentPrice(t),
@@ -111,6 +132,7 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
     booking_payment_infos: _pi,
     treatment_rooms: roomJoin,
     secondary_room: secondaryRoomJoin,
+    customers: customerJoin,
     ...booking
   } = row;
   return {
@@ -122,6 +144,7 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
     room_name: roomJoin?.name ?? null,
     secondary_room_name: secondaryRoomJoin?.name ?? null,
     booking_payment_infos: paymentInfos,
+    customer_health_notes: customerJoin?.health_notes ?? null,
   };
 }
 
@@ -144,13 +167,14 @@ export async function listBookings(
         parent_booking_treatment_id,
         variant_id,
         price_override,
-        treatment_menus(name, duration, price),
+        treatment_menus(name, duration, price, amenity_id, venue_amenities(type, name)),
         treatment_variants(id, label, duration, price)
       ),
       booking_therapists(status, therapist_id),
       booking_payment_infos(payment_status, stripe_payment_method_id),
       treatment_rooms!room_id(name),
       secondary_room:treatment_rooms!secondary_room_id(name),
+      customers(health_notes),
       hotels!inner(id, organization_id)
     `,
     )

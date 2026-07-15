@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getCalendarFlowStage } from "@/utils/statusStyles";
 import { useLongPress } from "@/hooks/pwa/useLongPress";
@@ -163,23 +162,25 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
   );
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="app-refonte flex flex-col h-full overflow-hidden">
       {/* Week Navigation */}
-      <div className="flex items-center justify-between px-2 py-3 border-b bg-background">
-        <Button variant="ghost" size="sm" onClick={handlePreviousWeek} className="px-2">
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <h2 className="text-sm font-semibold text-center">
-          {format(currentWeekStart, "d MMM", { locale: fr })} -{" "}
-          {format(addDays(currentWeekStart, 6), "d MMM yyyy", { locale: fr })}
-        </h2>
-        <Button variant="ghost" size="sm" onClick={handleNextWeek} className="px-2">
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+      <div className="ag-datenav">
+        <button className="navb" onClick={handlePreviousWeek} aria-label="Semaine précédente">
+          <ChevronLeft size={16} />
+        </button>
+        <div className="cur">
+          <div className="d">
+            {format(currentWeekStart, "d MMM", { locale: fr })} –{" "}
+            {format(addDays(currentWeekStart, 6), "d MMM yyyy", { locale: fr })}
+          </div>
+        </div>
+        <button className="navb" onClick={handleNextWeek} aria-label="Semaine suivante">
+          <ChevronRight size={16} />
+        </button>
       </div>
 
       {/* Day Selector Strip */}
-      <div className="flex items-center gap-1 px-2 py-2 border-b bg-muted/30 overflow-x-auto">
+      <div className="flex items-center gap-1 px-2 py-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--line-soft)" }}>
         {weekDays.map((day, index) => {
           const isSelected = index >= startDayIndex && index < startDayIndex + 3;
           const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
@@ -189,23 +190,25 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
             <button
               key={day.toISOString()}
               onClick={() => setStartDayIndex(Math.min(index, 4))}
-              className={`flex flex-col items-center min-w-[42px] px-2 py-1.5 rounded-lg transition-colors ${
+              className="flex flex-col items-center min-w-[42px] px-2 py-1.5 rounded-lg transition-colors"
+              style={
                 isSelected
-                  ? "bg-primary text-primary-foreground"
+                  ? { background: "var(--accent)", color: "var(--on-accent)" }
                   : isToday
-                  ? "bg-primary/10 text-primary"
-                  : "hover:bg-muted"
-              }`}
+                    ? { background: "color-mix(in srgb, var(--accent) 12%, transparent)", color: "var(--accent)" }
+                    : { color: "var(--ink-soft)" }
+              }
             >
               <span className="text-[10px] font-medium uppercase">
                 {format(day, "EEE", { locale: fr })}
               </span>
-              <span className="text-sm font-bold">{format(day, "d")}</span>
+              <span className="text-sm font-bold" style={{ fontFamily: "var(--serif)" }}>{format(day, "d")}</span>
               {bookingCount > 0 && (
                 <span
-                  className={`text-[9px] rounded-full px-1.5 mt-0.5 ${
-                    isSelected ? "bg-primary-foreground/20" : "bg-primary/20 text-primary"
-                  }`}
+                  className="text-[9px] rounded-full px-1.5 mt-0.5"
+                  style={isSelected
+                    ? { background: "color-mix(in srgb, var(--on-accent) 22%, transparent)" }
+                    : { background: "color-mix(in srgb, var(--accent) 18%, transparent)", color: "var(--accent)" }}
                 >
                   {bookingCount}
                 </span>
@@ -219,23 +222,22 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
       <div className="flex-1 overflow-auto">
         <div className="min-h-full">
           {/* Day Headers */}
-          <div className="sticky top-0 z-10 grid grid-cols-[50px_repeat(3,1fr)] bg-background border-b">
-            <div className="p-2 border-r bg-muted/50">
-              <span className="text-[10px] font-medium text-muted-foreground">Heure</span>
+          <div className="sticky top-0 z-10 grid grid-cols-[50px_repeat(3,1fr)]" style={{ background: "var(--sand-100)", borderBottom: "1px solid var(--line-soft)" }}>
+            <div className="p-2" style={{ borderRight: "1px solid var(--line-soft)" }}>
+              <span className="text-[10px] font-medium" style={{ color: "var(--ink-mute)" }}>Heure</span>
             </div>
             {visibleDays.map((day) => {
               const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
               return (
                 <div
                   key={day.toISOString()}
-                  className={`p-2 text-center border-r last:border-r-0 ${
-                    isToday ? "bg-primary/5" : "bg-muted/50"
-                  }`}
+                  className="p-2 text-center"
+                  style={{ borderRight: "1px solid var(--line-soft)" }}
                 >
-                  <div className="text-[10px] font-medium text-muted-foreground uppercase">
+                  <div className="text-[10px] font-medium uppercase" style={{ color: "var(--ink-mute)" }}>
                     {format(day, "EEE", { locale: fr })}
                   </div>
-                  <div className={`text-lg font-bold ${isToday ? "text-primary" : ""}`}>
+                  <div className="text-lg font-bold" style={{ fontFamily: "var(--serif)", color: isToday ? "var(--accent)" : "var(--ink)" }}>
                     {format(day, "d")}
                   </div>
                 </div>
@@ -246,14 +248,14 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
           {/* Time Grid */}
           <div className="grid grid-cols-[50px_repeat(3,1fr)]">
             {/* Hours Column */}
-            <div className="border-r bg-muted/20">
+            <div style={{ borderRight: "1px solid var(--line-soft)" }}>
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className="border-b flex items-start justify-end pr-2 pt-1"
-                  style={{ height: `${HOUR_HEIGHT}px` }}
+                  className="flex items-start justify-end pr-2 pt-1"
+                  style={{ height: `${HOUR_HEIGHT}px`, borderBottom: "1px solid var(--line-soft)" }}
                 >
-                  <span className="text-[10px] font-medium text-muted-foreground">
+                  <span className="text-[10px] font-medium" style={{ color: "var(--ink-mute)" }}>
                     {hour.toString().padStart(2, "0")}:00
                   </span>
                 </div>
@@ -269,14 +271,18 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
               return (
                 <div
                   key={day.toISOString()}
-                  className={`relative border-r last:border-r-0 ${isToday ? "bg-primary/[0.02]" : ""}`}
+                  className="relative"
+                  style={{
+                    borderRight: "1px solid var(--line-soft)",
+                    background: isToday ? "color-mix(in srgb, var(--accent) 4%, transparent)" : undefined,
+                  }}
                 >
                   {/* Hour Grid Lines */}
                   {hours.map((hour) => (
                     <div
                       key={hour}
-                      className={`border-b ${onSlotClick ? "cursor-pointer hover:bg-primary/5 active:bg-primary/10 transition-colors" : ""}`}
-                      style={{ height: `${HOUR_HEIGHT}px` }}
+                      className={onSlotClick ? "cursor-pointer transition-colors" : ""}
+                      style={{ height: `${HOUR_HEIGHT}px`, borderBottom: "1px solid var(--line-soft)" }}
                       onClick={() => {
                         if (onSlotClick) {
                           onSlotClick(
@@ -345,10 +351,10 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
                   {/* Current Time Indicator */}
                   {showIndicator && (
                     <div
-                      className="absolute left-0 right-0 h-0.5 bg-destructive z-20 pointer-events-none"
-                      style={{ top: `${currentTimeTop}px` }}
+                      className="absolute left-0 right-0 z-20 pointer-events-none"
+                      style={{ top: `${currentTimeTop}px`, height: 0, borderTop: "1.5px solid var(--clay)" }}
                     >
-                      <div className="absolute -left-1 -top-1 w-2 h-2 bg-destructive rounded-full" />
+                      <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full" style={{ background: "var(--clay)" }} />
                     </div>
                   )}
                 </div>

@@ -42,7 +42,8 @@ const createFormSchema = (t: TFunction) =>
     description: z.string().optional(),
     description_en: z.string().optional(),
     lead_time: z.string().default("0"),
-    service_for: z.string().min(1, t("errors.validation.serviceForRequired")),
+    // Amenity access treatments have no gender/specialty; both are hidden and skipped.
+    service_for: z.string().default(""),
     category: z.string().min(1, t("errors.validation.categoryRequired")),
     hotel_id: z.string().min(1, t("errors.validation.hotelRequired")),
     status: z.string().default("active"),
@@ -51,7 +52,9 @@ const createFormSchema = (t: TFunction) =>
     available_days: z.array(z.number().int().min(0).max(6)).default([]),
     is_addon: z.boolean().default(false),
     addon_ids: z.array(z.string().uuid()).default([]),
-    specialty: z.string().min(1, "La spécialité est obligatoire"),
+    // Amenity access treatments have no therapist, so no specialty is required.
+    amenity_id: z.string().uuid().nullable().default(null),
+    specialty: z.string().default(""),
     variants: z
       .array(
         z.object({
@@ -66,7 +69,27 @@ const createFormSchema = (t: TFunction) =>
         })
       )
       .min(1, "Au moins une variante requise"),
-  });
+  })
+    .superRefine((val, ctx) => {
+      // Specialty and service_for are mandatory for real soins, but irrelevant
+      // for amenity treatments (no therapist, no gender targeting).
+      if (!val.amenity_id) {
+        if (!val.specialty) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["specialty"],
+            message: "La spécialité est obligatoire",
+          });
+        }
+        if (!val.service_for) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["service_for"],
+            message: t("errors.validation.serviceForRequired"),
+          });
+        }
+      }
+    });
 
 export type TreatmentFormValues = z.infer<ReturnType<typeof createFormSchema>>;
 
@@ -114,6 +137,7 @@ export default function TreatmentDetail() {
       available_days: [],
       is_addon: false,
       addon_ids: [],
+      amenity_id: null,
       specialty: "",
       variants: [
         {
@@ -202,6 +226,7 @@ export default function TreatmentDetail() {
             available_days: (treatment as any).available_days ?? [],
             is_addon: treatment.is_addon ?? false,
             addon_ids: addonIds,
+            amenity_id: treatment.amenity_id ?? null,
             specialty: treatment.treatment_type || "",
             variants: variantsData,
           });
@@ -273,6 +298,7 @@ export default function TreatmentDetail() {
         available_days: values.available_days.length > 0 ? values.available_days : null,
         is_addon: values.is_addon,
         treatment_type: values.specialty || null,
+        amenity_id: values.amenity_id || null,
       };
 
       // An add-on cannot itself have sub-add-ons — clear links if toggled on

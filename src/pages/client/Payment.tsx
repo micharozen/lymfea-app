@@ -31,7 +31,7 @@ export default function Payment() {
   const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
-  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles, giftInfo, scheduleMode, perItemSchedule, groupId, bookingIds, checkoutIntentId } = useClientFlow();
+  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles, giftInfo, scheduleMode, perItemSchedule, amenityTiming, groupId, bookingIds, checkoutIntentId } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
 
   useEffect(() => {
@@ -89,16 +89,22 @@ export default function Payment() {
     }
   }, [canProceedToStep, navigate, slug]);
 
-  const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
+  // Les accès amenity (piscine, sauna…) n'ont ni praticien ni lit : exclus du
+  // duo et de guest_count. Seuls les vrais soins comptent.
+  const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i => i.guestCount ?? 1));
 
   // "Same time" (shared) with 2+ treatments = duo: one bed + one therapist per
   // treatment (counting quantity). Falls back to the native variant guest_count.
   const duoGuestCount = (() => {
-    const totalTreatments = totalTreatmentCount(items.filter(i => !i.isAddon && !i.isBundle));
+    const totalTreatments = totalTreatmentCount(items.filter(i => !i.isAddon && !i.isBundle && !i.isAmenity));
     return scheduleMode === 'shared' && totalTreatments > 1
       ? Math.max(requiredGuestCount, totalTreatments)
       : requiredGuestCount;
   })();
+
+  // Placement de l'accès amenity (avant/après le soin) — pertinent seulement si
+  // le panier contient un accès. Le back le colle au créneau du soin.
+  const hasAmenityItem = items.some(i => i.isAmenity);
 
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
@@ -236,6 +242,7 @@ export default function Payment() {
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
               ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
+              ...(hasAmenityItem && amenityTiming ? { amenityTiming } : {}),
             },
             skipAuth: true,
           });
@@ -274,6 +281,7 @@ export default function Payment() {
               language: languageFromCountryCode(clientInfo.countryCode),
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
+              ...(hasAmenityItem && amenityTiming ? { amenityTiming } : {}),
           }, { skipAuth: true });
 
           if (error) throw error;
@@ -322,6 +330,7 @@ export default function Payment() {
             ...(draftBookingId ? { draftBookingId } : {}),
             ...(checkoutIntentFields(checkoutIntentId)),
             ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
+            ...(hasAmenityItem && amenityTiming ? { amenityTiming } : {}),
           },
           skipAuth: true,
         });
@@ -369,6 +378,7 @@ export default function Payment() {
           ...(draftBookingId ? { draftBookingId } : {}),
           ...(checkoutIntentFields(checkoutIntentId)),
           ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
+          ...(hasAmenityItem && amenityTiming ? { amenityTiming } : {}),
           isMulti,
           ...(isMulti ? { groupId, bookingIds } : {}),
           // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
@@ -431,6 +441,7 @@ export default function Payment() {
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
               ...(duoGuestCount > 1 ? { guestCount: duoGuestCount } : {}),
+              ...(hasAmenityItem && amenityTiming ? { amenityTiming } : {}),
             };
 
         const { data, error } = await invokeEdgeFunction<unknown, { bookingId?: string; bookingIds?: string[] }>('create-client-booking', { body, skipAuth: true });

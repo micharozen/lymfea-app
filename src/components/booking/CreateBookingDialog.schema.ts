@@ -30,7 +30,12 @@ export const createFormSchema = (t: TFunction) => z.object({
   roomId: z.string().default(""),
   // Salle secondaire optionnelle pour un Duo scindé sur 2 salles. "" = même salle.
   secondaryRoomId: z.string().default(""),
+  // Note propre à cette réservation → bookings.client_note
   clientNote: z.string().default(""),
+  // Note persistante du client (VIP, préférences…) → customers.health_notes.
+  // Suit le client sur toutes ses réservations. Enregistrée seulement si un
+  // client est résolu (téléphone renseigné).
+  customerNote: z.string().default(""),
   payByVoucher: z.boolean().default(false),
   voucherReference: z.string().default(""),
   // Réservation offerte (gratuite) : prix forcé à 0, marquée "offert".

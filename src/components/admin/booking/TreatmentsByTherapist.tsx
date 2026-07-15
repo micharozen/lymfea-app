@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { HandHeart, Pencil, Loader2, Check, X, DoorClosed } from "lucide-react";
+import { HandHeart, Pencil, Loader2, Check, X, DoorClosed, Waves } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/formatPrice";
 import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
-import { therapistForTreatment } from "@/lib/therapistForTreatment";
+import { getAmenityType } from "@/lib/amenityTypes";
 import { useReassignTreatmentTherapists, type LineAssignment } from "@/hooks/booking/useReassignTreatmentTherapists";
 import type { BookingTreatment } from "@/hooks/booking/useBookingData";
 
@@ -95,6 +95,12 @@ export function TreatmentsByTherapist({
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [pendingTherapistId, setPendingTherapistId] = useState<string>("");
 
+  // Un accès « amenity » (piscine, sauna…) n'a jamais de praticien : on l'exclut
+  // de tout le regroupement/réassignation et on l'affiche à part.
+  const serviceTreatments = useMemo(() => treatments.filter((t) => !t.is_amenity), [treatments]);
+  const amenityTreatments = useMemo(() => treatments.filter((t) => t.is_amenity), [treatments]);
+  const hasServices = serviceTreatments.length > 0;
+
   // Assignable therapists = active therapists linked to this venue (same source
   // as the edit dialog). Also the name lookup for solo/duo therapists.
   const { data: assignable = [] } = useQuery({
@@ -127,25 +133,58 @@ export function TreatmentsByTherapist({
 
   const rosterIds = useMemo(() => acceptedTherapists.map((t) => t.id), [acceptedTherapists]);
 
-  // Effective therapist per line: explicit link first, then the positional
-  // (combo-duo) / solo fallback used elsewhere in the app.
-  const resolveTherapistId = (line: BookingTreatment, index: number): string | null => {
-    if (line.therapist_id) return line.therapist_id;
-    if (guestCount <= 1) return primaryTherapistId ?? null;
-    return therapistForTreatment(index, treatments.length, guestCount, rosterIds);
-  };
+  // Effective therapist per line. The explicit soin↔therapist link
+  // (booking_treatments.therapist_id) is authoritative; the positional roster
+  // fallback only fills legs that still have no link — and never re-uses a
+  // therapist already linked to another leg. This keeps a partially-accepted
+  // combo-duo honest: one leg linked to the therapist who accepted, the other
+  // shown "Non assigné" until the second therapist accepts.
+  const lineTherapistIds = useMemo<(string | null)[]>(() => {
+    if (guestCount <= 1) {
+      // Solo: explicit link per line, else the single primary therapist.
+      const solo = primaryTherapistId ?? null;
+      return serviceTreatments.map((t) => t.therapist_id ?? solo);
+    }
 
-  const lineTherapistIds = useMemo(
-    () => treatments.map((t, i) => resolveTherapistId(t, i)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [treatments, guestCount, primaryTherapistId, rosterIds],
-  );
+    // Duo: assign each line to a leg (base soins take legs 0..n-1 in order,
+    // add-ons inherit their leg round-robin — same convention as booking
+    // creation), then resolve therapists per leg.
+    const legOfLine: number[] = [];
+    let baseLeg = 0;
+    let addonSeq = 0;
+    for (const t of serviceTreatments) {
+      legOfLine.push(t.is_addon ? addonSeq++ % guestCount : baseLeg++);
+    }
+    const isComboDuo = baseLeg === guestCount;
+    // Shared-duo (1 soin, N thérapeutes): no positional pairing — trust the
+    // explicit link only.
+    if (!isComboDuo) return serviceTreatments.map((t) => t.therapist_id ?? null);
+
+    const legTherapist: (string | null)[] = Array.from({ length: guestCount }, () => null);
+    // 1) Explicit links win, onto their own leg (first link per leg).
+    serviceTreatments.forEach((t, i) => {
+      if (t.therapist_id && legTherapist[legOfLine[i]] == null) {
+        legTherapist[legOfLine[i]] = t.therapist_id;
+      }
+    });
+    // 2) Fill the still-empty legs from roster therapists not already linked.
+    const used = new Set(legTherapist.filter((id): id is string => !!id));
+    const available = rosterIds.filter((id) => !used.has(id));
+    let next = 0;
+    for (let leg = 0; leg < guestCount; leg++) {
+      if (legTherapist[leg] == null && next < available.length) {
+        legTherapist[leg] = available[next++];
+      }
+    }
+
+    return serviceTreatments.map((_, i) => legTherapist[legOfLine[i]]);
+  }, [serviceTreatments, guestCount, primaryTherapistId, rosterIds]);
 
   const groups = useMemo<TherapistGroup[]>(() => {
     const order: (string | null)[] = [];
     const byId = new Map<string | null, TherapistGroup>();
 
-    treatments.forEach((t, i) => {
+    serviceTreatments.forEach((t, i) => {
       const therapistId = lineTherapistIds[i];
       if (!byId.has(therapistId)) {
         order.push(therapistId);
@@ -187,7 +226,7 @@ export function TreatmentsByTherapist({
       }
       return g;
     });
-  }, [treatments, lineTherapistIds, nameById, roomName, secondaryRoomName, showEarnings, globalTherapistCommission, therapistCommission, therapistRatesMap, surchargePercent]);
+  }, [serviceTreatments, lineTherapistIds, nameById, roomName, secondaryRoomName, showEarnings, globalTherapistCommission, therapistCommission, therapistRatesMap, surchargePercent]);
 
   const startEdit = (lineId: string, currentTherapistId: string | null) => {
     setEditingLineId(lineId);
@@ -207,7 +246,7 @@ export function TreatmentsByTherapist({
     // Materialise every line: the edited soin moves to the new therapist, all
     // other lines keep their resolved therapist. Lines without a resolvable
     // therapist are skipped (their link stays NULL).
-    const assignments: LineAssignment[] = treatments
+    const assignments: LineAssignment[] = serviceTreatments
       .map((t, i) => {
         const bookingTreatmentId = t.bookingTreatmentId;
         if (!bookingTreatmentId) return null;
@@ -241,7 +280,7 @@ export function TreatmentsByTherapist({
   return (
     <section className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
       <h3 className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase mb-4 flex items-center gap-2">
-        <HandHeart className="h-4 w-4" /> Soins & Praticien{guestCount > 1 ? "s" : ""}
+        <HandHeart className="h-4 w-4" /> {hasServices ? `Soins & Praticien${guestCount > 1 ? "s" : ""}` : "Prestations"}
       </h3>
 
       <div className="space-y-3">
@@ -364,6 +403,46 @@ export function TreatmentsByTherapist({
             </div>
           );
         })}
+
+        {/* Accès / commodités : lignes amenity (piscine, sauna…), sans praticien
+            ni cabine ni réassignation — la disponibilité dépend de la commodité. */}
+        {amenityTreatments.length > 0 && (
+          <div className="rounded-lg border border-gray-100 border-l-2 border-l-cyan-300 bg-gray-50/60 overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3 bg-muted/40 border-b border-gray-100">
+              <div className="h-9 w-9 rounded-full ring-2 bg-cyan-50 text-cyan-700 ring-cyan-200 flex items-center justify-center shrink-0">
+                <Waves className="h-4 w-4" />
+              </div>
+              <p className="font-medium text-sm">Accès / commodités</p>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {amenityTreatments.map((line, i) => {
+                const typeDef = line.amenity_type ? getAmenityType(line.amenity_type) : undefined;
+                const amenityLabel = typeDef?.labelFr ?? line.amenity_name ?? null;
+                return (
+                  <div key={line.bookingTreatmentId || i} className="px-4 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm min-w-0 flex flex-col">
+                        <span>{line.name}</span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          {amenityLabel && (
+                            <span className="inline-flex items-center gap-1">
+                              {typeDef?.icon && <typeDef.icon className="h-3 w-3" />}
+                              {amenityLabel}
+                            </span>
+                          )}
+                          {line.duration ? <span>· {line.duration} min</span> : null}
+                        </span>
+                      </span>
+                      <span className="text-sm font-medium whitespace-nowrap shrink-0">
+                        {formatPrice(line.price ?? 0, currency)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

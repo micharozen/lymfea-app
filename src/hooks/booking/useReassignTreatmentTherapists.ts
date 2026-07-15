@@ -77,9 +77,17 @@ export function useReassignTreatmentTherapists() {
 
       // 3. Primary therapist = first line's therapist (stable line order).
       const primaryTherapistId = assignments[0].therapistId;
+      // Only real soin lines gate confirmation. Amenity lines
+      // (treatment_menus.amenity_id != null) never get a therapist, so they must
+      // be excluded — otherwise the booking would stay pending forever whenever
+      // it contains an amenity access.
       const [bookingRes, linesRes, therapistRes] = await Promise.all([
         supabase.from("bookings").select("status").eq("id", bookingId).single(),
-        supabase.from("booking_treatments").select("id").eq("booking_id", bookingId),
+        supabase
+          .from("booking_treatments")
+          .select("id, treatment_menus!inner(amenity_id)")
+          .eq("booking_id", bookingId)
+          .is("treatment_menus.amenity_id", null),
         supabase.from("therapists").select("first_name, last_name").eq("id", primaryTherapistId).single(),
       ]);
       if (bookingRes.error) throw bookingRes.error;

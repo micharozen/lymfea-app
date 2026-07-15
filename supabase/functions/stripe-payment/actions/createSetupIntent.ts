@@ -32,6 +32,7 @@ export async function handleCreateSetupIntent(
     draftBookingId,
     giftAmountUsage,
     guestCount,
+    amenityTiming,
     isMulti,
     groupId,
     bookingIds,
@@ -312,6 +313,7 @@ export async function handleCreateSetupIntent(
       draftBookingId: draftBookingId || "",
       checkoutIntentId: checkoutIntentId || "",
       guestCount: guestCount ? String(guestCount) : "1",
+      amenityTiming: amenityTiming || "same",
       ...(giftAmountUsage
         ? {
             giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,

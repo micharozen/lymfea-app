@@ -281,6 +281,8 @@ export default function BookingsList() {
               })
             : "",
       },
+      { header: t("bookings.export.columns.customerNote"), value: (b) => b.customer_health_notes ?? "" },
+      { header: t("bookings.export.columns.bookingNote"), value: (b) => b.client_note ?? "" },
     ];
     downloadCsv(buildCsv(sortedBookings, columns), `reservations_${format(new Date(), "yyyy-MM-dd")}.csv`);
     toast.success(t("bookings.export.success", { count: sortedBookings.length }));

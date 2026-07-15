@@ -146,10 +146,12 @@ async function atomicReserveSingle(
   totalDuration: number,
   verifiedPrice: number,
   treatmentIds: string[],
+  status: string,
 ): Promise<{ data: string | null; error: Error | null }> {
   // Duo (guest_count > 1): reserve guest_count beds, no therapist yet. Booking
   // stays 'pending' until all guest_count practitioners have accepted (a duo
-  // still needing therapists is pending + guest_count > 1).
+  // still needing therapists is pending + guest_count > 1). Amenity-only carts
+  // arrive here already 'confirmed' (see caller).
   const guestCount = Math.max(1, Number(meta.guestCount) || 1);
   return supabase.rpc("reserve_trunk_atomically", {
     _booking_date: meta.bookingDate,
@@ -167,11 +169,13 @@ async function atomicReserveSingle(
     _payment_status: "pending",
     _phone: meta.phone,
     _room_number: meta.roomNumber || null,
-    _status: "pending",
+    _status: status,
     _therapist_gender: meta.therapistGender || null,
     _total_price: verifiedPrice,
     _treatment_ids: treatmentIds,
     _guest_count: guestCount,
+    // Never 'same' — a soin and its amenity are always sequential (before/after).
+    _amenity_timing: meta.amenityTiming || "after",
   });
 }
 
@@ -573,7 +577,7 @@ export async function handleConfirmSetupIntent(
 
   const { data: treatments } = await supabase
     .from("treatment_menus")
-    .select("id, price, duration, is_addon, category")
+    .select("id, price, duration, is_addon, category, amenity_id")
     .in("id", treatmentIds);
   const priceById = new Map<string, number>(
     (treatments || []).map((t: { id: string; price: number }) => [t.id, t.price || 0]),
@@ -586,12 +590,26 @@ export async function handleConfirmSetupIntent(
   const isAddonLine = (treatmentId: string) => addonTreatmentIds.has(treatmentId);
   const durationOfLine = (line: TreatmentLine) => durationById.get(line.treatmentId) || 0;
 
+  // Amenity lines (pool/sauna access) occupy their own block — exclude them from
+  // the soin slot duration. And an amenity-only cart (every line is an amenity)
+  // needs no therapist, so it is confirmed immediately — same rules as
+  // create-client-booking.
+  const amenityTreatmentIds = new Set(
+    (treatments || [])
+      .filter((t: { amenity_id?: string | null }) => t.amenity_id != null)
+      .map((t: { id: string }) => t.id),
+  );
+  const isAmenityLine = (treatmentId: string) => amenityTreatmentIds.has(treatmentId);
+  const isAmenityOnly = pricingLines.length > 0
+    && pricingLines.every((l) => amenityTreatmentIds.has(l.treatmentId));
+  const bookingStatus = isAmenityOnly ? "confirmed" : "pending";
+
   let basePrice = 0;
   for (const line of pricingLines) {
     const qty = Math.max(1, Number(line.quantity) || 1);
     basePrice += (priceById.get(line.treatmentId) || 0) * qty;
   }
-  const totalDuration = computeSlotDuration(pricingLines, isDuo, durationOfLine, isAddonLine) || 30;
+  const totalDuration = computeSlotDuration(pricingLines, isDuo, durationOfLine, isAddonLine, isAmenityLine) || 30;
 
   const { data: hotel } = await supabase
     .from("hotels")
@@ -631,7 +649,7 @@ export async function handleConfirmSetupIntent(
     if (draftFetchError || !draftBooking) {
       console.warn("[CONFIRM-SETUP] Draft expired, falling back to atomic reserve");
       const { data: fallbackId, error: fallbackError } = await atomicReserveSingle(
-        supabase, meta, hotel, customerId, totalDuration, verifiedPrice, treatmentIds,
+        supabase, meta, hotel, customerId, totalDuration, verifiedPrice, treatmentIds, bookingStatus,
       );
       if (fallbackError)
         throw new Error(
@@ -659,7 +677,7 @@ export async function handleConfirmSetupIntent(
           phone: meta.phone,
           room_number: meta.roomNumber || null,
           client_note: meta.note || null,
-          status: "pending",
+          status: bookingStatus,
           source: "client",
           payment_method: "card",
           payment_status: bookingPaymentStatus,
@@ -680,7 +698,7 @@ export async function handleConfirmSetupIntent(
     }
   } else {
     const { data: newBookingId, error: rpcError } = await atomicReserveSingle(
-      supabase, meta, hotel, customerId, totalDuration, verifiedPrice, treatmentIds,
+      supabase, meta, hotel, customerId, totalDuration, verifiedPrice, treatmentIds, bookingStatus,
     );
 
     if (rpcError) {

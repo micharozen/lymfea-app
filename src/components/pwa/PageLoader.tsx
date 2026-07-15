@@ -1,4 +1,5 @@
 import PwaHeader from "./Header";
+import { AppLoader } from "@/components/AppLoader";
 
 interface PwaPageLoaderProps {
   title?: string;
@@ -17,14 +18,7 @@ const PwaPageLoader = ({ title, showBack, backPath }: PwaPageLoaderProps) => {
         />
       )}
       
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="relative w-8 h-8">
-            <div className="absolute inset-0 rounded-full border-2 border-muted" />
-            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-foreground animate-spin" />
-          </div>
-        </div>
-      </div>
+      <AppLoader fullScreen={false} className="flex-1" />
     </div>
   );
 };

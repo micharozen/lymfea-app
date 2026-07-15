@@ -30,6 +30,16 @@ export interface TreatmentPayload {
   treatmentId: string;
   variantId?: string;
   priceOverride?: number | null;
+  /** True for an add-on line (a supplement performed after a base soin). */
+  isAddon?: boolean;
+  /**
+   * Which person (0-based) performs this line in a combo-duo. Base soins get
+   * their own index; an add-on inherits the index of the base it hangs off.
+   * Drives both the therapist assignment and the parent link at insert time.
+   */
+  legIndex?: number;
+  /** For an add-on: the treatmentId of the base soin it extends. */
+  parentTreatmentId?: string | null;
 }
 
 export interface CreateBookingPayload {
@@ -44,6 +54,8 @@ export interface CreateBookingPayload {
   language?: "fr" | "en";
   roomNumber: string;
   clientNote?: string;
+  /** Note persistante du client → customers.health_notes (écrite si customer résolu). */
+  customerNote?: string;
   date: string;
   time: string;
   therapistId: string;
@@ -254,7 +266,55 @@ async function insertSingleBooking(
 
   if (error) throw error;
 
-  if (d.treatments && d.treatments.length > 0) {
+  // Combo-duo lines carry a legIndex (the person performing them). Add-ons hang
+  // off their person's base soin: insert bases first so each add-on can point at
+  // the right base row, and give both the base and its add-ons that person's
+  // therapist_id (positional therapistForTreatment would break — base + add-on
+  // count ≠ guestCount).
+  const isComboDuoLines = (d.treatments?.some((t) => t.legIndex !== undefined)) ?? false;
+
+  if (d.treatments && d.treatments.length > 0 && isComboDuoLines) {
+    const therapistForLeg = (legIndex?: number) =>
+      legIndex !== undefined ? allTherapistIds[legIndex] ?? null : null;
+
+    const baseLines = d.treatments.filter((t) => !t.isAddon);
+    const addonLines = d.treatments.filter((t) => t.isAddon);
+
+    const { data: baseRows, error: baseErr } = await supabase.from("booking_treatments").insert(
+      baseLines.map((t) => ({
+        booking_id: booking.id,
+        treatment_id: t.treatmentId,
+        variant_id: t.variantId || null,
+        price_override: t.priceOverride ?? null,
+        therapist_id: therapistForLeg(t.legIndex),
+      })),
+    ).select("id, treatment_id");
+    if (baseErr) throw baseErr;
+
+    // The base row each add-on hangs off, keyed by the person (legIndex) — base
+    // rows come back in insert order, so index i is person i.
+    const baseRowByLeg = new Map<number, string>();
+    (baseRows ?? []).forEach((row: { id: string }, i: number) => {
+      const legIndex = baseLines[i]?.legIndex;
+      if (legIndex !== undefined) baseRowByLeg.set(legIndex, row.id);
+    });
+
+    if (addonLines.length > 0) {
+      const { error: addonErr } = await supabase.from("booking_treatments").insert(
+        addonLines.map((t) => ({
+          booking_id: booking.id,
+          treatment_id: t.treatmentId,
+          variant_id: t.variantId || null,
+          price_override: t.priceOverride ?? null,
+          therapist_id: therapistForLeg(t.legIndex),
+          is_addon: true,
+          parent_booking_treatment_id:
+            t.legIndex !== undefined ? baseRowByLeg.get(t.legIndex) ?? null : null,
+        })),
+      );
+      if (addonErr) throw addonErr;
+    }
+  } else if (d.treatments && d.treatments.length > 0) {
     const count = d.treatments.length;
     const { error: te } = await supabase.from("booking_treatments").insert(
       d.treatments.map((t, i) => ({
@@ -331,6 +391,16 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           _civility: d.civility ?? null,
         });
         customerId = data ?? null;
+      }
+
+      // Note client persistante → customers.health_notes. On n'écrit que si un
+      // client est résolu et que la note n'est pas vide (l'effacement se fait
+      // depuis la fiche client, pas depuis le formulaire de réservation).
+      if (customerId && d.customerNote?.trim()) {
+        await supabase
+          .from("customers")
+          .update({ health_notes: d.customerNote.trim() })
+          .eq("id", customerId);
       }
 
       const guestCount = d.guestCount ?? 1;

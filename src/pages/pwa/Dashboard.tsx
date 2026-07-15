@@ -1,26 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Check, CheckCircle2, ChevronRight, Clock, Euro, Loader2, RefreshCw, X, Users, DoorOpen } from "lucide-react";
+import { Check, ChevronRight, Loader2, RefreshCw, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
+import { fr, enUS } from "date-fns/locale";
+import i18n from "@/i18n";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
-import { Skeleton } from "@/components/ui/skeleton";
 import { setOneSignalExternalUserId } from "@/hooks/useOneSignal";
 import { useIsMounted } from "@/hooks/useIsMounted";
-import PwaHeader from "@/components/pwa/Header";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
-import { brand } from "@/config/brand";
-import { useScheduleCompleteness, fetchTherapistUnavailableDates } from "@/hooks/pwa/useScheduleCompleteness";
+import { fetchTherapistUnavailableDates } from "@/hooks/pwa/useScheduleCompleteness";
+import { useTherapistOrganizationName } from "@/hooks/pwa/useTherapistOrganizationName";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import { myLegDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
-import { ScheduleReminderBanner } from "@/components/pwa/schedule/ScheduleReminderBanner";
 
 interface Therapist {
   id: string;
@@ -69,15 +66,6 @@ interface Booking {
   } | null;
 }
 
-// Helper to get hotel image from booking (handles both object and array)
-const getHotelImage = (booking: Booking): string | null => {
-  if (!booking.hotels) return null;
-  if (Array.isArray(booking.hotels)) {
-    return booking.hotels[0]?.image || null;
-  }
-  return booking.hotels.image;
-};
-
 // Helper to get hotel currency from booking (handles both object and array)
 const getHotelCurrency = (booking: Booking): string => {
   if (!booking.hotels) return 'EUR';
@@ -87,24 +75,43 @@ const getHotelCurrency = (booking: Booking): string => {
   return booking.hotels.currency || 'EUR';
 };
 
-const getPaymentStatusBadge = (paymentStatus: string | null | undefined, paymentMethod: string | null | undefined, t: (key: string) => string) => {
+type PaymentDesignStatus = { kind: 'ok' | 'due' | 'warn' | 'info'; label: string };
+
+const getPaymentDesignStatus = (
+  paymentStatus: string | null | undefined,
+  t: (key: string) => string
+): PaymentDesignStatus | null => {
   if (!paymentStatus) return null;
 
   switch (paymentStatus) {
     case 'paid':
-      return { label: t('dashboard.paymentPaid'), className: 'bg-green-100 text-green-700' };
+      return { kind: 'ok', label: t('dashboard.paymentPaid') };
     case 'charged_to_room':
-      return { label: t('dashboard.paymentRoom'), className: 'bg-blue-100 text-blue-700' };
-      case 'card_saved': 
-      return { label: 'Carte enregistrée', className: 'bg-purple-100 text-purple-700' };
+      return { kind: 'info', label: t('dashboard.paymentRoom') };
+    case 'card_saved':
+      return { kind: 'info', label: t('dashboard.paymentCardSaved') };
     case 'pending':
-      return { label: t('dashboard.paymentPending'), className: 'bg-yellow-100 text-yellow-700' };
+      return { kind: 'due', label: t('dashboard.paymentPending') };
     case 'failed':
-      return { label: t('dashboard.paymentFailed'), className: 'bg-red-100 text-red-700' };
+      return { kind: 'warn', label: t('dashboard.paymentFailed') };
     default:
       return null;
   }
 };
+
+const PaymentStatus = ({ status }: { status: PaymentDesignStatus | null }) =>
+  status ? (
+    <span className={'status ' + status.kind}>
+      <span className="dot" />
+      {status.label}
+    </span>
+  ) : null;
+
+const treatmentsLabel = (b: { booking_treatments?: Array<{ treatment_menus: { name: string } | null }> }) =>
+  b.booking_treatments?.map((bt) => bt.treatment_menus?.name).filter(Boolean).join(', ') || '';
+
+const acceptedCount = (b: { booking_therapists?: { status: string }[] }) =>
+  b.booking_therapists?.filter((bt) => bt.status === 'accepted').length || 0;
 
 const PwaDashboard = () => {
   const { t } = useTranslation('pwa');
@@ -115,7 +122,7 @@ const PwaDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [startY, setStartY] = useState(0);
-  const [showAllBookings, setShowAllBookings] = useState(false);
+  const [showGreeting, setShowGreeting] = useState(true);
   const [processing, setProcessing] = useState<{ id: string; action: "accept" | "decline" } | null>(null);
   const processingBookingId = processing?.id ?? null;
   const [unavailableDates, setUnavailableDates] = useState<Set<string>>(new Set());
@@ -123,7 +130,7 @@ const PwaDashboard = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const isMountedRef = useIsMounted();
-  const { data: scheduleCompleteness } = useScheduleCompleteness(therapist?.id);
+  const orgName = useTherapistOrganizationName(therapist?.id);
 
   useEffect(() => {
     if (!therapist) return;
@@ -144,6 +151,12 @@ const PwaDashboard = () => {
 
   useEffect(() => {
     checkAuth();
+  }, []);
+
+  // Le message de bienvenue disparaît après 30 secondes.
+  useEffect(() => {
+    const timer = setTimeout(() => setShowGreeting(false), 30000);
+    return () => clearTimeout(timer);
   }, []);
 
   // Single useEffect to handle initial load - use cache first
@@ -587,7 +600,6 @@ const PwaDashboard = () => {
     if (!isMountedRef.current) return;
 
     setRefreshing(true);
-    setShowAllBookings(false); // Reset to show only 3 on refresh
     await fetchAllBookings(therapist.id);
     if (isMountedRef.current) {
       setRefreshing(false);
@@ -843,7 +855,6 @@ const PwaDashboard = () => {
 
   const filteredBookings = getFilteredBookings();
   const pendingRequests = getPendingRequests();
-  const groupedPendingRequests = groupBookingsByDate(pendingRequests);
 
   const todayStats = (() => {
     const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -899,425 +910,234 @@ const PwaDashboard = () => {
     return { count, hoursLabel, earnings };
   })();
 
+  const locale = i18n.language?.startsWith('en') ? enUS : fr;
+
+  const nextRdv = (() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const nowHM = format(new Date(), 'HH:mm');
+    return allBookings
+      .filter(
+        (b) =>
+          b.booking_date === todayStr &&
+          (b.therapist_id === therapist?.id ||
+            b.booking_therapists?.some((bt) => bt.therapist_id === therapist?.id && bt.status === 'accepted')) &&
+          (b.status === 'confirmed' || b.status === 'ongoing') &&
+          b.booking_time.substring(0, 5) >= nowHM
+      )
+      .sort((a, b) => a.booking_time.localeCompare(b.booking_time))[0] || null;
+  })();
+
+  const nextRdvIn = (() => {
+    if (!nextRdv) return null;
+    const [h, m] = nextRdv.booking_time.split(':').map(Number);
+    const dt = new Date();
+    dt.setHours(h, m, 0, 0);
+    const diffMin = Math.round((dt.getTime() - Date.now()) / 60000);
+    if (diffMin <= 0) return null;
+    const hh = Math.floor(diffMin / 60);
+    const mm = diffMin % 60;
+    const timeLabel = hh > 0 ? `${hh} h ${mm.toString().padStart(2, '0')}` : `${mm} min`;
+    return t('dashboard.inTime', { time: timeLabel });
+  })();
+
+  const groupedBookings = groupBookingsByDate(filteredBookings);
+
   return (
-    <div className="flex flex-1 flex-col bg-background">
-      <PwaHeader
-        leftSlot={
-          <span className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Kormelink', serif" }}>{brand.name}</span>
-        }
-        rightSlot={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              aria-label={t('dashboard.refresh')}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:text-foreground disabled:opacity-50"
-            >
-              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-            </button>
-            <Avatar
-              className="h-7 w-7 ring-1 ring-border cursor-pointer"
-              onClick={() => navigate("/pwa/profile")}
-            >
-              <AvatarImage src={therapist?.profile_image || undefined} />
-              <AvatarFallback className="bg-muted text-foreground text-[10px] font-medium">
-                {therapist?.first_name?.[0]}{therapist?.last_name?.[0]}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        }
-      />
-
-      {scheduleCompleteness && (
-        <div className="px-4 pt-3">
-          <ScheduleReminderBanner
-            incomplete={scheduleCompleteness.isIncomplete}
-            variant="dashboard"
-            partialProgress={
-              scheduleCompleteness.status === "partial"
-                ? {
-                    count: scheduleCompleteness.declaredDaysCount,
-                    total:
-                      scheduleCompleteness.expectedDaysCount > 0
-                        ? scheduleCompleteness.expectedDaysCount
-                        : scheduleCompleteness.horizonDays,
-                  }
-                : undefined
-            }
-          />
-        </div>
-      )}
-
-      {/* Today's KPI banner */}
-      <div className="px-4 pt-3">
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl border bg-card px-3 py-2.5 flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-primary shrink-0" />
-            <div className="min-w-0">
-              <div className="text-base font-bold leading-none">{todayStats.count}</div>
-              <div className="text-[10px] text-muted-foreground truncate mt-0.5">
-                {t('dashboard.todayAppointments')}
-              </div>
-            </div>
-          </div>
-          <div className="rounded-xl border bg-card px-3 py-2.5 flex items-center gap-2">
-            <Clock className="h-4 w-4 text-primary shrink-0" />
-            <div className="min-w-0">
-              <div className="text-base font-bold leading-none">{todayStats.hoursLabel}</div>
-              <div className="text-[10px] text-muted-foreground truncate mt-0.5">
-                {t('dashboard.todayHours')}
-              </div>
-            </div>
-          </div>
-          <div className="rounded-xl border bg-card px-3 py-2.5 flex items-center gap-2">
-            <Euro className="h-4 w-4 text-primary shrink-0" />
-            <div className="min-w-0">
-              <div className="text-base font-bold leading-none">
-                {formatPrice(todayStats.earnings, 'EUR', { decimals: 0 })}
-              </div>
-              <div className="text-[10px] text-muted-foreground truncate mt-0.5">
-                {t('dashboard.todayEarnings')}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Pull to refresh indicator */}
-      {pullDistance > 0 && (
-        <div 
-          className="flex justify-center items-center py-1 transition-opacity flex-shrink-0"
-          style={{ 
-            opacity: Math.min(pullDistance / 60, 1),
-            transform: `translateY(${Math.min(pullDistance - 20, 0)}px)`
-          }}
+    <div
+      className="app-refonte flex flex-1 flex-col"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <header className="hdr" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 14px)' }}>
+        <span className="wordmark">{orgName}</span>
+        <div className="spacer" />
+        <button
+          type="button"
+          className="hdr-icon-btn"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          aria-label={t('dashboard.refresh')}
         >
-          <div className={`w-5 h-5 border-2 border-primary border-t-transparent rounded-full ${refreshing ? 'animate-spin' : ''}`} />
+          <RefreshCw className={cn('h-[15px] w-[15px]', refreshing && 'animate-spin')} />
+        </button>
+        <button type="button" className="avatar" onClick={() => navigate('/pwa/profile')}>
+          {therapist?.first_name?.[0]}{therapist?.last_name?.[0]}
+        </button>
+      </header>
+
+      {pullDistance > 0 && (
+        <div className="flex justify-center items-center py-1" style={{ opacity: Math.min(pullDistance / 60, 1) }}>
+          <div className={cn('w-5 h-5 border-2 border-t-transparent rounded-full', refreshing && 'animate-spin')} style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
         </div>
       )}
 
-      {/* Content - no scroll, parent handles it */}
-      <div
-        className="flex flex-col flex-1 min-h-0 pb-2"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {/* My Bookings Section */}
-        <div className="order-2 px-4 pt-3">
-          <h2 className="text-[10px] font-bold uppercase tracking-wider mb-2 text-foreground">{t('dashboard.myBookings')}</h2>
-          
-          {/* Tabs - Compact */}
-          <div className="flex gap-4 mb-3 border-b border-border">
-            <button
-              onClick={() => setActiveTab("upcoming")}
-              className={`pb-2 text-xs font-medium transition-colors relative ${
-                activeTab === "upcoming"
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {t('dashboard.upcoming')}
-              <div
-                className={cn(
-                  "absolute bottom-0 left-0 right-0 h-0.5 bg-primary transition-opacity",
-                  activeTab === "upcoming" ? "opacity-100" : "opacity-0"
-                )}
-              />
-            </button>
-            <button
-              onClick={() => setActiveTab("history")}
-              className={`pb-2 text-xs font-medium transition-colors relative ${
-                activeTab === "history"
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {t('dashboard.history')}
-              <div
-                className={cn(
-                  "absolute bottom-0 left-0 right-0 h-0.5 bg-primary transition-opacity",
-                  activeTab === "history" ? "opacity-100" : "opacity-0"
-                )}
-              />
-            </button>
-          </div>
-
-          {/* Bookings List - Compact */}
-          <div className="space-y-1">
-            {loading && allBookings.length === 0 ? (
-              <>
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-2 py-1.5">
-                    <Skeleton className="w-10 h-10 rounded-lg" />
-                    <div className="flex-1 space-y-1">
-                      <Skeleton className="h-3 w-28" />
-                      <Skeleton className="h-2.5 w-40" />
-                    </div>
-                    <Skeleton className="w-4 h-4 rounded" />
-                  </div>
-                ))}
-              </>
-            ) : filteredBookings.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-6 px-4 text-center">
-                <div className="mb-2 flex justify-center">
-                  {activeTab === "upcoming" ? (
-                    <CalendarDays className="h-8 w-8 text-muted-foreground" />
-                  ) : (
-                    <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
-                  )}
-                </div>
-                <h3 className="text-sm font-medium text-foreground mb-1">
-                  {activeTab === "upcoming" ? t('dashboard.noUpcoming') : t('dashboard.noHistory')}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {activeTab === "upcoming" ? t('dashboard.upcomingWillAppear') : t('dashboard.historyWillAppear')}
-                </p>
-              </div>
-            ) : (
-              <>
-                {filteredBookings.slice(0, showAllBookings ? filteredBookings.length : 3).map((booking, index) => (
-                  <div
-                    key={booking.id}
-                    onClick={() => navigate(`/pwa/booking/${booking.id}`)}
-                    className="flex items-center gap-2 cursor-pointer py-1.5"
-                  >
-                    <div className="w-10 h-10 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
-                      {getHotelImage(booking) ? (
-                        <img 
-                          src={getHotelImage(booking)!} 
-                          alt={booking.hotel_name} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-muted to-muted flex items-center justify-center">
-                          <span className="text-muted-foreground text-xs font-bold">{booking.hotel_name?.[0]}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-0">
-                        <span className="font-semibold text-xs text-muted-foreground flex-shrink-0">#{booking.booking_id}</span>
-                        <h3 className="font-semibold text-xs text-foreground truncate">{booking.hotel_name}</h3>
-
-                        {/* NOUVEAU BADGE SOIN DUO */}
-                        {(booking.guest_count || 1) > 1 && (
-                          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 bg-blue-100 text-blue-700 border-blue-200 gap-0.5 flex-shrink-0 flex items-center">
-                            <Users className="w-2.5 h-2.5 mr-0.5" />
-                            {booking.booking_therapists?.filter(bt => bt.status === 'accepted').length || 0}/{booking.guest_count}
-                          </Badge>
-                        )}
-                        
-                        {booking.therapist_id && booking.status === "pending" && (
-                          <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3">
-                            {t('dashboard.toConfirm')}
-                          </Badge>
-                        )}
-                        {(() => {
-                          const paymentBadge = getPaymentStatusBadge(booking.payment_status, booking.payment_method, t);
-                          return paymentBadge ? (
-                            <Badge className={`text-[8px] px-1 py-0 h-3 ${paymentBadge.className}`}>
-                              {paymentBadge.label}
-                            </Badge>
-                          ) : null;
-                        })()}
-                      </div>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {booking.booking_treatments?.map(bt => bt.treatment_menus?.name).filter(Boolean).join(', ') || ''}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
-                      </p>
-                      {booking.room_name && (
-                        <p className="flex items-center gap-1 text-[11px] text-muted-foreground truncate">
-                          <DoorOpen className="h-3 w-3 shrink-0" />
-                          {booking.room_name}
-                        </p>
-                      )}
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
-                  </div>
-                ))}
-              </>
-            )}
-            
-            {filteredBookings.length > 3 && !showAllBookings && (
-              <button 
-                onClick={() => setShowAllBookings(true)}
-                className="text-xs text-foreground font-medium w-full text-center py-2 hover:bg-muted rounded-lg transition-colors"
-              >
-                {t('dashboard.showMore', { count: filteredBookings.length - 3 })}
-              </button>
-            )}
-            
-            {showAllBookings && filteredBookings.length > 3 && (
-              <button 
-                onClick={() => setShowAllBookings(false)}
-                className="text-xs text-muted-foreground font-medium w-full text-center py-2 hover:bg-muted rounded-lg transition-colors"
-              >
-                {t('dashboard.showLess')}
-              </button>
-            )}
-          </div>
+      {showGreeting && (
+        <div className="greeting">
+          <h1>
+            {t('dashboard.greeting')} <em>{therapist?.first_name}</em>
+          </h1>
+          <div className="date">{format(new Date(), 'EEEE d MMMM yyyy', { locale })}</div>
         </div>
+      )}
 
-        {/* Pending Requests Section - Compact */}
-        <div className="order-1 px-4 pt-3 pb-2">
-          <div className="flex items-center gap-1.5 mb-2">
-            <h2 className="text-[10px] font-bold uppercase tracking-wider text-foreground">{t('dashboard.pendingRequests')}</h2>
-            <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center">
-              <span className="text-[9px] font-semibold text-muted-foreground">{pendingRequests.length}</span>
+      {/* Prochain rendez-vous */}
+      <div className="hero-card">
+        <div className="glow" />
+        {nextRdv ? (
+          <button
+            className="hero-inner"
+            style={{ border: 'none', width: '100%', background: 'none', color: 'inherit', textAlign: 'left', cursor: 'pointer' }}
+            onClick={() => navigate('/pwa/bookings')}
+          >
+            <div className="hero-top">
+              <span className="lbl">{t('dashboard.nextAppointment')}</span>
+              {nextRdvIn && <span className="in">{nextRdvIn}</span>}
             </div>
-          </div>
-          
-          {loading ? (
-            <div className="space-y-2">
-              {[1, 2].map((i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Skeleton className="w-10 h-10 rounded-lg" />
-                  <div className="flex-1 space-y-1">
-                    <Skeleton className="h-3 w-28" />
-                    <Skeleton className="h-2.5 w-40" />
-                  </div>
-                  <Skeleton className="w-4 h-4 rounded" />
+            <div className="hero-main">
+              <div className="hero-time">{nextRdv.booking_time.substring(0, 5)}</div>
+              <div className="hero-detail">
+                <div className="who">{nextRdv.hotel_name}</div>
+                <div className="what">
+                  {treatmentsLabel(nextRdv)}{treatmentsLabel(nextRdv) ? ' · ' : ''}{calculateTotalDuration(nextRdv)} min
                 </div>
-              ))}
-            </div>
-          ) : pendingRequests.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-6 px-4 text-center">
-              <div className="mb-2 flex justify-center">
-                <Clock className="h-8 w-8 text-muted-foreground" />
               </div>
-              <h3 className="text-sm font-medium text-foreground mb-1">
-                {t('dashboard.noPending')}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {t('dashboard.pendingWillAppear')}
-              </p>
+              <ChevronRight size={18} />
             </div>
-          ) : (
-            <div className="space-y-3">
-              {groupedPendingRequests.map(([date, bookings]) => (
-                <div key={date}>
-                  <p className="text-[10px] text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">
-                    {format(new Date(date), "d MMM")} • {format(new Date(date), "EEEE")}
-                  </p>
-                  <div className="space-y-1">
-                    {bookings.map((booking, index) => (
-                      <div key={booking.id}>
-                        <div
-                          onClick={() => navigate(`/pwa/booking/${booking.id}`)}
-                          className="flex items-center gap-2 cursor-pointer py-1"
-                        >
-                          <div className="w-10 h-10 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
-                            {getHotelImage(booking) ? (
-                              <img 
-                                src={getHotelImage(booking)!} 
-                                alt={booking.hotel_name} 
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-muted to-muted flex items-center justify-center">
-                                <span className="text-muted-foreground text-xs font-bold">{booking.hotel_name?.[0]}</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-xs text-muted-foreground flex-shrink-0">#{booking.booking_id}</span>
-                              <h3 className="font-semibold text-xs text-foreground truncate">{booking.hotel_name}</h3>
-
-                              {/* NOUVEAU BADGE SOIN DUO */}
-                              {(booking.guest_count || 1) > 1 && (
-                                <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 bg-blue-100 text-blue-700 border-blue-200 gap-0.5 flex-shrink-0 flex items-center">
-                                  <Users className="w-2.5 h-2.5 mr-0.5" />
-                                  {booking.booking_therapists?.filter(bt => bt.status === 'accepted').length || 0}/{booking.guest_count}
-                                </Badge>
-                              )}
-
-                              {booking.proposed_slots && (booking.proposed_slots.slot_2_date || booking.proposed_slots.slot_3_date) && (
-                                <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3 bg-purple-100 text-purple-700 flex-shrink-0">
-                                  {t('dashboard.slots', { count: [true, !!booking.proposed_slots.slot_2_date, !!booking.proposed_slots.slot_3_date].filter(Boolean).length })}
-                                </Badge>
-                              )}
-
-                              {(() => {
-                                const paymentBadge = getPaymentStatusBadge(booking.payment_status, booking.payment_method, t);
-                                return paymentBadge ? (
-                                  <Badge className={`text-[8px] px-1 py-0 h-3 flex-shrink-0 ${paymentBadge.className}`}>
-                                    {paymentBadge.label}
-                                  </Badge>
-                                ) : null;
-                              })()}
-                            </div>
-                            <p className="text-[11px] text-muted-foreground truncate">
-                              {booking.booking_treatments?.map(bt => bt.treatment_menus?.name).filter(Boolean).join(', ') || ''}
-                            </p>
-                            {booking.proposed_slots ? (
-                              <p className="text-[11px] text-muted-foreground">
-                                {format(new Date(booking.proposed_slots.slot_1_date + "T00:00:00"), "d/MM")} {booking.proposed_slots.slot_1_time.substring(0, 5)}
-                                {booking.proposed_slots.slot_2_date && booking.proposed_slots.slot_2_time &&
-                                  ` / ${format(new Date(booking.proposed_slots.slot_2_date + "T00:00:00"), "d/MM")} ${booking.proposed_slots.slot_2_time.substring(0, 5)}`}
-                                {booking.proposed_slots.slot_3_date && booking.proposed_slots.slot_3_time &&
-                                  ` / ${format(new Date(booking.proposed_slots.slot_3_date + "T00:00:00"), "d/MM")} ${booking.proposed_slots.slot_3_time.substring(0, 5)}`}
-                                {" "}• {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
-                              </p>
-                            ) : (
-                              <p className="text-[11px] text-muted-foreground">
-                                {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button
-                              type="button"
-                              aria-label={t('dashboard.accept')}
-                              disabled={processingBookingId !== null}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAcceptBooking(booking.id);
-                              }}
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700 transition-colors hover:bg-green-200 disabled:opacity-50"
-                            >
-                              {processing?.id === booking.id && processing.action === "accept" ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Check className="h-4 w-4" />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              aria-label={t('dashboard.decline')}
-                              disabled={processingBookingId !== null}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeclineBooking(booking.id);
-                              }}
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-700 transition-colors hover:bg-red-200 disabled:opacity-50"
-                            >
-                              {processing?.id === booking.id && processing.action === "decline" ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <X className="h-4 w-4" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                        {index < bookings.length - 1 && (
-                          <div className="h-px bg-muted mt-1" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            <div className="hero-foot">
+              <span>{t('dashboard.todayLabel')}&nbsp;: <b>{todayStats.count} {t('dashboard.rdvShort')}</b></span>
+              <span><b>{todayStats.hoursLabel}</b> {t('dashboard.ofCare')}</span>
+              <span><b>{formatPrice(todayStats.earnings, 'EUR', { decimals: 0 })}</b> {t('dashboard.estimated')}</span>
             </div>
-          )}
-        </div>
+          </button>
+        ) : (
+          <div className="hero-empty">
+            <div className="t">{t('dashboard.freeDay')}</div>
+            <div className="s">{t('dashboard.noAppointmentToday')}</div>
+          </div>
+        )}
       </div>
 
-      {/* Push Notification Prompt */}
+      {/* Mes disponibilités */}
+      <button className="quiet-row" onClick={() => navigate('/pwa/schedule')}>
+        <CalendarClock size={19} />
+        {t('dashboard.myAvailability')}
+        <span className="chev"><ChevronRight size={16} /></span>
+      </button>
+
+      {/* Demandes en attente */}
+      {pendingRequests.length > 0 && (
+        <Fragment>
+          <div className="sec-label">
+            {t('dashboard.pendingRequests')} <span className="count">{pendingRequests.length}</span>
+          </div>
+          {pendingRequests.map((r) => {
+            const when = r.proposed_slots
+              ? `${format(new Date(r.proposed_slots.slot_1_date + 'T00:00:00'), 'EEE d MMM', { locale })} · ${r.proposed_slots.slot_1_time.substring(0, 5)}`
+              : `${format(new Date(r.booking_date), 'EEE d MMM', { locale })} · ${r.booking_time.substring(0, 5)}`;
+            const isProcessing = processing?.id === r.id;
+            return (
+              <div
+                className="req-card"
+                key={r.id}
+                onClick={() => navigate(`/pwa/booking/${r.id}`)}
+                role="button"
+                tabIndex={0}
+              >
+                <div className="req-when">{when}</div>
+                <div className="req-head">
+                  <span className="who">{r.hotel_name}</span>
+                  {(r.guest_count || 1) > 1 && (
+                    <span className="status info"><span className="dot" />{acceptedCount(r)}/{r.guest_count}</span>
+                  )}
+                  <PaymentStatus status={getPaymentDesignStatus(r.payment_status, t)} />
+                </div>
+                <div className="req-body">{treatmentsLabel(r)}</div>
+                <div className="req-meta">
+                  {calculateTotalDuration(r)} min &nbsp;·&nbsp; {formatPrice(calculateTotalPrice(r), getHotelCurrency(r))}
+                </div>
+                <div className="req-actions" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="btn-detail"
+                    disabled={processingBookingId !== null}
+                    onClick={() => handleDeclineBooking(r.id)}
+                  >
+                    {isProcessing && processing?.action === 'decline'
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : t('dashboard.decline')}
+                  </button>
+                  <button
+                    className="btn-accept"
+                    disabled={processingBookingId !== null}
+                    onClick={() => handleAcceptBooking(r.id)}
+                  >
+                    {isProcessing && processing?.action === 'accept'
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <><Check size={15} /> {t('dashboard.accept')}</>}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </Fragment>
+      )}
+
+      {/* Mes réservations */}
+      <div className="sec-label">
+        {t('dashboard.myBookings')}
+        <button className="sec-action" onClick={() => setActiveTab(activeTab === 'upcoming' ? 'history' : 'upcoming')}>
+          {activeTab === 'upcoming' ? t('dashboard.history') : t('dashboard.upcoming')} →
+        </button>
+      </div>
+
+      {loading && allBookings.length === 0 ? (
+        <div className="placeholder" style={{ padding: '30px 40px' }}>
+          <p>{t('dashboard.loading')}</p>
+        </div>
+      ) : filteredBookings.length === 0 ? (
+        <div className="placeholder" style={{ padding: '30px 40px' }}>
+          <p>{activeTab === 'upcoming' ? t('dashboard.upcomingWillAppear') : t('dashboard.historyWillAppear')}</p>
+        </div>
+      ) : (
+        <Fragment>
+          {groupedBookings.map(([date, list]) => (
+            <Fragment key={date}>
+              <div className="day-group-label">{format(new Date(date), 'EEEE d MMMM', { locale })}</div>
+              {list.map((b) => {
+                const toConfirm = !!b.therapist_id && b.status === 'pending';
+                return (
+                  <button className="bk-row" key={b.id} onClick={() => navigate(`/pwa/booking/${b.id}`)}>
+                    <div className="bk-time">
+                      <div className="h">{b.booking_time.substring(0, 5)}</div>
+                      <div className="d">{calculateTotalDuration(b)} min</div>
+                    </div>
+                    <div className="bk-main">
+                      <div className="who">{b.hotel_name}</div>
+                      <div className="what">{treatmentsLabel(b)}</div>
+                      {(b.room_name || toConfirm) && (
+                        <div className="meta">
+                          {b.room_name || ''}{b.room_name && toConfirm ? ' · ' : ''}{toConfirm ? t('dashboard.toConfirm') : ''}
+                        </div>
+                      )}
+                    </div>
+                    <div className="bk-right">
+                      <div className="price">{formatPrice(calculateTotalPrice(b), getHotelCurrency(b), { decimals: 0 })}</div>
+                      <div className="bk-status">
+                        {(b.guest_count || 1) > 1 && (
+                          <span className="status info">{acceptedCount(b)}/{b.guest_count}</span>
+                        )}
+                        <PaymentStatus status={getPaymentDesignStatus(b.payment_status, t)} />
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </Fragment>
+          ))}
+          <div style={{ height: 24 }} />
+        </Fragment>
+      )}
+
       <PushNotificationPrompt />
     </div>
   );
