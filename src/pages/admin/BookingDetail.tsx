@@ -46,6 +46,11 @@ import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { type TherapistRates } from "@/lib/therapistEarnings";
+import {
+  CLIENT_TYPE_META, PARTNER_BILLED_CLIENT_TYPES, isPartnerBilledClientType,
+  normalizeBookingClientType, type BookingClientType,
+} from "@/lib/clientTypeMeta";
+import { derivePaymentForClientType, isPaymentStatusLocked } from "@/lib/clientTypePayment";
 
 const PAYMENT_LABELS: Record<string, string> = {
   pending: "Paiement en attente",
@@ -69,15 +74,16 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   partner_billed: "Facturé au partenaire (fin de mois)",
 };
 
-// Origine de la réservation (colonne bookings.source) → label FR affiché dans le header.
-const SOURCE_LABELS: Record<string, string> = {
-  client: "Site",
-  admin: "Admin",
-  concierge: "Gestion du lieu",
-  pwa: "App thérapeute",
-  phone: "Téléphone",
-  email: "Email",
-  api: "API",
+// Origine de la réservation (colonne bookings.source) → tag affiché dans le header.
+// label = texte, className = couleurs du badge (bg + texte + bordure).
+const SOURCE_TAGS: Record<string, { label: string; className: string }> = {
+  client: { label: "Site", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  admin: { label: "Admin", className: "bg-blue-50 text-blue-700 border-blue-200" },
+  concierge: { label: "Gestion du lieu", className: "bg-amber-50 text-amber-700 border-amber-200" },
+  pwa: { label: "App thérapeute", className: "bg-purple-50 text-purple-700 border-purple-200" },
+  phone: { label: "Téléphone", className: "bg-stone-100 text-stone-600 border-stone-200" },
+  email: { label: "Email", className: "bg-stone-100 text-stone-600 border-stone-200" },
+  api: { label: "API", className: "bg-stone-100 text-stone-600 border-stone-200" },
 };
 
 const PAYMENT_METHOD_ICONS: Record<string, typeof CreditCard> = {
@@ -133,6 +139,7 @@ export default function BookingDetail() {
   const [activeTab, setActiveTab] = useState("history");
   const dialogs = useBookingDetailDialogs();
   const [markPaidMethod, setMarkPaidMethod] = useState<string>("");
+  const [markPaidPartner, setMarkPaidPartner] = useState<BookingClientType | "">("");
   const [markPaidLoading, setMarkPaidLoading] = useState(false);
   const [invoiceHTML, setInvoiceHTML] = useState("");
   const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
@@ -310,7 +317,13 @@ export default function BookingDetail() {
     ["pending", "confirmed"].includes(booking.status);
   const clientType = (booking as any).client_type || (booking.room_number ? "hotel" : "external");
   const isExternal = clientType === "external";
-  const sourceLabel = SOURCE_LABELS[(booking as any).source] ?? null;
+  // Nom + logo du partenaire (déjà stocké dans client_type), pour l'affichage.
+  const normalizedClientType = normalizeBookingClientType(clientType);
+  const partnerMeta = isPartnerBilledClientType(normalizedClientType)
+    ? CLIENT_TYPE_META[normalizedClientType]
+    : null;
+  const partnerName = partnerMeta ? t(partnerMeta.labelKey) : null;
+  const sourceTag = SOURCE_TAGS[(booking as any).source] ?? null;
   const paymentInfos = booking.booking_payment_infos;
   const hasSavedCard = !!paymentInfos
     && paymentInfos.payment_status === "card_saved"
@@ -366,20 +379,43 @@ export default function BookingDetail() {
 
   const handleMarkAsPaid = async () => {
     if (!booking || !markPaidMethod) return;
+    // Facturation partenaire : le partenaire doit être choisi, et le paiement
+    // reste "pending_partner_billing" (encaissé côté partenaire en fin de mois),
+    // pas "paid". Le partenaire choisi est persisté dans client_type.
+    const isPartner = markPaidMethod === "partner_billed";
+    if (isPartner && !markPaidPartner) return;
+    // Ne pas réécraser un paiement déjà abouti/remboursé.
+    if (isPartner && isPaymentStatusLocked(booking.payment_status)) {
+      toast.error("Le statut de paiement est verrouillé (payé ou remboursé).");
+      return;
+    }
     setMarkPaidLoading(true);
     try {
+      let update: Record<string, string | null>;
+      if (isPartner) {
+        const derived = derivePaymentForClientType(markPaidPartner as BookingClientType);
+        update = {
+          client_type: markPaidPartner,
+          payment_method: derived.paymentMethod,
+          payment_status: derived.paymentStatus,
+        };
+      } else {
+        update = { payment_status: "paid", payment_method: markPaidMethod };
+      }
       const { error } = await supabase
         .from("bookings")
-        .update({ payment_status: "paid", payment_method: markPaidMethod })
+        .update(update)
         .eq("id", booking.id);
       if (error) throw error;
-      // Stamp the payment time so the detail view can show "payé le …".
-      // Only the Stripe/webhook flows set this otherwise — a manual mark left it null.
-      await supabase
-        .from("booking_payment_infos")
-        .update({ payment_at: new Date().toISOString() })
-        .eq("booking_id", booking.id);
-      toast.success("Paiement enregistré.");
+      // Stamp the payment time so the detail view can show "payé le …" — seulement
+      // pour un vrai encaissement. La facturation partenaire n'est pas un paiement.
+      if (!isPartner) {
+        await supabase
+          .from("booking_payment_infos")
+          .update({ payment_at: new Date().toISOString() })
+          .eq("booking_id", booking.id);
+      }
+      toast.success(isPartner ? "Facturation partenaire enregistrée." : "Paiement enregistré.");
       dialogs.setIsMarkPaidOpen(false);
       refetch();
     } catch (err: any) {
@@ -464,12 +500,17 @@ export default function BookingDetail() {
                   hexColor={isPaid ? "#22c55e" : isPartnerBilled ? "#6366f1" : "#eab308"}
                   label={paymentLabel}
                 />
+                {sourceTag && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${sourceTag.className}`}
+                  >
+                    <span className="opacity-60">Source</span>
+                    {sourceTag.label}
+                  </span>
+                )}
               </div>
               <p className="mt-0.5 text-xs text-gray-500 flex items-center gap-1.5 flex-wrap">
                 <span>{clientType === "hotel" ? "Client hôtel" : "Client externe"}</span>
-                {sourceLabel && (
-                  <><span className="text-gray-300">·</span><span>{sourceLabel}</span></>
-                )}
                 {booking.room_number && booking.room_number !== "TBD" ? (
                   <><span className="text-gray-300">·</span><span>Ch. {booking.room_number}</span></>
                 ) : clientType === "hotel" && (
@@ -741,8 +782,16 @@ export default function BookingDetail() {
                   </div>
                 ) : isPartnerBilled ? (
                   <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2 flex items-center gap-2 text-indigo-800">
-                    <CheckCircle2 className="h-4 w-4 text-indigo-600 flex-shrink-0" />
-                    <span className="font-medium text-xs">Paiement géré par le partenaire (facturation mensuelle).</span>
+                    {partnerMeta ? (
+                      <img src={partnerMeta.logo} alt="" className="h-4 w-4 flex-shrink-0 object-contain" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+                    )}
+                    <span className="font-medium text-xs">
+                      {partnerName
+                        ? `Facturé au partenaire ${partnerName} (facturation mensuelle).`
+                        : "Paiement géré par le partenaire (facturation mensuelle)."}
+                    </span>
                   </div>
                 ) : (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2 text-amber-800">
@@ -796,7 +845,11 @@ export default function BookingDetail() {
                   variant="outline"
                   size="sm"
                   className="w-full mt-4"
-                  onClick={() => { setMarkPaidMethod(booking.payment_method ?? ""); dialogs.setIsMarkPaidOpen(true); }}
+                  onClick={() => {
+                    setMarkPaidMethod(booking.payment_method ?? "");
+                    setMarkPaidPartner(isPartnerBilledClientType(normalizeBookingClientType(clientType)) ? normalizeBookingClientType(clientType) : "");
+                    dialogs.setIsMarkPaidOpen(true);
+                  }}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-2" /> Marquer comme payé
                 </Button>
@@ -877,10 +930,23 @@ export default function BookingDetail() {
                 ))}
               </SelectContent>
             </Select>
+            {markPaidMethod === "partner_billed" && (
+              <div className="space-y-2 pt-2">
+                <label className="text-sm text-gray-500">Partenaire facturé</label>
+                <Select value={markPaidPartner} onValueChange={(v) => setMarkPaidPartner(v as BookingClientType)}>
+                  <SelectTrigger><SelectValue placeholder="Choisir un partenaire" /></SelectTrigger>
+                  <SelectContent>
+                    {PARTNER_BILLED_CLIENT_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>{t(CLIENT_TYPE_META[type].labelKey)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => dialogs.setIsMarkPaidOpen(false)}>Annuler</Button>
-            <Button onClick={handleMarkAsPaid} disabled={!markPaidMethod || markPaidLoading}>
+            <Button onClick={handleMarkAsPaid} disabled={!markPaidMethod || (markPaidMethod === "partner_billed" && !markPaidPartner) || markPaidLoading}>
               {markPaidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Confirmer le paiement
             </Button>
