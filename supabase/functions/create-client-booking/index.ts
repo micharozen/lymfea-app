@@ -12,6 +12,7 @@ import {
   fetchAddonTreatmentIds,
   insertBookingTreatmentLines,
 } from '../_shared/bookingTreatmentLines.ts';
+import { runInBackground } from '../_shared/backgroundTask.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,23 +134,6 @@ function languageFromPhone(phone: string | null): 'fr' | 'en' {
   const p = (phone ?? '').replace(/\s/g, '');
   if (!p) return 'fr';
   return p.startsWith('+33') ? 'fr' : 'en';
-}
-
-// Run work in the background so the HTTP response can return immediately. On the
-// Supabase runtime EdgeRuntime.waitUntil keeps the worker alive until it settles;
-// locally (no waitUntil) we await inline so notifications still fire.
-async function runInBackground(work: Promise<unknown>, label: string): Promise<void> {
-  const guarded = Promise.resolve(work).catch((err) =>
-    console.error(`${label} failed:`, err)
-  );
-  const edgeRuntime = (globalThis as {
-    EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void };
-  }).EdgeRuntime;
-  if (edgeRuntime?.waitUntil) {
-    edgeRuntime.waitUntil(guarded);
-  } else {
-    await guarded;
-  }
 }
 
 async function handleMultiBookingConfirm(
