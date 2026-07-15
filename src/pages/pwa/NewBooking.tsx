@@ -4,14 +4,12 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
 import { BookingData } from "@/components/booking/PaymentLinkForm";
-import PwaHeader from "@/components/pwa/Header";
 import { BookingProgressBar } from "@/components/pwa/new-booking/BookingProgressBar";
-import { StepTransition } from "@/components/pwa/new-booking/StepTransition";
 import { ClientInfoStep } from "@/components/pwa/new-booking/ClientInfoStep";
 import { TreatmentStep } from "@/components/pwa/new-booking/TreatmentStep";
 import { SummaryStep } from "@/components/pwa/new-booking/SummaryStep";
 import { SuccessStep } from "@/components/pwa/new-booking/SuccessStep";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { computeOutOfHoursSurcharge, type SurchargeConfig } from "@/lib/surcharge";
@@ -56,7 +54,6 @@ const PwaNewBooking = () => {
 
   // Steps: 1=Client Info, 2=Treatments, 3=Summary, 4=Payment Link
   const [step, setStep] = useState(1);
-  const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
   // Therapist data
   const [therapist, setTherapist] = useState<Therapist | null>(null);
@@ -340,7 +337,6 @@ const PwaNewBooking = () => {
           data?.booking_id ? ` #${data.booking_id}` : ""
         }`
       );
-      setDirection("forward");
       setStep(4);
     },
   });
@@ -370,14 +366,12 @@ const PwaNewBooking = () => {
         toast.error("Veuillez sélectionner un thérapeute");
         return;
       }
-      setDirection("forward");
       setStep(2);
     } else if (step === 2) {
       if (!canProceedStep2) {
         toast.error("Veuillez sélectionner au moins un traitement");
         return;
       }
-      setDirection("forward");
       setStep(3);
     }
   };
@@ -386,7 +380,6 @@ const PwaNewBooking = () => {
     if (step === 1) {
       navigate("/pwa/dashboard");
     } else {
-      setDirection("backward");
       setStep(step - 1);
     }
   };
@@ -433,7 +426,7 @@ const PwaNewBooking = () => {
     1: t("newBooking.clientInfo", "Informations client"),
     2: t("newBooking.treatments", "Prestations"),
     3: t("newBooking.summary", "Récapitulatif"),
-    4: t("newBooking.payment", "Lien de paiement"),
+    4: t("newBooking.bookingCreatedTitle", "Réservation créée"),
   };
 
   // Payment link booking data
@@ -462,26 +455,49 @@ const PwaNewBooking = () => {
 
   if (initialLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh]">
-        <Loader2 className="h-8 w-8 animate-spin text-gold-600" />
+      <div className="app-refonte flex items-center justify-center min-h-[100dvh]">
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: "var(--accent)" }} />
       </div>
     );
   }
 
+  const isConfirm = step === 4;
+
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-background">
-      <PwaHeader
-        title={stepTitles[step]}
-        showBack={step < 4}
-        onBack={handleBack}
-      />
+    <div className="app-refonte flex flex-col h-full min-h-[100dvh]">
+      <div className="sub-hdr" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
+        {isConfirm ? (
+          <span style={{ width: 38 }} />
+        ) : (
+          <button
+            type="button"
+            className="back-btn"
+            onClick={handleBack}
+            aria-label={t("newBooking.back", "Retour")}
+          >
+            {step === 1 ? <X size={17} /> : <ArrowLeft size={18} />}
+          </button>
+        )}
+        <span className="ttl">{stepTitles[step]}</span>
+        {isConfirm ? (
+          <button
+            type="button"
+            className="back-btn"
+            onClick={() => navigate("/pwa/dashboard")}
+            aria-label={t("common.close", "Fermer")}
+          >
+            <X size={17} />
+          </button>
+        ) : (
+          <span style={{ width: 38 }} />
+        )}
+      </div>
 
       <BookingProgressBar currentStep={step} />
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <StepTransition step={step} direction={direction}>
-          {step === 1 && (
-            <ClientInfoStep
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {step === 1 && (
+          <ClientInfoStep
               hotels={hotels}
               selectedHotelId={selectedHotelId}
               setSelectedHotelId={setSelectedHotelId}
@@ -533,7 +549,6 @@ const PwaNewBooking = () => {
               getCartQuantity={getCartQuantity}
               setLineOverride={setLineOverride}
               onNext={handleNext}
-              onBack={handleBack}
             />
           )}
 
@@ -559,7 +574,6 @@ const PwaNewBooking = () => {
               onIsOffertChange={setIsOffert}
               isPending={createBooking.isPending}
               onCreate={handleCreate}
-              onBack={handleBack}
             />
           )}
 
@@ -573,7 +587,6 @@ const PwaNewBooking = () => {
               clientType={clientType}
             />
           )}
-        </StepTransition>
       </main>
     </div>
   );

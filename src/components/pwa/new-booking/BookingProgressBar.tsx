@@ -1,43 +1,34 @@
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BookingProgressBarProps {
+  /** 1-based current step (1=Infos, 2=Prestations, 3=Récap, 4=Confirmé) */
   currentStep: number;
 }
 
-const STEPS = [
-  { id: 1, label: 'Infos' },
-  { id: 2, label: 'Prestations' },
-  { id: 3, label: 'Récap' },
-];
+const STEPS = ['Infos', 'Prestations', 'Récap'];
 
+/** Stepper « Saoma » — pastilles Infos → Prestations → Récap. Masqué sur l'écran confirmé. */
 export function BookingProgressBar({ currentStep }: BookingProgressBarProps) {
   if (currentStep > 3) return null;
 
-  const percentage = (currentStep / STEPS.length) * 100;
+  // step index 0-based pour comparer aux étapes
+  const idx = currentStep - 1;
 
   return (
-    <div className="px-4 pt-3 pb-2 shrink-0">
-      <div className="flex items-center justify-between mb-2">
-        {STEPS.map((step) => (
-          <span
-            key={step.id}
-            className={cn(
-              'text-[10px] uppercase tracking-widest transition-colors duration-300',
-              currentStep >= step.id
-                ? 'text-primary font-semibold'
-                : 'text-muted-foreground font-medium'
-            )}
-          >
-            {step.label}
-          </span>
-        ))}
-      </div>
-      <div className="w-full bg-border/50 h-1 rounded-full overflow-hidden">
+    <div className="stepper">
+      {STEPS.map((label, i) => (
         <div
-          className="bg-primary h-full rounded-full transition-all duration-500 ease-out"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
+          key={label}
+          className={cn('step', i === idx && 'cur', i < idx && 'done')}
+        >
+          <span className="pill">
+            {i < idx ? <Check size={11} /> : i + 1}
+          </span>
+          <span className="nm">{label}</span>
+          {i < STEPS.length - 1 && <span className="bar" />}
+        </div>
+      ))}
     </div>
   );
 }

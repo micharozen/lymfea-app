@@ -155,7 +155,6 @@
     "price": "Price",
     "outOfHoursSurcharge": "Incl. out-of-hours surcharge",
     "name": "Name",
-    "add": "Add",
     "noTreatments": "No treatments added",
     "contactConcierge": "Contact venue team",
     "contactBrand": "Contact {{brandName}}",
@@ -403,8 +402,24 @@
     },
     "settlement": {
       "room": "Charged to room",
-      "partner": "Billed to partner"
-    }
+      "partner": "Billed to partner",
+      "title": "Payment collection"
+    },
+    "bookingCreatedTitle": "Booking created",
+    "continue": "Continue",
+    "treatmentsCount": "treatment",
+    "treatmentsCountPlural": "treatments",
+    "onRequest": "On request",
+    "chooseDate": "Choose",
+    "duration": "Duration",
+    "totalClient": "Client total",
+    "creating": "Creating…",
+    "bookingDone": "It’s booked!",
+    "bookingNumber": "Booking",
+    "done": "Done",
+    "loadingTreatments": "Loading…",
+    "noTreatment": "No treatment available",
+    "add": "Add"
   },
   "tabs": {
     "home": "Home",

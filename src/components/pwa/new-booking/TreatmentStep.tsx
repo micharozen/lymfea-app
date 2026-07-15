@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { formatPrice } from "@/lib/formatPrice";
 import { Plus, Minus, Pencil } from "lucide-react";
 
@@ -36,7 +34,6 @@ interface TreatmentStepProps {
   getCartQuantity: (id: string) => number;
   setLineOverride: (id: string, value: number | null) => void;
   onNext: () => void;
-  onBack: () => void;
 }
 
 export function TreatmentStep({
@@ -52,18 +49,18 @@ export function TreatmentStep({
   getCartQuantity,
   setLineOverride,
   onNext,
-  onBack,
 }: TreatmentStepProps) {
   const { t } = useTranslation("pwa");
   const [showPriceOverrides, setShowPriceOverrides] = useState(false);
 
   const overriddenCount = cartDetails.filter((c) => c.priceOverride != null).length;
+  const nbSoins = cart.reduce((a, i) => a + i.quantity, 0);
 
   const groupedTreatments: Record<string, Treatment[]> = {};
-  treatments.forEach((t) => {
-    const c = t.category || "Autres";
+  treatments.forEach((tr) => {
+    const c = tr.category || "Autres";
     if (!groupedTreatments[c]) groupedTreatments[c] = [];
-    groupedTreatments[c].push(t);
+    groupedTreatments[c].push(tr);
   });
 
   const handleAdd = (treatmentId: string) => {
@@ -77,78 +74,59 @@ export function TreatmentStep({
   };
 
   return (
-    <div className="flex-1 flex flex-col px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
-      {/* Treatment list */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="app-scroll flex-1" data-screen-label="Étape prestations">
         {treatmentsLoading ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            Chargement...
+          <div className="placeholder" style={{ minHeight: 200 }}>
+            <p>{t("newBooking.loadingTreatments", "Chargement…")}</p>
           </div>
         ) : !treatments.length ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            Aucune prestation disponible
+          <div className="placeholder" style={{ minHeight: 200 }}>
+            <p>{t("newBooking.noTreatment", "Aucune prestation disponible")}</p>
           </div>
         ) : (
           Object.entries(groupedTreatments).map(([category, items]) => (
-            <div key={category} className="mb-3">
-              <h3 className="text-[9px] font-serif font-bold text-primary uppercase tracking-widest mb-1.5 pb-0.5 border-b border-primary/20 flex items-center gap-2">
-                <span className="w-0.5 h-3 bg-primary rounded-full" />
-                {category}
-              </h3>
-              <div>
+            <div key={category}>
+              <div className="sec-label">{category}</div>
+              <div className="card" style={{ marginBottom: 4 }}>
                 {items.map((treatment) => {
                   const qty = getCartQuantity(treatment.id);
                   return (
-                    <div
-                      key={treatment.id}
-                      className="flex items-center justify-between py-1.5 border-b border-border/10 last:border-0 active:scale-[0.98] transition-transform"
-                    >
-                      <div className="flex flex-col flex-1 pr-2 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-foreground text-xs truncate">
-                            {treatment.name}
-                          </span>
+                    <div className="presta-row" key={treatment.id}>
+                      <div className="ptx">
+                        <div className="nm">
+                          {treatment.name}
                           {treatment.price_on_request && (
-                            <span className="shrink-0 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded">
-                              Sur demande
+                            <span className="status due" style={{ padding: "2px 8px", fontSize: 10 }}>
+                              {t("newBooking.onRequest", "Sur demande")}
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-muted-foreground">
+                        <div className="mt">
                           {treatment.price_on_request
                             ? `${treatment.duration} min`
                             : `${formatPrice(treatment.price, currency, { decimals: 0 })} · ${treatment.duration} min`}
-                        </span>
-                      </div>
-
-                      {qty > 0 ? (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => decrementCart(treatment.id)}
-                            className="w-5 h-5 rounded-full border border-primary/30 flex items-center justify-center hover:bg-muted transition-colors"
-                          >
-                            <Minus className="h-2.5 w-2.5" />
-                          </button>
-                          <span className="text-xs font-bold w-4 text-center text-primary">
-                            {qty}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleIncrement(treatment.id)}
-                            className="w-5 h-5 rounded-full border border-primary/30 flex items-center justify-center hover:bg-muted transition-colors"
-                          >
-                            <Plus className="h-2.5 w-2.5" />
-                          </button>
                         </div>
-                      ) : (
+                      </div>
+                      {qty === 0 ? (
                         <button
                           type="button"
+                          className="p-add"
                           onClick={() => handleAdd(treatment.id)}
-                          className="shrink-0 bg-primary text-primary-foreground text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-primary/90 transition-all active:scale-95"
+                          aria-label={t("newBooking.add", "Ajouter")}
                         >
-                          Ajouter
+                          <Plus size={15} />
                         </button>
+                      ) : (
+                        <div className="p-qty">
+                          <button type="button" onClick={() => decrementCart(treatment.id)} aria-label="−">
+                            <Minus size={15} />
+                          </button>
+                          <span>{qty}</span>
+                          <button type="button" onClick={() => handleIncrement(treatment.id)} aria-label="+">
+                            <Plus size={15} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   );
@@ -157,107 +135,62 @@ export function TreatmentStep({
             </div>
           ))
         )}
-      </div>
 
-      {/* Édition des prix par prestation */}
-      {cartDetails.length > 0 && (
-        <div className="shrink-0 border-t border-primary/20 pt-2 mt-3">
-          <button
-            type="button"
-            onClick={() => setShowPriceOverrides((v) => !v)}
-            className="flex w-full items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Pencil className="h-3 w-3 shrink-0" />
-            <span>{t("newBooking.priceOverride.label", "Prix par prestation")}</span>
-            {overriddenCount > 0 && (
-              <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
-                {t("newBooking.priceOverride.count", { count: overriddenCount })}
-              </span>
-            )}
-          </button>
-          {showPriceOverrides && (
-            <div className="space-y-1.5 mt-2 max-h-32 overflow-y-auto">
-              {cartDetails.map(({ treatmentId, treatment, priceOverride }) => (
-                <div key={`ov-${treatmentId}`} className="flex items-center gap-2">
-                  <span className="text-[11px] flex-1 truncate">{treatment?.name}</span>
-                  {priceOverride != null && (
-                    <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
-                      {t("newBooking.priceOverride.modified", "modifié")}
-                    </span>
-                  )}
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={priceOverride ?? ""}
-                    onChange={(e) =>
-                      setLineOverride(
-                        treatmentId,
-                        e.target.value === "" ? null : Number(e.target.value),
-                      )
-                    }
-                    className="h-7 w-20 text-xs text-right"
-                    placeholder={String(treatment?.price ?? 0)}
-                  />
-                  <span className="text-[10px] text-muted-foreground">€</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Cart Footer */}
-      <div className="shrink-0 border-t border-primary/20 pt-3 mt-3">
-        <div className="flex items-center justify-between gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onBack}
-            className="h-8 text-xs px-3 shrink-0"
-          >
-            {t("newBooking.back", "Retour")}
-          </Button>
-
-          <div className="flex-1 min-w-0 flex justify-center">
-            {cart.length > 0 ? (
-              <div className="flex items-center gap-1.5 overflow-x-auto">
-                {cartDetails.slice(0, 2).map(({ treatmentId, quantity, treatment }) => (
-                  <div
-                    key={treatmentId}
-                    className="flex items-center gap-1 bg-primary/10 dark:bg-primary/20 text-primary rounded-full px-2 py-0.5 shrink-0"
-                  >
-                    <span className="text-[9px] font-medium truncate max-w-[60px]">
-                      {treatment?.name}
-                    </span>
-                    <span className="text-[9px] font-bold">x{quantity}</span>
+        {/* Édition des prix par prestation (fonctionnalité conservée) */}
+        {cartDetails.length > 0 && (
+          <div className="price-override">
+            <button type="button" className="po-toggle" onClick={() => setShowPriceOverrides((v) => !v)}>
+              <Pencil size={12} />
+              <span>{t("newBooking.priceOverride.label", "Prix par prestation")}</span>
+              {overriddenCount > 0 && (
+                <span className="badge">{t("newBooking.priceOverride.count", { count: overriddenCount })}</span>
+              )}
+            </button>
+            {showPriceOverrides && (
+              <div>
+                {cartDetails.map(({ treatmentId, treatment, priceOverride }) => (
+                  <div className="po-line" key={`ov-${treatmentId}`}>
+                    <span className="nm">{treatment?.name}</span>
+                    {priceOverride != null && (
+                      <span className="badge">{t("newBooking.priceOverride.modified", "modifié")}</span>
+                    )}
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={priceOverride ?? ""}
+                      onChange={(e) =>
+                        setLineOverride(treatmentId, e.target.value === "" ? null : Number(e.target.value))
+                      }
+                      placeholder={String(treatment?.price ?? 0)}
+                    />
                   </div>
                 ))}
-                {cartDetails.length > 2 && (
-                  <span className="text-[9px] text-muted-foreground shrink-0">
-                    +{cartDetails.length - 2}
-                  </span>
-                )}
-                <span className="font-bold text-sm shrink-0 ml-1 text-primary">
-                  {formatPrice(totalPrice, currency)}
-                </span>
               </div>
-            ) : (
-              <span className="text-[10px] text-muted-foreground">
-                Aucun service
-              </span>
             )}
           </div>
+        )}
 
-          <Button
-            size="sm"
-            onClick={onNext}
-            className="h-8 text-xs px-3 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            {t("newBooking.next", "Suivant")}
-          </Button>
-        </div>
+        <div style={{ height: 12 }} />
+      </div>
+
+      {/* Footer */}
+      <div className="fiche-foot">
+        <button
+          type="button"
+          className="btn-primary-lg"
+          disabled={nbSoins === 0}
+          style={{ opacity: nbSoins === 0 ? 0.4 : 1 }}
+          onClick={onNext}
+        >
+          {nbSoins > 0
+            ? `${t("newBooking.continue", "Continuer")} · ${nbSoins} ${
+                nbSoins > 1
+                  ? t("newBooking.treatmentsCountPlural", "soins")
+                  : t("newBooking.treatmentsCount", "soin")
+              } · ${formatPrice(totalPrice, currency)}`
+            : t("newBooking.continue", "Continuer")}
+        </button>
       </div>
     </div>
   );
