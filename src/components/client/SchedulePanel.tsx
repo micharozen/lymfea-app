@@ -138,6 +138,9 @@ export function SchedulePanel({
   // de placer l'accès avant ou après le soin (le back le colle au créneau du soin).
   const amenityBaseItems = useMemo(() => baseItems.filter((i) => i.isAmenity), [baseItems]);
   const hasAmenityWithService = amenityBaseItems.length > 0 && duoEligibleItems.length > 0;
+  // Panier composé uniquement d'accès amenity (piscine, sauna…) : aucun praticien
+  // n'intervient, la préférence de thérapeute n'a donc aucun sens → on la masque.
+  const hasOnlyAmenities = amenityBaseItems.length > 0 && duoEligibleItems.length === 0;
   // Durée cumulée des vrais soins (référence pour placer l'accès « après »), et
   // durée de l'accès quand il est unique (permet d'afficher la fenêtre exacte).
   const serviceDurationSum = useMemo(
@@ -720,13 +723,16 @@ export function SchedulePanel({
         </div>
       )}
 
-      {/* Therapist Gender Preference */}
-      <div className={embedded ? "" : "animate-fade-in"} style={embedded ? undefined : { animationDelay: '0.1s' }}>
-        <TherapistGenderSelector
-          value={therapistGenderPreference}
-          onChange={setTherapistGenderPreference}
-        />
-      </div>
+      {/* Therapist Gender Preference — masquée si le panier ne contient que des
+          accès amenity (aucun praticien n'intervient). */}
+      {!hasOnlyAmenities && (
+        <div className={embedded ? "" : "animate-fade-in"} style={embedded ? undefined : { animationDelay: '0.1s' }}>
+          <TherapistGenderSelector
+            value={therapistGenderPreference}
+            onChange={setTherapistGenderPreference}
+          />
+        </div>
+      )}
 
       {/* Schedule mode chooser: blocking question when 2+ treatments in cart
           (counting quantity — a treatment added twice also counts). */}
