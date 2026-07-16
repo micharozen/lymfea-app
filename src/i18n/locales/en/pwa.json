@@ -48,6 +48,18 @@
     "privacyPolicy": "Privacy Policy"
   },
   "dashboard": {
+    "greeting": "Hello",
+    "nextAppointment": "Next appointment",
+    "inTime": "in {{time}}",
+    "todayLabel": "Today",
+    "rdvShort": "appts",
+    "ofCare": "of treatments",
+    "estimated": "estimated",
+    "freeDay": "Free day",
+    "noAppointmentToday": "No appointment today",
+    "myAvailability": "My availability",
+    "paymentCardSaved": "Card saved",
+    "loading": "Loading…",
     "refresh": "Refresh",
     "title": "Dashboard",
     "myBookings": "MY BOOKINGS",
@@ -116,13 +128,33 @@
     "bookingId": "Booking ID"
   },
   "bookingDetail": {
+    "request": "Request",
+    "booking": "Booking",
+    "client": "Client",
+    "roomLabel": "Room",
+    "roomTreatment": "Treatment room",
+    "afterLabel": "After",
+    "noteLabel": "Note",
+    "healthLabel": "Health",
+    "savedCard": "Pre-registered card",
+    "beforeSession": "Before the session",
+    "checklistPay": "Payment to collect",
+    "presenceHint": "Check in on arrival",
+    "extendCta": "Extend the session",
+    "treatments": "Treatments",
+    "add": "Add",
+    "clientTotal": "Client total",
+    "giftCard": "gift card",
+    "deleteTreatment": "Delete",
+    "finalize": "Finalize the service",
+    "finish": "Complete the service",
+    "declineCta": "Decline this request",
     "reassignedAway": "This booking has been reassigned to another therapist.",
     "myBooking": "My Booking",
     "notFound": "Booking not found",
     "price": "Price",
     "outOfHoursSurcharge": "Incl. out-of-hours surcharge",
     "name": "Name",
-    "add": "Add",
     "noTreatments": "No treatments added",
     "contactConcierge": "Contact venue team",
     "contactBrand": "Contact {{brandName}}",
@@ -177,7 +209,11 @@
     "duoAccepted": "{{accepted}}/{{total}} accepted",
     "duoTherapistsJoined": "{{accepted}}/{{total}} therapist(s) joined the treatment",
     "duoJoin": "Join the treatment",
-    "duoWaiting": "Waiting for another therapist…"
+    "duoWaiting": "Waiting for another therapist…",
+    "manageBooking": "Manage booking",
+    "noShowRowHint": "The client did not show up",
+    "unassignRowHint": "The booking will be offered to other therapists",
+    "cancelRowHint": "Permanent cancellation of the booking"
   },
   "hotels": {
     "title": "My Hotels",
@@ -366,8 +402,24 @@
     },
     "settlement": {
       "room": "Charged to room",
-      "partner": "Billed to partner"
-    }
+      "partner": "Billed to partner",
+      "title": "Payment collection"
+    },
+    "bookingCreatedTitle": "Booking created",
+    "continue": "Continue",
+    "treatmentsCount": "treatment",
+    "treatmentsCountPlural": "treatments",
+    "onRequest": "On request",
+    "chooseDate": "Choose",
+    "duration": "Duration",
+    "totalClient": "Client total",
+    "creating": "Creating…",
+    "bookingDone": "It’s booked!",
+    "bookingNumber": "Booking",
+    "done": "Done",
+    "loadingTreatments": "Loading…",
+    "noTreatment": "No treatment available",
+    "add": "Add"
   },
   "tabs": {
     "home": "Home",
@@ -378,10 +430,17 @@
     "profile": "Profile",
     "wallet": "Wallet",
     "agenda": "Schedule",
-    "stats": "Stats"
+    "stats": "Stats",
+    "newBooking": "New appointment"
   },
   "bookings": {
     "title": "Schedule",
+    "viewDay": "Day",
+    "view3Days": "3 days",
+    "viewList": "List",
+    "scopeMine": "My bookings",
+    "scopeVenue": "Whole venue",
+    "empty": "No bookings found",
     "editSchedule": "My availability",
     "scheduleIncomplete": "Update your availability for the next 2 weeks"
   },

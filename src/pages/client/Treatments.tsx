@@ -57,6 +57,7 @@ interface Treatment {
   is_addon?: boolean;
   is_bundle?: boolean;
   bundle_id?: string | null;
+  amenity_id?: string | null;
   available_days?: number[] | null;
   variants?: TreatmentVariantData[];
 }
@@ -331,6 +332,7 @@ export default function Treatments() {
               isAddon: addonCategoryNames.has(treatmentToAdd.category),
               isBundle: treatmentToAdd.is_bundle ?? false,
               bundleId: treatmentToAdd.bundle_id ?? undefined,
+              isAmenity: !!treatmentToAdd.amenity_id,
             });
             hasAddedItems = true;
           }
@@ -375,6 +377,7 @@ export default function Treatments() {
       isAddon: addonCategoryNames.has(treatment.category),
       isBundle: treatment.is_bundle ?? false,
       bundleId: treatment.bundle_id ?? undefined,
+      isAmenity: !!treatment.amenity_id,
       guestCount: resolvedVariant?.guest_count ?? 1,
       availableDays: treatment.available_days ?? null,
     });

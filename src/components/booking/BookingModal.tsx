@@ -79,6 +79,7 @@ import {
   buildComboDuoBookingParams,
   computeStaffingCount,
   expandCartToSessions,
+  getBaseSessionCount,
   getSessionCount,
   isComboDuoEligible,
 } from "@/features/admin-combo-duo";
@@ -256,13 +257,15 @@ export default function BookingModal({
 
   const sessions = useMemo(() => expandCartToSessions(cartDetails), [cartDetails]);
   const sessionCount = useMemo(() => getSessionCount(cartDetails), [cartDetails]);
+  // Base soins only (add-ons aren't parallel guests) → drives practitioner count.
+  const baseSessionCount = useMemo(() => getBaseSessionCount(sessions), [sessions]);
   const comboDuoEligible = isComboDuoEligible(sessions) && requiredGuestCount <= 1;
 
   useEffect(() => {
     if (!comboDuoEligible && comboDuoEnabled) setComboDuoEnabled(false);
   }, [comboDuoEligible, comboDuoEnabled]);
 
-  const staffingCount = computeStaffingCount(comboDuoEnabled, sessionCount, requiredGuestCount);
+  const staffingCount = computeStaffingCount(comboDuoEnabled, baseSessionCount, requiredGuestCount);
   const effectiveDuration = comboDuoEnabled
     ? buildComboDuoBookingParams(sessions).duration
     : totalDuration;
@@ -507,6 +510,7 @@ export default function BookingModal({
                 comboDuoEnabled={comboDuoEnabled}
                 onComboDuoChange={setComboDuoEnabled}
                 sessionCount={sessionCount}
+                practitionerCount={baseSessionCount}
                 variantDuoInCart={requiredGuestCount > 1}
               />
             )}
@@ -805,6 +809,8 @@ interface VenueTreatmentStepProps {
   comboDuoEnabled?: boolean;
   onComboDuoChange?: (enabled: boolean) => void;
   sessionCount?: number;
+  /** Base soins only — the number of practitioners a combo-duo needs. */
+  practitionerCount?: number;
   variantDuoInCart?: boolean;
 }
 
@@ -826,6 +832,7 @@ function VenueTreatmentStep({
   comboDuoEnabled = false,
   onComboDuoChange,
   sessionCount = 0,
+  practitionerCount = 0,
   variantDuoInCart = false,
 }: VenueTreatmentStepProps) {
   const [treatmentSearch, setTreatmentSearch] = useState("");
@@ -956,13 +963,13 @@ function VenueTreatmentStep({
             <div className="min-w-0">
               <p className="text-sm font-medium">
                 {t("booking.comboDuo.toggle", {
-                  count: sessionCount,
-                  defaultValue: `Réserver en duo (${sessionCount} praticiens en parallèle)`,
+                  count: practitionerCount,
+                  defaultValue: `Réserver en duo (${practitionerCount} praticiens en parallèle)`,
                 })}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {t("booking.comboDuo.helper", {
-                  count: sessionCount,
+                  count: practitionerCount,
                   defaultValue: "Les soins se déroulent en parallèle, chacun avec son praticien.",
                 })}
               </p>

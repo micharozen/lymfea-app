@@ -3169,6 +3169,7 @@ export type Database = {
       }
       treatment_menus: {
         Row: {
+          amenity_id: string | null
           available_days: number[] | null
           bundle_id: string | null
           category: string
@@ -3197,6 +3198,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amenity_id?: string | null
           available_days?: number[] | null
           bundle_id?: string | null
           category: string
@@ -3225,6 +3227,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amenity_id?: string | null
           available_days?: number[] | null
           bundle_id?: string | null
           category?: string
@@ -3253,6 +3256,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "treatment_menus_amenity_id_fkey"
+            columns: ["amenity_id"]
+            isOneToOne: false
+            referencedRelation: "venue_amenities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "treatment_menus_bundle_id_fkey"
             columns: ["bundle_id"]
@@ -4299,6 +4309,8 @@ export type Database = {
       get_public_treatments: {
         Args: { _hotel_id: string }
         Returns: {
+          amenity_id: string
+          amenity_type: string
           available_days: number[]
           bundle_id: string
           category: string

@@ -58,13 +58,18 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { bookingId, notifyAll, sendPaymentLink } = await req.json();
+    const { bookingId, notifyAll, sendPaymentLink, notifyClient } = await req.json();
 
     if (!bookingId) {
       throw new Error("Booking ID is required");
     }
 
-    console.log("Processing notifications for booking:", bookingId, "notifyAll:", notifyAll);
+    // notifyClient === false: therapist push/Slack still fire, but the client
+    // email/SMS is suppressed. Used by the admin edit flow so plain edits
+    // (reassignment, tweaks) don't spam the client — only a real state
+    // transition (pending → confirmed) re-sends. Undefined stays backward
+    // compatible (send), so creation and other callers are unaffected.
+    console.log("Processing notifications for booking:", bookingId, "notifyAll:", notifyAll, "notifyClient:", notifyClient);
 
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
@@ -141,7 +146,7 @@ serve(async (req) => {
 
     const { data: bookingTreatmentRows } = await supabaseClient
       .from('booking_treatments')
-      .select('treatment_id, price_override, treatment_menus(name, price, duration), treatment_variants(label, price, duration)')
+      .select('treatment_id, price_override, treatment_menus(name, price, duration, amenity_id), treatment_variants(label, price, duration)')
       .eq('booking_id', bookingId);
     const treatments = (bookingTreatmentRows ?? []).map(bt => {
       const menu = bt.treatment_menus as any;
@@ -150,6 +155,7 @@ serve(async (req) => {
         name: (menu?.name || '') + (variant?.label ? ` · ${variant.label}` : ''),
         price: resolveTreatmentPrice(bt as any),
         duration: Number(variant?.duration ?? menu?.duration) || 0,
+        is_amenity: !!menu?.amenity_id,
       };
     });
 
@@ -398,7 +404,11 @@ serve(async (req) => {
         || customer?.email
         || undefined;
 
-      if (clientEmail) {
+      if (!clientEmail) {
+        console.log('[trigger-new-booking-notifications] No email on customer or booking, skipping client email');
+      } else if (notifyClient === false) {
+        console.log('[trigger-new-booking-notifications] notifyClient=false → not a real state transition, skipping client email/SMS for booking:', bookingId);
+      } else {
         const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
           weekday: 'short',
           day: 'numeric',
@@ -723,8 +733,6 @@ serve(async (req) => {
             }
           }
         }
-      } else {
-        console.log('[trigger-new-booking-notifications] No email on customer or booking, skipping client email');
       }
     } catch (emailError) {
       console.error('[trigger-new-booking-notifications] Error sending client email:', emailError);

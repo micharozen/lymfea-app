@@ -20,6 +20,7 @@ export interface BasketItem {
   parentCartKey?: string; // Composite key of the parent cart item this add-on is linked to
   isBundle?: boolean;   // True if this is a cure/bundle purchase
   bundleId?: string;    // FK to treatment_bundles template
+  isAmenity?: boolean;  // True if this treatment is an amenity access (piscine, sauna…) — no therapist, excluded from duo/guest_count
   guestCount?: number;  // Number of guests (for multi-person treatments)
   availableDays?: number[] | null; // 0=Sun,1=Mon,…,6=Sat. null/[] = all days
 }

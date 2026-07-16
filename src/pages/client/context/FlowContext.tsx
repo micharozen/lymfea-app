@@ -12,6 +12,13 @@ export interface BookingDateTime {
 export type ScheduleMode = 'shared' | 'per_item';
 
 /**
+ * Placement d'un accès amenity (piscine, sauna…) par rapport au soin, quand le
+ * panier mélange soin(s) et accès. 'after' = l'accès démarre à la fin du soin ;
+ * 'before' = l'accès se termine au début du soin. Collé au soin, sans trou.
+ */
+export type AmenityTiming = 'before' | 'after';
+
+/**
  * Map of cart item key → scheduled slot. Keys come from `getCartKey(id, variantId)`.
  * Populated only when `scheduleMode === 'per_item'` (multi-time client booking).
  */
@@ -68,6 +75,8 @@ interface ClientFlowState {
   authBundles: AuthBundles | null;
   scheduleMode: ScheduleMode;
   perItemSchedule: PerItemSchedule;
+  // null = pas encore choisi (le client doit trancher avant de continuer).
+  amenityTiming: AmenityTiming | null;
   groupId: string | null;
   bookingIds: string[];
   checkoutIntentId: string | null;
@@ -87,6 +96,7 @@ interface ClientFlowContextType extends ClientFlowState {
   setScheduleMode: (mode: ScheduleMode) => void;
   setItemSchedule: (cartKey: string, dt: BookingDateTime | null) => void;
   resetPerItemSchedule: () => void;
+  setAmenityTiming: (timing: AmenityTiming | null) => void;
   setGroupId: (id: string | null) => void;
   setBookingIds: (ids: string[]) => void;
   setCheckoutIntentId: (id: string | null) => void;
@@ -109,6 +119,7 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
   const [giftInfo, setGiftInfoState] = useState<GiftInfo | null>(null);
   const [authBundles, setAuthBundlesState] = useState<AuthBundles | null>(null);
   const [scheduleMode, setScheduleModeState] = useState<ScheduleMode>('shared');
+  const [amenityTiming, setAmenityTimingState] = useState<AmenityTiming | null>(null);
   const [perItemSchedule, setPerItemScheduleState] = useState<PerItemSchedule>({});
   const [groupId, setGroupIdState] = useState<string | null>(null);
   const [bookingIds, setBookingIdsState] = useState<string[]>([]);
@@ -154,6 +165,8 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
     setPerItemScheduleState({});
   }, []);
 
+  const setAmenityTiming = useCallback((timing: AmenityTiming | null) => setAmenityTimingState(timing), []);
+
   const setGroupId = useCallback((id: string | null) => setGroupIdState(id), []);
   const setBookingIds = useCallback((ids: string[]) => setBookingIdsState(ids), []);
   const setCheckoutIntentId = useCallback((id: string | null) => setCheckoutIntentIdState(id), []);
@@ -170,6 +183,7 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
     setGiftInfoState(null);
     setAuthBundlesState(null);
     setScheduleModeState('shared');
+    setAmenityTimingState(null);
     setPerItemScheduleState({});
     setGroupIdState(null);
     setBookingIdsState([]);
@@ -215,13 +229,13 @@ const cancelHold = useCallback(async () => {
       therapistGenderPreference, selectedBundle, isBundleOnlyPurchase,
       draftBookingId, holdExpiresAt,
       giftInfo, authBundles,
-      scheduleMode, perItemSchedule,
+      scheduleMode, perItemSchedule, amenityTiming,
       groupId, bookingIds, checkoutIntentId,
       setBookingDateTime, setClientInfo, setPendingCheckoutSession,
       setTherapistGenderPreference, setSelectedBundle, setIsBundleOnlyPurchase,
       setDraftBookingId, setHoldExpiresAt,
       setGiftInfo, setAuthBundles,
-      setScheduleMode, setItemSchedule, resetPerItemSchedule,
+      setScheduleMode, setItemSchedule, resetPerItemSchedule, setAmenityTiming,
       setGroupId, setBookingIds, setCheckoutIntentId,
       clearFlow, canProceedToStep,
       cancelHold,
@@ -231,13 +245,13 @@ const cancelHold = useCallback(async () => {
       therapistGenderPreference, selectedBundle, isBundleOnlyPurchase,
       draftBookingId, holdExpiresAt,
       giftInfo, authBundles,
-      scheduleMode, perItemSchedule,
+      scheduleMode, perItemSchedule, amenityTiming,
       groupId, bookingIds, checkoutIntentId,
       setBookingDateTime, setClientInfo, setPendingCheckoutSession,
       setTherapistGenderPreference, setSelectedBundle, setIsBundleOnlyPurchase,
       setDraftBookingId, setHoldExpiresAt,
       setGiftInfo, setAuthBundles,
-      setScheduleMode, setItemSchedule, resetPerItemSchedule,
+      setScheduleMode, setItemSchedule, resetPerItemSchedule, setAmenityTiming,
       setGroupId, setBookingIds, setCheckoutIntentId,
       clearFlow, canProceedToStep,
       cancelHold,

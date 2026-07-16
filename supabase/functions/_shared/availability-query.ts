@@ -108,19 +108,35 @@ export async function getVenueAvailability(
   const venueTz = hotelData?.timezone || "UTC";
 
   // 3. Treatments → max lead time, max duration, required skill categories.
+  // Amenity treatments (amenity_id set) impose no therapist specialty and their
+  // duration is tracked separately for the amenity capacity check.
   let maxTreatmentLeadTime = 0;
   let maxTreatmentDuration = 0;
   const requiredCategories = new Set<string>();
+  // amenityId → longest treatment duration (minutes) requested for that amenity.
+  const cartAmenityDurations = new Map<string, number>();
+  // A booking needs rooms/therapists only if it contains at least one real soin.
+  // No treatments selected = generic availability query → treat as a soin query.
+  let hasSoin = !opts.treatmentIds || opts.treatmentIds.length === 0;
   if (opts.treatmentIds && opts.treatmentIds.length > 0) {
     const { data: treatments } = await supabase
       .from("treatment_menus")
-      .select("lead_time, treatment_type, duration")
+      .select("lead_time, treatment_type, duration, amenity_id")
       .in("id", opts.treatmentIds);
     if (treatments && treatments.length > 0) {
       maxTreatmentLeadTime = Math.max(...treatments.map((t: any) => t.lead_time || 0));
       maxTreatmentDuration = Math.max(...treatments.map((t: any) => t.duration || 0));
       treatments.forEach((t: any) => {
-        if (t.treatment_type) requiredCategories.add(t.treatment_type);
+        if (t.amenity_id) {
+          const dur = t.duration || slotInterval;
+          cartAmenityDurations.set(
+            t.amenity_id,
+            Math.max(cartAmenityDurations.get(t.amenity_id) || 0, dur),
+          );
+        } else {
+          hasSoin = true;
+          if (t.treatment_type) requiredCategories.add(t.treatment_type);
+        }
       });
     }
   }
@@ -158,8 +174,69 @@ export async function getVenueAvailability(
     .in("status", ["active", "Actif"]);
   const rooms = (treatmentRooms || []).map((r: any) => ({ id: r.id, capacity: r.capacity || 1 }));
 
-  // No rooms or no qualified therapists → every deployed date is empty.
-  if (rooms.length === 0 || therapistIds.length === 0) {
+  // 5b. Amenity capacity: config + occupancy for the amenities in the cart.
+  // amenityId → { capacity, opening, closing, duration } (minutes; hours fall back to venue).
+  type AmenityCfg = { capacity: number; opening: number; closing: number; duration: number };
+  const amenityCfg = new Map<string, AmenityCfg>();
+  // amenityId → date → overlapping bookings [startMin, endMin, guests].
+  const amenityOccByDate = new Map<string, Map<string, Array<{ s: number; e: number; g: number }>>>();
+  const cartAmenityIds = [...cartAmenityDurations.keys()];
+  if (cartAmenityIds.length > 0) {
+    const { data: amenityRows } = await supabase
+      .from("venue_amenities")
+      .select("id, capacity_per_slot, opening_time, closing_time")
+      .in("id", cartAmenityIds);
+    (amenityRows || []).forEach((a: any) => {
+      amenityCfg.set(a.id, {
+        capacity: a.capacity_per_slot ?? 0,
+        opening: a.opening_time ? timeToMinutes(a.opening_time) : baseOpening,
+        closing: a.closing_time ? timeToMinutes(a.closing_time) : baseClosing,
+        duration: cartAmenityDurations.get(a.id) || slotInterval,
+      });
+    });
+    const { data: amenityBookingRows } = await supabase
+      .from("amenity_bookings")
+      .select("venue_amenity_id, booking_date, booking_time, end_time, num_guests")
+      .in("venue_amenity_id", cartAmenityIds)
+      .gte("booking_date", rangeStart)
+      .lte("booking_date", rangeEnd)
+      .neq("status", "cancelled");
+    (amenityBookingRows || []).forEach((b: any) => {
+      if (!amenityOccByDate.has(b.venue_amenity_id)) amenityOccByDate.set(b.venue_amenity_id, new Map());
+      const byDate = amenityOccByDate.get(b.venue_amenity_id)!;
+      if (!byDate.has(b.booking_date)) byDate.set(b.booking_date, []);
+      byDate.get(b.booking_date)!.push({
+        s: timeToMinutes(b.booking_time),
+        e: timeToMinutes(b.end_time),
+        g: b.num_guests || 1,
+      });
+    });
+  }
+
+  // Amenity gate for a candidate slot. Returns the min remaining amenity capacity
+  // across every amenity in the cart, or null when any amenity is closed/full.
+  const amenityCapacityAt = (date: string, slotMinutes: number): number | null => {
+    if (cartAmenityIds.length === 0) return Infinity;
+    let minAvail = Infinity;
+    for (const amenityId of cartAmenityIds) {
+      const cfg = amenityCfg.get(amenityId);
+      if (!cfg) return null; // amenity missing/misconfigured
+      const slotEnd = slotMinutes + cfg.duration;
+      if (slotMinutes < cfg.opening || slotEnd > cfg.closing) return null;
+      const occ = (amenityOccByDate.get(amenityId)?.get(date) || []).reduce(
+        (sum, b) => (slotMinutes < b.e && slotEnd > b.s ? sum + b.g : sum),
+        0,
+      );
+      const avail = cfg.capacity - occ;
+      if (avail < requiredGuestCount) return null;
+      if (avail < minAvail) minAvail = avail;
+    }
+    return minAvail;
+  };
+
+  // No rooms or no qualified therapists → every deployed date is empty, but only
+  // when the cart actually needs a room/therapist. A pure amenity cart is exempt.
+  if (hasSoin && (rooms.length === 0 || therapistIds.length === 0)) {
     for (const d of activeDates) slotsByDate.set(d, []);
     return { slotsByDate, deployedDates };
   }
@@ -287,7 +364,8 @@ export async function getVenueAvailability(
       const s = scheduleMap?.get(id);
       return s ? s.is_available : true;
     });
-    if (scheduledTherapistIds.length === 0) {
+    // Amenity-only carts don't need a therapist; only gate on this for soins.
+    if (hasSoin && scheduledTherapistIds.length === 0) {
       slotsByDate.set(date, []);
       continue;
     }
@@ -308,27 +386,38 @@ export async function getVenueAvailability(
       if (earliestSlotMinutes >= 0 && slotMinutes < earliestSlotMinutes) continue;
       if (slotMinutes + requestedDuration > closingMinutes) continue;
 
-      const { capacity } = computeSlotCapacity({
-        slot,
-        requestedDuration,
-        roomTurnoverBuffer,
-        rooms,
-        bookings,
-        pendingHolds: dateHolds,
-        scheduledTherapistIds,
-        scheduleByTherapist,
-        crossVenueBookings: crossBookings,
-        travelBuffer,
-        requiredGuestCount,
-      });
+      // Amenity gate (closed hours / full) applies to both amenity-only and mixed carts.
+      const amenityAvail = amenityCapacityAt(date, slotMinutes);
+      if (amenityAvail === null) continue;
+
+      // Room/therapist capacity only matters when the cart contains a soin.
+      const soinCapacity = hasSoin
+        ? computeSlotCapacity({
+            slot,
+            requestedDuration,
+            roomTurnoverBuffer,
+            rooms,
+            bookings,
+            pendingHolds: dateHolds,
+            scheduledTherapistIds,
+            scheduleByTherapist,
+            crossVenueBookings: crossBookings,
+            travelBuffer,
+            requiredGuestCount,
+          }).capacity
+        : Infinity;
+      // Final capacity = min(soin capacity, amenity capacity).
+      const capacity = Math.min(soinCapacity, amenityAvail);
       if (capacity < requiredGuestCount) continue;
+      // Never surface Infinity (amenity-only with no soin cap).
+      const reportedCapacity = Number.isFinite(capacity) ? capacity : requiredGuestCount;
 
       slots.push({
         time: slot,
         // Out-of-hours = starts outside the venue's posted (non-widened) hours.
         // Mirrors isOutOfHours() in _shared/surcharge.ts.
         outOfHours: slotMinutes < baseOpening || slotMinutes >= baseClosing,
-        capacity,
+        capacity: reportedCapacity,
       });
     }
     slotsByDate.set(date, slots);

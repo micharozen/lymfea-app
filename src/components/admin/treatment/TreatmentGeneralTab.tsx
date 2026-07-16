@@ -28,7 +28,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Toggle } from "@/components/ui/toggle";
 import { Upload, Loader2 } from "lucide-react";
 import { SPECIALTY_OPTIONS } from "@/lib/specialtyTypes";
+import { useVenueAmenities } from "@/hooks/useVenueAmenities";
+import { getAmenityLabel } from "@/lib/amenityTypes";
 import type { TreatmentFormValues } from "@/pages/admin/TreatmentDetail";
+
+const NO_AMENITY = "__none__";
 
 interface TreatmentGeneralTabProps {
   form: UseFormReturn<TreatmentFormValues>;
@@ -52,6 +56,9 @@ export function TreatmentGeneralTab({
   const { t, i18n } = useTranslation("common");
 
   const selectedHotelId = useWatch({ control: form.control, name: "hotel_id" });
+  const selectedAmenityId = useWatch({ control: form.control, name: "amenity_id" });
+  const { enabledAmenities } = useVenueAmenities(selectedHotelId || "");
+  const isAmenityTreatment = !!selectedAmenityId;
 
   // Auto-prepopulate slug from name until the user manually edits the slug field.
   const nameValue = useWatch({ control: form.control, name: "name" });
@@ -263,38 +270,85 @@ export function TreatmentGeneralTab({
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="specialty"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("admin:treatments.specialty")} *</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value || ""}
-                disabled={disabled}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={t("admin:treatments.noSpecialty")}
-                    />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {SPECIALTY_OPTIONS.map((s) => (
-                    <SelectItem key={s.key} value={s.key}>
-                      {i18n.language === "fr" ? s.labelFr : s.labelEn}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>{t("admin:treatments.specialtyHelp")}</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {!isAmenityTreatment && (
+          <FormField
+            control={form.control}
+            name="specialty"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("admin:treatments.specialty")} *</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value || ""}
+                  disabled={disabled}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={t("admin:treatments.noSpecialty")}
+                      />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {SPECIALTY_OPTIONS.map((s) => (
+                      <SelectItem key={s.key} value={s.key}>
+                        {i18n.language === "fr" ? s.labelFr : s.labelEn}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>{t("admin:treatments.specialtyHelp")}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
       </div>
+
+      {/* Amenity link: turns this treatment into an equipment access (pool, sauna…). */}
+      <FormField
+        control={form.control}
+        name="amenity_id"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Équipement associé (accès commodité)</FormLabel>
+            <Select
+              onValueChange={(value) => {
+                const amenityId = value === NO_AMENITY ? null : value;
+                field.onChange(amenityId);
+                if (amenityId) {
+                  // Amenity access has no therapist/gender: clear specialty and
+                  // default service_for so the hidden fields don't block saving.
+                  form.setValue("specialty", "");
+                  form.setValue("service_for", "All");
+                }
+              }}
+              value={field.value ?? NO_AMENITY}
+              disabled={disabled || !selectedHotelId}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Aucun (soin classique)" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value={NO_AMENITY}>Aucun (soin classique)</SelectItem>
+                {enabledAmenities.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name || getAmenityLabel(a.type, i18n.language)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormDescription className="text-[11px] leading-snug">
+              Si renseigné, ce soin devient un accès à un équipement : sa disponibilité
+              suit la capacité de la commodité (pas les salles/thérapeutes) et sa
+              réservation crée une réservation de commodité liée.
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       {/* Row 3: Descriptions */}
       <div className="grid grid-cols-2 gap-4">
@@ -338,32 +392,34 @@ export function TreatmentGeneralTab({
 
       {/* Row 4: Service for + Lead time + Sort order */}
       <div className="grid grid-cols-3 gap-4 items-end">
-        <FormField
-          control={form.control}
-          name="service_for"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Service pour *</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={disabled}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                  <SelectItem value="All">All</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {!isAmenityTreatment && (
+          <FormField
+            control={form.control}
+            name="service_for"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Service pour *</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  disabled={disabled}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="All">All</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         <FormField
           control={form.control}
           name="lead_time"

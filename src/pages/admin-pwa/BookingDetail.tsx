@@ -134,7 +134,14 @@ export default function AdminPwaBookingDetail() {
               </div>
               {booking.client_note && (
                 <div className="mt-2 pt-2 border-t border-border/50">
+                  <p className="text-xs text-muted-foreground mb-0.5 font-medium">Note réservation</p>
                   <p className="text-sm text-muted-foreground italic">"{booking.client_note}"</p>
+                </div>
+              )}
+              {booking.customer_health_notes && (
+                <div className="mt-2 pt-2 border-t border-border/50">
+                  <p className="text-xs text-muted-foreground mb-0.5 font-medium">Note client</p>
+                  <p className="text-sm text-muted-foreground italic">"{booking.customer_health_notes}"</p>
                 </div>
               )}
             </div>

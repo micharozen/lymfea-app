@@ -42,7 +42,9 @@ export function useConvertToDuoMutation(
       const treatments = booking.treatments ?? [];
       // Add-ons are supplements, not guests' soins: they never add a guest, and they
       // extend the leg of the soin they hang off rather than forming their own.
-      const baseTreatments = treatments.filter((tr) => !tr.is_addon);
+      // Amenity lines (pool/sauna access) are not soins either — they occupy their
+      // own block and must not count as a guest or a leg.
+      const baseTreatments = treatments.filter((tr) => !tr.is_addon && !tr.is_amenity);
       const addonTreatments = treatments.filter((tr) => tr.is_addon);
       const guestCount = baseTreatments.length;
 

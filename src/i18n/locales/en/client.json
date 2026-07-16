@@ -119,6 +119,12 @@
       "recapShared": "Duo — same time slot for all treatments",
       "recapSeparate": "Separate time slot per treatment",
       "change": "Change"
+    },
+    "amenityTiming": {
+      "label": "Your wellness access",
+      "question": "Would you like to enjoy it before or after your treatment?",
+      "before": "Before the treatment",
+      "after": "After the treatment"
     }
   },
   "info": {
@@ -262,6 +268,7 @@
     "yourRequest": "Your request",
     "date": "Date",
     "treatment": "Treatment",
+    "amenityTreatment": "Access",
     "nextSteps": "What happens next?",
     "step1": "An available therapist is reviewing your request. This usually takes a few minutes.",
     "step2": "As soon as it is accepted, you will receive a confirmation email with all the details.",

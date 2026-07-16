@@ -15,6 +15,7 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 // Origine de la réservation (colonne bookings.source, enum contraint) → label FR.
 const SOURCE_LABELS: Record<string, string> = {
   admin: 'Créée par l’équipe',
+  concierge: 'Gestion du lieu',
   client: 'Réservation en ligne',
   email: 'Email',
   pwa: 'App thérapeute',
