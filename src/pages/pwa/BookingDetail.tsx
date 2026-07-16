@@ -16,6 +16,7 @@ import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { useIsMounted } from "@/hooks/useIsMounted";
+import { useUser } from "@/contexts/UserContext";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import { myLegDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
@@ -154,6 +155,7 @@ const PwaBookingDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation('pwa');
+  const { hotelIds } = useUser();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -361,7 +363,10 @@ const PwaBookingDetail = () => {
       // Pending/awaiting bookings stay visible as open requests.
       const isOpenRequest = bookingData.status === "pending";
       const isMine = bookingData.therapist_id === myTherapistId || isAcceptedParticipant;
-      if (myTherapistId && !isOpenRequest && !isMine) {
+      // Un thérapeute qui gère aussi le lieu (concierge/admin) voit tous les bookings
+      // du lieu dans son planning : ne pas le rediriger même s'il n'y est pas assigné.
+      const canManageVenue = hotelIds.includes(bookingData.hotel_id);
+      if (myTherapistId && !isOpenRequest && !isMine && !canManageVenue) {
         if (isMountedRef.current) {
           toast.info(t('bookingDetail.reassignedAway'));
           navigate("/pwa/dashboard", { state: { forceRefresh: true } });
