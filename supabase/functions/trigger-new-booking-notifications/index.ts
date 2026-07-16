@@ -146,7 +146,7 @@ serve(async (req) => {
 
     const { data: bookingTreatmentRows } = await supabaseClient
       .from('booking_treatments')
-      .select('treatment_id, price_override, treatment_menus(name, price, duration), treatment_variants(label, price, duration)')
+      .select('treatment_id, price_override, treatment_menus(name, price, duration, amenity_id), treatment_variants(label, price, duration)')
       .eq('booking_id', bookingId);
     const treatments = (bookingTreatmentRows ?? []).map(bt => {
       const menu = bt.treatment_menus as any;
@@ -155,6 +155,7 @@ serve(async (req) => {
         name: (menu?.name || '') + (variant?.label ? ` · ${variant.label}` : ''),
         price: resolveTreatmentPrice(bt as any),
         duration: Number(variant?.duration ?? menu?.duration) || 0,
+        is_amenity: !!menu?.amenity_id,
       };
     });
 
