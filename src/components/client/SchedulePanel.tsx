@@ -15,6 +15,8 @@ import TimePeriodSelector from '@/components/client/TimePeriodSelector';
 import { ClientSpinner } from '@/components/client/ClientSpinner';
 import { AddonProposalDrawer } from '@/components/client/AddonProposalDrawer';
 import { useFeasibleAddons } from '@/hooks/client/useFeasibleAddons';
+import { useFeasibleAmenities } from '@/hooks/client/useFeasibleAmenities';
+import { amenityWindow } from '@/lib/amenityWindow';
 import { useQuery } from '@tanstack/react-query';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { PerItemScheduler } from '@/components/client/PerItemScheduler';
@@ -183,23 +185,12 @@ export function SchedulePanel({
     return `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
   };
 
-  // Décale un horaire "HH:MM" de N minutes (borné sur 24h), pour afficher la
-  // fenêtre exacte de l'accès amenity selon le placement choisi.
-  const shiftTime = (time: string, deltaMin: number): string => {
-    if (!time) return '';
-    const [h, m] = time.split(':').map(Number);
-    const total = ((((h || 0) * 60 + (m || 0) + deltaMin) % 1440) + 1440) % 1440;
-    return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
-  };
-
   // Fenêtre "HH:MM – HH:MM" de l'accès pour chaque placement (si accès unique).
-  const amenityWindow = (timing: 'before' | 'after'): string | null => {
+  // shiftTime/amenityWindow extraits dans @/lib/amenityWindow (réutilisés par le
+  // drawer d'upsell amenity).
+  const amenityWindowFor = (timing: 'before' | 'after'): string | null => {
     if (singleAmenityDuration == null || !selectedTime) return null;
-    const start = timing === 'before'
-      ? shiftTime(selectedTime, -singleAmenityDuration)
-      : shiftTime(selectedTime, serviceDurationSum);
-    const end = shiftTime(start, singleAmenityDuration);
-    return `${start} – ${end}`;
+    return amenityWindow(timing, selectedTime, singleAmenityDuration, serviceDurationSum);
   };
 
   const { feasibleAddons, isChecking: isCheckingAddons, isReady: addonsReady } =
@@ -210,6 +201,23 @@ export function SchedulePanel({
       baseItems,
       enabled: addonCheckArmed && !!pendingContinueTime,
     });
+
+  // Upsell amenity : on ne propose les accès du lieu que si le panier ne contient
+  // AUCUN amenity (client venu pour un soin seul). Sinon le flow mixte existant
+  // (hasAmenityWithService) gère déjà le placement.
+  const { feasibleAmenities, isReady: amenitiesReady } = useFeasibleAmenities({
+    hotelId,
+    date: selectedDate,
+    time: pendingContinueTime ?? '',
+    baseItems,
+    enabled: addonCheckArmed && !!pendingContinueTime && amenityBaseItems.length === 0,
+  });
+
+  // Le check global est prêt quand les deux sondes le sont. Quand l'amenity est
+  // désactivé (panier déjà mixte), amenitiesReady reste false → on le neutralise.
+  const amenityCheckActive = amenityBaseItems.length === 0;
+  const extensionsReady = addonsReady && (!amenityCheckActive || amenitiesReady);
+  const feasibleExtensionsCount = feasibleAddons.length + feasibleAmenities.length;
   // Track page view once (only for standalone page, not embedded)
   useEffect(() => {
     if (!embedded && !hasTrackedPageView.current) {
@@ -585,15 +593,15 @@ export function SchedulePanel({
   // anything is actually bookable) or continue straight through. This keeps the
   // drawer from flashing on "no availability".
   useEffect(() => {
-    if (!addonCheckArmed || !addonsReady || !pendingContinueTime) return;
-    if (feasibleAddons.length > 0) {
+    if (!addonCheckArmed || !extensionsReady || !pendingContinueTime) return;
+    if (feasibleExtensionsCount > 0) {
       setIsAddonDrawerOpen(true);
       return;
     }
     setAddonCheckArmed(false);
     proceedAfterAddons(pendingContinueTime);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addonCheckArmed, addonsReady, feasibleAddons.length, pendingContinueTime]);
+  }, [addonCheckArmed, extensionsReady, feasibleExtensionsCount, pendingContinueTime]);
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
@@ -659,7 +667,7 @@ export function SchedulePanel({
 
   const venueConfigReady =
     !loadingVenueData && !venueDataError && venueData !== undefined && typeof venueData.holdEnabled === 'boolean';
-  const isBusy = !venueConfigReady || loadingAvailability || isHolding || (addonCheckArmed && !addonsReady);
+  const isBusy = !venueConfigReady || loadingAvailability || isHolding || (addonCheckArmed && !extensionsReady);
 
   useEffect(() => {
     if (venueDataError) {
@@ -930,7 +938,7 @@ export function SchedulePanel({
           </p>
           <div className="grid grid-cols-2 gap-2">
             {(['before', 'after'] as const).map((timing) => {
-              const window = amenityWindow(timing);
+              const window = amenityWindowFor(timing);
               const selected = amenityTiming === timing;
               return (
                 <button
@@ -1032,7 +1040,10 @@ export function SchedulePanel({
           }
         }}
         feasibleAddons={feasibleAddons}
+        feasibleAmenities={feasibleAmenities}
         baseEndTime={formatBaseEndTime(pendingContinueTime ?? selectedTime)}
+        soinStartTime={pendingContinueTime ?? selectedTime}
+        serviceDurationSum={serviceDurationSum}
         onContinue={() => {
           if (pendingContinueTime) {
             proceedAfterAddons(pendingContinueTime);

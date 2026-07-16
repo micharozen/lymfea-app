@@ -573,6 +573,13 @@
       "selectedCount": "{{count}} treatment selected",
       "selectedCountPlural": "{{count}} treatments selected",
       "extraDuration": "+{{min}} min total"
+    },
+    "amenities": {
+      "sectionTitle": "Enjoy the facilities",
+      "placementLabel": "When would you like this access?",
+      "before": "Before the treatment",
+      "after": "After the treatment",
+      "noCommonPlacement": "These accesses can't be scheduled together on this slot."
     }
   },
   "manageBooking": {

@@ -574,6 +574,13 @@
       "selectedCount": "{{count}} soin sélectionné",
       "selectedCountPlural": "{{count}} soins sélectionnés",
       "extraDuration": "+{{min}} min au total"
+    },
+    "amenities": {
+      "sectionTitle": "Profitez des installations",
+      "placementLabel": "Quand profiter de cet accès ?",
+      "before": "Avant le soin",
+      "after": "Après le soin",
+      "noCommonPlacement": "Ces accès ne peuvent pas être placés ensemble sur ce créneau."
     }
   },
   "manageBooking": {
