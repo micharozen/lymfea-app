@@ -65,6 +65,7 @@ const PAYMENT_LABELS: Record<string, string> = {
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   room: "Facturé en chambre",
   card: "Carte bancaire",
+  stripe: "Stripe",
   cash: "Espèces",
   tap_to_pay: "Tap to Pay",
   offert: "Offert",
@@ -88,6 +89,7 @@ const SOURCE_TAGS: Record<string, { label: string; className: string }> = {
 const PAYMENT_METHOD_ICONS: Record<string, typeof CreditCard> = {
   room: Building2,
   card: CreditCard,
+  stripe: CreditCard,
   cash: Banknote,
   tap_to_pay: Smartphone,
   offert: Gift,
