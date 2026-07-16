@@ -450,6 +450,9 @@ export default function Confirmation() {
   const paymentMethod = (booking as Record<string, unknown>)?.payment_method as string | undefined;
   const isPending = bookingStatus === 'pending' || bookingStatus === 'pending_confirmation';
   const isRoomCharge = paymentMethod === 'room';
+  // Amenity-only cart (pool/sauna access — no hands-on soin, no praticien):
+  // switch the "Soin" row label to a neutral wording to match the email copy.
+  const isAmenityOnly = (booking as Record<string, unknown>)?.all_amenity === true;
 
   const bookingRecord = booking as Record<string, unknown>;
   const firstName = (bookingRecord?.client_first_name as string) || '';
@@ -552,7 +555,7 @@ export default function Confirmation() {
               </div>
               {!groupBookings && (
                 <div className="flex items-center justify-between gap-4 py-3">
-                  <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.treatment')}</dt>
+                  <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{isAmenityOnly ? t('confirmation.amenityTreatment') : t('confirmation.treatment')}</dt>
                   <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right break-words">{treatmentNames}</dd>
                 </div>
               )}
