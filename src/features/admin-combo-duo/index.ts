@@ -14,6 +14,8 @@ export interface AdminBookingSession {
   unitPrice: number;
   /** An add-on is a supplement performed after a base soin, never a guest's own soin. */
   isAddon: boolean;
+  /** An amenity (pool/sauna access) needs no therapist: never a guest, never a leg. */
+  isAmenity: boolean;
 }
 
 interface TreatmentLike {
@@ -22,6 +24,7 @@ interface TreatmentLike {
   duration?: number | null;
   price?: number | null;
   is_addon?: boolean | null;
+  amenity_id?: string | null;
   treatment_variants?: Array<{
     id: string;
     duration?: number | null;
@@ -47,6 +50,7 @@ export function expandCartToSessions(cartDetails: CartDetail[]): AdminBookingSes
     const variantSuffix = variant?.label ? ` (${variant.label})` : '';
 
     const isAddon = treatment?.is_addon ?? false;
+    const isAmenity = treatment?.amenity_id != null;
 
     for (let i = 0; i < item.quantity; i++) {
       const indexSuffix = item.quantity > 1 ? ` #${i + 1}` : '';
@@ -59,6 +63,7 @@ export function expandCartToSessions(cartDetails: CartDetail[]): AdminBookingSes
         guestCount,
         unitPrice,
         isAddon,
+        isAmenity,
       });
     }
   }
@@ -69,19 +74,25 @@ export function getSessionCount(cartDetails: Array<CartItem & { treatment: unkno
   return cartDetails.reduce((sum, item) => sum + item.quantity, 0);
 }
 
-/** How many base soins (guests) are in the cart — add-ons don't count. */
+/** The parallel legs of a booking: one base soin per guest. Add-ons hang off a base,
+ * amenities need no therapist — neither is a leg. */
+const basesOf = (sessions: AdminBookingSession[]) =>
+  sessions.filter((s) => !s.isAddon && !s.isAmenity);
+
+/** How many base soins (guests) are in the cart — add-ons and amenities don't count. */
 export function getBaseSessionCount(sessions: AdminBookingSession[]): number {
-  return sessions.filter((s) => !s.isAddon).length;
+  return basesOf(sessions).length;
 }
 
 /**
- * Eligible when there are >= 2 base solo soins (add-ons excluded): those are the
- * guests done in parallel. A single base + an add-on is a solo + supplement, not
- * a duo. A base already carrying a variant-duo (guest_count > 1) disqualifies it.
+ * Eligible when there are >= 2 base solo soins (add-ons and amenities excluded):
+ * those are the guests done in parallel. A single base + an add-on is a solo +
+ * supplement, not a duo. Same for a soin + a pool access: still one guest. A base
+ * already carrying a variant-duo (guest_count > 1) disqualifies it.
  */
 export function isComboDuoEligible(sessions: AdminBookingSession[]): boolean {
   if (!ADMIN_COMBO_DUO_ENABLED) return false;
-  const bases = sessions.filter((s) => !s.isAddon);
+  const bases = basesOf(sessions);
   return bases.length >= 2 && bases.every((s) => s.guestCount === 1);
 }
 
@@ -91,10 +102,14 @@ export function isComboDuoEligible(sessions: AdminBookingSession[]): boolean {
  * slot lasts as long as the longest leg (base + its add-ons) — mirroring the
  * server's computeSlotDuration. Each line carries its `legIndex` (the person)
  * so the creator sets a consistent therapist_id and parent link at insert time.
+ *
+ * Amenity lines belong to no leg: they stay in the booking but carry no legIndex
+ * (hence no therapist) and never inflate the slot — same rule as computeSlotDuration.
  */
 export function buildComboDuoBookingParams(sessions: AdminBookingSession[]) {
-  const bases = sessions.filter((s) => !s.isAddon);
-  const addons = sessions.filter((s) => s.isAddon);
+  const bases = basesOf(sessions);
+  const addons = sessions.filter((s) => s.isAddon && !s.isAmenity);
+  const amenities = sessions.filter((s) => s.isAmenity);
   const guestCount = bases.length;
 
   const legDurations = bases.map((s) => s.duration);
@@ -119,10 +134,18 @@ export function buildComboDuoBookingParams(sessions: AdminBookingSession[]) {
     };
   });
 
+  const amenityLines = amenities.map(
+    (s): TreatmentPayload => ({
+      treatmentId: s.treatmentId,
+      variantId: s.variantId ?? undefined,
+      isAmenity: true,
+    }),
+  );
+
   return {
     guestCount,
     duration: legDurations.length ? Math.max(...legDurations) : 0,
-    treatments: [...baseLines, ...addonLines],
+    treatments: [...baseLines, ...addonLines, ...amenityLines],
   };
 }
 
