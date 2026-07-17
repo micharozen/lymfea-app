@@ -7,11 +7,16 @@ import {
   computeStaffingCount,
 } from "./index";
 
-const treatment = (id: string, duration: number, opts: { is_addon?: boolean; guest_count?: number } = {}) => ({
+const treatment = (
+  id: string,
+  duration: number,
+  opts: { is_addon?: boolean; guest_count?: number; amenity_id?: string } = {},
+) => ({
   id,
   name: id,
   duration,
   is_addon: opts.is_addon ?? false,
+  amenity_id: opts.amenity_id ?? null,
   treatment_variants: opts.guest_count
     ? [{ id: `${id}-v`, duration, guest_count: opts.guest_count, is_default: true }]
     : [],
@@ -44,6 +49,14 @@ describe("getBaseSessionCount", () => {
     ]);
     expect(getBaseSessionCount(sessions)).toBe(2);
   });
+
+  it("ignores amenity accesses: they need no therapist", () => {
+    const sessions = expandCartToSessions([
+      cartLine(treatment("massage", 90)),
+      cartLine(treatment("piscine", 60, { amenity_id: "pool" })),
+    ]);
+    expect(getBaseSessionCount(sessions)).toBe(1);
+  });
 });
 
 describe("isComboDuoEligible", () => {
@@ -59,6 +72,14 @@ describe("isComboDuoEligible", () => {
     const sessions = expandCartToSessions([
       cartLine(treatment("massage", 90)),
       cartLine(treatment("extremites", 15, { is_addon: true })),
+    ]);
+    expect(isComboDuoEligible(sessions)).toBe(false);
+  });
+
+  it("is false for a single soin + an amenity access (still one guest)", () => {
+    const sessions = expandCartToSessions([
+      cartLine(treatment("massage", 90)),
+      cartLine(treatment("piscine", 60, { amenity_id: "pool" })),
     ]);
     expect(isComboDuoEligible(sessions)).toBe(false);
   });
@@ -107,6 +128,22 @@ describe("buildComboDuoBookingParams", () => {
     // leg0 = 90+15+15 = 120, leg1 = 90+15 = 105 → longest leg wins
     expect(params.guestCount).toBe(2);
     expect(params.duration).toBe(120);
+  });
+
+  it("keeps an amenity line in the booking but out of the legs and the duration", () => {
+    const sessions = expandCartToSessions([
+      cartLine(treatment("massage", 90), 2),
+      cartLine(treatment("piscine", 120, { amenity_id: "pool" })),
+    ]);
+    const params = buildComboDuoBookingParams(sessions);
+    // 2 guests, not 3 — and the 120min pool access never inflates the soin slot
+    expect(params.guestCount).toBe(2);
+    expect(params.duration).toBe(90);
+
+    const amenity = params.treatments.find((t) => t.isAmenity);
+    expect(amenity?.treatmentId).toBe("piscine");
+    // no leg → no therapist assigned at insert time
+    expect(amenity?.legIndex).toBeUndefined();
   });
 
   it("no add-on: unchanged behaviour (max of the base soins)", () => {
