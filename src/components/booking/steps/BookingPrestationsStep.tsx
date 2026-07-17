@@ -63,6 +63,8 @@ interface BookingPrestationsStepProps {
   isPending: boolean;
   onBack: () => void;
   onNext?: () => void;
+  /** Libellé du bouton de soumission quand l'étape porte le submit (sans onNext). */
+  submitLabel?: string;
   // Amenity access
   venueAmenities?: VenueAmenity[];
   selectedAmenityIds?: string[];
@@ -115,6 +117,7 @@ export function BookingPrestationsStep({
   isPending,
   onBack,
   onNext,
+  submitLabel,
   venueAmenities,
   selectedAmenityIds,
   onToggleAmenity,
@@ -648,7 +651,7 @@ export function BookingPrestationsStep({
                 size="sm"
                 className="flex-1 h-9 text-sm bg-emerald-600 text-white hover:bg-emerald-700"
               >
-                {isPending ? "Création..." : "Envoyer la demande"}
+                {isPending ? "Création..." : submitLabel ?? "Envoyer la demande"}
                 {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
             )}

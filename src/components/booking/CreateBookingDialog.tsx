@@ -196,11 +196,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   // guest_count driven by the SELECTED variant for each cart item (not the max of all variants).
   // Falls back to 1 when no variant is selected or the treatment has no variants.
+  // Un accès amenity ne requiert aucun praticien : il ne compte jamais comme un invité.
   const requiredGuestCount = useMemo(() => {
-    if (!cartDetails.length) return 1;
+    const serviceDetails = cartDetails.filter(
+      (item) => !(item.treatment as { amenity_id?: string | null } | undefined)?.amenity_id,
+    );
+    if (!serviceDetails.length) return 1;
     return Math.max(
       1,
-      ...cartDetails.map((item) => {
+      ...serviceDetails.map((item) => {
         const variants = item.treatment?.treatment_variants ?? [];
         if (!variants.length) return 1;
         const selected = item.variantId
@@ -210,6 +214,17 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       })
     );
   }, [cartDetails]);
+
+  // Un accès « amenity » (piscine, sauna…) n'a jamais de praticien : un panier qui n'en
+  // contient que rend l'étape thérapeute inutile et ne doit pas être diffusé.
+  const amenityOnlyCart = useMemo(
+    () =>
+      cartDetails.length > 0 &&
+      cartDetails.every(
+        (item) => !!(item.treatment as { amenity_id?: string | null } | undefined)?.amenity_id,
+      ),
+    [cartDetails],
+  );
 
   // admin-combo-duo
   const sessions = useMemo(() => expandCartToSessions(cartDetails), [cartDetails]);
@@ -266,9 +281,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     );
   };
 
+  // Un panier 100 % amenity EST déjà un accès : l'option « accès commodité » n'a plus
+  // d'objet. Vider la liste masque le bloc et neutralise une sélection antérieure.
+  const offeredAmenities = amenityOnlyCart ? [] : venueAmenities;
+
   const amenityAccessPayload: AmenityAccessPayload[] = selectedAmenityIds
     .map((id) => {
-      const a = venueAmenities.find((va) => va.id === id);
+      const a = offeredAmenities.find((va) => va.id === id);
       if (!a) return null;
       return {
         venueAmenityId: a.id,
@@ -401,7 +420,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       return;
     }
     const values = form.getValues();
-    if (canAssignTherapist && duoMode !== "broadcast") {
+    if (canAssignTherapist && !amenityOnlyCart && duoMode !== "broadcast") {
       if (staffingCount > 1) {
         const assigned = [values.therapistId, ...additionalTherapistIds].filter(Boolean);
         if (assigned.length < staffingCount) {
@@ -413,13 +432,14 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         return;
       }
     }
-    const isBroadcast = duoMode === "broadcast" || !values.therapistId;
+    const isBroadcast = !amenityOnlyCart && (duoMode === "broadcast" || !values.therapistId);
     const comboParams = comboDuoEnabled ? buildComboDuoBookingParams(sessions) : null;
-    const treatments = comboParams?.treatments ?? cart.flatMap(item =>
+    const treatments = comboParams?.treatments ?? cartDetails.flatMap(item =>
       Array.from({ length: item.quantity }, () => ({
         treatmentId: item.treatmentId,
         variantId: item.variantId || undefined,
         priceOverride: item.priceOverride ?? null,
+        isAmenity: !!(item.treatment as { amenity_id?: string | null } | undefined)?.amenity_id,
       }))
     );
     const offered = values.isOffert;
@@ -463,6 +483,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       guestCount: comboDuoEnabled ? comboParams!.guestCount : requiredGuestCount,
       comboDuo: comboDuoEnabled,
       isBroadcast,
+      amenityOnly: amenityOnlyCart,
       ...(staffingCount > 1 && duoMode === "assign"
         ? { therapistIds: [values.therapistId, ...additionalTherapistIds].filter(Boolean) }
         : {}),
@@ -550,7 +571,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
         <Form {...form}>
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations" | "therapist" | "payment")} className="flex-1 flex flex-col min-h-0">
+            {/* Panier 100 % amenity : l'étape thérapeute est sans objet, même si on
+                s'y trouvait avant le retrait du dernier soin. */}
+            <Tabs value={amenityOnlyCart && activeTab === "therapist" ? "prestations" : activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations" | "therapist" | "payment")} className="flex-1 flex flex-col min-h-0">
               <TabsContent value="info" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden">
                 <BookingInfoStep
                   form={form}
@@ -604,14 +627,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   finalPriceWithSurcharge={finalPriceWithSurcharge}
                   isPending={mutation.isPending}
                   onBack={() => setActiveTab("info")}
-                  onNext={canAssignTherapist ? () => {
+                  onNext={canAssignTherapist && !amenityOnlyCart ? () => {
                     if (!cart.length) {
                       toast({ title: "Sélectionnez une prestation", variant: "destructive" });
                       return;
                     }
                     setActiveTab("therapist");
                   } : undefined}
-                  venueAmenities={venueAmenities}
+                  submitLabel={amenityOnlyCart ? (isConcierge ? "Confirmer" : "Créer") : undefined}
+                  venueAmenities={offeredAmenities}
                   selectedAmenityIds={selectedAmenityIds}
                   onToggleAmenity={handleToggleAmenity}
                   clientType={clientType}

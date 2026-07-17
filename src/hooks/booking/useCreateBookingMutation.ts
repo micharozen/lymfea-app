@@ -33,6 +33,11 @@ export interface TreatmentPayload {
   /** True for an add-on line (a supplement performed after a base soin). */
   isAddon?: boolean;
   /**
+   * True for an amenity line (pool/sauna access). Needs no therapist: never gets a
+   * therapist_id and never counts as a guest when spreading therapists over lines.
+   */
+  isAmenity?: boolean;
+  /**
    * Which person (0-based) performs this line in a combo-duo. Base soins get
    * their own index; an add-on inherits the index of the base it hangs off.
    * Drives both the therapist assignment and the parent link at insert time.
@@ -87,6 +92,11 @@ export interface CreateBookingPayload {
   source?: string;
   emailInquiryId?: string;
   isBroadcast?: boolean;
+  /**
+   * Panier composé uniquement d'accès « amenity » (piscine, sauna…) : aucun praticien
+   * requis, la réservation est confirmée d'emblée et n'est jamais diffusée.
+   */
+  amenityOnly?: boolean;
   /** admin-combo-duo: N solo treatments booked as one duo booking */
   comboDuo?: boolean;
 }
@@ -227,8 +237,10 @@ async function insertSingleBooking(
   roomId: string | null,
   secondaryRoomId: string | null,
 ) {
-  const { status, therapistId: finalTherapistId, therapistName: finalTherapistName } =
+  const { status: resolvedStatus, therapistId: finalTherapistId, therapistName: finalTherapistName } =
     resolveAssignment(allTherapistIds, guestCount, therapists);
+  // Un panier 100 % amenity n'attend aucun praticien : confirmé sans assignation.
+  const status = d.amenityOnly ? "confirmed" : resolvedStatus;
 
   const { data: booking, error } = await supabase.from("bookings").insert({
     hotel_id: d.hotelId,
@@ -277,8 +289,10 @@ async function insertSingleBooking(
     const therapistForLeg = (legIndex?: number) =>
       legIndex !== undefined ? allTherapistIds[legIndex] ?? null : null;
 
-    const baseLines = d.treatments.filter((t) => !t.isAddon);
-    const addonLines = d.treatments.filter((t) => t.isAddon);
+    // Les lignes amenity n'appartiennent à aucune jambe : insérées à part, sans praticien.
+    const baseLines = d.treatments.filter((t) => !t.isAddon && !t.isAmenity);
+    const addonLines = d.treatments.filter((t) => t.isAddon && !t.isAmenity);
+    const amenityLines = d.treatments.filter((t) => t.isAmenity);
 
     const { data: baseRows, error: baseErr } = await supabase.from("booking_treatments").insert(
       baseLines.map((t) => ({
@@ -314,15 +328,34 @@ async function insertSingleBooking(
       );
       if (addonErr) throw addonErr;
     }
+
+    if (amenityLines.length > 0) {
+      const { error: amenityErr } = await supabase.from("booking_treatments").insert(
+        amenityLines.map((t) => ({
+          booking_id: booking.id,
+          treatment_id: t.treatmentId,
+          variant_id: t.variantId || null,
+          price_override: t.priceOverride ?? null,
+          therapist_id: null,
+        })),
+      );
+      if (amenityErr) throw amenityErr;
+    }
   } else if (d.treatments && d.treatments.length > 0) {
-    const count = d.treatments.length;
+    // Un accès amenity n'est pas un invité : il sort du décompte et de la répartition
+    // positionnelle, sinon il consommerait le praticien d'un vrai soin.
+    const serviceLines = d.treatments.filter((t) => !t.isAmenity);
+    const count = serviceLines.length;
+    const serviceIndexOf = new Map(serviceLines.map((t, i) => [t, i]));
     const { error: te } = await supabase.from("booking_treatments").insert(
-      d.treatments.map((t, i) => ({
+      d.treatments.map((t) => ({
         booking_id: booking.id,
         treatment_id: t.treatmentId,
         variant_id: t.variantId || null,
         price_override: t.priceOverride ?? null,
-        therapist_id: therapistForTreatment(i, count, guestCount, allTherapistIds),
+        therapist_id: t.isAmenity
+          ? null
+          : therapistForTreatment(serviceIndexOf.get(t)!, count, guestCount, allTherapistIds),
       })),
     );
     if (te) throw te;
@@ -407,7 +440,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       const allTherapistIds = d.therapistIds?.length
         ? d.therapistIds
         : d.therapistId ? [d.therapistId] : [];
-      const isBroadcast = d.isBroadcast ?? allTherapistIds.length === 0;
+      const isBroadcast = d.amenityOnly ? false : (d.isBroadcast ?? allTherapistIds.length === 0);
 
       let roomId: string | null = d.roomId?.trim() ? d.roomId.trim() : null;
       if (!roomId) {
@@ -524,7 +557,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
     },
     onSuccess: (data, variables) => {
       const assigned = variables.therapistId || (variables.therapistIds?.length ?? 0) > 0;
-      const message = variables.isAdmin
+      const message = variables.isAdmin || variables.amenityOnly
         ? "Réservation créée"
         : assigned && !variables.isBroadcast
           ? "Réservation confirmée"
