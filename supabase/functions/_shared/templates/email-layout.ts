@@ -25,6 +25,8 @@ export const MOSS = "#5E6B43"; // "confirmed" status pill text + dot
 export const MOSS_TINT = "#E6EBD8"; // "confirmed" status pill background
 export const AMBER = "#9A6B2F"; // "pending / awaiting" status pill text + dot
 export const AMBER_TINT = "#F6E9D5"; // "pending / awaiting" status pill background
+export const RUST = "#A8432F"; // "cancelled" status pill text + dot
+export const RUST_TINT = "#F3DAD2"; // "cancelled" status pill background
 export const LINE = "rgba(42,36,25,0.14)";
 export const LINE_SOFT = "rgba(42,36,25,0.07)";
 

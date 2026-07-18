@@ -3,29 +3,27 @@ import { sendEmail } from "../_shared/send-email.ts";
 import { sendSms } from "../_shared/send-sms.ts";
 import { brand } from "../_shared/brand.ts";
 import {
-  getBaseEmailTemplate,
-  getEmailHeader,
-  getInfoRow,
-  getDateTimeHighlight,
-} from "../_shared/email-template.ts";
-import { getCancelMessages, resolveCancelLang, shouldSendCancellationSms } from "./i18n.ts";
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function safeInfoRow(label: string, value: unknown): string {
-  return getInfoRow(escapeHtml(label), escapeHtml(value));
-}
+  buildCancelledVars,
+  type BookingEmailContext,
+  type CancelledExtras,
+  currencySymbol,
+  type EmailVenue,
+} from "../_shared/booking-email-vars.ts";
+import {
+  getBookingCancelledAdminHtml,
+  getBookingCancelledHtml,
+} from "../_shared/templates/booking-cancelled.ts";
+import {
+  type CancelLang,
+  getCancelMessages,
+  resolveCancelLang,
+  shouldSendCancellationSms,
+} from "./i18n.ts";
 
 interface CancelNotificationContext {
   supabase: SupabaseClient;
   booking: Record<string, unknown>;
+  venue?: EmailVenue | null;
   paymentInfo: {
     card_brand?: string | null;
     card_last4?: string | null;
@@ -45,6 +43,7 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
   const {
     supabase,
     booking,
+    venue,
     paymentInfo,
     reason,
     totalPrice,
@@ -77,64 +76,74 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
   const formattedTime = String(booking.booking_time ?? "").substring(0, 5);
   const siteUrl = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
   const clientName = `${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim();
+  const sym = currencySymbol(venue?.currency);
   const cardLine = paymentInfo?.card_brand && paymentInfo?.card_last4
     ? `${paymentInfo.card_brand.toUpperCase()} ••••${paymentInfo.card_last4}`
     : null;
 
+  // Normalized email context reused for the client (its own language) and the
+  // admin recap (always FR). Treatments aren't needed by the cancelled layout.
+  const makeCtx = (l: CancelLang): BookingEmailContext => ({
+    booking: {
+      booking_id: booking.booking_id as number | string | null | undefined,
+      client_first_name: booking.client_first_name as string | null | undefined,
+      client_last_name: booking.client_last_name as string | null | undefined,
+      phone: booking.phone as string | null | undefined,
+      room_number: booking.room_number as number | string | null | undefined,
+      total_price: totalPrice,
+      hotel_name: booking.hotel_name as string | null | undefined,
+      booking_date: String(booking.booking_date),
+      booking_time: booking.booking_time as string | null | undefined,
+    },
+    venue: venue ?? null,
+    civility: (booking.civility as string | null | undefined) ?? null,
+    lang: l,
+    treatments: [],
+    contactEmail: venue?.contact_email ?? null,
+  });
+
+  // Cancellation / refund summary rows. Branching (refund vs partner-billed vs
+  // room-charge vs no-refund) mirrors the payment logic; the design layer only
+  // renders it. Copy comes from i18n so client (lang) and admin (FR) match.
+  const buildExtras = (m: ReturnType<typeof getCancelMessages>, l: CancelLang): CancelledExtras => {
+    const paymentLabel = l === "en" ? "Payment" : "Paiement";
+    const rows: Array<[string, string]> = [[m.totalBooking, `${totalPrice} ${sym}`]];
+    let refund: { label: string; value: string } | null = null;
+
+    if (isPartnerBilled) {
+      rows.push([paymentLabel, m.partnerPayment]);
+    } else if (isChargedToRoom) {
+      rows.push([paymentLabel, m.roomChargePayment]);
+    } else if (needsStripe) {
+      rows.push([
+        m.depositPaid,
+        cardLine ? `${cardLine} — ${depositAmount} ${sym}` : `${depositAmount} ${sym}`,
+      ]);
+      if (feeApplied > 0) rows.push([m.cancellationFee, `${feeApplied} ${sym}`]);
+      refund = { label: m.refunded, value: `${refundAmount} ${sym}` };
+    } else {
+      rows.push([paymentLabel, m.noRefundPayment]);
+    }
+
+    return {
+      detailsTitle: needsStripe ? m.detailsRefund : m.detailsCancellation,
+      rows,
+      refund,
+      reason: reason ? { label: m.reason, value: reason } : null,
+      clientRow: { label: m.clientLabel, value: clientName },
+      roomRow: booking.room_number
+        ? { label: m.roomLabel, value: String(booking.room_number) }
+        : null,
+      rebookUrl: siteUrl,
+    };
+  };
+
   if (booking.client_email) {
     try {
-      let paymentDetailsBlock: string;
-      if (isPartnerBilled) {
-        paymentDetailsBlock = buildDetailsBlock(msg.detailsCancellation, [
-          [msg.totalBooking, `${totalPrice}€`],
-          ["Paiement", msg.partnerPayment],
-          ...(reason ? [[msg.reason, reason]] : []),
-        ]);
-      } else if (isChargedToRoom) {
-        paymentDetailsBlock = buildDetailsBlock(msg.detailsCancellation, [
-          [msg.totalBooking, `${totalPrice}€`],
-          ["Paiement", msg.roomChargePayment],
-          ...(reason ? [[msg.reason, reason]] : []),
-        ]);
-      } else if (needsStripe) {
-        paymentDetailsBlock = buildDetailsBlock(msg.detailsRefund, [
-          [msg.totalBooking, `${totalPrice}€`],
-          [msg.depositPaid, cardLine ? `${cardLine} — ${depositAmount}€` : `${depositAmount}€`],
-          ...(feeApplied > 0 ? [[msg.cancellationFee, `${feeApplied}€`]] : []),
-          [msg.refunded, `${refundAmount}€`],
-          ...(reason ? [[msg.reason, reason]] : []),
-        ]);
-      } else {
-        paymentDetailsBlock = buildDetailsBlock(msg.detailsCancellation, [
-          [msg.totalBooking, `${totalPrice}€`],
-          ["Paiement", msg.noRefundPayment],
-          ...(reason ? [[msg.reason, reason]] : []),
-        ]);
-      }
-
-      const emailContent = `
-        ${getEmailHeader(msg.emailHeader, msg.emailBadge, "#ef4444")}
-        <tr>
-          <td style="padding: 24px 30px 0;">
-            ${getDateTimeHighlight(formattedDate, formattedTime)}
-            <table width="100%" cellpadding="0" cellspacing="0">
-              ${safeInfoRow(msg.clientLabel, clientName)}
-              ${safeInfoRow(msg.venueLabel, String(booking.hotel_name ?? ""))}
-              ${booking.room_number ? safeInfoRow(msg.roomLabel, String(booking.room_number)) : ""}
-            </table>
-          </td>
-        </tr>
-        <tr><td style="padding: 24px 30px 0;">${paymentDetailsBlock}</td></tr>
-      `;
-
       await sendEmail({
         to: String(booking.client_email),
         subject: msg.emailSubject(formattedDate),
-        html: getBaseEmailTemplate(emailContent, {
-          showButton: !!siteUrl,
-          buttonText: msg.emailButton,
-          buttonUrl: siteUrl,
-        }),
+        html: getBookingCancelledHtml(lang, buildCancelledVars(makeCtx(lang), buildExtras(msg, lang))),
         audit: { bookingId: resolvedBookingId, emailType: 'booking_cancelled', metadata: { booking_number: booking.booking_id } },
       });
     } catch (emailErr) {
@@ -153,22 +162,9 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
       .filter((e): e is string => !!e);
 
     if (adminEmails.length > 0) {
-      const adminHtml = getBaseEmailTemplate(
-        `
-        ${getEmailHeader(msg.adminEmailTitle, msg.emailBadge, "#ef4444")}
-        <tr><td style="padding: 24px 30px;">
-          <table width="100%" cellpadding="0" cellspacing="0">
-            ${safeInfoRow(msg.clientLabel, clientName)}
-            ${safeInfoRow(msg.venueLabel, String(booking.hotel_name ?? ""))}
-            ${getDateTimeHighlight(formattedDate, formattedTime)}
-            ${safeInfoRow(msg.totalBooking, `${totalPrice}€`)}
-            ${needsStripe && refundAmount > 0 ? safeInfoRow(msg.adminRefund, `${refundAmount}€`) : ""}
-            ${feeApplied > 0 ? safeInfoRow(msg.adminFee, `${feeApplied}€`) : ""}
-            ${reason ? safeInfoRow(msg.adminReason, reason) : ""}
-          </table>
-        </td></tr>
-      `,
-        { showButton: false },
+      const msgFr = getCancelMessages("fr");
+      const adminHtml = getBookingCancelledAdminHtml(
+        buildCancelledVars(makeCtx("fr"), buildExtras(msgFr, "fr")),
       );
 
       await Promise.all(
@@ -220,15 +216,4 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
       status: booking.status,
     });
   }
-}
-
-function buildDetailsBlock(title: string, rows: string[][]): string {
-  const rowHtml = rows.map(([label, value]) => safeInfoRow(label, value)).join("");
-  return `
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 12px; margin-bottom: 24px;">
-      <tr><td style="padding: 20px;">
-        <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #374151;">${escapeHtml(title)}</p>
-        ${rowHtml}
-      </td></tr>
-    </table>`;
 }
