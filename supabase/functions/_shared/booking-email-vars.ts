@@ -19,6 +19,7 @@ import {
   keyGap,
   keyRow,
 } from "./templates/booking-confirmed.ts";
+import { ICON_INFO } from "./templates/email-layout.ts";
 
 export type Lang = 'fr' | 'en';
 
@@ -208,10 +209,13 @@ const FRAG_LABELS = {
 // Palette echoed from templates/booking-confirmed.ts (kept in sync).
 const FONT_SERIF = "'Newsreader',Georgia,'Times New Roman',serif";
 const FONT_SANS = "'DM Sans',-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+const FONT_MONO = "'IBM Plex Mono',ui-monospace,monospace";
 const INK = '#2A2419';
 const INK_SOFT = '#6B5E4B';
 const INK_MUTE = '#8F8472';
 const CLAY = '#B05A35';
+const CLAY_TINT = '#F6E3D7';
+const SAND_100 = '#F4EDE0';
 const LINE_SOFT = 'rgba(42,36,25,0.07)';
 
 /** One `tline` per treatment: name + duration subline left, serif price right. */
@@ -345,6 +349,87 @@ export function buildConfirmedVars(ctx: BookingEmailContext): Record<string, str
     ),
     room_row_html: keyRowFragment(ICON_ROOM, FRAG_LABELS[ctx.lang].room, roomNumber, ''),
     maps_url: venueMapsUrl(ctx.venue),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// "Booking cancelled" template family
+// ---------------------------------------------------------------------------
+
+/** One label/value line inside the cancellation summary card. */
+function summaryLine(label: string, value: string): string {
+  return `<tr><td style="padding:11px 0;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SANS};font-size:14px;color:${INK_SOFT}">${escapeHtml(label)}</td><td align="right" style="padding:11px 0 11px 16px;border-bottom:1px solid ${LINE_SOFT};font-family:${FONT_SERIF};font-size:16px;color:${INK};white-space:nowrap;vertical-align:top">${escapeHtml(value)}</td></tr>`;
+}
+
+/**
+ * Cancellation / refund summary card: framed sable box with label/value rows
+ * and, when a refund applies, a clay-tint highlight for the refunded amount
+ * (echoes the confirmed template's total block).
+ */
+function cancelSummaryBox(
+  title: string,
+  rows: Array<[string, string]>,
+  refund: { label: string; value: string } | null,
+): string {
+  const rowHtml = rows.map(([label, value]) => summaryLine(label, value)).join('');
+  const refundHtml = refund
+    ? `<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:16px;background-color:${CLAY_TINT};border-radius:12px"><tbody><tr><td style="padding:16px 20px;font-family:${FONT_MONO};font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:${CLAY}">${escapeHtml(refund.label)}</td><td align="right" style="padding:16px 20px;font-family:${FONT_SERIF};font-size:24px;color:${INK}">${escapeHtml(refund.value)}</td></tr></tbody></table>`
+    : '';
+  return `<tr><td class="eia-sect" style="padding:28px 40px 0"><p style="margin:0 0 10px;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${INK_MUTE}">${escapeHtml(title)}</p><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:${SAND_100};border:1px solid ${LINE_SOFT};border-radius:14px"><tbody><tr><td class="eia-box" style="padding:8px 22px"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tbody>${rowHtml}</tbody></table></td></tr></tbody></table>${refundHtml}</td></tr>`;
+}
+
+/** Reason encart (framed sand-100 with a gold info icon). '' when no reason. */
+function reasonNote(label: string, value: string): string {
+  if (!value) return '';
+  return `<tr><td class="eia-sect" style="padding:24px 40px 0"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:${SAND_100};border:1px solid ${LINE_SOFT};border-radius:12px"><tbody><tr><td width="40" style="width:40px;vertical-align:top;padding:16px 0 16px 18px">${ICON_INFO}</td><td style="padding:16px 18px 16px 12px;font-family:${FONT_SANS};font-size:13px;line-height:1.6;color:${INK_SOFT}"><strong style="font-weight:500;color:${INK}">${escapeHtml(label)} :</strong> ${escapeHtml(value)}</td></tr></tbody></table></td></tr>`;
+}
+
+/** Per-call-site values for the "booking cancelled" template family. Copy /
+ * branching (refund vs partner-billed vs room-charge vs no-refund) stays in the
+ * calling edge function; this layer only renders the design. */
+export interface CancelledExtras {
+  /** Summary card title (e.g. "Détails de l'annulation" / "…du remboursement"). */
+  detailsTitle: string;
+  /** Label/value rows shown in the summary card. */
+  rows: Array<[string, string]>;
+  /** Clay-tint refund highlight; null when nothing is refunded. */
+  refund?: { label: string; value: string } | null;
+  /** Cancellation reason encart; null when no reason was given. */
+  reason?: { label: string; value: string } | null;
+  /** Client row inside the details box; null to collapse. */
+  clientRow?: { label: string; value: string } | null;
+  /** Room row inside the details box; null to collapse. */
+  roomRow?: { label: string; value: string } | null;
+  /** "Book again" button URL (client template only). */
+  rebookUrl: string;
+}
+
+/** Variables for the "booking cancelled" template family. */
+export function buildCancelledVars(
+  ctx: BookingEmailContext,
+  extras: CancelledExtras,
+): Record<string, string> {
+  const { clientName, civility } = greetingFor(ctx);
+  const extraRows =
+    (extras.clientRow ? keyRowFragment(ICON_PERSON, extras.clientRow.label, extras.clientRow.value, '') : '') +
+    (extras.roomRow ? keyRowFragment(ICON_ROOM, extras.roomRow.label, extras.roomRow.value, '') : '');
+  return {
+    booking_number: String(ctx.booking.booking_id ?? ''),
+    booking_date: formatBookingDate(ctx.booking.booking_date, ctx.lang),
+    booking_time: formatBookingTime(ctx.booking.booking_time),
+    total_duration_sep: '',
+    client_civility: civility,
+    client_name: clientName,
+    hotel_name: ctx.booking.hotel_name ?? '',
+    venue_name: ctx.booking.hotel_name ?? '',
+    contact_email: ctx.contactEmail ?? ctx.venue?.contact_email ?? '',
+    venue_address: formatVenueAddress(ctx.venue),
+    footer_website_html: footerWebsiteHtml(ctx.venue?.website_url),
+    logo_url: venueLogoUrl(ctx.venue),
+    rebook_url: extras.rebookUrl,
+    extra_rows_html: extraRows,
+    payment_details_html: cancelSummaryBox(extras.detailsTitle, extras.rows, extras.refund ?? null),
+    reason_html: extras.reason ? reasonNote(extras.reason.label, extras.reason.value) : '',
   };
 }
 

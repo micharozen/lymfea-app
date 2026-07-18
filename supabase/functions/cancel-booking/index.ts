@@ -413,7 +413,7 @@ serve(async (req) => {
       supabase
         .from("hotels")
         .select(
-          "timezone, client_cancellation_cutoff_hours, cancellation_tiers",
+          "timezone, client_cancellation_cutoff_hours, cancellation_tiers, image, currency, contact_email, address, postal_code, city, country, website_url",
         )
         .eq("id", booking.hotel_id)
         .single(),
@@ -806,6 +806,7 @@ serve(async (req) => {
       await sendCancellationNotifications({
         supabase,
         booking,
+        venue: hotel,
         paymentInfo,
         reason: cancellationReason ?? undefined,
         totalPrice,
