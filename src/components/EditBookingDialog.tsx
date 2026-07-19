@@ -378,7 +378,7 @@ export default function EditBookingDialog({
   const queryHotelId = hotelId || booking?.hotel_id;
 
   // Salles de soin disponibles au créneau (la salle actuelle reste sélectionnable).
-  const { rooms, occupiedRoomIds, roomOccupancy } = useAvailableRooms(
+  const { rooms, occupiedRoomIds, turnoverConflictRoomIds, roomOccupancy } = useAvailableRooms(
     queryHotelId,
     date ? format(date, "yyyy-MM-dd") : undefined,
     time,
@@ -1869,6 +1869,8 @@ export default function EditBookingDialog({
                       )}
                       {rooms.map((room) => {
                         const occupied = occupiedRoomIds.has(room.id) && room.id !== roomId;
+                        const turnover =
+                          turnoverConflictRoomIds.has(room.id) && room.id !== roomId;
                         const used = roomOccupancy.get(room.id) ?? 0;
                         return (
                           <SelectItem key={room.id} value={room.id} disabled={occupied}>
@@ -1884,6 +1886,9 @@ export default function EditBookingDialog({
                               </span>
                               {occupied && (
                                 <span className="text-xs text-destructive">— Complète</span>
+                              )}
+                              {!occupied && turnover && (
+                                <span className="text-xs text-amber-600">— Remise en état</span>
                               )}
                             </span>
                           </SelectItem>
@@ -1930,6 +1935,9 @@ export default function EditBookingDialog({
                               .map((room) => {
                                 const occupied =
                                   occupiedRoomIds.has(room.id) && room.id !== secondaryRoomId;
+                                const turnover =
+                                  turnoverConflictRoomIds.has(room.id) &&
+                                  room.id !== secondaryRoomId;
                                 const used = roomOccupancy.get(room.id) ?? 0;
                                 return (
                                   <SelectItem
@@ -1952,6 +1960,11 @@ export default function EditBookingDialog({
                                       {occupied && (
                                         <span className="text-xs text-destructive">
                                           — Complète
+                                        </span>
+                                      )}
+                                      {!occupied && turnover && (
+                                        <span className="text-xs text-amber-600">
+                                          — Remise en état
                                         </span>
                                       )}
                                     </span>
