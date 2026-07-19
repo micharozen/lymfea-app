@@ -82,7 +82,7 @@ export function ConvertToDuoDialog({
     excludeBookingId: booking.id,
   });
 
-  const { rooms, occupiedRoomIds } = useAvailableRooms(
+  const { rooms, occupiedRoomIds, turnoverConflictRoomIds } = useAvailableRooms(
     booking.hotel_id ?? undefined,
     booking.booking_date ?? undefined,
     booking.booking_time ?? undefined,
@@ -282,7 +282,12 @@ export function ConvertToDuoDialog({
                   <SelectContent>
                     {secondaryRoomOptions.map((r) => (
                       <SelectItem key={r.id} value={r.id} disabled={occupiedRoomIds.has(r.id)}>
-                        {r.name}
+                        <span className="flex items-center gap-1.5">
+                          {r.name}
+                          {turnoverConflictRoomIds.has(r.id) && (
+                            <span className="text-xs text-amber-600">— Remise en état</span>
+                          )}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>

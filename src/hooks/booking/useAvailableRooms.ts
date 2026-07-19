@@ -11,8 +11,14 @@ export interface AvailableRoom {
 
 export interface AvailableRoomsResult {
   rooms: AvailableRoom[];
-  /** Salles indisponibles au créneau choisi. */
+  /** Salles indisponibles au créneau choisi (chevauchement réel avec une autre réservation). */
   occupiedRoomIds: Set<string>;
+  /**
+   * Salles indisponibles UNIQUEMENT à cause de la fenêtre de remise en état (turnover)
+   * d'une réservation précédente/suivante — pas de chevauchement réel. Non bloquant :
+   * l'admin/concierge peut quand même les assigner, on affiche seulement un warning.
+   */
+  turnoverConflictRoomIds: Set<string>;
   /** Occupation affichée par salle au créneau choisi. Une salle occupée vaut sa capacité. */
   roomOccupancy: Map<string, number>;
 }
@@ -87,6 +93,9 @@ export function useAvailableRooms(
       const capacityByRoom = new Map(normalizedRooms.map((r) => [r.id, r.capacity]));
 
       const roomOccupancy = new Map<string, number>();
+      // Salles dont le seul conflit est la fenêtre de remise en état (turnover), sans
+      // chevauchement réel de soins. Warning non bloquant côté admin/concierge.
+      const turnoverRooms = new Set<string>();
       if (date && time) {
         // Une salle déjà utilisée par une réservation distincte n'est pas partageable,
         // même si sa capacité est > 1. Les lits multiples servent uniquement à un duo/trio
@@ -103,10 +112,17 @@ export function useAvailableRooms(
         if (busyError) throw busyError;
         for (const b of busy ?? []) {
           if (isStaleAwaitingPayment(b.payment_status, b.created_at)) continue;
+          // Conflit avec turnover inclus : ni bloquant ni warning si absent.
           if (!overlapsSlot(time, durationMinutes, b.booking_time, b.duration, turnoverBuffer)) continue;
+          // Chevauchement RÉEL (sans turnover) : occupation dure, reste bloquant.
+          const hard = overlapsSlot(time, durationMinutes, b.booking_time, b.duration, 0);
           for (const id of [b.room_id, b.secondary_room_id]) {
             if (!id) continue;
-            roomOccupancy.set(id, capacityByRoom.get(id) ?? 1);
+            if (hard) {
+              roomOccupancy.set(id, capacityByRoom.get(id) ?? 1);
+            } else {
+              turnoverRooms.add(id);
+            }
           }
         }
       }
@@ -116,8 +132,12 @@ export function useAvailableRooms(
           .filter((r) => (roomOccupancy.get(r.id) ?? 0) >= r.capacity)
           .map((r) => r.id),
       );
+      // Une salle en chevauchement réel prime sur le simple turnover.
+      const turnoverConflictRoomIds = new Set<string>(
+        [...turnoverRooms].filter((id) => !occupiedRoomIds.has(id)),
+      );
 
-      return { rooms: normalizedRooms, occupiedRoomIds, roomOccupancy };
+      return { rooms: normalizedRooms, occupiedRoomIds, turnoverConflictRoomIds, roomOccupancy };
     },
   });
 
@@ -125,6 +145,7 @@ export function useAvailableRooms(
     data ?? {
       rooms: [],
       occupiedRoomIds: new Set<string>(),
+      turnoverConflictRoomIds: new Set<string>(),
       roomOccupancy: new Map<string, number>(),
     }
   );
