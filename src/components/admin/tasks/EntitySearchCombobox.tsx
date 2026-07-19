@@ -25,6 +25,11 @@ interface EntitySearchComboboxProps<T> {
 // Generic server-backed combobox: `search` runs on the entered query (server
 // filtering, so cmdk's client filter is disabled). Selecting an item calls
 // onChange; the clear button resets to null.
+//
+// `modal` on the Popover is required: this combobox is rendered inside modal
+// Dialogs (QuickActionsDialog, TaskDialog). A non-modal Popover nested in a
+// Radix Dialog loses keyboard focus to the Dialog's focus trap, making the
+// search input impossible to type in.
 export function EntitySearchCombobox<T>({
   value,
   onChange,
@@ -64,7 +69,7 @@ export function EntitySearchCombobox<T>({
 
   return (
     <div className="flex items-center gap-2">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal>
         <PopoverTrigger asChild>
           <Button
             type="button"
