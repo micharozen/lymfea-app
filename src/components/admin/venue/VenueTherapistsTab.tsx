@@ -96,20 +96,6 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     },
   });
 
-  // Fetch treatment rooms for the detail dialog
-  const { data: rooms = [] } = useQuery({
-    queryKey: ["treatment-rooms", hotelId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("trunks")
-        .select("id, name, image")
-        .eq("hotel_id", hotelId)
-        .order("name");
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
   // Fetch all therapists
   const { data: allTherapists = [] } = useQuery({
     queryKey: ["all-therapists"],
@@ -259,7 +245,6 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
       country_code: "+33",
       phone: "",
     });
-    setSelectedSkills([]);
     setProfileImage("");
     setShowCreateForm(false);
   };
@@ -511,7 +496,6 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
         onOpenChange={(open) => !open && setSelectedTherapist(null)}
         therapist={selectedTherapist}
         hotels={hotels}
-        rooms={rooms}
         onEdit={() => {
           if (selectedTherapist) {
             setSelectedTherapist(null);

@@ -63,7 +63,6 @@ export default function TherapistDetail() {
 
   // Separate state for relational / JSON data
   const [selectedHotels, setSelectedHotels] = useState<string[]>([]);
-  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [selectedTreatmentIds, setSelectedTreatmentIds] = useState<string[]>([]);
   const [minimumGuarantee, setMinimumGuarantee] = useState<Record<string, number>>({});
   const [minimumGuaranteeActive, setMinimumGuaranteeActive] = useState(false);
@@ -137,13 +136,6 @@ export default function TherapistDetail() {
           (therapist.minimum_guarantee as Record<string, number>) || {}
         );
         setMinimumGuaranteeActive(therapist.minimum_guarantee_active || false);
-
-        // Parse room IDs from stored string
-        setSelectedRooms(
-          therapist.trunks
-            ? therapist.trunks.split(", ").filter((t: string) => t.length > 0)
-            : []
-        );
       }
 
       // Load venue assignments
@@ -181,7 +173,6 @@ export default function TherapistDetail() {
         status: values.status,
         gender: values.gender || null,
         profile_image: profileImage || null,
-        trunks: selectedRooms.length > 0 ? selectedRooms.join(", ") : null,
         minimum_guarantee:
           Object.keys(minimumGuarantee).length > 0 ? minimumGuarantee : null,
         minimum_guarantee_active: minimumGuaranteeActive,
@@ -506,20 +497,18 @@ export default function TherapistDetail() {
 
           <div className="px-4 md:px-6 py-4">
             <Form {...form}>
-              <form onSubmit={(e) => e.preventDefault()}>
-                <TabsContent value="general" className="mt-0">
-                  <TherapistGeneralTab
-                    form={form}
-                    disabled={!isEditing}
-                    profileImage={profileImage || ""}
-                    uploading={uploading}
-                    fileInputRef={fileInputRef}
-                    handleImageUpload={handleImageUpload}
-                    triggerFileSelect={triggerFileSelect}
-                    therapistId={effectiveTherapistId}
-                  />
-                </TabsContent>
-              </form>
+              <TabsContent value="general" className="mt-0">
+                <TherapistGeneralTab
+                  form={form}
+                  disabled={!isEditing}
+                  profileImage={profileImage || ""}
+                  uploading={uploading}
+                  fileInputRef={fileInputRef}
+                  handleImageUpload={handleImageUpload}
+                  triggerFileSelect={triggerFileSelect}
+                  therapistId={effectiveTherapistId}
+                />
+              </TabsContent>
             </Form>
 
             {canAccessTabs && (
@@ -529,8 +518,6 @@ export default function TherapistDetail() {
                     disabled={!isEditing}
                     selectedHotels={selectedHotels}
                     onHotelsChange={setSelectedHotels}
-                    selectedRooms={selectedRooms}
-                    onRoomsChange={setSelectedRooms}
                     selectedTreatmentIds={selectedTreatmentIds}
                     onTreatmentsChange={setSelectedTreatmentIds}
                     minimumGuarantee={minimumGuarantee}

@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import {
   listHotelsForOrg,
-  listTreatmentRoomsForOrgDropdown,
   listTherapistsForOrg,
 } from "@shared/db";
 import { Button } from "@/components/ui/button";
@@ -44,7 +43,7 @@ import AddTherapistDialog from "@/components/AddTherapistDialog";
 import { TherapistAgendaView } from "@/components/admin/therapist/TherapistAgendaView";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
-import { HotelsCell, TreatmentRoomsCell, PersonCell } from "@/components/table/EntityCell";
+import { HotelsCell, PersonCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
 import { TableSkeleton } from "@/components/table/TableSkeleton";
 import { TableEmptyState } from "@/components/table/TableEmptyState";
@@ -61,12 +60,6 @@ interface Hotel {
   image: string | null;
 }
 
-interface TreatmentRoom {
-  id: string;
-  name: string;
-  image: string | null;
-}
-
 interface Therapist {
   id: string;
   first_name: string;
@@ -76,7 +69,6 @@ interface Therapist {
   phone: string;
   profile_image: string | null;
   status: string;
-  trunks: string | null;
   minimum_guarantee?: Record<string, number> | null;
   minimum_guarantee_active?: boolean | null;
   therapist_venues?: { hotel_id: string }[];
@@ -88,7 +80,6 @@ export default function Therapists() {
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [filteredTherapists, setFilteredTherapists] = useState<Therapist[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [rooms, setRooms] = useState<TreatmentRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [hotelFilter, setHotelFilter] = useState("all");
@@ -113,7 +104,6 @@ export default function Therapists() {
     if (!scope) return;
     fetchTherapists();
     fetchHotels();
-    fetchRooms();
   }, [scope]);
 
   const fetchUserRole = async () => {
@@ -144,16 +134,6 @@ export default function Therapists() {
       setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
     } catch {
       toast.error("Erreur lors du chargement des hôtels");
-    }
-  };
-
-  const fetchRooms = async () => {
-    if (!scope) return;
-    try {
-      const data = await listTreatmentRoomsForOrgDropdown(supabase, scope);
-      setRooms(data.map((r) => ({ id: r.id, name: r.name, image: r.image })));
-    } catch (err) {
-      console.error("Erreur lors du chargement des salles de soin:", err);
     }
   };
 
@@ -251,53 +231,6 @@ export default function Therapists() {
         })}
       </span>
     );
-  };
-
-  const getRoomInfo = (roomIdOrName: string | null) => {
-    if (!roomIdOrName) return null;
-
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomIdOrName);
-
-    if (isUuid) {
-      return rooms.find((r) => r.id === roomIdOrName) || null;
-    }
-
-    if (roomIdOrName.includes(",")) {
-      const firstItem = roomIdOrName.split(",")[0].trim();
-      const isItemUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firstItem);
-      if (isItemUuid) {
-        return rooms.find((r) => r.id === firstItem) || null;
-      }
-    }
-
-    return null;
-  };
-
-  const getRoomNames = (roomIdOrName: string | null) => {
-    if (!roomIdOrName) return "-";
-
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomIdOrName);
-
-    if (isUuid) {
-      const room = rooms.find((r) => r.id === roomIdOrName);
-      return room?.name || "-";
-    }
-
-    if (roomIdOrName.includes(",")) {
-      const roomNames = roomIdOrName.split(",").map((item) => {
-        const trimmed = item.trim();
-        const isItemUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
-        if (isItemUuid) {
-          const room = rooms.find((r) => r.id === trimmed);
-          return room?.name;
-        }
-        return trimmed;
-      }).filter(Boolean);
-
-      return roomNames.length > 0 ? roomNames.join(", ") : "-";
-    }
-
-    return roomIdOrName;
   };
 
   const handleDelete = async () => {
@@ -437,7 +370,6 @@ export default function Therapists() {
                   </SortableTableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Telephone</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Salles</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prestations</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[80px] text-center">Min. garanti</TableHead>
                   <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
@@ -478,15 +410,6 @@ export default function Therapists() {
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <HotelsCell hotels={getHotelsInfo(therapist.therapist_venues)} />
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        {(() => {
-                          const room = getRoomInfo(therapist.trunks);
-                          const roomName = getRoomNames(therapist.trunks);
-                          return room ? (
-                            <TreatmentRoomsCell rooms={[room]} displayName={roomName} />
-                          ) : <span className="text-foreground">-</span>;
-                        })()}
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         {renderTreatmentsCell(therapist.id)}

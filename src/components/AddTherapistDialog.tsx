@@ -6,7 +6,7 @@ import { TherapistTreatmentsSelector } from "@/components/admin/therapist/Therap
 import { normalizeTherapistPhone } from "@/lib/phone";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope } from "@/hooks/useOrgScope";
-import { listHotelsForOrg, listTreatmentRoomsForOrgDropdown } from "@shared/db";
+import { listHotelsForOrg } from "@shared/db";
 import { Button } from "@/components/ui/button";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import {
@@ -56,13 +56,6 @@ interface Hotel {
   image: string | null;
 }
 
-interface TreatmentRoom {
-  id: string;
-  name: string;
-  room_number: string;
-  image: string | null;
-}
-
 
 const createFormSchema = (t: TFunction) => z.object({
   first_name: z.string().min(1, t('errors.validation.firstNameRequired')).max(100, t('errors.validation.firstNameTooLong')),
@@ -83,10 +76,8 @@ export default function AddTherapistDialog({
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [rooms, setRooms] = useState<TreatmentRoom[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>([]);
   const [selectedTreatmentIds, setSelectedTreatmentIds] = useState<string[]>([]);
-  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const {
     url: profileImage,
     setUrl: setProfileImage,
@@ -109,7 +100,6 @@ export default function AddTherapistDialog({
   useEffect(() => {
     if (open && scope) {
       fetchHotels();
-      fetchRooms();
     }
   }, [open, scope]);
 
@@ -120,23 +110,6 @@ export default function AddTherapistDialog({
       setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
     } catch {
       toast.error("Erreur lors du chargement des hôtels");
-    }
-  };
-
-  const fetchRooms = async () => {
-    if (!scope) return;
-    try {
-      const data = await listTreatmentRoomsForOrgDropdown(supabase, scope);
-      setRooms(
-        data.map((r) => ({
-          id: r.id,
-          name: r.name,
-          room_number: r.room_number,
-          image: r.image,
-        })),
-      );
-    } catch {
-      toast.error("Erreur lors du chargement des salles de soin");
     }
   };
 
@@ -161,7 +134,6 @@ export default function AddTherapistDialog({
         email: formData.email,
         country_code: formData.country_code,
         phone: normalizeTherapistPhone(formData.phone),
-        trunks: selectedRooms.join(", ") || null,
         status: formData.status,
         profile_image: profileImage,
       })
@@ -292,8 +264,6 @@ export default function AddTherapistDialog({
       status: "pending",
     });
     setSelectedHotels([]);
-    setSelectedSkills([]);
-    setSelectedRooms([]);
     setProfileImage(null);
   };
 
@@ -391,17 +361,6 @@ export default function AddTherapistDialog({
                 selected={selectedHotels}
                 onChange={setSelectedHotels}
                 options={hotels.map((h) => ({ value: h.id, label: h.name }))}
-                popoverWidthClassName="w-48"
-                popoverMaxHeightClassName="h-40"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Salle de soin</Label>
-              <MultiSelectPopover
-                selected={selectedRooms}
-                onChange={setSelectedRooms}
-                options={rooms.map((r) => ({ value: r.id, label: r.name }))}
                 popoverWidthClassName="w-48"
                 popoverMaxHeightClassName="h-40"
               />
