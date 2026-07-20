@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 
 import { formatPrice } from "@/lib/formatPrice";
-import { getBookingStatusConfig } from "@/utils/statusStyles";
+import { getBookingStatusConfig, getBookingPaymentDisplay } from "@/utils/statusStyles";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -50,17 +50,6 @@ import {
   normalizeBookingClientType, type BookingClientType,
 } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType, isPartnerBilledBooking, isPaymentStatusLocked } from "@/lib/clientTypePayment";
-
-const PAYMENT_LABELS: Record<string, string> = {
-  pending: "Paiement en attente",
-  paid: "Payé",
-  failed: "Paiement échoué",
-  refunded: "Remboursé",
-  charged_to_room: "Facturé chambre",
-  pending_partner_billing: "Paiement partenaire",
-  card_saved: "Carte enregistrée",
-  offert: "Offert",
-};
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   room: "Facturé en chambre",
@@ -339,11 +328,8 @@ export default function BookingDetail() {
   const cardSavedToCharge = isExternal
     && (hasSavedCard || booking.payment_status === "card_saved")
     && ["pending", "card_saved"].includes(booking.payment_status || "pending");
-  const paymentLabel = cardSavedToCharge
-    ? "Carte enregistrée à débiter"
-    : isPartnerBilled
-      ? PAYMENT_LABELS.pending_partner_billing
-      : (PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending);
+  const paymentDisplay = getBookingPaymentDisplay(booking, { cardSavedToCharge });
+  const paymentLabel = paymentDisplay.label;
 
   // Payment breakdown for the "Paiement" card. total_price already includes the
   // out-of-hours surcharge (surchargeAmount / subtotal / surchargePercent computed above).
@@ -531,10 +517,7 @@ export default function BookingDetail() {
                   pulse={bookingStatusConfig.pulse}
                   muted={booking.status === "cancelled"}
                 />
-                <StatusDot
-                  hexColor={isPaid ? "#22c55e" : isPartnerBilled ? "#6366f1" : "#eab308"}
-                  label={paymentLabel}
-                />
+                <StatusDot hexColor={paymentDisplay.hexColor} label={paymentLabel} />
                 {sourceTag && (
                   <span
                     className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${sourceTag.className}`}

@@ -133,6 +133,12 @@ ALTER TABLE ONLY "public"."therapist_venues"
 ALTER TABLE ONLY "public"."therapist_venues"
     ADD CONSTRAINT "hairdresser_hotels_hotel_id_fkey" FOREIGN KEY ("hotel_id") REFERENCES "public"."hotels"("id") ON DELETE CASCADE;
 
+ALTER TABLE ONLY "public"."therapist_treatments"
+    ADD CONSTRAINT "therapist_treatments_therapist_id_fkey" FOREIGN KEY ("therapist_id") REFERENCES "public"."therapists"("id") ON DELETE CASCADE;
+
+ALTER TABLE ONLY "public"."therapist_treatments"
+    ADD CONSTRAINT "therapist_treatments_treatment_menu_id_fkey" FOREIGN KEY ("treatment_menu_id") REFERENCES "public"."treatment_menus"("id") ON DELETE CASCADE;
+
 ALTER TABLE ONLY "public"."therapist_payouts"
     ADD CONSTRAINT "hairdresser_payouts_booking_id_fkey" FOREIGN KEY ("booking_id") REFERENCES "public"."bookings"("id") ON DELETE CASCADE;
 

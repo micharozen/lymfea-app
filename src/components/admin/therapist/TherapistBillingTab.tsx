@@ -160,7 +160,7 @@ export function TherapistBillingTab({ therapistId }: TherapistBillingTabProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-lg font-normal">
             {t("admin:therapists.billingTab.title", "Factures")}
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -180,7 +180,7 @@ export function TherapistBillingTab({ therapistId }: TherapistBillingTabProps) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
-            <h3 className="text-sm font-medium">
+            <h3 className="text-sm font-normal">
               {t("admin:therapists.billingTab.noInvoices", "Aucune facture générée")}
             </h3>
             <p className="text-xs text-muted-foreground mt-1">

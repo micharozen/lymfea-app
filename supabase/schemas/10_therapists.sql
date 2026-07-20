@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS "public"."therapists" (
     "phone" "text" NOT NULL,
     "profile_image" "text",
     "status" "text" DEFAULT 'pending'::"text" NOT NULL,
-    "trunks" "text",
     "skills" "text"[] DEFAULT '{}'::"text"[],
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,

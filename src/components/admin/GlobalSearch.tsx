@@ -1,30 +1,33 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Calendar, Users, UserRound, Loader2, Flower2, DoorOpen } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Search, Users, UserRound, Loader2, ExternalLink, Eye, Pencil, CreditCard, Undo2, type LucideIcon } from "lucide-react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CommandDialog,
+  Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@/components/ui/command";
-import { DialogTitle } from "@/components/ui/dialog"; // FIX 1: Ajout du titre pour l'accessibilité
+import { Command as CommandPrimitive } from "cmdk";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"; // FIX 1: Ajout du titre pour l'accessibilité
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/useUserContext";
-import { getBookingStatusConfig, getEntityStatusConfig } from "@/utils/statusStyles";
+import { getBookingStatusConfig, getEntityStatusConfig, getBookingPaymentDisplay } from "@/utils/statusStyles";
+import EditBookingDialog from "@/components/EditBookingDialog";
+import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { RefundBookingDialog } from "@/components/admin/quick-actions/RefundBookingDialog";
 
-// Date "2026-06-30" → "30 juin 2026"
-function formatBookingDate(date: string | null): string {
-  if (!date) return "";
+// Date "2026-06-30" → { day: "30", month: "juin" } pour la colonne gauche façon PWA
+function splitBookingDate(date: string | null): { day: string; month: string } {
+  if (!date) return { day: "—", month: "" };
   const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return date;
-  return parsed.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+  if (Number.isNaN(parsed.getTime())) return { day: date, month: "" };
+  return {
+    day: parsed.toLocaleDateString("fr-FR", { day: "numeric" }),
+    month: parsed.toLocaleDateString("fr-FR", { month: "short" }).replace(".", ""),
+  };
 }
-
-const SETTLED_PAYMENT_STATUSES = ["paid", "charged_to_room", "card_saved", "pending_partner_billing", "offert"];
 
 // "Massage suédois · 60min, Soin visage" depuis les booking_treatments embarqués
 function summarizeTreatments(bookingTreatments: any[] | null | undefined): string {
@@ -38,21 +41,75 @@ function summarizeTreatments(bookingTreatments: any[] | null | undefined): strin
     .join(", ");
 }
 
-// Petit badge homogène pour les lignes de résultat
-function ResultBadge({ className, children }: { className?: string; children: React.ReactNode }) {
+// Ouvre la fiche dans un nouvel onglet sans déclencher la sélection de la ligne
+function OpenInNewTab({ path, label }: { path: string; label: string }) {
   return (
-    <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-none ${className ?? ""}`}>
-      {children}
-    </span>
+    <button
+      type="button"
+      className="gs-open"
+      title={label}
+      aria-label={label}
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        window.open(path, "_blank", "noopener,noreferrer");
+      }}
+    >
+      <ExternalLink className="w-[15px] h-[15px]" />
+    </button>
   );
 }
 
-// Vignette d'icône colorée à gauche de chaque ligne
-function IconBox({ className, children }: { className?: string; children: React.ReactNode }) {
+// Pilule d'action dans la barre révélée au survol de la ligne
+function ActionButton({
+  icon: Icon,
+  label,
+  loading,
+  disabled,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  loading?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
-    <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${className ?? ""}`}>
+    <button
+      type="button"
+      className="gs-act"
+      disabled={disabled}
+      aria-busy={loading}
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (disabled) return;
+        onClick();
+      }}
+    >
+      {loading ? (
+        <Loader2 className="w-[13px] h-[13px] animate-spin" />
+      ) : (
+        <Icon className="w-[13px] h-[13px]" />
+      )}
+      {label}
+    </button>
+  );
+}
+
+// Pastille teintée à partir de la couleur du statut (tokens Saoma côté fond)
+function Chip({ hex, children }: { hex: string; children: React.ReactNode }) {
+  return (
+    <span
+      className="gs-chip"
+      style={{ color: hex, background: `color-mix(in srgb, ${hex} 16%, transparent)` }}
+    >
       {children}
-    </div>
+    </span>
   );
 }
 
@@ -66,11 +123,20 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+type BookingAction = "edit" | "payment" | "refund";
+
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 300);
+  // Action déclenchée depuis une ligne de résultat : la recherche se ferme et
+  // le dialog correspondant s'ouvre par-dessus
+  const [action, setAction] = useState<{ kind: BookingAction; booking: any } | null>(null);
+  // Clé `${bookingId}:${action}` du bouton en cours de déclenchement
+  const [pending, setPending] = useState<string | null>(null);
+  // 450 ms : laisse le temps de finir un mot avant de partir en base
+  const debouncedSearch = useDebounce(search, 450);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAdmin, userVenueIds } = useUserContext() as any;
 
   // Raccourci clavier Cmd+K ou Ctrl+K
@@ -96,9 +162,21 @@ export function GlobalSearch() {
    const { data: searchResults, isFetching } = useQuery({
     queryKey: ["global-search", debouncedSearch],
     enabled: debouncedSearch.length >= 2 && open,
+    // Garde les résultats précédents affichés pendant la frappe : évite le
+    // clignotement « Recherche en cours » à chaque nouvelle requête
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const searchTerm = `%${debouncedSearch}%`;
-      const numericMatch = /^\d+$/.test(debouncedSearch)
+
+      // Saisie composée uniquement de chiffres/séparateurs téléphoniques
+      const isNumericQuery = /^\+?[\d\s.\-()]+$/.test(debouncedSearch);
+      const digitCount = debouncedSearch.replace(/\D/g, "").length;
+      // « 12 » = réservation #12, pas une recherche de sous-chaîne dans les
+      // numéros de téléphone (sinon un 06 12 … remonte pour n'importe quoi).
+      // Au-delà de 5 chiffres on considère qu'il s'agit d'un vrai numéro.
+      const matchPhone = !isNumericQuery || digitCount > 5;
+      const phoneMatch = matchPhone ? `,phone.ilike.${searchTerm}` : "";
+      const bookingIdMatch = /^\d+$/.test(debouncedSearch)
         ? `,booking_id.eq.${debouncedSearch}`
         : "";
 
@@ -106,7 +184,7 @@ export function GlobalSearch() {
         supabase
           .from("customers")
           .select("*")
-          .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm},phone.ilike.${searchTerm}`)
+          .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm}${phoneMatch}`)
           .limit(5),
         supabase
           .from("therapists")
@@ -115,8 +193,10 @@ export function GlobalSearch() {
           .limit(5),
         supabase
           .from("bookings")
-          .select("id, booking_id, booking_date, hotel_id, client_first_name, client_last_name, client_email, phone, status, payment_status, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(treatment_menus(name), treatment_variants(label))")
-          .or(`client_first_name.ilike.${searchTerm},client_last_name.ilike.${searchTerm},client_email.ilike.${searchTerm},phone.ilike.${searchTerm}${numericMatch}`)
+          // Colonnes suffisantes pour les actions de la ligne (édition, lien de
+          // paiement, remboursement) sans refetch au clic
+          .select("id, booking_id, booking_date, booking_time, hotel_id, hotel_name, client_first_name, client_last_name, client_email, phone, status, payment_status, payment_method, total_price, duration, guest_count, client_type, client_note, room_number, room_id, secondary_room_id, therapist_id, therapist_name, assigned_at, client_signature, signed_at, stripe_invoice_url, hotels(name, currency), treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(price_override, treatment_menus(name, price), treatment_variants(label, price))")
+          .or(`client_first_name.ilike.${searchTerm},client_last_name.ilike.${searchTerm},client_email.ilike.${searchTerm}${phoneMatch}${bookingIdMatch}`)
           .order("booking_date", { ascending: false })
           .limit(10),
       ]);
@@ -133,156 +213,288 @@ export function GlobalSearch() {
     .filter((b: any) => isAdmin || userVenueIds?.includes(b.hotel_id))
     .slice(0, 5);
 
+  // Frappe en cours (debounce non écoulé) ou requête en vol
+  const isTyping = search.length >= 2 && (search !== debouncedSearch || isFetching);
+
   const onSelect = (path: string) => {
     setOpen(false);
     navigate(path);
   };
+
+  // Le montage d'un dialog (ou la navigation) bloque le thread principal ;
+  // on laisse le navigateur peindre le spinner avant de le déclencher
+  const runAfterPaint = (fn: () => void) => {
+    requestAnimationFrame(() => requestAnimationFrame(fn));
+  };
+
+  const openBooking = (id: string) => {
+    setPending(`${id}:view`);
+    runAfterPaint(() => {
+      setPending(null);
+      setOpen(false);
+      navigate(`/admin/bookings/${id}`);
+    });
+  };
+
+  const startAction = (kind: BookingAction, booking: any) => {
+    setPending(`${booking.id}:${kind}`);
+    runAfterPaint(() => {
+      setPending(null);
+      setOpen(false);
+      setAction({ kind, booking });
+    });
+  };
+
+  // Les dialogs de paiement/remboursement n'invalident rien eux-mêmes
+  const afterAction = () => {
+    queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    queryClient.invalidateQueries({ queryKey: ["global-search"] });
+    setAction(null);
+  };
+
+  // Payload léger attendu par SendPaymentLinkDialog / RefundBookingDialog
+  const toPaymentTarget = (b: any) => ({
+    id: b.id,
+    booking_id: b.booking_id ?? 0,
+    client_first_name: b.client_first_name ?? "",
+    client_last_name: b.client_last_name ?? "",
+    client_email: b.client_email ?? undefined,
+    phone: b.phone ?? undefined,
+    room_number: b.room_number ?? undefined,
+    booking_date: b.booking_date,
+    booking_time: b.booking_time,
+    total_price: b.total_price ?? 0,
+    hotel_name: b.hotels?.name ?? b.hotel_name ?? undefined,
+    currency: b.hotels?.currency ?? "EUR",
+    treatments: (b.booking_treatments ?? [])
+      .filter((t: any) => t.treatment_menus?.name)
+      .map((t: any) => ({
+        name: t.treatment_menus.name as string,
+        price: t.price_override ?? t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0,
+      })),
+  });
+
+  // Payload attendu par EditBookingDialog
+  const toEditTarget = (b: any) => ({
+    ...b,
+    hotel_name: b.hotel_name ?? b.hotels?.name ?? null,
+    phone: b.phone ?? "",
+    room_name: b.treatment_rooms?.name ?? null,
+  });
 
   return (
     <>
       <div className="px-3 mb-2 group-data-[collapsible=icon]:px-0">
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground border rounded-md hover:bg-accent w-full transition-colors group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:justify-center"
+          className="flex items-center gap-2 px-3.5 py-2 text-sm text-muted-foreground bg-muted/60 rounded-full hover:bg-muted w-full transition-colors group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:justify-center"
           title="Rechercher (⌘K)"
         >
           <Search className="w-4 h-4 flex-shrink-0" />
-          <span className="group-data-[collapsible=icon]:hidden">Rechercher...</span>
-          <kbd className="hidden lg:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 ml-auto group-data-[collapsible=icon]:hidden">
-            <span className="text-xs">⌘</span>K
+          <span className="group-data-[collapsible=icon]:hidden">Rechercher</span>
+          <kbd className="hidden lg:inline-flex h-5 select-none items-center rounded-full bg-background/70 px-2 font-mono text-[10px] font-medium ml-auto group-data-[collapsible=icon]:hidden">
+            ⌘K
           </kbd>
         </button>
       </div>
 
-      <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
-        {/* FIX 1: Titre invisible pour stopper l'erreur d'accessibilité dans la console */}
-        <DialogTitle className="sr-only">Recherche globale</DialogTitle>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="app-refonte gs-dialog max-w-xl">
+          {/* FIX 1: Titre invisible pour stopper l'erreur d'accessibilité dans la console */}
+          <DialogTitle className="sr-only">Recherche globale</DialogTitle>
 
-        <CommandInput
-          placeholder="Nom, téléphone, n° réservation..."
-          value={search}
-          onValueChange={setSearch}
+          <Command shouldFilter={false} className="bg-transparent">
+            <div className="gs-search">
+              <Search className="w-[18px] h-[18px]" />
+              <CommandPrimitive.Input
+                autoFocus
+                placeholder="Nom, téléphone, n° réservation..."
+                value={search}
+                onValueChange={setSearch}
+              />
+              {isTyping && <Loader2 className="gs-spin w-4 h-4 animate-spin" />}
+            </div>
+
+            <CommandList className={`gs-list${isTyping && searchResults ? " is-stale" : ""}`}>
+              {search.length < 2 ? (
+                <div className="gs-state">
+                  <div className="t">Recherche globale</div>
+                  <div className="s">Tapez au moins 2 lettres pour lancer la recherche</div>
+                </div>
+              ) : !searchResults ? (
+                <div className="gs-state">
+                  <Loader2 className="w-5 h-5 mx-auto mb-3 animate-spin" />
+                  <div className="s">Recherche en cours...</div>
+                </div>
+              ) : (
+                <>
+                  {/* FIX 2: CommandEmpty doit toujours être là pour que l'affichage ne buggue pas */}
+                  <CommandEmpty>
+                    <div className="gs-state">
+                      <div className="t">Aucun résultat</div>
+                      <div className="s">Rien ne correspond à « {search} »</div>
+                    </div>
+                  </CommandEmpty>
+
+                  {filteredBookings.length > 0 && (
+                    <CommandGroup heading="Réservations">
+                      {filteredBookings.map((booking: any) => {
+                        const statusConfig = getBookingStatusConfig(booking.status);
+                        const payment = getBookingPaymentDisplay(booking);
+                        const roomName = booking.treatment_rooms?.name as string | undefined;
+                        const venueName = booking.hotels?.name as string | undefined;
+                        const treatmentsSummary = summarizeTreatments(booking.booking_treatments);
+                        const when = splitBookingDate(booking.booking_date);
+                        return (
+                        <CommandItem
+                          key={booking.id}
+                          // FIX 3: Valeur explicite pour que la modale retrouve ses petits
+                          value={`${booking.client_first_name} ${booking.client_last_name} ${booking.booking_id} ${booking.phone || ''} ${booking.client_email || ''}`}
+                          onSelect={() => onSelect(`/admin/bookings?id=${booking.id}`)}
+                          className="gs-item gs-book"
+                        >
+                          <div className="gs-when">
+                            <div className="d">{when.day}</div>
+                            <div className="m">{when.month}</div>
+                          </div>
+                          <div className="gs-body">
+                            <div className="gs-title">
+                              <span className="nm">{booking.client_first_name} {booking.client_last_name}</span>
+                              <span className="ref">#{booking.booking_id}</span>
+                            </div>
+                            {venueName && (
+                              <span className="gs-sub"><i>Lieu :</i> {venueName}</span>
+                            )}
+                            {treatmentsSummary && (
+                              <span className="gs-sub" title={treatmentsSummary}><i>Prestation :</i> {treatmentsSummary}</span>
+                            )}
+                            {roomName && (
+                              <span className="gs-sub"><i>Salle :</i> {roomName}</span>
+                            )}
+                            {booking.phone && (
+                              <span className="gs-sub"><i>Tél. :</i> {booking.phone}</span>
+                            )}
+                            <div className="gs-meta">
+                              <Chip hex={statusConfig.hexColor}>{statusConfig.label}</Chip>
+                              <Chip hex={payment.hexColor}>{payment.label}</Chip>
+                            </div>
+                            <div className="gs-actions">
+                              {([
+                                { kind: "view", icon: Eye, label: "Voir", run: () => openBooking(booking.id) },
+                                { kind: "edit", icon: Pencil, label: "Modifier", run: () => startAction("edit", booking) },
+                                { kind: "payment", icon: CreditCard, label: "Lien de paiement", run: () => startAction("payment", booking) },
+                                { kind: "refund", icon: Undo2, label: "Rembourser", run: () => startAction("refund", booking) },
+                              ] as const).map((a) => (
+                                <ActionButton
+                                  key={a.kind}
+                                  icon={a.icon}
+                                  label={a.label}
+                                  loading={pending === `${booking.id}:${a.kind}`}
+                                  disabled={pending !== null}
+                                  onClick={a.run}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <OpenInNewTab
+                            path={`/admin/bookings/${booking.id}`}
+                            label={`Ouvrir la réservation #${booking.booking_id} dans un nouvel onglet`}
+                          />
+                        </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  )}
+
+                  {(searchResults?.customers?.length ?? 0) > 0 && (
+                    <CommandGroup heading="Clients">
+                      {searchResults!.customers.map((c: any) => (
+                        <CommandItem
+                          key={c.id}
+                          // FIX 3
+                          value={`${c.first_name} ${c.last_name} ${c.email || ''} ${c.phone || ''}`}
+                          onSelect={() => onSelect(`/admin/customers/${c.id}`)}
+                          className="gs-item"
+                        >
+                          <div className="gs-ic cust">
+                            <Users className="w-[18px] h-[18px]" />
+                          </div>
+                          <div className="gs-body">
+                            <div className="gs-title">
+                              <span className="nm">{c.first_name} {c.last_name}</span>
+                            </div>
+                            <span className="gs-sub">{c.email || c.phone}</span>
+                          </div>
+                          <OpenInNewTab
+                            path={`/admin/customers/${c.id}`}
+                            label="Ouvrir la fiche client dans un nouvel onglet"
+                          />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+
+                  {(searchResults?.therapists?.length ?? 0) > 0 && (
+                    <CommandGroup heading="Praticiens">
+                      {searchResults!.therapists.map((t: any) => (
+                        <CommandItem
+                          key={t.id}
+                          // FIX 3
+                          value={`${t.first_name} ${t.last_name} ${t.status || ''}`}
+                          onSelect={() => onSelect(`/admin/therapists/${t.id}`)}
+                          className="gs-item"
+                        >
+                          <div className="gs-ic ther">
+                            <UserRound className="w-[18px] h-[18px]" />
+                          </div>
+                          <div className="gs-body">
+                            <div className="gs-title">
+                              <span className="nm">{t.first_name} {t.last_name}</span>
+                            </div>
+                            <span className="gs-sub">{getEntityStatusConfig(t.status).label}</span>
+                          </div>
+                          <OpenInNewTab
+                            path={`/admin/therapists/${t.id}`}
+                            label="Ouvrir la fiche praticien dans un nouvel onglet"
+                          />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                </>
+              )}
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </Dialog>
+
+      {action?.kind === "edit" && (
+        <EditBookingDialog
+          open
+          onOpenChange={(o) => !o && setAction(null)}
+          booking={toEditTarget(action.booking)}
+          initialMode="edit"
+          onSuccess={afterAction}
         />
-        <CommandList className="max-h-[450px]">
-          {search.length < 2 ? (
-            <div className="p-8 text-center">
-              <Search className="w-8 h-8 mx-auto mb-2 text-muted-foreground/20" />
-              <p className="text-sm text-muted-foreground">
-                Tapez au moins 2 lettres pour lancer la recherche...
-              </p>
-            </div>
-          ) : isFetching ? (
-            <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
-              <Loader2 className="w-6 h-6 animate-spin mb-2" />
-              <p className="text-sm">Recherche en cours...</p>
-            </div>
-          ) : (
-            <>
-              {/* FIX 2: CommandEmpty doit toujours être là pour que l'affichage ne buggue pas */}
-              <CommandEmpty>Aucun résultat trouvé pour "{search}".</CommandEmpty>
+      )}
 
-              {filteredBookings.length > 0 && (
-                <CommandGroup heading="Réservations">
-                  {filteredBookings.map((booking: any) => {
-                    const isPaid = SETTLED_PAYMENT_STATUSES.includes((booking.payment_status || "").toLowerCase());
-                    const statusConfig = getBookingStatusConfig(booking.status);
-                    const roomName = booking.treatment_rooms?.name as string | undefined;
-                    const treatmentsSummary = summarizeTreatments(booking.booking_treatments);
-                    return (
-                    <CommandItem
-                      key={booking.id}
-                      // FIX 3: Valeur explicite pour que la modale retrouve ses petits
-                      value={`${booking.client_first_name} ${booking.client_last_name} ${booking.booking_id} ${booking.phone || ''} ${booking.client_email || ''}`}
-                      onSelect={() => onSelect(`/admin/bookings?id=${booking.id}`)}
-                      className="cursor-pointer flex items-center gap-3 py-2.5"
-                    >
-                      <IconBox className="bg-blue-50 text-blue-500">
-                        <Calendar className="w-4 h-4" />
-                      </IconBox>
-                      <div className="flex flex-col min-w-0 flex-1 gap-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="font-medium truncate capitalize">{booking.client_first_name} {booking.client_last_name}</span>
-                          <span className="text-[11px] text-muted-foreground tabular-nums flex-shrink-0">#{booking.booking_id}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground truncate">
-                          {formatBookingDate(booking.booking_date)}{booking.phone ? ` · ${booking.phone}` : ''}
-                        </span>
-                        {treatmentsSummary && (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground truncate" title={treatmentsSummary}>
-                            <Flower2 className="w-3 h-3 flex-shrink-0 text-rose-400" />
-                            <span className="truncate">{treatmentsSummary}</span>
-                          </span>
-                        )}
-                        {roomName && (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground truncate">
-                            <DoorOpen className="w-3 h-3 flex-shrink-0 text-blue-400" />
-                            <span className="truncate">{roomName}</span>
-                          </span>
-                        )}
-                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                          <ResultBadge className={statusConfig.badgeClass}>{statusConfig.label}</ResultBadge>
-                          <ResultBadge className={isPaid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}>
-                            {isPaid ? "Payé" : "Non payé"}
-                          </ResultBadge>
-                        </div>
-                      </div>
-                    </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              )}
+      {action?.kind === "payment" && (
+        <SendPaymentLinkDialog
+          open
+          onOpenChange={(o) => !o && setAction(null)}
+          booking={toPaymentTarget(action.booking)}
+          onSuccess={afterAction}
+        />
+      )}
 
-              {filteredBookings.length > 0 && (searchResults?.customers?.length ?? 0) > 0 && <CommandSeparator />}
-
-              {(searchResults?.customers?.length ?? 0) > 0 && (
-                <CommandGroup heading="Clients">
-                  {searchResults!.customers.map((c: any) => (
-                    <CommandItem
-                      key={c.id}
-                      // FIX 3
-                      value={`${c.first_name} ${c.last_name} ${c.email || ''} ${c.phone || ''}`}
-                      onSelect={() => onSelect(`/admin/customers/${c.id}`)}
-                      className="cursor-pointer flex items-center gap-3 py-2.5"
-                    >
-                      <IconBox className="bg-green-50 text-green-500">
-                        <Users className="w-4 h-4" />
-                      </IconBox>
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <span className="font-medium truncate capitalize">{c.first_name} {c.last_name}</span>
-                        <span className="text-xs text-muted-foreground truncate">{c.email || c.phone}</span>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {(searchResults?.customers?.length ?? 0) > 0 && (searchResults?.therapists?.length ?? 0) > 0 && <CommandSeparator />}
-
-              {(searchResults?.therapists?.length ?? 0) > 0 && (
-                <CommandGroup heading="Praticiens">
-                  {searchResults!.therapists.map((t: any) => (
-                    <CommandItem
-                      key={t.id}
-                      // FIX 3
-                      value={`${t.first_name} ${t.last_name} ${t.status || ''}`}
-                      onSelect={() => onSelect(`/admin/therapists/${t.id}`)}
-                      className="cursor-pointer flex items-center gap-3 py-2.5"
-                    >
-                      <IconBox className="bg-purple-50 text-purple-500">
-                        <UserRound className="w-4 h-4" />
-                      </IconBox>
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <span className="font-medium truncate capitalize">{t.first_name} {t.last_name}</span>
-                        <span className="text-xs text-muted-foreground truncate">{getEntityStatusConfig(t.status).label}</span>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-            </>
-          )}
-        </CommandList>
-      </CommandDialog>
+      {action?.kind === "refund" && (
+        <RefundBookingDialog
+          open
+          onOpenChange={(o) => !o && setAction(null)}
+          booking={toPaymentTarget(action.booking)}
+          onSuccess={afterAction}
+        />
+      )}
     </>
   );
 }

@@ -35,7 +35,6 @@ import {
   Plus,
   Search,
   Send,
-  Sparkles,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -1182,12 +1181,6 @@ function TherapistStep({
                           </span>
                         )}
                       </p>
-                      {th.skills && th.skills.length > 0 && (
-                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                          <Sparkles className="h-3 w-3" />
-                          {th.skills.slice(0, 3).join(" · ")}
-                        </p>
-                      )}
                       {th.shiftEndsBeforeSlotEnd && (
                         <p className="text-[10px] font-medium text-amber-600 truncate">
                           {t("booking.therapistSections.shiftEnds", { time: th.shiftEndsBeforeSlotEnd })}

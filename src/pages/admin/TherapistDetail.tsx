@@ -6,6 +6,7 @@ import * as z from "zod";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { useSetTherapistTreatments } from "@/hooks/useTherapistTreatments";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { Form } from "@/components/ui/form";
@@ -45,6 +46,7 @@ const createFormSchema = (t: TFunction) =>
 export type TherapistFormValues = z.infer<ReturnType<typeof createFormSchema>>;
 
 export default function TherapistDetail() {
+  const { mutateAsync: setTherapistTreatments } = useSetTherapistTreatments();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation("common");
@@ -61,8 +63,7 @@ export default function TherapistDetail() {
 
   // Separate state for relational / JSON data
   const [selectedHotels, setSelectedHotels] = useState<string[]>([]);
-  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedTreatmentIds, setSelectedTreatmentIds] = useState<string[]>([]);
   const [minimumGuarantee, setMinimumGuarantee] = useState<Record<string, number>>({});
   const [minimumGuaranteeActive, setMinimumGuaranteeActive] = useState(false);
   const [resending, setResending] = useState(false);
@@ -106,6 +107,12 @@ export default function TherapistDetail() {
 
       if (error) throw error;
 
+      const { data: therapistTreatments, error: treatmentsError } = await supabase
+        .from("therapist_treatments")
+        .select("treatment_menu_id")
+        .eq("therapist_id", therapistId);
+      if (treatmentsError) throw treatmentsError;
+
       if (therapist) {
         form.reset({
           first_name: therapist.first_name || "",
@@ -122,18 +129,13 @@ export default function TherapistDetail() {
 
         setProfileImage(therapist.profile_image || "");
         setTherapistName(`${therapist.first_name} ${therapist.last_name}`);
-        setSelectedSkills(therapist.skills || []);
+        setSelectedTreatmentIds(
+          (therapistTreatments ?? []).map((row) => row.treatment_menu_id)
+        );
         setMinimumGuarantee(
           (therapist.minimum_guarantee as Record<string, number>) || {}
         );
         setMinimumGuaranteeActive(therapist.minimum_guarantee_active || false);
-
-        // Parse room IDs from stored string
-        setSelectedRooms(
-          therapist.trunks
-            ? therapist.trunks.split(", ").filter((t: string) => t.length > 0)
-            : []
-        );
       }
 
       // Load venue assignments
@@ -171,8 +173,6 @@ export default function TherapistDetail() {
         status: values.status,
         gender: values.gender || null,
         profile_image: profileImage || null,
-        skills: selectedSkills,
-        trunks: selectedRooms.length > 0 ? selectedRooms.join(", ") : null,
         minimum_guarantee:
           Object.keys(minimumGuarantee).length > 0 ? minimumGuarantee : null,
         minimum_guarantee_active: minimumGuaranteeActive,
@@ -207,6 +207,11 @@ export default function TherapistDetail() {
             );
           if (relError) throw relError;
         }
+
+        await setTherapistTreatments({
+          therapistId: newId,
+          treatmentMenuIds: selectedTreatmentIds,
+        });
 
         // Send invite email
         try {
@@ -266,6 +271,11 @@ export default function TherapistDetail() {
             );
           if (relError) throw relError;
         }
+
+        await setTherapistTreatments({
+          therapistId: targetId,
+          treatmentMenuIds: selectedTreatmentIds,
+        });
 
         toast.success(
           t("admin:therapists.saveSuccess", "Thérapeute enregistré avec succès")
@@ -487,20 +497,18 @@ export default function TherapistDetail() {
 
           <div className="px-4 md:px-6 py-4">
             <Form {...form}>
-              <form onSubmit={(e) => e.preventDefault()}>
-                <TabsContent value="general" className="mt-0">
-                  <TherapistGeneralTab
-                    form={form}
-                    disabled={!isEditing}
-                    profileImage={profileImage || ""}
-                    uploading={uploading}
-                    fileInputRef={fileInputRef}
-                    handleImageUpload={handleImageUpload}
-                    triggerFileSelect={triggerFileSelect}
-                    therapistId={effectiveTherapistId}
-                  />
-                </TabsContent>
-              </form>
+              <TabsContent value="general" className="mt-0">
+                <TherapistGeneralTab
+                  form={form}
+                  disabled={!isEditing}
+                  profileImage={profileImage || ""}
+                  uploading={uploading}
+                  fileInputRef={fileInputRef}
+                  handleImageUpload={handleImageUpload}
+                  triggerFileSelect={triggerFileSelect}
+                  therapistId={effectiveTherapistId}
+                />
+              </TabsContent>
             </Form>
 
             {canAccessTabs && (
@@ -510,10 +518,8 @@ export default function TherapistDetail() {
                     disabled={!isEditing}
                     selectedHotels={selectedHotels}
                     onHotelsChange={setSelectedHotels}
-                    selectedRooms={selectedRooms}
-                    onRoomsChange={setSelectedRooms}
-                    selectedSkills={selectedSkills}
-                    onSkillsChange={setSelectedSkills}
+                    selectedTreatmentIds={selectedTreatmentIds}
+                    onTreatmentsChange={setSelectedTreatmentIds}
                     minimumGuarantee={minimumGuarantee}
                     onMinimumGuaranteeChange={setMinimumGuarantee}
                     minimumGuaranteeActive={minimumGuaranteeActive}

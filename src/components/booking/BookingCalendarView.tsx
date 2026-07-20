@@ -223,38 +223,38 @@ export function BookingCalendarView({
     <div className="p-2 md:p-3 flex flex-col h-full overflow-hidden">
       {/* Navigation bar */}
       <div className="flex items-center justify-between mb-1 gap-2 flex-shrink-0">
-        {/* Left: nav arrows + today */}
+        {/* Left: today */}
+        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs font-medium" onClick={onGoToToday}>
+          Aujourd'hui
+        </Button>
+
+        {/* Center: nav arrows autour de la plage de dates → mini calendar popover */}
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onPreviousWeek}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs font-medium" onClick={onGoToToday}>
-            Aujourd'hui
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="text-sm hover:bg-muted px-3 py-1 rounded-md transition-colors cursor-pointer capitalize">
+                {dateRangeLabel}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="center">
+              <Calendar
+                mode="single"
+                selected={currentWeekStart}
+                onSelect={(date) => {
+                  if (date) onSetViewDate(date);
+                }}
+                locale={fr}
+                weekStartsOn={1}
+              />
+            </PopoverContent>
+          </Popover>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onNextWeek}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-
-        {/* Center: clickable date range → mini calendar popover */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button className="text-sm font-semibold hover:bg-muted px-3 py-1 rounded-md transition-colors cursor-pointer capitalize">
-              {dateRangeLabel}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="center">
-            <Calendar
-              mode="single"
-              selected={currentWeekStart}
-              onSelect={(date) => {
-                if (date) onSetViewDate(date);
-              }}
-              locale={fr}
-              weekStartsOn={1}
-            />
-          </PopoverContent>
-        </Popover>
 
       </div>
 

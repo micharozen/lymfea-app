@@ -209,12 +209,11 @@
     "add": "Ajouter un Thérapeute",
     "edit": "Modifier Thérapeute",
     "noTherapists": "Aucun thérapeute",
+    "noVenues": "Aucun lieu assigné",
     "name": "Nom",
     "email": "Email",
     "phone": "Téléphone",
     "status": "Statut",
-    "skills": "Compétences",
-    "specialties": "Spécialités",
     "assignedHotels": "Hôtels assignés",
     "invite": "Inviter",
     "resendInvite": "Renvoyer l'invitation",
@@ -1593,5 +1592,18 @@
       "guests": "{{count}} personne",
       "guests_plural": "{{count}} personnes"
     }
+  },
+  "therapistTreatments": {
+    "title": "Prestations réalisables",
+    "description": "Sélectionnez les prestations que ce thérapeute peut réaliser. Les add-ons sont exclus : ils sont réalisés par le thérapeute du soin de base.",
+    "selectAll": "Tout cocher",
+    "unselectAll": "Tout décocher",
+    "noneWarning": "Aucune prestation associée — ce thérapeute ne recevra aucune réservation.",
+    "noTreatmentsForVenue": "Aucune prestation active pour {{venue}}.",
+    "assignVenueFirst": "Rattachez d'abord le thérapeute à un lieu pour choisir ses prestations.",
+    "count_one": "{{count}} prestation",
+    "count_other": "{{count}} prestations",
+    "none": "Aucune prestation",
+    "thisVenue": "ce lieu"
   }
 }

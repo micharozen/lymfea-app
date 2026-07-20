@@ -2812,6 +2812,39 @@ export type Database = {
           },
         ]
       }
+      therapist_treatments: {
+        Row: {
+          created_at: string | null
+          therapist_id: string
+          treatment_menu_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          therapist_id: string
+          treatment_menu_id: string
+        }
+        Update: {
+          created_at?: string | null
+          therapist_id?: string
+          treatment_menu_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "therapist_treatments_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "therapists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "therapist_treatments_treatment_menu_id_fkey"
+            columns: ["treatment_menu_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       therapist_venues: {
         Row: {
           created_at: string | null
@@ -2870,7 +2903,6 @@ export type Database = {
           status: string
           stripe_account_id: string | null
           stripe_onboarding_completed: boolean | null
-          trunks: string | null
           updated_at: string
           user_id: string | null
         }
@@ -2895,7 +2927,6 @@ export type Database = {
           status?: string
           stripe_account_id?: string | null
           stripe_onboarding_completed?: boolean | null
-          trunks?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -2920,7 +2951,6 @@ export type Database = {
           status?: string
           stripe_account_id?: string | null
           stripe_onboarding_completed?: boolean | null
-          trunks?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -4442,6 +4472,7 @@ export type Database = {
       }
       reserve_trunk_atomically: {
         Args: {
+          _amenity_timing?: string
           _booking_date: string
           _booking_time: string
           _client_email: string

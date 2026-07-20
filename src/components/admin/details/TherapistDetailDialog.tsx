@@ -1,19 +1,14 @@
 import { EntityDetailDialog } from "./EntityDetailDialog";
 import { DetailSection, DetailCard, DetailField } from "./DetailSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Phone, Building2, Sparkles, Briefcase, Target, CalendarDays } from "lucide-react";
+import { Phone, Building2, Sparkles, Target, CalendarDays } from "lucide-react";
 import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
 import { TherapistScheduleSection } from "@/components/admin/schedule/TherapistScheduleSection";
-import { getSpecialtyLabel } from "@/lib/specialtyTypes";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Hotel {
-  id: string;
-  name: string;
-  image: string | null;
-}
-
-interface TreatmentRoom {
   id: string;
   name: string;
   image: string | null;
@@ -28,8 +23,6 @@ interface Therapist {
   phone: string;
   profile_image: string | null;
   status: string;
-  trunks: string | null;
-  skills: string[];
   minimum_guarantee?: Record<string, number> | null;
   therapist_venues?: { hotel_id: string }[];
 }
@@ -39,7 +32,6 @@ interface TherapistDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   therapist: Therapist | null;
   hotels: Hotel[];
-  rooms: TreatmentRoom[];
   onEdit?: () => void;
 }
 
@@ -48,10 +40,23 @@ export function TherapistDetailDialog({
   onOpenChange,
   therapist,
   hotels,
-  rooms,
   onEdit,
 }: TherapistDetailDialogProps) {
-  const { i18n } = useTranslation();
+
+  const { data: treatmentNames = [] } = useQuery({
+    queryKey: ["therapist-treatment-names", therapist?.id],
+    queryFn: async (): Promise<string[]> => {
+      const { data, error } = await supabase
+        .from("therapist_treatments")
+        .select("treatment_menus(name)")
+        .eq("therapist_id", therapist!.id);
+      if (error) throw error;
+      return (data ?? [])
+        .map((row) => row.treatment_menus?.name)
+        .filter((name): name is string => !!name);
+    },
+    enabled: open && !!therapist?.id,
+  });
 
   if (!therapist) return null;
 
@@ -61,20 +66,6 @@ export function TherapistDetailDialog({
     ?.map((h) => hotels.find((hotel) => hotel.id === h.hotel_id))
     .filter(Boolean) as Hotel[] || [];
 
-
-  const getRoomInfo = (roomIdOrName: string | null) => {
-    if (!roomIdOrName) return null;
-
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomIdOrName);
-
-    if (isUuid) {
-      return rooms.find((r) => r.id === roomIdOrName) || null;
-    }
-
-    return null;
-  };
-
-  const assignedRoom = getRoomInfo(therapist.trunks);
 
   return (
     <EntityDetailDialog
@@ -98,16 +89,15 @@ export function TherapistDetailDialog({
         </DetailCard>
       </DetailSection>
 
-      {/* Specialties */}
-      {therapist.skills && therapist.skills.length > 0 && (
-        <DetailSection icon={Sparkles} title="Spécialités">
+      {treatmentNames.length > 0 && (
+        <DetailSection icon={Sparkles} title="Prestations réalisables">
           <div className="flex flex-wrap gap-2">
-            {therapist.skills.map((skill) => (
+            {treatmentNames.map((name) => (
               <div
-                key={skill}
+                key={name}
                 className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1"
               >
-                <span className="text-sm">{getSpecialtyLabel(skill, i18n.language)}</span>
+                <span className="text-sm">{name}</span>
               </div>
             ))}
           </div>
@@ -149,28 +139,8 @@ export function TherapistDetailDialog({
       </DetailSection>
 
       {/* Schedule */}
-      <DetailSection icon={CalendarDays} title="Planning">
+      <DetailSection icon={CalendarDays} title="Planning" showSeparator={false}>
         <TherapistScheduleSection therapistId={therapist.id} />
-      </DetailSection>
-
-      {/* Treatment Room */}
-      <DetailSection icon={Briefcase} title="Salle de soin" showSeparator={false}>
-        {assignedRoom ? (
-          <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 w-fit">
-            {assignedRoom.image ? (
-              <img
-                src={assignedRoom.image}
-                alt={assignedRoom.name}
-                className="w-6 h-6 rounded object-cover"
-              />
-            ) : (
-              <Briefcase className="h-4 w-4 text-muted-foreground" />
-            )}
-            <span className="text-sm font-medium">{assignedRoom.name}</span>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">Aucune salle de soin assignee</p>
-        )}
       </DetailSection>
     </EntityDetailDialog>
   );

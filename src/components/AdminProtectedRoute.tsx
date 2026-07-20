@@ -31,7 +31,7 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
 
   const checkAuthAndRole = useCallback(async () => {
     try {
-      console.log("[AdminProtectedRoute] Starting auth check...");
+ 
       
       // Get current session with timeout
       const sessionPromise = supabase.auth.getSession();
@@ -44,10 +44,8 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
         timeoutPromise
       ]) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
       
-      console.log("[AdminProtectedRoute] Session check complete:", !!currentSession);
       
       if (!currentSession?.user) {
-        console.log("[AdminProtectedRoute] No session, redirecting to auth");
         setLoading(false);
         return;
       }
@@ -56,7 +54,6 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
       setUser(currentSession.user);
 
       // Check user role
-      console.log("[AdminProtectedRoute] Checking user role...");
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
@@ -68,7 +65,6 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
         console.error("[AdminProtectedRoute] Role check error:", roleError);
       }
 
-      console.log("[AdminProtectedRoute] Role data:", roleData);
       setHasAdminRole(roleData ? true : false);
       setRole((roleData?.role as "admin" | "concierge" | undefined) ?? null);
 
@@ -98,7 +94,6 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
-        console.log("[AdminProtectedRoute] Auth state change:", event);
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setSession(null);
@@ -117,7 +112,6 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (loading) {
-        console.error("[AdminProtectedRoute] Loading timeout - forcing completion");
         setLoading(false);
         setHasAdminRole(false);
       }

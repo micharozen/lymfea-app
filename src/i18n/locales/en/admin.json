@@ -209,12 +209,11 @@
     "add": "Add Therapist",
     "edit": "Edit Therapist",
     "noTherapists": "No therapists",
+    "noVenues": "No venue assigned",
     "name": "Name",
     "email": "Email",
     "phone": "Phone",
     "status": "Status",
-    "skills": "Skills",
-    "specialties": "Specialties",
     "assignedHotels": "Assigned Hotels",
     "invite": "Invite",
     "resendInvite": "Resend Invite",
@@ -1593,5 +1592,18 @@
       "guests": "{{count}} guest",
       "guests_plural": "{{count}} guests"
     }
+  },
+  "therapistTreatments": {
+    "title": "Treatments performed",
+    "description": "Select the treatments this therapist can perform. Add-ons are excluded: they are performed by the therapist of the base treatment.",
+    "selectAll": "Select all",
+    "unselectAll": "Unselect all",
+    "noneWarning": "No treatment assigned — this therapist will not receive any booking.",
+    "noTreatmentsForVenue": "No active treatment for {{venue}}.",
+    "assignVenueFirst": "Assign the therapist to a venue first to choose their treatments.",
+    "count_one": "{{count}} treatment",
+    "count_other": "{{count}} treatments",
+    "none": "No treatment",
+    "thisVenue": "this venue"
   }
 }
