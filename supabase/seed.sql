@@ -173,7 +173,7 @@ VALUES (
 -- 5) Therapist records
 -- skills = les 17 clés de SPECIALTY_OPTIONS (src/lib/specialtyTypes.ts), pour que
 -- chaque thérapeute matche n'importe quel soin seedé.
-INSERT INTO public.therapists (id, user_id, email, first_name, last_name, phone, status, password_set, country_code, minimum_guarantee, skills, gender, trunks, rate_60, rate_75, rate_90)
+INSERT INTO public.therapists (id, user_id, email, first_name, last_name, phone, status, password_set, country_code, minimum_guarantee, skills, gender, rate_60, rate_75, rate_90)
 VALUES
   (
     '00000000-0000-0000-0000-000000000102',
@@ -187,7 +187,6 @@ VALUES
     '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}',
     '{relaxing_massage,deep_tissue,hot_stones,aromatherapy,prenatal_massage,sports_massage,lymphatic_drainage,facial,body_treatment,body_scrub,body_wrap,manicure_pedicure,hair_removal,hydrotherapy,reflexology,ayurveda,yoga}',
     'female',
-    '00000000-0000-0000-0000-000000000030',
     50.00, 60.00, 70.00
   ),
   (
@@ -202,7 +201,6 @@ VALUES
     '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}',
     '{relaxing_massage,deep_tissue,hot_stones,aromatherapy,prenatal_massage,sports_massage,lymphatic_drainage,facial,body_treatment,body_scrub,body_wrap,manicure_pedicure,hair_removal,hydrotherapy,reflexology,ayurveda,yoga}',
     'male',
-    '00000000-0000-0000-0000-000000000031',
     55.00, 65.00, 75.00
   );
 
