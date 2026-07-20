@@ -955,7 +955,7 @@ export default function BookingDetail() {
       <Dialog open={dialogs.isMarkPaidOpen} onOpenChange={dialogs.setIsMarkPaidOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="font-normal">
               {markPaidMode === "method" ? "Modifier la méthode de paiement" : "Marquer comme payé"}
             </DialogTitle>
           </DialogHeader>
