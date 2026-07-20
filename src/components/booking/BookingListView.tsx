@@ -25,6 +25,7 @@ import { TablePagination, type PageSize } from "@/components/table/TablePaginati
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
+import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 
 const PAYMENT_TEXT_LABELS: Record<string, string> = {
@@ -226,6 +227,12 @@ export function BookingListView({
             : "";
           const clientLabel = [firstInitial, booking.client_last_name].filter(Boolean).join(" ");
           const customerId = (booking as any).customer_id as string | undefined;
+          // Statut affiché : une facturation partenaire est stockée "paid" mais
+          // reste présentée comme "Paiement partenaire".
+          const displayPaymentStatus = effectivePaymentStatus(
+            booking.payment_method,
+            booking.payment_status,
+          );
 
           return (
             <div
@@ -270,10 +277,10 @@ export function BookingListView({
                 />
                 {booking.status !== "quote_pending" && booking.status !== "waiting_approval" && (
                   <StatusBadge
-                    status={booking.payment_status || "pending"}
+                    status={displayPaymentStatus}
                     type="payment"
                     className="text-[10px] px-2 py-0.5 whitespace-nowrap"
-                    customLabel={getPaymentTextLabel(booking.payment_status)}
+                    customLabel={getPaymentTextLabel(displayPaymentStatus)}
                   />
                 )}
                 {(booking as any).guest_count > 1 &&
@@ -439,14 +446,20 @@ export function BookingListView({
                 <TableCell className="py-3 px-2 text-center overflow-hidden">
                   {booking.status !== "quote_pending" && booking.status !== "waiting_approval" && (
                     <StatusBadge
-                      status={booking.payment_status || "pending"}
+                      status={effectivePaymentStatus(booking.payment_method, booking.payment_status)}
                       type="payment"
                       className={
                         paymentAsText
                           ? "text-[10px] px-2 py-0.5 max-w-full truncate inline-flex items-center justify-center"
                           : "text-base px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
                       }
-                      customLabel={paymentAsText ? getPaymentTextLabel(booking.payment_status) : undefined}
+                      customLabel={
+                        paymentAsText
+                          ? getPaymentTextLabel(
+                              effectivePaymentStatus(booking.payment_method, booking.payment_status),
+                            )
+                          : undefined
+                      }
                     />
                   )}
                 </TableCell>

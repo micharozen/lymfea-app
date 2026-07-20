@@ -14,6 +14,7 @@ import { AvailabilityOverlay } from "./AvailabilityOverlay";
 import { CleanupBufferZone } from "./CleanupBufferZone";
 import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar } from "@/hooks/booking";
 import { getAmenityType } from "@/lib/amenityTypes";
+import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 
 // Human-readable payment-status labels for the booking hover tooltip.
 const PAYMENT_STATUS_LABELS: Record<string, string> = {
@@ -659,19 +660,25 @@ function BookingCard({
   // Small payment tag — "Payé" once settled by card/cash, "Facturé chambre" when
   // charged to the hotel room. Mirrors the canonical payment_status logic used
   // across the app (BookingDetail / CustomerBookingsTab).
+  // Statut affiché : une facturation partenaire est stockée "paid" mais reste
+  // présentée comme "Paiement partenaire".
+  const displayPaymentStatus = booking.payment_status
+    ? effectivePaymentStatus(booking.payment_method, booking.payment_status)
+    : null;
+
   const paymentTag =
-    booking.payment_status === 'paid'
+    displayPaymentStatus === 'paid'
       ? { label: 'Payé', className: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-800' }
-      : booking.payment_status === 'charged_to_room'
+      : displayPaymentStatus === 'charged_to_room'
         ? { label: 'Facturé chambre', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border-blue-200 dark:border-blue-800' }
         : null;
 
   // Full payment-status label + background color for the hover tooltip.
-  const paymentStatusLabel = booking.payment_status
-    ? PAYMENT_STATUS_LABELS[booking.payment_status] ?? booking.payment_status
+  const paymentStatusLabel = displayPaymentStatus
+    ? PAYMENT_STATUS_LABELS[displayPaymentStatus] ?? displayPaymentStatus
     : null;
-  const paymentStatusClass = booking.payment_status
-    ? PAYMENT_STATUS_CLASSES[booking.payment_status] ?? 'bg-muted text-foreground'
+  const paymentStatusClass = displayPaymentStatus
+    ? PAYMENT_STATUS_CLASSES[displayPaymentStatus] ?? 'bg-muted text-foreground'
     : 'bg-muted text-foreground';
 
   // Show each detail row only when it fully fits, so nothing is half-clipped.

@@ -701,7 +701,7 @@ export default function EditBookingDialog({
       // paiement est déjà abouti (paid/refunded) — on ne l'écrase jamais.
       const clientTypeChanged = bookingData.client_type !== booking.client_type;
       const canRecalcPayment =
-        clientTypeChanged && !isPaymentStatusLocked(booking.payment_status);
+        clientTypeChanged && !isPaymentStatusLocked(booking.payment_status, booking.payment_method);
       const derivedPayment = canRecalcPayment
         ? derivePaymentForClientType(bookingData.client_type as BookingClientType)
         : null;

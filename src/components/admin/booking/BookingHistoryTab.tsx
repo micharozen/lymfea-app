@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useBookingHistory, type BookingAuditEntry } from "@/hooks/booking/useBookingHistory";
 import { formatPrice } from "@/lib/formatPrice";
 import { EmailPreviewDialog } from "./EmailPreviewDialog";
+import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 
 const FIELD_LABELS: Record<string, string> = {
   status: "Statut",
@@ -56,11 +57,23 @@ const PAYMENT_STATUS_LABELS: Record<string, string> = {
   card_saved: "Carte enregistrée",
 };
 
-function formatValue(field: string, value: unknown): string {
+function formatValue(
+  field: string,
+  value: unknown,
+  // Autres valeurs du même snapshot d'audit : permettent de savoir si le
+  // paiement était une facturation partenaire (stockée "paid").
+  siblingValues: Record<string, unknown> = {},
+): string {
   if (value === null || value === undefined || value === "") return "—";
 
   if (field === "status") return STATUS_LABELS[value as string] ?? String(value);
-  if (field === "payment_status") return PAYMENT_STATUS_LABELS[value as string] ?? String(value);
+  if (field === "payment_status") {
+    const displayed = effectivePaymentStatus(
+      siblingValues.payment_method as string | null | undefined,
+      value as string,
+    );
+    return PAYMENT_STATUS_LABELS[displayed] ?? String(displayed);
+  }
   if (field === "payment_method") return PAYMENT_METHOD_LABELS[value as string] ?? String(value);
   if (field === "total_price") return `${Number(value).toFixed(2)} €`;
   if (field === "duration") return `${value} min`;
@@ -88,8 +101,8 @@ function getChangedFields(entry: BookingAuditEntry) {
       return {
         field: key,
         label: FIELD_LABELS[key],
-        oldValue: formatValue(displayKey, oldVals[displayKey]),
-        newValue: formatValue(displayKey, newVals[displayKey]),
+        oldValue: formatValue(displayKey, oldVals[displayKey], oldVals),
+        newValue: formatValue(displayKey, newVals[displayKey], newVals),
       };
     });
 }
