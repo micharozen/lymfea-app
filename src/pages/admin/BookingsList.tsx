@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { buildCsv, downloadCsv, formatCsvAmount, type CsvColumn } from "@/lib/csvExport";
+import { paymentMethodLabel } from "@/lib/paymentMethod";
 import { bookingStatusConfig, type BookingStatus } from "@/utils/statusStyles";
 import { QuickActionsDialog } from "@/components/admin/quick-actions/QuickActionsDialog";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
@@ -32,6 +33,9 @@ import {
   type BookingSortKey,
   type SortDirection,
 } from "@/components/booking";
+import { ColumnSelector } from "@/components/booking/ColumnSelector";
+import { BOOKING_COLUMNS } from "@/components/booking/bookingColumns";
+import { useColumnPreferences } from "@/hooks/useColumnPreferences";
 import type { PageSize } from "@/components/table/TablePagination";
 
 export default function BookingsList() {
@@ -46,13 +50,21 @@ export default function BookingsList() {
     return [10, 30, 60, 90].includes(stored) ? stored : 10;
   });
 
+  // Plage explicite (ex. "juillet complet" pour un pointage) ; prioritaire sur
+  // la fenêtre glissante periodDays quand elle est renseignée.
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
+
   const fromDate = useMemo(() => {
+    if (customRange) return customRange.from;
     const d = new Date();
     d.setDate(d.getDate() - periodDays);
     return d.toISOString().slice(0, 10);
-  }, [periodDays]);
+  }, [periodDays, customRange]);
 
-  const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData({ fromDate });
+  const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData({
+    fromDate,
+    toDate: customRange?.to,
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -81,8 +93,15 @@ export default function BookingsList() {
     setHotelFilter,
     therapistFilter,
     setTherapistFilter,
+    paymentMethodFilter,
+    setPaymentMethodFilter,
+    paymentStatusFilter,
+    setPaymentStatusFilter,
     filteredBookings,
+    resetFilters,
   } = useBookingFilters(bookings, "bookingsList.filters");
+
+  const columnPreferences = useColumnPreferences("bookingsList.columns", BOOKING_COLUMNS);
 
   const [sortKey, setSortKey] = useState<BookingSortKey>("reservation");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -200,7 +219,6 @@ export default function BookingsList() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-  const totalListColumns = 11;
   // En mode "auto" on remplit l'écran avec des lignes vides ; en taille fixe, le tableau défile.
   const emptyRowsCount = isAutoPageSize
     ? Math.max(0, itemsPerPage - paginatedBookings.length)
@@ -213,8 +231,18 @@ export default function BookingsList() {
     }
   };
 
-  const handleFilterChange = (setter: (value: string) => void) => (value: string) => {
-    setter(value);
+  const handleFilterChange =
+    <T,>(setter: (value: T) => void) =>
+    (value: T) => {
+      setter(value);
+      setCurrentPage(1);
+    };
+
+  // La plage personnalisée vit sur la page, pas dans le hook : le reset doit
+  // la remettre à zéro aussi, sinon le bouton resterait affiché après un clic.
+  const handleResetFilters = () => {
+    resetFilters();
+    setCustomRange(null);
     setCurrentPage(1);
   };
 
@@ -273,6 +301,10 @@ export default function BookingsList() {
         value: (b) => bookingStatusConfig[b.status as BookingStatus]?.label ?? b.status ?? "",
       },
       {
+        header: t("bookings.export.columns.paymentMethod"),
+        value: (b) => paymentMethodLabel(b.payment_method),
+      },
+      {
         header: t("bookings.export.columns.paymentStatus"),
         value: (b) =>
           b.payment_status
@@ -296,6 +328,14 @@ export default function BookingsList() {
             Réservations
           </h1>
           <div className="flex items-center gap-2">
+            <ColumnSelector
+              preferences={columnPreferences}
+              hiddenKeys={
+                isConcierge
+                  ? BOOKING_COLUMNS.filter((c) => c.hideForConcierge).map((c) => c.key)
+                  : []
+              }
+            />
             <Button
               variant="outline"
               size="icon"
@@ -360,6 +400,10 @@ export default function BookingsList() {
           onHotelChange={handleFilterChange(setHotelFilter)}
           therapistFilter={therapistFilter}
           onTherapistChange={handleFilterChange(setTherapistFilter)}
+          paymentMethodFilter={paymentMethodFilter}
+          onPaymentMethodChange={handleFilterChange(setPaymentMethodFilter)}
+          paymentStatusFilter={paymentStatusFilter}
+          onPaymentStatusChange={handleFilterChange(setPaymentStatusFilter)}
           view="list"
           onViewChange={() => {}}
           dayCount={5}
@@ -370,6 +414,10 @@ export default function BookingsList() {
           hideViewToggle
           periodDays={periodDays}
           onPeriodDaysChange={handlePeriodDaysChange}
+          customRange={customRange}
+          onCustomRangeChange={setCustomRange}
+          filterVisibilityStorageKey="bookingsList.visibleFilters"
+          onResetFilters={handleResetFilters}
         />
       </div>
 
@@ -379,7 +427,7 @@ export default function BookingsList() {
             paginatedBookings={paginatedBookings}
             filteredBookingsCount={sortedBookings.length}
             emptyRowsCount={emptyRowsCount}
-            totalColumns={totalListColumns}
+            columns={columnPreferences.visibleColumns}
             onBookingClick={handleBookingClick}
             getHotelInfo={getHotelInfo}
             isConcierge={isConcierge}
@@ -392,6 +440,8 @@ export default function BookingsList() {
             sortKey={sortKey}
             sortDirection={sortDirection}
             onSort={handleSort}
+            onColumnResize={columnPreferences.setWidth}
+            onColumnResizeReset={columnPreferences.resetWidth}
             pageSize={pageSize}
             pageSizeOptions={[20, 50, 100]}
             onPageSizeChange={handlePageSizeChange}

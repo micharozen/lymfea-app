@@ -134,7 +134,7 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
 
   // Lock hotel filter to current venue
   useEffect(() => {
-    setHotelFilter(hotelId);
+    setHotelFilter([hotelId]);
   }, [hotelId, setHotelFilter]);
 
   // Pagination
@@ -188,7 +188,6 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
   // Pagination calculations
   const paginatedBookings =
     filteredBookings?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) ?? [];
-  const totalListColumns = 10;
   const emptyRowsCount = Math.max(0, itemsPerPage - paginatedBookings.length);
   const totalPages = Math.max(1, Math.ceil((filteredBookings?.length ?? 0) / itemsPerPage));
 
@@ -219,10 +218,12 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
     }
   };
 
-  const handleFilterChange = (setter: (value: string) => void) => (value: string) => {
-    setter(value);
-    setCurrentPage(1);
-  };
+  const handleFilterChange =
+    <T,>(setter: (value: T) => void) =>
+    (value: T) => {
+      setter(value);
+      setCurrentPage(1);
+    };
 
   const handleSendPaymentLink = () => {
     if (viewedBooking) {
@@ -384,7 +385,6 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
               paginatedBookings={paginatedBookings}
               filteredBookingsCount={filteredBookings?.length ?? 0}
               emptyRowsCount={emptyRowsCount}
-              totalColumns={totalListColumns}
               onBookingClick={handleBookingClick}
               getHotelInfo={getHotelInfo}
               isConcierge={isConcierge}

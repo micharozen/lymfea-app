@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -14,10 +14,11 @@ import {
   Calendar, Clock, Building2, MoreHorizontal, ChevronDown,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
-  FileText, CreditCard, ListTodo, Undo2
+  FileText, CreditCard, ListTodo, Undo2, Radio
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingTasksTab } from "@/components/admin/tasks/BookingTasksTab";
+import { BookingBroadcastTab } from "@/components/admin/booking/BookingBroadcastTab";
 import { TreatmentsByTherapist } from "@/components/admin/booking/TreatmentsByTherapist";
 import { ConvertToDuoDialog } from "@/components/admin/booking/ConvertToDuoDialog";
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
@@ -51,16 +52,7 @@ import {
 } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType, isPartnerBilledBooking, isPaymentStatusLocked } from "@/lib/clientTypePayment";
 
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  room: "Facturé en chambre",
-  card: "Carte — paiement en ligne",
-  card_on_site: "Carte — sur place",
-  cash: "Espèces",
-  offert: "Offert",
-  gift_amount: "Carte cadeau",
-  voucher: "Payé par voucher — encaissé par le lieu",
-  partner_billed: "Facturé au partenaire (fin de mois)",
-};
+import { PAYMENT_METHOD_LABELS, MANUAL_PAYMENT_METHODS } from "@/lib/paymentMethod";
 
 // Origine de la réservation (colonne bookings.source) → tag affiché dans le header.
 // label = texte, className = couleurs du badge (bg + texte + bordure).
@@ -122,7 +114,10 @@ export default function BookingDetail() {
   const navigate = useNavigate();
 
   const { t } = useTranslation('admin');
-  const { showsConciergeUx: isConcierge } = useEffectiveRole();
+  const { showsConciergeUx: isConcierge, isAdmin } = useEffectiveRole();
+  // Onglet diagnostic de diffusion : admin réel uniquement (la RLS SELECT sur
+  // push_notification_logs est elle aussi admin-only), et masqué en vue gestionnaire de lieu.
+  const canSeeBroadcast = isAdmin && !isConcierge;
 
   const [activeTab, setActiveTab] = useState("history");
   const dialogs = useBookingDetailDialogs();
@@ -152,6 +147,16 @@ export default function BookingDetail() {
   const isLoading = !bookings;
 
   const booking = bookings?.find((b) => b.id === id);
+
+  // Méthodes proposées à la saisie manuelle. Les modes écrits par le système
+  // (`card` = Stripe, `bundle`) ne sont ajoutés que si la réservation les porte
+  // déjà, pour que "Modifier la méthode" affiche sa valeur courante.
+  const markPaidMethodOptions = useMemo(() => {
+    const options: string[] = [...MANUAL_PAYMENT_METHODS];
+    const current = booking?.payment_method;
+    if (current && !options.includes(current)) options.unshift(current);
+    return options;
+  }, [booking?.payment_method]);
 
   // Fetch bundle info when booking has a bundle_usage_id
   useEffect(() => {
@@ -720,6 +725,12 @@ export default function BookingDetail() {
                       {t("tasks.bookingTab.label")}
                     </TabsTrigger>
                   )}
+                  {canSeeBroadcast && (
+                    <TabsTrigger value="broadcast" className="gap-1.5">
+                      <Radio className="h-3.5 w-3.5" />
+                      {t("broadcast.tab")}
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
                 <TabsContent value="history" className="mt-4">
@@ -740,6 +751,12 @@ export default function BookingDetail() {
                         client_last_name: booking.client_last_name,
                       }}
                     />
+                  </TabsContent>
+                )}
+
+                {canSeeBroadcast && (
+                  <TabsContent value="broadcast" className="mt-4">
+                    <BookingBroadcastTab bookingId={booking.id} enabled={activeTab === "broadcast"} />
                   </TabsContent>
                 )}
               </Tabs>
@@ -949,8 +966,12 @@ export default function BookingDetail() {
             <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
               <SelectTrigger><SelectValue placeholder="Choisir une méthode" /></SelectTrigger>
               <SelectContent>
-                {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                {/* `card` (Stripe) est réservé au système : on ne l'expose que
+                    s'il est déjà la valeur courante, pour ne pas vider le Select. */}
+                {markPaidMethodOptions.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {PAYMENT_METHOD_LABELS[value] ?? value}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -115,13 +115,15 @@ useEffect(() => {
   // In venue_manager view, force-scope the venue filter to the impersonated venue.
   const currentVenueId = useCurrentVenueId();
   useEffect(() => {
-    if (currentVenueId && hotelFilter !== currentVenueId) {
-      setHotelFilter(currentVenueId);
+    if (currentVenueId && (hotelFilter.length !== 1 || hotelFilter[0] !== currentVenueId)) {
+      setHotelFilter([currentVenueId]);
     }
   }, [currentVenueId, hotelFilter, setHotelFilter]);
 
-  // Amenity data
-  const hasVenueFilter = hotelFilter && hotelFilter !== "all";
+  // Les amenities, la légende et l'affichage des annulés n'ont de sens que sur
+  // un lieu unique : une sélection multiple retombe sur la vue "tous lieux".
+  const singleVenueId = hotelFilter.length === 1 ? hotelFilter[0] : null;
+  const hasVenueFilter = !!singleVenueId;
 
   // Calendar-only visibility of cancelled bookings (toggled via the legend).
   // Reset to hidden whenever we leave a single-venue view.
@@ -142,9 +144,9 @@ useEffect(() => {
     });
   }, [filteredBookings, hasVenueFilter, showCancelled]);
 
-  const { amenities: venueAmenities } = useVenueAmenities(hasVenueFilter ? hotelFilter : "");
+  const { amenities: venueAmenities } = useVenueAmenities(singleVenueId ?? "");
   const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({
-    hotelFilter: hasVenueFilter ? hotelFilter : undefined,
+    hotelFilter: singleVenueId ?? undefined,
   });
 
   // Calendar sidebar state
@@ -218,7 +220,6 @@ useEffect(() => {
   // Pagination calculations
   const paginatedBookings =
     filteredBookings?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) ?? [];
-  const totalListColumns = 11;
   const emptyRowsCount = Math.max(0, itemsPerPage - paginatedBookings.length);
   const totalPages = Math.max(1, Math.ceil((filteredBookings?.length ?? 0) / itemsPerPage));
 
@@ -244,10 +245,12 @@ useEffect(() => {
     }
   };
 
-  const handleFilterChange = (setter: (value: string) => void) => (value: string) => {
-    setter(value);
-    setCurrentPage(1);
-  };
+  const handleFilterChange =
+    <T,>(setter: (value: T) => void) =>
+    (value: T) => {
+      setter(value);
+      setCurrentPage(1);
+    };
 
   const handleSendPaymentLink = () => {
     if (viewedBooking) {
@@ -389,7 +392,6 @@ useEffect(() => {
               paginatedBookings={paginatedBookings}
               filteredBookingsCount={filteredBookings?.length ?? 0}
               emptyRowsCount={emptyRowsCount}
-              totalColumns={totalListColumns}
               onBookingClick={handleBookingClick}
               getHotelInfo={getHotelInfo}
               isAdmin={isAdmin}
@@ -433,7 +435,7 @@ useEffect(() => {
       <CreateAmenityBookingDialog
         open={isAmenityCreateOpen}
         onOpenChange={setIsAmenityCreateOpen}
-        hotelId={hasVenueFilter ? hotelFilter : undefined}
+        hotelId={singleVenueId ?? undefined}
         venueAmenities={hasVenueFilter ? venueAmenities : undefined}
         hotels={hotels}
         preselectedDate={selectedDate}

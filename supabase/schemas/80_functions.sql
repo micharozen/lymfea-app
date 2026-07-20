@@ -1673,14 +1673,16 @@ $$;
 
 ALTER FUNCTION "public"."get_public_hotels"() OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."get_public_therapists"("_hotel_id" "text") RETURNS TABLE("id" "text", "first_name" "text", "profile_image" "text", "skills" "text"[])
+CREATE OR REPLACE FUNCTION "public"."get_public_therapists"("_hotel_id" "text") RETURNS TABLE("id" "text", "first_name" "text", "profile_image" "text")
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
-  SELECT t.id, t.first_name, t.profile_image, t.skills
+  SELECT t.id, t.first_name, t.profile_image
   FROM public.therapists t
   INNER JOIN public.therapist_venues tv ON t.id = tv.therapist_id
-  WHERE tv.hotel_id = _hotel_id AND t.status IN ('Active', 'Actif', 'active')
+  -- LOWER() : l'ancien IN ('Active','Actif','active') était sensible à la casse
+  -- et divergeait du filtre de reserve_trunk_atomically.
+  WHERE tv.hotel_id = _hotel_id AND LOWER(t.status) IN ('active', 'actif')
   ORDER BY t.first_name;
 $$;
 
@@ -2654,10 +2656,11 @@ DECLARE
   _new_end               INTEGER;
   _has_conflict          BOOLEAN;
   _room_blocked          BOOLEAN;
-  _required_specialties  TEXT[];
+  _required_treatments   UUID[];
+  _required_count        INTEGER := 0;
   _therapist_id          UUID := NULL;
   _solo_therapist_id     UUID := NULL;
-  _therapist_skills      TEXT[];
+  _covered_count         INTEGER;
   _travel_buffer         INTEGER;
   _turnover_buffer       INTEGER;
   _requested_dow         INTEGER;
@@ -2758,18 +2761,21 @@ BEGIN
 
   IF _has_soin THEN
     IF _treatment_ids IS NOT NULL AND array_length(_treatment_ids, 1) > 0 THEN
-      SELECT array_agg(DISTINCT treatment_type) INTO _required_specialties
+      -- Add-ons are supplements, not soins: they must never impose a requirement
+      -- on the therapist. Amenities have no therapist either.
+      SELECT array_agg(DISTINCT id) INTO _required_treatments
       FROM treatment_menus
       WHERE id::text = ANY(_treatment_ids)
         AND COALESCE(is_addon, false) = false
-        AND amenity_id IS NULL
-        AND treatment_type IS NOT NULL
-        AND treatment_type != '';
+        AND amenity_id IS NULL;
+      _required_count := COALESCE(array_length(_required_treatments, 1), 0);
     END IF;
 
+    -- Le filtre individuel ci-dessous et le comptage _qualified_available
+    -- partagent la même boucle, donc le même prédicat par construction.
     _qualified_available := 0;
-    FOR _therapist_id, _therapist_skills IN
-      SELECT t.id, t.skills
+    FOR _therapist_id IN
+      SELECT t.id
       FROM therapist_venues tv
       JOIN therapists t ON t.id = tv.therapist_id
       WHERE tv.hotel_id::text = _hotel_id
@@ -2780,10 +2786,17 @@ BEGIN
           OR LOWER(t.gender) = LOWER(_therapist_gender)
         )
     LOOP
-      IF _required_specialties IS NOT NULL AND array_length(_required_specialties, 1) > 0 THEN
-        IF _therapist_skills IS NOT NULL AND array_length(_therapist_skills, 1) > 0 THEN
-          IF NOT _required_specialties <@ _therapist_skills THEN CONTINUE; END IF;
-        END IF;
+      -- Qualification : un thérapeute sans aucune association reste polyvalent
+      -- (comportement hérité de skills) ; dès qu'il en a au moins une, il doit
+      -- couvrir toutes les prestations requises.
+      IF _required_count > 0
+         AND EXISTS (SELECT 1 FROM therapist_treatments WHERE therapist_id = _therapist_id)
+      THEN
+        SELECT COUNT(*) INTO _covered_count
+        FROM therapist_treatments
+        WHERE therapist_id = _therapist_id
+          AND treatment_menu_id = ANY(_required_treatments);
+        IF _covered_count < _required_count THEN CONTINUE; END IF;
       END IF;
 
       IF EXISTS (

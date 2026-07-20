@@ -10,19 +10,60 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
+import { format, parseISO } from "date-fns";
+import { fr } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Ban, Calendar as CalendarIcon, Check, CheckCheck, CheckCircle2, ChevronsUpDown, Clock, List, Search, Users } from "lucide-react";
+import { Ban, Calendar as CalendarIcon, Check, CheckCheck, CheckCircle2, Clock, FilterX, List, Search, SlidersHorizontal, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { Hotel, Therapist } from "@/hooks/booking";
+import { MultiSelectFilter } from "./MultiSelectFilter";
+import {
+  PAYMENT_METHOD_FILTER_OPTIONS,
+  PAYMENT_STATUS_FILTER_OPTIONS,
+} from "@/lib/paymentMethod";
+
+const CUSTOM_PERIOD = "custom";
+
+/**
+ * Filtres que l'utilisateur peut afficher ou masquer via le bouton "Filtres".
+ * Le choix est mémorisé en localStorage : la barre reste légère et chacun
+ * garde sa configuration d'un écran à l'autre.
+ */
+type FilterKey = "hotel" | "status" | "payment" | "paymentStatus" | "period" | "therapist";
+
+const TOGGLEABLE_FILTERS: { key: FilterKey; label: string }[] = [
+  { key: "hotel", label: "Lieu" },
+  { key: "status", label: "Statut" },
+  { key: "therapist", label: "Thérapeute" },
+  { key: "period", label: "Période" },
+  { key: "payment", label: "Mode de paiement" },
+  { key: "paymentStatus", label: "Statut du paiement" },
+];
+
+// Configuration par défaut = la barre telle qu'elle existait avant le sélecteur.
+const DEFAULT_VISIBLE_FILTERS: FilterKey[] = ["hotel", "status", "therapist", "period"];
+
+function readVisibleFilters(storageKey: string | undefined): FilterKey[] {
+  if (!storageKey) return DEFAULT_VISIBLE_FILTERS;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return DEFAULT_VISIBLE_FILTERS;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return DEFAULT_VISIBLE_FILTERS;
+    const known = TOGGLEABLE_FILTERS.map((f) => f.key);
+    return parsed.filter((k): k is FilterKey => known.includes(k));
+  } catch {
+    return DEFAULT_VISIBLE_FILTERS;
+  }
+}
+
+const formatIsoShort = (iso: string) => format(parseISO(iso), "dd/MM");
+
+// Référence stable : un littéral [] par rendu invaliderait les mémos en aval.
+const EMPTY_SELECTION: string[] = [];
 
 // Status filter options with a pastel background + icon per value.
 const STATUS_FILTER_OPTIONS = [
@@ -35,12 +76,18 @@ const STATUS_FILTER_OPTIONS = [
 interface BookingFiltersProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
-  statusFilter: string;
-  onStatusChange: (value: string) => void;
-  hotelFilter: string;
-  onHotelChange: (value: string) => void;
-  therapistFilter: string;
-  onTherapistChange: (value: string) => void;
+  /** Multi-select filters: an empty array means "no restriction". */
+  statusFilter: string[];
+  onStatusChange: (value: string[]) => void;
+  hotelFilter: string[];
+  onHotelChange: (value: string[]) => void;
+  therapistFilter: string[];
+  onTherapistChange: (value: string[]) => void;
+  /** Payment filters. Omit the handlers to hide the selects (calendar view). */
+  paymentMethodFilter?: string[];
+  onPaymentMethodChange?: (value: string[]) => void;
+  paymentStatusFilter?: string[];
+  onPaymentStatusChange?: (value: string[]) => void;
   view: "calendar" | "list";
   onViewChange: (view: "calendar" | "list") => void;
   dayCount: number;
@@ -58,6 +105,22 @@ interface BookingFiltersProps {
   /** Period filter in days (window: [today - N days, future]). Omit to hide the selector. */
   periodDays?: number;
   onPeriodDaysChange?: (days: number) => void;
+  /**
+   * Explicit date window (ISO YYYY-MM-DD), which overrides periodDays when set.
+   * Provide the handler to expose the "custom period" option.
+   */
+  customRange?: { from: string; to: string } | null;
+  onCustomRangeChange?: (range: { from: string; to: string } | null) => void;
+  /**
+   * localStorage key holding which filters are pinned to the toolbar. Provide it
+   * to expose the "Filtres" button; omit it to render every filter (calendar view).
+   */
+  filterVisibilityStorageKey?: string;
+  /**
+   * Vide tous les filtres d'un coup (recherche incluse). Fournir le handler
+   * expose le bouton "Réinitialiser", visible seulement si un filtre est actif.
+   */
+  onResetFilters?: () => void;
   /** Optional content rendered at the start of the toolbar (e.g. page title). */
   leading?: ReactNode;
   /** Optional content rendered at the end of the toolbar, after the view toggle (e.g. action buttons). */
@@ -73,6 +136,10 @@ export function BookingFilters({
   onHotelChange,
   therapistFilter,
   onTherapistChange,
+  paymentMethodFilter = EMPTY_SELECTION,
+  onPaymentMethodChange,
+  paymentStatusFilter = EMPTY_SELECTION,
+  onPaymentStatusChange,
   view,
   onViewChange,
   dayCount,
@@ -88,12 +155,68 @@ export function BookingFilters({
   onShowAvailabilityChange,
   periodDays,
   onPeriodDaysChange,
+  customRange = null,
+  onCustomRangeChange,
+  filterVisibilityStorageKey,
+  onResetFilters,
   leading,
   trailing,
 }: BookingFiltersProps) {
   const { t } = useTranslation("admin");
-  const [hotelPopoverOpen, setHotelPopoverOpen] = useState(false);
-  const [therapistPopoverOpen, setTherapistPopoverOpen] = useState(false);
+  const [customPeriodOpen, setCustomPeriodOpen] = useState(false);
+  const [draftRange, setDraftRange] = useState<DateRange | undefined>(() =>
+    customRange
+      ? { from: parseISO(customRange.from), to: parseISO(customRange.to) }
+      : undefined
+  );
+
+  const [visibleFilters, setVisibleFilters] = useState<FilterKey[]>(() =>
+    readVisibleFilters(filterVisibilityStorageKey)
+  );
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+
+  // Sans clé de stockage (vue calendrier), tous les filtres restent affichés.
+  const isVisible = (key: FilterKey) =>
+    !filterVisibilityStorageKey || visibleFilters.includes(key);
+
+  // Masquer un filtre le réinitialise : un filtre actif mais invisible
+  // restreindrait la liste sans que personne puisse le voir.
+  const toggleFilter = (key: FilterKey) => {
+    const next = visibleFilters.includes(key)
+      ? visibleFilters.filter((k) => k !== key)
+      : [...visibleFilters, key];
+    setVisibleFilters(next);
+    if (filterVisibilityStorageKey) {
+      try {
+        localStorage.setItem(filterVisibilityStorageKey, JSON.stringify(next));
+      } catch {
+        // localStorage indisponible (mode privé, quota) : on ignore.
+      }
+    }
+    if (!next.includes(key)) {
+      if (key === "hotel") onHotelChange([]);
+      if (key === "status") onStatusChange([]);
+      if (key === "therapist") onTherapistChange([]);
+      if (key === "payment") onPaymentMethodChange?.([]);
+      if (key === "paymentStatus") onPaymentStatusChange?.([]);
+      if (key === "period") onCustomRangeChange?.(null);
+    }
+  };
+
+  // Compteur affiché sur le bouton : nombre de valeurs réellement sélectionnées,
+  // et non de filtres actifs — sélectionner 3 statuts compte pour 3.
+  const activeFilterCount =
+    hotelFilter.length +
+    statusFilter.length +
+    therapistFilter.length +
+    paymentMethodFilter.length +
+    paymentStatusFilter.length +
+    (customRange ? 1 : 0);
+
+  // La recherche compte comme un filtre actif ici (elle restreint la liste et
+  // le reset l'efface), même si elle n'entre pas dans le badge ci-dessus.
+  const hasActiveFilters = activeFilterCount > 0 || searchQuery.length > 0;
+
   return (
     <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
       {leading}
@@ -110,97 +233,110 @@ export function BookingFilters({
         </div>
       )}
 
-      {isAdmin && !hideHotelFilter && (() => {
-        const selectedHotel = hotelFilter !== "all" ? hotels?.find(h => h.id === hotelFilter) : null;
-        return (
-          <Popover open={hotelPopoverOpen} onOpenChange={setHotelPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={hotelPopoverOpen}
-                className={cn("w-[160px] h-8 px-2 text-xs font-normal justify-between", groupFiltersRight && "ml-auto")}
+      {filterVisibilityStorageKey && (
+        <Popover open={filterMenuOpen} onOpenChange={setFilterMenuOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-normal">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Filtres
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 rounded-full bg-primary px-1.5 text-[10px] leading-4 text-primary-foreground">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[220px] p-1" align="start">
+            {TOGGLEABLE_FILTERS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => toggleFilter(key)}
+                className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-xs hover:bg-secondary/50"
               >
-                <div className="flex items-center gap-1.5 truncate">
-                  {selectedHotel && (
-                    <span
-                      className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                      style={{ backgroundColor: selectedHotel.calendar_color || '#3b82f6' }}
-                    />
+                <span>{label}</span>
+                <Check
+                  className={cn(
+                    "h-3.5 w-3.5",
+                    visibleFilters.includes(key) ? "opacity-100" : "opacity-0"
                   )}
-                  <span className="truncate">
-                    {selectedHotel ? selectedHotel.name : "Tous les lieux"}
-                  </span>
-                </div>
-                <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[220px] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Rechercher un lieu..." className="h-8 text-xs" />
-                <CommandList>
-                  <CommandEmpty>Aucun lieu trouvé.</CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      value="all tous les lieux"
-                      onSelect={() => {
-                        onHotelChange("all");
-                        setHotelPopoverOpen(false);
-                      }}
-                      className="text-xs"
-                    >
-                      <Check className={cn("mr-2 h-3.5 w-3.5", hotelFilter === "all" ? "opacity-100" : "opacity-0")} />
-                      Tous les lieux
-                    </CommandItem>
-                    {hotels?.map((hotel) => (
-                      <CommandItem
-                        key={hotel.id}
-                        value={hotel.name}
-                        onSelect={() => {
-                          onHotelChange(hotel.id);
-                          setHotelPopoverOpen(false);
-                        }}
-                        className="text-xs"
-                      >
-                        <Check className={cn("mr-2 h-3.5 w-3.5", hotelFilter === hotel.id ? "opacity-100" : "opacity-0")} />
-                        <span
-                          className="w-2.5 h-2.5 rounded-sm flex-shrink-0 mr-1.5"
-                          style={{ backgroundColor: hotel.calendar_color || '#3b82f6' }}
-                        />
-                        {hotel.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        );
-      })()}
+                />
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
+      )}
 
-      <Select value={statusFilter} onValueChange={onStatusChange}>
-        <SelectTrigger className={cn("w-[160px] h-8 text-xs", groupFiltersRight && (!isAdmin || hideHotelFilter) && "ml-auto")}>
-          <SelectValue placeholder="Tous les statuts" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Tous les statuts</SelectItem>
-          {STATUS_FILTER_OPTIONS.map(({ value, label, Icon, className }) => (
-            <SelectItem key={value} value={value} className={cn("my-0.5 rounded-sm", className)}>
-              <span className="flex items-center gap-2">
-                <Icon className="h-3.5 w-3.5" />
-                {label}
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {isVisible("hotel") && isAdmin && !hideHotelFilter && (
+        <MultiSelectFilter
+          value={hotelFilter}
+          onChange={onHotelChange}
+          allLabel="Tous les lieux"
+          searchPlaceholder="Rechercher un lieu..."
+          emptyLabel="Aucun lieu trouvé."
+          triggerClassName={cn(groupFiltersRight && "ml-auto")}
+          options={(hotels ?? []).map((hotel) => ({
+            value: hotel.id,
+            label: hotel.name,
+            adornment: (
+              <span
+                className="w-2.5 h-2.5 rounded-sm flex-shrink-0 mr-1.5"
+                style={{ backgroundColor: hotel.calendar_color || "#3b82f6" }}
+              />
+            ),
+          }))}
+        />
+      )}
 
-      {periodDays !== undefined && onPeriodDaysChange && (
+      {isVisible("status") && (
+        <MultiSelectFilter
+          value={statusFilter}
+          onChange={onStatusChange}
+          allLabel="Tous les statuts"
+          triggerClassName={cn(
+            groupFiltersRight && (!isAdmin || hideHotelFilter) && "ml-auto"
+          )}
+          options={STATUS_FILTER_OPTIONS.map(({ value, label, Icon, className }) => ({
+            value,
+            label,
+            className,
+            adornment: <Icon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />,
+          }))}
+        />
+      )}
+
+      {isVisible("payment") && onPaymentMethodChange && (
+        <MultiSelectFilter
+          value={paymentMethodFilter}
+          onChange={onPaymentMethodChange}
+          allLabel="Tous les paiements"
+          options={PAYMENT_METHOD_FILTER_OPTIONS}
+          triggerClassName="w-[170px]"
+        />
+      )}
+
+      {isVisible("paymentStatus") && onPaymentStatusChange && (
+        <MultiSelectFilter
+          value={paymentStatusFilter}
+          onChange={onPaymentStatusChange}
+          allLabel="Tous les états"
+          options={PAYMENT_STATUS_FILTER_OPTIONS}
+          triggerClassName="w-[150px]"
+        />
+      )}
+
+      {isVisible("period") && periodDays !== undefined && onPeriodDaysChange && (
         <Select
-          value={String(periodDays)}
-          onValueChange={(v) => onPeriodDaysChange(Number(v))}
+          value={customRange ? CUSTOM_PERIOD : String(periodDays)}
+          onValueChange={(v) => {
+            if (v === CUSTOM_PERIOD) {
+              setCustomPeriodOpen(true);
+              return;
+            }
+            onCustomRangeChange?.(null);
+            onPeriodDaysChange(Number(v));
+          }}
         >
-          <SelectTrigger className="w-[140px] h-8 text-xs">
+          <SelectTrigger className="w-[170px] h-8 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -208,68 +344,100 @@ export function BookingFilters({
             <SelectItem value="30">30 derniers jours</SelectItem>
             <SelectItem value="60">60 derniers jours</SelectItem>
             <SelectItem value="90">90 derniers jours</SelectItem>
+            {onCustomRangeChange && (
+              <SelectItem value={CUSTOM_PERIOD}>
+                {customRange
+                  ? `${formatIsoShort(customRange.from)} → ${formatIsoShort(customRange.to)}`
+                  : "Période personnalisée"}
+              </SelectItem>
+            )}
           </SelectContent>
         </Select>
       )}
 
-      {isAdmin && (() => {
-        const selectedTherapist =
-          therapistFilter !== "all" ? therapists?.find(th => th.id === therapistFilter) : null;
-        return (
-          <Popover open={therapistPopoverOpen} onOpenChange={setTherapistPopoverOpen}>
-            <PopoverTrigger asChild>
+      {onCustomRangeChange && (
+        <Popover open={customPeriodOpen} onOpenChange={setCustomPeriodOpen}>
+          {/* Ancre de positionnement : le popover est ouvert par l'option
+              "Période personnalisée" du Select ci-dessus, pas par un clic ici. */}
+          <PopoverTrigger asChild>
+            <span className="block h-8 w-0" aria-hidden />
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-3 space-y-3" align="start">
+            <p className="text-xs font-medium text-muted-foreground">
+              Sélectionnez une période
+            </p>
+            <Calendar
+              mode="range"
+              selected={draftRange}
+              onSelect={setDraftRange}
+              numberOfMonths={1}
+              initialFocus
+              locale={fr}
+              className="p-0 pointer-events-auto"
+            />
+            <div className="flex gap-2">
               <Button
+                size="sm"
                 variant="outline"
-                role="combobox"
-                aria-expanded={therapistPopoverOpen}
-                className="w-[160px] h-8 px-2 text-xs font-normal justify-between"
+                className="flex-1 text-xs"
+                onClick={() => {
+                  setDraftRange(undefined);
+                  onCustomRangeChange(null);
+                  setCustomPeriodOpen(false);
+                }}
               >
-                <span className="truncate">
-                  {selectedTherapist
-                    ? `${selectedTherapist.first_name} ${selectedTherapist.last_name}`
-                    : "Tous les thérapeutes"}
-                </span>
-                <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                Effacer
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[220px] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Rechercher un thérapeute..." className="h-8 text-xs" />
-                <CommandList>
-                  <CommandEmpty>Aucun thérapeute trouvé.</CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      value="all tous les therapeutes"
-                      onSelect={() => {
-                        onTherapistChange("all");
-                        setTherapistPopoverOpen(false);
-                      }}
-                      className="text-xs"
-                    >
-                      <Check className={cn("mr-2 h-3.5 w-3.5", therapistFilter === "all" ? "opacity-100" : "opacity-0")} />
-                      Tous les thérapeutes
-                    </CommandItem>
-                    {therapists?.map((therapist) => (
-                      <CommandItem
-                        key={therapist.id}
-                        value={`${therapist.first_name} ${therapist.last_name}`}
-                        onSelect={() => {
-                          onTherapistChange(therapist.id);
-                          setTherapistPopoverOpen(false);
-                        }}
-                        className="text-xs"
-                      >
-                        <Check className={cn("mr-2 h-3.5 w-3.5", therapistFilter === therapist.id ? "opacity-100" : "opacity-0")} />
-                        {therapist.first_name} {therapist.last_name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        );
-      })()}
+              <Button
+                size="sm"
+                className="flex-1 text-xs"
+                disabled={!draftRange?.from || !draftRange?.to}
+                onClick={() => {
+                  if (!draftRange?.from || !draftRange?.to) return;
+                  onCustomRangeChange({
+                    from: format(draftRange.from, "yyyy-MM-dd"),
+                    to: format(draftRange.to, "yyyy-MM-dd"),
+                  });
+                  setCustomPeriodOpen(false);
+                }}
+              >
+                Appliquer
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+
+      {isVisible("therapist") && isAdmin && (
+        <MultiSelectFilter
+          value={therapistFilter}
+          onChange={onTherapistChange}
+          allLabel="Tous les thérapeutes"
+          searchPlaceholder="Rechercher un thérapeute..."
+          emptyLabel="Aucun thérapeute trouvé."
+          options={(therapists ?? []).map((therapist) => ({
+            value: therapist.id,
+            label: `${therapist.first_name} ${therapist.last_name}`,
+          }))}
+        />
+      )}
+
+      {onResetFilters && hasActiveFilters && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
+              onClick={onResetFilters}
+            >
+              <FilterX className="h-3.5 w-3.5" />
+              Réinitialiser
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Effacer tous les filtres et la recherche</TooltipContent>
+        </Tooltip>
+      )}
 
       <div className="flex items-center gap-1.5 ml-auto">
         {view === "calendar" && (

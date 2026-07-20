@@ -1,4 +1,29 @@
 {
+  "broadcast": {
+    "tab": "Diffusion",
+    "loading": "Reconstitution de la diffusion…",
+    "error": "Impossible de charger la diffusion.",
+    "empty": "Aucune diffusion enregistrée pour cette réservation.",
+    "disclaimer": "Reconstitution à l'instant présent : les disponibilités et qualifications ont pu changer depuis l'envoi. « Sollicité » signifie que le push a été déclenché, pas qu'il a été reçu.",
+    "notifiedTitle": "Sollicités",
+    "notReachedTitle": "Non sollicités",
+    "reasons": {
+      "no_pwa_account": "pas de compte PWA",
+      "inactive": "compte inactif",
+      "declined": "a refusé",
+      "not_qualified": "ne réalise pas ce soin",
+      "unavailable": "indisponible ce jour",
+      "unknown": "raison inconnue"
+    },
+    "reasonsLong": {
+      "no_pwa_account": "Ce thérapeute n'a pas de compte PWA : il ne peut recevoir aucune notification push.",
+      "inactive": "Son statut n'est pas « actif » : il est exclu de toute diffusion.",
+      "declined": "Il a refusé cette réservation, il n'est donc plus resollicité.",
+      "not_qualified": "Ne réalise pas : {{treatments}}.",
+      "unavailable": "Il s'est déclaré indisponible pour cette date.",
+      "unknown": "Aucun motif d'exclusion ne s'applique aujourd'hui. La diffusion n'a probablement jamais été déclenchée, ou ce thérapeute a été rattaché au lieu après l'envoi."
+    }
+  },
   "welcome": {
     "skip": "Passer",
     "back": "Retour",
@@ -166,6 +191,7 @@
         "therapist": "Thérapeute",
         "currency": "Devise",
         "status": "Statut",
+        "paymentMethod": "Mode de paiement",
         "paymentStatus": "Statut paiement",
         "treatments": "Prestations",
         "duration": "Durée (min)",
@@ -1056,6 +1082,8 @@
     "therapistSections": {
       "available": "Disponibles",
       "others": "Autres thérapeutes du lieu",
+      "unqualified": "Ne réalise pas cette prestation",
+      "unqualifiedHint": "Prestation absente de ses soins réalisables",
       "shiftEnds": "Fin de shift à {{time}}"
     },
     "comboDuo": {

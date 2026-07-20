@@ -1,3 +1,4 @@
+import { Fragment, useRef } from "react";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -22,61 +23,41 @@ import {
 } from "@/components/ui/select";
 import { ArrowDownNarrowWide, ArrowUpNarrowWide } from "lucide-react";
 import { TablePagination, type PageSize } from "@/components/table/TablePagination";
+import { computeResizedWidth } from "@/hooks/useColumnPreferences";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
-import { HotelCell } from "@/components/table/EntityCell";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
+import {
+  BOOKING_COLUMNS,
+  columnHeadClass,
+  getPaymentTextLabel,
+  type BookingCellContext,
+  type BookingColumnDef,
+  type BookingSortKey,
+  type SortDirection,
+} from "./bookingColumns";
 
-const PAYMENT_TEXT_LABELS: Record<string, string> = {
-  pending: "En attente",
-  paid: "Payé",
-  failed: "Échec",
-  refunded: "Remboursé",
-  charged_to_room: "Chambre",
-  pending_partner_billing: "Paiement partenaire",
-  card_saved: "Carte enregistrée",
-};
+export type { BookingSortKey, SortDirection };
 
-function getPaymentTextLabel(status: string | null | undefined): string {
-  if (!status) return "Non défini";
-  return PAYMENT_TEXT_LABELS[status.toLowerCase()] ?? status;
-}
+/** Options de la barre de tri mobile — dérivées des colonnes triables. */
+const SORT_OPTIONS = BOOKING_COLUMNS.filter((c) => c.sortKey).map((c) => ({
+  key: c.sortKey as BookingSortKey,
+  label: c.sortLabel ?? c.label,
+  hideForConcierge: c.hideForConcierge ?? false,
+}));
 
-export type BookingSortKey =
-  | "reservation"
-  | "date"
-  | "time"
-  | "duration"
-  | "status"
-  | "payment"
-  | "client"
-  | "treatments"
-  | "total"
-  | "location"
-  | "therapist";
-
-export type SortDirection = "asc" | "desc";
-
-const SORT_OPTIONS: { key: BookingSortKey; label: string }[] = [
-  { key: "reservation", label: "Réservation" },
-  { key: "date", label: "Date" },
-  { key: "time", label: "Heure" },
-  { key: "duration", label: "Durée" },
-  { key: "status", label: "Statut" },
-  { key: "payment", label: "Paiement" },
-  { key: "client", label: "Client" },
-  { key: "treatments", label: "Prestations" },
-  { key: "total", label: "Total" },
-  { key: "location", label: "Lieu" },
-  { key: "therapist", label: "Thérapeute" },
-];
+const DEFAULT_COLUMNS = BOOKING_COLUMNS.filter((c) => c.defaultVisible);
 
 interface BookingListViewProps {
   paginatedBookings: BookingWithTreatments[];
   filteredBookingsCount: number;
   emptyRowsCount: number;
-  totalColumns: number;
+  /**
+   * Colonnes visibles, dans l'ordre. Omis ⇒ jeu par défaut (comportement
+   * historique) : seul /admin/bookings pilote ses colonnes.
+   */
+  columns?: BookingColumnDef[];
   onBookingClick: (booking: BookingWithTreatments) => void;
   getHotelInfo: (hotelId: string | null) => Hotel | null;
   isAdmin?: boolean;
@@ -91,6 +72,10 @@ interface BookingListViewProps {
   sortKey?: BookingSortKey;
   sortDirection?: SortDirection;
   onSort?: (key: BookingSortKey) => void;
+  /** Fournir pour activer le redimensionnement des colonnes à la souris. */
+  onColumnResize?: (key: string, width: number) => void;
+  /** Double-clic sur la poignée : rend son poids déclaré à la colonne. */
+  onColumnResizeReset?: (key: string) => void;
   pageSize?: PageSize;
   pageSizeOptions?: number[];
   onPageSizeChange?: (size: PageSize) => void;
@@ -102,7 +87,7 @@ export function BookingListView({
   paginatedBookings,
   filteredBookingsCount,
   emptyRowsCount,
-  totalColumns,
+  columns,
   onBookingClick,
   getHotelInfo,
   isAdmin = false,
@@ -117,6 +102,8 @@ export function BookingListView({
   sortKey,
   sortDirection,
   onSort,
+  onColumnResize,
+  onColumnResizeReset,
   pageSize,
   pageSizeOptions,
   onPageSizeChange,
@@ -125,15 +112,74 @@ export function BookingListView({
   const { t } = useTranslation("common");
   const navigate = useNavigate();
 
-  const renderSortableHead = (
-    key: BookingSortKey,
-    label: string,
-    className: string,
-    align: "left" | "center" = "left"
-  ) => {
-    if (!onSort) {
-      return <TableHead className={className}>{label}</TableHead>;
+  // Le filtre concierge reste porté par la config, pas par les appelants.
+  const visibleColumns = (columns ?? DEFAULT_COLUMNS).filter(
+    (column) => !(isConcierge && column.hideForConcierge)
+  );
+  // +1 pour la colonne d'actions, qui n'a pas d'en-tête.
+  const totalColumns = visibleColumns.length + 1;
+  const totalWidth = visibleColumns.reduce((sum, column) => sum + column.width, 0) || 1;
+  const cellContext: BookingCellContext = { getHotelInfo, navigate, t, paymentAsText };
+
+  // Le redimensionnement raisonne en poids : on convertit le déplacement en px
+  // via la largeur rendue de la table, d'où ce ref.
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  const startResize = (column: BookingColumnDef, event: React.PointerEvent) => {
+    if (!onColumnResize) return;
+    // Sans ça, le pointerdown déclenche le tri de la colonne.
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = column.width;
+    const tableWidth = tableRef.current?.getBoundingClientRect().width ?? 0;
+
+    const onMove = (moveEvent: PointerEvent) => {
+      onColumnResize(
+        column.key,
+        computeResizedWidth(startWidth, moveEvent.clientX - startX, tableWidth, totalWidth)
+      );
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.style.removeProperty("cursor");
+      document.body.style.removeProperty("user-select");
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    // Le curseur doit rester "col-resize" même quand la souris sort de la poignée.
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  const renderResizeHandle = (column: BookingColumnDef) => {
+    if (!onColumnResize) return null;
+    return (
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={`Redimensionner ${column.label}`}
+        onPointerDown={(e) => startResize(column, e)}
+        onDoubleClick={() => onColumnResizeReset?.(column.key)}
+        // Le `truncate` de l'en-tête pose overflow:hidden : la poignée doit
+        // rester à l'intérieur de la cellule pour ne pas être rognée.
+        className="absolute right-0 top-0 h-full w-2 cursor-col-resize touch-none select-none after:absolute after:right-0 after:top-1/2 after:h-1/2 after:w-px after:-translate-y-1/2 after:bg-border hover:after:h-full hover:after:w-0.5 hover:after:bg-primary"
+      />
+    );
+  };
+
+  const renderHead = (column: BookingColumnDef) => {
+    const className = `relative ${columnHeadClass(column)}`;
+    if (!onSort || !column.sortKey) {
+      return (
+        <TableHead className={className}>
+          {column.label}
+          {renderResizeHandle(column)}
+        </TableHead>
+      );
     }
+    const key = column.sortKey;
     const isActive = sortKey === key;
     return (
       <TableHead className={className}>
@@ -141,14 +187,15 @@ export function BookingListView({
           type="button"
           onClick={() => onSort(key)}
           className={`flex items-center gap-1 hover:text-foreground transition-colors ${
-            align === "center" ? "mx-auto" : ""
+            column.align === "center" ? "mx-auto" : ""
           } ${isActive ? "text-foreground" : ""}`}
         >
-          <span className="truncate">{label}</span>
+          <span className="truncate">{column.label}</span>
           {!isActive && <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-40" />}
           {isActive && sortDirection === "asc" && <ChevronUp className="h-3 w-3 shrink-0" />}
           {isActive && sortDirection === "desc" && <ChevronDown className="h-3 w-3 shrink-0" />}
         </button>
+        {renderResizeHandle(column)}
       </TableHead>
     );
   };
@@ -191,7 +238,7 @@ export function BookingListView({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SORT_OPTIONS.filter((o) => o.key !== "location" || !isConcierge).map((o) => (
+              {SORT_OPTIONS.filter((o) => !(isConcierge && o.hideForConcierge)).map((o) => (
                 <SelectItem key={o.key} value={o.key} className="text-xs">
                   {o.label}
                 </SelectItem>
@@ -358,35 +405,23 @@ export function BookingListView({
           scrollable ? "overflow-y-auto" : "overflow-y-hidden"
         }`}
       >
-        <Table className="text-xs w-full min-w-[960px] table-fixed">
+        <Table
+          ref={tableRef}
+          className="text-xs w-full table-fixed"
+          style={{ minWidth: Math.max(960, visibleColumns.length * 90) }}
+        >
           <colgroup>
-            <col className="w-[6%]" />
-            <col className="w-[8%]" />
-            <col className="w-[6%]" />
-            <col className="w-[6%]" />
-            <col className="w-[10%]" />
-            <col className="w-[11%]" />
-            <col className="w-[12%]" />
-            <col className="w-[12%]" />
-            <col className="w-[7%]" />
-            {!isConcierge && <col className="w-[10%]" />}
-            <col className="w-[10%]" />
-            <col className="w-[5%]" />
+            {visibleColumns.map((column) => (
+              // 95 % pour les colonnes de données, le reste pour les actions.
+              <col key={column.key} style={{ width: `${(column.width / totalWidth) * 95}%` }} />
+            ))}
+            <col style={{ width: "5%" }} />
           </colgroup>
           <TableHeader>
             <TableRow className="border-b h-8 bg-muted/20">
-              {renderSortableHead("reservation", "Réservation", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
-              {renderSortableHead("date", "Date", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
-              {renderSortableHead("time", "Heure", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
-              {renderSortableHead("duration", "Durée", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
-              {renderSortableHead("status", "Statut", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
-              {renderSortableHead("payment", "Paiement", "font-medium text-muted-foreground text-xs py-1.5 px-2 text-center", "center")}
-              {renderSortableHead("client", "Client", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
-              {renderSortableHead("treatments", "Prestations", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
-              {renderSortableHead("total", "Total", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
-              {!isConcierge &&
-                renderSortableHead("location", "Lieu", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
-              {renderSortableHead("therapist", "Thérapeute", "font-medium text-muted-foreground text-xs py-1.5 px-2 truncate")}
+              {visibleColumns.map((column) => (
+                <Fragment key={column.key}>{renderHead(column)}</Fragment>
+              ))}
             </TableRow>
           </TableHeader>
 
@@ -397,127 +432,16 @@ export function BookingListView({
                 className="cursor-pointer border-b hover:bg-muted/50 transition-colors group"
                 onClick={() => onBookingClick(booking)}
               >
-                <TableCell className="font-medium text-primary py-3 px-2">
-                  <span className="leading-none flex items-center gap-1">
-                    #{booking.booking_id}
-                    {(booking as any).bundle_usage_id && (
-                      <Package className="h-3 w-3 text-amber-600 shrink-0" title="Séance cure" />
-                    )}
-                  </span>
-                </TableCell>
-                <TableCell className="text-foreground py-3 px-2">
-                  <span className="block leading-none">{format(new Date(booking.booking_date), "dd-MM-yyyy")}</span>
-                </TableCell>
-                <TableCell className="text-foreground py-3 px-2">
-                  <span className="block leading-none">{booking.booking_time.substring(0, 5)}</span>
-                </TableCell>
-                <TableCell className="text-foreground py-3 px-2">
-                  <span className="block leading-none">{booking.totalDuration ? `${booking.totalDuration} min` : "-"}</span>
-                </TableCell>
-                <TableCell className="py-3 px-2">
-                  <div className="flex flex-col gap-0.5 items-start">
-                    <StatusBadge
-                      status={booking.status}
-                      type="booking"
-                      className="text-[10px] px-2 py-0.5 whitespace-nowrap"
-                    />
-                    {(booking as any).guest_count > 1 &&
-                      booking.status === "pending" && (
-                        <span
-                          className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap font-medium"
-                          title={`Soin duo — ${(booking as any).guest_count} praticiens nécessaires`}
-                        >
-                          <Users className="h-2.5 w-2.5" />
-                          {(booking as any).booking_therapists?.filter((bt: any) => bt.status === "accepted").length || 0}/{(booking as any).guest_count}
-                        </span>
-                      )}
-                    {(booking as any).guest_count > 1 && booking.status === "confirmed" && (
-                      <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 whitespace-nowrap font-medium">
-                        <Users className="h-2.5 w-2.5" /> Duo
-                      </span>
-                    )}
-                    {(booking as any).booking_group_id && (
-                      <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap font-medium">
-                        <Layers className="h-2.5 w-2.5" /> Groupé
-                      </span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="py-3 px-2 text-center overflow-hidden">
-                  {booking.status !== "quote_pending" && booking.status !== "waiting_approval" && (
-                    <StatusBadge
-                      status={effectivePaymentStatus(booking.payment_method, booking.payment_status)}
-                      type="payment"
-                      className={
-                        paymentAsText
-                          ? "text-[10px] px-2 py-0.5 max-w-full truncate inline-flex items-center justify-center"
-                          : "text-base px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
-                      }
-                      customLabel={
-                        paymentAsText
-                          ? getPaymentTextLabel(
-                              effectivePaymentStatus(booking.payment_method, booking.payment_status),
-                            )
-                          : undefined
-                      }
-                    />
-                  )}
-                </TableCell>
-                <TableCell className="text-foreground py-3 px-2 truncate">
-                  {(() => {
-                    const firstInitial = booking.client_first_name
-                      ? `${booking.client_first_name.charAt(0).toUpperCase()}.`
-                      : "";
-                    const label = [firstInitial, booking.client_last_name].filter(Boolean).join(" ");
-                    const customerId = (booking as any).customer_id as string | undefined;
-                    return customerId ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/admin/customers/${customerId}`);
-                        }}
-                        className="block leading-tight truncate text-left hover:underline hover:text-primary"
-                      >
-                        {label}
-                      </button>
-                    ) : (
-                      <span className="block leading-tight truncate">{label}</span>
-                    );
-                  })()}
-                </TableCell>
-                <TableCell className="text-foreground py-3 px-2 truncate">
-                  <span className="block leading-snug truncate">
-                    {booking.treatments.length > 0
-                      ? booking.treatments.map((t) => t.name).join(", ")
-                      : "-"}
-                  </span>
-                </TableCell>
-                <TableCell className="text-foreground py-3 px-2">
-                  <span className="leading-none flex items-center gap-1">
-                    {booking.payment_status === "offert"
-                      ? t("admin:bookings.offert.tag")
-                      : formatPrice(booking.total_price, getHotelInfo(booking.hotel_id)?.currency || "EUR")}
-                    {booking.is_out_of_hours && (
-                      <Clock className="h-3 w-3 text-amber-500 shrink-0" title="Hors horaires" />
-                    )}
-                  </span>
-                </TableCell>
-                {!isConcierge && (
-                  <TableCell className="text-foreground py-3 px-2 truncate">
-                    <HotelCell hotel={getHotelInfo(booking.hotel_id)} />
-                    {booking.room_name && (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground leading-tight truncate">
-                        <DoorOpen className="h-3 w-3 shrink-0" />
-                        {booking.room_name}
-                        {booking.secondary_room_name && ` + ${booking.secondary_room_name}`}
-                      </span>
-                    )}
+                {visibleColumns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    className={`text-foreground py-3 px-2 truncate ${
+                      column.align === "center" ? "text-center overflow-hidden" : ""
+                    }`}
+                  >
+                    {column.cell(booking, cellContext)}
                   </TableCell>
-                )}
-                <TableCell className="text-foreground py-3 px-2 truncate">
-                  <span className="block leading-tight truncate">{booking.therapist_name || "-"}</span>
-                </TableCell>
+                ))}
                 <TableCell className="py-3 px-2 text-center" onClick={(e) => e.stopPropagation()}>
                   {renderCancelButton(booking)}
                 </TableCell>

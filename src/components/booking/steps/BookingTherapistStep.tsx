@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, Loader2, Users, DoorOpen, Search } from "lucide-react";
+import { Check, Loader2, Users, DoorOpen, Search, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { useTranslation } from "react-i18next";
@@ -28,6 +28,7 @@ interface Therapist {
   gender?: string | null;
   isAvailableForSlot?: boolean;
   shiftEndsBeforeSlotEnd?: string | null;
+  isQualifiedForTreatments?: boolean;
 }
 
 interface Treatment {
@@ -248,6 +249,11 @@ function TherapistCard({ therapist: th, selected, onClick }: TherapistCardProps)
             </span>
           )}
         </p>
+        {th.isQualifiedForTreatments === false && (
+          <p className="text-[10px] font-medium text-amber-600 dark:text-amber-500 truncate">
+            {t("booking.therapistSections.unqualifiedHint")}
+          </p>
+        )}
         {th.shiftEndsBeforeSlotEnd && (
           <p className="text-[10px] font-medium text-amber-600 dark:text-amber-500 truncate">
             {t("booking.therapistSections.shiftEnds", { time: th.shiftEndsBeforeSlotEnd })}
@@ -290,7 +296,7 @@ function SectionedTherapistCards({
   }
 
   const hasFlags = visible.some((th) => th.isAvailableForSlot !== undefined);
-  const { available, others } = partitionTherapistsForSlot(visible);
+  const { available, others, unqualified } = partitionTherapistsForSlot(visible);
 
   const renderCards = (list: Therapist[]) =>
     list.map((th) => (
@@ -321,6 +327,15 @@ function SectionedTherapistCards({
             {t("booking.therapistSections.others")}
           </p>
           {renderCards(others)}
+        </>
+      )}
+      {unqualified.length > 0 && (
+        <>
+          <p className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-500 px-1">
+            <AlertTriangle className="h-3 w-3" />
+            {t("booking.therapistSections.unqualified")}
+          </p>
+          {renderCards(unqualified)}
         </>
       )}
     </>

@@ -7,7 +7,6 @@ export interface AvailableTherapist {
   first_name: string;
   last_name: string;
   profile_image: string | null;
-  skills: string[] | null;
   status: string;
   gender: string | null;
 }
@@ -17,19 +16,24 @@ export interface SlotTherapist extends AvailableTherapist {
   isAvailableForSlot: boolean;
   /** Heure de fin du shift ("HH:mm") quand le shift couvre le début du soin mais pas la fin, sinon null. */
   shiftEndsBeforeSlotEnd: string | null;
+  /** Réalise toutes les prestations demandées (therapist_treatments). true si aucune prestation n'est demandée. */
+  isQualifiedForTreatments: boolean;
 }
 
-/** Sépare une liste annotée en « Disponibles » / « Autres thérapeutes du lieu ».
- * Les items sans flag (listes plates legacy) sont traités comme disponibles. */
-export function partitionTherapistsForSlot<T extends { isAvailableForSlot?: boolean }>(
-  list: T[] | undefined,
-): { available: T[]; others: T[] } {
+/** Sépare une liste annotée en « Disponibles » / « Autres thérapeutes du lieu » /
+ * « Ne réalise pas cette prestation ». La non-qualification prime sur la disponibilité.
+ * Les items sans flag (listes plates legacy) sont traités comme disponibles et qualifiés. */
+export function partitionTherapistsForSlot<
+  T extends { isAvailableForSlot?: boolean; isQualifiedForTreatments?: boolean },
+>(list: T[] | undefined): { available: T[]; others: T[]; unqualified: T[] } {
   const available: T[] = [];
   const others: T[] = [];
+  const unqualified: T[] = [];
   (list || []).forEach((t) => {
-    (t.isAvailableForSlot === false ? others : available).push(t);
+    if (t.isQualifiedForTreatments === false) unqualified.push(t);
+    else (t.isAvailableForSlot === false ? others : available).push(t);
   });
-  return { available, others };
+  return { available, others, unqualified };
 }
 
 interface UseAvailableTherapistsForSlotParams {
@@ -89,7 +93,7 @@ export function useAvailableTherapistsForSlot({
       // 2. Récupérer les praticiens du lieu
       const { data: links, error: linksError } = await supabase
         .from("therapist_venues")
-        .select("therapist_id, therapists (id, first_name, last_name, profile_image, skills, status, gender)")
+        .select("therapist_id, therapists (id, first_name, last_name, profile_image, status, gender)")
         .eq("hotel_id", hotelId);
 
       if (linksError) throw linksError;
@@ -141,25 +145,42 @@ export function useAvailableTherapistsForSlot({
         if (bStart < requestedEnd && bEnd > requestedStart) busyTherapistIds.add(bt.therapist_id);
       });
 
-      let filtered = venueTherapists;
+      const filtered = venueTherapists;
 
-      // 5. Filtre par compétences (case-insensitive)
+      // 5. Qualification par prestations réalisables (therapist_treatments).
+      // Même prédicat que reserve_trunk_atomically : add-ons et amenities exclus
+      // (réalisés par le thérapeute du soin de base / sans thérapeute), et un
+      // thérapeute sans aucune association reste polyvalent.
+      // Annotation seulement : l'admin garde la main pour assigner hors qualification,
+      // l'UI se charge de le signaler.
+      const unqualifiedIds = new Set<string>();
       if (sortedTreatmentIds.length > 0) {
         const { data: treatmentRows } = await supabase
           .from("treatment_menus")
-          .select("treatment_type")
-          .in("id", sortedTreatmentIds);
+          .select("id")
+          .in("id", sortedTreatmentIds)
+          .eq("is_addon", false)
+          .is("amenity_id", null);
 
-        const requiredTypes = new Set(
-          (treatmentRows || [])
-            .map((r) => r.treatment_type?.toLowerCase())
-            .filter((t): t is string => !!t),
-        );
+        const requiredIds = (treatmentRows || []).map((r) => r.id);
 
-        if (requiredTypes.size > 0) {
-          filtered = filtered.filter((therapist) => {
-            const skills = (therapist.skills || []).map((s) => s.toLowerCase());
-            return [...requiredTypes].every((type) => skills.includes(type));
+        if (requiredIds.length > 0) {
+          const { data: ownedRows } = await supabase
+            .from("therapist_treatments")
+            .select("therapist_id, treatment_menu_id")
+            .in("therapist_id", filtered.map((t) => t.id));
+
+          const ownedByTherapist = new Map<string, Set<string>>();
+          (ownedRows || []).forEach((row) => {
+            const owned = ownedByTherapist.get(row.therapist_id) ?? new Set<string>();
+            owned.add(row.treatment_menu_id);
+            ownedByTherapist.set(row.therapist_id, owned);
+          });
+
+          filtered.forEach((therapist) => {
+            const owned = ownedByTherapist.get(therapist.id);
+            if (!owned || owned.size === 0) return; // aucune association = polyvalent
+            if (!requiredIds.every((id) => owned.has(id))) unqualifiedIds.add(therapist.id);
           });
         }
       }
@@ -202,14 +223,20 @@ export function useAvailableTherapistsForSlot({
           ...t,
           isAvailableForSlot,
           shiftEndsBeforeSlotEnd: isAvailableForSlot ? shiftEnd : null,
+          isQualifiedForTreatments: !unqualifiedIds.has(t.id),
         };
       });
 
-      return annotated.sort((a, b) =>
-        a.isAvailableForSlot === b.isAvailableForSlot
-          ? a.first_name.localeCompare(b.first_name)
-          : a.isAvailableForSlot ? -1 : 1,
-      );
+      // Non qualifiés en dernier, puis disponibles avant les autres, puis alphabétique.
+      return annotated.sort((a, b) => {
+        if (a.isQualifiedForTreatments !== b.isQualifiedForTreatments) {
+          return a.isQualifiedForTreatments ? -1 : 1;
+        }
+        if (a.isAvailableForSlot !== b.isAvailableForSlot) {
+          return a.isAvailableForSlot ? -1 : 1;
+        }
+        return a.first_name.localeCompare(b.first_name);
+      });
     },
   });
 }

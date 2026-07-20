@@ -209,6 +209,45 @@ serve(async (req) => {
              !(booking.declined_by || []).includes(t.id);
     });
 
+    // Broadcast : n'alerter que les praticiens qui peuvent réaliser le booking.
+    // Sans ce filtre, un non-qualifié serait notifié puis se verrait refuser
+    // l'acceptation par accept_booking. Même prédicat que reserve_trunk_atomically :
+    // add-ons et amenities exclus, aucune association = polyvalent.
+    // Inutile quand notifyAll = false : la cible est déjà restreinte aux assignés.
+    if (notifyAll && eligibleTherapists.length > 0) {
+      const { data: requiredRows } = await supabaseClient
+        .from("booking_treatments")
+        .select("treatment_id, treatment_menus!inner(amenity_id)")
+        .eq("booking_id", bookingId)
+        .eq("is_addon", false)
+        .is("treatment_menus.amenity_id", null);
+      const requiredTreatmentIds = [
+        ...new Set((requiredRows ?? []).map((r: { treatment_id: string }) => r.treatment_id)),
+      ];
+
+      if (requiredTreatmentIds.length > 0) {
+        const therapistIds = eligibleTherapists.map(th => (th.therapists as any).id);
+        const { data: ownedRows } = await supabaseClient
+          .from("therapist_treatments")
+          .select("therapist_id, treatment_menu_id")
+          .in("therapist_id", therapistIds);
+
+        const ownedByTherapist = new Map<string, Set<string>>();
+        (ownedRows ?? []).forEach((row: { therapist_id: string; treatment_menu_id: string }) => {
+          const owned = ownedByTherapist.get(row.therapist_id) ?? new Set<string>();
+          owned.add(row.treatment_menu_id);
+          ownedByTherapist.set(row.therapist_id, owned);
+        });
+
+        eligibleTherapists = eligibleTherapists.filter(th => {
+          const owned = ownedByTherapist.get((th.therapists as any).id);
+          if (!owned || owned.size === 0) return true; // polyvalent
+          return requiredTreatmentIds.every(id => owned.has(id));
+        });
+        console.log(`Qualified therapists after treatment filter: ${eligibleTherapists.length}`);
+      }
+    }
+
     // Assigned therapists (duo = plusieurs lignes). Source de vérité pour le ciblage
     // non-broadcast : on notifie TOUS les praticiens assignés, pas seulement le principal.
     let assignedTherapistIds: string[] = [];
