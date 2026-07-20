@@ -39,6 +39,18 @@ async function lastPublishedDate() {
   return dates.sort().at(-1);
 }
 
+/**
+ * True when a previous draft is still awaiting review.
+ *
+ * The workflow fires on every push to main, but `lastPublishedDate()` only sees
+ * entries that have been merged. Without this guard, every push while a draft
+ * sits open would re-collect the same PRs and open a second, overlapping draft.
+ */
+function draftAlreadyOpen() {
+  const raw = run("gh", ["pr", "list", "--state", "open", "--limit", "100", "--json", "headRefName"]);
+  return JSON.parse(raw).some((pr) => pr.headRefName.startsWith("auto/changelog-"));
+}
+
 function fallbackDate() {
   const d = new Date();
   d.setDate(d.getDate() - 30);
@@ -166,6 +178,12 @@ function parseResponse(raw) {
 }
 
 async function main() {
+  if (draftAlreadyOpen()) {
+    console.error("Un brouillon de note de version est déjà ouvert — rien à faire");
+    console.log("SKIP");
+    return;
+  }
+
   const since = (await lastPublishedDate()) || fallbackDate();
   const today = new Date().toISOString().slice(0, 10);
 
