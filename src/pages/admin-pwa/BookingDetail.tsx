@@ -49,8 +49,8 @@ import {
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   room: "Note de chambre",
-  card: "Paiement en ligne",
-  card_on_site: "Carte sur place",
+  card: "Carte — paiement en ligne",
+  card_on_site: "Carte — sur place",
   cash: "Espèces",
   offert: "Offert",
   gift_amount: "Carte cadeau",

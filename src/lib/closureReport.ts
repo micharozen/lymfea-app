@@ -110,8 +110,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  card: "Paiement en ligne",
-  card_on_site: "Carte sur place",
+  card: "Carte — paiement en ligne",
+  card_on_site: "Carte — sur place",
   cash: "Espèces",
   room: "Note de chambre",
   offert: "Offert",
