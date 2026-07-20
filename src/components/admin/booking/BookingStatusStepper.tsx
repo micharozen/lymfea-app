@@ -1,9 +1,12 @@
 import { Check, X, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isPartnerBilledBooking } from "@/lib/clientTypePayment";
 
 interface BookingStatusStepperProps {
   status: string;
   paymentStatus: string;
+  /** Méthode de paiement — identifie une facturation partenaire (stockée "paid"). */
+  paymentMethod?: string | null;
   /** Optional subline shown under "Annulé" — e.g. cancellation time + source. */
   cancellationDetail?: string;
 }
@@ -14,8 +17,12 @@ interface Step {
   sublabel: string;
 }
 
-function buildSteps(status: string, paymentStatus: string): { steps: Step[]; currentIndex: number } {
-  const isPartnerBilled = paymentStatus === "pending_partner_billing";
+function buildSteps(
+  status: string,
+  paymentStatus: string,
+  paymentMethod?: string | null,
+): { steps: Step[]; currentIndex: number } {
+  const isPartnerBilled = isPartnerBilledBooking(paymentMethod, paymentStatus);
   const isConfirmed = status === "confirmed" || status === "completed";
 
   // Partner-billed flow has its own path: the partner settles at month-end,
@@ -84,7 +91,7 @@ function buildSteps(status: string, paymentStatus: string): { steps: Step[]; cur
   return { steps, currentIndex };
 }
 
-export function BookingStatusStepper({ status, paymentStatus, cancellationDetail }: BookingStatusStepperProps) {
+export function BookingStatusStepper({ status, paymentStatus, paymentMethod, cancellationDetail }: BookingStatusStepperProps) {
   const isCancelled = status === "cancelled";
   const isNoshow = status === "noshow";
 
@@ -108,7 +115,7 @@ export function BookingStatusStepper({ status, paymentStatus, cancellationDetail
     );
   }
 
-  const { steps, currentIndex } = buildSteps(status, paymentStatus);
+  const { steps, currentIndex } = buildSteps(status, paymentStatus, paymentMethod);
 
   return (
     <div className="bg-white rounded-xl border p-4">

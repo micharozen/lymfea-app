@@ -19,6 +19,8 @@ import { useIsMounted } from "@/hooks/useIsMounted";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import { myLegDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
+// Aliasé : une variable locale s'appelle déjà effectivePaymentStatus plus bas.
+import { effectivePaymentStatus as toDisplayPaymentStatus } from "@/lib/clientTypePayment";
 import {
   Drawer,
   DrawerClose,
@@ -710,11 +712,17 @@ const PwaBookingDetail = () => {
   })();
 
   const locale = i18n.language?.startsWith('en') ? enUS : fr;
-  const payKind = getPaymentKind(booking.effective_payment_status);
+  // Statut affiché : une facturation partenaire est stockée "paid" mais reste
+  // présentée comme "Paiement partenaire".
+  const displayPaymentStatus = toDisplayPaymentStatus(
+    booking.payment_method,
+    booking.effective_payment_status ?? booking.payment_status,
+  );
+  const payKind = getPaymentKind(displayPaymentStatus);
   const acceptedTotal = booking.booking_therapists?.filter((bt) => bt.status === 'accepted').length || 0;
   const isToday = booking.booking_date === format(new Date(), "yyyy-MM-dd");
   const isConfirmed = booking.status === "confirmed";
-  const isPaidLike = ['paid', 'charged_to_room', 'pending_partner_billing'].includes(booking.effective_payment_status || '');
+  const isPaidLike = ['paid', 'charged_to_room', 'pending_partner_billing'].includes(displayPaymentStatus);
   const canExtend = ['confirmed', 'ongoing'].includes(booking.status) && !!booking.room_id && (!roomGap || roomGap.gapMinutes >= 15);
 
   const goBack = () => {
