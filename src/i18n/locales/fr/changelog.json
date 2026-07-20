@@ -1,0 +1,23 @@
+{
+  "meta": {
+    "title": "Changelog — Saoma",
+    "description": "Toutes les nouveautés de Saoma : améliorations de l'agenda, de l'app thérapeute et du parcours de réservation client, publiées à chaque mise à jour."
+  },
+  "header": {
+    "back": "Retour à l'accueil",
+    "eyebrow": "Changelog",
+    "title": "Ce qui change dans Saoma",
+    "subtitle": "Chaque mise à jour de la plateforme, expliquée simplement. Les nouveautés les plus récentes en premier."
+  },
+  "type": {
+    "new": "Nouveau",
+    "improved": "Amélioré",
+    "fixed": "Corrigé"
+  },
+  "audience": {
+    "admin": "Administration",
+    "therapist": "App thérapeute",
+    "client": "Réservation client"
+  },
+  "empty": "Aucune note de version publiée pour le moment."
+}

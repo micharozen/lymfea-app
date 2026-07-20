@@ -1,0 +1,74 @@
+{
+  "date": "2026-07-19",
+  "slug": "notes-client-et-rotation-des-salles",
+  "title": {
+    "fr": "Notes client, rotation des salles et paiements",
+    "en": "Client notes, room turnover and payments"
+  },
+  "summary": {
+    "fr": "Un agenda qui vous alerte quand deux soins s'enchaînent trop vite dans la même salle, des notes rattachées à chaque client, et un suivi des paiements plus clair.",
+    "en": "An agenda that warns you when two treatments follow each other too closely in the same room, notes attached to every client, and clearer payment tracking."
+  },
+  "items": [
+    {
+      "type": "new",
+      "audience": "admin",
+      "title": {
+        "fr": "Alerte de rotation des salles",
+        "en": "Room turnover warning"
+      },
+      "body": {
+        "fr": "L'agenda vous prévient désormais lorsqu'une nouvelle réservation ne laisse pas assez de temps pour remettre la salle en état entre deux soins. Vous gardez la main : l'alerte informe sans bloquer la réservation.",
+        "en": "The agenda now warns you when a new booking leaves too little time to reset the room between two treatments. You stay in control: the warning informs without blocking the booking."
+      }
+    },
+    {
+      "type": "new",
+      "audience": "admin",
+      "title": {
+        "fr": "Notes rattachées au client",
+        "en": "Notes attached to the client"
+      },
+      "body": {
+        "fr": "Ajoutez des notes à une fiche client (préférences, allergies, contre-indications). Elles vous suivent d'une réservation à l'autre au lieu de disparaître avec le rendez-vous passé.",
+        "en": "Add notes to a client profile (preferences, allergies, contraindications). They carry over from one booking to the next instead of disappearing with the past appointment."
+      }
+    },
+    {
+      "type": "improved",
+      "audience": "admin",
+      "title": {
+        "fr": "Marquer une réservation comme payée",
+        "en": "Mark a booking as paid"
+      },
+      "body": {
+        "fr": "Vous pouvez enregistrer un paiement encaissé en dehors de la plateforme directement sur la réservation. Le statut de paiement et les rapports financiers restent alignés.",
+        "en": "You can record a payment collected outside the platform directly on the booking. Payment status and financial reports stay in sync."
+      }
+    },
+    {
+      "type": "improved",
+      "audience": "client",
+      "title": {
+        "fr": "Parcours de réservation simplifié pour les accès seuls",
+        "en": "Simpler booking flow for access-only bookings"
+      },
+      "body": {
+        "fr": "Lorsqu'une réservation ne contient qu'un accès (piscine, hammam, sauna), l'étape de choix du praticien n'apparaît plus et le vocabulaire est adapté : on parle de « réservation », pas de « soin ».",
+        "en": "When a booking contains only an access (pool, hammam, sauna), the practitioner selection step no longer appears and the wording adapts: it reads as a \"booking\", not a \"treatment\"."
+      }
+    },
+    {
+      "type": "fixed",
+      "audience": "admin",
+      "title": {
+        "fr": "Champs de recherche dans les fenêtres",
+        "en": "Search fields inside dialogs"
+      },
+      "body": {
+        "fr": "Les listes déroulantes avec recherche (client, lieu, prestation) sont de nouveau utilisables au clavier lorsqu'elles s'ouvrent à l'intérieur d'une fenêtre.",
+        "en": "Searchable dropdowns (client, venue, treatment) are usable with the keyboard again when they open inside a dialog."
+      }
+    }
+  ]
+}
