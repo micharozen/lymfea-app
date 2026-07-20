@@ -39,12 +39,15 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  card: "Carte",
-  tap_to_pay: "Tap to Pay",
+  card: "Paiement en ligne",
+  card_on_site: "Carte sur place",
   cash: "Espèces",
   room: "Facturé chambre",
   bundle: "Forfait",
   gift_amount: "Carte cadeau",
+  offert: "Offert",
+  voucher: "Payé par voucher",
+  partner_billed: "Facturé au partenaire",
 };
 
 const PAYMENT_STATUS_LABELS: Record<string, string> = {

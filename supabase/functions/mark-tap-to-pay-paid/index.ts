@@ -224,7 +224,7 @@ serve(async (req) => {
       .update({
         status: 'completed',
         payment_status: 'paid',
-        payment_method: 'tap_to_pay',
+        payment_method: 'card_on_site',
         total_price: grossTTC,
         updated_at: new Date().toISOString(),
       })
@@ -261,7 +261,7 @@ serve(async (req) => {
 
     const result = {
       success: true,
-      payment_method: 'tap_to_pay',
+      payment_method: 'card_on_site',
       breakdown,
       ledger_amount: ledgerAmount,
     };

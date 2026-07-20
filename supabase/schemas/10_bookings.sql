@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS "public"."bookings" (
     CONSTRAINT "bookings_client_type_check" CHECK (("client_type" = ANY (ARRAY['hotel'::"text", 'staycation'::"text", 'classpass'::"text", 'sezame'::"text", 'external'::"text"]))),
     CONSTRAINT "bookings_gift_amount_applied_cents_check" CHECK (("gift_amount_applied_cents" >= 0)),
     CONSTRAINT "bookings_payment_link_language_check" CHECK (("payment_link_language" = ANY (ARRAY['fr'::"text", 'en'::"text"]))),
-    CONSTRAINT "bookings_payment_method_check" CHECK (("payment_method" = ANY (ARRAY['room'::"text", 'card'::"text", 'tap_to_pay'::"text", 'offert'::"text", 'gift_amount'::"text", 'voucher'::"text", 'partner_billed'::"text"]))),
+    CONSTRAINT "bookings_payment_method_check" CHECK (("payment_method" = ANY (ARRAY['room'::"text", 'card'::"text", 'card_on_site'::"text", 'offert'::"text", 'gift_amount'::"text", 'voucher'::"text", 'partner_billed'::"text", 'cash'::"text"]))),
     CONSTRAINT "bookings_payment_status_check" CHECK (("payment_status" = ANY (ARRAY['pending'::"text", 'awaiting_payment'::"text", 'paid'::"text", 'failed'::"text", 'refunded'::"text", 'charged'::"text", 'charged_to_room'::"text", 'card_saved'::"text", 'expired'::"text", 'pending_partner_billing'::"text", 'pending_room_charge'::"text"]))),
     CONSTRAINT "bookings_therapist_gender_preference_check" CHECK (("therapist_gender_preference" = ANY (ARRAY['female'::"text", 'male'::"text"])))
 );
