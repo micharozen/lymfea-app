@@ -64,9 +64,9 @@ const PAYMENT_LABELS: Record<string, string> = {
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   room: "Facturé en chambre",
-  card: "Paiement en ligne",
+  card: "Carte — paiement en ligne",
+  card_on_site: "Carte — sur place",
   cash: "Espèces",
-  card_on_site: "Carte sur place",
   offert: "Offert",
   gift_amount: "Carte cadeau",
   voucher: "Payé par voucher — encaissé par le lieu",
