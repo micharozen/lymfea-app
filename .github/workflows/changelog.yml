@@ -1,0 +1,91 @@
+name: Changelog
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: changelog
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    name: Draft changelog entry
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Draft entry
+        id: draft
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OUTPUT=$(node scripts/generate-changelog-entry.mjs)
+          echo "$OUTPUT"
+          if [ "$OUTPUT" = "SKIP" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "file=${OUTPUT#WROTE }" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open PR
+        if: steps.draft.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "Aucun fichier écrit — rien à publier"
+            exit 0
+          fi
+
+          DATE=$(date +%Y-%m-%d)
+          BRANCH="auto/changelog-${DATE}-${{ github.run_number }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add src/content/changelog/
+          git commit -m "docs: note de version du ${DATE}"
+          git push -u origin "$BRANCH"
+
+          # Base = main : la branche est coupée depuis main et n'ajoute qu'un JSON
+          # de contenu. Reporter l'entrée sur staging se fait au prochain sync.
+          {
+            echo "Brouillon de note de version généré automatiquement à partir des PR mergées sur \`main\`."
+            echo
+            echo "**À relire avant merge** : ton, exactitude, vocabulaire produit (thérapeute / salle de soin / lieu), cohérence FR ↔ EN."
+            echo
+            echo "Publié sur https://saoma.io/changelog une fois mergé et déployé."
+            echo
+            echo '```json'
+            cat "${{ steps.draft.outputs.file }}"
+            echo '```'
+          } > /tmp/pr-body.md
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "docs: note de version du ${DATE}" \
+            --body-file /tmp/pr-body.md
