@@ -2812,6 +2812,42 @@ export type Database = {
           },
         ]
       }
+      therapist_treatments: {
+        Row: {
+          created_at: string | null
+          id: string
+          therapist_id: string
+          treatment_menu_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          therapist_id: string
+          treatment_menu_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          therapist_id?: string
+          treatment_menu_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "therapist_treatments_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "therapists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "therapist_treatments_treatment_menu_id_fkey"
+            columns: ["treatment_menu_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       therapist_venues: {
         Row: {
           created_at: string | null

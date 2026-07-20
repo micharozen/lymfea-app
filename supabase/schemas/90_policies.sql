@@ -80,6 +80,8 @@ CREATE POLICY "Admins can manage customers" ON "public"."customers" USING ("publ
 
 CREATE POLICY "Admins can manage hairdresser hotels" ON "public"."therapist_venues" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
 
+CREATE POLICY "Admins can manage therapist treatments" ON "public"."therapist_treatments" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
+
 CREATE POLICY "Admins can manage invoices" ON "public"."invoices" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
 
 CREATE POLICY "Admins can manage ledger" ON "public"."hotel_ledger" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
@@ -285,6 +287,11 @@ CREATE POLICY "Concierges can view customers" ON "public"."customers" FOR SELECT
 
 CREATE POLICY "Concierges can view hairdresser hotels from their hotels" ON "public"."therapist_venues" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
    FROM "public"."get_concierge_hotels"("auth"."uid"()) "get_concierge_hotels"("hotel_id")))));
+
+CREATE POLICY "Concierges can view therapist treatments from their hotels" ON "public"."therapist_treatments" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("treatment_menu_id" IN ( SELECT "tm"."id"
+   FROM "public"."treatment_menus" "tm"
+  WHERE ("tm"."hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
+           FROM "public"."get_concierge_hotels"("auth"."uid"()) "get_concierge_hotels"("hotel_id")))))));
 
 CREATE POLICY "Concierges can view hairdressers from their hotels" ON "public"."therapists" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("id" IN ( SELECT "hh"."therapist_id" AS "hairdresser_id"
    FROM "public"."therapist_venues" "hh"
@@ -497,6 +504,8 @@ CREATE POLICY "Therapists can view pending bookings from their hotels" ON "publi
   WHERE ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"())))) AND (NOT ("public"."get_therapist_id"("auth"."uid"()) = ANY (COALESCE("declined_by", ARRAY[]::"uuid"[]))))));
 
 CREATE POLICY "Therapists can view their own hotel associations" ON "public"."therapist_venues" FOR SELECT TO "authenticated" USING (("therapist_id" = "public"."get_therapist_id"("auth"."uid"())));
+
+CREATE POLICY "Therapists can view their own treatments" ON "public"."therapist_treatments" FOR SELECT TO "authenticated" USING (("therapist_id" = "public"."get_therapist_id"("auth"."uid"())));
 
 CREATE POLICY "Therapists can view their own ratings" ON "public"."therapist_ratings" FOR SELECT USING (("therapist_id" = "public"."get_therapist_id"("auth"."uid"())));
 
