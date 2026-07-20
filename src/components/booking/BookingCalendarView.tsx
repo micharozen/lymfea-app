@@ -68,7 +68,8 @@ interface BookingCalendarViewProps {
   startHour: number;
   getHotelInfo: (hotelId: string | null) => Hotel | null;
   hotels: Hotel[] | undefined;
-  hotelFilter: string;
+  /** Selected venue ids; empty means no venue filter. */
+  hotelFilter: string[];
   // Availability overlay (optional — only from VenueBookingCalendar)
   availabilityData?: {
     daySummaries: Map<string, DaySummary>;
@@ -184,8 +185,8 @@ export function BookingCalendarView({
   const { earliestOpen, latestClose } = useMemo(() => {
     if (!hotels || hotels.length === 0) return { earliestOpen: 7, latestClose: 24 };
 
-    const relevantHotels = hotelFilter !== 'all'
-      ? hotels.filter(h => h.id === hotelFilter)
+    const relevantHotels = hotelFilter.length > 0
+      ? hotels.filter(h => hotelFilter.includes(h.id))
       : hotels;
 
     if (relevantHotels.length === 0) return { earliestOpen: 7, latestClose: 24 };

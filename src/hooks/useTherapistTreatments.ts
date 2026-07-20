@@ -22,9 +22,9 @@ export function useTherapistTreatments(therapistId: string | null | undefined) {
  * Enregistre la liste des prestations d'un thérapeute par diff.
  *
  * On n'utilise pas le « delete-all puis re-insert » employé pour
- * therapist_venues : à partir de la Release 2, une liste vide vaut
- * « polyvalent ». Purger avant de réinsérer ouvrirait une fenêtre où le
- * thérapeute serait proposé pour n'importe quelle prestation.
+ * therapist_venues : une liste vide vaut « polyvalent » pour le matching.
+ * Purger avant de réinsérer ouvrirait une fenêtre où le thérapeute serait
+ * proposé pour n'importe quelle prestation.
  */
 export function useSetTherapistTreatments() {
   const queryClient = useQueryClient();

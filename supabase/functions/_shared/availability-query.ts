@@ -7,7 +7,7 @@
 //
 // Merged from the former `check-availability` and `check-availability-range`
 // functions so the two stay impossible to diverge — including the
-// skills/category qualification filter that previously only lived in the
+// therapist_treatments qualification filter that previously only lived in the
 // single-date function.
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
@@ -107,12 +107,14 @@ export async function getVenueAvailability(
   const minBookingNotice = hotelData?.min_booking_notice_minutes ?? 0;
   const venueTz = hotelData?.timezone || "UTC";
 
-  // 3. Treatments → max lead time, max duration, required skill categories.
-  // Amenity treatments (amenity_id set) impose no therapist specialty and their
-  // duration is tracked separately for the amenity capacity check.
+  // 3. Treatments → max lead time, max duration, required treatments.
+  // Amenity treatments (amenity_id set) mobilise no therapist and their duration
+  // is tracked separately for the amenity capacity check. Add-ons are performed
+  // by the therapist of their base soin, so they impose no requirement either —
+  // same exclusion as reserve_trunk_atomically.
   let maxTreatmentLeadTime = 0;
   let maxTreatmentDuration = 0;
-  const requiredCategories = new Set<string>();
+  const requiredTreatmentIds = new Set<string>();
   // amenityId → longest treatment duration (minutes) requested for that amenity.
   const cartAmenityDurations = new Map<string, number>();
   // A booking needs rooms/therapists only if it contains at least one real soin.
@@ -121,7 +123,7 @@ export async function getVenueAvailability(
   if (opts.treatmentIds && opts.treatmentIds.length > 0) {
     const { data: treatments } = await supabase
       .from("treatment_menus")
-      .select("lead_time, treatment_type, duration, amenity_id")
+      .select("id, lead_time, duration, amenity_id, is_addon")
       .in("id", opts.treatmentIds);
     if (treatments && treatments.length > 0) {
       maxTreatmentLeadTime = Math.max(...treatments.map((t: any) => t.lead_time || 0));
@@ -135,7 +137,7 @@ export async function getVenueAvailability(
           );
         } else {
           hasSoin = true;
-          if (t.treatment_type) requiredCategories.add(t.treatment_type);
+          if (!t.is_addon) requiredTreatmentIds.add(t.id);
         }
       });
     }
@@ -147,10 +149,10 @@ export async function getVenueAvailability(
       ? opts.requestedDuration
       : null) ?? (maxTreatmentDuration || slotInterval);
 
-  // 4. Therapists: active + optional gender + skill qualification.
+  // 4. Therapists: active + optional gender + treatment qualification.
   let therapistQuery = supabase
     .from("therapist_venues")
-    .select("therapist_id, therapists!inner(id, status, skills, gender)")
+    .select("therapist_id, therapists!inner(id, status, gender)")
     .eq("hotel_id", hotelId);
   if (opts.therapistGender) {
     therapistQuery = therapistQuery.eq("therapists.gender", opts.therapistGender);
@@ -160,9 +162,26 @@ export async function getVenueAvailability(
     const s = h.therapists?.status?.toLowerCase();
     return s === "active" || s === "actif";
   });
+
+  // therapistId → ids des prestations qu'il peut réaliser. Absent de la Map =
+  // aucune association = polyvalent (cf. filterQualifiedTherapists).
+  const treatmentsByTherapist = new Map<string, Set<string>>();
+  if (requiredTreatmentIds.size > 0 && activeTherapists.length > 0) {
+    const { data: therapistTreatmentRows } = await supabase
+      .from("therapist_treatments")
+      .select("therapist_id, treatment_menu_id")
+      .in("therapist_id", activeTherapists.map((h: any) => h.therapist_id));
+    (therapistTreatmentRows || []).forEach((row: any) => {
+      const owned = treatmentsByTherapist.get(row.therapist_id) ?? new Set<string>();
+      owned.add(row.treatment_menu_id);
+      treatmentsByTherapist.set(row.therapist_id, owned);
+    });
+  }
+
   const qualifiedTherapists = filterQualifiedTherapists(
-    activeTherapists.map((h: any) => ({ therapist_id: h.therapist_id, skills: h.therapists?.skills ?? null })),
-    requiredCategories,
+    activeTherapists.map((h: any) => ({ therapist_id: h.therapist_id })),
+    requiredTreatmentIds,
+    treatmentsByTherapist,
   );
   const therapistIds = qualifiedTherapists.map((h) => h.therapist_id);
 

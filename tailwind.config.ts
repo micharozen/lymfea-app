@@ -113,11 +113,18 @@ export default {
           from: { opacity: "0.85" },
           to: { opacity: "1" },
         },
+        // Onde de diffusion : une seule impulsion qui s'échappe de l'avatar, pas une pulsation
+        // permanente comme animate-ping.
+        "broadcast-ping": {
+          from: { transform: "scale(1)", opacity: "0.7" },
+          to: { transform: "scale(2.2)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "page-fade-in": "page-fade-in 200ms ease-out",
+        "broadcast-ping": "broadcast-ping 1.2s cubic-bezier(0.16, 1, 0.3, 1) 1 both",
       },
     },
   },

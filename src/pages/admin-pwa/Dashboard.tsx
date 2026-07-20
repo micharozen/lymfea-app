@@ -27,6 +27,11 @@ export default function AdminPwaDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Ce dashboard mobile garde une mono-sélection : ponts vers le modèle
+  // multi-sélection du hook, où [] signifie "aucune restriction".
+  const toSingle = (selection: string[]) => selection[0] ?? "all";
+  const fromSingle = (value: string) => (value === "all" ? [] : [value]);
+
   const { bookings, hotels, getHotelInfo, refetch } = useBookingData();
   const {
     searchQuery,
@@ -117,7 +122,7 @@ export default function AdminPwaDashboard() {
 
         {showFilters && (
           <div className="flex gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={toSingle(statusFilter)} onValueChange={(v) => setStatusFilter(fromSingle(v))}>
               <SelectTrigger className="h-9 flex-1">
                 <SelectValue placeholder="Statut" />
               </SelectTrigger>
@@ -130,7 +135,7 @@ export default function AdminPwaDashboard() {
                 <SelectItem value="cancelled">Annulé</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={hotelFilter} onValueChange={setHotelFilter}>
+            <Select value={toSingle(hotelFilter)} onValueChange={(v) => setHotelFilter(fromSingle(v))}>
               <SelectTrigger className="h-9 flex-1">
                 <SelectValue placeholder="Hôtel" />
               </SelectTrigger>
@@ -154,7 +159,7 @@ export default function AdminPwaDashboard() {
             <div className="text-5xl mb-4">📋</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune réservation</h3>
             <p className="text-sm text-gray-500">
-              {searchQuery || statusFilter !== "all" || hotelFilter !== "all"
+              {searchQuery || statusFilter.length > 0 || hotelFilter.length > 0
                 ? "Aucune réservation ne correspond à vos filtres"
                 : "Aucune réservation pour le moment"}
             </p>

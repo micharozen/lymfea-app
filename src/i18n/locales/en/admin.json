@@ -1,4 +1,29 @@
 {
+  "broadcast": {
+    "tab": "Broadcast",
+    "loading": "Reconstructing the broadcast…",
+    "error": "Could not load the broadcast.",
+    "empty": "No broadcast recorded for this booking.",
+    "disclaimer": "Reconstructed as of now: availability and qualifications may have changed since the broadcast. \"Notified\" means the push was triggered, not that it was received.",
+    "notifiedTitle": "Notified",
+    "notReachedTitle": "Not notified",
+    "reasons": {
+      "no_pwa_account": "no PWA account",
+      "inactive": "inactive account",
+      "declined": "declined",
+      "not_qualified": "does not perform this treatment",
+      "unavailable": "unavailable that day",
+      "unknown": "unknown reason"
+    },
+    "reasonsLong": {
+      "no_pwa_account": "This therapist has no PWA account and cannot receive any push notification.",
+      "inactive": "Their status is not \"active\", so they are excluded from every broadcast.",
+      "declined": "They declined this booking and are no longer contacted about it.",
+      "not_qualified": "Does not perform: {{treatments}}.",
+      "unavailable": "They marked themselves unavailable for this date.",
+      "unknown": "No exclusion reason applies today. The broadcast most likely never ran, or this therapist was linked to the venue after it was sent."
+    }
+  },
   "welcome": {
     "skip": "Skip",
     "back": "Back",
@@ -166,6 +191,7 @@
         "therapist": "Therapist",
         "currency": "Currency",
         "status": "Status",
+        "paymentMethod": "Payment method",
         "paymentStatus": "Payment status",
         "treatments": "Treatments",
         "duration": "Duration (min)",
@@ -1056,6 +1082,8 @@
     "therapistSections": {
       "available": "Available",
       "others": "Other venue therapists",
+      "unqualified": "Does not perform this treatment",
+      "unqualifiedHint": "Treatment not in their performable services",
       "shiftEnds": "Shift ends at {{time}}"
     },
     "comboDuo": {

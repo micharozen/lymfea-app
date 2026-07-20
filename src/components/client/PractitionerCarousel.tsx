@@ -7,7 +7,6 @@ interface Practitioner {
   id: string;
   first_name: string;
   profile_image: string | null;
-  skills: string[] | null;
 }
 
 interface PractitionerCarouselProps {
@@ -48,7 +47,6 @@ export function PractitionerCarousel({ hotelId }: PractitionerCarouselProps) {
             key={practitioner.id}
             firstName={practitioner.first_name}
             profileImage={practitioner.profile_image}
-            skills={practitioner.skills}
           />
         ))}
       </div>

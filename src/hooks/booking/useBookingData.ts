@@ -33,10 +33,12 @@ export interface Therapist {
 export interface UseBookingDataOptions {
   /** ISO date (YYYY-MM-DD). Only bookings with booking_date >= fromDate are fetched. */
   fromDate?: string;
+  /** ISO date (YYYY-MM-DD). Caps the window at booking_date <= toDate. */
+  toDate?: string;
 }
 
 export function useBookingData(options: UseBookingDataOptions = {}) {
-  const { fromDate } = options;
+  const { fromDate, toDate } = options;
   const { isSuperAdmin, organizationId, activeOrganizationId, hasChosenActiveOrganization } =
     useUser();
 
@@ -51,7 +53,10 @@ export function useBookingData(options: UseBookingDataOptions = {}) {
     return null;
   }, [isSuperAdmin, organizationId, activeOrganizationId, hasChosenActiveOrganization]);
 
-  const filters = useMemo(() => (fromDate ? { fromDate } : {}), [fromDate]);
+  const filters = useMemo(
+    () => ({ ...(fromDate ? { fromDate } : {}), ...(toDate ? { toDate } : {}) }),
+    [fromDate, toDate],
+  );
 
   const { data: bookings, refetch: refetchBookings } = useQuery({
     queryKey: scope ? bookingKeys.list(scope, filters) : ["bookings", "disabled"],

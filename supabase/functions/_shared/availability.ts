@@ -196,20 +196,24 @@ export const ACTIVE_BOOKING_STATUS_FILTER =
   '("Annulé","Terminé","cancelled","completed","noshow")';
 
 // Qualification rule: which therapists can perform the requested treatment(s).
-// `requiredCategories` holds the treatment_type slug(s) of the selected
-// treatment(s). A therapist qualifies when:
-//   - no category is required (treatment-agnostic query), or
-//   - they have no skills assigned (backward compat / polyvalent), or
-//   - at least one of their skills matches a required category.
-// Single source of truth shared by every availability path.
-export function filterQualifiedTherapists<T extends { skills: string[] | null }>(
+// `requiredTreatmentIds` holds the treatment_menus ids of the selected soins,
+// add-ons and amenities excluded (an add-on is performed by the therapist of its
+// base soin; an amenity mobilises no therapist). A therapist qualifies when:
+//   - no treatment is required (treatment-agnostic query), or
+//   - they have no therapist_treatments row (backward compat / polyvalent), or
+//   - their associations cover EVERY required treatment.
+// Must stay byte-for-byte equivalent to the predicate in
+// reserve_trunk_atomically: a slot shown here that the RPC then refuses means
+// the client pays before the booking fails.
+export function filterQualifiedTherapists<T extends { therapist_id: string }>(
   therapists: T[],
-  requiredCategories: Set<string>,
+  requiredTreatmentIds: Set<string>,
+  treatmentsByTherapist: Map<string, Set<string>>,
 ): T[] {
-  if (requiredCategories.size === 0) return therapists;
+  if (requiredTreatmentIds.size === 0) return therapists;
   return therapists.filter((t) => {
-    const skills = t.skills;
-    if (!skills || skills.length === 0) return true;
-    return [...requiredCategories].some((cat) => skills.includes(cat));
+    const owned = treatmentsByTherapist.get(t.therapist_id);
+    if (!owned || owned.size === 0) return true;
+    return [...requiredTreatmentIds].every((id) => owned.has(id));
   });
 }

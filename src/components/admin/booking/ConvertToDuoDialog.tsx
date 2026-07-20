@@ -197,7 +197,11 @@ export function ConvertToDuoDialog({
               // current selection (safety net even if it dropped out of availability).
               const options = available.filter((a) => !otherIds.has(a.id) || a.id === currentId);
               const currentInOptions = options.some((o) => o.id === currentId);
-              const { available: openOptions, others: otherOptions } = partitionTherapistsForSlot(options);
+              const {
+                available: openOptions,
+                others: otherOptions,
+                unqualified: unqualifiedOptions,
+              } = partitionTherapistsForSlot(options);
               const renderOption = (a: (typeof options)[number]) => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.first_name} {a.last_name}
@@ -240,6 +244,14 @@ export function ConvertToDuoDialog({
                             <SelectGroup>
                               <SelectLabel>{t("booking.therapistSections.others")}</SelectLabel>
                               {otherOptions.map(renderOption)}
+                            </SelectGroup>
+                          )}
+                          {unqualifiedOptions.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel className="text-amber-600">
+                                {t("booking.therapistSections.unqualified")}
+                              </SelectLabel>
+                              {unqualifiedOptions.map(renderOption)}
                             </SelectGroup>
                           )}
                         </>

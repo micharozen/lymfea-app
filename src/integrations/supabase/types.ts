@@ -4187,6 +4187,14 @@ export type Database = {
           total_price: number
         }[]
       }
+      get_public_hairdressers: {
+        Args: { _hotel_id: string }
+        Returns: {
+          first_name: string
+          id: string
+          profile_image: string
+        }[]
+      }
       get_public_hotel: {
         Args: { _identifier: string }
         Returns: {
@@ -4316,7 +4324,6 @@ export type Database = {
           first_name: string
           id: string
           profile_image: string
-          skills: string[]
         }[]
       }
       get_public_treatment_addons: {

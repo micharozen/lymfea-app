@@ -27,7 +27,7 @@ interface CalendarSidebarProps {
   onShowAll: () => void;
   onHideAll: () => void;
   hotels?: Hotel[];
-  hotelFilter?: string;
+  hotelFilter?: string[];
   showCancelled?: boolean;
   onToggleCancelled?: () => void;
 }

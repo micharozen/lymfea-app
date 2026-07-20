@@ -85,6 +85,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       civility: undefined,
       clientFirstName: "",
       clientLastName: "",
+      clientEmail: "",
       phone: "",
       countryCode: "+33",
       language: "fr",
@@ -336,13 +337,16 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const surchargeAmount = isBookingOutOfHours ? Math.round(finalPrice * surchargePercent / 100) : 0;
   const finalPriceWithSurcharge = finalPrice + surchargeAmount;
 
-  // Liste annotée pour l'étape d'assignation : sections « Disponibles » / « Autres ».
-  // Pas de treatmentIds : même population que la liste plate (thérapeutes actifs du lieu).
+  // Liste annotée pour l'étape d'assignation : sections « Disponibles » / « Autres » /
+  // « Ne réalise pas cette prestation ». Personne n'est masqué — les prestations du panier
+  // servent uniquement à signaler les thérapeutes non qualifiés.
+  const cartTreatmentIds = useMemo(() => cart.map((item) => item.treatmentId), [cart]);
   const { data: slotTherapists } = useAvailableTherapistsForSlot({
     hotelId,
     date,
     time,
     durationMinutes: finalDuration || 60,
+    treatmentIds: cartTreatmentIds,
   });
 
   const mutation = useCreateBookingMutation({
@@ -520,6 +524,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       civility: undefined,
       clientFirstName: "",
       clientLastName: "",
+      clientEmail: "",
       phone: "",
       countryCode: "+33",
       language: "fr",

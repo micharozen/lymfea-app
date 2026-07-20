@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { brand, brandLogos } from "@/config/brand";
+import { brand } from "@/config/brand";
 
 interface AppErrorFallbackProps {
   error: Error;
@@ -105,7 +105,7 @@ export const AppErrorFallback = ({ error, reset }: AppErrorFallbackProps) => {
   if (reloading && !showManualReload) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
-        <img src={brandLogos.primary} alt={brand.name} className="h-12 mb-6 animate-pulse" />
+        <img src="/images/saoma.png" alt={brand.name} className="h-16 w-16 rounded-2xl mb-6 animate-pulse" />
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         <p className="text-sm text-muted-foreground mt-4">Rechargement en cours…</p>
       </div>
@@ -114,7 +114,7 @@ export const AppErrorFallback = ({ error, reset }: AppErrorFallbackProps) => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
-      <img src={brandLogos.primary} alt={brand.name} className="h-12 mb-6" />
+      <img src="/images/saoma.png" alt={brand.name} className="h-16 w-16 rounded-2xl mb-6" />
       <h1 className="text-xl font-semibold mb-2">
         {chunkError
           ? "Une nouvelle version est disponible"
