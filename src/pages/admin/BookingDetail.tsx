@@ -49,7 +49,7 @@ import {
   CLIENT_TYPE_META, PARTNER_BILLED_CLIENT_TYPES, isPartnerBilledClientType,
   normalizeBookingClientType, type BookingClientType,
 } from "@/lib/clientTypeMeta";
-import { derivePaymentForClientType, isPaymentStatusLocked } from "@/lib/clientTypePayment";
+import { derivePaymentForClientType, isPartnerBilledBooking, isPaymentStatusLocked } from "@/lib/clientTypePayment";
 
 const PAYMENT_LABELS: Record<string, string> = {
   pending: "Paiement en attente",
@@ -285,7 +285,7 @@ export default function BookingDetail() {
 
   const isPaid = booking.payment_status === 'paid' || booking.payment_status === 'charged_to_room';
   const isRoomPayment = booking.payment_method === 'room' || booking.payment_status === 'charged_to_room';
-  const isPartnerBilled = booking.payment_status === 'pending_partner_billing';
+  const isPartnerBilled = isPartnerBilledBooking(booking.payment_method, booking.payment_status);
   const isSigned = !!booking.signed_at;
 
   const hotelInfo = getHotelInfo(booking.hotel_id);
@@ -343,7 +343,9 @@ export default function BookingDetail() {
     && ["pending", "card_saved"].includes(booking.payment_status || "pending");
   const paymentLabel = cardSavedToCharge
     ? "Carte enregistrée à débiter"
-    : (PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending);
+    : isPartnerBilled
+      ? PAYMENT_LABELS.pending_partner_billing
+      : (PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending);
 
   // Payment breakdown for the "Paiement" card. total_price already includes the
   // out-of-hours surcharge (surchargeAmount / subtotal / surchargePercent computed above).
@@ -366,7 +368,9 @@ export default function BookingDetail() {
 
   // Success banner is only meaningful for a real collected payment — not a room
   // charge (settled on the hotel folio, not actually paid here).
-  const showPaymentSuccess = isPaid && !isRoomPayment;
+  // Une facturation partenaire est "paid" : elle a son propre bandeau, à ne pas
+  // confondre avec un encaissement direct.
+  const showPaymentSuccess = isPaid && !isRoomPayment && !isPartnerBilled;
   const paidAtDetail = paymentMeta?.payment_at
     ? format(new Date(paymentMeta.payment_at), "d MMM à HH:mm", { locale: fr })
     : undefined;
@@ -410,7 +414,7 @@ export default function BookingDetail() {
     const isMethodOnly = markPaidMode === "method" && !isPartner;
     if (isPartner && !markPaidPartner) return;
     // Ne pas réécraser un paiement déjà abouti/remboursé.
-    if (isPartner && isPaymentStatusLocked(booking.payment_status)) {
+    if (isPartner && isPaymentStatusLocked(booking.payment_status, booking.payment_method)) {
       toast.error("Le statut de paiement est verrouillé (payé ou remboursé).");
       return;
     }
@@ -618,7 +622,7 @@ export default function BookingDetail() {
       </header>
 
       <main className="flex-1 p-6 max-w-6xl mx-auto w-full space-y-6">
-        <BookingStatusStepper status={booking.status} paymentStatus={booking.payment_status || "pending"} cancellationDetail={cancellationDetail} />
+        <BookingStatusStepper status={booking.status} paymentStatus={booking.payment_status || "pending"} paymentMethod={booking.payment_method} cancellationDetail={cancellationDetail} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           {/* Colonne principale : le « quoi » — soins, thérapeutes, client, activité */}
