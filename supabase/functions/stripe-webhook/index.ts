@@ -403,7 +403,7 @@ serve(async (req) => {
         } else {
           const { error: updateError } = await supabase
             .from('bookings')
-            .update({ payment_status: 'paid' })
+            .update({ payment_status: 'paid', payment_method: 'card' })
             .eq('id', booking.id);
 
           if (updateError) throw updateError;

@@ -110,13 +110,14 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  card: "Carte",
+  card: "Paiement en ligne",
+  card_on_site: "Carte sur place",
   cash: "Espèces",
-  room_charge: "Note de chambre",
-  bank_transfer: "Virement",
-  payment_link: "Lien de paiement",
-  tap_to_pay: "Tap to Pay",
-  free: "Offert",
+  room: "Note de chambre",
+  offert: "Offert",
+  gift_amount: "Carte cadeau",
+  voucher: "Payé par voucher",
+  partner_billed: "Facturé au partenaire",
 };
 
 function bookingDuration(booking: ClosureBooking): number {

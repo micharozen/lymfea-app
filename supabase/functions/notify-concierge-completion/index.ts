@@ -43,7 +43,7 @@ serve(async (req) => {
 
     const paymentMethod = booking.payment_method || 'room';
     const isRoomPayment = paymentMethod === 'room';
-    const isTapToPay = paymentMethod === 'tap_to_pay';
+    const isTapToPay = paymentMethod === 'card_on_site';
     
     console.log('[notify-concierge-completion] Processing completion for booking #', booking.booking_id, '- Payment method:', paymentMethod);
 

@@ -47,6 +47,17 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  room: "Note de chambre",
+  card: "Paiement en ligne",
+  card_on_site: "Carte sur place",
+  cash: "Espèces",
+  offert: "Offert",
+  gift_amount: "Carte cadeau",
+  voucher: "Payé par voucher",
+  partner_billed: "Facturé au partenaire",
+};
+
 export default function AdminPwaBookingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -234,13 +245,7 @@ export default function AdminPwaBookingDetail() {
                 <div>
                   <p className="text-sm text-muted-foreground">Méthode</p>
                   <p className="font-medium capitalize">
-                    {booking.payment_method === "room"
-                      ? "Note de chambre"
-                      : booking.payment_method === "card"
-                        ? "Carte bancaire"
-                        : booking.payment_method === "tap_to_pay"
-                          ? "Tap to Pay"
-                          : booking.payment_method || "Non défini"}
+                    {PAYMENT_METHOD_LABELS[booking.payment_method ?? ""] ?? booking.payment_method ?? "Non défini"}
                   </p>
                 </div>
                 <div className="text-right">
