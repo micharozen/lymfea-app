@@ -345,9 +345,12 @@ export default function BookingDetail() {
   // Payment breakdown for the "Paiement" card. total_price already includes the
   // out-of-hours surcharge (surchargeAmount / subtotal / surchargePercent computed above).
   const giftPaid = ((booking as any).gift_amount_applied_cents ?? 0) / 100;
-  const paidAmount = isPaid ? displayPrice : Math.min(giftPaid, displayPrice);
+  // Facturation partenaire : le client a réglé le partenaire, rien n'est dû ici.
+  // Le montant est donc considéré comme soldé (le libellé reste "Paiement partenaire").
+  const isSettled = isPaid || isPartnerBilled;
+  const paidAmount = isSettled ? displayPrice : Math.min(giftPaid, displayPrice);
   const remainingDue = Math.max(displayPrice - paidAmount, 0);
-  const paidRatio = displayPrice > 0 ? Math.min(paidAmount / displayPrice, 1) : (isPaid || isOffert ? 1 : 0);
+  const paidRatio = displayPrice > 0 ? Math.min(paidAmount / displayPrice, 1) : (isSettled || isOffert ? 1 : 0);
   const methodLabel = booking.payment_method
     ? (PAYMENT_METHOD_LABELS[booking.payment_method] || booking.payment_method)
     : "À définir";
