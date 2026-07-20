@@ -119,8 +119,16 @@ ${JSON.stringify(prs, null, 2)}
 ${SCHEMA_BRIEF}`;
 }
 
+/**
+ * Pinned to Sonnet on purpose: this runs on every push to main, and the task is
+ * short bilingual prose from an already-structured PR list — not deep reasoning.
+ * Leaving the model implicit would follow the CLI default, which shifts between
+ * releases (the workflow always installs the latest) and can land on Opus.
+ */
+const MODEL = "claude-sonnet-5";
+
 function callClaude(prompt) {
-  return run("claude", ["-p", prompt, "--output-format", "text"]);
+  return run("claude", ["-p", prompt, "--model", MODEL, "--output-format", "text"]);
 }
 
 function assertLocalized(value, path) {
