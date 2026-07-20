@@ -2815,19 +2815,16 @@ export type Database = {
       therapist_treatments: {
         Row: {
           created_at: string | null
-          id: string
           therapist_id: string
           treatment_menu_id: string
         }
         Insert: {
           created_at?: string | null
-          id?: string
           therapist_id: string
           treatment_menu_id: string
         }
         Update: {
           created_at?: string | null
-          id?: string
           therapist_id?: string
           treatment_menu_id?: string
         }

@@ -7,8 +7,10 @@
 -- de matching ne la lit encore (reserve_trunk_atomically, get-availability,
 -- useAvailableTherapistsForSlot restent sur skills). Bascule en Release 2.
 
+-- Table de jointure pure : PK composite, pas de surrogate id.
+-- L'index de PK sert directement le prédicat de matching de la Release 2
+-- (WHERE therapist_id = ? AND treatment_menu_id = ANY(...)).
 CREATE TABLE IF NOT EXISTS public.therapist_treatments (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
     therapist_id uuid NOT NULL,
     treatment_menu_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now()
@@ -17,10 +19,7 @@ CREATE TABLE IF NOT EXISTS public.therapist_treatments (
 ALTER TABLE public.therapist_treatments OWNER TO postgres;
 
 ALTER TABLE ONLY public.therapist_treatments
-    ADD CONSTRAINT therapist_treatments_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.therapist_treatments
-    ADD CONSTRAINT therapist_treatments_therapist_id_treatment_menu_id_key UNIQUE (therapist_id, treatment_menu_id);
+    ADD CONSTRAINT therapist_treatments_pkey PRIMARY KEY (therapist_id, treatment_menu_id);
 
 ALTER TABLE ONLY public.therapist_treatments
     ADD CONSTRAINT therapist_treatments_therapist_id_fkey FOREIGN KEY (therapist_id) REFERENCES public.therapists(id) ON DELETE CASCADE;
@@ -28,8 +27,8 @@ ALTER TABLE ONLY public.therapist_treatments
 ALTER TABLE ONLY public.therapist_treatments
     ADD CONSTRAINT therapist_treatments_treatment_menu_id_fkey FOREIGN KEY (treatment_menu_id) REFERENCES public.treatment_menus(id) ON DELETE CASCADE;
 
--- La contrainte UNIQUE couvre déjà (therapist_id, ...) ; cet index sert au sens inverse
--- (« quels thérapeutes réalisent cette prestation »), utilisé par le matching en Release 2.
+-- La PK couvre déjà (therapist_id, ...) ; cet index sert au sens inverse
+-- (« quels thérapeutes réalisent cette prestation »).
 CREATE INDEX IF NOT EXISTS idx_therapist_treatments_treatment_menu_id
     ON public.therapist_treatments USING btree (treatment_menu_id);
 
