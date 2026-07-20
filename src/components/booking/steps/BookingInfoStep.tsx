@@ -11,30 +11,16 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { SelectField } from "@/components/ui/select-field";
+import { TimeSelect } from "../TimeSelect";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { AlertTriangle, CalendarIcon, Check, ChevronDown, ChevronsUpDown, Clock, Globe, Info, Loader2, Plus, User, X } from "lucide-react";
+import { AlertTriangle, CalendarIcon, Check, Clock, Globe, Info, Loader2, Plus, User, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentOffset } from "@/lib/timezones";
 import { countries, formatPhoneNumber, languageFromCountryCode } from "@/lib/phone";
@@ -117,7 +103,6 @@ export function BookingInfoStep({
     form.setValue("language", languageFromCountryCode(countryCode));
   }, [countryCode, form]);
 
-  const [hotelPopoverOpen, setHotelPopoverOpen] = useState(false);
 
   const handleRoomLaterChange = (checked: boolean) => {
     form.setValue("roomNumberLater", checked, { shouldDirty: true });
@@ -216,14 +201,8 @@ export function BookingInfoStep({
   };
 
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [hourOpen, setHourOpen] = useState(false);
-  const [minuteOpen, setMinuteOpen] = useState(false);
   const [slot2CalendarOpen, setSlot2CalendarOpen] = useState(false);
-  const [slot2HourOpen, setSlot2HourOpen] = useState(false);
-  const [slot2MinuteOpen, setSlot2MinuteOpen] = useState(false);
   const [slot3CalendarOpen, setSlot3CalendarOpen] = useState(false);
-  const [slot3HourOpen, setSlot3HourOpen] = useState(false);
-  const [slot3MinuteOpen, setSlot3MinuteOpen] = useState(false);
 
   const removeSlot = (slotNum: number) => {
     if (slotNum <= 2) {
@@ -263,63 +242,19 @@ export function BookingInfoStep({
           const availableHotels = (isConcierge && hotelIds.length > 0
             ? hotels?.filter(hotel => hotelIds.includes(hotel.id))
             : hotels) ?? [];
-          const selectedHotelName = availableHotels.find(h => h.id === field.value)?.name;
           return (
             <FormItem className="space-y-1">
               <FormLabel className="text-xs">Hôtel *</FormLabel>
-              <Popover open={hotelPopoverOpen} onOpenChange={setHotelPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={hotelPopoverOpen}
-                      className={cn(
-                        "h-9 w-full justify-between font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      <span className="truncate">
-                        {selectedHotelName ?? "Sélectionner un hôtel"}
-                      </span>
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0"
-                  align="start"
-                >
-                  <Command>
-                    <CommandInput placeholder="Rechercher un hôtel..." className="h-9 text-xs" />
-                    <CommandList>
-                      <CommandEmpty>Aucun hôtel trouvé.</CommandEmpty>
-                      <CommandGroup>
-                        {availableHotels.map((hotel) => (
-                          <CommandItem
-                            key={hotel.id}
-                            value={hotel.name}
-                            onSelect={() => {
-                              field.onChange(hotel.id);
-                              setHotelPopoverOpen(false);
-                            }}
-                            className="text-xs"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-3.5 w-3.5",
-                                field.value === hotel.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {hotel.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <FormControl>
+                <SelectField
+                  options={availableHotels.map((hotel) => ({ value: hotel.id, label: hotel.name }))}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Sélectionner un hôtel"
+                  searchPlaceholder="Rechercher un hôtel..."
+                  emptyMessage="Aucun hôtel trouvé."
+                />
+              </FormControl>
               <FormMessage className="text-xs" />
             </FormItem>
           );
@@ -333,38 +268,17 @@ export function BookingInfoStep({
         render={({ field }) => (
           <FormItem className="space-y-1">
             <FormLabel className="text-xs">{t('bookings.clientType.label')} *</FormLabel>
-            <Select value={field.value} onValueChange={field.onChange}>
-              <FormControl>
-                <SelectTrigger className="h-9">
-                  <SelectValue>
-                    {field.value && (
-                      <span className="flex items-center gap-2">
-                        <img
-                          src={CLIENT_TYPE_META[field.value].logo}
-                          alt=""
-                          className="w-4 h-4 shrink-0"
-                        />
-                        <span>{t(CLIENT_TYPE_META[field.value].labelKey)}</span>
-                      </span>
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {BOOKING_CLIENT_TYPES.map((ct) => (
-                  <SelectItem key={ct} value={ct}>
-                    <span className="flex items-center gap-2">
-                      <img
-                        src={CLIENT_TYPE_META[ct].logo}
-                        alt=""
-                        className="w-4 h-4 shrink-0"
-                      />
-                      <span>{t(CLIENT_TYPE_META[ct].labelKey)}</span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FormControl>
+              <SelectField
+                options={BOOKING_CLIENT_TYPES.map((ct) => ({
+                  value: ct,
+                  label: t(CLIENT_TYPE_META[ct].labelKey),
+                  icon: <img src={CLIENT_TYPE_META[ct].logo} alt="" className="w-4 h-4 shrink-0" />,
+                }))}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </FormControl>
             <FormMessage className="text-xs" />
           </FormItem>
         )}
@@ -394,7 +308,7 @@ export function BookingInfoStep({
               <span className="text-xs font-medium text-emerald-700">Créneau préféré</span>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 items-end">
             <FormField
               control={form.control}
               name="date"
@@ -450,69 +364,14 @@ export function BookingInfoStep({
                     )}
                   </FormLabel>
                   <div className="flex gap-1 items-center">
-                    <Popover open={hourOpen} onOpenChange={setHourOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
-                          {field.value.split(':')[0] || "HH"}
-                          <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                        <ScrollArea className="h-40 touch-pan-y">
-                          <div>
-                            {Array.from({ length: 17 }, (_, i) => String(i + 7).padStart(2, '0')).map(h => (
-                              <button
-                                key={h}
-                                type="button"
-                                onClick={() => {
-                                  field.onChange(`${h}:${field.value.split(':')[1] || '00'}`);
-                                  setHourOpen(false);
-                                }}
-                                className={cn(
-                                  "w-full px-3 py-1.5 text-sm text-center",
-                                  field.value.split(':')[0] === h && "bg-muted",
-                                  isHourUnavailable(form.getValues("date"), h) && "opacity-40 text-muted-foreground"
-                                )}
-                              >
-                                {h}
-                              </button>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
-                    <span className="flex items-center text-muted-foreground">:</span>
-                    <Popover open={minuteOpen} onOpenChange={setMinuteOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
-                          {field.value.split(':')[1] || "MM"}
-                          <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                        <ScrollArea className="h-40 touch-pan-y">
-                          <div>
-                            {minuteOptions.map(m => (
-                              <button
-                                key={m}
-                                type="button"
-                                onClick={() => {
-                                  field.onChange(`${field.value.split(':')[0] || '09'}:${m}`);
-                                  setMinuteOpen(false);
-                                }}
-                                className={cn(
-                                  "w-full px-3 py-1.5 text-sm text-center",
-                                  field.value.split(':')[1] === m && "bg-muted",
-                                  isMinuteUnavailable(form.getValues("date"), field.value.split(':')[0] || '09', m) && "opacity-40 text-muted-foreground"
-                                )}
-                              >
-                                {m}
-                              </button>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
+                    <TimeSelect
+                      value={field.value}
+                      onChange={field.onChange}
+                      minuteOptions={minuteOptions}
+                      date={form.getValues("date")}
+                      isHourUnavailable={isHourUnavailable}
+                      isMinuteUnavailable={isMinuteUnavailable}
+                    />
                     {hotelId && (
                       <span className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
                         <Globe className="h-3 w-3 shrink-0" />
@@ -593,41 +452,14 @@ export function BookingInfoStep({
                       )}
                     </FormLabel>
                     <div className="flex gap-1 items-center">
-                      <Popover open={slot2HourOpen} onOpenChange={setSlot2HourOpen}>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
-                            {field.value?.split(':')[0] || "HH"}
-                            <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start">
-                          <ScrollArea className="h-40 touch-pan-y">
-                            <div>
-                              {Array.from({ length: 17 }, (_, i) => String(i + 7).padStart(2, '0')).map(h => (
-                                <button key={h} type="button" onClick={() => { field.onChange(`${h}:${field.value?.split(':')[1] || '00'}`); setSlot2HourOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[0] === h && "bg-muted", isHourUnavailable(form.getValues("slot2Date"), h) && "opacity-40 text-muted-foreground")}>{h}</button>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        </PopoverContent>
-                      </Popover>
-                      <span className="flex items-center text-muted-foreground">:</span>
-                      <Popover open={slot2MinuteOpen} onOpenChange={setSlot2MinuteOpen}>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
-                            {field.value?.split(':')[1] || "MM"}
-                            <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start">
-                          <ScrollArea className="h-40 touch-pan-y">
-                            <div>
-                              {minuteOptions.map(m => (
-                                <button key={m} type="button" onClick={() => { field.onChange(`${field.value?.split(':')[0] || '09'}:${m}`); setSlot2MinuteOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[1] === m && "bg-muted", isMinuteUnavailable(form.getValues("slot2Date"), field.value?.split(':')[0] || '09', m) && "opacity-40 text-muted-foreground")}>{m}</button>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        </PopoverContent>
-                      </Popover>
+                      <TimeSelect
+                        value={field.value}
+                        onChange={field.onChange}
+                        minuteOptions={minuteOptions}
+                        date={form.getValues("slot2Date")}
+                        isHourUnavailable={isHourUnavailable}
+                        isMinuteUnavailable={isMinuteUnavailable}
+                      />
                     </div>
                     <FormMessage className="text-xs" />
                   </FormItem>
@@ -691,41 +523,14 @@ export function BookingInfoStep({
                       )}
                     </FormLabel>
                     <div className="flex gap-1 items-center">
-                      <Popover open={slot3HourOpen} onOpenChange={setSlot3HourOpen}>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
-                            {field.value?.split(':')[0] || "HH"}
-                            <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start">
-                          <ScrollArea className="h-40 touch-pan-y">
-                            <div>
-                              {Array.from({ length: 17 }, (_, i) => String(i + 7).padStart(2, '0')).map(h => (
-                                <button key={h} type="button" onClick={() => { field.onChange(`${h}:${field.value?.split(':')[1] || '00'}`); setSlot3HourOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[0] === h && "bg-muted", isHourUnavailable(form.getValues("slot3Date"), h) && "opacity-40 text-muted-foreground")}>{h}</button>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        </PopoverContent>
-                      </Popover>
-                      <span className="flex items-center text-muted-foreground">:</span>
-                      <Popover open={slot3MinuteOpen} onOpenChange={setSlot3MinuteOpen}>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
-                            {field.value?.split(':')[1] || "MM"}
-                            <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start">
-                          <ScrollArea className="h-40 touch-pan-y">
-                            <div>
-                              {minuteOptions.map(m => (
-                                <button key={m} type="button" onClick={() => { field.onChange(`${field.value?.split(':')[0] || '09'}:${m}`); setSlot3MinuteOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[1] === m && "bg-muted", isMinuteUnavailable(form.getValues("slot3Date"), field.value?.split(':')[0] || '09', m) && "opacity-40 text-muted-foreground")}>{m}</button>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        </PopoverContent>
-                      </Popover>
+                      <TimeSelect
+                        value={field.value}
+                        onChange={field.onChange}
+                        minuteOptions={minuteOptions}
+                        date={form.getValues("slot3Date")}
+                        isHourUnavailable={isHourUnavailable}
+                        isMinuteUnavailable={isMinuteUnavailable}
+                      />
                     </div>
                     <FormMessage className="text-xs" />
                   </FormItem>
@@ -855,30 +660,56 @@ export function BookingInfoStep({
         )}
       </div>
 
-      <FormField
-        control={form.control}
-        name="civility"
-        render={({ field }) => (
-          <FormItem className="space-y-1">
-            <FormLabel className="text-xs">
-              {t('booking.civility.label')}{' '}
-              <span className="text-muted-foreground font-normal">{t('booking.civility.optional')}</span>
-            </FormLabel>
-            <Select value={field.value ?? ''} onValueChange={field.onChange}>
+      <div className="grid grid-cols-2 gap-2">
+        <FormField
+          control={form.control}
+          name="civility"
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormLabel className="text-xs">
+                {t('booking.civility.label')}{' '}
+                <span className="text-muted-foreground font-normal">{t('booking.civility.optional')}</span>
+              </FormLabel>
               <FormControl>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder={t('booking.civility.label')} />
-                </SelectTrigger>
+                <SelectField
+                  options={[
+                    { value: "madame", label: t('booking.civility.madame') },
+                    { value: "monsieur", label: t('booking.civility.monsieur') },
+                  ]}
+                  value={field.value ?? undefined}
+                  onChange={field.onChange}
+                  placeholder={t('booking.civility.label')}
+                />
               </FormControl>
-              <SelectContent>
-                <SelectItem value="madame">{t('booking.civility.madame')}</SelectItem>
-                <SelectItem value="monsieur">{t('booking.civility.monsieur')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <FormMessage className="text-xs" />
-          </FormItem>
-        )}
-      />
+              <FormMessage className="text-xs" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="language"
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormLabel className="text-xs">Langue des messages client (SMS / email)</FormLabel>
+              <FormControl>
+                <SelectField
+                  options={[
+                    { value: "fr", label: "🇫🇷 Français" },
+                    { value: "en", label: "🇬🇧 English" },
+                  ]}
+                  value={field.value}
+                  onChange={(value) => {
+                    languageManuallySet.current = true;
+                    field.onChange(value);
+                  }}
+                />
+              </FormControl>
+              <FormMessage className="text-xs" />
+            </FormItem>
+          )}
+        />
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <FormField
@@ -951,34 +782,6 @@ export function BookingInfoStep({
           )}
         />
       </div>
-
-      <FormField
-        control={form.control}
-        name="language"
-        render={({ field }) => (
-          <FormItem className="space-y-1">
-            <FormLabel className="text-xs">Langue des messages client (SMS / email)</FormLabel>
-            <Select
-              value={field.value}
-              onValueChange={(value) => {
-                languageManuallySet.current = true;
-                field.onChange(value);
-              }}
-            >
-              <FormControl>
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                <SelectItem value="fr">🇫🇷 Français</SelectItem>
-                <SelectItem value="en">🇬🇧 English</SelectItem>
-              </SelectContent>
-            </Select>
-            <FormMessage className="text-xs" />
-          </FormItem>
-        )}
-      />
 
       <div className="grid gap-2 grid-cols-2">
         {/* Room number when PMS disabled and hotel client */}
