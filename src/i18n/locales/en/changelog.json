@@ -1,0 +1,23 @@
+{
+  "meta": {
+    "title": "Changelog — Saoma",
+    "description": "Everything new in Saoma: improvements to the agenda, the therapist app and the client booking flow, published with every update."
+  },
+  "header": {
+    "back": "Back to home",
+    "eyebrow": "Changelog",
+    "title": "What's changing in Saoma",
+    "subtitle": "Every platform update, explained plainly. Most recent first."
+  },
+  "type": {
+    "new": "New",
+    "improved": "Improved",
+    "fixed": "Fixed"
+  },
+  "audience": {
+    "admin": "Admin",
+    "therapist": "Therapist app",
+    "client": "Client booking"
+  },
+  "empty": "No release notes published yet."
+}

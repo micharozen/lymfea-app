@@ -27,6 +27,7 @@ export const Footer = () => {
         { label: t("footer.links.howItWorks"), href: "/#how-it-works" },
         { label: t("footer.links.pricing"), href: "/#pricing" },
         { label: t("footer.links.demo"), href: BRAND_DEMO_CTA },
+        { label: t("footer.links.changelog"), href: "/changelog" },
         { label: t("footer.links.login"), href: "/login" },
       ],
     },

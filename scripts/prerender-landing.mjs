@@ -39,6 +39,7 @@ const ROUTES = [
     path: `/compare/saoma-vs-${slug}`,
     out: `compare/saoma-vs-${slug}.html`,
   })),
+  { path: "/changelog", out: "changelog.html" },
   { path: "/terms", out: "terms.html" },
   { path: "/privacy", out: "privacy.html" },
 ];
