@@ -65,7 +65,7 @@ export function TherapistGeneralTab({
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-base font-normal flex items-center gap-2">
                 <User className="h-4 w-4 text-gold-600" />
                 {t("admin:therapists.identity", "Identité")}
               </CardTitle>
@@ -268,7 +268,7 @@ export function TherapistGeneralTab({
       {/* Finance */}
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-normal flex items-center gap-2">
             <Wallet className="h-4 w-4 text-emerald-500" />
             {t("admin:therapists.finance", "Finance")}
           </CardTitle>

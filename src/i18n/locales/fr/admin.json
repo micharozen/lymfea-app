@@ -209,6 +209,7 @@
     "add": "Ajouter un Thérapeute",
     "edit": "Modifier Thérapeute",
     "noTherapists": "Aucun thérapeute",
+    "noVenues": "Aucun lieu assigné",
     "name": "Nom",
     "email": "Email",
     "phone": "Téléphone",

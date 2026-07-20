@@ -209,6 +209,7 @@
     "add": "Add Therapist",
     "edit": "Edit Therapist",
     "noTherapists": "No therapists",
+    "noVenues": "No venue assigned",
     "name": "Name",
     "email": "Email",
     "phone": "Phone",
