@@ -17,7 +17,8 @@ import { TherapistDetailDialog } from "@/components/admin/details/TherapistDetai
 import { toast } from "sonner";
 import { Plus, X, Loader2, UserPlus, Phone } from "lucide-react";
 import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
-import { getSpecialtySelectOptions, getSpecialtyLabel } from "@/lib/specialtyTypes";
+import { TherapistTreatmentsSelector } from "@/components/admin/therapist/TherapistTreatmentsSelector";
+import { useTherapistTreatmentCounts } from "@/hooks/useTherapistTreatments";
 
 const countries = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -38,12 +39,12 @@ interface VenueTherapistsTabProps {
 }
 
 export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
-  const { i18n } = useTranslation();
+  const { t } = useTranslation();
   // Concierges (venue managers) can assign/unassign existing therapists but not
   // create new therapist accounts — creation stays admin-only.
   const { isConcierge } = useUser();
   const canCreateTherapist = !isConcierge;
-  const skillsOptions = useMemo(() => getSpecialtySelectOptions(i18n.language), [i18n.language]);
+  const { data: treatmentCounts = {} } = useTherapistTreatmentCounts();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -57,7 +58,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     country_code: "+33",
     phone: "",
   });
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedTreatmentIds, setSelectedTreatmentIds] = useState<string[]>([]);
 
   const {
     url: profileImage,
@@ -115,7 +116,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("therapists")
-        .select("id, first_name, last_name, email, profile_image, skills")
+        .select("id, first_name, last_name, email, profile_image")
         .order("first_name");
       if (error) throw error;
       return data;
@@ -183,7 +184,6 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
           country_code: formData.country_code,
           phone: formData.phone,
           status: "pending",
-          skills: selectedSkills,
           profile_image: profileImage || null,
         })
         .select()
@@ -197,6 +197,18 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
         .insert({ therapist_id: therapist.id, hotel_id: hotelId });
 
       if (relError) throw relError;
+
+      if (selectedTreatmentIds.length > 0) {
+        const { error: treatmentsError } = await supabase
+          .from("therapist_treatments")
+          .insert(
+            selectedTreatmentIds.map((treatment_menu_id) => ({
+              therapist_id: therapist.id,
+              treatment_menu_id,
+            }))
+          );
+        if (treatmentsError) throw treatmentsError;
+      }
 
       // Send invite email
       try {
@@ -310,15 +322,20 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                       />
                     </div>
                   )}
-                  {(therapist.skills || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {(therapist.skills || []).map((skill: string) => (
-                        <Badge key={skill} variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
-                          {getSpecialtyLabel(skill, i18n.language)}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
+                  <div className="mt-1.5">
+                    {(treatmentCounts?.[therapist.id] ?? 0) === 0 ? (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal border-amber-300 text-amber-700">
+                        {t("admin:therapistTreatments.none", "Aucune prestation")}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
+                        {t("admin:therapistTreatments.count", {
+                          count: treatmentCounts[therapist.id],
+                          defaultValue: "{{count}} prestations",
+                        })}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <Button
                   variant="ghost"
@@ -459,13 +476,13 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Compétences</Label>
-              <MultiSelectPopover
-                selected={selectedSkills}
-                onChange={setSelectedSkills}
-                options={skillsOptions}
-                popoverWidthClassName="w-36"
-                popoverMaxHeightClassName="h-32"
+              <Label className="text-xs">
+                {t("admin:therapistTreatments.title", "Prestations réalisables")}
+              </Label>
+              <TherapistTreatmentsSelector
+                venues={[{ id: hotelId, name: t("admin:therapistTreatments.thisVenue", "ce lieu") }]}
+                value={selectedTreatmentIds}
+                onChange={setSelectedTreatmentIds}
               />
             </div>
 

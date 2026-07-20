@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useTherapistTreatmentCounts } from "@/hooks/useTherapistTreatments";
 import { cn } from "@/lib/utils";
-import { getSpecialtyLabel } from "@/lib/specialtyTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import {
@@ -42,6 +42,7 @@ import { Search, Pencil, Trash2, Users, List, CalendarDays } from "lucide-react"
 import { toast } from "sonner";
 import AddTherapistDialog from "@/components/AddTherapistDialog";
 import { TherapistAgendaView } from "@/components/admin/therapist/TherapistAgendaView";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelsCell, TreatmentRoomsCell, PersonCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
@@ -76,14 +77,13 @@ interface Therapist {
   profile_image: string | null;
   status: string;
   trunks: string | null;
-  skills: string[];
   minimum_guarantee?: Record<string, number> | null;
   minimum_guarantee_active?: boolean | null;
   therapist_venues?: { hotel_id: string }[];
 }
 
 export default function Therapists() {
-  const { i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [filteredTherapists, setFilteredTherapists] = useState<Therapist[]>([]);
@@ -101,6 +101,7 @@ export default function Therapists() {
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
   const { isAddOpen, openAdd, closeAdd, deleteId: deleteTherapistId, openDelete, closeDelete } = useDialogState<string>();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
+  const { data: treatmentCounts = {} } = useTherapistTreatmentCounts();
 
   const scope = useOrgScope();
 
@@ -228,9 +229,28 @@ export default function Therapists() {
       .filter(Boolean) as Hotel[];
   };
 
-  const getSkillsDisplay = (skills: string[]) => {
-    if (!skills || skills.length === 0) return "-";
-    return skills.map((s) => getSpecialtyLabel(s, i18n.language)).join(", ");
+  // Un thérapeute sans prestation associée ne recevra aucune réservation une
+  // fois le matching basculé : on le signale dès maintenant pour piloter la saisie.
+  const renderTreatmentsCell = (therapistId: string) => {
+    const count = treatmentCounts[therapistId] ?? 0;
+    if (count === 0) {
+      return (
+        <Badge
+          variant="outline"
+          className="text-[10px] px-1.5 py-0 font-normal border-amber-300 text-amber-700"
+        >
+          {t("admin:therapistTreatments.none", "Aucune prestation")}
+        </Badge>
+      );
+    }
+    return (
+      <span className="truncate block text-foreground">
+        {t("admin:therapistTreatments.count", {
+          count,
+          defaultValue: "{{count}} prestations",
+        })}
+      </span>
+    );
   };
 
   const getRoomInfo = (roomIdOrName: string | null) => {
@@ -418,7 +438,7 @@ export default function Therapists() {
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Telephone</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Salles</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Competences</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prestations</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[80px] text-center">Min. garanti</TableHead>
                   <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
                     Statut
@@ -469,7 +489,7 @@ export default function Therapists() {
                         })()}
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <span className="truncate block text-foreground">{getSkillsDisplay(therapist.skills)}</span>
+                        {renderTreatmentsCell(therapist.id)}
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                         <Switch

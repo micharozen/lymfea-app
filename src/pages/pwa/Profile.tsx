@@ -23,7 +23,6 @@ interface Therapist {
   phone: string;
   country_code: string;
   profile_image: string | null;
-  skills: string[] | null;
 }
 
 const PwaProfile = () => {
@@ -42,6 +41,7 @@ const PwaProfile = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [myTreatments, setMyTreatments] = useState<string[]>([]);
 
   // Fetch profile on mount - use cache first, refresh in background
   useEffect(() => {
@@ -89,6 +89,17 @@ const PwaProfile = () => {
         .single();
 
       if (error) throw error;
+
+      // Prestations réalisables — policy SELECT self sur therapist_treatments.
+      const { data: treatmentRows } = await supabase
+        .from("therapist_treatments")
+        .select("treatment_menus(name)")
+        .eq("therapist_id", data.id);
+      setMyTreatments(
+        (treatmentRows ?? [])
+          .map((row) => row.treatment_menus?.name)
+          .filter((name): name is string => !!name)
+      );
       
       // Cache the data
       queryClient.setQueryData(["therapist", user.id], data);
@@ -254,6 +265,25 @@ const PwaProfile = () => {
             <span className="text-sm text-muted-foreground">3.0</span>
           </div>
         </div>
+
+        {/* Prestations réalisables (lecture seule) */}
+        {myTreatments.length > 0 && (
+          <div className="mb-3">
+            <h3 className="text-xs font-medium text-muted-foreground mb-1.5">
+              {t('profile.myTreatments', 'Prestations réalisables')}
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {myTreatments.map((name) => (
+                <span
+                  key={name}
+                  className="rounded-full bg-muted px-2.5 py-1 text-xs"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Compact Menu Items */}
         <div className="space-y-0.5 flex-1">

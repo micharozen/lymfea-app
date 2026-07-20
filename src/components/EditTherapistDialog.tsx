@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { getSpecialtySelectOptions } from "@/lib/specialtyTypes";
+import { TherapistTreatmentsSelector } from "@/components/admin/therapist/TherapistTreatmentsSelector";
+import { useTherapistTreatments, useSetTherapistTreatments } from "@/hooks/useTherapistTreatments";
 import { normalizeTherapistPhone } from "@/lib/phone";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope } from "@/hooks/useOrgScope";
@@ -59,7 +60,6 @@ interface EditTherapistDialogProps {
     phone: string;
     trunks: string | null;
     status: string;
-    skills: string[];
     profile_image: string | null;
     minimum_guarantee?: Record<string, number> | null;
     therapist_venues?: { hotel_id: string }[];
@@ -88,15 +88,16 @@ export default function EditTherapistDialog({
   onSuccess,
 }: EditTherapistDialogProps) {
   const { t, i18n } = useTranslation('common');
-  const skillsOptions = getSpecialtySelectOptions(i18n.language);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [rooms, setRooms] = useState<TreatmentRoom[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>(
     therapist.therapist_venues?.map((hh) => hh.hotel_id) || []
   );
-  const [selectedSkills, setSelectedSkills] = useState<string[]>(
-    therapist.skills || []
+  const [selectedTreatmentIds, setSelectedTreatmentIds] = useState<string[]>([]);
+  const { data: existingTreatmentIds } = useTherapistTreatments(
+    open ? therapist.id : null
   );
+  const { mutateAsync: setTherapistTreatments } = useSetTherapistTreatments();
   const [minimumGuarantee, setMinimumGuarantee] = useState<Record<string, number>>(
     (therapist.minimum_guarantee as Record<string, number>) || {}
   );
@@ -140,7 +141,6 @@ export default function EditTherapistDialog({
       setSelectedHotels(
         therapist.therapist_venues?.map((hh) => hh.hotel_id) || []
       );
-      setSelectedSkills(therapist.skills || []);
       setMinimumGuarantee((therapist.minimum_guarantee as Record<string, number>) || {});
       // Parse room IDs from stored string (now stores real room IDs)
       setSelectedRooms(
@@ -149,6 +149,12 @@ export default function EditTherapistDialog({
       setProfileImage(therapist.profile_image);
     }
   }, [open, therapist]);
+
+  useEffect(() => {
+    if (open && existingTreatmentIds) {
+      setSelectedTreatmentIds(existingTreatmentIds);
+    }
+  }, [open, existingTreatmentIds]);
 
   const fetchHotels = async () => {
     if (!scope) return;
@@ -192,7 +198,6 @@ export default function EditTherapistDialog({
         phone: normalizeTherapistPhone(formData.phone),
         trunks: validSelectedRooms.join(", ") || null,
         status: formData.status,
-        skills: selectedSkills,
         profile_image: profileImage,
         minimum_guarantee: Object.keys(minimumGuarantee).length > 0 ? minimumGuarantee : null,
       })
@@ -224,6 +229,16 @@ export default function EditTherapistDialog({
         toast.error("Erreur lors de l'association des hôtels");
         return;
       }
+    }
+
+    try {
+      await setTherapistTreatments({
+        therapistId: therapist.id,
+        treatmentMenuIds: selectedTreatmentIds,
+      });
+    } catch {
+      toast.error("Erreur lors de l'association des prestations");
+      return;
     }
 
     toast.success("Thérapeute modifié avec succès");
@@ -442,64 +457,14 @@ export default function EditTherapistDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Compétences</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between font-normal h-9 text-xs hover:bg-background hover:text-foreground"
-                >
-                  <span className="truncate">
-                    {selectedSkills.length === 0
-                      ? "Sélectionner des compétences"
-                      : skillsOptions
-                          .filter((s) => selectedSkills.includes(s.value))
-                          .map((s) => s.label)
-                          .join(", ")}
-                  </span>
-                  <svg className="h-3 w-3 opacity-50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="m6 9 6 6 6-6"/>
-                  </svg>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-48 p-0"
-                align="start"
-                onWheelCapture={(e) => e.stopPropagation()}
-                onTouchMoveCapture={(e) => e.stopPropagation()}
-              >
-                <ScrollArea className="h-40 touch-pan-y">
-                  <div className="p-1">
-                    {skillsOptions.map((skill) => {
-                      const isSelected = selectedSkills.includes(skill.value);
-                      return (
-                        <button
-                          key={skill.value}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedSkills(selectedSkills.filter((s) => s !== skill.value));
-                            } else {
-                              setSelectedSkills([...selectedSkills, skill.value]);
-                            }
-                          }}
-                          className="w-full grid grid-cols-[1fr_auto] items-center gap-2 rounded-sm px-3 py-1.5 text-sm text-popover-foreground transition-colors hover:bg-foreground/5"
-                        >
-                          <span className="min-w-0 truncate text-left">{skill.label}</span>
-                          {isSelected ? (
-                            <span className="h-4 w-4 grid place-items-center rounded-sm bg-primary text-primary-foreground">
-                              <Check className="h-3 w-3" strokeWidth={3} />
-                            </span>
-                          ) : (
-                            <span className="h-4 w-4" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              </PopoverContent>
-            </Popover>
+            <Label>
+              {t("admin:therapistTreatments.title", "Prestations réalisables")}
+            </Label>
+            <TherapistTreatmentsSelector
+              venues={hotels.filter((h) => selectedHotels.includes(h.id))}
+              value={selectedTreatmentIds}
+              onChange={setSelectedTreatmentIds}
+            />
           </div>
 
           <div className="space-y-2">

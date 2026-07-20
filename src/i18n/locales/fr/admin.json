@@ -1602,6 +1602,7 @@
     "assignVenueFirst": "Rattachez d'abord le thérapeute à un lieu pour choisir ses prestations.",
     "count_one": "{{count}} prestation",
     "count_other": "{{count}} prestations",
-    "none": "Aucune prestation"
+    "none": "Aucune prestation",
+    "thisVenue": "ce lieu"
   }
 }

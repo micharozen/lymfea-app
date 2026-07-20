@@ -7,8 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { MultiSelectPopover, MultiSelectOption } from "@/components/MultiSelectPopover";
 import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
 import { Building2, Briefcase, Sparkles, Target } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { getSpecialtySelectOptions } from "@/lib/specialtyTypes";
+import { TherapistTreatmentsSelector } from "@/components/admin/therapist/TherapistTreatmentsSelector";
 
 interface TherapistAssignmentsTabProps {
   disabled: boolean;
@@ -16,8 +15,8 @@ interface TherapistAssignmentsTabProps {
   onHotelsChange: (hotels: string[]) => void;
   selectedRooms: string[];
   onRoomsChange: (rooms: string[]) => void;
-  selectedSkills: string[];
-  onSkillsChange: (skills: string[]) => void;
+  selectedTreatmentIds: string[];
+  onTreatmentsChange: (ids: string[]) => void;
   minimumGuarantee: Record<string, number>;
   onMinimumGuaranteeChange: (value: Record<string, number>) => void;
   minimumGuaranteeActive: boolean;
@@ -40,15 +39,14 @@ export function TherapistAssignmentsTab({
   onHotelsChange,
   selectedRooms,
   onRoomsChange,
-  selectedSkills,
-  onSkillsChange,
+  selectedTreatmentIds,
+  onTreatmentsChange,
   minimumGuarantee,
   onMinimumGuaranteeChange,
   minimumGuaranteeActive,
   onMinimumGuaranteeActiveChange,
 }: TherapistAssignmentsTabProps) {
-  const { t, i18n } = useTranslation("common");
-  const skillsOptions = getSpecialtySelectOptions(i18n.language);
+  const { t } = useTranslation("common");
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [rooms, setRooms] = useState<TreatmentRoom[]>([]);
 
@@ -161,62 +159,27 @@ export function TherapistAssignmentsTab({
         </CardContent>
       </Card>
 
-      {/* Skills */}
+      {/* Prestations réalisables */}
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-muted-foreground" />
-            {t("admin:therapists.specialties", "Spécialités")}
+            {t("admin:therapistTreatments.title", "Prestations réalisables")}
           </CardTitle>
+          <CardDescription>
+            {t(
+              "admin:therapistTreatments.description",
+              "Sélectionnez les prestations que ce thérapeute peut réaliser. Les add-ons sont exclus : ils sont réalisés par le thérapeute du soin de base."
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {disabled ? (
-            <div className="flex flex-wrap gap-2">
-              {selectedSkills.length === 0 ? (
-                <span className="text-sm text-muted-foreground">-</span>
-              ) : (
-                skillsOptions.filter((s) =>
-                  selectedSkills.includes(s.value)
-                ).map((skill) => (
-                  <span
-                    key={skill.value}
-                    className="inline-flex items-center gap-1 bg-muted/50 rounded-full px-3 py-1 text-sm"
-                  >
-                    {skill.label}
-                  </span>
-                ))
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {skillsOptions.map((skill) => {
-                const isSelected = selectedSkills.includes(skill.value);
-                return (
-                  <button
-                    key={skill.value}
-                    type="button"
-                    onClick={() => {
-                      if (isSelected) {
-                        onSkillsChange(
-                          selectedSkills.filter((s) => s !== skill.value)
-                        );
-                      } else {
-                        onSkillsChange([...selectedSkills, skill.value]);
-                      }
-                    }}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm border transition-colors",
-                      isSelected
-                        ? "bg-primary/10 border-primary/30 text-primary"
-                        : "bg-muted/30 border-border text-muted-foreground hover:bg-muted/50"
-                    )}
-                  >
-                    {skill.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <TherapistTreatmentsSelector
+            venues={hotels.filter((h) => selectedHotels.includes(h.id))}
+            value={selectedTreatmentIds}
+            onChange={onTreatmentsChange}
+            disabled={disabled}
+          />
         </CardContent>
       </Card>
 

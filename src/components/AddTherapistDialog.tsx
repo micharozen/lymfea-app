@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
-import { getSpecialtySelectOptions } from "@/lib/specialtyTypes";
+import { TherapistTreatmentsSelector } from "@/components/admin/therapist/TherapistTreatmentsSelector";
 import { normalizeTherapistPhone } from "@/lib/phone";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope } from "@/hooks/useOrgScope";
@@ -80,13 +80,12 @@ export default function AddTherapistDialog({
 }: AddTherapistDialogProps) {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation('common');
-  const skillsOptions = getSpecialtySelectOptions(i18n.language);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [rooms, setRooms] = useState<TreatmentRoom[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>([]);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedTreatmentIds, setSelectedTreatmentIds] = useState<string[]>([]);
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const {
     url: profileImage,
@@ -164,7 +163,6 @@ export default function AddTherapistDialog({
         phone: normalizeTherapistPhone(formData.phone),
         trunks: selectedRooms.join(", ") || null,
         status: formData.status,
-        skills: selectedSkills,
         profile_image: profileImage,
       })
       .select()
@@ -214,6 +212,22 @@ export default function AddTherapistDialog({
 
       if (relationError) {
         toast.error("Erreur lors de l'association des hôtels");
+        return;
+      }
+    }
+
+    if (selectedTreatmentIds.length > 0) {
+      const { error: treatmentsError } = await supabase
+        .from("therapist_treatments")
+        .insert(
+          selectedTreatmentIds.map((treatment_menu_id) => ({
+            therapist_id: therapist.id,
+            treatment_menu_id,
+          }))
+        );
+
+      if (treatmentsError) {
+        toast.error("Erreur lors de l'association des prestations");
         return;
       }
     }
@@ -393,16 +407,17 @@ export default function AddTherapistDialog({
               />
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Compétences</Label>
-              <MultiSelectPopover
-                selected={selectedSkills}
-                onChange={setSelectedSkills}
-                options={skillsOptions}
-                popoverWidthClassName="w-36"
-                popoverMaxHeightClassName="h-32"
-              />
-            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">
+              {t("admin:therapistTreatments.title", "Prestations réalisables")}
+            </Label>
+            <TherapistTreatmentsSelector
+              venues={hotels.filter((h) => selectedHotels.includes(h.id))}
+              value={selectedTreatmentIds}
+              onChange={setSelectedTreatmentIds}
+            />
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

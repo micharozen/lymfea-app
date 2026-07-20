@@ -1602,6 +1602,7 @@
     "assignVenueFirst": "Assign the therapist to a venue first to choose their treatments.",
     "count_one": "{{count}} treatment",
     "count_other": "{{count}} treatments",
-    "none": "No treatment"
+    "none": "No treatment",
+    "thisVenue": "this venue"
   }
 }

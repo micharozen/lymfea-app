@@ -4,8 +4,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Phone, Building2, Sparkles, Briefcase, Target, CalendarDays } from "lucide-react";
 import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
 import { TherapistScheduleSection } from "@/components/admin/schedule/TherapistScheduleSection";
-import { getSpecialtyLabel } from "@/lib/specialtyTypes";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Hotel {
   id: string;
@@ -29,7 +30,6 @@ interface Therapist {
   profile_image: string | null;
   status: string;
   trunks: string | null;
-  skills: string[];
   minimum_guarantee?: Record<string, number> | null;
   therapist_venues?: { hotel_id: string }[];
 }
@@ -51,7 +51,21 @@ export function TherapistDetailDialog({
   rooms,
   onEdit,
 }: TherapistDetailDialogProps) {
-  const { i18n } = useTranslation();
+
+  const { data: treatmentNames = [] } = useQuery({
+    queryKey: ["therapist-treatment-names", therapist?.id],
+    queryFn: async (): Promise<string[]> => {
+      const { data, error } = await supabase
+        .from("therapist_treatments")
+        .select("treatment_menus(name)")
+        .eq("therapist_id", therapist!.id);
+      if (error) throw error;
+      return (data ?? [])
+        .map((row) => row.treatment_menus?.name)
+        .filter((name): name is string => !!name);
+    },
+    enabled: open && !!therapist?.id,
+  });
 
   if (!therapist) return null;
 
@@ -98,16 +112,15 @@ export function TherapistDetailDialog({
         </DetailCard>
       </DetailSection>
 
-      {/* Specialties */}
-      {therapist.skills && therapist.skills.length > 0 && (
-        <DetailSection icon={Sparkles} title="Spécialités">
+      {treatmentNames.length > 0 && (
+        <DetailSection icon={Sparkles} title="Prestations réalisables">
           <div className="flex flex-wrap gap-2">
-            {therapist.skills.map((skill) => (
+            {treatmentNames.map((name) => (
               <div
-                key={skill}
+                key={name}
                 className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1"
               >
-                <span className="text-sm">{getSpecialtyLabel(skill, i18n.language)}</span>
+                <span className="text-sm">{name}</span>
               </div>
             ))}
           </div>
