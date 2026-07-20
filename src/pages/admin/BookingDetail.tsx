@@ -142,6 +142,9 @@ export default function BookingDetail() {
   const [markPaidMethod, setMarkPaidMethod] = useState<string>("");
   const [markPaidPartner, setMarkPaidPartner] = useState<BookingClientType | "">("");
   const [markPaidLoading, setMarkPaidLoading] = useState(false);
+  // "pay" = encaissement (fixe le statut), "method" = correction de la méthode
+  // sur une réservation déjà réglée (le statut n'est pas touché).
+  const [markPaidMode, setMarkPaidMode] = useState<"pay" | "method">("pay");
   const [invoiceHTML, setInvoiceHTML] = useState("");
   const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
   const [invoiceIsRoomPayment, setInvoiceIsRoomPayment] = useState(false);
@@ -387,12 +390,24 @@ export default function BookingDetail() {
       ? "payment"
       : "edit";
 
+  const openPaymentMethodDialog = (mode: "pay" | "method") => {
+    setMarkPaidMode(mode);
+    setMarkPaidMethod(booking.payment_method ?? "");
+    setMarkPaidPartner(
+      isPartnerBilledClientType(normalizeBookingClientType(clientType))
+        ? normalizeBookingClientType(clientType)
+        : "",
+    );
+    dialogs.setIsMarkPaidOpen(true);
+  };
+
   const handleMarkAsPaid = async () => {
     if (!booking || !markPaidMethod) return;
     // Facturation partenaire : le partenaire doit être choisi, et le paiement
     // reste "pending_partner_billing" (encaissé côté partenaire en fin de mois),
     // pas "paid". Le partenaire choisi est persisté dans client_type.
     const isPartner = markPaidMethod === "partner_billed";
+    const isMethodOnly = markPaidMode === "method" && !isPartner;
     if (isPartner && !markPaidPartner) return;
     // Ne pas réécraser un paiement déjà abouti/remboursé.
     if (isPartner && isPaymentStatusLocked(booking.payment_status)) {
@@ -409,6 +424,8 @@ export default function BookingDetail() {
           payment_method: derived.paymentMethod,
           payment_status: derived.paymentStatus,
         };
+      } else if (isMethodOnly) {
+        update = { payment_method: markPaidMethod };
       } else {
         update = { payment_status: "paid", payment_method: markPaidMethod };
       }
@@ -419,13 +436,19 @@ export default function BookingDetail() {
       if (error) throw error;
       // Stamp the payment time so the detail view can show "payé le …" — seulement
       // pour un vrai encaissement. La facturation partenaire n'est pas un paiement.
-      if (!isPartner) {
+      if (!isPartner && !isMethodOnly) {
         await supabase
           .from("booking_payment_infos")
           .update({ payment_at: new Date().toISOString() })
           .eq("booking_id", booking.id);
       }
-      toast.success(isPartner ? "Facturation partenaire enregistrée." : "Paiement enregistré.");
+      toast.success(
+        isPartner
+          ? "Facturation partenaire enregistrée."
+          : isMethodOnly
+            ? "Méthode de paiement mise à jour."
+            : "Paiement enregistré.",
+      );
       dialogs.setIsMarkPaidOpen(false);
       refetch();
     } catch (err: any) {
@@ -819,7 +842,15 @@ export default function BookingDetail() {
                     <span className="text-gray-500 flex items-center gap-2">
                       <MethodIcon className="h-4 w-4 shrink-0" /> Méthode
                     </span>
-                    <span className="text-gray-900 font-medium text-right capitalize">{methodLabel}</span>
+                    <button
+                      type="button"
+                      onClick={() => openPaymentMethodDialog("method")}
+                      className="group flex items-center gap-1.5 text-right text-gray-900 font-medium capitalize hover:text-primary transition-colors"
+                      title="Modifier la méthode de paiement"
+                    >
+                      {methodLabel}
+                      <Pencil className="h-3.5 w-3.5 shrink-0 text-gray-400 group-hover:text-primary" />
+                    </button>
                   </div>
                   {(booking as any).payment_reference && (
                     <p className="font-mono text-[11px] text-gray-400 text-right">
@@ -853,11 +884,7 @@ export default function BookingDetail() {
                   variant="outline"
                   size="sm"
                   className="w-full mt-4"
-                  onClick={() => {
-                    setMarkPaidMethod(booking.payment_method ?? "");
-                    setMarkPaidPartner(isPartnerBilledClientType(normalizeBookingClientType(clientType)) ? normalizeBookingClientType(clientType) : "");
-                    dialogs.setIsMarkPaidOpen(true);
-                  }}
+                  onClick={() => openPaymentMethodDialog("pay")}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-2" /> Marquer comme payé
                 </Button>
@@ -927,7 +954,11 @@ export default function BookingDetail() {
 
       <Dialog open={dialogs.isMarkPaidOpen} onOpenChange={dialogs.setIsMarkPaidOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Marquer comme payé</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>
+              {markPaidMode === "method" ? "Modifier la méthode de paiement" : "Marquer comme payé"}
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-2">
             <label className="text-sm text-gray-500">Méthode de paiement</label>
             <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
@@ -956,7 +987,7 @@ export default function BookingDetail() {
             <Button variant="outline" onClick={() => dialogs.setIsMarkPaidOpen(false)}>Annuler</Button>
             <Button onClick={handleMarkAsPaid} disabled={!markPaidMethod || (markPaidMethod === "partner_billed" && !markPaidPartner) || markPaidLoading}>
               {markPaidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Confirmer le paiement
+              {markPaidMode === "method" ? "Enregistrer" : "Confirmer le paiement"}
             </Button>
           </DialogFooter>
         </DialogContent>
