@@ -120,6 +120,12 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   partner_billed: "Facturé au partenaire",
 };
 
+/** Libellé du mode de paiement tel qu'affiché dans la clôture. */
+export function closurePaymentMethodLabel(method: string | null | undefined): string {
+  if (!method) return "—";
+  return PAYMENT_METHOD_LABELS[method] ?? method;
+}
+
 function bookingDuration(booking: ClosureBooking): number {
   if (booking.duration && booking.duration > 0) return booking.duration;
   return booking.treatments.reduce((sum, t) => sum + (t.duration ?? 0), 0);
@@ -367,6 +373,7 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
           <td style="${cellBase}">${escapeHtml(treatments || "—")}</td>
           <td style="${cellBase}">${escapeHtml(b.therapist_name ?? "—")}</td>
           <td style="${cellBase};text-align:right;">${b.total_price != null ? money(b.total_price) : "—"}</td>
+          <td style="${cellBase}">${escapeHtml(closurePaymentMethodLabel(b.payment_method))}</td>
           <td style="${cellBase}">${escapeHtml(STATUS_LABELS[b.status] ?? b.status)}</td>
         </tr>`;
     })
@@ -384,6 +391,7 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
               <th style="${cellHeader}">Prestation(s)</th>
               <th style="${cellHeader}">Thérapeute</th>
               <th style="${cellHeader};text-align:right;">Prix</th>
+              <th style="${cellHeader}">Paiement</th>
               <th style="${cellHeader}">Statut</th>
             </tr>
           </thead>

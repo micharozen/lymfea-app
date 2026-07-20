@@ -186,6 +186,7 @@ useEffect(() => {
     filteredBookings: calendarBookings,
     activeTimezone,
     dayCount,
+    persistDateInUrl: true,
   });
 
   // Overflow control

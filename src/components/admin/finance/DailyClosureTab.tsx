@@ -35,6 +35,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import type { TherapistRates } from "@/lib/therapistEarnings";
 
 import {
+  closurePaymentMethodLabel,
   computeClosureStats,
   renderClosureReportHtml,
   type ClosureBooking,
@@ -485,6 +486,7 @@ export function DailyClosureTab() {
                       <th className="text-left font-medium py-2 pr-3">Prestation</th>
                       <th className="text-left font-medium py-2 pr-3">Thérapeute</th>
                       <th className="text-right font-medium py-2 pr-3">Prix</th>
+                      <th className="text-left font-medium py-2 pr-3">Paiement</th>
                       <th className="text-left font-medium py-2">Statut</th>
                     </tr>
                   </thead>
@@ -511,6 +513,9 @@ export function DailyClosureTab() {
                           <td className="py-2 pr-3">{b.therapist_name ?? "—"}</td>
                           <td className="py-2 pr-3 text-right tabular-nums">
                             {b.total_price != null ? fmtMoney(b.total_price, currency) : "—"}
+                          </td>
+                          <td className="py-2 pr-3 text-xs text-muted-foreground">
+                            {closurePaymentMethodLabel(b.payment_method)}
                           </td>
                           <td className="py-2">
                             <StatusBadge status={b.status} type="booking" />

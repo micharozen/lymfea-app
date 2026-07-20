@@ -1,7 +1,10 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { format, addDays, startOfWeek, startOfDay } from "date-fns";
+import { useSearchParams } from "react-router-dom";
+import { format, addDays, startOfWeek, startOfDay, parseISO, isValid } from "date-fns";
 import { getBookingStatusConfig, getPaymentStatusConfig, getCalendarFlowStage } from "@/utils/statusStyles";
 import type { BookingWithTreatments } from "./useBookingData";
+
+const DATE_PARAM = "date";
 
 export const CALENDAR_CONSTANTS = {
   START_HOUR: 7,
@@ -15,25 +18,54 @@ interface UseCalendarLogicOptions {
   filteredBookings: BookingWithTreatments[] | undefined;
   activeTimezone: string;
   dayCount?: number;
+  /**
+   * Mirror the displayed date in the URL (`?date=yyyy-MM-dd`) so it survives
+   * navigating to a booking and coming back, and stays shareable.
+   */
+  persistDateInUrl?: boolean;
 }
 
-export function useCalendarLogic({ filteredBookings, activeTimezone, dayCount = 7 }: UseCalendarLogicOptions) {
+export function useCalendarLogic({
+  filteredBookings,
+  activeTimezone,
+  dayCount = 7,
+  persistDateInUrl = false,
+}: UseCalendarLogicOptions) {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const normalize = useCallback(
+    (date: Date) => (dayCount === 7 ? startOfWeek(date, { weekStartsOn: 1 }) : startOfDay(date)),
+    [dayCount]
+  );
+
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
-    if (dayCount === 7) {
-      return startOfWeek(new Date(), { weekStartsOn: 1 });
-    }
-    return startOfDay(new Date());
+    const raw = persistDateInUrl ? searchParams.get(DATE_PARAM) : null;
+    const parsed = raw ? parseISO(raw) : null;
+    const base = parsed && isValid(parsed) ? parsed : new Date();
+    return dayCount === 7 ? startOfWeek(base, { weekStartsOn: 1 }) : startOfDay(base);
   });
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Reset start date when dayCount changes
-  useEffect(() => {
-    if (dayCount === 7) {
-      setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
-    } else {
-      setCurrentWeekStart(startOfDay(new Date()));
+  const goToDate = useCallback((date: Date) => {
+    const next = normalize(date);
+    setCurrentWeekStart(next);
+    if (persistDateInUrl) {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          params.set(DATE_PARAM, format(next, "yyyy-MM-dd"));
+          return params;
+        },
+        { replace: true }
+      );
     }
-  }, [dayCount]);
+  }, [normalize, persistDateInUrl, setSearchParams]);
+
+  // Re-normalize the *displayed* date when dayCount changes (week start vs day start)
+  // instead of jumping back to today.
+  useEffect(() => {
+    setCurrentWeekStart(prev => normalize(prev));
+  }, [normalize]);
 
   // Update current time every minute
   useEffect(() => {
@@ -66,28 +98,18 @@ export function useCalendarLogic({ filteredBookings, activeTimezone, dayCount = 
   }, [currentWeekStart, dayCount]);
 
   const handlePrevious = useCallback(() => {
-    setCurrentWeekStart(prev => addDays(prev, -dayCount));
-  }, [dayCount]);
+    goToDate(addDays(currentWeekStart, -dayCount));
+  }, [goToDate, currentWeekStart, dayCount]);
 
   const handleNext = useCallback(() => {
-    setCurrentWeekStart(prev => addDays(prev, dayCount));
-  }, [dayCount]);
+    goToDate(addDays(currentWeekStart, dayCount));
+  }, [goToDate, currentWeekStart, dayCount]);
 
   const goToToday = useCallback(() => {
-    if (dayCount === 7) {
-      setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
-    } else {
-      setCurrentWeekStart(startOfDay(new Date()));
-    }
-  }, [dayCount]);
+    goToDate(new Date());
+  }, [goToDate]);
 
-  const setViewDate = useCallback((date: Date) => {
-    if (dayCount === 7) {
-      setCurrentWeekStart(startOfWeek(date, { weekStartsOn: 1 }));
-    } else {
-      setCurrentWeekStart(startOfDay(date));
-    }
-  }, [dayCount]);
+  const setViewDate = goToDate;
 
   const getBookingsForDay = useCallback((date: Date) => {
     return filteredBookings?.filter((booking) => {
