@@ -147,6 +147,37 @@ export function PwaDayView({
     [getBookingsForDay, selectedDate]
   );
 
+  // Overlapping bookings (frequent in "Tout le lieu" scope: several therapists,
+  // several rooms, same slot) are laid out side by side instead of stacking —
+  // a full-width block would otherwise hide the ones underneath it.
+  const layoutByBookingId = useMemo(() => {
+    const minutesOf = (time: string) => {
+      const [h, m] = time.split(":").map(Number);
+      return h * 60 + m;
+    };
+    const layout = new Map<string, { column: number; columns: number }>();
+    let group: DayViewBooking[] = [];
+    let groupEnd = -1;
+
+    const flushGroup = () => {
+      group.forEach((b, index) => {
+        layout.set(b.id, { column: index, columns: group.length });
+      });
+      group = [];
+      groupEnd = -1;
+    };
+
+    for (const booking of dayBookings) {
+      const start = minutesOf(booking.booking_time);
+      if (group.length > 0 && start >= groupEnd) flushGroup();
+      group.push(booking);
+      groupEnd = Math.max(groupEnd, start + calculateDuration(booking));
+    }
+    flushGroup();
+
+    return layout;
+  }, [dayBookings]);
+
   // Auto-scroll to first booking or 8 AM on date change
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -307,6 +338,8 @@ export function PwaDayView({
 
               {dayBookings.map((booking) => {
                 const { top, height } = getBookingPosition(booking);
+                const { column, columns } = layoutByBookingId.get(booking.id) ?? { column: 0, columns: 1 };
+                const widthPct = 100 / columns;
                 const flowStage = getCalendarFlowStage(booking.status, booking.payment_status);
                 const duration = calculateDuration(booking);
                 const endTime = formatEndTime(booking.booking_time, duration);
@@ -317,7 +350,7 @@ export function PwaDayView({
                 return (
                   <div
                     key={booking.id}
-                    className={`absolute left-1 right-1 rounded-lg text-xs cursor-pointer overflow-hidden z-10 select-none ${flowStage.cardClass} ${
+                    className={`absolute rounded-lg text-xs cursor-pointer overflow-hidden z-10 select-none ${flowStage.cardClass} ${
                       booking.isUnassigned
                         ? "opacity-75 border-2 border-dashed border-current/40"
                         : ""
@@ -326,6 +359,8 @@ export function PwaDayView({
                       top: `${top}px`,
                       height: `${height}px`,
                       minHeight: "40px",
+                      left: `calc(${column * widthPct}% + 4px)`,
+                      width: `calc(${widthPct}% - 8px)`,
                     }}
                     {...bind(() => setPreview(booking))}
                     onClick={() => {
