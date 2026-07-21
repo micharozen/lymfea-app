@@ -13,13 +13,24 @@ export const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
+    // `html, body { height: 100% }` (index.css) fait de <body> le conteneur de
+    // scroll : window.scrollY reste à 0 et l'évènement n'atteint jamais window.
+    // On écoute donc les deux, selon ce qui scrolle réellement.
     const onScroll = () => {
-      const y = window.scrollY || document.documentElement.scrollTop;
+      const y =
+        window.scrollY ||
+        document.documentElement.scrollTop ||
+        document.body.scrollTop ||
+        0;
       setScrolled(y > 4);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    document.body.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      document.body.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -40,15 +51,18 @@ export const Navbar = () => {
     i18n.changeLanguage(i18n.language.startsWith("fr") ? "en" : "fr");
   };
 
-  const showBackground = scrolled || mobileOpen;
-
   return (
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,border-color] duration-300",
-        showBackground
-          ? "border-b border-border/60 bg-background shadow-sm backdrop-blur-md"
-          : "border-b border-transparent bg-transparent",
+        // Menu mobile ouvert : fond plein, la liste doit rester lisible.
+        mobileOpen && "border-b border-border/60 bg-background shadow-sm",
+        // Au scroll : voile translucide + flou. Le repli sans backdrop-filter
+        // reste assez opaque pour que le contenu ne transparaisse pas.
+        !mobileOpen &&
+          scrolled &&
+          "border-b border-border/60 bg-background/90 shadow-sm backdrop-blur-xl supports-[backdrop-filter]:bg-background/70",
+        !mobileOpen && !scrolled && "border-b border-transparent bg-transparent",
       )}
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:h-20 md:px-6">

@@ -8,6 +8,7 @@ import { FeaturesGrid } from "@/components/landing/FeaturesGrid";
 import { AiSpotlight } from "@/components/landing/AiSpotlight";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Pricing } from "@/components/landing/Pricing";
+import { PlanComparison } from "@/components/landing/plans/PlanComparison";
 import { Faq } from "@/components/landing/Faq";
 import { CtaSection } from "@/components/landing/CtaSection";
 import { Footer } from "@/components/landing/Footer";
@@ -41,6 +42,7 @@ const Landing = () => {
         <AiSpotlight />
         <HowItWorks />
         <Pricing />
+        <PlanComparison />
         <Faq />
         <CtaSection />
       </main>

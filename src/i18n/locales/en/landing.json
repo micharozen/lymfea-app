@@ -24,13 +24,34 @@
   "trustedBy": {
     "tagline": "Seven houses orchestrate their spa with Saoma",
     "venues": {
-      "eia": { "name": "EÏA", "address": "Av. Victor Hugo · 75116" },
-      "hanna": { "name": "Hôtel Hanna", "address": "4 Septembre · 75002" },
-      "george": { "name": "Monsieur George", "address": "Washington · 75008" },
-      "soho": { "name": "Soho House", "address": "La Bruyère · 75009" },
-      "buci": { "name": "Hôtel de Buci", "address": "De Buci · 75006" },
-      "holy": { "name": "Studio by Holy", "address": "Guersant · 75017" },
-      "capAntibes": { "name": "Cap d'Antibes Beach Hotel", "address": "Cap d'Antibes · 06160" }
+      "eia": {
+        "name": "EÏA",
+        "address": "Av. Victor Hugo · 75116"
+      },
+      "hanna": {
+        "name": "Hôtel Hanna",
+        "address": "4 Septembre · 75002"
+      },
+      "george": {
+        "name": "Monsieur George",
+        "address": "Washington · 75008"
+      },
+      "soho": {
+        "name": "Soho House",
+        "address": "La Bruyère · 75009"
+      },
+      "buci": {
+        "name": "Hôtel de Buci",
+        "address": "De Buci · 75006"
+      },
+      "holy": {
+        "name": "Studio by Holy",
+        "address": "Guersant · 75017"
+      },
+      "capAntibes": {
+        "name": "Cap d'Antibes Beach Hotel",
+        "address": "Cap d'Antibes · 06160"
+      }
     }
   },
   "problem": {
@@ -136,17 +157,18 @@
   "pricing": {
     "eyebrow": "Pricing",
     "title": "Simple pricing, aligned with your business",
-    "subtitle": "No hidden fees, no long-term contracts. Pay per location, scale as you grow.",
+    "subtitle": "No hidden fees, no long-term commitment. Two plans, all inclusive.",
     "starter": {
       "name": "Starter",
       "tagline": "For an independent spa or a day spa getting started.",
       "priceFrom": "Starting from",
-      "unit": "excl. VAT / month / location",
+      "unit": "excl. VAT / month",
       "features": {
+        "bookingsLimit": "Up to 150 bookings per month",
         "agenda": "Unified schedule, multi-therapist, multi-room",
         "pwa": "Therapist mobile app (iOS & Android)",
         "booking": "Online client booking + in-room QR code",
-        "billing": "Stripe payments included",
+        "payments": "Online payment, Tap to Pay & gift cards",
         "support": "Email support & guided onboarding"
       },
       "cta": "Start with Starter",
@@ -157,34 +179,20 @@
       "badge": "Most popular",
       "tagline": "For hotels who want to integrate their PMS and automate billing.",
       "priceFrom": "Starting from",
-      "unit": "excl. VAT / month / location",
+      "unit": "excl. VAT / month",
       "features": {
-        "everythingStarter": "Everything included in Starter",
-        "pms": "Opera Cloud & Mews PMS integration",
-        "autoBilling": "Automatic monthly billing",
-        "giftcards": "Gift cards & treatment bundles",
-        "multiTherapist": "Advanced multi-therapist coordination",
-        "prioritySupport": "Priority support & dedicated CSM"
+        "everythingStarter": "Unlimited bookings + everything in Starter",
+        "pms": "Opera Cloud & Mews PMS + room charge billing",
+        "ai": "Inbound requests handled by AI (email → booking)",
+        "autoBilling": "Automatic monthly invoicing & daily closing report",
+        "revenue": "Abandoned cart recovery & multi-session programmes",
+        "insights": "Client portal & booking journey analytics",
+        "prioritySupport": "Multi-venue, priority support & dedicated manager"
       },
       "cta": "Try Pro",
       "note": "14-day free trial. No credit card."
     },
-    "enterprise": {
-      "name": "Enterprise",
-      "tagline": "For hotel groups and multi-property chains.",
-      "priceLabel": "Pricing",
-      "price": "Custom quote",
-      "features": {
-        "multivenue": "Multi-property & consolidated reporting",
-        "branding": "White-label & custom domain",
-        "sla": "Dedicated SLA & 7/7 priority support",
-        "dedicatedCSM": "Dedicated Customer Success Manager",
-        "customIntegrations": "Custom integrations (PMS, ERP, BI)"
-      },
-      "cta": "Contact the team",
-      "note": "Response within 24 business hours."
-    },
-    "footnote": "All prices in EUR excl. VAT. Volume discount above 5 locations. Monthly billing via Stripe."
+    "footnote": "All prices in € excl. VAT. Stripe billing, monthly payment, no commitment."
   },
   "faq": {
     "eyebrow": "Frequently asked questions",
@@ -253,5 +261,266 @@
       "legalMentions": "Legal notice"
     },
     "copyright": "© {{year}} Saoma. All rights reserved."
+  },
+  "planComparison": {
+    "eyebrow": "Detailed comparison",
+    "title": "What each plan includes",
+    "subtitle": "Every feature listed below is available today, unless stated otherwise.",
+    "table": {
+      "feature": "Feature",
+      "perMonth": " excl. VAT / month"
+    },
+    "legend": {
+      "yes": "Included",
+      "no": "Not available",
+      "soon": "Coming soon",
+      "onRequest": "On request"
+    },
+    "footnote": "Prices excl. VAT · No annual commitment · \"On request\" features are enabled during onboarding.",
+    "values": {
+      "perMonth150": "150 / month",
+      "unlimited": "Unlimited",
+      "advanced": "Advanced",
+      "bespoke": "Bespoke",
+      "complete": "Complete",
+      "selfServe": "Guided self-serve",
+      "turnkey": "Turnkey",
+      "supportEmail": "Email",
+      "supportDedicated": "Dedicated manager, priority"
+    },
+    "sections": {
+      "booking": "Booking & schedule",
+      "therapistApp": "Therapist app",
+      "branding": "Customisation & branding",
+      "payments": "Payments & checkout",
+      "integrations": "Integrations",
+      "automation": "Communication & automation",
+      "clients": "Clients",
+      "administration": "Multi-venue & administration",
+      "soon": "Coming soon"
+    },
+    "rows": {
+      "onlineBookings": {
+        "label": "Online bookings",
+        "note": "Beyond 150 monthly bookings, moving to Pro is the natural step"
+      },
+      "qrCode": {
+        "label": "Booking via in-room QR code",
+        "note": "Direct link from the guest room"
+      },
+      "clientWebapp": {
+        "label": "Client webapp (iOS, Android, desktop)",
+        "note": "No installation required"
+      },
+      "backOffice": {
+        "label": "Desktop & mobile back-office"
+      },
+      "multiRoomAgenda": {
+        "label": "Multi-room & multi-therapist schedule",
+        "note": "Views by venue, room and therapist"
+      },
+      "duoBookings": {
+        "label": "Duo bookings (2 guests)",
+        "note": "Two treatment rooms allocated automatically"
+      },
+      "cancellationNoShow": {
+        "label": "Cancellation & no-show handling"
+      },
+      "cures": {
+        "label": "Programmes & multi-session packages",
+        "note": "Multi-session programmes tracked end to end"
+      },
+      "quotes": {
+        "label": "Quotes & bespoke requests"
+      },
+      "scheduleAlerts": {
+        "label": "Schedule alerts & checks",
+        "note": "Detects conflicts and at-risk slots"
+      },
+      "therapistMobileApp": {
+        "label": "Therapist mobile app (iOS & Android)",
+        "note": "Real-time schedule"
+      },
+      "pushNotifications": {
+        "label": "Real-time push notifications"
+      },
+      "inRoomUpsell": {
+        "label": "Add a treatment during the session",
+        "note": "In-room upsell with availability check"
+      },
+      "alternativeSlot": {
+        "label": "Alternative slot proposal"
+      },
+      "therapistStats": {
+        "label": "Therapist statistics & earnings"
+      },
+      "therapistInvoices": {
+        "label": "Automatic therapist invoices",
+        "note": "Generated and sent monthly"
+      },
+      "customization": {
+        "label": "Customisation (logo, colours, photos, typography)",
+        "note": "No limit on changes"
+      },
+      "treatmentCategories": {
+        "label": "Configurable treatment categories",
+        "note": "Solo, duo, ritual, etc."
+      },
+      "whiteLabel": {
+        "label": "100% white-label hotel branding",
+        "note": "No visible Saoma branding"
+      },
+      "emailCustomization": {
+        "label": "Client email customisation"
+      },
+      "bilingual": {
+        "label": "Interface & emails in FR / EN",
+        "note": "Client language detected automatically"
+      },
+      "onlinePayment": {
+        "label": "Online payment",
+        "note": "Cards, Apple Pay, Google Pay"
+      },
+      "tapToPay": {
+        "label": "Tap to Pay on iPhone",
+        "note": "In-room checkout without a terminal"
+      },
+      "paymentLinks": {
+        "label": "Payment links & automatic reminders",
+        "note": "Sent by email and SMS"
+      },
+      "giftCards": {
+        "label": "Gift cards — sales, codes & tracking",
+        "note": "Public code redemption portal"
+      },
+      "promoCodes": {
+        "label": "Promo codes & discounts",
+        "note": "Enabled during onboarding"
+      },
+      "roomCharge": {
+        "label": "Room charge billing",
+        "note": "Requires the PMS integration"
+      },
+      "abandonedCart": {
+        "label": "Abandoned cart recovery",
+        "note": "Recovers unfinished bookings"
+      },
+      "dailyClosure": {
+        "label": "Daily closing report",
+        "note": "End-of-day recap with payment breakdown"
+      },
+      "autoInvoicing": {
+        "label": "Automatic monthly venue invoicing",
+        "note": "Zero manual entry for the front desk"
+      },
+      "stripe": {
+        "label": "Stripe payment integration"
+      },
+      "sms": {
+        "label": "Transactional SMS",
+        "note": "Confirmations and payment links"
+      },
+      "pms": {
+        "label": "Hotel PMS integration (Opera Cloud / Mews)",
+        "note": "Guest sync and room charge billing"
+      },
+      "whatsapp": {
+        "label": "WhatsApp",
+        "note": "Confirmations and client messaging"
+      },
+      "slack": {
+        "label": "Slack notifications",
+        "note": "Real-time internal alerts"
+      },
+      "publicApi": {
+        "label": "Public API with keys & quotas",
+        "note": "Connect your group's tools"
+      },
+      "sso": {
+        "label": "SSO / SAML (single hotel login)",
+        "note": "Enabled during onboarding"
+      },
+      "confirmationEmails": {
+        "label": "Automatic confirmation emails"
+      },
+      "reminders": {
+        "label": "Automatic pre-appointment reminders"
+      },
+      "staffNotifications": {
+        "label": "Front desk / concierge notifications",
+        "note": "New booking, treatment completed, room charge"
+      },
+      "satisfactionSurvey": {
+        "label": "Post-treatment satisfaction survey",
+        "note": "Client rates the therapist"
+      },
+      "aiInbound": {
+        "label": "AI handling of inbound requests",
+        "note": "Email or chat turned into a booking automatically"
+      },
+      "unifiedInbox": {
+        "label": "Unified inbox",
+        "note": "Every client request in one place"
+      },
+      "clientRecords": {
+        "label": "Client records & treatment history",
+        "note": "Preferences and history retained"
+      },
+      "clientPortal": {
+        "label": "Client portal (account, bookings, gift cards)",
+        "note": "Clients manage their own bookings"
+      },
+      "unlimitedSeats": {
+        "label": "Unlimited users (admin, front desk, spa)"
+      },
+      "conciergeAccounts": {
+        "label": "Dedicated concierge accounts",
+        "note": "Permissions scoped per venue"
+      },
+      "analyticsDashboard": {
+        "label": "Analytics dashboard"
+      },
+      "financialReports": {
+        "label": "Financial reports & transactions"
+      },
+      "clientFunnel": {
+        "label": "Client booking journey analytics",
+        "note": "Conversion funnel, sessions, devices and traffic source"
+      },
+      "activityForecast": {
+        "label": "7-day activity forecast & monthly outlook",
+        "note": "Anticipate occupancy and revenue"
+      },
+      "multiVenue": {
+        "label": "Multi-venue management",
+        "note": "Group-level consolidation"
+      },
+      "supportTickets": {
+        "label": "Built-in support tickets",
+        "note": "Track requests from the back-office"
+      },
+      "onboarding": {
+        "label": "Onboarding"
+      },
+      "support": {
+        "label": "Support"
+      },
+      "pos": {
+        "label": "POS & retail product sales",
+        "note": "In development"
+      },
+      "marketingAutomation": {
+        "label": "Marketing automation & campaigns",
+        "note": "In development — transactional emails already included"
+      },
+      "npsGoogle": {
+        "label": "NPS & Google reviews",
+        "note": "In development"
+      },
+      "predictiveAnalytics": {
+        "label": "Predictive analytics",
+        "note": "In development"
+      }
+    }
   }
 }
