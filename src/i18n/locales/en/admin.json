@@ -1428,6 +1428,7 @@
         "draftFailed": "Failed to generate a draft",
         "recipientLabel": "To",
         "recipientEdited": "Recipient changed (suggested: {{original}})",
+        "recipientFromBody": "Address extracted from the message — the email was sent by {{sender}}",
         "invalidRecipient": "Invalid recipient address",
         "subjectLabel": "Subject",
         "bodyLabel": "Message",
