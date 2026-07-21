@@ -320,7 +320,12 @@ const PwaBookings = () => {
     }
   };
 
-  const dayViewBookings: DayViewBooking[] = bookings.map((b) => ({
+  // Cancelled bookings stay visible in the list (traceability) but never on the
+  // Day / 3-day grids: in "venue" scope they aren't filtered server-side, so a
+  // cancelled slot would overlay — and hide — the booking that replaced it.
+  const scheduleBookings = bookings.filter((b) => b.status !== "cancelled");
+
+  const dayViewBookings: DayViewBooking[] = scheduleBookings.map((b) => ({
     id: b.id,
     booking_id: b.booking_id,
     booking_date: b.booking_date,
@@ -344,8 +349,9 @@ const PwaBookings = () => {
 
   // Legend mirrors the admin/concierge planning: reservation-flow stages
   // (status + payment) shown in lifecycle order, deduped to what's on screen.
+  const legendSource = view === "list" ? bookings : scheduleBookings;
   const legendStages = calendarFlowStageOrder.filter((key) =>
-    bookings.some((b) => getCalendarFlowStage(b.status, b.payment_status).key === key),
+    legendSource.some((b) => getCalendarFlowStage(b.status, b.payment_status).key === key),
   );
 
   if (loading) {
@@ -421,7 +427,7 @@ const PwaBookings = () => {
         ) : view === "calendar" ? (
           <div className="flex-1 min-h-0">
             <PwaCalendarView
-              bookings={bookings}
+              bookings={scheduleBookings}
               onBookingClick={(booking) => navigate(`/pwa/booking/${booking.id}`)}
               onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
             />
