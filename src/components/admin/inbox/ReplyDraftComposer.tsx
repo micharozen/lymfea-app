@@ -13,6 +13,8 @@ interface Props {
   inquiryId: string;
   /** Address extracted by the parser; falls back to the SMTP sender. */
   defaultRecipient: string;
+  /** Actual SMTP sender, surfaced when it differs from the prefilled address. */
+  smtpSender: string;
   onClose: () => void;
   onSent: () => void;
 }
@@ -29,7 +31,7 @@ type Stage = "loading" | "ready" | "sending";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function ReplyDraftComposer({ inquiryId, defaultRecipient, onClose, onSent }: Props) {
+export function ReplyDraftComposer({ inquiryId, defaultRecipient, smtpSender, onClose, onSent }: Props) {
   const { t } = useTranslation("admin");
   const queryClient = useQueryClient();
 
@@ -179,11 +181,20 @@ export function ReplyDraftComposer({ inquiryId, defaultRecipient, onClose, onSen
               disabled={stage === "sending"}
               className="bg-white"
             />
-            {recipient.trim() !== defaultRecipient && (
+            {recipient.trim() !== defaultRecipient ? (
               <p className="text-[11px] text-amber-700">
                 {t("inbox.detail.reply.recipientEdited", {
                   defaultValue: "Destinataire modifié (proposé : {{original}})",
                   original: defaultRecipient,
+                })}
+              </p>
+            ) : defaultRecipient !== smtpSender && (
+              // The parser found an address in the body that differs from the SMTP
+              // sender (forwarded email, or a client signing with another address).
+              <p className="text-[11px] text-amber-700">
+                {t("inbox.detail.reply.recipientFromBody", {
+                  defaultValue: "Adresse extraite du message — l'expéditeur du mail est {{sender}}",
+                  sender: smtpSender,
                 })}
               </p>
             )}

@@ -1455,6 +1455,7 @@
         "draftFailed": "Impossible de générer un brouillon",
         "recipientLabel": "À",
         "recipientEdited": "Destinataire modifié (proposé : {{original}})",
+        "recipientFromBody": "Adresse extraite du message — l'expéditeur du mail est {{sender}}",
         "invalidRecipient": "Adresse du destinataire invalide",
         "subjectLabel": "Sujet",
         "bodyLabel": "Message",
