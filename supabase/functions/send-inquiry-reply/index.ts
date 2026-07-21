@@ -65,6 +65,15 @@ function reSubject(original: string | null, override: string | null): string {
   return candidate.toLowerCase().startsWith("re:") ? candidate : `Re: ${candidate}`;
 }
 
+// The admin can override the recipient: on a manually forwarded email the SMTP
+// sender is the venue's own mailbox, not the client. The UI prefills the address
+// extracted by the parser, so the override is always a reviewed value.
+function validEmail(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -108,6 +117,10 @@ serve(async (req) => {
     const replyBody = typeof body.body === "string" ? body.body.trim() : "";
     if (!inquiryId) return jsonResponse({ error: "Missing inquiryId" }, 400);
     if (!replyBody) return jsonResponse({ error: "Missing body" }, 400);
+    if (body.to !== undefined && validEmail(body.to) === null) {
+      return jsonResponse({ error: "Invalid recipient address" }, 400);
+    }
+    const recipientOverride = validEmail(body.to);
 
     // 3. Load root inquiry
     const { data: inquiryData, error: inquiryErr } = await supabaseClient
@@ -142,9 +155,11 @@ serve(async (req) => {
       headers["References"] = inquiry.message_id;
     }
 
+    const recipient = recipientOverride ?? inquiry.from_address;
+
     const sendResult = await sendEmail({
       from: inquiry.to_address,
-      to: inquiry.from_address,
+      to: recipient,
       subject: finalSubject,
       html,
       headers: Object.keys(headers).length > 0 ? headers : undefined,
@@ -162,7 +177,7 @@ serve(async (req) => {
         parent_inquiry_id: inquiry.id,
         direction: "outbound",
         from_address: inquiry.to_address,
-        to_address: inquiry.from_address,
+        to_address: recipient,
         subject: finalSubject,
         raw_body_text: replyBody,
         raw_body_html: html,
