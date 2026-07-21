@@ -5,7 +5,6 @@ import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { BRAND_DEMO_CTA } from "./constants";
 import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import {
@@ -17,21 +16,22 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const STARTER_FEATURES = ["agenda", "pwa", "booking", "billing", "support"] as const;
+const STARTER_FEATURES = [
+  "bookingsLimit",
+  "agenda",
+  "pwa",
+  "booking",
+  "payments",
+  "support",
+] as const;
 const PRO_FEATURES = [
   "everythingStarter",
   "pms",
+  "ai",
   "autoBilling",
-  "giftcards",
-  "multiTherapist",
+  "revenue",
+  "insights",
   "prioritySupport",
-] as const;
-const ENTERPRISE_FEATURES = [
-  "multivenue",
-  "branding",
-  "sla",
-  "dedicatedCSM",
-  "customIntegrations",
 ] as const;
 
 interface PublicPlan {
@@ -84,11 +84,6 @@ export const Pricing = () => {
   );
 
   async function handleSelectPlan(code: PlanCode) {
-    if (code === "enterprise") {
-      window.location.href = BRAND_DEMO_CTA;
-      return;
-    }
-
     if (userLoading) {
       // UserContext still fetching session — wait, don't redirect to /auth.
       return;
@@ -202,7 +197,7 @@ export const Pricing = () => {
           </div>
         </motion.div>
 
-        <div className="mt-14 grid gap-6 lg:grid-cols-3 lg:items-start">
+        <div className="mx-auto mt-14 grid max-w-4xl gap-6 md:grid-cols-2 md:items-start">
           {/* Starter tier */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -309,55 +304,6 @@ export const Pricing = () => {
             </Button>
             <p className="mt-3 text-center text-xs text-muted-foreground">
               {t("pricing.pro.note")}
-            </p>
-          </motion.div>
-
-          {/* Enterprise tier */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-foreground via-foreground to-[#2a1f10] p-8 text-background md:p-10"
-          >
-            <div className="text-xs font-medium uppercase tracking-[0.2em] text-gold-400">
-              {t("pricing.enterprise.name")}
-            </div>
-            <p className="mt-2 text-sm text-background/70">{t("pricing.enterprise.tagline")}</p>
-
-            <div className="mt-6">
-              <div className="text-sm text-background/70">{t("pricing.enterprise.priceLabel")}</div>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="font-serif text-5xl text-background md:text-6xl">
-                  {t("pricing.enterprise.price")}
-                </span>
-              </div>
-            </div>
-
-            <ul className="mt-8 space-y-3">
-              {ENTERPRISE_FEATURES.map((key) => (
-                <li key={key} className="flex items-start gap-3 text-sm text-background/90">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold-500/20 text-gold-400">
-                    <Check className="h-3 w-3" />
-                  </span>
-                  {t(`pricing.enterprise.features.${key}`)}
-                </li>
-              ))}
-            </ul>
-
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="group mt-10 h-12 w-full border-background/30 bg-transparent text-base text-background hover:bg-background/10 hover:text-background"
-            >
-              <a href={BRAND_DEMO_CTA}>
-                {t("pricing.enterprise.cta")}
-                <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </a>
-            </Button>
-            <p className="mt-3 text-center text-xs text-background/60">
-              {t("pricing.enterprise.note")}
             </p>
           </motion.div>
         </div>
