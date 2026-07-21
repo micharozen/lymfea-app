@@ -486,6 +486,7 @@ export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: P
           {composerOpen && (
             <ReplyDraftComposer
               inquiryId={inquiry.id}
+              defaultRecipient={inquiry.parsed_data?.email ?? inquiry.from_address}
               onClose={() => setComposerOpen(false)}
               onSent={() => {
                 setComposerOpen(false);

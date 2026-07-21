@@ -11,6 +11,8 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 
 interface Props {
   inquiryId: string;
+  /** Address extracted by the parser; falls back to the SMTP sender. */
+  defaultRecipient: string;
   onClose: () => void;
   onSent: () => void;
 }
@@ -25,12 +27,15 @@ interface DraftResponse {
 
 type Stage = "loading" | "ready" | "sending";
 
-export function ReplyDraftComposer({ inquiryId, onClose, onSent }: Props) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function ReplyDraftComposer({ inquiryId, defaultRecipient, onClose, onSent }: Props) {
   const { t } = useTranslation("admin");
   const queryClient = useQueryClient();
 
   const [stage, setStage] = useState<Stage>("loading");
   const [loadingStep, setLoadingStep] = useState<"availability" | "drafting">("availability");
+  const [recipient, setRecipient] = useState(defaultRecipient);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -85,12 +90,18 @@ export function ReplyDraftComposer({ inquiryId, onClose, onSent }: Props) {
       toast.error(t("inbox.detail.reply.missingFields", { defaultValue: "Sujet et corps requis" }));
       return;
     }
+    if (!EMAIL_RE.test(recipient.trim())) {
+      toast.error(t("inbox.detail.reply.invalidRecipient", {
+        defaultValue: "Adresse du destinataire invalide",
+      }));
+      return;
+    }
     setStage("sending");
     const { data: result, error: sendError } = await invokeEdgeFunction<
-      { inquiryId: string; subject: string; body: string },
+      { inquiryId: string; to: string; subject: string; body: string },
       { ok: boolean; warning?: string }
     >("send-inquiry-reply", {
-      body: { inquiryId, subject: subject.trim(), body: body.trim() },
+      body: { inquiryId, to: recipient.trim(), subject: subject.trim(), body: body.trim() },
     });
 
     if (sendError || !result?.ok) {
@@ -156,6 +167,27 @@ export function ReplyDraftComposer({ inquiryId, onClose, onSent }: Props) {
               })}
             </p>
           )}
+
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">
+              {t("inbox.detail.reply.recipientLabel", { defaultValue: "À" })}
+            </label>
+            <Input
+              type="email"
+              value={recipient}
+              onChange={e => setRecipient(e.target.value)}
+              disabled={stage === "sending"}
+              className="bg-white"
+            />
+            {recipient.trim() !== defaultRecipient && (
+              <p className="text-[11px] text-amber-700">
+                {t("inbox.detail.reply.recipientEdited", {
+                  defaultValue: "Destinataire modifié (proposé : {{original}})",
+                  original: defaultRecipient,
+                })}
+              </p>
+            )}
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground uppercase tracking-wide">
