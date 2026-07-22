@@ -12,10 +12,13 @@ CREATE TABLE IF NOT EXISTS "public"."treatment_variants" (
     "updated_at" timestamp with time zone DEFAULT "now"(),
     "label_en" "text",
     "guest_count" integer DEFAULT 1 NOT NULL,
+    "available_days" integer[],
     CONSTRAINT "treatment_variants_status_check" CHECK (("status" = ANY (ARRAY['active'::"text", 'inactive'::"text"])))
 );
 
 ALTER TABLE "public"."treatment_variants" OWNER TO "postgres";
+
+COMMENT ON COLUMN "public"."treatment_variants"."available_days" IS 'Jours autorisés : 0=Dim, 1=Lun, ..., 6=Sam. NULL/vide = hérite des jours du soin parent. Permet des variantes tarifaires Semaine / Week-end.';
 
 ALTER TABLE ONLY "public"."treatment_variants"
     ADD CONSTRAINT "treatment_variants_pkey" PRIMARY KEY ("id");

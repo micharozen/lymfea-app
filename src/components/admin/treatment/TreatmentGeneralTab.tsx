@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Toggle } from "@/components/ui/toggle";
+import { AvailableDaysPicker } from "@/components/admin/treatment/AvailableDaysPicker";
 import { Upload, Loader2 } from "lucide-react";
 import { SPECIALTY_OPTIONS } from "@/lib/specialtyTypes";
 import { useVenueAmenities } from "@/hooks/useVenueAmenities";
@@ -463,81 +463,19 @@ export function TreatmentGeneralTab({
         control={form.control}
         name="available_days"
         render={({ field }) => {
-          const DAYS: { value: number; label: string; title: string }[] = [
-            { value: 1, label: "L", title: "Lundi" },
-            { value: 2, label: "M", title: "Mardi" },
-            { value: 3, label: "M", title: "Mercredi" },
-            { value: 4, label: "J", title: "Jeudi" },
-            { value: 5, label: "V", title: "Vendredi" },
-            { value: 6, label: "S", title: "Samedi" },
-            { value: 0, label: "D", title: "Dimanche" },
-          ];
           const selected: number[] = field.value ?? [];
-          const isEveryDay = selected.length === 0;
-          // Le dernier jour coché ne peut pas être décoché : une liste vide
-          // signifie « tous les jours », ce qui contredirait le mode choisi.
-          const toggle = (day: number) => {
-            if (selected.includes(day)) {
-              if (selected.length === 1) return;
-              field.onChange(selected.filter((d) => d !== day));
-            } else {
-              field.onChange([...selected, day]);
-            }
-          };
           return (
             <FormItem>
               <FormLabel>Jours de disponibilité</FormLabel>
               <FormControl>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <Toggle
-                      type="button"
-                      pressed={isEveryDay}
-                      onPressedChange={() => field.onChange([])}
-                      disabled={disabled}
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-3 text-xs font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary"
-                    >
-                      Tous les jours
-                    </Toggle>
-                    <Toggle
-                      type="button"
-                      pressed={!isEveryDay}
-                      onPressedChange={() =>
-                        field.onChange(DAYS.map((d) => d.value))
-                      }
-                      disabled={disabled}
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-3 text-xs font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary"
-                    >
-                      Jours spécifiques
-                    </Toggle>
-                  </div>
-                  {!isEveryDay && (
-                    <div className="flex items-center gap-1.5">
-                      {DAYS.map((day) => (
-                        <Toggle
-                          key={day.value}
-                          type="button"
-                          title={day.title}
-                          pressed={selected.includes(day.value)}
-                          onPressedChange={() => toggle(day.value)}
-                          disabled={disabled}
-                          size="sm"
-                          variant="outline"
-                          className="w-8 h-8 p-0 text-xs font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary"
-                        >
-                          {day.label}
-                        </Toggle>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <AvailableDaysPicker
+                  value={selected}
+                  onChange={field.onChange}
+                  disabled={disabled}
+                />
               </FormControl>
               <FormDescription className="text-[11px] leading-snug">
-                {isEveryDay
+                {selected.length === 0
                   ? "Ce soin est réservable tous les jours d'ouverture du lieu."
                   : "Ce soin n'est réservable que les jours sélectionnés."}
               </FormDescription>

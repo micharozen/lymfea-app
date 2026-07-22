@@ -23,6 +23,7 @@ export interface TreatmentVariantData {
   is_default: boolean;
   sort_order: number;
   guest_count?: number;
+  available_days?: number[] | null;
 }
 
 export interface DrawerTreatment {

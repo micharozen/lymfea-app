@@ -40,7 +40,8 @@ import { format } from "date-fns";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
 import { isOutOfHours } from "@/lib/bookingUtils";
-import { mapCartDetailToTreatmentLine } from "@/lib/bookingCartLine";
+import { getSelectedVariant, mapCartDetailToTreatmentLine } from "@/lib/bookingCartLine";
+import { resolveAvailableDays } from "@/lib/availableDays";
 import { composePhoneNumber } from "@/lib/phone";
 import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from "./CreateBookingDialog.schema";
 import { BookingInfoStep } from "./steps/BookingInfoStep";
@@ -259,12 +260,19 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   // Intersection of `available_days` for every cart item. A treatment with
   // `available_days = null` is unconstrained and doesn't shrink the set.
+  // The selected variant's own days win over the treatment's — a "Semaine" and a
+  // "Week-end" formula of the same soin aren't bookable on the same days.
   // When the set is non-null, BookingInfoStep draws those weekdays as
   // struck-through / clickable (with a warning toast).
   const cartAvailableDays = useMemo<number[] | null>(() => {
     if (!cartDetails.length) return null;
     const sets = cartDetails
-      .map((i) => (i.treatment as { available_days?: number[] | null } | undefined)?.available_days)
+      .map((i) =>
+        resolveAvailableDays(
+          (i.treatment as { available_days?: number[] | null } | undefined)?.available_days,
+          getSelectedVariant(i.treatment, i.variantId)?.available_days,
+        )
+      )
       .filter((days): days is number[] => Array.isArray(days) && days.length > 0);
     if (sets.length === 0) return null;
     return sets.reduce<number[]>((acc, days) =>

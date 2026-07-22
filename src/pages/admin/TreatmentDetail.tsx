@@ -66,6 +66,8 @@ const createFormSchema = (t: TFunction) =>
           price: z.string().default("0"),
           price_on_request: z.boolean().default(false),
           is_default: z.boolean().default(false),
+          // Vide = la variante hérite des jours du soin.
+          available_days: z.array(z.number().int().min(0).max(6)).default([]),
         })
       )
       .min(1, "Au moins une variante requise"),
@@ -146,6 +148,7 @@ export default function TreatmentDetail() {
           price: "0",
           price_on_request: false,
           is_default: true,
+          available_days: [],
         },
       ],
     },
@@ -189,6 +192,7 @@ export default function TreatmentDetail() {
                   price: v.price?.toString() || "0",
                   price_on_request: v.price_on_request || false,
                   is_default: v.is_default || false,
+                  available_days: v.available_days ?? [],
                 }))
               : [
                   {
@@ -197,6 +201,7 @@ export default function TreatmentDetail() {
                     price: treatment.price?.toString() || "0",
                     price_on_request: treatment.price_on_request || false,
                     is_default: true,
+                    available_days: [],
                   },
                 ];
 
@@ -325,6 +330,7 @@ export default function TreatmentDetail() {
           price_on_request: v.price_on_request,
           is_default: v.is_default,
           sort_order: index,
+          available_days: v.available_days?.length ? v.available_days : null,
         }));
 
         const { error: variantsError } = await supabase
@@ -406,6 +412,7 @@ export default function TreatmentDetail() {
               price_on_request: v.price_on_request,
               is_default: v.is_default,
               sort_order: index,
+              available_days: v.available_days?.length ? v.available_days : null,
             })
             .eq("id", v.id);
           if (updErr) throw updErr;
@@ -424,6 +431,7 @@ export default function TreatmentDetail() {
             price_on_request: v.price_on_request,
             is_default: v.is_default,
             sort_order: index,
+            available_days: v.available_days?.length ? v.available_days : null,
           }));
 
         if (toInsert.length > 0) {
