@@ -12,11 +12,14 @@ interface KpiCardProps {
   caption?: string;
 }
 
-/** Badge d'évolution : ↗ vert / ↘ rouge / → neutre quand la tendance est nulle. */
+/**
+ * Badge d'évolution. Pas de badge quand la tendance est nulle (y compris
+ * lorsque la période précédente est vide) : on n'affiche que le caption.
+ */
 function Trend({ value }: { value: number }) {
   if (value > 0) return <span className="trend up">↗ +{value}%</span>;
   if (value < 0) return <span className="trend down">↘ {value}%</span>;
-  return <span className="trend flat">→ stable</span>;
+  return null;
 }
 
 export function KpiCard({ icon, label, value, unit, trend, caption }: KpiCardProps) {

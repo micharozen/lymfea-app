@@ -154,7 +154,6 @@
 .bo-refonte .trend{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-size:11.5px;height:20px;padding:0 8px;border-radius:var(--r-pill);}
 .bo-refonte .trend.up{background:var(--ok-bg);color:var(--ok);}
 .bo-refonte .trend.down{background:var(--bad-bg);color:var(--bad);}
-.bo-refonte .trend.flat{background:var(--bo-surface-2);color:var(--ink-mute);}
 
 /* —— Carte hero (réservations en ligne) —— */
 .bo-refonte .kpi.hero{background:linear-gradient(135deg,#8F4526,#B05A35);border-color:transparent;color:#FBF6EC;position:relative;overflow:hidden;}
@@ -164,8 +163,7 @@
 .bo-refonte .kpi.hero .top svg{color:#F0DBCB;}
 .bo-refonte .kpi.hero .sub{color:rgba(251,246,236,.72);}
 .bo-refonte .kpi.hero .trend.up,
-.bo-refonte .kpi.hero .trend.down,
-.bo-refonte .kpi.hero .trend.flat{background:rgba(251,246,236,.18);color:#FBF6EC;}
+.bo-refonte .kpi.hero .trend.down{background:rgba(251,246,236,.18);color:#FBF6EC;}
 .bo-refonte .kpi.hero .share{font-family:var(--mono);font-size:11px;color:rgba(251,246,236,.8);}
 .bo-refonte .hero-bar{height:5px;border-radius:3px;background:rgba(251,246,236,.22);overflow:hidden;position:relative;z-index:1;}
 .bo-refonte .hero-bar i{display:block;height:100%;background:#FBF6EC;border-radius:3px;}

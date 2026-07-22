@@ -6,11 +6,12 @@ interface DashboardClientMixProps {
   bookingChannel: BookingChannelData;
 }
 
-/** Évolution d'un segment du mix, en vert/rouge selon le signe. */
+/** Évolution d'un segment du mix, en vert/rouge selon le signe. Rien si nulle. */
 function MixTrend({ value }: { value: number }) {
-  if (value === 0) return <>stable vs période préc.</>;
+  if (value === 0) return null;
   return (
     <>
+      {" · "}
       <b style={{ color: value > 0 ? "var(--ok)" : "var(--bad)" }}>
         {value > 0 ? "+" : ""}
         {value}%
@@ -20,11 +21,11 @@ function MixTrend({ value }: { value: number }) {
   );
 }
 
-/** Badge d'écart de part, exprimé en points (« +18 pts »). */
+/** Badge d'écart de part, exprimé en points (« +18 pts »). Rien si nul. */
 function PointsDelta({ value }: { value: number }) {
   if (value > 0) return <span className="trend up">↗ +{value} pts</span>;
   if (value < 0) return <span className="trend down">↘ {value} pts</span>;
-  return <span className="trend flat">→ stable</span>;
+  return null;
 }
 
 export function DashboardClientMix({ clientMix, bookingChannel }: DashboardClientMixProps) {
@@ -53,7 +54,8 @@ export function DashboardClientMix({ clientMix, bookingChannel }: DashboardClien
             </span>
             <span className="v">{hotel.count}</span>
             <span className="m">
-              {hotel.share}% · <MixTrend value={hotel.trend} />
+              {hotel.share}%
+              <MixTrend value={hotel.trend} />
             </span>
           </div>
           <div className="mix-row">
@@ -63,7 +65,8 @@ export function DashboardClientMix({ clientMix, bookingChannel }: DashboardClien
             </span>
             <span className="v">{external.count}</span>
             <span className="m">
-              {external.share}% · <MixTrend value={external.trend} />
+              {external.share}%
+              <MixTrend value={external.trend} />
             </span>
           </div>
         </div>
