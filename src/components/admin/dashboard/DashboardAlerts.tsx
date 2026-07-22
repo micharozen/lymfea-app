@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CreditCard, ExternalLink, UserX } from "lucide-react";
+import { BedDouble, CreditCard, ExternalLink, UserX } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,8 @@ import type { AlertBooking, AlertsData } from "@/hooks/useDashboardData";
 
 interface DashboardAlertsProps {
   alerts: AlertsData;
+  /** Réservations hôtel à venir sans numéro de chambre saisi. */
+  missingRoomNumber: number;
 }
 
 const getDaysUntilLabel = (daysUntil: number) => {
@@ -32,11 +34,11 @@ const getDaysUntilClassName = (daysUntil: number) => {
   return "bg-muted text-muted-foreground border-border";
 };
 
-export function DashboardAlerts({ alerts }: DashboardAlertsProps) {
+export function DashboardAlerts({ alerts, missingRoomNumber }: DashboardAlertsProps) {
   const { unassigned, pendingPayments, failedPayments } = alerts;
   const [isUnassignedOpen, setIsUnassignedOpen] = useState(false);
   const [isPendingPaymentsOpen, setIsPendingPaymentsOpen] = useState(false);
-  const total = unassigned + pendingPayments + failedPayments;
+  const total = unassigned + pendingPayments + failedPayments + missingRoomNumber;
 
   if (total === 0) return null;
 
@@ -46,34 +48,30 @@ export function DashboardAlerts({ alerts }: DashboardAlertsProps) {
 
   return (
     <>
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="alerts">
         {unassigned > 0 && (
-          <button
-            type="button"
-            onClick={() => setIsUnassignedOpen(true)}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-50 border border-violet-200 text-violet-800 text-sm font-medium hover:bg-violet-100 transition-colors dark:bg-violet-900/20 dark:border-violet-800 dark:text-violet-200"
-          >
-            <UserX className="h-4 w-4" />
-            {unassigned} sans thérapeute
+          <button type="button" onClick={() => setIsUnassignedOpen(true)} className="alert info">
+            <UserX className="h-3.5 w-3.5" />
+            <span className="n">{unassigned}</span> sans thérapeute
           </button>
         )}
         {pendingPayments > 0 && (
-          <button
-            type="button"
-            onClick={() => setIsPendingPaymentsOpen(true)}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium hover:bg-amber-100 transition-colors dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-200"
-          >
-            <CreditCard className="h-4 w-4" />
-            {pendingPayments} paiement{pendingPayments > 1 ? "s" : ""} en attente
+          <button type="button" onClick={() => setIsPendingPaymentsOpen(true)} className="alert wait">
+            <CreditCard className="h-3.5 w-3.5" />
+            <span className="n">{pendingPayments}</span> paiement{pendingPayments > 1 ? "s" : ""} en attente
           </button>
         )}
         {failedPayments > 0 && (
-          <Link
-            to="/admin/bookings?payment_status=failed"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm font-medium hover:bg-red-100 transition-colors dark:bg-red-900/20 dark:border-red-800 dark:text-red-200"
-          >
-            <CreditCard className="h-4 w-4" />
-            {failedPayments} paiement{failedPayments > 1 ? "s" : ""} échoué{failedPayments > 1 ? "s" : ""}
+          <Link to="/admin/bookings?payment_status=failed" className="alert bad">
+            <CreditCard className="h-3.5 w-3.5" />
+            <span className="n">{failedPayments}</span> paiement{failedPayments > 1 ? "s" : ""} échoué
+            {failedPayments > 1 ? "s" : ""}
+          </Link>
+        )}
+        {missingRoomNumber > 0 && (
+          <Link to="/admin/bookings" className="alert run">
+            <BedDouble className="h-3.5 w-3.5" />
+            <span className="n">{missingRoomNumber}</span> chambre{missingRoomNumber > 1 ? "s" : ""} à renseigner
           </Link>
         )}
       </div>

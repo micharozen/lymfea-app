@@ -1,0 +1,252 @@
+/* ────────────────────────────────────────────────────────────
+   Backoffice — refonte visuelle (design « Saoma »)
+   Tous les sélecteurs sont scopés sous .bo-refonte pour ne pas
+   fuiter sur les autres pages admin / la PWA / le flux client qui
+   partagent les tokens globaux de index.css.
+   Polices mappées sur les faces auto-hébergées existantes :
+     serif → Kormelink · sans → Founders Grotesk · mono → système
+   ──────────────────────────────────────────────────────────── */
+
+.bo-refonte {
+  /* Surfaces (plus claires que le brand : densité data) */
+  --bo-bg:#F4EDE0; --bo-surface:#FDFAF2; --bo-surface-2:#F6EFDF; --bo-sand-deep:#E8DCC4;
+  /* Encre */
+  --ink:#2A2419; --ink-soft:#6B5E4B; --ink-mute:#8F8472;
+  /* Accents brand */
+  --clay:#B05A35; --clay-deep:#8F4526; --clay-soft:#F0DBCB;
+  --gold:#A8956A; --gold-soft:#EAE0C6;
+  --moss:#5E6B43; --moss-soft:#E2E6D0;
+  /* Sémantique statuts */
+  --ok:#55703C; --ok-bg:#E4E9D2; --ok-dot:#6B854C;          /* confirmé / payé */
+  --done:#41695B; --done-bg:#DCE7DF; --done-dot:#4E8571;    /* terminé */
+  --wait:#8A661C; --wait-bg:#F3E5C0; --wait-dot:#C29A3B;    /* en attente */
+  --info:#54618C; --info-bg:#E0E3EF; --info-dot:#6C7AAB;    /* carte / partenaire / devis */
+  --run:#A05427; --run-bg:#F3DFCB; --run-dot:#C1703F;       /* en cours */
+  --bad:#9C3A32; --bad-bg:#F2D9D2; --bad-dot:#B0463B;       /* annulé / no-show */
+  /* Teal de la heatmap d'occupation */
+  --heat:#3E7E74;
+  /* Lignes & ombres */
+  --line:rgba(42,36,25,.14); --line-soft:rgba(42,36,25,.07);
+  --shadow-1:0 1px 2px rgba(42,36,25,.05),0 2px 8px -2px rgba(42,36,25,.06);
+  --shadow-2:0 4px 10px -2px rgba(42,36,25,.08),0 12px 32px -12px rgba(42,36,25,.16);
+  /* Type — faces auto-hébergées, aucun webfont externe */
+  --serif:'Kormelink', Georgia, serif;
+  --sans:'Founders Grotesk', system-ui, sans-serif;
+  --mono:ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Rayons */
+  --r-s:6px; --r-m:10px; --r-l:14px; --r-pill:999px;
+
+  background:var(--bo-bg);
+  font-family:var(--sans);
+  color:var(--ink);
+  font-size:13.5px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+.bo-refonte *{box-sizing:border-box;}
+.bo-refonte ::selection{background:var(--clay);color:#FBF6EC;}
+.bo-refonte a{color:var(--clay-deep);text-decoration:none;}
+.bo-refonte a:hover{color:var(--clay);}
+/* index.css impose min-height:44px à tous les <button> (cible tactile).
+   Neutralisé dans le scope : chaque composant définit sa propre hauteur. */
+.bo-refonte button{min-height:0;font-family:var(--sans);cursor:pointer;}
+
+/* —— Titres —— */
+.bo-refonte .bo-page-title{font-family:var(--serif);font-weight:500;font-size:26px;letter-spacing:-.01em;line-height:1.1;margin:0;}
+.bo-refonte .bo-sec-title{font-weight:600;font-size:15px;margin:0;}
+.bo-refonte .bo-num{font-family:var(--mono);font-size:12.5px;letter-spacing:-.01em;}
+
+/* —— Boutons —— */
+.bo-refonte .bo-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13.5px;height:36px;padding:0 16px;border-radius:var(--r-m);border:1px solid transparent;transition:background .13s,border-color .13s,color .13s;white-space:nowrap;}
+.bo-refonte .bo-btn.ghost{background:transparent;color:var(--ink-soft);}
+.bo-refonte .bo-btn.ghost:hover{background:var(--bo-surface-2);color:var(--ink);}
+.bo-refonte .bo-btn.sm{height:30px;padding:0 12px;font-size:12.5px;border-radius:var(--r-s);}
+.bo-refonte .bo-btn:disabled{opacity:.45;cursor:default;}
+
+/* —— Pastilles & chips —— */
+.bo-refonte .bo-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none;}
+.bo-refonte .bo-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;color:var(--ink-soft);height:20px;padding:0 8px;border-radius:var(--r-pill);border:1px solid var(--line);background:var(--bo-surface);}
+
+/* —— Toolbar / segments —— */
+.bo-refonte .bo-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.bo-refonte .bo-seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden;background:var(--bo-surface);}
+.bo-refonte .bo-seg button{font-size:12.5px;font-weight:600;color:var(--ink-soft);background:transparent;border:none;height:34px;padding:0 14px;border-left:1px solid var(--line-soft);}
+.bo-refonte .bo-seg button:first-child{border-left:none;}
+.bo-refonte .bo-seg button.active{background:var(--clay);color:#FBF6EC;}
+
+/* ────────────────────────────────────────────────────────────
+   Page Accueil — mise en page
+   ──────────────────────────────────────────────────────────── */
+
+.bo-refonte .pg-shell{padding:28px 32px 64px;max-width:1240px;margin:0 auto;}
+.bo-refonte .pg-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.bo-refonte .pg-head .period{font-family:var(--mono);font-size:11px;color:var(--ink-mute);margin-top:8px;}
+
+/* Les déclencheurs de la barre d'outils (PeriodSelector, filtre lieux) sont des
+   composants shadcn partagés avec d'autres pages : on les harmonise ici, dans le
+   scope, plutôt que de toucher aux composants eux-mêmes. */
+.bo-refonte .pg-head .bo-toolbar > button{
+  font-family:var(--sans);font-size:13.5px;font-weight:500;color:var(--ink);
+  height:36px;min-height:36px;padding:0 12px;
+  border:1px solid var(--line);border-radius:var(--r-m);
+  background:var(--bo-surface);transition:border-color .13s,box-shadow .13s;
+}
+.bo-refonte .pg-head .bo-toolbar > button:hover{border-color:var(--ink-soft);background:#FFFDF7;}
+.dark .bo-refonte .pg-head .bo-toolbar > button:hover{background:var(--bo-surface-2);}
+.bo-refonte .pg-head .bo-toolbar > button svg{color:var(--ink-mute);}
+
+/* —— Alertes —— */
+.bo-refonte .alerts{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;}
+.bo-refonte .alert{display:inline-flex;align-items:center;gap:9px;height:34px;padding:0 14px;border-radius:var(--r-pill);font-weight:600;font-size:12.5px;border:1px solid;background:var(--bo-surface);transition:box-shadow .12s;}
+.bo-refonte .alert:hover{box-shadow:var(--shadow-1);}
+.bo-refonte .alert.info{color:var(--info);border-color:rgba(84,97,140,.3);}
+.bo-refonte .alert.wait{color:var(--wait);border-color:rgba(138,102,28,.35);}
+.bo-refonte .alert.bad{color:var(--bad);border-color:rgba(156,58,50,.35);}
+.bo-refonte .alert.run{color:var(--run);border-color:rgba(160,84,39,.35);}
+.bo-refonte .alert .n{font-family:var(--mono);font-size:12px;}
+.bo-refonte .alert svg{flex:none;}
+
+/* —— Grilles —— */
+.bo-refonte .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px;}
+.bo-refonte .kpis.cols-2{grid-template-columns:repeat(2,1fr);}
+.bo-refonte .mix{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:14px;margin-top:14px;}
+.bo-refonte .duo{display:grid;grid-template-columns:1.7fr 1fr;gap:14px;margin-top:14px;}
+.bo-refonte .trio{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:14px;margin-top:14px;}
+.bo-refonte .full{margin-top:14px;}
+@media(max-width:1100px){
+  .bo-refonte .kpis{grid-template-columns:repeat(2,1fr);}
+  .bo-refonte .mix,.bo-refonte .duo,.bo-refonte .trio{grid-template-columns:1fr;}
+}
+@media(max-width:640px){
+  .bo-refonte .pg-shell{padding:20px 16px 56px;}
+  .bo-refonte .kpis{grid-template-columns:1fr;}
+}
+
+/* —— Carte KPI —— */
+.bo-refonte .kpi{background:var(--bo-surface);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--shadow-1);padding:16px 18px 15px;display:flex;flex-direction:column;gap:10px;min-width:0;}
+.bo-refonte .kpi .top{display:flex;align-items:center;gap:8px;color:var(--ink-soft);}
+.bo-refonte .kpi .top svg{flex:none;color:var(--clay);}
+.bo-refonte .kpi .lbl{font-weight:600;font-size:12.5px;}
+.bo-refonte .kpi .val{font-family:var(--serif);font-weight:500;font-size:34px;letter-spacing:-.02em;line-height:1;}
+.bo-refonte .kpi .val small{font-size:19px;color:var(--ink-soft);font-weight:400;margin-left:2px;}
+.bo-refonte .kpi .sub{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-mute);min-height:20px;margin-top:auto;}
+.bo-refonte .trend{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-size:11.5px;height:20px;padding:0 8px;border-radius:var(--r-pill);}
+.bo-refonte .trend.up{background:var(--ok-bg);color:var(--ok);}
+.bo-refonte .trend.down{background:var(--bad-bg);color:var(--bad);}
+.bo-refonte .trend.flat{background:var(--bo-surface-2);color:var(--ink-mute);}
+
+/* —— Carte hero (réservations en ligne) —— */
+.bo-refonte .kpi.hero{background:linear-gradient(135deg,#8F4526,#B05A35);border-color:transparent;color:#FBF6EC;position:relative;overflow:hidden;}
+.bo-refonte .kpi.hero::after{content:"";position:absolute;right:-46px;top:-46px;width:150px;height:150px;border-radius:50%;border:1px solid rgba(251,246,236,.22);}
+.bo-refonte .kpi.hero::before{content:"";position:absolute;right:-16px;top:-76px;width:150px;height:150px;border-radius:50%;border:1px solid rgba(251,246,236,.14);}
+.bo-refonte .kpi.hero .top{color:rgba(251,246,236,.85);}
+.bo-refonte .kpi.hero .top svg{color:#F0DBCB;}
+.bo-refonte .kpi.hero .sub{color:rgba(251,246,236,.72);}
+.bo-refonte .kpi.hero .trend.up,
+.bo-refonte .kpi.hero .trend.down,
+.bo-refonte .kpi.hero .trend.flat{background:rgba(251,246,236,.18);color:#FBF6EC;}
+.bo-refonte .kpi.hero .share{font-family:var(--mono);font-size:11px;color:rgba(251,246,236,.8);}
+.bo-refonte .hero-bar{height:5px;border-radius:3px;background:rgba(251,246,236,.22);overflow:hidden;position:relative;z-index:1;}
+.bo-refonte .hero-bar i{display:block;height:100%;background:#FBF6EC;border-radius:3px;}
+
+/* —— Carte générique —— */
+.bo-refonte .card{background:var(--bo-surface);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--shadow-1);padding:18px 20px;min-width:0;}
+.bo-refonte .card .hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.bo-refonte .card-empty{padding:36px 0;text-align:center;color:var(--ink-mute);font-size:12.5px;}
+
+/* —— Mix clients —— */
+.bo-refonte .split{display:flex;height:12px;border-radius:var(--r-pill);overflow:hidden;margin:14px 0 16px;background:var(--bo-surface-2);}
+.bo-refonte .split i{display:block;height:100%;}
+.bo-refonte .split .a{background:var(--clay);}
+.bo-refonte .split .b{background:var(--gold);}
+.bo-refonte .mix-rows{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.bo-refonte .mix-row{display:flex;flex-direction:column;gap:3px;padding:12px 14px;border:1px solid var(--line-soft);border-radius:var(--r-m);background:var(--bo-surface-2);}
+.bo-refonte .mix-row .k{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--ink-soft);}
+.bo-refonte .mix-row .k .bo-dot{width:8px;height:8px;}
+.bo-refonte .mix-row .v{font-family:var(--serif);font-weight:500;font-size:26px;letter-spacing:-.02em;}
+.bo-refonte .mix-row .m{font-family:var(--mono);font-size:10.5px;color:var(--ink-mute);}
+
+/* —— Charts —— */
+.bo-refonte .chart-wrap{margin-top:6px;}
+.bo-refonte .seg-note{font-family:var(--mono);font-size:10.5px;color:var(--ink-mute);}
+.bo-refonte .legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;font-size:11.5px;color:var(--ink-soft);margin-top:10px;}
+.bo-refonte .legend span{display:inline-flex;align-items:center;gap:6px;}
+
+/* —— Statuts (donut) —— */
+.bo-refonte .donut-legend{display:flex;flex-direction:column;gap:9px;font-size:12.5px;}
+.bo-refonte .donut-legend div{display:flex;align-items:center;gap:8px;}
+.bo-refonte .donut-legend .n{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--ink-soft);}
+
+/* —— Heatmap occupation —— */
+.bo-refonte .heat{display:grid;gap:4px;align-items:center;font-size:12.5px;}
+.bo-refonte .heat .hh{font-family:var(--mono);font-size:10px;color:var(--ink-mute);text-align:center;}
+.bo-refonte .heat .grp{grid-column:1/-1;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--gold);padding:10px 0 3px;}
+.bo-refonte .heat .rm{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px;}
+.bo-refonte .heat .rm .x{font-family:var(--mono);font-size:10px;color:var(--ink-mute);margin-left:5px;}
+.bo-refonte .heat .c{height:22px;border-radius:5px;background:var(--bo-surface-2);}
+.bo-refonte .heat .pct{font-family:var(--mono);font-size:11px;text-align:right;color:var(--ink-soft);}
+.bo-refonte .heat-scale{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;color:var(--ink-mute);}
+.bo-refonte .heat-scale .g{width:90px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--bo-surface-2),var(--heat));}
+
+/* —— Onglets + classement —— */
+.bo-refonte .tabs{display:inline-flex;gap:20px;border-bottom:1px solid var(--line);margin-bottom:6px;width:100%;}
+.bo-refonte .tabs button{font-size:13px;font-weight:600;color:var(--ink-mute);background:none;border:none;padding:8px 2px 10px;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.bo-refonte .tabs button.active{color:var(--ink);border-color:var(--clay);}
+.bo-refonte .tabs button:disabled{opacity:.4;cursor:default;}
+.bo-refonte .rank{display:flex;flex-direction:column;}
+.bo-refonte .rank>div{display:flex;align-items:center;gap:13px;padding:12px 2px;border-bottom:1px solid var(--line-soft);}
+.bo-refonte .rank>div:last-child{border-bottom:none;}
+.bo-refonte .rank .pos{width:24px;height:24px;border-radius:50%;background:var(--clay-soft);color:var(--clay-deep);font-family:var(--mono);font-size:11px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+.bo-refonte .rank .info{min-width:0;flex:1;}
+.bo-refonte .rank .nm{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bo-refonte .rank .ct{font-size:11.5px;color:var(--ink-mute);}
+.bo-refonte .rank .amt{margin-left:auto;font-family:var(--mono);font-size:12.5px;white-space:nowrap;}
+.bo-refonte .rank .bar{height:4px;border-radius:2px;background:var(--bo-surface-2);margin-top:5px;overflow:hidden;max-width:150px;}
+.bo-refonte .rank .bar i{display:block;height:100%;background:var(--clay);border-radius:2px;}
+
+/* —— Petites stats (aujourd'hui / délai / thérapeutes) —— */
+.bo-refonte .stat-line{display:flex;align-items:center;gap:14px;}
+.bo-refonte .stat-line .big{font-family:var(--serif);font-weight:500;font-size:32px;letter-spacing:-.02em;line-height:1;}
+.bo-refonte .stat-line .cap{font-size:12px;color:var(--ink-mute);line-height:1.45;}
+.bo-refonte .icon-disc{width:38px;height:38px;border-radius:50%;background:var(--clay-soft);color:var(--clay-deep);display:inline-flex;align-items:center;justify-content:center;flex:none;}
+
+/* —— Interrupteur (« Par lieu ») —— */
+.bo-refonte .switch{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-soft);user-select:none;background:none;border:none;padding:0;}
+.bo-refonte .switch .tk{width:34px;height:20px;border-radius:var(--r-pill);background:var(--bo-sand-deep);border:1px solid var(--line);position:relative;transition:background .15s,border-color .15s;flex:none;}
+.bo-refonte .switch .tk i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--bo-surface);box-shadow:var(--shadow-1);transition:left .15s;}
+.bo-refonte .switch.on .tk{background:var(--clay);border-color:var(--clay);}
+.bo-refonte .switch.on .tk i{left:16px;}
+.bo-refonte .switch.on{color:var(--ink);}
+.bo-refonte .switch:disabled{opacity:.45;cursor:default;}
+
+/* —— Recharts : typo & axes alignés sur les tokens —— */
+.bo-refonte .recharts-text{font-family:var(--mono);font-size:10px;fill:var(--ink-mute);}
+.bo-refonte .recharts-cartesian-axis-line,
+.bo-refonte .recharts-cartesian-axis-tick-line{stroke:var(--line);}
+
+/* ────────────────────────────────────────────────────────────
+   Dark mode — variante sombre cohérente (le design d'origine est
+   light-only). On garde l'accent clay ; le hero reste un dégradé
+   clay assumé sur fond sombre.
+   ──────────────────────────────────────────────────────────── */
+.dark .bo-refonte{
+  --bo-bg:#1B1813; --bo-surface:#242019; --bo-surface-2:#2C271E; --bo-sand-deep:#3A342A;
+  --ink:#F1E9DA; --ink-soft:#C9BCA6; --ink-mute:#9A8E79;
+  --clay:#C06A42; --clay-deep:#E8A984; --clay-soft:rgba(176,90,53,.24);
+  --gold:#B7A574; --gold-soft:rgba(168,149,106,.20);
+  --moss:#7C8A5A; --moss-soft:rgba(94,107,67,.24);
+
+  --ok:#A8C482; --ok-bg:rgba(107,133,76,.22); --ok-dot:#8FB268;
+  --done:#7FBCA6; --done-bg:rgba(78,133,113,.22); --done-dot:#5E9E88;
+  --wait:#E0BC6B; --wait-bg:rgba(194,154,59,.22); --wait-dot:#C29A3B;
+  --info:#9AA6D4; --info-bg:rgba(108,122,171,.22); --info-dot:#6C7AAB;
+  --run:#E09A6B; --run-bg:rgba(193,112,63,.22); --run-dot:#C1703F;
+  --bad:#E08A80; --bad-bg:rgba(176,70,59,.22); --bad-dot:#B0463B;
+  --heat:#4E9E90;
+
+  --line:rgba(241,233,218,.14); --line-soft:rgba(241,233,218,.07);
+  --shadow-1:0 1px 2px rgba(0,0,0,.24),0 2px 8px -2px rgba(0,0,0,.28);
+  --shadow-2:0 4px 10px -2px rgba(0,0,0,.32),0 12px 32px -12px rgba(0,0,0,.5);
+}
+.dark .bo-refonte .bo-seg button.active{color:#1B1813;}
+.dark .bo-refonte .rank .pos{color:#E8A984;}

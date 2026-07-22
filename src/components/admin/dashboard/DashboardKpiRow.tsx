@@ -1,96 +1,115 @@
-import { Euro, Info, Package, ShoppingBasket, TrendingUp, TrendingDown } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
+import type { ReactNode } from "react";
+import { Ban, CalendarCheck, Euro, ShoppingBasket } from "lucide-react";
+
+interface KpiCardProps {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  /** Unité affichée en plus petit à droite de la valeur (€, %…). */
+  unit?: string;
+  trend?: number;
+  /** Texte de la ligne du bas, à droite du badge de tendance. */
+  caption?: string;
+}
+
+/** Badge d'évolution : ↗ vert / ↘ rouge / → neutre quand la tendance est nulle. */
+function Trend({ value }: { value: number }) {
+  if (value > 0) return <span className="trend up">↗ +{value}%</span>;
+  if (value < 0) return <span className="trend down">↘ {value}%</span>;
+  return <span className="trend flat">→ stable</span>;
+}
+
+export function KpiCard({ icon, label, value, unit, trend, caption }: KpiCardProps) {
+  return (
+    <div className="kpi">
+      <div className="top">
+        {icon}
+        <span className="lbl">{label}</span>
+      </div>
+      <div className="val">
+        {value}
+        {unit && <small>{unit}</small>}
+      </div>
+      <div className="sub">
+        {trend !== undefined && <Trend value={trend} />}
+        {caption}
+      </div>
+    </div>
+  );
+}
+
+/** Formate un montant en entier séparé par des espaces fines (56 338). */
+function formatAmount(raw: string): string {
+  const value = parseFloat(raw);
+  if (!Number.isFinite(value)) return "0";
+  return Math.round(value).toLocaleString("fr-FR");
+}
+
+/** Formate un panier moyen avec 2 décimales (143,72). */
+function formatBasket(raw: string): string {
+  const value = parseFloat(raw);
+  if (!Number.isFinite(value)) return "0";
+  return value.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 interface DashboardKpiRowProps {
   totalSales: string;
   salesTrend: number;
   averageBasket: string;
+  totalBookings: number;
+  bookingsTrend: number;
+  cancellationRate: number;
+  cancelledCount: number;
+  /** Les concierges ne voient ni le CA ni le panier moyen. */
+  showRevenue: boolean;
 }
 
-export function DashboardKpiRow({ totalSales, salesTrend, averageBasket }: DashboardKpiRowProps) {
-  const salesValue = totalSales === "0.00" ? "0 €" : `${totalSales} €`;
-  const basketValue = averageBasket === "0.00" ? "0 €" : `${averageBasket} €`;
+export function DashboardKpiRow({
+  totalSales,
+  salesTrend,
+  averageBasket,
+  totalBookings,
+  bookingsTrend,
+  cancellationRate,
+  cancelledCount,
+  showRevenue,
+}: DashboardKpiRowProps) {
+  const iconProps = { className: "h-[15px] w-[15px]", strokeWidth: 1.5 } as const;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-      {/* CA */}
-      <Card className="border border-border bg-card">
-        <CardContent className="p-5 flex flex-col h-full">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Euro className="h-4 w-4" strokeWidth={2.25} />
-            </span>
-            <p className="text-sm font-medium text-muted-foreground tracking-wide">CA</p>
-          </div>
-          <p className="text-xl md:text-2xl font-medium text-foreground mb-3 tracking-tight whitespace-nowrap text-right tabular-nums">
-            {salesValue}
-          </p>
-          <div className="mt-auto">
-            {salesTrend !== 0 && (
-              <div className={`flex items-center gap-2 ${salesTrend > 0 ? "text-success" : "text-destructive"}`}>
-                {salesTrend > 0 ? (
-                  <TrendingUp className="h-4 w-4 flex-shrink-0" strokeWidth={2.5} />
-                ) : (
-                  <TrendingDown className="h-4 w-4 flex-shrink-0" strokeWidth={2.5} />
-                )}
-                <p className="text-xs">
-                  <span className="font-semibold">
-                    {salesTrend > 0 ? "+" : "-"}
-                    {Math.abs(salesTrend)}%
-                  </span>
-                  <span className="text-muted-foreground ml-1">vs période précédente</span>
-                </p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Panier moyen */}
-      <Card className="border border-border bg-card">
-        <CardContent className="p-5 flex flex-col h-full">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <ShoppingBasket className="h-4 w-4" strokeWidth={2.25} />
-            </span>
-            <p className="text-sm font-medium text-muted-foreground tracking-wide">Panier moyen</p>
-          </div>
-          <p className="text-xl md:text-2xl font-medium text-foreground mb-3 tracking-tight whitespace-nowrap text-right tabular-nums">
-            {basketValue}
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Vente Retail — placeholder (produits en cabinet) */}
-      <Card className="border border-border bg-card opacity-60">
-        <CardContent className="p-5 flex flex-col h-full">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Package className="h-4 w-4" strokeWidth={2.25} />
-            </span>
-            <p className="text-sm font-medium text-muted-foreground tracking-wide">Vente Retail</p>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent>produits en cabinet</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <Badge variant="secondary" className="ml-auto">soon</Badge>
-          </div>
-          <p className="text-xl md:text-2xl font-medium text-muted-foreground mb-3 tracking-tight whitespace-nowrap text-right tabular-nums">
-            —
-          </p>
-        </CardContent>
-      </Card>
+    <div className={showRevenue ? "kpis" : "kpis cols-2"}>
+      {showRevenue && (
+        <KpiCard
+          icon={<Euro {...iconProps} />}
+          label="Chiffre d'affaires"
+          value={formatAmount(totalSales)}
+          unit="€"
+          trend={salesTrend}
+          caption="vs période précédente"
+        />
+      )}
+      <KpiCard
+        icon={<CalendarCheck {...iconProps} />}
+        label="Réservations"
+        value={totalBookings.toLocaleString("fr-FR")}
+        trend={bookingsTrend}
+        caption="vs période précédente"
+      />
+      {showRevenue && (
+        <KpiCard
+          icon={<ShoppingBasket {...iconProps} />}
+          label="Panier moyen"
+          value={formatBasket(averageBasket)}
+          unit="€"
+        />
+      )}
+      <KpiCard
+        icon={<Ban {...iconProps} />}
+        label="Taux d'annulation"
+        value={String(cancellationRate)}
+        unit="%"
+        caption={`${cancelledCount} annulation${cancelledCount > 1 ? "s" : ""}`}
+      />
     </div>
   );
 }
