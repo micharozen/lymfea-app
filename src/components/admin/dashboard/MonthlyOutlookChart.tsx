@@ -31,6 +31,7 @@ const AXIS_TEXT = "var(--ink-mute)";
 const BACKLOG_OPACITY = 0.55;
 // Barres fines et aérées plutôt que remplissant tout le créneau.
 const BAR_MAX_WIDTH = 28;
+const CHART_TOP_PADDING_RATIO = 1.18;
 
 // Bulle de tooltip alignée sur les surfaces Saoma.
 const tooltipStyle = {
@@ -81,6 +82,11 @@ function barLabelFormatter(metric: OutlookMetric) {
     if (!value) return "";
     return metric === "bookings" ? String(value) : formatCompactEuro(value);
   };
+}
+
+function getPaddedAxisMax(dataMax: number): number {
+  if (dataMax <= 0) return 1;
+  return Math.ceil(dataMax * CHART_TOP_PADDING_RATIO);
 }
 
 function OutlookTooltip({
@@ -276,6 +282,7 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
                 stroke={GRID}
                 tickLine={false}
                 allowDecimals={false}
+                domain={[0, getPaddedAxisMax]}
                 tickFormatter={(v: number) => (metric === "bookings" ? String(v) : formatCompactEuro(v))}
               />
               <Tooltip content={<VenueTooltip metric={metric} />} />
@@ -325,6 +332,7 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
                 stroke={GRID}
                 tickLine={false}
                 allowDecimals={false}
+                domain={[0, getPaddedAxisMax]}
                 tickFormatter={(v: number) => (metric === "bookings" ? String(v) : formatCompactEuro(v))}
               />
               <Tooltip content={<OutlookTooltip />} cursor={{ fill: "var(--line-soft)" }} />

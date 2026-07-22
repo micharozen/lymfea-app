@@ -50,6 +50,9 @@
 .bo-refonte ::selection{background:var(--clay);color:#FBF6EC;}
 .bo-refonte a{color:var(--clay-deep);text-decoration:none;}
 .bo-refonte a:hover{color:var(--clay);}
+/* Dashboard demandé en graisse régulière : neutralise les fontes bold/semibold
+   venant des composants shadcn/Tailwind et des règles locales. */
+.bo-refonte :where(*):not(svg):not(svg *){font-weight:400!important;}
 /* index.css impose min-height:44px à tous les <button> (cible tactile).
    Neutralisé dans le scope : chaque composant définit sa propre hauteur. */
 .bo-refonte button{min-height:0;font-family:var(--sans);cursor:pointer;}
