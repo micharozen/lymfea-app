@@ -56,8 +56,14 @@
 
 /* —— Titres —— */
 .bo-refonte .bo-page-title{font-family:var(--serif);font-weight:500;font-size:26px;letter-spacing:-.01em;line-height:1.1;margin:0;}
-.bo-refonte .bo-sec-title{font-weight:600;font-size:15px;margin:0;}
 .bo-refonte .bo-num{font-family:var(--mono);font-size:12.5px;letter-spacing:-.01em;}
+
+/* Un seul style d'intitulé de carte, quel que soit le type de carte :
+   titre de section, libellé de KPI et onglets partagent la même graisse et
+   la même taille — sinon les rangées se lisent comme des blocs étrangers. */
+.bo-refonte .bo-sec-title,
+.bo-refonte .kpi .lbl,
+.bo-refonte .tabs button{font-weight:600;font-size:14px;line-height:1.3;margin:0;}
 
 /* Chiffres alignés en colonne : sans police mono, c'est tabular-nums qui
    garantit des glyphes de largeur égale (montants, %, heures, compteurs). */
@@ -82,6 +88,27 @@
 .bo-refonte .bo-btn.ghost:hover{background:var(--bo-surface-2);color:var(--ink);}
 .bo-refonte .bo-btn.sm{height:30px;padding:0 12px;font-size:12.5px;border-radius:var(--r-s);}
 .bo-refonte .bo-btn:disabled{opacity:.45;cursor:default;}
+
+/* —— Aide contextuelle sur les métriques —— */
+.bo-refonte .metric-help{
+  margin-left:auto;display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;padding:0;border:none;border-radius:50%;
+  background:transparent;color:var(--ink-mute);opacity:.6;flex:none;
+  transition:opacity .12s,color .12s,background .12s;
+}
+.bo-refonte .metric-help:hover,
+.bo-refonte .metric-help:focus-visible{opacity:1;color:var(--clay);background:var(--bo-surface-2);outline:none;}
+.bo-refonte .kpi.hero .metric-help{color:rgba(251,246,236,.85);}
+.bo-refonte .kpi.hero .metric-help:hover,
+.bo-refonte .kpi.hero .metric-help:focus-visible{color:#FBF6EC;background:rgba(251,246,236,.18);}
+/* Le tooltip est rendu en portail : il porte .bo-refonte pour les tokens,
+   mais pas le fond de page — d'où la surface explicite ici. */
+.bo-refonte.metric-help-tip{
+  max-width:280px;background:var(--bo-surface);color:var(--ink);
+  border:1px solid var(--line);border-radius:var(--r-m);
+  box-shadow:var(--shadow-2);padding:9px 12px;
+  font-size:12px;line-height:1.5;font-weight:400;
+}
 
 /* —— Pastilles & chips —— */
 .bo-refonte .bo-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none;}
@@ -142,11 +169,15 @@
   .bo-refonte .kpis{grid-template-columns:1fr;}
 }
 
-/* —— Carte KPI —— */
-.bo-refonte .kpi{background:var(--bo-surface);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--shadow-1);padding:16px 18px 15px;display:flex;flex-direction:column;gap:10px;min-width:0;}
-.bo-refonte .kpi .top{display:flex;align-items:center;gap:8px;color:var(--ink-soft);}
+/* —— Cartes —— */
+/* .kpi et .card partagent surface, bordure et padding : c'est ce qui aligne
+   l'icône d'une carte KPI sur le titre d'une carte voisine. Toute retouche
+   de gouttière doit rester commune aux deux. */
+.bo-refonte .kpi,
+.bo-refonte .card{background:var(--bo-surface);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--shadow-1);padding:16px 18px;min-width:0;}
+.bo-refonte .kpi{display:flex;flex-direction:column;gap:10px;}
+.bo-refonte .kpi .top{display:flex;align-items:center;gap:8px;color:var(--ink-soft);min-height:20px;}
 .bo-refonte .kpi .top svg{flex:none;color:var(--clay);}
-.bo-refonte .kpi .lbl{font-weight:600;font-size:12.5px;}
 /* Valeur centrée dans la carte, quelle que soit la longueur du nombre. */
 .bo-refonte .kpi .val{font-family:var(--serif);font-weight:500;font-size:34px;letter-spacing:-.02em;line-height:1;text-align:center;}
 .bo-refonte .kpi .val small{font-size:19px;color:var(--ink-soft);font-weight:400;margin-left:2px;}
@@ -168,9 +199,15 @@
 .bo-refonte .hero-bar{height:5px;border-radius:3px;background:rgba(251,246,236,.22);overflow:hidden;position:relative;z-index:1;}
 .bo-refonte .hero-bar i{display:block;height:100%;background:#FBF6EC;border-radius:3px;}
 
-/* —— Carte générique —— */
-.bo-refonte .card{background:var(--bo-surface);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--shadow-1);padding:18px 20px;min-width:0;}
-.bo-refonte .card .hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+/* En-tête de carte : titre à gauche, annotation puis aide collées à droite.
+   min-height identique à .kpi .top pour que les deux types de carte aient
+   la même hauteur d'en-tête. */
+.bo-refonte .card .hd{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;min-height:20px;}
+/* Le titre reste à gauche, tout ce qui suit est repoussé à droite d'un bloc
+   (annotation, toolbar, échelle, aide) sans se disperser comme le ferait un
+   space-between à trois enfants. */
+.bo-refonte .card .hd > :nth-child(2){margin-left:auto;}
+.bo-refonte .card .hd > :nth-child(n+3){margin-left:0;}
 .bo-refonte .card-empty{padding:36px 0;text-align:center;color:var(--ink-mute);font-size:12.5px;}
 
 /* —— Mix clients —— */
@@ -209,7 +246,7 @@
 
 /* —— Onglets + classement —— */
 .bo-refonte .tabs{display:inline-flex;gap:20px;border-bottom:1px solid var(--line);margin-bottom:6px;width:100%;}
-.bo-refonte .tabs button{font-size:13px;font-weight:600;color:var(--ink-mute);background:none;border:none;padding:8px 2px 10px;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.bo-refonte .tabs button{color:var(--ink-mute);background:none;border:none;padding:8px 2px 10px;border-bottom:2px solid transparent;margin-bottom:-1px;}
 .bo-refonte .tabs button.active{color:var(--ink);border-color:var(--clay);}
 .bo-refonte .tabs button:disabled{opacity:.4;cursor:default;}
 .bo-refonte .rank{display:flex;flex-direction:column;}

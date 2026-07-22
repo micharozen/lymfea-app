@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useUser } from "@/contexts/UserContext";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
@@ -65,7 +66,7 @@ export default function Dashboard() {
 
   if (data.loading) {
     return (
-      <div className="bo-refonte min-h-screen flex items-center justify-center">
+      <div className="bo-refonte min-h-screen md:-mr-6 flex items-center justify-center">
         <p style={{ color: "var(--ink-mute)" }}>Chargement...</p>
       </div>
     );
@@ -75,7 +76,11 @@ export default function Dashboard() {
   const isSingleVenue = selectedHotel !== "all";
 
   return (
-    <div className="bo-refonte min-h-screen">
+    // -mr-6 annule le md:pr-6 du <main> du layout admin : sans ça, le fond
+    // sable s'arrête avant ce padding et laisse une bande claire à droite.
+    <div className="bo-refonte min-h-screen md:-mr-6">
+      {/* Un seul provider pour toutes les aides contextuelles de la page. */}
+      <TooltipProvider delayDuration={150}>
       <div className="pg-shell">
         {/* Header + Filters */}
         <div className="pg-head">
@@ -170,6 +175,7 @@ export default function Dashboard() {
           )}
         </Tabs>
       </div>
+      </TooltipProvider>
 
       <WelcomeDialog open={welcome.shouldShow} onClose={welcome.dismiss} />
     </div>

@@ -1,4 +1,5 @@
 import { Clock, Globe } from "lucide-react";
+import { MetricHelp } from "@/components/admin/dashboard/MetricHelp";
 import type { BookingChannelData, ClientMixData } from "@/hooks/useDashboardData";
 
 interface DashboardClientMixProps {
@@ -41,6 +42,12 @@ export function DashboardClientMix({ clientMix, bookingChannel }: DashboardClien
           <span className="seg-note">
             {total} réservation{total > 1 ? "s" : ""}
           </span>
+          <MetricHelp>
+            Répartition des réservations de la période selon le <b>type de client</b>.
+            « Clients hôtel » = client logé dans l&apos;établissement ; « Clients externes »
+            regroupe tout le reste, y compris les partenaires (Staycation, ClassPass,
+            Sezame). Tous statuts confondus, annulations incluses.
+          </MetricHelp>
         </div>
         <div className="split">
           <i className="a" style={{ width: `${hotel.share}%` }} title={`Clients hôtel ${hotel.share}%`} />
@@ -77,6 +84,12 @@ export function DashboardClientMix({ clientMix, bookingChannel }: DashboardClien
         <div className="top">
           <Globe {...iconProps} />
           <span className="lbl">Réservations en ligne</span>
+          <MetricHelp>
+            Réservations créées <b>sans intervention d&apos;un membre de l&apos;équipe</b> :
+            parcours de réservation client et API partenaire. La barre et le pourcentage
+            donnent la part sur le total de la période ; l&apos;écart est exprimé en points
+            de pourcentage face à la période précédente.
+          </MetricHelp>
         </div>
         <div className="val">{online.count}</div>
         <div className="hero-bar">
@@ -92,6 +105,12 @@ export function DashboardClientMix({ clientMix, bookingChannel }: DashboardClien
         <div className="top">
           <Clock {...iconProps} />
           <span className="lbl">Manuelles / téléphone</span>
+          <MetricHelp>
+            Réservations saisies par l&apos;équipe : back-office, prise par téléphone,
+            gestion du lieu, application thérapeute et réservations issues d&apos;un e-mail.
+            C&apos;est le complément des réservations en ligne — les deux couvrent le total
+            de la période.
+          </MetricHelp>
         </div>
         <div className="val">{manual.count}</div>
         <div className="sub">

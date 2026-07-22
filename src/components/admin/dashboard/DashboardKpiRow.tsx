@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Ban, CalendarCheck, Euro, ShoppingBasket } from "lucide-react";
+import { MetricHelp } from "@/components/admin/dashboard/MetricHelp";
 
 interface KpiCardProps {
   icon: ReactNode;
@@ -10,6 +11,8 @@ interface KpiCardProps {
   trend?: number;
   /** Texte de la ligne du bas, à droite du badge de tendance. */
   caption?: string;
+  /** Explication du calcul, affichée au survol de l'icône d'aide. */
+  help?: ReactNode;
 }
 
 /**
@@ -22,12 +25,13 @@ function Trend({ value }: { value: number }) {
   return null;
 }
 
-export function KpiCard({ icon, label, value, unit, trend, caption }: KpiCardProps) {
+export function KpiCard({ icon, label, value, unit, trend, caption, help }: KpiCardProps) {
   return (
     <div className="kpi">
       <div className="top">
         {icon}
         <span className="lbl">{label}</span>
+        {help && <MetricHelp>{help}</MetricHelp>}
       </div>
       <div className="val">
         {value}
@@ -89,6 +93,17 @@ export function DashboardKpiRow({
           unit="€"
           trend={salesTrend}
           caption="vs période précédente"
+          help={
+            <>
+              Somme des montants TTC des réservations dont la <b>date de soin</b> tombe
+              dans la période et le lieu sélectionnés. Les réservations annulées et les
+              no-show sont exclues. Les montants dans une autre devise sont convertis en
+              euros au taux du jour.
+              <br />
+              L&apos;évolution compare à la période de même durée qui précède
+              immédiatement.
+            </>
+          }
         />
       )}
       <KpiCard
@@ -97,6 +112,15 @@ export function DashboardKpiRow({
         value={totalBookings.toLocaleString("fr-FR")}
         trend={bookingsTrend}
         caption="vs période précédente"
+        help={
+          <>
+            Nombre de réservations dont la <b>date de soin</b> tombe dans la période et le
+            lieu sélectionnés, <b>tous statuts confondus</b> — les annulations sont donc
+            comptées ici.
+            <br />
+            L&apos;évolution compare à la période de même durée qui précède immédiatement.
+          </>
+        }
       />
       {showRevenue && (
         <KpiCard
@@ -104,6 +128,13 @@ export function DashboardKpiRow({
           label="Panier moyen"
           value={formatBasket(averageBasket)}
           unit="€"
+          help={
+            <>
+              Chiffre d&apos;affaires divisé par le nombre de réservations qui génèrent du
+              revenu (hors annulées et no-show). C&apos;est une moyenne par réservation, pas
+              par soin : une réservation de plusieurs prestations compte pour une.
+            </>
+          }
         />
       )}
       <KpiCard
@@ -112,6 +143,12 @@ export function DashboardKpiRow({
         value={String(cancellationRate)}
         unit="%"
         caption={`${cancelledCount} annulation${cancelledCount > 1 ? "s" : ""}`}
+        help={
+          <>
+            Part des réservations au statut <b>annulé</b> parmi toutes celles de la période
+            et du lieu. Les no-show ne sont pas comptés comme des annulations.
+          </>
+        }
       />
     </div>
   );

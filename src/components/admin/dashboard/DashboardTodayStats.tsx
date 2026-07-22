@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { CalendarClock, CalendarDays, ChevronDown, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MetricHelp } from "@/components/admin/dashboard/MetricHelp";
 import type { LeadTimeData, OccupancyData } from "@/hooks/useDashboardData";
 
 interface StatLineProps {
@@ -51,7 +52,14 @@ export function DashboardTodayStats({
   return (
     <div className="card flex flex-col gap-5">
       <div>
-        <h2 className="bo-sec-title mb-3">Aujourd&apos;hui</h2>
+        <div className="hd" style={{ marginBottom: 12 }}>
+          <h2 className="bo-sec-title">Aujourd&apos;hui</h2>
+          <MetricHelp>
+            Réservations dont le soin a lieu <b>aujourd&apos;hui</b>, pour le lieu
+            sélectionné. Ce compteur ignore volontairement le filtre de période. Le second
+            chiffre isole celles au statut confirmé.
+          </MetricHelp>
+        </div>
         <StatLine
           icon={<CalendarDays {...iconProps} />}
           value={todayBookings}
@@ -74,6 +82,13 @@ export function DashboardTodayStats({
               />
             </button>
           )}
+          <MetricHelp>
+            Nombre moyen de jours entre le moment où la réservation est <b>créée</b> et la
+            date du soin. Le périmètre porte sur les réservations <b>créées</b> pendant la
+            période — sinon les réservations prises pour plus tard, celles qui portent
+            justement l&apos;anticipation, seraient exclues. Les délais négatifs (soin le
+            jour même, saisi après coup) comptent pour zéro.
+          </MetricHelp>
         </div>
         {leadTime.count === 0 ? (
           <p className="card-empty">Aucune donnée sur la période</p>
@@ -101,7 +116,15 @@ export function DashboardTodayStats({
       </div>
 
       <div style={{ borderTop: "1px solid var(--line-soft)", paddingTop: 18 }}>
-        <h2 className="bo-sec-title mb-3">Thérapeutes actifs</h2>
+        <div className="hd" style={{ marginBottom: 12 }}>
+          <h2 className="bo-sec-title">Thérapeutes actifs</h2>
+          <MetricHelp>
+            Thérapeutes ayant déclaré une <b>disponibilité pour aujourd&apos;hui</b>, sur le
+            total de ceux rattachés au lieu sélectionné. C&apos;est une déclaration de
+            disponibilité, pas une charge réelle : un thérapeute disponible peut n&apos;avoir
+            aucun soin planifié.
+          </MetricHelp>
+        </div>
         <StatLine
           icon={<Users {...iconProps} />}
           value={
