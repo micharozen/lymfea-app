@@ -17,34 +17,47 @@ import {
 import { format, parseISO } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { MonthlyOutlookByVenue, MonthlyOutlookPoint } from "@/hooks/useDashboardData";
 
 type OutlookMetric = "revenue" | "bookings" | "avgBasket";
 
-const CONFIRMED_COLOR = "hsl(18, 55%, 52%)";
-const PENDING_COLOR = "#f59e0b";
+// Palette « Saoma » — tokens définis par .bo-refonte (bo-refonte.css).
+const CONFIRMED_COLOR = "var(--clay)";
+const PENDING_COLOR = "var(--wait-dot)";
+const GRID = "var(--line-soft)";
+const AXIS_TEXT = "var(--ink-mute)";
 // Mois courant + futurs = carnet de commandes, atténués vs le réalisé.
 const BACKLOG_OPACITY = 0.55;
 // Barres fines et aérées plutôt que remplissant tout le créneau.
 const BAR_MAX_WIDTH = 28;
+const CHART_TOP_PADDING_RATIO = 1.18;
+
+// Bulle de tooltip alignée sur les surfaces Saoma.
+const tooltipStyle = {
+  backgroundColor: "var(--bo-surface)",
+  border: "1px solid var(--line)",
+  borderRadius: "10px",
+  boxShadow: "var(--shadow-2)",
+  padding: "8px 12px",
+  color: "var(--ink)",
+} as const;
+
+const axisTick = { fontSize: 10, fill: AXIS_TEXT } as const;
 
 // Palette pour la vue « une ligne par lieu ». Le 1er lieu reprend la couleur
 // de marque, les suivants sont des teintes distinctes et lisibles.
 const VENUE_COLORS = [
-  "hsl(18, 55%, 52%)",
-  "#3b82f6",
-  "#10b981",
-  "#8b5cf6",
-  "#ec4899",
-  "#14b8a6",
-  "#f59e0b",
-  "#6366f1",
-  "#ef4444",
-  "#84cc16",
+  "var(--clay)",
+  "var(--gold)",
+  "var(--heat)",
+  "var(--info-dot)",
+  "var(--moss)",
+  "var(--bad-dot)",
+  "var(--wait-dot)",
+  "var(--done-dot)",
+  "var(--run-dot)",
+  "var(--clay-deep)",
 ];
 
 interface OutlookChartRow extends MonthlyOutlookPoint {
@@ -71,6 +84,11 @@ function barLabelFormatter(metric: OutlookMetric) {
   };
 }
 
+function getPaddedAxisMax(dataMax: number): number {
+  if (dataMax <= 0) return 1;
+  return Math.ceil(dataMax * CHART_TOP_PADDING_RATIO);
+}
+
 function OutlookTooltip({
   active,
   payload,
@@ -82,18 +100,10 @@ function OutlookTooltip({
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return (
-    <div
-      style={{
-        backgroundColor: "hsl(var(--card))",
-        border: "1px solid hsl(var(--border))",
-        borderRadius: "8px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-        padding: "8px 12px",
-      }}
-    >
+    <div style={tooltipStyle}>
       <div className="mb-1 flex items-center gap-2">
         <p className="text-sm font-bold capitalize">{point.label}</p>
-        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+        <span className="bo-chip">
           {point.isCurrent || point.isFuture
             ? t("dashboard.monthlyOutlook.backlog")
             : t("dashboard.monthlyOutlook.realized")}
@@ -110,10 +120,10 @@ function OutlookTooltip({
           {t("dashboard.monthlyOutlook.pending")} : {point.pendingRevenue.toFixed(2)} € ·{" "}
           {t("dashboard.monthlyOutlook.bookingsCount", { count: point.pendingCount })}
         </p>
-        <p className="pt-1 font-medium text-foreground">
+        <p className="pt-1 font-medium">
           {point.totalRevenue.toFixed(2)} € · {t("dashboard.monthlyOutlook.bookingsCount", { count: point.totalCount })}
         </p>
-        <p className="text-muted-foreground">
+        <p style={{ color: "var(--ink-mute)" }}>
           {t("dashboard.monthlyOutlook.metricAvgBasket")} : {point.averageBasket.toFixed(2)} €
         </p>
       </div>
@@ -144,18 +154,10 @@ function VenueTooltip({
   const fmt = (v: number) => (metric === "bookings" ? String(v) : `${v.toFixed(2)} €`);
   const rows = payload.filter((p) => p.value > 0).sort((a, b) => b.value - a.value);
   return (
-    <div
-      style={{
-        backgroundColor: "hsl(var(--card))",
-        border: "1px solid hsl(var(--border))",
-        borderRadius: "8px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-        padding: "8px 12px",
-      }}
-    >
+    <div style={tooltipStyle}>
       <div className="mb-1 flex items-center gap-2">
         <p className="text-sm font-bold capitalize">{row.label}</p>
-        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+        <span className="bo-chip">
           {row.isCurrent || row.isFuture
             ? t("dashboard.monthlyOutlook.backlog")
             : t("dashboard.monthlyOutlook.realized")}
@@ -163,12 +165,12 @@ function VenueTooltip({
       </div>
       <div className="space-y-0.5 text-xs">
         {rows.length === 0 ? (
-          <p className="text-muted-foreground">{t("dashboard.monthlyOutlook.empty")}</p>
+          <p style={{ color: "var(--ink-mute)" }}>{t("dashboard.monthlyOutlook.empty")}</p>
         ) : (
           rows.map((p) => (
             <p key={p.name} className="flex items-center gap-1.5">
               <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
-              <span className="text-foreground">{p.name}</span> : {fmt(p.value)}
+              <span>{p.name}</span> : {fmt(p.value)}
             </p>
           ))
         )}
@@ -236,65 +238,65 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
   ];
 
   return (
-    <Card className="border border-border bg-card shadow-sm">
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 space-y-0">
-        <CardTitle className="text-base font-medium text-foreground">
-          {t("dashboard.monthlyOutlook.title")}
-        </CardTitle>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <div className="card full">
+      <div className="hd">
+        <h2 className="bo-sec-title">{t("dashboard.monthlyOutlook.title")}</h2>
+        <div className="bo-toolbar">
           {canSplitByVenue && (
-            <div className="flex items-center gap-2">
-              <Switch id="outlook-per-venue" checked={perVenue} onCheckedChange={setPerVenue} />
-              <Label htmlFor="outlook-per-venue" className="cursor-pointer text-xs text-muted-foreground">
-                {t("dashboard.monthlyOutlook.byVenue")}
-              </Label>
-            </div>
-          )}
-          {metricButtons.map((btn) => (
             <button
-              key={btn.key}
               type="button"
-              onClick={() => setMetric(btn.key)}
-              className={cn(
-                "border-b-2 pb-0.5 text-xs transition-colors",
-                metric === btn.key
-                  ? "border-foreground font-medium text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
+              className={cn("switch", perVenue && "on")}
+              aria-pressed={perVenue}
+              onClick={() => setPerVenue((v) => !v)}
             >
-              {btn.label}
+              <span className="tk">
+                <i />
+              </span>
+              {t("dashboard.monthlyOutlook.byVenue")}
             </button>
-          ))}
+          )}
+          <div className="bo-seg">
+            {metricButtons.map((btn) => (
+              <button
+                key={btn.key}
+                type="button"
+                onClick={() => setMetric(btn.key)}
+                className={metric === btn.key ? "active" : undefined}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </CardHeader>
-      <CardContent>
+      </div>
+      <div className="chart-wrap">
         {!hasData ? (
-          <p className="py-12 text-center text-muted-foreground">
-            {t("dashboard.monthlyOutlook.empty")}
-          </p>
+          <p className="card-empty">{t("dashboard.monthlyOutlook.empty")}</p>
         ) : showByVenue ? (
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={venueChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="#666" />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID} vertical={false} />
+              <XAxis dataKey="label" tick={axisTick} stroke={GRID} tickLine={false} />
               <YAxis
-                tick={{ fontSize: 12 }}
-                stroke="#666"
+                tick={axisTick}
+                stroke={GRID}
+                tickLine={false}
                 allowDecimals={false}
+                domain={[0, getPaddedAxisMax]}
                 tickFormatter={(v: number) => (metric === "bookings" ? String(v) : formatCompactEuro(v))}
               />
               <Tooltip content={<VenueTooltip metric={metric} />} />
-              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px" }} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "11.5px" }} />
               {currentLabel && (
                 <ReferenceLine
                   x={currentLabel}
-                  stroke="hsl(var(--border))"
+                  stroke="var(--line)"
                   strokeDasharray="3 3"
                   label={{
                     value: t("dashboard.monthlyOutlook.currentMonth"),
                     position: "top",
                     fontSize: 10,
-                    fill: "#666",
+                    fill: AXIS_TEXT,
                   }}
                 />
               )}
@@ -323,28 +325,30 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
         ) : (
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="#666" />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID} vertical={false} />
+              <XAxis dataKey="label" tick={axisTick} stroke={GRID} tickLine={false} />
               <YAxis
-                tick={{ fontSize: 12 }}
-                stroke="#666"
+                tick={axisTick}
+                stroke={GRID}
+                tickLine={false}
                 allowDecimals={false}
+                domain={[0, getPaddedAxisMax]}
                 tickFormatter={(v: number) => (metric === "bookings" ? String(v) : formatCompactEuro(v))}
               />
-              <Tooltip content={<OutlookTooltip />} />
+              <Tooltip content={<OutlookTooltip />} cursor={{ fill: "var(--line-soft)" }} />
               {metric !== "avgBasket" && (
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "12px" }} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "11.5px" }} />
               )}
               {currentLabel && (
                 <ReferenceLine
                   x={currentLabel}
-                  stroke="hsl(var(--border))"
+                  stroke="var(--line)"
                   strokeDasharray="3 3"
                   label={{
                     value: t("dashboard.monthlyOutlook.currentMonth"),
                     position: "top",
                     fontSize: 10,
-                    fill: "#666",
+                    fill: AXIS_TEXT,
                   }}
                 />
               )}
@@ -353,7 +357,7 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
                   {chartData.map((p) => (
                     <Cell key={p.monthKey} fillOpacity={p.isCurrent || p.isFuture ? BACKLOG_OPACITY : 1} />
                   ))}
-                  <LabelList dataKey="total" position="top" fontSize={11} fill="#666" formatter={barLabelFormatter(metric)} />
+                  <LabelList dataKey="total" position="top" fontSize={10} fill="var(--ink-soft)" formatter={barLabelFormatter(metric)} />
                 </Bar>
               ) : (
                 <>
@@ -363,14 +367,14 @@ export function MonthlyOutlookChart({ data, byVenue }: MonthlyOutlookChartProps)
                     ))}
                   </Bar>
                   <Bar dataKey="pending" name={t("dashboard.monthlyOutlook.pending")} stackId="a" fill={PENDING_COLOR} radius={[4, 4, 0, 0]} maxBarSize={BAR_MAX_WIDTH}>
-                    <LabelList dataKey="total" position="top" fontSize={11} fill="#666" formatter={barLabelFormatter(metric)} />
+                    <LabelList dataKey="total" position="top" fontSize={10} fill="var(--ink-soft)" formatter={barLabelFormatter(metric)} />
                   </Bar>
                 </>
               )}
             </BarChart>
           </ResponsiveContainer>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

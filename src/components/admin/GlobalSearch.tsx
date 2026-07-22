@@ -287,7 +287,7 @@ export function GlobalSearch() {
       <div className="px-3 mb-2 group-data-[collapsible=icon]:px-0">
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center gap-2 px-3.5 py-2 text-sm text-muted-foreground bg-muted/60 rounded-full hover:bg-muted w-full transition-colors group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:justify-center"
+          className="flex items-center gap-2 px-3.5 py-2 text-sm text-muted-foreground bg-muted/60 rounded-full border border-border/70 hover:border-border hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 w-full transition-colors group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:justify-center"
           title="Rechercher (⌘K)"
         >
           <Search className="w-4 h-4 flex-shrink-0" />

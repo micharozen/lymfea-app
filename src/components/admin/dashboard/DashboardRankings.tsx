@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatPrice } from "@/lib/formatPrice";
 import type { RankingItem } from "@/hooks/useDashboardData";
 
@@ -12,52 +10,36 @@ interface RankingListProps {
   showRevenue?: boolean;
 }
 
-function RankBadge({ rank }: { rank: number }) {
-  return (
-    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-      {rank}
-    </span>
-  );
-}
-
-function Initials({ name }: { name: string }) {
-  const parts = name.trim().split(/\s+/);
-  const initials = parts.length >= 2
-    ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-    : name.slice(0, 2).toUpperCase();
-  return (
-    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-      {initials}
-    </span>
-  );
-}
-
 function RankingList({ items, emptyMessage, showRevenue = true }: RankingListProps) {
   if (items.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-4 text-center">
-        {emptyMessage || "Aucune donnée"}
-      </p>
-    );
+    return <p className="card-empty">{emptyMessage || "Aucune donnée"}</p>;
   }
+
+  // La barre de proportion est relative au premier du classement.
+  const max = Math.max(...items.map((i) => (showRevenue ? i.revenue : i.bookings)), 1);
+
   return (
-    <div className="space-y-3">
-      {items.map((item, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <RankBadge rank={i + 1} />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {item.bookings} réservation{item.bookings > 1 ? "s" : ""}
-            </p>
+    <div className="rank">
+      {items.map((item, i) => {
+        const weight = showRevenue ? item.revenue : item.bookings;
+        return (
+          <div key={i}>
+            <span className="pos">{i + 1}</span>
+            <div className="info">
+              <div className="nm" title={item.name}>
+                {item.name}
+              </div>
+              <div className="ct">
+                {item.bookings} réservation{item.bookings > 1 ? "s" : ""}
+              </div>
+              <div className="bar">
+                <i style={{ width: `${Math.round((weight / max) * 100)}%` }} />
+              </div>
+            </div>
+            {showRevenue && <span className="amt">{formatPrice(item.revenue)}</span>}
           </div>
-          {showRevenue && (
-            <span className="text-sm font-medium tabular-nums whitespace-nowrap">
-              {formatPrice(item.revenue)}
-            </span>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -73,6 +55,12 @@ interface DashboardRankingsProps {
 
 type RankingTab = "venues" | "therapists" | "treatments";
 
+const TABS: Array<{ key: RankingTab; label: string }> = [
+  { key: "venues", label: "Lieux" },
+  { key: "therapists", label: "Thérapeutes" },
+  { key: "treatments", label: "Soins" },
+];
+
 export function DashboardRankings({
   topVenues,
   topTherapists,
@@ -82,28 +70,28 @@ export function DashboardRankings({
   const [tab, setTab] = useState<RankingTab>(isSingleVenue ? "therapists" : "venues");
 
   return (
-    <Card className="border border-border bg-card shadow-sm mb-6">
-      <CardHeader className="pb-2">
-        <Tabs value={tab} onValueChange={(v) => setTab(v as RankingTab)}>
-          <TabsList>
-            <TabsTrigger value="venues" disabled={isSingleVenue}>
-              Lieux
-            </TabsTrigger>
-            <TabsTrigger value="therapists">Thérapeutes</TabsTrigger>
-            <TabsTrigger value="treatments">Soins</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </CardHeader>
-      <CardContent>
-        {tab === "venues" && (
-          <RankingList
-            items={isSingleVenue ? [] : topVenues}
-            emptyMessage={isSingleVenue ? "Sélectionnez «Tous les lieux»" : "Aucune donnée"}
-          />
-        )}
-        {tab === "therapists" && <RankingList items={topTherapists} />}
-        {tab === "treatments" && <RankingList items={topTreatments} showRevenue={false} />}
-      </CardContent>
-    </Card>
+    <div className="card">
+      <div className="tabs">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            className={tab === t.key ? "active" : undefined}
+            disabled={t.key === "venues" && isSingleVenue}
+            onClick={() => setTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === "venues" && (
+        <RankingList
+          items={isSingleVenue ? [] : topVenues}
+          emptyMessage={isSingleVenue ? "Sélectionnez «Tous les lieux»" : "Aucune donnée"}
+        />
+      )}
+      {tab === "therapists" && <RankingList items={topTherapists} />}
+      {tab === "treatments" && <RankingList items={topTreatments} showRevenue={false} />}
+    </div>
   );
 }
