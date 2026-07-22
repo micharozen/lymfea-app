@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ShoppingBag, HandHeart, Minus, Plus, Sparkles, ChevronDown, Gift, Building, Package, MapPin, Phone } from 'lucide-react';
 import { useBasket } from './context/CartContext';
+import { resolveAvailableDays } from '@/lib/availableDays';
 import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
@@ -38,6 +39,7 @@ interface TreatmentVariantData {
   is_default: boolean;
   sort_order: number;
   guest_count?: number;
+  available_days?: number[] | null;
 }
 
 interface Treatment {
@@ -379,7 +381,7 @@ export default function Treatments() {
       bundleId: treatment.bundle_id ?? undefined,
       isAmenity: !!treatment.amenity_id,
       guestCount: resolvedVariant?.guest_count ?? 1,
-      availableDays: treatment.available_days ?? null,
+      availableDays: resolveAvailableDays(treatment.available_days, resolvedVariant?.available_days),
     });
 
     if (navigator.vibrate) {

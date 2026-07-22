@@ -548,6 +548,11 @@ try {
 
     // Validate that all treatment IDs exist and check for price_on_request, duration, lead_time
     const treatmentIds = treatments.map(t => t.treatmentId);
+    // Les variantes portent leurs propres jours autorisés (formules Semaine /
+    // Week-end) : la RPC les contrôle comme ceux du soin.
+    const selectedVariantIds = treatments
+      .map(t => t.variantId)
+      .filter((v): v is string => !!v);
     const { data: validTreatments, error: treatmentValidationError } = await supabase
       .from('treatment_menus')
       .select('id, price_on_request, duration, lead_time, is_bundle, bundle_id, is_addon, category, amenity_id')
@@ -742,6 +747,7 @@ try {
           _total_price: effectiveTotalPrice,
           _language: clientLanguage,
           _treatment_ids: treatmentIds,
+          _variant_ids: selectedVariantIds,
           _customer_id: customerId || null,
           _therapist_gender: therapistGender || null,
           _guest_count: effectiveGuestCount,
@@ -819,6 +825,7 @@ try {
         _total_price: effectiveTotalPrice,
         _language: clientLanguage,
         _treatment_ids: treatmentIds,
+        _variant_ids: selectedVariantIds,
         _customer_id: customerId || null,
         _therapist_gender: therapistGender || null,
         _guest_count: effectiveGuestCount,

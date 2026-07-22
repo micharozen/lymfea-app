@@ -3367,6 +3367,7 @@ export type Database = {
       }
       treatment_variants: {
         Row: {
+          available_days: number[] | null
           created_at: string | null
           duration: number
           guest_count: number
@@ -3382,6 +3383,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          available_days?: number[] | null
           created_at?: string | null
           duration: number
           guest_count?: number
@@ -3397,6 +3399,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          available_days?: number[] | null
           created_at?: string | null
           duration?: number
           guest_count?: number
@@ -4501,6 +4504,7 @@ export type Database = {
           _therapist_gender?: string
           _total_price: number
           _treatment_ids: string[]
+          _variant_ids?: string[]
         }
         Returns: string
       }

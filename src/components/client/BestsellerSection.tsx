@@ -17,6 +17,7 @@ interface TreatmentVariantData {
   price_on_request: boolean;
   is_default: boolean;
   sort_order: number;
+  available_days?: number[] | null;
 }
 
 interface Treatment {

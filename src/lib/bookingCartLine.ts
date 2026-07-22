@@ -7,6 +7,7 @@ export interface TreatmentVariant {
   duration?: number | null;
   is_default?: boolean;
   guest_count?: number;
+  available_days?: number[] | null;
 }
 
 export interface TreatmentWithVariants {

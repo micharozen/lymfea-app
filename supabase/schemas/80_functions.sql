@@ -1739,7 +1739,8 @@ CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") 
           'duration', v.duration, 'price', v.price,
           'price_on_request', v.price_on_request,
           'is_default', v.is_default, 'sort_order', v.sort_order,
-          'guest_count', v.guest_count
+          'guest_count', v.guest_count,
+          'available_days', v.available_days
         ) ORDER BY v.sort_order, v.guest_count, v.duration
        )
        FROM public.treatment_variants v
@@ -2645,7 +2646,7 @@ $$;
 
 ALTER FUNCTION "public"."reactivate_prereservation"("_booking_id" "uuid") OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text" DEFAULT NULL::"text", "_therapist_gender" "text" DEFAULT NULL::"text", "_stripe_session_id" "text" DEFAULT NULL::"text", "_guest_count" integer DEFAULT 1, "_amenity_timing" "text" DEFAULT 'same'::"text") RETURNS "uuid"
+CREATE OR REPLACE FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text" DEFAULT NULL::"text", "_therapist_gender" "text" DEFAULT NULL::"text", "_stripe_session_id" "text" DEFAULT NULL::"text", "_guest_count" integer DEFAULT 1, "_amenity_timing" "text" DEFAULT 'same'::"text", "_variant_ids" "text"[] DEFAULT NULL::"text"[]) RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
@@ -2665,6 +2666,7 @@ DECLARE
   _turnover_buffer       INTEGER;
   _requested_dow         INTEGER;
   _treatment_record      RECORD;
+  _variant_record        RECORD;
   _is_duo                BOOLEAN;
   _guests                INTEGER;
   _qualified_available   INTEGER;
@@ -2712,6 +2714,26 @@ BEGIN
          AND NOT _requested_dow = ANY(_treatment_record.available_days)
       THEN
         RAISE EXCEPTION 'DAY_CONSTRAINT_VIOLATION: Le soin "%" n''est pas disponible ce jour-là.', _treatment_record.name;
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- Même contrainte au niveau de la variante choisie (formules Semaine / Week-end :
+  -- même soin, jours et tarifs différents). Les jours de la variante priment sur
+  -- ceux du soin ; une variante sans jours définis hérite simplement du soin.
+  IF _variant_ids IS NOT NULL AND array_length(_variant_ids, 1) > 0 THEN
+    FOR _variant_record IN
+      SELECT tm.name, v.label, v.available_days
+      FROM treatment_variants v
+      JOIN treatment_menus tm ON tm.id = v.treatment_id
+      WHERE v.id::text = ANY(_variant_ids)
+    LOOP
+      IF _variant_record.available_days IS NOT NULL
+         AND array_length(_variant_record.available_days, 1) > 0
+         AND NOT _requested_dow = ANY(_variant_record.available_days)
+      THEN
+        RAISE EXCEPTION 'DAY_CONSTRAINT_VIOLATION: La formule "% — %" n''est pas disponible ce jour-là.',
+          _variant_record.name, _variant_record.label;
       END IF;
     END LOOP;
   END IF;
@@ -2958,7 +2980,7 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text", "_variant_ids" "text"[]) OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."rls_auto_enable"() RETURNS "event_trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -3756,11 +3778,11 @@ GRANT ALL ON FUNCTION "public"."reactivate_prereservation"("_booking_id" "uuid")
 
 GRANT ALL ON FUNCTION "public"."reactivate_prereservation"("_booking_id" "uuid") TO "service_role";
 
-GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text", "_variant_ids" "text"[]) TO "anon";
 
-GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text", "_variant_ids" "text"[]) TO "authenticated";
 
-GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text", "_variant_ids" "text"[]) TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "anon";
 

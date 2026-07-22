@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { AvailableDaysPicker } from "@/components/admin/treatment/AvailableDaysPicker";
 import { Plus, Trash2 } from "lucide-react";
 import type { TreatmentFormValues } from "@/pages/admin/TreatmentDetail";
 
@@ -62,6 +63,7 @@ export function TreatmentVariantsTab({
       price: "0",
       price_on_request: false,
       is_default: false,
+      available_days: [],
     });
   };
 
@@ -93,10 +95,8 @@ export function TreatmentVariantsTab({
       {fields.map((field, index) => {
         const variantPriceOnRequest = variants?.[index]?.price_on_request;
         return (
-          <div
-            key={field.id}
-            className="flex items-start gap-3 rounded-lg border p-3"
-          >
+          <div key={field.id} className="rounded-lg border p-3 space-y-3">
+            <div className="flex items-start gap-3">
             <div className="grid grid-cols-4 gap-3 flex-1">
               <FormField
                 control={form.control}
@@ -245,6 +245,31 @@ export function TreatmentVariantsTab({
                 )}
               </div>
             </div>
+            </div>
+
+            {/* Jours propres à la variante — une formule « Semaine » et une
+                « Week-end » sur le même soin ne sont pas réservables les mêmes jours. */}
+            <FormField
+              control={form.control}
+              name={`variants.${index}.available_days`}
+              render={({ field }) => {
+                const selected: number[] = field.value ?? [];
+                return (
+                  <FormItem>
+                    <FormLabel className="text-xs">Jours de disponibilité</FormLabel>
+                    <FormControl>
+                      <AvailableDaysPicker
+                        value={selected}
+                        onChange={field.onChange}
+                        disabled={disabled}
+                        everyDayLabel="Comme le soin"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
           </div>
         );
       })}
