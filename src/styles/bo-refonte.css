@@ -3,8 +3,11 @@
    Tous les sélecteurs sont scopés sous .bo-refonte pour ne pas
    fuiter sur les autres pages admin / la PWA / le flux client qui
    partagent les tokens globaux de index.css.
-   Polices mappées sur les faces auto-hébergées existantes :
-     serif → Kormelink · sans → Founders Grotesk · mono → système
+   Typographie : on conserve la police de l'admin (Founders Grotesk,
+   posée par index.css sur le layout sidebar). Le mockup Saoma prévoyait
+   un serif pour les grands nombres et un mono pour les chiffres
+   tabulaires — les trois variables pointent volontairement sur la même
+   famille, l'alignement des colonnes étant assuré par tabular-nums.
    ──────────────────────────────────────────────────────────── */
 
 .bo-refonte {
@@ -29,10 +32,10 @@
   --line:rgba(42,36,25,.14); --line-soft:rgba(42,36,25,.07);
   --shadow-1:0 1px 2px rgba(42,36,25,.05),0 2px 8px -2px rgba(42,36,25,.06);
   --shadow-2:0 4px 10px -2px rgba(42,36,25,.08),0 12px 32px -12px rgba(42,36,25,.16);
-  /* Type — faces auto-hébergées, aucun webfont externe */
-  --serif:'Kormelink', Georgia, serif;
+  /* Type — police inchangée par rapport à l'admin existant */
   --sans:'Founders Grotesk', system-ui, sans-serif;
-  --mono:ui-monospace, SFMono-Regular, Menlo, monospace;
+  --serif:var(--sans);
+  --mono:var(--sans);
   /* Rayons */
   --r-s:6px; --r-m:10px; --r-l:14px; --r-pill:999px;
 
@@ -55,6 +58,23 @@
 .bo-refonte .bo-page-title{font-family:var(--serif);font-weight:500;font-size:26px;letter-spacing:-.01em;line-height:1.1;margin:0;}
 .bo-refonte .bo-sec-title{font-weight:600;font-size:15px;margin:0;}
 .bo-refonte .bo-num{font-family:var(--mono);font-size:12.5px;letter-spacing:-.01em;}
+
+/* Chiffres alignés en colonne : sans police mono, c'est tabular-nums qui
+   garantit des glyphes de largeur égale (montants, %, heures, compteurs). */
+.bo-refonte .bo-num,
+.bo-refonte .alert .n,
+.bo-refonte .kpi .val,
+.bo-refonte .kpi.hero .share,
+.bo-refonte .mix-row .v,
+.bo-refonte .mix-row .m,
+.bo-refonte .donut-legend .n,
+.bo-refonte .heat .hh,
+.bo-refonte .heat .pct,
+.bo-refonte .rank .pos,
+.bo-refonte .rank .amt,
+.bo-refonte .stat-line .big,
+.bo-refonte .trend,
+.bo-refonte .recharts-text{font-variant-numeric:tabular-nums;}
 
 /* —— Boutons —— */
 .bo-refonte .bo-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13.5px;height:36px;padding:0 16px;border-radius:var(--r-m);border:1px solid transparent;transition:background .13s,border-color .13s,color .13s;white-space:nowrap;}
@@ -97,7 +117,7 @@
 
 /* —— Alertes —— */
 .bo-refonte .alerts{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;}
-.bo-refonte .alert{display:inline-flex;align-items:center;gap:9px;height:34px;padding:0 14px;border-radius:var(--r-pill);font-weight:600;font-size:12.5px;border:1px solid;background:var(--bo-surface);transition:box-shadow .12s;}
+.bo-refonte .alert{display:inline-flex;align-items:center;gap:9px;height:34px;padding:0 14px;border-radius:var(--r-pill);font-weight:400;font-size:12.5px;border:1px solid;background:var(--bo-surface);transition:box-shadow .12s;}
 .bo-refonte .alert:hover{box-shadow:var(--shadow-1);}
 .bo-refonte .alert.info{color:var(--info);border-color:rgba(84,97,140,.3);}
 .bo-refonte .alert.wait{color:var(--wait);border-color:rgba(138,102,28,.35);}
@@ -127,7 +147,8 @@
 .bo-refonte .kpi .top{display:flex;align-items:center;gap:8px;color:var(--ink-soft);}
 .bo-refonte .kpi .top svg{flex:none;color:var(--clay);}
 .bo-refonte .kpi .lbl{font-weight:600;font-size:12.5px;}
-.bo-refonte .kpi .val{font-family:var(--serif);font-weight:500;font-size:34px;letter-spacing:-.02em;line-height:1;}
+/* Valeur centrée dans la carte, quelle que soit la longueur du nombre. */
+.bo-refonte .kpi .val{font-family:var(--serif);font-weight:500;font-size:34px;letter-spacing:-.02em;line-height:1;text-align:center;}
 .bo-refonte .kpi .val small{font-size:19px;color:var(--ink-soft);font-weight:400;margin-left:2px;}
 .bo-refonte .kpi .sub{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-mute);min-height:20px;margin-top:auto;}
 .bo-refonte .trend{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-size:11.5px;height:20px;padding:0 8px;border-radius:var(--r-pill);}
