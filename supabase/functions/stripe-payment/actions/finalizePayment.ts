@@ -135,9 +135,13 @@ export async function handleFinalizePayment(
           first_name,
           last_name,
           stripe_account_id,
+          rate_45,
           rate_60,
           rate_75,
-          rate_90
+          rate_90,
+          rate_105,
+          rate_120,
+          rate_150
         )
       `,
       )
@@ -180,9 +184,13 @@ export async function handleFinalizePayment(
     const earned = therapist
       ? computeTherapistEarnings(
           {
+            rate_45: therapist.rate_45 ?? null,
             rate_60: therapist.rate_60 ?? null,
             rate_75: therapist.rate_75 ?? null,
             rate_90: therapist.rate_90 ?? null,
+            rate_105: therapist.rate_105 ?? null,
+            rate_120: therapist.rate_120 ?? null,
+            rate_150: therapist.rate_150 ?? null,
           },
           bookingDuration,
         )
