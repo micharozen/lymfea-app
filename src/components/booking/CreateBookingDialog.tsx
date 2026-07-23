@@ -18,6 +18,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { normalizeEmail, isValidEmail } from "@/lib/email";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
@@ -432,6 +433,25 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       return;
     }
     const values = form.getValues();
+    // Email client : bloquer une adresse non délivrable (ex. accent dans la
+    // partie locale) avec une notif claire plutôt que le silence natif, et
+    // prévenir quand on a dû la normaliser (accents/majuscules/espaces retirés).
+    const rawEmail = values.clientEmail?.trim() ?? "";
+    const normalizedEmail = normalizeEmail(rawEmail);
+    if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+      toast({
+        title: "Adresse email invalide",
+        description: "Merci de corriger l'email du client avant de créer la réservation.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (normalizedEmail && normalizedEmail !== rawEmail.toLowerCase()) {
+      toast({
+        title: "Email ajusté",
+        description: `L'adresse a été normalisée en ${normalizedEmail} (accents/majuscules retirés).`,
+      });
+    }
     if (canAssignTherapist && !amenityOnlyCart && duoMode !== "broadcast") {
       if (staffingCount > 1) {
         const assigned = [values.therapistId, ...additionalTherapistIds].filter(Boolean);
@@ -583,7 +603,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         </DialogHeader>
 
         <Form {...form}>
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+        {/* noValidate : on désactive la bulle native de <input type="email">
+            (silencieuse, avale le submit) au profit d'une notif explicite gérée
+            dans handleSubmit. */}
+        <form onSubmit={handleSubmit} noValidate className="flex-1 flex flex-col min-h-0">
             {/* Panier 100 % amenity : l'étape thérapeute est sans objet, même si on
                 s'y trouvait avant le retrait du dernier soin. */}
             <Tabs value={amenityOnlyCart && activeTab === "therapist" ? "prestations" : activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations" | "therapist" | "payment")} className="flex-1 flex flex-col min-h-0">
