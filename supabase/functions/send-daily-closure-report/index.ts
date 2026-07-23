@@ -167,7 +167,7 @@ serve(async (req: Request): Promise<Response> => {
         .order("booking_time", { ascending: true }),
       supabase
         .from("therapist_venues")
-        .select("therapist_id, therapists ( id, rate_60, rate_75, rate_90 )")
+        .select("therapist_id, therapists ( id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150 )")
         .eq("hotel_id", hotel_id),
     ]);
 
@@ -182,9 +182,28 @@ serve(async (req: Request): Promise<Response> => {
 
     const ratesMap: Record<string, TherapistRates | null> = {};
     for (const row of ratesRes.data ?? []) {
-      const t = (row as { therapists: { id: string; rate_60: number | null; rate_75: number | null; rate_90: number | null } | null }).therapists;
+      const t = (row as {
+        therapists: {
+          id: string;
+          rate_45: number | null;
+          rate_60: number | null;
+          rate_75: number | null;
+          rate_90: number | null;
+          rate_105: number | null;
+          rate_120: number | null;
+          rate_150: number | null;
+        } | null;
+      }).therapists;
       if (!t) continue;
-      const rates: TherapistRates = { rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90 };
+      const rates: TherapistRates = {
+        rate_45: t.rate_45,
+        rate_60: t.rate_60,
+        rate_75: t.rate_75,
+        rate_90: t.rate_90,
+        rate_105: t.rate_105,
+        rate_120: t.rate_120,
+        rate_150: t.rate_150,
+      };
       const empty = rates.rate_60 == null && rates.rate_75 == null && rates.rate_90 == null;
       ratesMap[t.id] = empty ? null : rates;
     }

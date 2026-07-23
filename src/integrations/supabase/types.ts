@@ -2896,9 +2896,13 @@ export type Database = {
           password_set: boolean | null
           phone: string
           profile_image: string | null
+          rate_45: number | null
           rate_60: number | null
           rate_75: number | null
           rate_90: number | null
+          rate_105: number | null
+          rate_120: number | null
+          rate_150: number | null
           skills: string[] | null
           status: string
           stripe_account_id: string | null
@@ -2920,9 +2924,13 @@ export type Database = {
           password_set?: boolean | null
           phone: string
           profile_image?: string | null
+          rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
           rate_90?: number | null
+          rate_105?: number | null
+          rate_120?: number | null
+          rate_150?: number | null
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
@@ -2944,9 +2952,13 @@ export type Database = {
           password_set?: boolean | null
           phone?: string
           profile_image?: string | null
+          rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
           rate_90?: number | null
+          rate_105?: number | null
+          rate_120?: number | null
+          rate_150?: number | null
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null

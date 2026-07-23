@@ -150,9 +150,13 @@ serve(async (req) => {
           first_name,
           last_name,
           stripe_account_id,
+          rate_45,
           rate_60,
           rate_75,
-          rate_90
+          rate_90,
+          rate_105,
+          rate_120,
+          rate_150
         )
       `)
       .eq('id', booking_id)

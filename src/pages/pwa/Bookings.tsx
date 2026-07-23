@@ -134,7 +134,7 @@ const PwaBookings = () => {
 
       const { data: therapist } = await supabase
         .from("therapists")
-        .select("id, rate_60, rate_75, rate_90")
+        .select("id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
         .eq("user_id", user.id)
         .single();
 
@@ -142,9 +142,13 @@ const PwaBookings = () => {
 
       if (therapist) {
         setTherapistRates({
+          rate_45: therapist.rate_45,
           rate_60: therapist.rate_60,
           rate_75: therapist.rate_75,
           rate_90: therapist.rate_90,
+          rate_105: therapist.rate_105,
+          rate_120: therapist.rate_120,
+          rate_150: therapist.rate_150,
         });
       }
 
