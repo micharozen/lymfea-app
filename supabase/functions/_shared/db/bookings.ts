@@ -88,13 +88,34 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
   // Amenity lines (pool/sauna access) occupy their own block, not the soin slot —
   // exclude them so the booking's soin duration is not inflated. Mirrors
   // computeSlotDuration server-side.
-  const treatmentsTotalDuration = treatmentsJoin.reduce(
-    (sum, t) =>
-      t.treatment_menus?.amenity_id != null
-        ? sum
-        : sum + (t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0),
-    0,
-  );
+  const durationOf = (t: NonNullable<RawBookingRow["booking_treatments"]>[number]) =>
+    t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0;
+  const soinLines = treatmentsJoin.filter((t) => t.treatment_menus?.amenity_id == null);
+
+  // Solo: soins run sequentially → sum. Duo: one leg per guest running in
+  // parallel → the longest leg wins (an add-on extends its parent's leg, an
+  // orphan add-on stacks on top). Mirrors computeSlotDuration server-side so the
+  // planning block matches the real occupied slot.
+  let treatmentsTotalDuration: number;
+  if ((row.guest_count ?? 1) <= 1) {
+    treatmentsTotalDuration = soinLines.reduce((sum, t) => sum + durationOf(t), 0);
+  } else {
+    const legDurations = new Map<string, number>();
+    for (const t of soinLines) {
+      if (!t.is_addon) legDurations.set(t.id, durationOf(t));
+    }
+    let orphanDuration = 0;
+    for (const t of soinLines) {
+      if (!t.is_addon) continue;
+      const parentId = t.parent_booking_treatment_id;
+      if (parentId && legDurations.has(parentId)) {
+        legDurations.set(parentId, legDurations.get(parentId)! + durationOf(t));
+      } else {
+        orphanDuration += durationOf(t);
+      }
+    }
+    treatmentsTotalDuration = Math.max(0, ...legDurations.values()) + orphanDuration;
+  }
   const treatmentsTotalPrice = treatmentsJoin.reduce(
     (sum, t) => sum + resolveTreatmentPrice(t),
     0,
