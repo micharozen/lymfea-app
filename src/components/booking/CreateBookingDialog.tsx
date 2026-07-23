@@ -329,7 +329,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     : catalogDuration;
 
   // Salles de soin disponibles au créneau choisi (pré-sélection auto + override).
-  const { rooms, occupiedRoomIds, roomOccupancy } = useAvailableRooms(
+  const { rooms, occupiedRoomIds, turnoverConflictRoomIds, roomOccupancy } = useAvailableRooms(
     hotelId,
     dateStr,
     time,
@@ -720,6 +720,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   currency={selectedHotel?.currency || 'EUR'}
                   rooms={rooms}
                   occupiedRoomIds={occupiedRoomIds}
+                  turnoverConflictRoomIds={turnoverConflictRoomIds}
                   roomOccupancy={roomOccupancy}
                   roomId={roomId}
                   onRoomChange={(id) => form.setValue("roomId", id)}

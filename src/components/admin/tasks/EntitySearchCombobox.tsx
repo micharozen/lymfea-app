@@ -9,7 +9,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface EntitySearchComboboxProps<T> {
   value: T | null;
@@ -25,6 +24,12 @@ interface EntitySearchComboboxProps<T> {
 // Generic server-backed combobox: `search` runs on the entered query (server
 // filtering, so cmdk's client filter is disabled). Selecting an item calls
 // onChange; the clear button resets to null.
+//
+// The search field renders INLINE (not in a Popover). This combobox lives
+// inside modal Dialogs (QuickActionsDialog, TaskDialog); a Popover/popper
+// nested in a Radix Dialog fights the Dialog's focus trap ("Blocked
+// aria-hidden … descendant retained focus"), leaving the search input
+// unusable. Rendering the Command in normal flow avoids the conflict entirely.
 export function EntitySearchCombobox<T>({
   value,
   onChange,
@@ -62,70 +67,74 @@ export function EntitySearchCombobox<T>({
     };
   }, [query, open, search]);
 
+  const handleSelect = (item: T) => {
+    onChange(item);
+    setOpen(false);
+    setQuery("");
+  };
+
   return (
-    <div className="flex items-center gap-2">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="flex-1 justify-between font-normal"
-          >
-            <span className={cn("truncate", !value && "text-muted-foreground")}>
-              {value ? getLabel(value) : placeholder}
-            </span>
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-          <Command shouldFilter={false}>
-            <CommandInput
-              placeholder={searchPlaceholder}
-              value={query}
-              onValueChange={setQuery}
-            />
-            <CommandList>
-              <CommandEmpty>
-                {loading ? "…" : query.trim().length < 2 ? searchPlaceholder : emptyText}
-              </CommandEmpty>
-              {results.map((item) => {
-                const key = getKey(item);
-                const selected = value ? getKey(value) === key : false;
-                return (
-                  <CommandItem
-                    key={key}
-                    value={key}
-                    onSelect={() => {
-                      onChange(item);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selected ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    {getLabel(item)}
-                  </CommandItem>
-                );
-              })}
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-      {value && (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
         <Button
           type="button"
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 shrink-0"
-          onClick={() => onChange(null)}
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="flex-1 justify-between font-normal"
+          onClick={() => setOpen((prev) => !prev)}
         >
-          <X className="h-4 w-4" />
+          <span className={cn("truncate", !value && "text-muted-foreground")}>
+            {value ? getLabel(value) : placeholder}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
+        {value && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            onClick={() => onChange(null)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      {open && (
+        <Command shouldFilter={false} className="rounded-md border">
+          <CommandInput
+            autoFocus
+            placeholder={searchPlaceholder}
+            value={query}
+            onValueChange={setQuery}
+          />
+          <CommandList>
+            <CommandEmpty>
+              {loading ? "…" : query.trim().length < 2 ? searchPlaceholder : emptyText}
+            </CommandEmpty>
+            {results.map((item) => {
+              const key = getKey(item);
+              const selected = value ? getKey(value) === key : false;
+              return (
+                <CommandItem
+                  key={key}
+                  value={key}
+                  onSelect={() => handleSelect(item)}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      selected ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  {getLabel(item)}
+                </CommandItem>
+              );
+            })}
+          </CommandList>
+        </Command>
       )}
     </div>
   );

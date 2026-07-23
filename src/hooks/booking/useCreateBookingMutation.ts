@@ -481,12 +481,15 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         }
       }
 
+      // Assignation manuelle : on ne bloque que sur un chevauchement RÉEL (turnover = 0).
+      // La fenêtre de remise en état (turnover) n'est qu'un warning côté UI, l'admin/concierge
+      // peut assigner une salle encore en turnover.
       await assertRoomsFree(
         d.hotelId,
         d.date,
         d.time,
         d.totalDuration || 30,
-        roomTurnoverBuffer,
+        0,
         [roomId, secondaryRoomId].filter((id): id is string => !!id),
       );
 

@@ -57,6 +57,7 @@ interface BookingTherapistStepProps {
   currency: string;
   rooms: AvailableRoom[];
   occupiedRoomIds: Set<string>;
+  turnoverConflictRoomIds: Set<string>;
   roomOccupancy: Map<string, number>;
   roomId: string;
   onRoomChange: (id: string) => void;
@@ -71,6 +72,7 @@ const AUTO_ROOM_VALUE = "__auto__";
 interface RoomSelectProps {
   rooms: AvailableRoom[];
   occupiedRoomIds: Set<string>;
+  turnoverConflictRoomIds: Set<string>;
   roomOccupancy: Map<string, number>;
   value: string;
   onChange: (id: string) => void;
@@ -81,6 +83,7 @@ interface RoomSelectProps {
 function RoomSelect({
   rooms,
   occupiedRoomIds,
+  turnoverConflictRoomIds,
   roomOccupancy,
   value,
   onChange,
@@ -100,6 +103,7 @@ function RoomSelect({
           .filter((room) => room.id !== excludeRoomId)
           .map((room) => {
             const occupied = occupiedRoomIds.has(room.id) && room.id !== value;
+            const turnover = turnoverConflictRoomIds.has(room.id) && room.id !== value;
             const used = roomOccupancy.get(room.id) ?? 0;
             return (
               <SelectItem key={room.id} value={room.id} disabled={occupied}>
@@ -114,6 +118,9 @@ function RoomSelect({
                     {used}/{room.capacity}
                   </span>
                   {occupied && <span className="text-xs text-destructive">— Complète</span>}
+                  {!occupied && turnover && (
+                    <span className="text-xs text-amber-600">— Remise en état</span>
+                  )}
                 </span>
               </SelectItem>
             );
@@ -393,6 +400,7 @@ export function BookingTherapistStep({
   currency,
   rooms,
   occupiedRoomIds,
+  turnoverConflictRoomIds,
   roomOccupancy,
   roomId,
   onRoomChange,
@@ -475,6 +483,7 @@ export function BookingTherapistStep({
           <RoomSelect
             rooms={rooms}
             occupiedRoomIds={occupiedRoomIds}
+            turnoverConflictRoomIds={turnoverConflictRoomIds}
             roomOccupancy={roomOccupancy}
             value={roomId}
             onChange={onRoomChange}
@@ -499,6 +508,7 @@ export function BookingTherapistStep({
                 <RoomSelect
                   rooms={rooms}
                   occupiedRoomIds={occupiedRoomIds}
+                  turnoverConflictRoomIds={turnoverConflictRoomIds}
                   roomOccupancy={roomOccupancy}
                   value={secondaryRoomId}
                   onChange={onSecondaryRoomChange}
