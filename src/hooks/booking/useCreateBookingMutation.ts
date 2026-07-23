@@ -5,6 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType } from "@/lib/clientTypePayment";
 import { composePhoneNumber, languageFromCountryCode } from "@/lib/phone";
+import { normalizeEmail, isValidEmail } from "@/lib/email";
 import { therapistForTreatment } from "@/lib/therapistForTreatment";
 
 interface Hotel {
@@ -397,6 +398,15 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
 
   return useMutation({
     mutationFn: async (d: CreateBookingPayload) => {
+      // Normalise the operator-typed email once, up front: strip diacritics
+      // (é → e) and lowercase, then reject anything Resend cannot deliver. A
+      // non-ASCII local part silently fails at send time (prod #1010), so we
+      // block it here rather than store an undeliverable address.
+      const clientEmail = normalizeEmail(d.clientEmail);
+      if (clientEmail && !isValidEmail(clientEmail)) {
+        throw new Error("Adresse email invalide : veuillez la corriger.");
+      }
+
       const hotel = hotels?.find(h => h.id === d.hotelId);
       const turnoverValue = hotel?.["room_turnover_buffer_minutes"];
       const roomTurnoverBuffer = typeof turnoverValue === "number" ? turnoverValue : 0;
@@ -419,7 +429,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           _phone: normalizedPhone!,
           _first_name: d.clientFirstName,
           _last_name: d.clientLastName,
-          _email: d.clientEmail?.trim() || null,
+          _email: clientEmail,
           _language: language,
           _civility: d.civility ?? null,
         });
@@ -481,7 +491,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       );
 
       const { booking, status } = await insertSingleBooking(
-        d,
+        { ...d, clientEmail: clientEmail ?? undefined },
         hotel,
         therapists,
         customerId,
