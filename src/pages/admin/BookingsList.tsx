@@ -37,6 +37,7 @@ import { ColumnSelector } from "@/components/booking/ColumnSelector";
 import { BOOKING_COLUMNS } from "@/components/booking/bookingColumns";
 import { useColumnPreferences } from "@/hooks/useColumnPreferences";
 import type { PageSize } from "@/components/table/TablePagination";
+import { AppLoader } from "@/components/AppLoader";
 
 export default function BookingsList() {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export default function BookingsList() {
     return d.toISOString().slice(0, 10);
   }, [periodDays, customRange]);
 
-  const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData({
+  const { bookings, hotels, therapists, getHotelInfo, refetch, isLoading } = useBookingData({
     fromDate,
     toDate: customRange?.to,
   });
@@ -79,7 +80,9 @@ export default function BookingsList() {
         (b) => b.id === bookingId || b.booking_id?.toString() === bookingId
       );
       if (target) {
-        navigate(`/admin/bookings/${target.id}`);
+        // replace: true évite d'empiler l'entrée `?id=...` dans l'historique,
+        // sinon le bouton "retour" y revient et re-déclenche cette redirection (boucle).
+        navigate(`/admin/bookings/${target.id}`, { replace: true });
       }
     }
   }, [searchParams, bookings, navigate]);
@@ -423,6 +426,9 @@ export default function BookingsList() {
 
       <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 min-h-0 min-w-0">
         <div className="bg-card rounded-lg border border-border h-full flex flex-col min-w-0 overflow-hidden">
+          {isLoading && !bookings ? (
+            <AppLoader fullScreen={false} className="flex-1" />
+          ) : (
           <BookingListView
             paginatedBookings={paginatedBookings}
             filteredBookingsCount={sortedBookings.length}
@@ -447,6 +453,7 @@ export default function BookingsList() {
             onPageSizeChange={handlePageSizeChange}
             scrollable={!isAutoPageSize}
           />
+          )}
         </div>
       </div>
 

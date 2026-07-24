@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -41,7 +41,9 @@ import { getBookingStatusConfig, getBookingPaymentDisplay } from "@/utils/status
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
-import { useBookingData } from "@/hooks/booking/useBookingData";
+import { useBooking } from "@/hooks/booking/useBooking";
+import { useCalendarHotels } from "@/hooks/booking/useCalendarHotels";
+import { useActiveTherapists } from "@/hooks/booking/useActiveTherapists";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
@@ -112,6 +114,11 @@ function useBookingDetailDialogs() {
 export default function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Origine explicite fournie par l'appelant (ex. recherche globale) : le retour
+  // y mène directement. Sinon, retour naturel dans l'historique.
+  const backTo = (location.state as { from?: string } | null)?.from ?? null;
+  const goBack = () => (backTo ? navigate(backTo) : navigate(-1));
 
   const { t } = useTranslation('admin');
   const { showsConciergeUx: isConcierge, isAdmin } = useEffectiveRole();
@@ -133,20 +140,13 @@ export default function BookingDetail() {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
   const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
-  const [bundleInfo, setBundleInfo] = useState<{
-    bundleName: string;
-    remainingSessions: number;
-    totalSessions: number;
-  } | null>(null);
-  const [therapistRatesMap, setTherapistRatesMap] = useState<Record<string, TherapistRates>>({});
-  const [hotelCommission, setHotelCommission] = useState<{ therapist_commission: number; global_therapist_commission: boolean } | null>(null);
-  const [acceptedTherapists, setAcceptedTherapists] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
   const [therapistRefreshKey, setTherapistRefreshKey] = useState(0);
 
-  const { bookings, therapists, getHotelInfo, refetch } = useBookingData();
-  const isLoading = !bookings;
-
-  const booking = bookings?.find((b) => b.id === id);
+  const { data: booking, isLoading, isFetched, refetch } = useBooking(id);
+  const { data: therapists } = useActiveTherapists();
+  const { data: hotels } = useCalendarHotels();
+  const getHotelInfo = (hotelId: string | null) =>
+    (hotelId && hotels?.find((h) => h.id === hotelId)) || null;
 
   // Méthodes proposées à la saisie manuelle. Les modes écrits par le système
   // (`card` = Stripe, `bundle`) ne sont ajoutés que si la réservation les porte
@@ -159,27 +159,27 @@ export default function BookingDetail() {
   }, [booking?.payment_method]);
 
   // Fetch bundle info when booking has a bundle_usage_id
-  useEffect(() => {
-    const bundleUsageId = (booking as any)?.bundle_usage_id;
-    if (!bundleUsageId) {
-      setBundleInfo(null);
-      return;
-    }
-    supabase
-      .from("bundle_session_usages")
-      .select("customer_bundle_id, customer_treatment_bundles(total_sessions, used_sessions, treatment_bundles(name))")
-      .eq("id", bundleUsageId)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          const customerBundle = (data as any).customer_treatment_bundles;
-          const bundleName = customerBundle?.treatment_bundles?.name || "";
-          const total = customerBundle?.total_sessions || 0;
-          const used = customerBundle?.used_sessions || 0;
-          setBundleInfo({ bundleName, remainingSessions: total - used, totalSessions: total });
-        }
-      });
-  }, [booking?.id]);
+  const bundleUsageId = (booking as any)?.bundle_usage_id as string | undefined;
+  const { data: bundleInfo = null } = useQuery({
+    queryKey: ["booking-bundle", bundleUsageId],
+    enabled: !!bundleUsageId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("bundle_session_usages")
+        .select("customer_bundle_id, customer_treatment_bundles(total_sessions, used_sessions, treatment_bundles(name))")
+        .eq("id", bundleUsageId!)
+        .single();
+      if (!data) return null;
+      const customerBundle = (data as any).customer_treatment_bundles;
+      const total = customerBundle?.total_sessions || 0;
+      const used = customerBundle?.used_sessions || 0;
+      return {
+        bundleName: customerBundle?.treatment_bundles?.name || "",
+        remainingSessions: total - used,
+        totalSessions: total,
+      };
+    },
+  });
 
   // Payment metadata from booking_payment_infos: when it was paid (payment_at) and,
   // for cancellations, the time + who cancelled (cancelled_by = staff user id;
@@ -198,20 +198,18 @@ export default function BookingDetail() {
   });
 
   // Fetch all accepted therapists for duo bookings
-  useEffect(() => {
-    const guestCount = (booking as any)?.guest_count ?? 1;
-    if (!booking?.id || guestCount <= 1) {
-      setAcceptedTherapists([]);
-      return;
-    }
-    (async () => {
+  const bookingGuestCount = (booking as any)?.guest_count ?? 1;
+  const { data: acceptedTherapists = [] } = useQuery({
+    queryKey: ["booking-accepted-therapists", booking?.id, therapistRefreshKey],
+    enabled: !!booking?.id && bookingGuestCount > 1,
+    queryFn: async () => {
       const { data: btData } = await supabase
         .from("booking_therapists")
         .select("therapist_id, assigned_at")
-        .eq("booking_id", booking.id)
+        .eq("booking_id", booking!.id)
         .eq("status", "accepted")
         .order("assigned_at", { ascending: true });
-      if (!btData || btData.length === 0) { setAcceptedTherapists([]); return; }
+      if (!btData || btData.length === 0) return [];
       const { data: tData } = await supabase
         .from("therapists")
         .select("id, first_name, last_name")
@@ -219,59 +217,58 @@ export default function BookingDetail() {
       // Preserve acceptance order (assigned_at) — the .in() result order is not guaranteed
       // and the positional treatment↔therapist mapping depends on a stable order.
       const byId = new Map((tData || []).map((t) => [t.id, t]));
-      setAcceptedTherapists(
-        btData.map((bt) => byId.get(bt.therapist_id)).filter((t): t is NonNullable<typeof t> => !!t),
-      );
-    })();
-  }, [booking?.id, (booking as any)?.guest_count, therapistRefreshKey]);
+      return btData
+        .map((bt) => byId.get(bt.therapist_id))
+        .filter((t): t is NonNullable<typeof t> => !!t);
+    },
+  });
 
   // Fetch hotel commission settings for earnings calculation
-  useEffect(() => {
-    if (!booking?.hotel_id) { setHotelCommission(null); return; }
-    supabase
-      .from("hotels")
-      .select("therapist_commission, global_therapist_commission")
-      .eq("id", booking.hotel_id)
-      .single()
-      .then(({ data }) => {
-        if (data) setHotelCommission({
-          therapist_commission: (data as any).therapist_commission ?? 70,
-          global_therapist_commission: (data as any).global_therapist_commission !== false,
-        });
-      });
-  }, [booking?.hotel_id]);
+  const { data: hotelCommission = null } = useQuery({
+    queryKey: ["hotel-commission", booking?.hotel_id],
+    enabled: !!booking?.hotel_id,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hotels")
+        .select("therapist_commission, global_therapist_commission")
+        .eq("id", booking!.hotel_id)
+        .single();
+      if (!data) return null;
+      return {
+        therapist_commission: (data as any).therapist_commission ?? 70,
+        global_therapist_commission: (data as any).global_therapist_commission !== false,
+      };
+    },
+  });
 
   // Fetch therapist rates for earnings estimation (all accepted therapists for duo, primary for solo)
-  useEffect(() => {
-    const guestCount = (booking as any)?.guest_count ?? 1;
-    if (guestCount > 1) {
-      if (acceptedTherapists.length === 0) { setTherapistRatesMap({}); return; }
-      supabase
-        .from("therapists")
-        .select("id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
-        .in("id", acceptedTherapists.map((t) => t.id))
-        .then(({ data }) => {
-          const map: Record<string, TherapistRates> = {};
-          (data || []).forEach((t: any) => {
-            map[t.id] = { rate_45: t.rate_45, rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90, rate_105: t.rate_105, rate_120: t.rate_120, rate_150: t.rate_150 };
-          });
-          setTherapistRatesMap(map);
-        });
-    } else {
-      const therapistId = booking?.therapist_id;
-      if (!therapistId) { setTherapistRatesMap({}); return; }
-      supabase
-        .from("therapists")
-        .select("id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
-        .eq("id", therapistId)
-        .single()
-        .then(({ data }) => {
-          if (data) setTherapistRatesMap({ [data.id]: { rate_45: data.rate_45, rate_60: data.rate_60, rate_75: data.rate_75, rate_90: data.rate_90, rate_105: data.rate_105, rate_120: data.rate_120, rate_150: data.rate_150 } });
-          else setTherapistRatesMap({});
-        });
-    }
-  }, [booking?.therapist_id, booking?.id, (booking as any)?.guest_count, acceptedTherapists]);
+  const rateTherapistIds = useMemo(() => {
+    if (bookingGuestCount > 1) return acceptedTherapists.map((t) => t.id);
+    return booking?.therapist_id ? [booking.therapist_id] : [];
+  }, [bookingGuestCount, acceptedTherapists, booking?.therapist_id]);
 
+  const { data: therapistRatesMap = {} } = useQuery({
+    queryKey: ["booking-therapist-rates", [...rateTherapistIds].sort()],
+    enabled: rateTherapistIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("therapists")
+        .select("id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
+        .in("id", rateTherapistIds);
+      const map: Record<string, TherapistRates> = {};
+      (data || []).forEach((t: any) => {
+        map[t.id] = { rate_45: t.rate_45, rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90, rate_105: t.rate_105, rate_120: t.rate_120, rate_150: t.rate_150 };
+      });
+      return map;
+    },
+  });
+
+  // Spinner while loading OR while the query is still disabled (org scope not
+  // resolved yet on a hard refresh) — only show "introuvable" once the fetch has
+  // actually run and returned nothing.
+  if (!booking && !isFetched) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!booking) return <div className="p-10 text-center text-muted-foreground">Réservation introuvable.</div>;
 
@@ -506,7 +503,7 @@ export default function BookingDetail() {
       <header className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-stone-200 px-6 py-3">
         <div className="flex items-start justify-between gap-4 max-w-6xl mx-auto w-full">
           <div className="flex items-start gap-3 min-w-0">
-            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="flex-shrink-0 mt-0.5 -ml-2">
+            <Button variant="ghost" size="sm" onClick={goBack} className="flex-shrink-0 mt-0.5 -ml-2">
               <ArrowLeft className="h-4 w-4" />
               <span className="sr-only">Retour</span>
             </Button>

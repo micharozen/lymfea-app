@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { addDays, subDays, startOfMonth, endOfMonth, format, parseISO, isValid } from "date-fns";
 import { RefreshCw, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppLoader } from "@/components/AppLoader";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
@@ -48,8 +50,34 @@ export default function Booking() {
   // AJOUT : Récupération des paramètres de recherche de l'URL
   const [searchParams] = useSearchParams();
 
+  // Day count with localStorage persistence (declared before the data fetch so
+  // the date window can account for how many days are visible).
+  const [dayCount, setDayCount] = useState<number>(() => {
+    const saved = localStorage.getItem('planning-day-count');
+    return saved ? Number(saved) : 5;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('planning-day-count', String(dayCount));
+  }, [dayCount]);
+
+  // Sliding date window: only load bookings around the period the calendar shows
+  // (same `?date=` source as useCalendarLogic), instead of the whole org history.
+  // Snap to month bounds + a generous buffer so navigating a week or two stays
+  // within the already-cached window (the queryKey — hence the fetch — is stable
+  // until you scroll out of range).
+  const { fromDate, toDate } = useMemo(() => {
+    const raw = searchParams.get("date");
+    const parsed = raw ? parseISO(raw) : null;
+    const base = parsed && isValid(parsed) ? parsed : new Date();
+    const from = startOfMonth(subDays(base, 7));
+    const to = endOfMonth(addDays(base, dayCount + 45));
+    return { fromDate: format(from, "yyyy-MM-dd"), toDate: format(to, "yyyy-MM-dd") };
+  }, [searchParams, dayCount]);
+
   // Data
-  const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();
+  const { bookings, hotels, therapists, getHotelInfo, refetch, isLoading } =
+    useBookingData({ fromDate, toDate });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // UI state
@@ -76,23 +104,15 @@ useEffect(() => {
     );
     
     if (target) {
-      // Au lieu d'ouvrir l'ancienne modale 
-      // On redirige vers la nouvelle page 
-      navigate(`/admin/bookings/${target.id}`);
+      // Au lieu d'ouvrir l'ancienne modale
+      // On redirige vers la nouvelle page.
+      // replace: true évite d'empiler l'entrée `?id=...` dans l'historique,
+      // sinon le bouton "retour" y revient et re-déclenche cette redirection (boucle).
+      navigate(`/admin/bookings/${target.id}`, { replace: true });
     }
   }
 }, [searchParams, bookings, navigate]); // Se déclenche quand l'URL change ou quand les données arrivent
   // -----------------------------------------------------------
-
-  // Day count with localStorage persistence
-  const [dayCount, setDayCount] = useState<number>(() => {
-    const saved = localStorage.getItem('planning-day-count');
-    return saved ? Number(saved) : 5;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('planning-day-count', String(dayCount));
-  }, [dayCount]);
 
   // Payment link state
   const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
@@ -359,7 +379,9 @@ useEffect(() => {
             />
           )}
           <div className="flex-1 flex flex-col overflow-hidden">
-          {view === "calendar" ? (
+          {isLoading && !bookings ? (
+            <AppLoader fullScreen={false} className="flex-1" />
+          ) : view === "calendar" ? (
             <BookingCalendarView
               weekDays={calendar.weekDays}
               currentWeekStart={calendar.currentWeekStart}

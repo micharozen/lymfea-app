@@ -1,6 +1,10 @@
 export { useBookingData } from "./useBookingData";
 export type { BookingWithTreatments, Treatment, Hotel, Therapist } from "./useBookingData";
 
+export { useBooking } from "./useBooking";
+export { useCalendarHotels } from "./useCalendarHotels";
+export { useActiveTherapists } from "./useActiveTherapists";
+
 export { useBookingFilters } from "./useBookingFilters";
 
 export { useCalendarLogic, CALENDAR_CONSTANTS } from "./useCalendarLogic";

@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -76,12 +77,16 @@ import { formatPrice } from "@/lib/formatPrice";
 import { composePhoneNumber, languageFromCountryCode } from "@/lib/phone";
 import {
   buildComboDuoBookingParams,
+  buildLegs,
   computeStaffingCount,
+  defaultLegAssignments,
   expandCartToSessions,
   getBaseSessionCount,
   getSessionCount,
   isComboDuoEligible,
+  isValidPartition,
 } from "@/features/admin-combo-duo";
+import type { ComboLegPayload } from "@/hooks/booking/useCreateBookingMutation";
 
 export interface BookingModalInitialValues {
   hotelId?: string;
@@ -190,6 +195,9 @@ export default function BookingModal({
   const [clientType, setClientType] = useState<BookingClientType>("external");
   const [clientNote, setClientNote] = useState(initialValues?.clientNote ?? "");
   const [comboDuoEnabled, setComboDuoEnabled] = useState(false);
+  const [practitionerCount, setPractitionerCount] = useState(0);
+  const [legAssignments, setLegAssignments] = useState<number[]>([]);
+  const [legTimes, setLegTimes] = useState<string[]>([]);
 
   const [createdBooking, setCreatedBooking] = useState<{
     id: string;
@@ -264,9 +272,40 @@ export default function BookingModal({
     if (!comboDuoEligible && comboDuoEnabled) setComboDuoEnabled(false);
   }, [comboDuoEligible, comboDuoEnabled]);
 
-  const staffingCount = computeStaffingCount(comboDuoEnabled, baseSessionCount, requiredGuestCount);
+  const baseSoinLabels = useMemo(
+    () => sessions.filter((s) => !s.isAddon && !s.isAmenity).map((s) => s.label),
+    [sessions],
+  );
+  const effectivePractitionerCount = comboDuoEnabled
+    ? Math.min(Math.max(2, practitionerCount || baseSessionCount), Math.max(2, baseSessionCount))
+    : baseSessionCount;
+  const resolvedLegAssignments = useMemo(() => {
+    const N = effectivePractitionerCount;
+    if (legAssignments.length === baseSessionCount && legAssignments.every((v) => v < N)) {
+      return legAssignments;
+    }
+    return defaultLegAssignments(baseSessionCount, N);
+  }, [legAssignments, baseSessionCount, effectivePractitionerCount]);
+
+  const legSoinLabels = useMemo(() => {
+    const labels: string[][] = Array.from({ length: effectivePractitionerCount }, () => []);
+    baseSoinLabels.forEach((lbl, i) => {
+      const leg = resolvedLegAssignments[i] ?? 0;
+      if (labels[leg]) labels[leg].push(lbl);
+    });
+    return labels;
+  }, [baseSoinLabels, resolvedLegAssignments, effectivePractitionerCount]);
+
+  const setLegTimeAt = (i: number, value: string) =>
+    setLegTimes((prev) => {
+      const next = [...prev];
+      next[i] = value;
+      return next;
+    });
+
+  const staffingCount = computeStaffingCount(comboDuoEnabled, effectivePractitionerCount, requiredGuestCount);
   const effectiveDuration = comboDuoEnabled
-    ? buildComboDuoBookingParams(sessions).duration
+    ? buildComboDuoBookingParams(sessions, resolvedLegAssignments).duration
     : totalDuration;
 
   const {
@@ -387,11 +426,69 @@ export default function BookingModal({
   const handleSubmit = () => {
     if (!canSubmit || !date) return;
     if (!validateTherapistAssignment()) return;
+    if (comboDuoEnabled && !isValidPartition(resolvedLegAssignments, effectivePractitionerCount)) {
+      toast({
+        title: t("booking.comboDuo.emptyLegError", { defaultValue: "Chaque praticien doit avoir au moins un soin" }),
+        variant: "destructive",
+      });
+      return;
+    }
     const allTherapistIds = [
       ...(therapistId ? [therapistId] : []),
       ...additionalTherapistIds.filter(Boolean),
     ];
-    const comboParams = comboDuoEnabled ? buildComboDuoBookingParams(sessions) : null;
+    const mainDateStr = format(date, "yyyy-MM-dd");
+    const allTherapistIdsSel = [therapistId, ...additionalTherapistIds];
+
+    // Multi-horaire : un leg avec un horaire distinct → groupe de N bookings liés.
+    const legList = comboDuoEnabled && !isBroadcastBooking ? buildLegs(sessions, resolvedLegAssignments) : [];
+    const isMultiHoraire = legList.some((_, i) => (legTimes[i] || time) !== time);
+    if (isMultiHoraire) {
+      const comboLegs: ComboLegPayload[] = legList.map((leg, i) => ({
+        therapistId: allTherapistIdsSel[i] || null,
+        roomId: null,
+        date: mainDateStr,
+        time: legTimes[i] || time,
+        duration: leg.durationSum,
+        totalPrice: leg.priceSum,
+        isOutOfHours: false,
+        surchargeAmount: 0,
+        treatments: leg.treatmentLines.map((line) => ({ ...line, legIndex: 0 })),
+      }));
+      mutation.mutate({
+        hotelId,
+        clientFirstName: clientFirstName.trim(),
+        clientLastName: clientLastName.trim(),
+        clientEmail: clientEmail.trim() || undefined,
+        phone: phone.trim(),
+        countryCode,
+        language,
+        roomNumber: roomNumber.trim(),
+        clientType,
+        clientNote: clientNote.trim() || undefined,
+        date: mainDateStr,
+        time,
+        therapistId: therapistId || "",
+        slot2Date: null,
+        slot2Time: null,
+        slot3Date: null,
+        slot3Time: null,
+        treatmentIds: [],
+        treatments: [],
+        totalPrice: 0,
+        totalDuration: effectiveDuration,
+        isAdmin: true,
+        isOutOfHours: false,
+        surchargeAmount: 0,
+        comboDuo: true,
+        comboLegs,
+        source,
+        emailInquiryId,
+      });
+      return;
+    }
+
+    const comboParams = comboDuoEnabled ? buildComboDuoBookingParams(sessions, resolvedLegAssignments) : null;
     const treatmentsPayload = comboParams?.treatments ?? cart.flatMap((c) =>
       Array.from({ length: c.quantity }, () => ({
         treatmentId: c.treatmentId,
@@ -509,7 +606,12 @@ export default function BookingModal({
                 comboDuoEnabled={comboDuoEnabled}
                 onComboDuoChange={setComboDuoEnabled}
                 sessionCount={sessionCount}
-                practitionerCount={baseSessionCount}
+                practitionerCount={effectivePractitionerCount}
+                baseSessionCount={baseSessionCount}
+                onPractitionerCountChange={setPractitionerCount}
+                legAssignments={resolvedLegAssignments}
+                onLegAssignmentsChange={setLegAssignments}
+                baseSoinLabels={baseSoinLabels}
                 variantDuoInCart={requiredGuestCount > 1}
               />
             )}
@@ -579,6 +681,11 @@ export default function BookingModal({
                     setTherapistChoiceMade(true);
                   }
                 }}
+                comboDuoActive={comboDuoEnabled}
+                legSoinLabels={legSoinLabels}
+                legTimes={legTimes}
+                mainTime={time}
+                onLegTimeChange={setLegTimeAt}
               />
             )}
 
@@ -785,7 +892,7 @@ export default function BookingModal({
 // ---------- Step components ----------
 
 interface VenueTreatmentStepProps {
-  t: (k: string) => string;
+  t: (k: string, opts?: Record<string, unknown>) => string;
   hotels: Array<{ id: string; name: string; currency?: string | null }>;
   hotelId: string;
   setHotelId: (id: string) => void;
@@ -808,8 +915,13 @@ interface VenueTreatmentStepProps {
   comboDuoEnabled?: boolean;
   onComboDuoChange?: (enabled: boolean) => void;
   sessionCount?: number;
-  /** Base soins only — the number of practitioners a combo-duo needs. */
+  /** Number of practitioners chosen (defaults to one per base soin). */
   practitionerCount?: number;
+  baseSessionCount?: number;
+  onPractitionerCountChange?: (count: number) => void;
+  legAssignments?: number[];
+  onLegAssignmentsChange?: (assignments: number[]) => void;
+  baseSoinLabels?: string[];
   variantDuoInCart?: boolean;
 }
 
@@ -832,6 +944,11 @@ function VenueTreatmentStep({
   onComboDuoChange,
   sessionCount = 0,
   practitionerCount = 0,
+  baseSessionCount = 0,
+  onPractitionerCountChange,
+  legAssignments = [],
+  onLegAssignmentsChange,
+  baseSoinLabels = [],
   variantDuoInCart = false,
 }: VenueTreatmentStepProps) {
   const [treatmentSearch, setTreatmentSearch] = useState("");
@@ -974,6 +1091,58 @@ function VenueTreatmentStep({
               </p>
             </div>
           </label>
+
+          {comboDuoEnabled && baseSessionCount >= 2 && onPractitionerCountChange && (
+            <div className="space-y-2 pl-6 pt-2">
+              <div className="space-y-1">
+                <Label className="text-[11px] font-medium">
+                  {t("booking.comboDuo.practitionerCountLabel", { defaultValue: "Nombre de praticiens" })}
+                </Label>
+                <SelectField
+                  value={String(practitionerCount)}
+                  onChange={(v) => onPractitionerCountChange(Number(v))}
+                  searchable={false}
+                  options={Array.from({ length: baseSessionCount - 1 }, (_, i) => ({
+                    value: String(i + 2),
+                    label: String(i + 2),
+                  }))}
+                  aria-label={t("booking.comboDuo.practitionerCountLabel", { defaultValue: "Nombre de praticiens" })}
+                />
+              </div>
+
+              {practitionerCount < baseSessionCount && onLegAssignmentsChange && (
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-medium">
+                    {t("booking.comboDuo.assignSoinLabel", { defaultValue: "Répartition des soins" })}
+                  </Label>
+                  {baseSoinLabels.map((label, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="flex-1 min-w-0 truncate text-[11px] text-muted-foreground">{label}</span>
+                      <div className="w-32 shrink-0">
+                        <SelectField
+                          value={String(legAssignments[i] ?? 0)}
+                          onChange={(v) => {
+                            const next = [...legAssignments];
+                            next[i] = Number(v);
+                            onLegAssignmentsChange(next);
+                          }}
+                          searchable={false}
+                          options={Array.from({ length: practitionerCount }, (_, p) => ({
+                            value: String(p),
+                            label: t("booking.comboDuo.practitionerOption", {
+                              index: p + 1,
+                              defaultValue: `Praticien ${p + 1}`,
+                            }),
+                          }))}
+                          aria-label={label}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
       {variantDuoInCart && sessionCount >= 2 && !comboDuoEligible && (
@@ -1075,6 +1244,11 @@ interface TherapistStepProps {
   broadcast: boolean;
   onPickBroadcast: () => void;
   onPickTherapist: (id: string, index: number) => void;
+  comboDuoActive?: boolean;
+  legSoinLabels?: string[][];
+  legTimes?: string[];
+  mainTime?: string;
+  onLegTimeChange?: (index: number, time: string) => void;
 }
 
 function genderLabel(gender: string | null | undefined): string | null {
@@ -1094,6 +1268,11 @@ function TherapistStep({
   broadcast,
   onPickBroadcast,
   onPickTherapist,
+  comboDuoActive = false,
+  legSoinLabels = [],
+  legTimes = [],
+  mainTime = "",
+  onLegTimeChange,
 }: TherapistStepProps) {
   const effectiveStaffing = staffingCountProp ?? requiredGuestCount;
   const isDuo = effectiveStaffing > 1;
@@ -1265,11 +1444,35 @@ function TherapistStep({
           const otherIds = Array.from({ length: effectiveStaffing }, (_, i) =>
             i === 0 ? therapistId : (additionalTherapistIds[i - 1] ?? "")
           ).filter((id, i) => i !== idx && id !== "");
+          const soins = legSoinLabels[idx] ?? [];
           return (
             <div key={idx} className="space-y-1">
               <Label className="text-xs">
                 {t("booking.comboDuo.practitionerLabel", { index: idx + 1, defaultValue: `Praticien ${idx + 1}` })}
               </Label>
+              {comboDuoActive && soins.length > 0 && (
+                <p className="text-[10px] text-muted-foreground">{soins.join(" + ")}</p>
+              )}
+              {comboDuoActive && onLegTimeChange && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">
+                    {t("booking.comboDuo.legScheduleLabel", { defaultValue: "Horaire" })}
+                  </span>
+                  <Input
+                    type="time"
+                    value={legTimes[idx] || mainTime}
+                    onChange={(e) =>
+                      onLegTimeChange(idx, e.target.value === mainTime ? "" : e.target.value)
+                    }
+                    className="h-8 w-28 text-xs"
+                  />
+                  {legTimes[idx] && legTimes[idx] !== mainTime && (
+                    <span className="text-[10px] text-violet-600 dark:text-violet-400">
+                      {t("booking.comboDuo.differentTimeHint", { defaultValue: "horaire distinct" })}
+                    </span>
+                  )}
+                </div>
+              )}
               <TherapistList
                 selectedId={currentId}
                 slotIndex={idx}

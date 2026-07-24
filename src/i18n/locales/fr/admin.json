@@ -136,6 +136,10 @@
     "filters": "Filtres",
     "searchPlaceholder": "Rechercher par client, hôtel...",
     "searchTreatment": "Rechercher un soin…",
+    "addonBadge": "Add-on",
+    "showTreatments": "Voir les prestations",
+    "hideTreatments": "Masquer les prestations",
+    "treatmentsList": "Prestations",
     "clientType": {
       "label": "Type de client",
       "hotel": "Hôtel",
@@ -1093,10 +1097,23 @@
       "shiftEnds": "Fin de shift à {{time}}"
     },
     "comboDuo": {
-      "toggle": "Réserver en duo ({{count}} praticiens en parallèle)",
-      "helper": "Les {{count}} soins se déroulent en parallèle, chacun avec son praticien.",
+      "toggle": "Réserver en parallèle ({{count}} praticiens)",
+      "helper": "Les soins se déroulent en parallèle, chacun avec son praticien.",
       "ineligibleVariantDuo": "Réservation duo via variante catalogue — le mode combo n'est pas disponible.",
-      "practitionerLabel": "Praticien {{index}}"
+      "practitionerLabel": "Praticien {{index}}",
+      "practitionerCountLabel": "Nombre de praticiens",
+      "assignSoinLabel": "Répartition des soins",
+      "practitionerOption": "Praticien {{index}}",
+      "legScheduleLabel": "Horaire",
+      "differentTimeHint": "horaire distinct",
+      "broadcastLeg": "Diffuser à l'équipe",
+      "broadcastLegHint": "Ce soin est diffusé à toute l'équipe — le premier praticien disponible l'accepte.",
+      "emptyLegError": "Chaque praticien doit avoir au moins un soin",
+      "repartitionTitle": "Répartition des soins",
+      "repartitionHint": "Glissez un soin vers un praticien (ou cliquez pour le déplacer).",
+      "repartitionAside": "Répartissez les soins dans le panneau à droite.",
+      "dropHere": "Déposer un soin ici",
+      "totalShort": "Total"
     },
     "civility": {
       "label": "Civilité",

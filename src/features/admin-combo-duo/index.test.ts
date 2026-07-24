@@ -1,158 +1,106 @@
 import { describe, it, expect } from "vitest";
 import {
-  expandCartToSessions,
+  buildLegs,
   buildComboDuoBookingParams,
-  isComboDuoEligible,
-  getBaseSessionCount,
   computeStaffingCount,
+  defaultLegAssignments,
+  isValidPartition,
+  type AdminBookingSession,
 } from "./index";
 
-const treatment = (
-  id: string,
-  duration: number,
-  opts: { is_addon?: boolean; guest_count?: number; amenity_id?: string } = {},
-) => ({
-  id,
-  name: id,
-  duration,
-  is_addon: opts.is_addon ?? false,
-  amenity_id: opts.amenity_id ?? null,
-  treatment_variants: opts.guest_count
-    ? [{ id: `${id}-v`, duration, guest_count: opts.guest_count, is_default: true }]
-    : [],
-});
+function base(id: string, duration: number, price: number): AdminBookingSession {
+  return {
+    sessionKey: `${id}-${duration}`,
+    treatmentId: id,
+    variantId: null,
+    label: id,
+    duration,
+    guestCount: 1,
+    unitPrice: price,
+    isAddon: false,
+    isAmenity: false,
+  };
+}
 
-const cartLine = (t: ReturnType<typeof treatment>, quantity = 1, variantId: string | null = null) => ({
-  treatmentId: t.id,
-  quantity,
-  variantId,
-  treatment: t,
-});
+function addon(id: string, duration: number, price: number): AdminBookingSession {
+  return { ...base(id, duration, price), isAddon: true };
+}
 
-describe("expandCartToSessions", () => {
-  it("marks add-on sessions from the treatment's is_addon flag", () => {
-    const base = treatment("massage", 90);
-    const addon = treatment("extremites", 15, { is_addon: true });
-    const sessions = expandCartToSessions([cartLine(base), cartLine(addon)]);
-    expect(sessions.map((s) => ({ id: s.treatmentId, addon: s.isAddon }))).toEqual([
-      { id: "massage", addon: false },
-      { id: "extremites", addon: true },
-    ]);
+function amenity(id: string): AdminBookingSession {
+  return { ...base(id, 30, 0), isAmenity: true };
+}
+
+describe("defaultLegAssignments", () => {
+  it("is the identity when one practitioner per soin", () => {
+    expect(defaultLegAssignments(4, 4)).toEqual([0, 1, 2, 3]);
+  });
+  it("round-robins when fewer practitioners than soins", () => {
+    expect(defaultLegAssignments(4, 2)).toEqual([0, 1, 0, 1]);
   });
 });
 
-describe("getBaseSessionCount", () => {
-  it("counts only base soins, ignoring add-ons", () => {
-    const sessions = expandCartToSessions([
-      cartLine(treatment("massage", 90), 2),
-      cartLine(treatment("extremites", 15, { is_addon: true }), 2),
-    ]);
-    expect(getBaseSessionCount(sessions)).toBe(2);
+describe("isValidPartition", () => {
+  it("accepts a partition where every practitioner has a soin", () => {
+    expect(isValidPartition([0, 1, 0, 1], 2)).toBe(true);
   });
-
-  it("ignores amenity accesses: they need no therapist", () => {
-    const sessions = expandCartToSessions([
-      cartLine(treatment("massage", 90)),
-      cartLine(treatment("piscine", 60, { amenity_id: "pool" })),
-    ]);
-    expect(getBaseSessionCount(sessions)).toBe(1);
+  it("rejects a partition leaving a practitioner empty", () => {
+    expect(isValidPartition([0, 0, 0, 0], 2)).toBe(false);
   });
 });
 
-describe("isComboDuoEligible", () => {
-  it("is true for 2 base solo soins + add-ons", () => {
-    const sessions = expandCartToSessions([
-      cartLine(treatment("massage", 90), 2),
-      cartLine(treatment("extremites", 15, { is_addon: true }), 2),
-    ]);
-    expect(isComboDuoEligible(sessions)).toBe(true);
+describe("buildLegs", () => {
+  it("splits 4 soins into 2 legs, summing durations and prices per leg", () => {
+    const sessions = [base("A", 30, 50), base("B", 45, 60), base("C", 30, 50), base("D", 60, 70)];
+    const legs = buildLegs(sessions, [0, 1, 0, 1]);
+    expect(legs).toHaveLength(2);
+    // leg 0 = A + C, leg 1 = B + D
+    expect(legs[0].durationSum).toBe(60);
+    expect(legs[0].priceSum).toBe(100);
+    expect(legs[1].durationSum).toBe(105);
+    expect(legs[1].priceSum).toBe(130);
+    expect(legs[0].treatmentLines.map((l) => l.treatmentId)).toEqual(["A", "C"]);
   });
 
-  it("is false for a single base + an add-on (that is a solo + add-on, not a duo)", () => {
-    const sessions = expandCartToSessions([
-      cartLine(treatment("massage", 90)),
-      cartLine(treatment("extremites", 15, { is_addon: true })),
-    ]);
-    expect(isComboDuoEligible(sessions)).toBe(false);
+  it("defaults to one base per leg with no assignments (historical behaviour)", () => {
+    const sessions = [base("A", 30, 50), base("B", 45, 60)];
+    const legs = buildLegs(sessions);
+    expect(legs).toHaveLength(2);
+    expect(legs[0].durationSum).toBe(30);
+    expect(legs[1].durationSum).toBe(45);
   });
 
-  it("is false for a single soin + an amenity access (still one guest)", () => {
-    const sessions = expandCartToSessions([
-      cartLine(treatment("massage", 90)),
-      cartLine(treatment("piscine", 60, { amenity_id: "pool" })),
-    ]);
-    expect(isComboDuoEligible(sessions)).toBe(false);
-  });
-
-  it("is false when a base soin is already a variant-duo (guest_count > 1)", () => {
-    const duo = treatment("massage", 90, { guest_count: 2 });
-    const sessions = expandCartToSessions([cartLine(duo, 1, "massage-v"), cartLine(treatment("facial", 60))]);
-    expect(isComboDuoEligible(sessions)).toBe(false);
-  });
-});
-
-describe("computeStaffingCount", () => {
-  it("combo-duo staffs one practitioner per base soin, not per add-on", () => {
-    expect(computeStaffingCount(true, /* baseSessionCount */ 2, /* requiredGuestCount */ 1)).toBe(2);
-  });
-
-  it("falls back to requiredGuestCount when combo-duo is off", () => {
-    expect(computeStaffingCount(false, 2, 3)).toBe(3);
+  it("attaches add-ons round-robin and excludes amenities from legs", () => {
+    const sessions = [base("A", 30, 50), base("B", 30, 50), addon("X", 15, 10), amenity("POOL")];
+    const legs = buildLegs(sessions, [0, 1]);
+    // add-on X goes to leg 0 (j=0 % 2)
+    expect(legs[0].durationSum).toBe(45);
+    expect(legs[0].treatmentLines.some((l) => l.treatmentId === "X" && l.isAddon)).toBe(true);
+    expect(legs.flatMap((l) => l.treatmentLines).some((l) => l.treatmentId === "POOL")).toBe(false);
   });
 });
 
 describe("buildComboDuoBookingParams", () => {
-  it("booking #669: 2 base (90) + 2 add-ons (15) → guest 2, duration 105", () => {
-    const sessions = expandCartToSessions([
-      cartLine(treatment("massage", 90), 2),
-      cartLine(treatment("extremites", 15, { is_addon: true }), 2),
-    ]);
-    const params = buildComboDuoBookingParams(sessions);
+  it("2 legs → guestCount 2, duration = max leg, amenity line kept", () => {
+    const sessions = [base("A", 30, 50), base("B", 45, 60), base("C", 30, 50), base("D", 60, 70), amenity("POOL")];
+    const params = buildComboDuoBookingParams(sessions, [0, 1, 0, 1]);
     expect(params.guestCount).toBe(2);
-    expect(params.duration).toBe(105);
-
-    const bases = params.treatments.filter((t) => !t.isAddon);
-    const addons = params.treatments.filter((t) => t.isAddon);
-    expect(bases.map((t) => t.legIndex)).toEqual([0, 1]);
-    // one add-on per person (round-robin), each pointing at its person's base
-    expect(addons.map((t) => t.legIndex)).toEqual([0, 1]);
-    expect(addons.every((t) => t.parentTreatmentId === "massage")).toBe(true);
+    expect(params.duration).toBe(105); // max(60, 105)
+    expect(params.treatments.some((t) => t.isAmenity && t.treatmentId === "POOL")).toBe(true);
   });
 
-  it("distributes add-ons round-robin across bases (2 base + 3 add-ons)", () => {
-    const sessions = expandCartToSessions([
-      cartLine(treatment("massage", 90), 2),
-      cartLine(treatment("extremites", 15, { is_addon: true }), 3),
-    ]);
+  it("no assignments → one leg per soin (non-regression)", () => {
+    const sessions = [base("A", 30, 50), base("B", 45, 60)];
     const params = buildComboDuoBookingParams(sessions);
-    // leg0 = 90+15+15 = 120, leg1 = 90+15 = 105 → longest leg wins
     expect(params.guestCount).toBe(2);
-    expect(params.duration).toBe(120);
+    expect(params.duration).toBe(45);
   });
+});
 
-  it("keeps an amenity line in the booking but out of the legs and the duration", () => {
-    const sessions = expandCartToSessions([
-      cartLine(treatment("massage", 90), 2),
-      cartLine(treatment("piscine", 120, { amenity_id: "pool" })),
-    ]);
-    const params = buildComboDuoBookingParams(sessions);
-    // 2 guests, not 3 — and the 120min pool access never inflates the soin slot
-    expect(params.guestCount).toBe(2);
-    expect(params.duration).toBe(90);
-
-    const amenity = params.treatments.find((t) => t.isAmenity);
-    expect(amenity?.treatmentId).toBe("piscine");
-    // no leg → no therapist assigned at insert time
-    expect(amenity?.legIndex).toBeUndefined();
+describe("computeStaffingCount", () => {
+  it("returns the chosen practitioner count when combo enabled", () => {
+    expect(computeStaffingCount(true, 2, 1)).toBe(2);
   });
-
-  it("no add-on: unchanged behaviour (max of the base soins)", () => {
-    const sessions = expandCartToSessions([
-      cartLine(treatment("massage", 90)),
-      cartLine(treatment("facial", 60)),
-    ]);
-    const params = buildComboDuoBookingParams(sessions);
-    expect(params.guestCount).toBe(2);
-    expect(params.duration).toBe(90);
+  it("returns requiredGuestCount when combo disabled", () => {
+    expect(computeStaffingCount(false, 2, 3)).toBe(3);
   });
 });

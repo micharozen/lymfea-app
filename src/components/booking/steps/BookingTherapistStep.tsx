@@ -19,6 +19,8 @@ import { useTranslation } from "react-i18next";
 import type { CartItem } from "../CreateBookingDialog.schema";
 import type { AvailableRoom } from "@/hooks/booking/useAvailableRooms";
 import { partitionTherapistsForSlot } from "@/hooks/booking/useAvailableTherapistsForSlot";
+import { TimeSelect } from "../TimeSelect";
+import { STAFF_BOOKING_MINUTES } from "@/lib/bookingTimeOptions";
 
 interface Therapist {
   id: string;
@@ -65,6 +67,21 @@ interface BookingTherapistStepProps {
   onSecondaryRoomChange: (id: string) => void;
   secondaryRoomEnabled: boolean;
   onSecondaryRoomEnabledChange: (enabled: boolean) => void;
+  // admin-combo-duo : récap des soins par praticien + horaire par leg (multi-horaire).
+  comboDuoActive?: boolean;
+  /** Soins assignés à chaque praticien (index = leg). */
+  legSoinLabels?: string[][];
+  /** Heure choisie par leg ("" = créneau principal). */
+  legTimes?: string[];
+  legDates?: (Date | undefined)[];
+  /** Legs diffusés à toute l'équipe (pas de praticien fixe). */
+  legBroadcast?: boolean[];
+  mainDate?: Date;
+  mainTime?: string;
+  slotInterval?: number;
+  onLegTimeChange?: (index: number, time: string) => void;
+  onLegDateChange?: (index: number, date: Date | undefined) => void;
+  onLegBroadcastToggle?: (index: number, value: boolean) => void;
 }
 
 const AUTO_ROOM_VALUE = "__auto__";
@@ -232,23 +249,23 @@ function TherapistCard({ therapist: th, selected, onClick }: TherapistCardProps)
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+        "w-full flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left transition-colors",
         selected ? "border-primary bg-primary/5" : "hover:bg-muted border-border",
       )}
     >
       <div className="relative shrink-0">
-        <Avatar className="h-10 w-10">
+        <Avatar className="h-8 w-8">
           {th.profile_image && (
             <AvatarImage src={th.profile_image} alt={`${th.first_name} ${th.last_name}`} />
           )}
-          <AvatarFallback>{getInitials(th.first_name, th.last_name)}</AvatarFallback>
+          <AvatarFallback className="text-[11px]">{getInitials(th.first_name, th.last_name)}</AvatarFallback>
         </Avatar>
         {th.isAvailableForSlot && (
-          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm flex items-center gap-1.5">
+        <p className="font-medium text-[13px] flex items-center gap-1.5">
           <span className="truncate">{th.first_name} {th.last_name}</span>
           {g && (
             <span className="shrink-0 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
@@ -408,6 +425,14 @@ export function BookingTherapistStep({
   onSecondaryRoomChange,
   secondaryRoomEnabled,
   onSecondaryRoomEnabledChange,
+  comboDuoActive = false,
+  legSoinLabels = [],
+  legTimes = [],
+  legBroadcast = [],
+  mainDate,
+  mainTime = "",
+  onLegTimeChange,
+  onLegBroadcastToggle,
 }: BookingTherapistStepProps) {
   const { t } = useTranslation("admin");
   const [search, setSearch] = useState("");
@@ -430,9 +455,12 @@ export function BookingTherapistStep({
     });
   }, [therapists, search, selectedIds]);
 
-  // Il faut soit diffuser à tous, soit avoir affecté tous les praticiens requis.
-  const assignedCount = [therapistId, ...additionalTherapistIds].filter(Boolean).length;
-  const selectionComplete = broadcast || assignedCount >= effectiveStaffing;
+  // Il faut soit diffuser à tous, soit que chaque leg soit affecté OU diffusé.
+  const slotIds = [therapistId, ...additionalTherapistIds];
+  const everyLegResolved = Array.from({ length: effectiveStaffing }).every(
+    (_, i) => legBroadcast[i] === true || !!slotIds[i],
+  );
+  const selectionComplete = broadcast || everyLegResolved;
 
   const handleToggleBroadcast = () => {
     if (broadcast) {
@@ -539,19 +567,74 @@ export function BookingTherapistStep({
                   const otherIds = Array.from({ length: effectiveStaffing }, (_, i) =>
                     i === 0 ? therapistId : (additionalTherapistIds[i - 1] ?? "")
                   ).filter((id, i) => i !== idx && id !== "");
+                  const soins = legSoinLabels[idx] ?? [];
+                  const legIsBroadcast = legBroadcast[idx] === true;
                   return (
                     <div key={idx} className="space-y-1.5">
-                      <Label className="text-xs font-medium">
-                        {t("booking.comboDuo.practitionerLabel", { index: idx + 1, defaultValue: `Praticien ${idx + 1}` })}
-                      </Label>
-                      <TherapistList
-                        therapists={filteredTherapists}
-                        selectedId={currentId}
-                        slotIndex={idx}
-                        broadcast={broadcast}
-                        exclude={otherIds}
-                        onPick={handlePickTherapist}
-                      />
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs font-medium">
+                          {t("booking.comboDuo.practitionerLabel", { index: idx + 1, defaultValue: `Praticien ${idx + 1}` })}
+                        </Label>
+                        {comboDuoActive && onLegBroadcastToggle && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = !legIsBroadcast;
+                              onLegBroadcastToggle(idx, next);
+                              // En passant en diffusion, on libère le praticien de ce leg.
+                              if (next) handlePickTherapist(currentId, idx);
+                            }}
+                            className={cn(
+                              "shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors",
+                              legIsBroadcast
+                                ? "border-violet-400 bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                                : "border-border text-muted-foreground hover:bg-muted",
+                            )}
+                          >
+                            <Users className="h-3 w-3" />
+                            {t("booking.comboDuo.broadcastLeg", { defaultValue: "Diffuser à l'équipe" })}
+                          </button>
+                        )}
+                      </div>
+                      {comboDuoActive && soins.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground">{soins.join(" + ")}</p>
+                      )}
+                      {comboDuoActive && onLegTimeChange && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-muted-foreground">
+                            {t("booking.comboDuo.legScheduleLabel", { defaultValue: "Horaire" })}
+                          </span>
+                          <TimeSelect
+                            value={legTimes[idx] || mainTime}
+                            onChange={(v) => onLegTimeChange(idx, v === mainTime ? "" : v)}
+                            minuteOptions={STAFF_BOOKING_MINUTES}
+                            date={mainDate}
+                            isHourUnavailable={() => false}
+                            isMinuteUnavailable={() => false}
+                          />
+                          {legTimes[idx] && legTimes[idx] !== mainTime && (
+                            <span className="text-[10px] text-violet-600 dark:text-violet-400">
+                              {t("booking.comboDuo.differentTimeHint", { defaultValue: "horaire distinct" })}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {legIsBroadcast ? (
+                        <div className="rounded-lg border border-dashed border-violet-300 dark:border-violet-800 bg-violet-50/40 dark:bg-violet-950/10 px-3 py-3 text-[11px] text-violet-700 dark:text-violet-300">
+                          {t("booking.comboDuo.broadcastLegHint", {
+                            defaultValue: "Ce soin est diffusé à toute l'équipe — le premier praticien disponible l'accepte.",
+                          })}
+                        </div>
+                      ) : (
+                        <TherapistList
+                          therapists={filteredTherapists}
+                          selectedId={currentId}
+                          slotIndex={idx}
+                          broadcast={broadcast}
+                          exclude={otherIds}
+                          onPick={handlePickTherapist}
+                        />
+                      )}
                     </div>
                   );
                 })}
