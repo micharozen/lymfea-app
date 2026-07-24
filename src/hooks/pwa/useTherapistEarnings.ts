@@ -93,7 +93,7 @@ async function fetchTherapistEarnings(
 
   const { data: therapistData } = await supabase
     .from("therapists")
-    .select("rate_60, rate_75, rate_90")
+    .select("rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
     .eq("id", therapistId)
     .single();
 

@@ -171,6 +171,8 @@ export async function handleCreateCheckoutSession(
         _total_price: verifiedTotalPrice,
         _language: language || "fr",
         _treatment_ids: effectiveTreatmentIds,
+        // Formules Semaine / Week-end : la variante porte ses propres jours autorisés.
+        _variant_ids: Object.values(variantMap),
         _therapist_gender: therapistGender || null,
       },
     );

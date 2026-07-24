@@ -6,6 +6,7 @@ import { useExchangeRates } from "@/hooks/useExchangeRates";
 import { convertToEUR } from "@/lib/currencyConversion";
 import { formatPrice } from "@/lib/formatPrice";
 import { bookingStatusConfig, type BookingStatus } from "@/utils/statusStyles";
+import { normalizeBookingClientType } from "@/lib/clientTypeMeta";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { getDashboardDataForOrg, type DashboardBooking } from "@shared/db";
 import {
@@ -135,12 +136,40 @@ export interface HotelOverviewRow {
   totalCancelled: number;
 }
 
+/** Une part du mix : volume, poids dans le total, évolution vs période précédente. */
+export interface MixSegment {
+  count: number;
+  share: number; // % du total de la période (0-100)
+  trend: number; // % d'évolution du volume vs période précédente
+}
+
+export interface ClientMixData {
+  hotel: MixSegment;
+  external: MixSegment;
+  total: number;
+}
+
+/** Une part du canal : volume, poids, et écart de poids en points vs période préc. */
+export interface ChannelSegment {
+  count: number;
+  share: number; // % du total de la période (0-100)
+  shareDelta: number; // écart de part en points vs période précédente
+}
+
+export interface BookingChannelData {
+  online: ChannelSegment;
+  manual: ChannelSegment;
+  total: number;
+}
+
 export interface DashboardStats {
   totalSales: string;
   totalBookings: number;
   todayBookings: number;
+  todayConfirmed: number;
   pendingPayment: number;
   missingRoomNumber: number;
+  cancelledBookings: number;
   cancellationRate: number;
   averageBasket: string;
   salesTrend: number;
@@ -151,6 +180,8 @@ export interface DashboardData {
   loading: boolean;
   hotels: HotelRow[];
   stats: DashboardStats;
+  clientMix: ClientMixData;
+  bookingChannel: BookingChannelData;
   alerts: AlertsData;
   roomOccupancy: OccupancyData;
   roomOccupancyHeatmap: RoomOccupancyHeatmap;
@@ -166,6 +197,25 @@ export interface DashboardData {
   topTreatments: RankingItem[];
   hotelData: HotelOverviewRow[];
 }
+
+// ── Helpers ─────────────────────────────────────────────────────────
+
+/** Part de `value` dans `total`, en % arrondi. 0 si le total est vide. */
+const percentOf = (value: number, total: number): number =>
+  total > 0 ? Math.round((value / total) * 100) : 0;
+
+/** Évolution en % entre deux volumes. 0 quand la référence est vide. */
+const growth = (current: number, previous: number): number =>
+  previous > 0 ? Math.round(((current - previous) / previous) * 100) : 0;
+
+/**
+ * Réservation prise « en ligne » : par le client lui-même (flux public) ou via
+ * l'API partenaire. Tout le reste (admin, phone, concierge, pwa, email) est
+ * une saisie manuelle. Valeurs contraintes par bookings_source_check.
+ */
+const ONLINE_BOOKING_SOURCES = new Set(["client", "api"]);
+const isOnlineSource = (source: string | null | undefined): boolean =>
+  ONLINE_BOOKING_SOURCES.has(source ?? "");
 
 // ── Hook ────────────────────────────────────────────────────────────
 
@@ -292,11 +342,13 @@ export function useDashboardData(
     const totalBookings = filteredBookings.length;
 
     const todayStr = format(new Date(), "yyyy-MM-dd");
-    const todayBookings = bookings.filter((b) => {
+    const todayRows = bookings.filter((b) => {
       const matchDate = b.booking_date === todayStr;
       const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
       return matchDate && matchHotel;
-    }).length;
+    });
+    const todayBookings = todayRows.length;
+    const todayConfirmed = todayRows.filter((b) => b.status === "confirmed").length;
 
     const pendingPayment = filteredBookings.filter(
       (b) => b.payment_status === "pending"
@@ -329,14 +381,65 @@ export function useDashboardData(
       totalSales: totalSales.toFixed(2),
       totalBookings,
       todayBookings,
+      todayConfirmed,
       pendingPayment,
       missingRoomNumber,
+      cancelledBookings: cancelled,
       cancellationRate,
       averageBasket,
       salesTrend,
       bookingsTrend,
     };
   }, [filteredBookings, prevFilteredBookings, bookings, selectedHotel, rates]);
+
+  // ── Mix clients (hôtel vs externes) ───────────────────────────────
+  //
+  // « Hôtel » = client logé dans l'établissement ; tout le reste (external et
+  // les partenaires staycation / classpass / sezame) compte comme externe.
+
+  const clientMix = useMemo<ClientMixData>(() => {
+    const countHotel = (rows: BookingRow[]) =>
+      rows.filter((b) => normalizeBookingClientType(b.client_type) === "hotel").length;
+
+    const total = filteredBookings.length;
+    const hotel = countHotel(filteredBookings);
+    const external = total - hotel;
+
+    const prevTotal = prevFilteredBookings.length;
+    const prevHotel = countHotel(prevFilteredBookings);
+    const prevExternal = prevTotal - prevHotel;
+
+    return {
+      total,
+      hotel: { count: hotel, share: percentOf(hotel, total), trend: growth(hotel, prevHotel) },
+      external: {
+        count: external,
+        share: percentOf(external, total),
+        trend: growth(external, prevExternal),
+      },
+    };
+  }, [filteredBookings, prevFilteredBookings]);
+
+  // ── Canal de réservation (en ligne vs manuel) ─────────────────────
+
+  const bookingChannel = useMemo<BookingChannelData>(() => {
+    const countOnline = (rows: BookingRow[]) => rows.filter((b) => isOnlineSource(b.source)).length;
+
+    const total = filteredBookings.length;
+    const online = countOnline(filteredBookings);
+    const manual = total - online;
+
+    const prevTotal = prevFilteredBookings.length;
+    const prevOnlineShare = percentOf(countOnline(prevFilteredBookings), prevTotal);
+    const onlineShare = percentOf(online, total);
+    const delta = prevTotal > 0 ? Math.round(onlineShare - prevOnlineShare) : 0;
+
+    return {
+      total,
+      online: { count: online, share: onlineShare, shareDelta: delta },
+      manual: { count: manual, share: percentOf(manual, total), shareDelta: -delta },
+    };
+  }, [filteredBookings, prevFilteredBookings]);
 
   const alerts = useMemo<AlertsData>(() => {
     const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -735,6 +838,8 @@ export function useDashboardData(
     loading,
     hotels,
     stats,
+    clientMix,
+    bookingChannel,
     alerts,
     roomOccupancy,
     roomOccupancyHeatmap,

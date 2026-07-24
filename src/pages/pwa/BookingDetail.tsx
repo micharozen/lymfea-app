@@ -283,13 +283,13 @@ const PwaBookingDetail = () => {
       if (authUser) {
         const { data: myT } = await supabase
           .from("therapists")
-          .select("id, rate_60, rate_75, rate_90")
+          .select("id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
           .eq("user_id", authUser.id)
           .single();
         if (myT) {
           myTherapistId = myT.id;
           if (isMountedRef.current) setMyTherapistId(myT.id);
-          therapistRates = { rate_60: myT.rate_60, rate_75: myT.rate_75, rate_90: myT.rate_90 };
+          therapistRates = { rate_45: myT.rate_45, rate_60: myT.rate_60, rate_75: myT.rate_75, rate_90: myT.rate_90, rate_105: myT.rate_105, rate_120: myT.rate_120, rate_150: myT.rate_150 };
         }
       }
 

@@ -200,7 +200,7 @@ serve(async (req) => {
 
           const { data: bookingTreatments } = await supabase
             .from('booking_treatments')
-            .select('price_override, treatment_menus (name, price, duration), treatment_variants (label, price, duration)')
+            .select('price_override, treatment_menus (name, price, duration, amenity_id), treatment_variants (label, price, duration)')
             .eq('booking_id', booking.id);
 
           const treatmentRows = (bookingTreatments ?? []).map(bt => {
@@ -210,6 +210,7 @@ serve(async (req) => {
               name: (menu?.name || '') + (variant?.label ? ` · ${variant.label}` : ''),
               price: resolveTreatmentPrice(bt as any),
               duration: Number(variant?.duration ?? menu?.duration) || 0,
+              is_amenity: !!menu?.amenity_id,
             };
           });
           const treatmentsList = treatmentRows.map(t => t.name).filter(Boolean).join(', ') || 'Service bien-être';
@@ -534,7 +535,7 @@ serve(async (req) => {
           .from('bookings')
           .select(`
             *,
-            therapist:therapists(id, stripe_account_id, rate_60, rate_75, rate_90),
+            therapist:therapists(id, stripe_account_id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150),
             hotel:hotels(vat, hotel_commission, out_of_hours_surcharge_percent),
             booking_treatments(therapist_id, is_addon, treatment_menus(duration))
           `)

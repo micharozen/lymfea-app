@@ -1,13 +1,12 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useTherapistTreatmentCounts } from "@/hooks/useTherapistTreatments";
 import { cn } from "@/lib/utils";
-import { getSpecialtyLabel } from "@/lib/specialtyTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import {
   listHotelsForOrg,
-  listTreatmentRoomsForOrgDropdown,
   listTherapistsForOrg,
 } from "@shared/db";
 import { Button } from "@/components/ui/button";
@@ -42,8 +41,9 @@ import { Search, Pencil, Trash2, Users, List, CalendarDays } from "lucide-react"
 import { toast } from "sonner";
 import AddTherapistDialog from "@/components/AddTherapistDialog";
 import { TherapistAgendaView } from "@/components/admin/therapist/TherapistAgendaView";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
-import { HotelsCell, TreatmentRoomsCell, PersonCell } from "@/components/table/EntityCell";
+import { HotelsCell, PersonCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
 import { TableSkeleton } from "@/components/table/TableSkeleton";
 import { TableEmptyState } from "@/components/table/TableEmptyState";
@@ -60,12 +60,6 @@ interface Hotel {
   image: string | null;
 }
 
-interface TreatmentRoom {
-  id: string;
-  name: string;
-  image: string | null;
-}
-
 interface Therapist {
   id: string;
   first_name: string;
@@ -75,20 +69,17 @@ interface Therapist {
   phone: string;
   profile_image: string | null;
   status: string;
-  trunks: string | null;
-  skills: string[];
   minimum_guarantee?: Record<string, number> | null;
   minimum_guarantee_active?: boolean | null;
   therapist_venues?: { hotel_id: string }[];
 }
 
 export default function Therapists() {
-  const { i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [filteredTherapists, setFilteredTherapists] = useState<Therapist[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [rooms, setRooms] = useState<TreatmentRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [hotelFilter, setHotelFilter] = useState("all");
@@ -101,6 +92,7 @@ export default function Therapists() {
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
   const { isAddOpen, openAdd, closeAdd, deleteId: deleteTherapistId, openDelete, closeDelete } = useDialogState<string>();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
+  const { data: treatmentCounts = {} } = useTherapistTreatmentCounts();
 
   const scope = useOrgScope();
 
@@ -112,7 +104,6 @@ export default function Therapists() {
     if (!scope) return;
     fetchTherapists();
     fetchHotels();
-    fetchRooms();
   }, [scope]);
 
   const fetchUserRole = async () => {
@@ -143,16 +134,6 @@ export default function Therapists() {
       setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
     } catch {
       toast.error("Erreur lors du chargement des hôtels");
-    }
-  };
-
-  const fetchRooms = async () => {
-    if (!scope) return;
-    try {
-      const data = await listTreatmentRoomsForOrgDropdown(supabase, scope);
-      setRooms(data.map((r) => ({ id: r.id, name: r.name, image: r.image })));
-    } catch (err) {
-      console.error("Erreur lors du chargement des salles de soin:", err);
     }
   };
 
@@ -228,56 +209,28 @@ export default function Therapists() {
       .filter(Boolean) as Hotel[];
   };
 
-  const getSkillsDisplay = (skills: string[]) => {
-    if (!skills || skills.length === 0) return "-";
-    return skills.map((s) => getSpecialtyLabel(s, i18n.language)).join(", ");
-  };
-
-  const getRoomInfo = (roomIdOrName: string | null) => {
-    if (!roomIdOrName) return null;
-
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomIdOrName);
-
-    if (isUuid) {
-      return rooms.find((r) => r.id === roomIdOrName) || null;
+  // Un thérapeute sans prestation associée ne recevra aucune réservation une
+  // fois le matching basculé : on le signale dès maintenant pour piloter la saisie.
+  const renderTreatmentsCell = (therapistId: string) => {
+    const count = treatmentCounts[therapistId] ?? 0;
+    if (count === 0) {
+      return (
+        <Badge
+          variant="outline"
+          className="text-[10px] px-1.5 py-0 font-normal border-amber-300 text-amber-700"
+        >
+          {t("admin:therapistTreatments.none", "Aucune prestation")}
+        </Badge>
+      );
     }
-
-    if (roomIdOrName.includes(",")) {
-      const firstItem = roomIdOrName.split(",")[0].trim();
-      const isItemUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firstItem);
-      if (isItemUuid) {
-        return rooms.find((r) => r.id === firstItem) || null;
-      }
-    }
-
-    return null;
-  };
-
-  const getRoomNames = (roomIdOrName: string | null) => {
-    if (!roomIdOrName) return "-";
-
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomIdOrName);
-
-    if (isUuid) {
-      const room = rooms.find((r) => r.id === roomIdOrName);
-      return room?.name || "-";
-    }
-
-    if (roomIdOrName.includes(",")) {
-      const roomNames = roomIdOrName.split(",").map((item) => {
-        const trimmed = item.trim();
-        const isItemUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
-        if (isItemUuid) {
-          const room = rooms.find((r) => r.id === trimmed);
-          return room?.name;
-        }
-        return trimmed;
-      }).filter(Boolean);
-
-      return roomNames.length > 0 ? roomNames.join(", ") : "-";
-    }
-
-    return roomIdOrName;
+    return (
+      <span className="truncate block text-foreground">
+        {t("admin:therapistTreatments.count", {
+          count,
+          defaultValue: "{{count}} prestations",
+        })}
+      </span>
+    );
   };
 
   const handleDelete = async () => {
@@ -417,8 +370,7 @@ export default function Therapists() {
                   </SortableTableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Telephone</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Salles</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Competences</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prestations</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[80px] text-center">Min. garanti</TableHead>
                   <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
                     Statut
@@ -460,16 +412,7 @@ export default function Therapists() {
                         <HotelsCell hotels={getHotelsInfo(therapist.therapist_venues)} />
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        {(() => {
-                          const room = getRoomInfo(therapist.trunks);
-                          const roomName = getRoomNames(therapist.trunks);
-                          return room ? (
-                            <TreatmentRoomsCell rooms={[room]} displayName={roomName} />
-                          ) : <span className="text-foreground">-</span>;
-                        })()}
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <span className="truncate block text-foreground">{getSkillsDisplay(therapist.skills)}</span>
+                        {renderTreatmentsCell(therapist.id)}
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                         <Switch

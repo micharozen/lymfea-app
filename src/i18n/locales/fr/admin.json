@@ -1,4 +1,29 @@
 {
+  "broadcast": {
+    "tab": "Diffusion",
+    "loading": "Reconstitution de la diffusion…",
+    "error": "Impossible de charger la diffusion.",
+    "empty": "Aucune diffusion enregistrée pour cette réservation.",
+    "disclaimer": "Reconstitution à l'instant présent : les disponibilités et qualifications ont pu changer depuis l'envoi. « Sollicité » signifie que le push a été déclenché, pas qu'il a été reçu.",
+    "notifiedTitle": "Sollicités",
+    "notReachedTitle": "Non sollicités",
+    "reasons": {
+      "no_pwa_account": "pas de compte PWA",
+      "inactive": "compte inactif",
+      "declined": "a refusé",
+      "not_qualified": "ne réalise pas ce soin",
+      "unavailable": "indisponible ce jour",
+      "unknown": "raison inconnue"
+    },
+    "reasonsLong": {
+      "no_pwa_account": "Ce thérapeute n'a pas de compte PWA : il ne peut recevoir aucune notification push.",
+      "inactive": "Son statut n'est pas « actif » : il est exclu de toute diffusion.",
+      "declined": "Il a refusé cette réservation, il n'est donc plus resollicité.",
+      "not_qualified": "Ne réalise pas : {{treatments}}.",
+      "unavailable": "Il s'est déclaré indisponible pour cette date.",
+      "unknown": "Aucun motif d'exclusion ne s'applique aujourd'hui. La diffusion n'a probablement jamais été déclenchée, ou ce thérapeute a été rattaché au lieu après l'envoi."
+    }
+  },
   "welcome": {
     "skip": "Passer",
     "back": "Retour",
@@ -166,6 +191,7 @@
         "therapist": "Thérapeute",
         "currency": "Devise",
         "status": "Statut",
+        "paymentMethod": "Mode de paiement",
         "paymentStatus": "Statut paiement",
         "treatments": "Prestations",
         "duration": "Durée (min)",
@@ -209,12 +235,11 @@
     "add": "Ajouter un Thérapeute",
     "edit": "Modifier Thérapeute",
     "noTherapists": "Aucun thérapeute",
+    "noVenues": "Aucun lieu assigné",
     "name": "Nom",
     "email": "Email",
     "phone": "Téléphone",
     "status": "Statut",
-    "skills": "Compétences",
-    "specialties": "Spécialités",
     "assignedHotels": "Hôtels assignés",
     "invite": "Inviter",
     "resendInvite": "Renvoyer l'invitation",
@@ -275,9 +300,15 @@
     "phoneRequired": "Le téléphone est requis",
     "finance": "Finance",
     "financeDesc": "Taux par durée de soin, utilisé quand le lieu n'applique pas de commission globale",
+    "rate45Label": "0h45",
     "rate60Label": "1h00",
     "rate75Label": "1h15",
     "rate90Label": "1h30",
+    "rate105Label": "1h45",
+    "rate120Label": "2h00",
+    "rate150Label": "2h30",
+    "addRate": "Ajouter un taux",
+    "removeRate": "Retirer ce taux",
     "rateHint": "Montant fixe versé au thérapeute par soin. Pour les durées hors palier, calcul proportionnel entre les paliers configurés.",
     "billing": "Facturation",
     "billingTab": {
@@ -1057,6 +1088,8 @@
     "therapistSections": {
       "available": "Disponibles",
       "others": "Autres thérapeutes du lieu",
+      "unqualified": "Ne réalise pas cette prestation",
+      "unqualifiedHint": "Prestation absente de ses soins réalisables",
       "shiftEnds": "Fin de shift à {{time}}"
     },
     "comboDuo": {
@@ -1597,5 +1630,18 @@
       "guests": "{{count}} personne",
       "guests_plural": "{{count}} personnes"
     }
+  },
+  "therapistTreatments": {
+    "title": "Prestations réalisables",
+    "description": "Sélectionnez les prestations que ce thérapeute peut réaliser. Les add-ons sont exclus : ils sont réalisés par le thérapeute du soin de base.",
+    "selectAll": "Tout cocher",
+    "unselectAll": "Tout décocher",
+    "noneWarning": "Aucune prestation associée — ce thérapeute ne recevra aucune réservation.",
+    "noTreatmentsForVenue": "Aucune prestation active pour {{venue}}.",
+    "assignVenueFirst": "Rattachez d'abord le thérapeute à un lieu pour choisir ses prestations.",
+    "count_one": "{{count}} prestation",
+    "count_other": "{{count}} prestations",
+    "none": "Aucune prestation",
+    "thisVenue": "ce lieu"
   }
 }

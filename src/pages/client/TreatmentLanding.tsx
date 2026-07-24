@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Clock, ShoppingBag, Sparkles, HandHeart, MapPin, Phone } from 'lucide-react';
 import { useBasket } from './context/CartContext';
+import { resolveAvailableDays } from '@/lib/availableDays';
 import { useClientVenue } from './context/ClientVenueContext';
 import { useLocalizedField } from '@/hooks/useLocalizedField';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
@@ -24,6 +25,7 @@ interface TreatmentVariantData {
   price_on_request: boolean;
   is_default: boolean;
   sort_order: number;
+  available_days?: number[] | null;
 }
 
 interface Treatment {
@@ -156,7 +158,7 @@ export default function TreatmentLanding() {
       isBundle: treatment.is_bundle ?? false,
       bundleId: treatment.bundle_id ?? undefined,
       isAmenity: !!treatment.amenity_id,
-      availableDays: treatment.available_days ?? null,
+      availableDays: resolveAvailableDays(treatment.available_days, resolvedVariant?.available_days),
     });
 
     if (navigator.vibrate) navigator.vibrate(50);

@@ -28,29 +28,32 @@ function percentColor(percent: number): string {
  */
 export function VenueCompletenessPanel({ percent, items }: VenueCompletenessPanelProps) {
   const { t: tAdmin } = useTranslation("admin");
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   // `na` items are not shown — they don't apply to this venue's config.
   const visible = items.filter((i) => i.status !== "na");
+
+  // Configuration complète : rien à signaler, on n'affiche pas le panneau.
+  if (percent >= 100) return null;
 
   return (
     <Collapsible
       open={open}
       onOpenChange={setOpen}
-      className="mb-4 rounded-lg border bg-card"
+      className="mb-4 w-full max-w-sm rounded-lg border bg-card"
     >
-      <CollapsibleTrigger className="flex w-full items-center gap-3 px-4 py-3 text-left">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-2 text-left">
         {open ? (
           <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
         ) : (
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
-        <span className="text-sm font-medium">
+        <span className="text-xs font-medium">
           {tAdmin("venue.completeness.title", "Complétude de la configuration")}
         </span>
-        <div className="ml-auto flex items-center gap-3">
-          <Progress value={percent} className="hidden w-32 sm:block" />
-          <span className={cn("text-sm font-semibold tabular-nums", percentColor(percent))}>
+        <div className="ml-auto flex items-center gap-2">
+          <Progress value={percent} className="hidden h-1.5 w-16 sm:block" />
+          <span className={cn("text-xs font-semibold tabular-nums", percentColor(percent))}>
             {percent}%
           </span>
         </div>

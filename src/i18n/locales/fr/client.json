@@ -17,7 +17,6 @@
     "equipmentIncluded": "Équipement professionnel complet inclus",
     "howItWorks": "Comment ça marche ?",
     "ourExperts": "NOS EXPERTS",
-    "expertHairdresser": "Thérapeute Expert",
     "enterpriseWellnessTitle": "Le bien-être, directement dans vos bureaux",
     "nextSession": "Prochaine session :",
     "booking": "Réserver un soin"
@@ -268,6 +267,7 @@
     "yourRequest": "Votre demande",
     "date": "Date",
     "treatment": "Soin",
+    "amenityTreatment": "Accès",
     "nextSteps": "Et maintenant ?",
     "step1": "Un thérapeute disponible examine votre demande. Cela prend en général quelques minutes.",
     "step2": "Dès qu'elle sera acceptée, vous recevrez un email de confirmation vous indiquant tous les détails.",

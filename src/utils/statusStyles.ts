@@ -378,3 +378,40 @@ export function getStatusHexColor(status: string, type: 'booking' | 'payment' | 
       return '#6b7280';
   }
 }
+
+// Libellés de paiement affichés sur la fiche réservation
+export const PAYMENT_LABELS: Record<string, string> = {
+  pending: "Paiement en attente",
+  paid: "Payé",
+  failed: "Paiement échoué",
+  refunded: "Remboursé",
+  charged_to_room: "Facturé chambre",
+  pending_partner_billing: "Paiement partenaire",
+  card_saved: "Carte enregistrée",
+  offert: "Offert",
+};
+
+/**
+ * Libellé + couleur du badge de paiement, tels qu'affichés sur la fiche
+ * réservation. Source unique pour tous les écrans qui montrent ce badge.
+ */
+export function getBookingPaymentDisplay(
+  booking: { payment_status?: string | null; payment_method?: string | null },
+  options?: { cardSavedToCharge?: boolean },
+): { label: string; hexColor: string } {
+  const status = booking.payment_status || "pending";
+  const isPaid = status === "paid" || status === "charged_to_room";
+  const isPartnerBilled =
+    booking.payment_method === "partner_billed" || status === "pending_partner_billing";
+
+  if (options?.cardSavedToCharge) {
+    return { label: "Carte enregistrée à débiter", hexColor: "#eab308" };
+  }
+  if (isPartnerBilled) {
+    return { label: PAYMENT_LABELS.pending_partner_billing, hexColor: "#6366f1" };
+  }
+  return {
+    label: PAYMENT_LABELS[status] ?? PAYMENT_LABELS.pending,
+    hexColor: isPaid ? "#22c55e" : "#eab308",
+  };
+}

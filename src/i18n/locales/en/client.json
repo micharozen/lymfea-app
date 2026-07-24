@@ -17,7 +17,6 @@
     "equipmentIncluded": "Full professional equipment included",
     "howItWorks": "How it works?",
     "ourExperts": "OUR EXPERTS",
-    "expertHairdresser": "Expert Therapist",
     "enterpriseWellnessTitle": "Wellness, delivered to your office",
     "nextSession": "Next session:",
     "booking": "Book a treatment"
@@ -268,6 +267,7 @@
     "yourRequest": "Your request",
     "date": "Date",
     "treatment": "Treatment",
+    "amenityTreatment": "Access",
     "nextSteps": "What happens next?",
     "step1": "An available therapist is reviewing your request. This usually takes a few minutes.",
     "step2": "As soon as it is accepted, you will receive a confirmation email with all the details.",

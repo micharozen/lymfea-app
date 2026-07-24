@@ -29,10 +29,3 @@ export function getSpecialtyLabel(key: string, locale: string): string {
   if (!option) return key;
   return locale === "fr" ? option.labelFr : option.labelEn;
 }
-
-export function getSpecialtySelectOptions(locale: string) {
-  return SPECIALTY_OPTIONS.map((s) => ({
-    value: s.key,
-    label: locale === "fr" ? s.labelFr : s.labelEn,
-  }));
-}

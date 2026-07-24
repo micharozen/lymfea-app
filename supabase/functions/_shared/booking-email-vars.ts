@@ -44,6 +44,8 @@ export interface EmailTreatment {
   name: string;
   price: number;
   duration?: number;
+  /** True when this line is an amenity access (pool/sauna), not a hands-on soin. */
+  is_amenity?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -279,10 +281,52 @@ function cancellationHtml(policy: string, bookingUrl: string, lang: Lang): strin
   return `<tr><td align="center" class="eia-sect" style="padding:20px 40px 0"><p style="margin:0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_MUTE}"><strong style="font-weight:500;color:${INK_SOFT}">${escapeHtml(l.policy)} :</strong> ${escapeHtml(policy)}${link}</p></td></tr>`;
 }
 
+/**
+ * Client "confirmed" hero copy. An amenity-only cart (pool/sauna access — no
+ * hands-on soin, no praticien) gets neutral "réservation" wording instead of
+ * the soin / praticien wording. Admin uses its own literal copy, so this only
+ * drives the client template.
+ */
+function confirmedClientCopy(lang: Lang, amenityOnly: boolean): {
+  heading: string; intro: string; pill: string; preheader: string;
+} {
+  const em = (word: string) => `<em style="font-style:italic;color:${CLAY}">${word}</em>`;
+  if (lang === 'en') {
+    return amenityOnly
+      ? {
+          heading: `Your booking is now ${em('confirmed')}.`,
+          intro: 'Our team has taken care of your booking. Here is the summary of your wellness moment.',
+          pill: 'Booking confirmed',
+          preheader: 'Your booking is confirmed.',
+        }
+      : {
+          heading: `Your treatment is now ${em('confirmed')}.`,
+          intro: 'A therapist has taken your booking. Here is the summary of your treatment.',
+          pill: 'Treatment confirmed',
+          preheader: 'Your treatment is confirmed and a therapist is expecting you.',
+        };
+  }
+  return amenityOnly
+    ? {
+        heading: `Votre réservation vient d'être ${em('confirmée')}.`,
+        intro: 'Notre équipe a pris en charge votre réservation. Voici le récapitulatif de votre moment de bien-être.',
+        pill: 'Réservation confirmée',
+        preheader: 'Votre réservation est confirmée.',
+      }
+    : {
+        heading: `Votre soin vient d'être ${em('confirmé')}.`,
+        intro: 'Un praticien a pris en charge votre réservation. Voici le récapitulatif de votre soin.',
+        pill: 'Soin confirmé',
+        preheader: 'Votre soin est confirmé et un praticien vous attend.',
+      };
+}
+
 /** Variables for the "booking confirmed" template family. */
 export function buildConfirmedVars(ctx: BookingEmailContext): Record<string, string> {
   const { clientName, civility } = greetingFor(ctx);
   const agg = aggregateTreatments(ctx.treatments);
+  const amenityOnly = ctx.treatments.length > 0 && ctx.treatments.every((t) => t.is_amenity);
+  const heroCopy = confirmedClientCopy(ctx.lang, amenityOnly);
   const sym = currencySymbol(ctx.venue?.currency);
   const bookingUrl = ctx.bookingUrl ?? '';
   const policy = venueCancellationPolicy(ctx.venue, ctx.lang);
@@ -293,9 +337,11 @@ export function buildConfirmedVars(ctx: BookingEmailContext): Record<string, str
   const count = ctx.treatments.length;
   const sectionTitle = isAdmin
     ? (count > 1 ? 'Prestations' : 'Prestation')
-    : ctx.lang === 'en'
-      ? (count > 1 ? 'Your treatments' : 'Your treatment')
-      : (count > 1 ? 'Vos soins' : 'Votre soin');
+    : amenityOnly
+      ? (ctx.lang === 'en' ? 'Your booking' : 'Votre réservation')
+      : ctx.lang === 'en'
+        ? (count > 1 ? 'Your treatments' : 'Your treatment')
+        : (count > 1 ? 'Vos soins' : 'Votre soin');
   // Hotel guest (has a room) vs external client — admin block only.
   const isHotelClient = !!roomNumber;
   const clientTypeLabel = isHotelClient
@@ -311,6 +357,12 @@ export function buildConfirmedVars(ctx: BookingEmailContext): Record<string, str
       )
     : '';
   return {
+    // Client hero copy (soin vs amenity-only "réservation" wording). Consumed
+    // only by the client template; the admin template keeps its literal copy.
+    heading: heroCopy.heading,
+    intro: heroCopy.intro,
+    pill: heroCopy.pill,
+    preheader: heroCopy.preheader,
     booking_number: String(ctx.booking.booking_id ?? ''),
     booking_date: formatBookingDate(ctx.booking.booking_date, ctx.lang),
     booking_time: formatBookingTime(ctx.booking.booking_time),

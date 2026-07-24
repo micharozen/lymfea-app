@@ -2812,6 +2812,39 @@ export type Database = {
           },
         ]
       }
+      therapist_treatments: {
+        Row: {
+          created_at: string | null
+          therapist_id: string
+          treatment_menu_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          therapist_id: string
+          treatment_menu_id: string
+        }
+        Update: {
+          created_at?: string | null
+          therapist_id?: string
+          treatment_menu_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "therapist_treatments_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "therapists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "therapist_treatments_treatment_menu_id_fkey"
+            columns: ["treatment_menu_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       therapist_venues: {
         Row: {
           created_at: string | null
@@ -2863,14 +2896,17 @@ export type Database = {
           password_set: boolean | null
           phone: string
           profile_image: string | null
+          rate_45: number | null
           rate_60: number | null
           rate_75: number | null
           rate_90: number | null
+          rate_105: number | null
+          rate_120: number | null
+          rate_150: number | null
           skills: string[] | null
           status: string
           stripe_account_id: string | null
           stripe_onboarding_completed: boolean | null
-          trunks: string | null
           updated_at: string
           user_id: string | null
         }
@@ -2888,14 +2924,17 @@ export type Database = {
           password_set?: boolean | null
           phone: string
           profile_image?: string | null
+          rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
           rate_90?: number | null
+          rate_105?: number | null
+          rate_120?: number | null
+          rate_150?: number | null
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
           stripe_onboarding_completed?: boolean | null
-          trunks?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -2913,14 +2952,17 @@ export type Database = {
           password_set?: boolean | null
           phone?: string
           profile_image?: string | null
+          rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
           rate_90?: number | null
+          rate_105?: number | null
+          rate_120?: number | null
+          rate_150?: number | null
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
           stripe_onboarding_completed?: boolean | null
-          trunks?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -3337,6 +3379,7 @@ export type Database = {
       }
       treatment_variants: {
         Row: {
+          available_days: number[] | null
           created_at: string | null
           duration: number
           guest_count: number
@@ -3352,6 +3395,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          available_days?: number[] | null
           created_at?: string | null
           duration: number
           guest_count?: number
@@ -3367,6 +3411,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          available_days?: number[] | null
           created_at?: string | null
           duration?: number
           guest_count?: number
@@ -4157,6 +4202,14 @@ export type Database = {
           total_price: number
         }[]
       }
+      get_public_hairdressers: {
+        Args: { _hotel_id: string }
+        Returns: {
+          first_name: string
+          id: string
+          profile_image: string
+        }[]
+      }
       get_public_hotel: {
         Args: { _identifier: string }
         Returns: {
@@ -4286,7 +4339,6 @@ export type Database = {
           first_name: string
           id: string
           profile_image: string
-          skills: string[]
         }[]
       }
       get_public_treatment_addons: {
@@ -4442,6 +4494,7 @@ export type Database = {
       }
       reserve_trunk_atomically: {
         Args: {
+          _amenity_timing?: string
           _booking_date: string
           _booking_time: string
           _client_email: string
@@ -4463,6 +4516,7 @@ export type Database = {
           _therapist_gender?: string
           _total_price: number
           _treatment_ids: string[]
+          _variant_ids?: string[]
         }
         Returns: string
       }

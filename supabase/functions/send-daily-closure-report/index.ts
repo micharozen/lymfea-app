@@ -167,7 +167,7 @@ serve(async (req: Request): Promise<Response> => {
         .order("booking_time", { ascending: true }),
       supabase
         .from("therapist_venues")
-        .select("therapist_id, therapists ( id, rate_60, rate_75, rate_90 )")
+        .select("therapist_id, therapists ( id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150 )")
         .eq("hotel_id", hotel_id),
     ]);
 
@@ -182,9 +182,28 @@ serve(async (req: Request): Promise<Response> => {
 
     const ratesMap: Record<string, TherapistRates | null> = {};
     for (const row of ratesRes.data ?? []) {
-      const t = (row as { therapists: { id: string; rate_60: number | null; rate_75: number | null; rate_90: number | null } | null }).therapists;
+      const t = (row as {
+        therapists: {
+          id: string;
+          rate_45: number | null;
+          rate_60: number | null;
+          rate_75: number | null;
+          rate_90: number | null;
+          rate_105: number | null;
+          rate_120: number | null;
+          rate_150: number | null;
+        } | null;
+      }).therapists;
       if (!t) continue;
-      const rates: TherapistRates = { rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90 };
+      const rates: TherapistRates = {
+        rate_45: t.rate_45,
+        rate_60: t.rate_60,
+        rate_75: t.rate_75,
+        rate_90: t.rate_90,
+        rate_105: t.rate_105,
+        rate_120: t.rate_120,
+        rate_150: t.rate_150,
+      };
       const empty = rates.rate_60 == null && rates.rate_75 == null && rates.rate_90 == null;
       ratesMap[t.id] = empty ? null : rates;
     }
@@ -390,6 +409,7 @@ serve(async (req: Request): Promise<Response> => {
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(treatments)}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(b.therapist_name ?? "—")}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;text-align:right;">${b.total_price != null ? money(b.total_price) : "—"}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(b.payment_method ? (PAYMENT_METHOD_LABELS[b.payment_method] ?? b.payment_method) : "—")}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(STATUS_LABELS[b.status] ?? b.status)}</td>
             </tr>`;
         })
@@ -406,6 +426,7 @@ serve(async (req: Request): Promise<Response> => {
               <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Prestation</th>
               <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Thérapeute</th>
               <th style="padding:6px 8px;text-align:right;font-size:10px;color:#6b7280;text-transform:uppercase;">Prix</th>
+              <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Paiement</th>
               <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Statut</th>
             </tr></thead>
             <tbody>${detailRows}</tbody>

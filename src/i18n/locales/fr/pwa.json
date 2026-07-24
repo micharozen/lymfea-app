@@ -262,7 +262,8 @@
     "language": "Langue",
     "logout": "Se déconnecter",
     "logoutConfirm": "Êtes-vous sûr de vouloir vous déconnecter ?",
-    "version": "Version"
+    "version": "Version",
+    "myTreatments": "Prestations réalisables"
   },
   "security": {
     "title": "Sécurité du compte",

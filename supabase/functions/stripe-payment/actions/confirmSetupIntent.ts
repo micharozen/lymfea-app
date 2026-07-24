@@ -146,6 +146,7 @@ async function atomicReserveSingle(
   totalDuration: number,
   verifiedPrice: number,
   treatmentIds: string[],
+  variantIds: string[],
   status: string,
 ): Promise<{ data: string | null; error: Error | null }> {
   // Duo (guest_count > 1): reserve guest_count beds, no therapist yet. Booking
@@ -173,6 +174,8 @@ async function atomicReserveSingle(
     _therapist_gender: meta.therapistGender || null,
     _total_price: verifiedPrice,
     _treatment_ids: treatmentIds,
+    // Formules Semaine / Week-end : la variante porte ses propres jours autorisés.
+    _variant_ids: variantIds,
     _guest_count: guestCount,
     // Never 'same' — a soin and its amenity are always sequential (before/after).
     _amenity_timing: meta.amenityTiming || "after",
@@ -436,6 +439,8 @@ export async function handleConfirmSetupIntent(
           _therapist_gender: meta.therapistGender || null,
           _total_price: slotSurcharge.totalWithSurcharge,
           _treatment_ids: [slotTreatmentIds[i]].filter(Boolean),
+          // Formules Semaine / Week-end : la variante porte ses propres jours autorisés.
+          _variant_ids: slotVariantId ? [slotVariantId] : [],
           _guest_count: slotGuestCounts[i] || 1,
         });
 
@@ -568,6 +573,10 @@ export async function handleConfirmSetupIntent(
   const pricingLines: TreatmentLine[] = treatmentsPayload.length > 0
     ? treatmentsPayload
     : (treatmentIds as string[]).map((id) => ({ treatmentId: id, quantity: 1 }));
+  // Jours autorisés portés par la variante (formules Semaine / Week-end).
+  const selectedVariantIds = pricingLines
+    .map((l) => l.variantId)
+    .filter((v): v is string => !!v);
 
   // Duo (guest_count > 1): the legs run simultaneously → slot duration = longest leg
   // (a soin plus the add-ons hanging off it). Solo: sum. Both stay 'pending' until
@@ -649,7 +658,7 @@ export async function handleConfirmSetupIntent(
     if (draftFetchError || !draftBooking) {
       console.warn("[CONFIRM-SETUP] Draft expired, falling back to atomic reserve");
       const { data: fallbackId, error: fallbackError } = await atomicReserveSingle(
-        supabase, meta, hotel, customerId, totalDuration, verifiedPrice, treatmentIds, bookingStatus,
+        supabase, meta, hotel, customerId, totalDuration, verifiedPrice, treatmentIds, selectedVariantIds, bookingStatus,
       );
       if (fallbackError)
         throw new Error(
@@ -698,7 +707,7 @@ export async function handleConfirmSetupIntent(
     }
   } else {
     const { data: newBookingId, error: rpcError } = await atomicReserveSingle(
-      supabase, meta, hotel, customerId, totalDuration, verifiedPrice, treatmentIds, bookingStatus,
+      supabase, meta, hotel, customerId, totalDuration, verifiedPrice, treatmentIds, selectedVariantIds, bookingStatus,
     );
 
     if (rpcError) {

@@ -95,26 +95,42 @@ export async function fetchPayoutTherapists(
 
   const { data: rows } = await supabase
     .from("therapists")
-    .select("id, rate_60, rate_75, rate_90, stripe_account_id")
+    .select("id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, stripe_account_id")
     .in("id", ids);
 
+  type TherapistRateRow = {
+    id: string;
+    rate_45: number | null;
+    rate_60: number | null;
+    rate_75: number | null;
+    rate_90: number | null;
+    rate_105: number | null;
+    rate_120: number | null;
+    rate_150: number | null;
+    stripe_account_id: string | null;
+  };
+
   const byId = new Map(
-    (rows || []).map((r: {
-      id: string; rate_60: number | null; rate_75: number | null; rate_90: number | null; stripe_account_id: string | null;
-    }) => [r.id, r]),
+    (rows || []).map((r: TherapistRateRow) => [r.id, r]),
   );
 
   // Preserve acceptance order (assigned_at) established above.
   return ids
     .map((id) => {
-      const r = byId.get(id) as
-        | { id: string; rate_60: number | null; rate_75: number | null; rate_90: number | null; stripe_account_id: string | null }
-        | undefined;
+      const r = byId.get(id) as TherapistRateRow | undefined;
       if (!r) return null;
       return {
         therapist_id: id,
         assigned_at: assignedAt.get(id) ?? null,
-        rates: { rate_60: r.rate_60, rate_75: r.rate_75, rate_90: r.rate_90 },
+        rates: {
+          rate_45: r.rate_45,
+          rate_60: r.rate_60,
+          rate_75: r.rate_75,
+          rate_90: r.rate_90,
+          rate_105: r.rate_105,
+          rate_120: r.rate_120,
+          rate_150: r.rate_150,
+        },
         stripe_account_id: r.stripe_account_id,
       } as PayoutTherapist;
     })

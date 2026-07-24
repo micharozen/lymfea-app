@@ -100,14 +100,17 @@ function adminTemplate(copy: ConfirmedCopy): string {
 
 const CLIENT_COPY_FR: ConfirmedCopy = {
   lang: "fr",
-  preheader: "Votre soin est confirmé et un praticien vous attend.",
-  pill: "Soin confirmé",
+  // preheader / pill / heading / intro are filled per-booking by
+  // buildConfirmedVars (soin wording, or neutral "réservation" wording for an
+  // amenity-only cart — pool/sauna access with no praticien).
+  preheader: "{{{preheader}}}",
+  pill: "{{{pill}}}",
   pillColor: MOSS,
   pillTint: MOSS_TINT,
   greetPrefix: "Bonjour",
-  heading: "Votre soin vient d'être <em style=\"font-style:italic;color:" + CLAY + "\">confirmé</em>.",
+  heading: "{{{heading}}}",
   showGreeting: true,
-  intro: "Un praticien a pris en charge votre réservation. Voici le récapitulatif de votre soin.",
+  intro: "{{{intro}}}",
   labelWhen: "Quand",
   labelWhere: "Où",
   labelRef: "Référence",
@@ -125,14 +128,15 @@ const CLIENT_COPY_FR: ConfirmedCopy = {
 
 const CLIENT_COPY_EN: ConfirmedCopy = {
   lang: "en",
-  preheader: "Your treatment is confirmed and a therapist is expecting you.",
-  pill: "Treatment confirmed",
+  // Filled per-booking by buildConfirmedVars (see CLIENT_COPY_FR note).
+  preheader: "{{{preheader}}}",
+  pill: "{{{pill}}}",
   pillColor: MOSS,
   pillTint: MOSS_TINT,
   greetPrefix: "Hello",
-  heading: "Your treatment is now <em style=\"font-style:italic;color:" + CLAY + "\">confirmed</em>.",
+  heading: "{{{heading}}}",
   showGreeting: true,
-  intro: "A therapist has taken your booking. Here is the summary of your treatment.",
+  intro: "{{{intro}}}",
   labelWhen: "When",
   labelWhere: "Where",
   labelRef: "Reference",

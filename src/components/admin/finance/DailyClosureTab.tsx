@@ -35,6 +35,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import type { TherapistRates } from "@/lib/therapistEarnings";
 
 import {
+  closurePaymentMethodLabel,
   computeClosureStats,
   renderClosureReportHtml,
   type ClosureBooking,
@@ -143,7 +144,7 @@ export function DailyClosureTab() {
           .order("booking_time", { ascending: true }),
         supabase
           .from("therapist_venues")
-          .select("therapist_id, therapists ( id, rate_60, rate_75, rate_90 )")
+          .select("therapist_id, therapists ( id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150 )")
           .eq("hotel_id", selectedVenueId),
       ]);
 
@@ -154,10 +155,28 @@ export function DailyClosureTab() {
 
       const ratesMap: TherapistRatesMap = {};
       for (const row of ratesResult.data ?? []) {
-        const t = (row as { therapists: { id: string; rate_60: number | null; rate_75: number | null; rate_90: number | null } | null })
-          .therapists;
+        const t = (row as {
+          therapists: {
+            id: string;
+            rate_45: number | null;
+            rate_60: number | null;
+            rate_75: number | null;
+            rate_90: number | null;
+            rate_105: number | null;
+            rate_120: number | null;
+            rate_150: number | null;
+          } | null;
+        }).therapists;
         if (!t) continue;
-        const rates: TherapistRates = { rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90 };
+        const rates: TherapistRates = {
+          rate_45: t.rate_45,
+          rate_60: t.rate_60,
+          rate_75: t.rate_75,
+          rate_90: t.rate_90,
+          rate_105: t.rate_105,
+          rate_120: t.rate_120,
+          rate_150: t.rate_150,
+        };
         if (rates.rate_60 == null && rates.rate_75 == null && rates.rate_90 == null) {
           ratesMap[t.id] = null;
         } else {
@@ -485,6 +504,7 @@ export function DailyClosureTab() {
                       <th className="text-left font-medium py-2 pr-3">Prestation</th>
                       <th className="text-left font-medium py-2 pr-3">Thérapeute</th>
                       <th className="text-right font-medium py-2 pr-3">Prix</th>
+                      <th className="text-left font-medium py-2 pr-3">Paiement</th>
                       <th className="text-left font-medium py-2">Statut</th>
                     </tr>
                   </thead>
@@ -511,6 +531,9 @@ export function DailyClosureTab() {
                           <td className="py-2 pr-3">{b.therapist_name ?? "—"}</td>
                           <td className="py-2 pr-3 text-right tabular-nums">
                             {b.total_price != null ? fmtMoney(b.total_price, currency) : "—"}
+                          </td>
+                          <td className="py-2 pr-3 text-xs text-muted-foreground">
+                            {closurePaymentMethodLabel(b.payment_method)}
                           </td>
                           <td className="py-2">
                             <StatusBadge status={b.status} type="booking" />

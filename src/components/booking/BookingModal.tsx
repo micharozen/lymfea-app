@@ -35,7 +35,6 @@ import {
   Plus,
   Search,
   Send,
-  Sparkles,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -1142,7 +1141,7 @@ function TherapistStep({
         ) : (
           (() => {
             const visible = therapists.filter(th => !exclude.includes(th.id) || th.id === selectedId);
-            const { available, others } = partitionTherapistsForSlot(visible);
+            const { available, others, unqualified } = partitionTherapistsForSlot(visible);
             const renderCards = (list: typeof visible) =>
               list.map((th) => {
                 const selected = selectedId === th.id;
@@ -1182,10 +1181,9 @@ function TherapistStep({
                           </span>
                         )}
                       </p>
-                      {th.skills && th.skills.length > 0 && (
-                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                          <Sparkles className="h-3 w-3" />
-                          {th.skills.slice(0, 3).join(" · ")}
+                      {th.isQualifiedForTreatments === false && (
+                        <p className="text-[10px] font-medium text-amber-600 truncate">
+                          {t("booking.therapistSections.unqualifiedHint")}
                         </p>
                       )}
                       {th.shiftEndsBeforeSlotEnd && (
@@ -1215,6 +1213,14 @@ function TherapistStep({
                       {t("booking.therapistSections.others")}
                     </p>
                     {renderCards(others)}
+                  </>
+                )}
+                {unqualified.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-500 px-1">
+                      {t("booking.therapistSections.unqualified")}
+                    </p>
+                    {renderCards(unqualified)}
                   </>
                 )}
               </>

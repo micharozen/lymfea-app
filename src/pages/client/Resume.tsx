@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useClientVenue } from '@/pages/client/context/ClientVenueContext';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
 import { useCart, type BasketItem } from '@/pages/client/context/CartContext';
+import { resolveAvailableDays } from '@/lib/availableDays';
 import { useLocalizedField } from '@/hooks/useLocalizedField';
 
 interface SnapshotItem {
@@ -34,6 +35,7 @@ interface TreatmentVariant {
   duration: number;
   price: number | null;
   price_on_request: boolean;
+  available_days?: number[] | null;
 }
 
 export default function Resume() {
@@ -108,7 +110,7 @@ export default function Resume() {
           isBundle: treatment.is_bundle || false,
           isAmenity: !!treatment.amenity_id,
           guestCount: line.guestCount,
-          availableDays: treatment.available_days ?? null,
+          availableDays: resolveAvailableDays(treatment.available_days, variant?.available_days),
         });
       }
 

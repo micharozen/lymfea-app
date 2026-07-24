@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import {
@@ -16,10 +17,11 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { SelectField } from "@/components/ui/select-field";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhoneNumberField, CountryOption } from "@/components/PhoneNumberField";
-import { User, Loader2, Wallet } from "lucide-react";
+import { User, Loader2, Wallet, Plus, X } from "lucide-react";
 import type { TherapistFormValues } from "@/pages/admin/TherapistDetail";
 import { BillingProfileForm } from "@/components/admin/billing/BillingProfileForm";
 
@@ -34,6 +36,35 @@ const countries: CountryOption[] = [
   { code: "+41", label: "Suisse", flag: "🇨🇭" },
   { code: "+32", label: "Belgique", flag: "🇧🇪" },
   { code: "+377", label: "Monaco", flag: "🇲🇨" },
+];
+
+// Rate brackets by treatment duration. The base brackets (1h/1h15/1h30) are
+// always shown and required; the extra ones are added on demand and optional.
+type RateName =
+  | "rate_45"
+  | "rate_60"
+  | "rate_75"
+  | "rate_90"
+  | "rate_105"
+  | "rate_120"
+  | "rate_150";
+
+interface RateBracket {
+  name: RateName;
+  minutes: number;
+  labelKey: string;
+  fallback: string;
+  base: boolean;
+}
+
+const RATE_BRACKETS: RateBracket[] = [
+  { name: "rate_45", minutes: 45, labelKey: "admin:therapists.rate45Label", fallback: "0h45", base: false },
+  { name: "rate_60", minutes: 60, labelKey: "admin:therapists.rate60Label", fallback: "1h00", base: true },
+  { name: "rate_75", minutes: 75, labelKey: "admin:therapists.rate75Label", fallback: "1h15", base: true },
+  { name: "rate_90", minutes: 90, labelKey: "admin:therapists.rate90Label", fallback: "1h30", base: true },
+  { name: "rate_105", minutes: 105, labelKey: "admin:therapists.rate105Label", fallback: "1h45", base: false },
+  { name: "rate_120", minutes: 120, labelKey: "admin:therapists.rate120Label", fallback: "2h00", base: false },
+  { name: "rate_150", minutes: 150, labelKey: "admin:therapists.rate150Label", fallback: "2h30", base: false },
 ];
 
 interface TherapistGeneralTabProps {
@@ -59,13 +90,38 @@ export function TherapistGeneralTab({
 }: TherapistGeneralTabProps) {
   const { t } = useTranslation("common");
 
+  // Extra (non-base) brackets the user has explicitly added this session. A row
+  // is shown when it's a base bracket, when it already holds a value (existing
+  // therapist), or when it was just added here.
+  const [addedRates, setAddedRates] = useState<RateName[]>([]);
+  const extraBrackets = RATE_BRACKETS.filter((b) => !b.base);
+
+  const isRateShown = (b: RateBracket): boolean => {
+    if (b.base) return true;
+    if (addedRates.includes(b.name)) return true;
+    const v = form.watch(b.name);
+    return v !== undefined && v !== "";
+  };
+
+  const shownBrackets = RATE_BRACKETS.filter(isRateShown);
+  const availableToAdd = extraBrackets.filter((b) => !isRateShown(b));
+
+  const handleAddRate = (name: string) => {
+    setAddedRates((prev) => (prev.includes(name as RateName) ? prev : [...prev, name as RateName]));
+  };
+
+  const handleRemoveRate = (name: RateName) => {
+    form.setValue(name, "", { shouldDirty: true });
+    setAddedRates((prev) => prev.filter((n) => n !== name));
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-base font-normal flex items-center gap-2">
                 <User className="h-4 w-4 text-gold-600" />
                 {t("admin:therapists.identity", "Identité")}
               </CardTitle>
@@ -268,7 +324,7 @@ export function TherapistGeneralTab({
       {/* Finance */}
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-normal flex items-center gap-2">
             <Wallet className="h-4 w-4 text-emerald-500" />
             {t("admin:therapists.finance", "Finance")}
           </CardTitle>
@@ -277,11 +333,7 @@ export function TherapistGeneralTab({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {([
-            { name: "rate_60" as const, labelKey: "admin:therapists.rate60Label" as const, fallback: "1h00" },
-            { name: "rate_75" as const, labelKey: "admin:therapists.rate75Label" as const, fallback: "1h15" },
-            { name: "rate_90" as const, labelKey: "admin:therapists.rate90Label" as const, fallback: "1h30" },
-          ]).map(({ name, labelKey, fallback }) => (
+          {shownBrackets.map(({ name, labelKey, fallback, base }) => (
             <FormField
               key={name}
               control={form.control}
@@ -299,6 +351,7 @@ export function TherapistGeneralTab({
                         min="0"
                         placeholder="--"
                         {...field}
+                        value={field.value ?? ""}
                         disabled={disabled}
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
@@ -306,11 +359,41 @@ export function TherapistGeneralTab({
                       </span>
                     </div>
                   </FormControl>
+                  {!base && !disabled && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label={t("admin:therapists.removeRate", "Retirer ce taux")}
+                      onClick={() => handleRemoveRate(name)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
             />
           ))}
+
+          {!disabled && availableToAdd.length > 0 && (
+            <div className="w-48 pt-1">
+              <SelectField
+                value={undefined}
+                onChange={handleAddRate}
+                searchable={false}
+                placeholder={t("admin:therapists.addRate", "Ajouter un taux")}
+                aria-label={t("admin:therapists.addRate", "Ajouter un taux")}
+                className="h-8 text-xs"
+                options={availableToAdd.map((b) => ({
+                  value: b.name,
+                  label: t(b.labelKey, b.fallback),
+                }))}
+              />
+            </div>
+          )}
+
           <p className="text-xs text-muted-foreground pt-1">
             {t("admin:therapists.rateHint", "Montant fixe versé au thérapeute par soin. Pour les durées hors palier, calcul proportionnel entre les paliers configurés.")}
           </p>

@@ -5,7 +5,8 @@ import type { Hotel } from "@/hooks/booking";
 
 interface CalendarLegendProps {
   hotels?: Hotel[];
-  hotelFilter?: string;
+  /** Selected venue ids; empty means no venue filter. */
+  hotelFilter?: string[];
   /** Whether cancelled bookings are currently shown on the calendar. */
   showCancelled?: boolean;
   /** Toggle cancelled visibility (only meaningful when a venue is filtered). */
@@ -22,7 +23,7 @@ export function CalendarLegend({
 }: CalendarLegendProps) {
   const { t, i18n } = useTranslation("admin");
   const fr = i18n.language?.startsWith("fr");
-  const hasVenueFilter = !!hotelFilter && hotelFilter !== "all";
+  const hasVenueFilter = !!hotelFilter?.length;
   // Built from the same flow stages used to color the cards, so the legend
   // always matches what's shown on the planning. With no venue filtered,
   // cancelled and no-show are never drawn — drop them from the legend too.
@@ -33,10 +34,9 @@ export function CalendarLegend({
       return { key, label: fr ? stage.label : stage.labelEn, swatchClass: stage.swatchClass };
     });
 
-  const visibleHotels =
-    hotelFilter && hotelFilter !== "all"
-      ? hotels?.filter((h) => h.id === hotelFilter) ?? []
-      : hotels ?? [];
+  const visibleHotels = hasVenueFilter
+    ? hotels?.filter((h) => hotelFilter!.includes(h.id)) ?? []
+    : hotels ?? [];
 
   return (
     <div className={cn("flex flex-col gap-3 px-3 py-3 text-xs", className)}>

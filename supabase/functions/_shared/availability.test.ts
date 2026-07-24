@@ -6,6 +6,7 @@ import {
 import {
   type Booking,
   doesBookingBlockSlot,
+  filterQualifiedTherapists,
   isSlotAvailable,
   type Room,
   type SlotAvailabilityInput,
@@ -447,4 +448,139 @@ Deno.test("BUG SCENARIO: Hôtel de Buci — 1 room, 2 pending card_saved holds (
     isSlotAvailable(input({ slot: "18:00:00", bookings })),
     false,
   );
+});
+
+// ---------------------------------------------------------------------------
+// filterQualifiedTherapists — therapist_treatments qualification rule
+//
+// Ce prédicat doit rester équivalent à celui de reserve_trunk_atomically : un
+// créneau affiché ici que le RPC refuse ensuite = le client paie puis la
+// réservation échoue. Les cas ci-dessous reprennent un à un les scénarios
+// vérifiés contre le RPC en base.
+//
+// Rappel de la règle :
+//   - aucune prestation requise            → tout le monde passe
+//   - aucune association (absente ou vide) → polyvalent, passe
+//   - au moins une association             → doit couvrir TOUTES les requises
+// ---------------------------------------------------------------------------
+
+type QT = { therapist_id: string };
+
+const T1: QT = { therapist_id: THERAPIST_1 };
+const T2: QT = { therapist_id: THERAPIST_2 };
+
+const SOIN_A = "soin-a";
+const SOIN_B = "soin-b";
+
+/** Map { therapistId → prestations réalisables }. */
+function owned(entries: Record<string, string[]>): Map<string, Set<string>> {
+  return new Map(
+    Object.entries(entries).map(([id, ids]) => [id, new Set(ids)]),
+  );
+}
+
+function ids(list: QT[]): string[] {
+  return list.map((t) => t.therapist_id);
+}
+
+Deno.test("qualification: no required treatment → every therapist passes", () => {
+  // Requête sans panier (disponibilité générique) : la qualification ne doit
+  // rien filtrer, même pour un thérapeute aux associations très restreintes.
+  const result = filterQualifiedTherapists(
+    [T1, T2],
+    new Set<string>(),
+    owned({ [THERAPIST_1]: [SOIN_B] }),
+  );
+  assertEquals(ids(result), [THERAPIST_1, THERAPIST_2]);
+});
+
+Deno.test("qualification: therapist absent from the map is polyvalent", () => {
+  // Aucune ligne therapist_treatments = fallback polyvalent, aligné sur le
+  // comportement historique de skills (évite le « zéro dispo » à la bascule).
+  const result = filterQualifiedTherapists([T1], new Set([SOIN_A]), owned({}));
+  assertEquals(ids(result), [THERAPIST_1]);
+});
+
+Deno.test("qualification: therapist with an empty set is polyvalent", () => {
+  // Même sémantique qu'une absence : une entrée présente mais vide ne doit pas
+  // être traitée comme « ne sait rien faire ».
+  const result = filterQualifiedTherapists(
+    [T1],
+    new Set([SOIN_A]),
+    owned({ [THERAPIST_1]: [] }),
+  );
+  assertEquals(ids(result), [THERAPIST_1]);
+});
+
+Deno.test("qualification: associated therapist covering the treatment passes", () => {
+  const result = filterQualifiedTherapists(
+    [T1],
+    new Set([SOIN_A]),
+    owned({ [THERAPIST_1]: [SOIN_A] }),
+  );
+  assertEquals(ids(result), [THERAPIST_1]);
+});
+
+Deno.test("qualification: associated therapist missing the treatment is excluded", () => {
+  // Le cœur de la règle : dès qu'il a AU MOINS une association, elle fait foi.
+  const result = filterQualifiedTherapists(
+    [T1],
+    new Set([SOIN_A]),
+    owned({ [THERAPIST_1]: [SOIN_B] }),
+  );
+  assertEquals(ids(result), []);
+});
+
+Deno.test("qualification: partial coverage of a multi-soin cart is excluded", () => {
+  // REGRESSION : l'implémentation précédente utilisait .some() (au moins un
+  // match) alors que le RPC exigeait la couverture totale. Sur ce panier elle
+  // renvoyait le thérapeute, puis reserve_trunk_atomically levait
+  // NO_ROOM_AVAILABLE — après paiement.
+  const result = filterQualifiedTherapists(
+    [T1],
+    new Set([SOIN_A, SOIN_B]),
+    owned({ [THERAPIST_1]: [SOIN_A] }),
+  );
+  assertEquals(ids(result), []);
+});
+
+Deno.test("qualification: full coverage of a multi-soin cart passes", () => {
+  const result = filterQualifiedTherapists(
+    [T1],
+    new Set([SOIN_A, SOIN_B]),
+    owned({ [THERAPIST_1]: [SOIN_A, SOIN_B] }),
+  );
+  assertEquals(ids(result), [THERAPIST_1]);
+});
+
+Deno.test("qualification: extra associations don't disqualify (superset)", () => {
+  // Couvrir plus que demandé reste valide : c'est une inclusion, pas une égalité.
+  const result = filterQualifiedTherapists(
+    [T1],
+    new Set([SOIN_A]),
+    owned({ [THERAPIST_1]: [SOIN_A, SOIN_B, "soin-c"] }),
+  );
+  assertEquals(ids(result), [THERAPIST_1]);
+});
+
+Deno.test("qualification: mixed roster keeps only qualified + polyvalent", () => {
+  // Scénario duo : le comptage des praticiens restants doit refléter le même
+  // prédicat que le filtre individuel (cf. _qualified_available côté RPC).
+  const result = filterQualifiedTherapists(
+    [T1, T2, { therapist_id: "therapist-3" }],
+    new Set([SOIN_A]),
+    owned({ [THERAPIST_1]: [SOIN_A], [THERAPIST_2]: [SOIN_B] }),
+  );
+  // T1 qualifié, T2 exclu, therapist-3 polyvalent (absent de la map).
+  assertEquals(ids(result), [THERAPIST_1, "therapist-3"]);
+});
+
+Deno.test("qualification: input array is not mutated", () => {
+  const roster = [T1, T2];
+  filterQualifiedTherapists(
+    roster,
+    new Set([SOIN_A]),
+    owned({ [THERAPIST_2]: [SOIN_B] }),
+  );
+  assertEquals(ids(roster), [THERAPIST_1, THERAPIST_2]);
 });

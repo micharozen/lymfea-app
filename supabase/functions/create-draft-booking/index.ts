@@ -141,6 +141,9 @@ serve(async (req: Request) => {
       let totalPrice = 0;
       let totalDuration = 0;
       let treatmentIdsForRpc: string[];
+      // Les variantes portent leurs propres jours autorisés (formules Semaine /
+      // Week-end) : la RPC les contrôle comme ceux du soin.
+      let variantIdsForRpc: string[];
 
       if (legacy) {
         // Legacy single-slot mode. Solo: treatments run sequentially → sum durations.
@@ -156,6 +159,7 @@ serve(async (req: Request) => {
             : totalDuration + (row.duration || 0) * t.quantity;
         }
         treatmentIdsForRpc = legacy.map((t) => t.id);
+        variantIdsForRpc = legacy.map((t) => t.variantId).filter((v): v is string => !!v);
       } else {
         const row: any = item.variantId ? variantMap.get(item.variantId) : menuMap.get(item.treatmentId);
         if (row) {
@@ -164,6 +168,7 @@ serve(async (req: Request) => {
         }
         if (item.duration && totalDuration === 0) totalDuration = item.duration;
         treatmentIdsForRpc = [item.treatmentId];
+        variantIdsForRpc = item.variantId ? [item.variantId] : [];
       }
 
       const { data: newBookingId, error: rpcError } = await supabase.rpc('reserve_trunk_atomically', {
@@ -185,6 +190,7 @@ serve(async (req: Request) => {
         _client_note: '',
         _therapist_gender: therapistGender || null,
         _treatment_ids: treatmentIdsForRpc,
+        _variant_ids: variantIdsForRpc,
         _guest_count: effectiveGuestCount,
       });
 

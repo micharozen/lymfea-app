@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import "./styles/app-refonte.css";
+import "./styles/bo-refonte.css";
 import "./i18n";
 import { initErrorTracking } from "./lib/logger";
 import { reloadWithCacheBust } from "./lib/reload";

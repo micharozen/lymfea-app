@@ -534,15 +534,19 @@ const generateForTherapistHotel = async (
   // Load therapist rates for fallback computation when no payout exists
   const { data: therapistRow } = await supabaseAdmin
     .from("therapists")
-    .select("rate_60, rate_75, rate_90")
+    .select("rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
     .eq("id", therapist.id)
     .maybeSingle();
 
   const rates = therapistRow
     ? {
+        rate_45: therapistRow.rate_45 ?? null,
         rate_60: therapistRow.rate_60 ?? null,
         rate_75: therapistRow.rate_75 ?? null,
         rate_90: therapistRow.rate_90 ?? null,
+        rate_105: therapistRow.rate_105 ?? null,
+        rate_120: therapistRow.rate_120 ?? null,
+        rate_150: therapistRow.rate_150 ?? null,
       }
     : null;
 

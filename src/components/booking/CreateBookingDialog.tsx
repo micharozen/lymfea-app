@@ -18,6 +18,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { normalizeEmail, isValidEmail } from "@/lib/email";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
@@ -40,7 +41,8 @@ import { format } from "date-fns";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
 import { isOutOfHours } from "@/lib/bookingUtils";
-import { mapCartDetailToTreatmentLine } from "@/lib/bookingCartLine";
+import { getSelectedVariant, mapCartDetailToTreatmentLine } from "@/lib/bookingCartLine";
+import { resolveAvailableDays } from "@/lib/availableDays";
 import { composePhoneNumber } from "@/lib/phone";
 import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from "./CreateBookingDialog.schema";
 import { BookingInfoStep } from "./steps/BookingInfoStep";
@@ -85,6 +87,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       civility: undefined,
       clientFirstName: "",
       clientLastName: "",
+      clientEmail: "",
       phone: "",
       countryCode: "+33",
       language: "fr",
@@ -258,12 +261,19 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   // Intersection of `available_days` for every cart item. A treatment with
   // `available_days = null` is unconstrained and doesn't shrink the set.
+  // The selected variant's own days win over the treatment's — a "Semaine" and a
+  // "Week-end" formula of the same soin aren't bookable on the same days.
   // When the set is non-null, BookingInfoStep draws those weekdays as
   // struck-through / clickable (with a warning toast).
   const cartAvailableDays = useMemo<number[] | null>(() => {
     if (!cartDetails.length) return null;
     const sets = cartDetails
-      .map((i) => (i.treatment as { available_days?: number[] | null } | undefined)?.available_days)
+      .map((i) =>
+        resolveAvailableDays(
+          (i.treatment as { available_days?: number[] | null } | undefined)?.available_days,
+          getSelectedVariant(i.treatment, i.variantId)?.available_days,
+        )
+      )
       .filter((days): days is number[] => Array.isArray(days) && days.length > 0);
     if (sets.length === 0) return null;
     return sets.reduce<number[]>((acc, days) =>
@@ -336,13 +346,16 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const surchargeAmount = isBookingOutOfHours ? Math.round(finalPrice * surchargePercent / 100) : 0;
   const finalPriceWithSurcharge = finalPrice + surchargeAmount;
 
-  // Liste annotée pour l'étape d'assignation : sections « Disponibles » / « Autres ».
-  // Pas de treatmentIds : même population que la liste plate (thérapeutes actifs du lieu).
+  // Liste annotée pour l'étape d'assignation : sections « Disponibles » / « Autres » /
+  // « Ne réalise pas cette prestation ». Personne n'est masqué — les prestations du panier
+  // servent uniquement à signaler les thérapeutes non qualifiés.
+  const cartTreatmentIds = useMemo(() => cart.map((item) => item.treatmentId), [cart]);
   const { data: slotTherapists } = useAvailableTherapistsForSlot({
     hotelId,
     date,
     time,
     durationMinutes: finalDuration || 60,
+    treatmentIds: cartTreatmentIds,
   });
 
   const mutation = useCreateBookingMutation({
@@ -420,6 +433,25 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       return;
     }
     const values = form.getValues();
+    // Email client : bloquer une adresse non délivrable (ex. accent dans la
+    // partie locale) avec une notif claire plutôt que le silence natif, et
+    // prévenir quand on a dû la normaliser (accents/majuscules/espaces retirés).
+    const rawEmail = values.clientEmail?.trim() ?? "";
+    const normalizedEmail = normalizeEmail(rawEmail);
+    if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+      toast({
+        title: "Adresse email invalide",
+        description: "Merci de corriger l'email du client avant de créer la réservation.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (normalizedEmail && normalizedEmail !== rawEmail.toLowerCase()) {
+      toast({
+        title: "Email ajusté",
+        description: `L'adresse a été normalisée en ${normalizedEmail} (accents/majuscules retirés).`,
+      });
+    }
     if (canAssignTherapist && !amenityOnlyCart && duoMode !== "broadcast") {
       if (staffingCount > 1) {
         const assigned = [values.therapistId, ...additionalTherapistIds].filter(Boolean);
@@ -520,6 +552,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       civility: undefined,
       clientFirstName: "",
       clientLastName: "",
+      clientEmail: "",
       phone: "",
       countryCode: "+33",
       language: "fr",
@@ -570,7 +603,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         </DialogHeader>
 
         <Form {...form}>
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+        {/* noValidate : on désactive la bulle native de <input type="email">
+            (silencieuse, avale le submit) au profit d'une notif explicite gérée
+            dans handleSubmit. */}
+        <form onSubmit={handleSubmit} noValidate className="flex-1 flex flex-col min-h-0">
             {/* Panier 100 % amenity : l'étape thérapeute est sans objet, même si on
                 s'y trouvait avant le retrait du dernier soin. */}
             <Tabs value={amenityOnlyCart && activeTab === "therapist" ? "prestations" : activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations" | "therapist" | "payment")} className="flex-1 flex flex-col min-h-0">

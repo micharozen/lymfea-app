@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS "public"."therapists" (
     "phone" "text" NOT NULL,
     "profile_image" "text",
     "status" "text" DEFAULT 'pending'::"text" NOT NULL,
-    "trunks" "text",
     "skills" "text"[] DEFAULT '{}'::"text"[],
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
@@ -18,20 +17,32 @@ CREATE TABLE IF NOT EXISTS "public"."therapists" (
     "minimum_guarantee" "jsonb" DEFAULT '{}'::"jsonb",
     "minimum_guarantee_active" boolean DEFAULT false,
     "hourly_rate" numeric(8,2) DEFAULT NULL::numeric,
+    "rate_45" numeric,
     "rate_60" numeric,
     "rate_75" numeric,
     "rate_90" numeric,
+    "rate_105" numeric,
+    "rate_120" numeric,
+    "rate_150" numeric,
     "gender" "text",
     CONSTRAINT "therapists_gender_check" CHECK (("gender" = ANY (ARRAY['female'::"text", 'male'::"text"])))
 );
 
 ALTER TABLE "public"."therapists" OWNER TO "postgres";
 
+COMMENT ON COLUMN "public"."therapists"."rate_45" IS 'Fixed therapist payout for a 45-minute treatment';
+
 COMMENT ON COLUMN "public"."therapists"."rate_60" IS 'Fixed therapist payout for a 60-minute treatment';
 
 COMMENT ON COLUMN "public"."therapists"."rate_75" IS 'Fixed therapist payout for a 75-minute treatment';
 
 COMMENT ON COLUMN "public"."therapists"."rate_90" IS 'Fixed therapist payout for a 90-minute treatment';
+
+COMMENT ON COLUMN "public"."therapists"."rate_105" IS 'Fixed therapist payout for a 105-minute treatment';
+
+COMMENT ON COLUMN "public"."therapists"."rate_120" IS 'Fixed therapist payout for a 120-minute treatment';
+
+COMMENT ON COLUMN "public"."therapists"."rate_150" IS 'Fixed therapist payout for a 150-minute treatment';
 
 ALTER TABLE ONLY "public"."therapists"
     ADD CONSTRAINT "hairdressers_phone_country_code_unique" UNIQUE ("phone", "country_code");

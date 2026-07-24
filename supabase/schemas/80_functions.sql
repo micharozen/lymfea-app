@@ -1673,14 +1673,16 @@ $$;
 
 ALTER FUNCTION "public"."get_public_hotels"() OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."get_public_therapists"("_hotel_id" "text") RETURNS TABLE("id" "text", "first_name" "text", "profile_image" "text", "skills" "text"[])
+CREATE OR REPLACE FUNCTION "public"."get_public_therapists"("_hotel_id" "text") RETURNS TABLE("id" "text", "first_name" "text", "profile_image" "text")
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
-  SELECT t.id, t.first_name, t.profile_image, t.skills
+  SELECT t.id, t.first_name, t.profile_image
   FROM public.therapists t
   INNER JOIN public.therapist_venues tv ON t.id = tv.therapist_id
-  WHERE tv.hotel_id = _hotel_id AND t.status IN ('Active', 'Actif', 'active')
+  -- LOWER() : l'ancien IN ('Active','Actif','active') était sensible à la casse
+  -- et divergeait du filtre de reserve_trunk_atomically.
+  WHERE tv.hotel_id = _hotel_id AND LOWER(t.status) IN ('active', 'actif')
   ORDER BY t.first_name;
 $$;
 
@@ -1737,7 +1739,8 @@ CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") 
           'duration', v.duration, 'price', v.price,
           'price_on_request', v.price_on_request,
           'is_default', v.is_default, 'sort_order', v.sort_order,
-          'guest_count', v.guest_count
+          'guest_count', v.guest_count,
+          'available_days', v.available_days
         ) ORDER BY v.sort_order, v.guest_count, v.duration
        )
        FROM public.treatment_variants v
@@ -2643,7 +2646,7 @@ $$;
 
 ALTER FUNCTION "public"."reactivate_prereservation"("_booking_id" "uuid") OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text" DEFAULT NULL::"text", "_therapist_gender" "text" DEFAULT NULL::"text", "_stripe_session_id" "text" DEFAULT NULL::"text", "_guest_count" integer DEFAULT 1, "_amenity_timing" "text" DEFAULT 'same'::"text") RETURNS "uuid"
+CREATE OR REPLACE FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text" DEFAULT NULL::"text", "_therapist_gender" "text" DEFAULT NULL::"text", "_stripe_session_id" "text" DEFAULT NULL::"text", "_guest_count" integer DEFAULT 1, "_amenity_timing" "text" DEFAULT 'same'::"text", "_variant_ids" "text"[] DEFAULT NULL::"text"[]) RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
@@ -2654,14 +2657,16 @@ DECLARE
   _new_end               INTEGER;
   _has_conflict          BOOLEAN;
   _room_blocked          BOOLEAN;
-  _required_specialties  TEXT[];
+  _required_treatments   UUID[];
+  _required_count        INTEGER := 0;
   _therapist_id          UUID := NULL;
   _solo_therapist_id     UUID := NULL;
-  _therapist_skills      TEXT[];
+  _covered_count         INTEGER;
   _travel_buffer         INTEGER;
   _turnover_buffer       INTEGER;
   _requested_dow         INTEGER;
   _treatment_record      RECORD;
+  _variant_record        RECORD;
   _is_duo                BOOLEAN;
   _guests                INTEGER;
   _qualified_available   INTEGER;
@@ -2713,6 +2718,26 @@ BEGIN
     END LOOP;
   END IF;
 
+  -- Même contrainte au niveau de la variante choisie (formules Semaine / Week-end :
+  -- même soin, jours et tarifs différents). Les jours de la variante priment sur
+  -- ceux du soin ; une variante sans jours définis hérite simplement du soin.
+  IF _variant_ids IS NOT NULL AND array_length(_variant_ids, 1) > 0 THEN
+    FOR _variant_record IN
+      SELECT tm.name, v.label, v.available_days
+      FROM treatment_variants v
+      JOIN treatment_menus tm ON tm.id = v.treatment_id
+      WHERE v.id::text = ANY(_variant_ids)
+    LOOP
+      IF _variant_record.available_days IS NOT NULL
+         AND array_length(_variant_record.available_days, 1) > 0
+         AND NOT _requested_dow = ANY(_variant_record.available_days)
+      THEN
+        RAISE EXCEPTION 'DAY_CONSTRAINT_VIOLATION: La formule "% — %" n''est pas disponible ce jour-là.',
+          _variant_record.name, _variant_record.label;
+      END IF;
+    END LOOP;
+  END IF;
+
   -- Un booking a besoin de salle/thérapeute uniquement s'il contient au moins un
   -- vrai soin (treatment sans amenity_id). Un booking 100% amenity ne consomme ni
   -- salle ni thérapeute : seule la capacité de l'amenity compte.
@@ -2758,18 +2783,21 @@ BEGIN
 
   IF _has_soin THEN
     IF _treatment_ids IS NOT NULL AND array_length(_treatment_ids, 1) > 0 THEN
-      SELECT array_agg(DISTINCT treatment_type) INTO _required_specialties
+      -- Add-ons are supplements, not soins: they must never impose a requirement
+      -- on the therapist. Amenities have no therapist either.
+      SELECT array_agg(DISTINCT id) INTO _required_treatments
       FROM treatment_menus
       WHERE id::text = ANY(_treatment_ids)
         AND COALESCE(is_addon, false) = false
-        AND amenity_id IS NULL
-        AND treatment_type IS NOT NULL
-        AND treatment_type != '';
+        AND amenity_id IS NULL;
+      _required_count := COALESCE(array_length(_required_treatments, 1), 0);
     END IF;
 
+    -- Le filtre individuel ci-dessous et le comptage _qualified_available
+    -- partagent la même boucle, donc le même prédicat par construction.
     _qualified_available := 0;
-    FOR _therapist_id, _therapist_skills IN
-      SELECT t.id, t.skills
+    FOR _therapist_id IN
+      SELECT t.id
       FROM therapist_venues tv
       JOIN therapists t ON t.id = tv.therapist_id
       WHERE tv.hotel_id::text = _hotel_id
@@ -2780,10 +2808,17 @@ BEGIN
           OR LOWER(t.gender) = LOWER(_therapist_gender)
         )
     LOOP
-      IF _required_specialties IS NOT NULL AND array_length(_required_specialties, 1) > 0 THEN
-        IF _therapist_skills IS NOT NULL AND array_length(_therapist_skills, 1) > 0 THEN
-          IF NOT _required_specialties <@ _therapist_skills THEN CONTINUE; END IF;
-        END IF;
+      -- Qualification : un thérapeute sans aucune association reste polyvalent
+      -- (comportement hérité de skills) ; dès qu'il en a au moins une, il doit
+      -- couvrir toutes les prestations requises.
+      IF _required_count > 0
+         AND EXISTS (SELECT 1 FROM therapist_treatments WHERE therapist_id = _therapist_id)
+      THEN
+        SELECT COUNT(*) INTO _covered_count
+        FROM therapist_treatments
+        WHERE therapist_id = _therapist_id
+          AND treatment_menu_id = ANY(_required_treatments);
+        IF _covered_count < _required_count THEN CONTINUE; END IF;
       END IF;
 
       IF EXISTS (
@@ -2945,7 +2980,7 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text", "_variant_ids" "text"[]) OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."rls_auto_enable"() RETURNS "event_trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -3743,11 +3778,11 @@ GRANT ALL ON FUNCTION "public"."reactivate_prereservation"("_booking_id" "uuid")
 
 GRANT ALL ON FUNCTION "public"."reactivate_prereservation"("_booking_id" "uuid") TO "service_role";
 
-GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text", "_variant_ids" "text"[]) TO "anon";
 
-GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text", "_variant_ids" "text"[]) TO "authenticated";
 
-GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."reserve_trunk_atomically"("_hotel_id" "text", "_booking_date" "date", "_booking_time" time without time zone, "_duration" integer, "_hotel_name" "text", "_client_first_name" "text", "_client_last_name" "text", "_client_email" "text", "_phone" "text", "_room_number" "text", "_client_note" "text", "_status" "text", "_payment_method" "text", "_payment_status" "text", "_total_price" numeric, "_language" "text", "_treatment_ids" "text"[], "_customer_id" "text", "_therapist_gender" "text", "_stripe_session_id" "text", "_guest_count" integer, "_amenity_timing" "text", "_variant_ids" "text"[]) TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "anon";
 

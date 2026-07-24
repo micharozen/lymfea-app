@@ -193,7 +193,7 @@ export function BillingProfileForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <CardTitle className="text-base font-normal flex items-center gap-2">
               <FileText className="h-4 w-4 text-sky-600" />
               {t("admin:therapists.billingInfo.title", "Informations de facturation")}
             </CardTitle>
@@ -346,7 +346,7 @@ export function BillingProfileForm({
 
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold">
+            <CardTitle className="text-base font-normal">
               {t("admin:therapists.billingInfo.address", "Adresse")}
             </CardTitle>
           </CardHeader>
@@ -448,7 +448,7 @@ export function BillingProfileForm({
 
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <CardTitle className="text-base font-normal flex items-center gap-2">
               <Landmark className="h-4 w-4 text-emerald-600" />
               {t("admin:therapists.billingInfo.bankDetails", "Coordonnées bancaires")}
             </CardTitle>
