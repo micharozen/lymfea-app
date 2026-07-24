@@ -85,6 +85,101 @@ export function getBaseSessionCount(sessions: AdminBookingSession[]): number {
 }
 
 /**
+ * Round-robin default: base soin `i` goes to practitioner `i % practitionerCount`.
+ * With `practitionerCount === baseCount` this is the identity [0,1,2,…] — the
+ * historical "one practitioner per soin" behaviour.
+ */
+export function defaultLegAssignments(baseCount: number, practitionerCount: number): number[] {
+  const n = Math.max(1, practitionerCount);
+  return Array.from({ length: baseCount }, (_, i) => i % n);
+}
+
+/** Every practitioner slot 0..N-1 must carry at least one base soin (no empty leg). */
+export function isValidPartition(legAssignments: number[], practitionerCount: number): boolean {
+  if (practitionerCount < 1) return false;
+  const filled = new Set(legAssignments);
+  for (let leg = 0; leg < practitionerCount; leg++) {
+    if (!filled.has(leg)) return false;
+  }
+  return true;
+}
+
+/** One practitioner's slice of a combo-duo: their base soins + add-ons, run sequentially. */
+export interface Leg {
+  legIndex: number;
+  /** Payload lines (bases then add-ons) all carrying this leg's index. */
+  treatmentLines: TreatmentPayload[];
+  /** Sum of every soin in the leg (sequential) — the leg's own booking duration. */
+  durationSum: number;
+  /** Sum of every soin's unit price in the leg — the leg's own booking price. */
+  priceSum: number;
+  /** Human labels of the base soins in this leg (for the therapist-step recap). */
+  baseLabels: string[];
+}
+
+/**
+ * Partition the cart's base soins into `practitionerCount` legs following
+ * `legAssignments` (base soin index → practitioner index). Soins sharing a leg run
+ * sequentially, so their durations sum. Add-ons are attributed round-robin over the
+ * legs and extend the leg they land on. Amenities belong to no leg.
+ *
+ * Falls back to the identity partition (one base per leg) when no assignments are
+ * given — preserving the original combo-duo behaviour.
+ */
+export function buildLegs(
+  sessions: AdminBookingSession[],
+  legAssignments?: number[],
+): Leg[] {
+  const bases = basesOf(sessions);
+  const addons = sessions.filter((s) => s.isAddon && !s.isAmenity);
+  const assignments =
+    legAssignments && legAssignments.length === bases.length
+      ? legAssignments
+      : bases.map((_, i) => i);
+  const practitionerCount = assignments.length ? Math.max(...assignments) + 1 : 0;
+
+  const legs: Leg[] = Array.from({ length: practitionerCount }, (_, legIndex) => ({
+    legIndex,
+    treatmentLines: [],
+    durationSum: 0,
+    priceSum: 0,
+    baseLabels: [],
+  }));
+
+  bases.forEach((s, i) => {
+    const legIndex = assignments[i] ?? 0;
+    const leg = legs[legIndex];
+    leg.durationSum += s.duration;
+    leg.priceSum += s.unitPrice;
+    leg.baseLabels.push(s.label);
+    leg.treatmentLines.push({
+      treatmentId: s.treatmentId,
+      variantId: s.variantId ?? undefined,
+      isAddon: false,
+      legIndex,
+    });
+  });
+
+  addons.forEach((s, j) => {
+    const legIndex = practitionerCount > 0 ? j % practitionerCount : 0;
+    const leg = legs[legIndex];
+    leg.durationSum += s.duration;
+    leg.priceSum += s.unitPrice;
+    // The add-on hangs off the first base soin of its leg.
+    const parentBase = bases.find((_, i) => (assignments[i] ?? 0) === legIndex);
+    leg.treatmentLines.push({
+      treatmentId: s.treatmentId,
+      variantId: s.variantId ?? undefined,
+      isAddon: true,
+      legIndex,
+      parentTreatmentId: parentBase?.treatmentId ?? null,
+    });
+  });
+
+  return legs;
+}
+
+/**
  * Eligible when there are >= 2 base solo soins (add-ons and amenities excluded):
  * those are the guests done in parallel. A single base + an add-on is a solo +
  * supplement, not a duo. Same for a soin + a pool access: still one guest. A base
@@ -106,33 +201,16 @@ export function isComboDuoEligible(sessions: AdminBookingSession[]): boolean {
  * Amenity lines belong to no leg: they stay in the booking but carry no legIndex
  * (hence no therapist) and never inflate the slot — same rule as computeSlotDuration.
  */
-export function buildComboDuoBookingParams(sessions: AdminBookingSession[]) {
-  const bases = basesOf(sessions);
-  const addons = sessions.filter((s) => s.isAddon && !s.isAmenity);
+export function buildComboDuoBookingParams(
+  sessions: AdminBookingSession[],
+  legAssignments?: number[],
+) {
   const amenities = sessions.filter((s) => s.isAmenity);
-  const guestCount = bases.length;
+  const legs = buildLegs(sessions, legAssignments);
+  const guestCount = legs.length;
 
-  const legDurations = bases.map((s) => s.duration);
-  const baseLines = bases.map(
-    (s, legIndex): TreatmentPayload => ({
-      treatmentId: s.treatmentId,
-      variantId: s.variantId ?? undefined,
-      isAddon: false,
-      legIndex,
-    }),
-  );
-
-  const addonLines = addons.map((s, j): TreatmentPayload => {
-    const legIndex = guestCount > 0 ? j % guestCount : 0;
-    legDurations[legIndex] = (legDurations[legIndex] ?? 0) + s.duration;
-    return {
-      treatmentId: s.treatmentId,
-      variantId: s.variantId ?? undefined,
-      isAddon: true,
-      legIndex,
-      parentTreatmentId: bases[legIndex]?.treatmentId ?? null,
-    };
-  });
+  const legLines = legs.flatMap((leg) => leg.treatmentLines);
+  const legDurations = legs.map((leg) => leg.durationSum);
 
   const amenityLines = amenities.map(
     (s): TreatmentPayload => ({
@@ -145,16 +223,19 @@ export function buildComboDuoBookingParams(sessions: AdminBookingSession[]) {
   return {
     guestCount,
     duration: legDurations.length ? Math.max(...legDurations) : 0,
-    treatments: [...baseLines, ...addonLines, ...amenityLines],
+    treatments: [...legLines, ...amenityLines],
   };
 }
 
-/** Staffing pickers count: combo duo → one per base soin; variant duo → requiredGuestCount. */
+/**
+ * Staffing pickers count: combo duo → the chosen practitioner count (defaults to
+ * one per base soin); variant duo → requiredGuestCount.
+ */
 export function computeStaffingCount(
   comboDuoEnabled: boolean,
-  baseSessionCount: number,
+  practitionerCount: number,
   requiredGuestCount: number,
 ): number {
-  if (comboDuoEnabled) return baseSessionCount;
+  if (comboDuoEnabled) return practitionerCount;
   return requiredGuestCount;
 }

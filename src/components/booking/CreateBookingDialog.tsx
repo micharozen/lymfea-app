@@ -56,12 +56,16 @@ import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities"
 import type { AmenityAccessPayload } from "@/hooks/booking/useCreateBookingMutation";
 import {
   buildComboDuoBookingParams,
+  buildLegs,
   computeStaffingCount,
+  defaultLegAssignments,
   expandCartToSessions,
   getBaseSessionCount,
   getSessionCount,
   isComboDuoEligible,
+  isValidPartition,
 } from "@/features/admin-combo-duo";
+import type { ComboLegPayload } from "@/hooks/booking/useCreateBookingMutation";
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
   const { hotelIds, isAdmin } = useUserContext();
@@ -234,14 +238,65 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const sessionCount = useMemo(() => getSessionCount(cartDetails), [cartDetails]);
   // Base soins only (add-ons aren't parallel guests) → drives practitioner count.
   const baseSessionCount = useMemo(() => getBaseSessionCount(sessions), [sessions]);
+  // Libellés des soins de base (hors add-on / amenity) pour l'assignation manuelle.
+  const baseSoinLabels = useMemo(
+    () => sessions.filter((s) => !s.isAddon && !s.isAmenity).map((s) => s.label),
+    [sessions],
+  );
   const comboDuoEligible = isComboDuoEligible(sessions) && requiredGuestCount <= 1;
   const [comboDuoEnabled, setComboDuoEnabled] = useState(false);
+  // Nombre de praticiens en parallèle choisi (0 = défaut : un par soin de base).
+  const [practitionerCount, setPractitionerCount] = useState(0);
+  // Répartition manuelle : soin de base i → index praticien (0..N-1).
+  const [legAssignments, setLegAssignments] = useState<number[]>([]);
+  // Horaire par leg (multi-horaire). "" = créneau principal. Longueur = practitionerCount.
+  const [legTimes, setLegTimes] = useState<string[]>([]);
+  const [legDates, setLegDates] = useState<(Date | undefined)[]>([]);
 
   useEffect(() => {
     if (!comboDuoEligible && comboDuoEnabled) setComboDuoEnabled(false);
   }, [comboDuoEligible, comboDuoEnabled]);
 
-  const staffingCount = computeStaffingCount(comboDuoEnabled, baseSessionCount, requiredGuestCount);
+  // Nombre effectif de praticiens : défaut = un par soin de base (practitionerCount
+  // à 0 = non défini), sinon la valeur choisie, clampée entre 2 et baseSessionCount.
+  const effectivePractitionerCount = comboDuoEnabled
+    ? Math.min(Math.max(2, practitionerCount || baseSessionCount), Math.max(2, baseSessionCount))
+    : baseSessionCount;
+
+  // Assignation par défaut (round-robin) recalculée quand la taille change ;
+  // les choix manuels valides sont conservés tant que la longueur correspond.
+  const resolvedLegAssignments = useMemo(() => {
+    const N = effectivePractitionerCount;
+    if (legAssignments.length === baseSessionCount && legAssignments.every((v) => v < N)) {
+      return legAssignments;
+    }
+    return defaultLegAssignments(baseSessionCount, N);
+  }, [legAssignments, baseSessionCount, effectivePractitionerCount]);
+
+  const staffingCount = computeStaffingCount(comboDuoEnabled, effectivePractitionerCount, requiredGuestCount);
+
+  // Soins assignés à chaque praticien (pour le récap de l'onglet praticiens).
+  const legSoinLabels = useMemo(() => {
+    const labels: string[][] = Array.from({ length: effectivePractitionerCount }, () => []);
+    baseSoinLabels.forEach((lbl, i) => {
+      const leg = resolvedLegAssignments[i] ?? 0;
+      if (labels[leg]) labels[leg].push(lbl);
+    });
+    return labels;
+  }, [baseSoinLabels, resolvedLegAssignments, effectivePractitionerCount]);
+
+  const setLegTimeAt = (i: number, value: string) =>
+    setLegTimes((prev) => {
+      const next = [...prev];
+      next[i] = value;
+      return next;
+    });
+  const setLegDateAt = (i: number, value: Date | undefined) =>
+    setLegDates((prev) => {
+      const next = [...prev];
+      next[i] = value;
+      return next;
+    });
 
   // Additional therapist IDs for duo/trio bookings (index 0 = therapist 2, etc.)
   const [additionalTherapistIds, setAdditionalTherapistIds] = useState<string[]>([]);
@@ -322,7 +377,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const finalPrice = canEditPrice && hasOnRequestService && customPrice ? Number(customPrice) : totalPrice;
   const catalogDuration = comboDuoEnabled
-    ? buildComboDuoBookingParams(sessions).duration
+    ? buildComboDuoBookingParams(sessions, resolvedLegAssignments).duration
     : totalDuration;
   const finalDuration = canEditPrice && hasOnRequestService && customDuration
     ? Number(customDuration)
@@ -464,8 +519,95 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         return;
       }
     }
+    // admin-combo-duo : chaque praticien doit avoir au moins un soin assigné.
+    if (comboDuoEnabled && !isValidPartition(resolvedLegAssignments, effectivePractitionerCount)) {
+      toast({ title: "Chaque praticien doit avoir au moins un soin", variant: "destructive" });
+      return;
+    }
+
+    const offered = values.isOffert;
+    const mainDateStr = values.date ? format(values.date, "yyyy-MM-dd") : "";
+    const allTherapistIdsSel = [values.therapistId, ...additionalTherapistIds];
+
+    // Horaire de chaque leg : défaut = créneau principal. Dès qu'un leg diffère, la
+    // réservation devient un groupe de N bookings liés (multi-horaire, modèle B).
+    const legScheduleOf = (i: number) => {
+      const d = legDates[i] ?? values.date;
+      const tm = legTimes[i] || values.time;
+      return { date: d ? format(d, "yyyy-MM-dd") : mainDateStr, time: tm };
+    };
+    const legList = comboDuoEnabled && duoMode === "assign" ? buildLegs(sessions, resolvedLegAssignments) : [];
+    const isMultiHoraire = legList.some((_, i) => {
+      const s = legScheduleOf(i);
+      return s.date !== mainDateStr || s.time !== values.time;
+    });
+
+    if (isMultiHoraire) {
+      const surchargeFor = (price: number, tm: string) => {
+        const ooh = isAdmin && selectedHotel?.allow_out_of_hours_booking
+          ? isOutOfHours(tm, selectedHotel.opening_time || "10:00", selectedHotel.closing_time || "20:00")
+          : false;
+        return { ooh, amount: ooh ? Math.round((price * surchargePercent) / 100) : 0 };
+      };
+      const comboLegs: ComboLegPayload[] = legList.map((leg, i) => {
+        const sch = legScheduleOf(i);
+        const legPrice = offered ? 0 : leg.priceSum;
+        const { ooh, amount } = offered ? { ooh: false, amount: 0 } : surchargeFor(legPrice, sch.time);
+        return {
+          therapistId: allTherapistIdsSel[i] || null,
+          roomId: i === 0 ? values.roomId || null : null,
+          date: sch.date,
+          time: sch.time,
+          duration: leg.durationSum,
+          totalPrice: legPrice + amount,
+          isOutOfHours: ooh,
+          surchargeAmount: amount,
+          // Un praticien par booking → legIndex normalisé à 0.
+          treatments: leg.treatmentLines.map((line) => ({ ...line, legIndex: 0 })),
+        };
+      });
+      mutation.mutate({
+        hotelId: values.hotelId,
+        clientFirstName: values.clientFirstName,
+        clientLastName: values.clientLastName,
+        clientEmail: values.clientEmail || undefined,
+        phone: values.phone,
+        countryCode: values.countryCode,
+        civility: values.civility,
+        language: values.language,
+        roomNumber: values.roomNumber,
+        clientNote: values.clientNote,
+        customerNote: values.customerNote,
+        date: mainDateStr,
+        time: values.time,
+        therapistId: values.therapistId,
+        roomId: values.roomId || undefined,
+        slot2Date: null,
+        slot2Time: null,
+        slot3Date: null,
+        slot3Time: null,
+        treatmentIds: [],
+        treatments: [],
+        totalPrice: 0, // ignoré : chaque leg porte son propre prix
+        totalDuration: finalDuration,
+        isAdmin,
+        isOutOfHours: false,
+        surchargeAmount: 0,
+        amenityAccess: amenityAccessPayload.length > 0 ? amenityAccessPayload : undefined,
+        clientType: values.clientType,
+        payByVoucher: values.payByVoucher,
+        voucherReference: values.voucherReference?.trim() || null,
+        isOffert: offered,
+        source: isConcierge ? "concierge" : "admin",
+        comboDuo: true,
+        comboLegs,
+        amenityOnly: amenityOnlyCart,
+      });
+      return;
+    }
+
     const isBroadcast = !amenityOnlyCart && (duoMode === "broadcast" || !values.therapistId);
-    const comboParams = comboDuoEnabled ? buildComboDuoBookingParams(sessions) : null;
+    const comboParams = comboDuoEnabled ? buildComboDuoBookingParams(sessions, resolvedLegAssignments) : null;
     const treatments = comboParams?.treatments ?? cartDetails.flatMap(item =>
       Array.from({ length: item.quantity }, () => ({
         treatmentId: item.treatmentId,
@@ -474,7 +616,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         isAmenity: !!(item.treatment as { amenity_id?: string | null } | undefined)?.amenity_id,
       }))
     );
-    const offered = values.isOffert;
     mutation.mutate({
       hotelId: values.hotelId,
       clientFirstName: values.clientFirstName,
@@ -686,7 +827,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   comboDuoEnabled={comboDuoEnabled}
                   onComboDuoChange={setComboDuoEnabled}
                   sessionCount={sessionCount}
-                  practitionerCount={baseSessionCount}
+                  practitionerCount={effectivePractitionerCount}
+                  baseSessionCount={baseSessionCount}
+                  onPractitionerCountChange={setPractitionerCount}
+                  legAssignments={resolvedLegAssignments}
+                  onLegAssignmentsChange={setLegAssignments}
+                  baseSoinLabels={baseSoinLabels}
                   variantDuoInCart={requiredGuestCount > 1}
                   canOffer={canAssignTherapist}
                   isOffert={isOffert}
@@ -731,6 +877,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     setSecondaryRoomEnabled(enabled);
                     if (!enabled) form.setValue("secondaryRoomId", "");
                   }}
+                  comboDuoActive={comboDuoEnabled}
+                  legSoinLabels={legSoinLabels}
+                  legTimes={legTimes}
+                  legDates={legDates}
+                  mainDate={date}
+                  mainTime={time}
+                  slotInterval={venueSlotInterval}
+                  onLegTimeChange={setLegTimeAt}
+                  onLegDateChange={setLegDateAt}
                 />
             </TabsContent>
 

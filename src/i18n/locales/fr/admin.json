@@ -1093,10 +1093,16 @@
       "shiftEnds": "Fin de shift à {{time}}"
     },
     "comboDuo": {
-      "toggle": "Réserver en duo ({{count}} praticiens en parallèle)",
-      "helper": "Les {{count}} soins se déroulent en parallèle, chacun avec son praticien.",
+      "toggle": "Réserver en parallèle ({{count}} praticiens)",
+      "helper": "Les soins se déroulent en parallèle, chacun avec son praticien.",
       "ineligibleVariantDuo": "Réservation duo via variante catalogue — le mode combo n'est pas disponible.",
-      "practitionerLabel": "Praticien {{index}}"
+      "practitionerLabel": "Praticien {{index}}",
+      "practitionerCountLabel": "Nombre de praticiens",
+      "assignSoinLabel": "Répartition des soins",
+      "practitionerOption": "Praticien {{index}}",
+      "legScheduleLabel": "Horaire",
+      "differentTimeHint": "horaire distinct",
+      "emptyLegError": "Chaque praticien doit avoir au moins un soin"
     },
     "civility": {
       "label": "Civilité",

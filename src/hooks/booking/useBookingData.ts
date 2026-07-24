@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import {
@@ -9,26 +9,13 @@ import {
   type BookingTreatment,
   type OrgScope,
 } from "@shared/db";
+import { useCalendarHotels, type Hotel } from "./useCalendarHotels";
+import { useActiveTherapists, type Therapist } from "./useActiveTherapists";
 
 export type Treatment = BookingTreatment;
 export type BookingWithTreatments = BookingListItem;
 
-export interface Hotel {
-  id: string;
-  name: string;
-  image: string | null;
-  currency: string | null;
-  calendar_color: string | null;
-  opening_time: string | null;
-  closing_time: string | null;
-  room_turnover_buffer_minutes: number | null;
-}
-
-export interface Therapist {
-  id: string;
-  first_name: string;
-  last_name: string;
-}
+export type { Hotel, Therapist };
 
 export interface UseBookingDataOptions {
   /** ISO date (YYYY-MM-DD). Only bookings with booking_date >= fromDate are fetched. */
@@ -58,38 +45,27 @@ export function useBookingData(options: UseBookingDataOptions = {}) {
     [fromDate, toDate],
   );
 
-  const { data: bookings, refetch: refetchBookings } = useQuery({
+  const {
+    data: bookings,
+    refetch: refetchBookings,
+    isLoading,
+  } = useQuery({
     queryKey: scope ? bookingKeys.list(scope, filters) : ["bookings", "disabled"],
     enabled: !!scope,
-    refetchOnWindowFocus: true,
     staleTime: 30000,
     queryFn: () => listBookings(supabase, scope!, filters),
   });
 
-  const { data: hotels, refetch: refetchHotels } = useQuery({
-    queryKey: ["hotels", "booking-calendar"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name, image, currency, calendar_color, opening_time, closing_time, room_turnover_buffer_minutes")
-        .order("name");
-      if (error) throw error;
-      return data as Hotel[];
-    },
-  });
+  const { data: hotels, refetch: refetchHotels } = useCalendarHotels();
+  const { data: therapists } = useActiveTherapists();
 
-  const { data: therapists } = useQuery({
-    queryKey: ["therapists"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("therapists")
-        .select("id, first_name, last_name")
-        .eq("status", "active")
-        .order("first_name");
-      if (error) throw error;
-      return data as Therapist[];
-    },
-  });
+  // Coalesce realtime bursts: a single booking change can fire several
+  // postgres_changes events; debounce so we refetch the (now date-bounded)
+  // list once instead of once per event.
+  const refetchBookingsRef = useRef(refetchBookings);
+  refetchBookingsRef.current = refetchBookings;
+  const refetchHotelsRef = useRef(refetchHotels);
+  refetchHotelsRef.current = refetchHotels;
 
   // Realtime subscription for automatic updates
   useEffect(() => {
@@ -104,24 +80,31 @@ export function useBookingData(options: UseBookingDataOptions = {}) {
 
     const channel = supabase.channel(channelName);
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleBookingsRefetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => { refetchBookingsRef.current(); }, 500);
+    };
+
     channel.on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'bookings' },
-      () => { refetchBookings(); }
+      scheduleBookingsRefetch,
     );
 
     channel.on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'hotels' },
-      () => { refetchHotels(); }
+      () => { refetchHotelsRef.current(); }
     );
 
     channel.subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
-  }, [refetchBookings, refetchHotels]);
+  }, []);
 
   // Resolve the accepted therapists' display names for duo bookings. booking_therapists
   // has no FK to therapists, so this can't be an embedded join — resolve it here from the

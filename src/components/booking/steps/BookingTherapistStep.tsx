@@ -65,6 +65,18 @@ interface BookingTherapistStepProps {
   onSecondaryRoomChange: (id: string) => void;
   secondaryRoomEnabled: boolean;
   onSecondaryRoomEnabledChange: (enabled: boolean) => void;
+  // admin-combo-duo : récap des soins par praticien + horaire par leg (multi-horaire).
+  comboDuoActive?: boolean;
+  /** Soins assignés à chaque praticien (index = leg). */
+  legSoinLabels?: string[][];
+  /** Heure choisie par leg ("" = créneau principal). */
+  legTimes?: string[];
+  legDates?: (Date | undefined)[];
+  mainDate?: Date;
+  mainTime?: string;
+  slotInterval?: number;
+  onLegTimeChange?: (index: number, time: string) => void;
+  onLegDateChange?: (index: number, date: Date | undefined) => void;
 }
 
 const AUTO_ROOM_VALUE = "__auto__";
@@ -408,6 +420,11 @@ export function BookingTherapistStep({
   onSecondaryRoomChange,
   secondaryRoomEnabled,
   onSecondaryRoomEnabledChange,
+  comboDuoActive = false,
+  legSoinLabels = [],
+  legTimes = [],
+  mainTime = "",
+  onLegTimeChange,
 }: BookingTherapistStepProps) {
   const { t } = useTranslation("admin");
   const [search, setSearch] = useState("");
@@ -539,11 +556,35 @@ export function BookingTherapistStep({
                   const otherIds = Array.from({ length: effectiveStaffing }, (_, i) =>
                     i === 0 ? therapistId : (additionalTherapistIds[i - 1] ?? "")
                   ).filter((id, i) => i !== idx && id !== "");
+                  const soins = legSoinLabels[idx] ?? [];
                   return (
                     <div key={idx} className="space-y-1.5">
                       <Label className="text-xs font-medium">
                         {t("booking.comboDuo.practitionerLabel", { index: idx + 1, defaultValue: `Praticien ${idx + 1}` })}
                       </Label>
+                      {comboDuoActive && soins.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground">{soins.join(" + ")}</p>
+                      )}
+                      {comboDuoActive && onLegTimeChange && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-muted-foreground">
+                            {t("booking.comboDuo.legScheduleLabel", { defaultValue: "Horaire" })}
+                          </span>
+                          <Input
+                            type="time"
+                            value={legTimes[idx] || mainTime}
+                            onChange={(e) =>
+                              onLegTimeChange(idx, e.target.value === mainTime ? "" : e.target.value)
+                            }
+                            className="h-8 w-28 text-xs"
+                          />
+                          {legTimes[idx] && legTimes[idx] !== mainTime && (
+                            <span className="text-[10px] text-violet-600 dark:text-violet-400">
+                              {t("booking.comboDuo.differentTimeHint", { defaultValue: "horaire distinct" })}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <TherapistList
                         therapists={filteredTherapists}
                         selectedId={currentId}

@@ -1093,10 +1093,16 @@
       "shiftEnds": "Shift ends at {{time}}"
     },
     "comboDuo": {
-      "toggle": "Book as duo ({{count}} practitioners in parallel)",
-      "helper": "The {{count}} treatments run in parallel, each with their own practitioner.",
+      "toggle": "Book in parallel ({{count}} practitioners)",
+      "helper": "The treatments run in parallel, each with their own practitioner.",
       "ineligibleVariantDuo": "Duo booking via catalogue variant — combo mode is not available.",
-      "practitionerLabel": "Practitioner {{index}}"
+      "practitionerLabel": "Practitioner {{index}}",
+      "practitionerCountLabel": "Number of practitioners",
+      "assignSoinLabel": "Treatment allocation",
+      "practitionerOption": "Practitioner {{index}}",
+      "legScheduleLabel": "Time",
+      "differentTimeHint": "different time",
+      "emptyLegError": "Each practitioner must have at least one treatment"
     },
     "civility": {
       "label": "Title",

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SelectField } from "@/components/ui/select-field";
 import { Plus, Minus, Loader2, Clock, Ticket, Gift, Search, ChevronDown, ShoppingBag, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
@@ -80,8 +81,16 @@ interface BookingPrestationsStepProps {
   comboDuoEnabled?: boolean;
   onComboDuoChange?: (enabled: boolean) => void;
   sessionCount?: number;
-  /** Base soins only — the number of practitioners a combo-duo needs. */
+  /** Number of practitioners chosen (defaults to one per base soin). */
   practitionerCount?: number;
+  /** Number of base soins in the cart — upper bound for the practitioner count. */
+  baseSessionCount?: number;
+  onPractitionerCountChange?: (count: number) => void;
+  /** Manual assignment: base soin i → practitioner index (0..N-1). */
+  legAssignments?: number[];
+  onLegAssignmentsChange?: (assignments: number[]) => void;
+  /** Labels of the base soins, aligned with `legAssignments`. */
+  baseSoinLabels?: string[];
   variantDuoInCart?: boolean;
   // Offert (gratuit) — réservé admin/concierge
   canOffer: boolean;
@@ -131,6 +140,11 @@ export function BookingPrestationsStep({
   onComboDuoChange,
   sessionCount = 0,
   practitionerCount = 0,
+  baseSessionCount = 0,
+  onPractitionerCountChange,
+  legAssignments = [],
+  onLegAssignmentsChange,
+  baseSoinLabels = [],
   variantDuoInCart = false,
   canOffer,
   isOffert,
@@ -570,7 +584,7 @@ export function BookingPrestationsStep({
                   <span className="text-xs font-medium">
                     {t("booking.comboDuo.toggle", {
                       count: practitionerCount,
-                      defaultValue: `Réserver en duo (${practitionerCount} praticiens en parallèle)`,
+                      defaultValue: `Réserver en parallèle (${practitionerCount} praticiens)`,
                     })}
                   </span>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -581,6 +595,60 @@ export function BookingPrestationsStep({
                   </p>
                 </div>
               </label>
+
+              {comboDuoEnabled && baseSessionCount >= 2 && onPractitionerCountChange && (
+                <div className="space-y-2 pl-6 pt-1">
+                  {/* Nombre de praticiens en parallèle (2..nombre de soins). */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-medium">
+                      {t("booking.comboDuo.practitionerCountLabel", { defaultValue: "Nombre de praticiens" })}
+                    </Label>
+                    <SelectField
+                      value={String(practitionerCount)}
+                      onChange={(v) => onPractitionerCountChange(Number(v))}
+                      searchable={false}
+                      options={Array.from({ length: baseSessionCount - 1 }, (_, i) => {
+                        const n = i + 2;
+                        return { value: String(n), label: String(n) };
+                      })}
+                      aria-label={t("booking.comboDuo.practitionerCountLabel", { defaultValue: "Nombre de praticiens" })}
+                    />
+                  </div>
+
+                  {/* Assignation manuelle soin → praticien (masquée si 1 praticien/soin). */}
+                  {practitionerCount < baseSessionCount && onLegAssignmentsChange && (
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-medium">
+                        {t("booking.comboDuo.assignSoinLabel", { defaultValue: "Répartition des soins" })}
+                      </Label>
+                      {baseSoinLabels.map((label, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="flex-1 min-w-0 truncate text-[11px] text-muted-foreground">{label}</span>
+                          <div className="w-32 shrink-0">
+                            <SelectField
+                              value={String(legAssignments[i] ?? 0)}
+                              onChange={(v) => {
+                                const next = [...legAssignments];
+                                next[i] = Number(v);
+                                onLegAssignmentsChange(next);
+                              }}
+                              searchable={false}
+                              options={Array.from({ length: practitionerCount }, (_, p) => ({
+                                value: String(p),
+                                label: t("booking.comboDuo.practitionerOption", {
+                                  index: p + 1,
+                                  defaultValue: `Praticien ${p + 1}`,
+                                }),
+                              }))}
+                              aria-label={label}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {variantDuoInCart && sessionCount >= 2 && !comboDuoEligible && (

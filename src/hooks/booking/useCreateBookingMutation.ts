@@ -100,6 +100,27 @@ export interface CreateBookingPayload {
   amenityOnly?: boolean;
   /** admin-combo-duo: N solo treatments booked as one duo booking */
   comboDuo?: boolean;
+  /**
+   * admin-combo-duo multi-horaire: when the legs don't share the same slot, each
+   * leg becomes its own booking, all linked by a shared `booking_group_id`. When
+   * present (and non-empty) the mutation takes the group path instead of inserting
+   * a single booking.
+   */
+  comboLegs?: ComboLegPayload[];
+}
+
+/** One leg of a multi-horaire combo-duo → one standalone booking within the group. */
+export interface ComboLegPayload {
+  therapistId: string | null;
+  roomId?: string | null;
+  date: string;
+  time: string;
+  duration: number;
+  totalPrice: number;
+  isOutOfHours: boolean;
+  surchargeAmount: number;
+  /** Base + add-on lines for this leg (legIndex 0, since one therapist per booking). */
+  treatments: TreatmentPayload[];
 }
 
 function resolveAssignment(
@@ -237,6 +258,7 @@ async function insertSingleBooking(
   isBroadcast: boolean,
   roomId: string | null,
   secondaryRoomId: string | null,
+  bookingGroupId: string | null = null,
 ) {
   const { status: resolvedStatus, therapistId: finalTherapistId, therapistName: finalTherapistName } =
     resolveAssignment(allTherapistIds, guestCount, therapists);
@@ -274,7 +296,7 @@ async function insertSingleBooking(
     source: d.source ?? "admin",
     email_inquiry_id: d.emailInquiryId ?? null,
     language,
-    booking_group_id: null,
+    booking_group_id: bookingGroupId,
   } as any).select("id, booking_id, hotel_name, status").single();
 
   if (error) throw error;
@@ -444,6 +466,125 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           .from("customers")
           .update({ health_notes: d.customerNote.trim() })
           .eq("id", customerId);
+      }
+
+      // admin-combo-duo multi-horaire : les legs n'ont pas le même créneau → un
+      // booking par leg, tous reliés par un booking_group_id partagé. Chaque leg est
+      // une réservation autonome (son horaire, son praticien, sa salle, sa durée).
+      if (d.comboLegs && d.comboLegs.length > 0) {
+        const groupId = crypto.randomUUID();
+        let firstBooking: { id: string; booking_id?: number; hotel_name?: string; status?: string } | null = null;
+
+        for (const leg of d.comboLegs) {
+          const legTherapistIds = leg.therapistId ? [leg.therapistId] : [];
+          const legIsBroadcast = legTherapistIds.length === 0;
+
+          let legRoomId: string | null = leg.roomId?.trim() ? leg.roomId.trim() : null;
+          if (!legRoomId) {
+            legRoomId = await pickFreeRoom(
+              d.hotelId,
+              leg.date,
+              leg.time,
+              leg.duration || 30,
+              roomTurnoverBuffer,
+              new Set(),
+            );
+          }
+
+          await assertRoomsFree(
+            d.hotelId,
+            leg.date,
+            leg.time,
+            leg.duration || 30,
+            0,
+            legRoomId ? [legRoomId] : [],
+          );
+
+          const legPayload: CreateBookingPayload = {
+            ...d,
+            clientEmail: clientEmail ?? undefined,
+            date: leg.date,
+            time: leg.time,
+            totalPrice: leg.totalPrice,
+            totalDuration: leg.duration,
+            isOutOfHours: leg.isOutOfHours,
+            surchargeAmount: leg.surchargeAmount,
+            treatments: leg.treatments,
+            treatmentIds: [],
+            therapistId: leg.therapistId ?? "",
+            therapistIds: legTherapistIds,
+            secondaryRoomId: undefined,
+            // Les amenities sont rattachées une seule fois, au 1er leg (plus bas).
+            amenityAccess: undefined,
+            comboLegs: undefined,
+          };
+
+          const { booking: legBooking } = await insertSingleBooking(
+            legPayload,
+            hotel,
+            therapists,
+            customerId,
+            paymentMethod,
+            paymentStatus,
+            language,
+            legTherapistIds,
+            1,
+            legIsBroadcast,
+            legRoomId,
+            null,
+            groupId,
+          );
+
+          if (!firstBooking) firstBooking = legBooking;
+        }
+
+        // Amenities (piscine/sauna…) : rattachées au 1er booking du groupe.
+        if (d.amenityAccess && d.amenityAccess.length > 0 && firstBooking) {
+          const first = d.comboLegs[0];
+          const [h, m] = first.time.split(":").map(Number);
+          for (const amenity of d.amenityAccess) {
+            const endMinutes = h * 60 + m + amenity.duration;
+            const endH = Math.floor(endMinutes / 60) % 24;
+            const endM = endMinutes % 60;
+            const endTime = `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`;
+            await supabase.from("amenity_bookings").insert({
+              hotel_id: d.hotelId,
+              venue_amenity_id: amenity.venueAmenityId,
+              booking_date: first.date,
+              booking_time: first.time,
+              duration: amenity.duration,
+              end_time: endTime,
+              customer_id: customerId || null,
+              client_type: "lymfea",
+              room_number: d.roomNumber || null,
+              num_guests: 1,
+              price: amenity.price,
+              payment_status: amenity.price === 0 ? "offert" : "pending",
+              status: "confirmed",
+              linked_booking_id: firstBooking.id,
+            });
+          }
+        }
+
+        // Notifications agrégées par groupe (les handlers détectent le groupId).
+        try {
+          await invokeEdgeFunction("trigger-new-booking-notifications", {
+            body: {
+              bookingId: firstBooking?.id,
+              groupId,
+              sendPaymentLink: false,
+            },
+          });
+        } catch (notifyError) {
+          console.error("Error triggering booking notifications:", notifyError);
+          toast({
+            title: "Notifications non envoyées",
+            description: "Les réservations ont été créées mais les notifications ont pu échouer.",
+            variant: "destructive",
+          });
+        }
+
+        return firstBooking;
       }
 
       const guestCount = d.guestCount ?? 1;
