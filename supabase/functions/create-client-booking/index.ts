@@ -1220,21 +1220,27 @@ try {
         console.error('Error sending admin email notification (auto-validated):', adminEmailError);
       }
     } else {
-      // Broadcast to therapists with gender-preference filtering
-      try {
-        console.log('Broadcasting booking notifications (gender-aware):', bookingId);
-        const notifResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
-          body: { bookingId: bookingId, notifyAll: true },
-          headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
-        });
+      // Broadcast to therapists with gender-preference filtering.
+      // Panier 100% amenity (privatisation espace, piscine…) : aucun praticien requis,
+      // on ne diffuse pas — mais l'email admin ci-dessous reste envoyé.
+      if (isAmenityOnly) {
+        console.log('Amenity-only booking: skipping therapist broadcast', bookingId);
+      } else {
+        try {
+          console.log('Broadcasting booking notifications (gender-aware):', bookingId);
+          const notifResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
+            body: { bookingId: bookingId, notifyAll: true },
+            headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+          });
 
-        if (notifResponse.error) {
-          console.error('Failed to broadcast notifications:', notifResponse.error);
-        } else {
-          console.log('Broadcast result:', notifResponse.data);
+          if (notifResponse.error) {
+            console.error('Failed to broadcast notifications:', notifResponse.error);
+          } else {
+            console.log('Broadcast result:', notifResponse.data);
+          }
+        } catch (notifError) {
+          console.error('Error broadcasting notifications:', notifError);
         }
-      } catch (notifError) {
-        console.error('Error broadcasting notifications:', notifError);
       }
 
       // Trigger email notification to admins
