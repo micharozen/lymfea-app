@@ -269,7 +269,7 @@ export default function AddTherapistDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Ajouter un thérapeute</DialogTitle>
         </DialogHeader>
@@ -372,11 +372,13 @@ export default function AddTherapistDialog({
             <Label className="text-xs">
               {t("admin:therapistTreatments.title", "Prestations réalisables")}
             </Label>
-            <TherapistTreatmentsSelector
-              venues={hotels.filter((h) => selectedHotels.includes(h.id))}
-              value={selectedTreatmentIds}
-              onChange={setSelectedTreatmentIds}
-            />
+            <div className="max-h-64 overflow-y-auto rounded-lg border p-3">
+              <TherapistTreatmentsSelector
+                venues={hotels.filter((h) => selectedHotels.includes(h.id))}
+                value={selectedTreatmentIds}
+                onChange={setSelectedTreatmentIds}
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
