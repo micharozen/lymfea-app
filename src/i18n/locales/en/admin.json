@@ -136,6 +136,9 @@
     "filters": "Filters",
     "searchPlaceholder": "Search by client, hotel...",
     "searchTreatment": "Search a treatment…",
+    "showTreatments": "Show treatments",
+    "hideTreatments": "Hide treatments",
+    "treatmentsList": "Treatments",
     "clientType": {
       "label": "Client type",
       "hotel": "Hotel",

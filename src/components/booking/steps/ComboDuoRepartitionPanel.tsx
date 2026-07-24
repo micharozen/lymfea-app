@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
   useDraggable,
   useDroppable,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { GripVertical, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,6 +23,27 @@ interface ComboDuoRepartitionPanelProps {
   legAssignments: number[];
   practitionerCount: number;
   onLegAssignmentsChange: (assignments: number[]) => void;
+}
+
+/** Visual of a soin card, shared by the in-column chip and the drag overlay. */
+function SoinCardVisual({ label, duration, dragging }: { label: string; duration: number; dragging?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex w-full items-center gap-2 rounded-lg border border-violet-200 dark:border-violet-800 bg-white dark:bg-violet-950/40 px-2.5 py-2 text-left transition-shadow",
+        dragging ? "shadow-lg ring-2 ring-violet-300 rotate-2 cursor-grabbing" : "shadow-sm",
+      )}
+    >
+      <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-medium">{label}</span>
+        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <Clock className="h-2.5 w-2.5" />
+          {duration} min
+        </span>
+      </span>
+    </div>
+  );
 }
 
 interface SoinChipProps {
@@ -39,19 +63,9 @@ function SoinChip({ soinIndex, label, duration, onCycle }: SoinChipProps) {
       onClick={onCycle}
       {...listeners}
       {...attributes}
-      className={cn(
-        "flex w-full items-center gap-2 rounded-lg border border-violet-200 dark:border-violet-800 bg-white dark:bg-violet-950/40 px-2.5 py-2 text-left shadow-sm transition-colors hover:border-violet-400 cursor-grab active:cursor-grabbing",
-        isDragging && "opacity-40",
-      )}
+      className={cn("block w-full cursor-grab active:cursor-grabbing hover:opacity-90", isDragging && "opacity-30")}
     >
-      <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-medium">{label}</span>
-        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <Clock className="h-2.5 w-2.5" />
-          {duration} min
-        </span>
-      </span>
+      <SoinCardVisual label={label} duration={duration} />
     </button>
   );
 }
@@ -109,6 +123,7 @@ export function ComboDuoRepartitionPanel({
 }: ComboDuoRepartitionPanelProps) {
   const { t } = useTranslation("admin");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const [activeSoinIndex, setActiveSoinIndex] = useState<number | null>(null);
 
   const assign = (soinIndex: number, legIndex: number) => {
     if (legAssignments[soinIndex] === legIndex) return;
@@ -117,7 +132,12 @@ export function ComboDuoRepartitionPanel({
     onLegAssignmentsChange(next);
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveSoinIndex(Number(String(event.active.id).replace("soin-", "")));
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveSoinIndex(null);
     const soinId = String(event.active.id);
     const overId = event.over?.id ? String(event.over.id) : null;
     if (!overId) return;
@@ -140,7 +160,12 @@ export function ComboDuoRepartitionPanel({
         </p>
       </div>
 
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveSoinIndex(null)}
+      >
         <div className="flex min-h-0 flex-1 gap-2.5 overflow-x-auto">
           {Array.from({ length: practitionerCount }, (_, legIndex) => {
             const soinsInLeg = baseSoinLabels
@@ -169,6 +194,16 @@ export function ComboDuoRepartitionPanel({
             );
           })}
         </div>
+
+        <DragOverlay dropAnimation={null}>
+          {activeSoinIndex !== null ? (
+            <SoinCardVisual
+              label={baseSoinLabels[activeSoinIndex] ?? ""}
+              duration={baseSoinDurations[activeSoinIndex] ?? 0}
+              dragging
+            />
+          ) : null}
+        </DragOverlay>
       </DndContext>
     </div>
   );

@@ -104,9 +104,11 @@ useEffect(() => {
     );
     
     if (target) {
-      // Au lieu d'ouvrir l'ancienne modale 
-      // On redirige vers la nouvelle page 
-      navigate(`/admin/bookings/${target.id}`);
+      // Au lieu d'ouvrir l'ancienne modale
+      // On redirige vers la nouvelle page.
+      // replace: true évite d'empiler l'entrée `?id=...` dans l'historique,
+      // sinon le bouton "retour" y revient et re-déclenche cette redirection (boucle).
+      navigate(`/admin/bookings/${target.id}`, { replace: true });
     }
   }
 }, [searchParams, bookings, navigate]); // Se déclenche quand l'URL change ou quand les données arrivent

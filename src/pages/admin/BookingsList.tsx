@@ -80,7 +80,9 @@ export default function BookingsList() {
         (b) => b.id === bookingId || b.booking_id?.toString() === bookingId
       );
       if (target) {
-        navigate(`/admin/bookings/${target.id}`);
+        // replace: true évite d'empiler l'entrée `?id=...` dans l'historique,
+        // sinon le bouton "retour" y revient et re-déclenche cette redirection (boucle).
+        navigate(`/admin/bookings/${target.id}`, { replace: true });
       }
     }
   }, [searchParams, bookings, navigate]);

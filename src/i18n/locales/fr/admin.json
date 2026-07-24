@@ -136,6 +136,9 @@
     "filters": "Filtres",
     "searchPlaceholder": "Rechercher par client, hôtel...",
     "searchTreatment": "Rechercher un soin…",
+    "showTreatments": "Voir les prestations",
+    "hideTreatments": "Masquer les prestations",
+    "treatmentsList": "Prestations",
     "clientType": {
       "label": "Type de client",
       "hotel": "Hôtel",
