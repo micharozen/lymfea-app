@@ -418,7 +418,7 @@ export default function Payment() {
           pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
         };
 
-        const body = isMulti && multiItems
+        const body = isMulti && multiItems && bookingIds && bookingIds.length > 0 && groupId
           ? {
               hotelId,
               clientData: clientDataPayload,
