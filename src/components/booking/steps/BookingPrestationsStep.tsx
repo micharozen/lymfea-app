@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SelectField } from "@/components/ui/select-field";
+import { ComboDuoRepartitionPanel } from "./ComboDuoRepartitionPanel";
 import { Plus, Minus, Loader2, Clock, Ticket, Gift, Search, ChevronDown, ShoppingBag, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
@@ -91,6 +92,8 @@ interface BookingPrestationsStepProps {
   onLegAssignmentsChange?: (assignments: number[]) => void;
   /** Labels of the base soins, aligned with `legAssignments`. */
   baseSoinLabels?: string[];
+  /** Durations (min) of the base soins, aligned with `legAssignments`. */
+  baseSoinDurations?: number[];
   variantDuoInCart?: boolean;
   // Offert (gratuit) — réservé admin/concierge
   canOffer: boolean;
@@ -145,6 +148,7 @@ export function BookingPrestationsStep({
   legAssignments = [],
   onLegAssignmentsChange,
   baseSoinLabels = [],
+  baseSoinDurations = [],
   variantDuoInCart = false,
   canOffer,
   isOffert,
@@ -615,37 +619,15 @@ export function BookingPrestationsStep({
                     />
                   </div>
 
-                  {/* Assignation manuelle soin → praticien (masquée si 1 praticien/soin). */}
-                  {practitionerCount < baseSessionCount && onLegAssignmentsChange && (
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-medium">
-                        {t("booking.comboDuo.assignSoinLabel", { defaultValue: "Répartition des soins" })}
-                      </Label>
-                      {baseSoinLabels.map((label, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <span className="flex-1 min-w-0 truncate text-[11px] text-muted-foreground">{label}</span>
-                          <div className="w-32 shrink-0">
-                            <SelectField
-                              value={String(legAssignments[i] ?? 0)}
-                              onChange={(v) => {
-                                const next = [...legAssignments];
-                                next[i] = Number(v);
-                                onLegAssignmentsChange(next);
-                              }}
-                              searchable={false}
-                              options={Array.from({ length: practitionerCount }, (_, p) => ({
-                                value: String(p),
-                                label: t("booking.comboDuo.practitionerOption", {
-                                  index: p + 1,
-                                  defaultValue: `Praticien ${p + 1}`,
-                                }),
-                              }))}
-                              aria-label={label}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  {/* La répartition manuelle soin → praticien s'ouvre dans un panneau
+                      dédié à droite (voir ComboDuoRepartitionPanel) dès que le nombre
+                      de praticiens est inférieur au nombre de soins. */}
+                  {practitionerCount < baseSessionCount && (
+                    <p className="text-[10px] text-muted-foreground">
+                      {t("booking.comboDuo.repartitionAside", {
+                        defaultValue: "Répartissez les soins dans le panneau à droite.",
+                      })}
+                    </p>
                   )}
                 </div>
               )}
@@ -726,6 +708,20 @@ export function BookingPrestationsStep({
           </div>
         </div>
       </div>
+
+      {/* Panneau de répartition (extension à droite) — seulement si moins de
+          praticiens que de soins. */}
+      {comboDuoEnabled && practitionerCount < baseSessionCount && onLegAssignmentsChange && (
+        <div className="w-full md:w-[380px] shrink-0 flex flex-col min-h-0 border-t md:border-t-0 md:border-l border-border bg-violet-50/30 dark:bg-violet-950/10 px-4 py-4">
+          <ComboDuoRepartitionPanel
+            baseSoinLabels={baseSoinLabels}
+            baseSoinDurations={baseSoinDurations}
+            legAssignments={legAssignments}
+            practitionerCount={practitionerCount}
+            onLegAssignmentsChange={onLegAssignmentsChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

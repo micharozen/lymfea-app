@@ -135,5 +135,6 @@ export function useBookingData(options: UseBookingDataOptions = {}) {
     therapists,
     getHotelInfo,
     refetch: refetchBookings,
+    isLoading,
   };
 }

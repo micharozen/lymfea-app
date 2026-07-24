@@ -243,6 +243,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     () => sessions.filter((s) => !s.isAddon && !s.isAmenity).map((s) => s.label),
     [sessions],
   );
+  const baseSoinDurations = useMemo(
+    () => sessions.filter((s) => !s.isAddon && !s.isAmenity).map((s) => s.duration),
+    [sessions],
+  );
   const comboDuoEligible = isComboDuoEligible(sessions) && requiredGuestCount <= 1;
   const [comboDuoEnabled, setComboDuoEnabled] = useState(false);
   // Nombre de praticiens en parallèle choisi (0 = défaut : un par soin de base).
@@ -724,7 +728,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       <DialogContent
         className={cn(
           "h-[92vh] p-0 gap-0 flex flex-col overflow-hidden",
-          activeTab === "prestations" ? "sm:max-w-[880px]" : "max-w-3xl",
+          activeTab === "prestations"
+            ? comboDuoEnabled && effectivePractitionerCount < baseSessionCount
+              ? "sm:max-w-[1260px]"
+              : "sm:max-w-[880px]"
+            : "max-w-3xl",
         )}
         onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
@@ -833,6 +841,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   legAssignments={resolvedLegAssignments}
                   onLegAssignmentsChange={setLegAssignments}
                   baseSoinLabels={baseSoinLabels}
+                  baseSoinDurations={baseSoinDurations}
                   variantDuoInCart={requiredGuestCount > 1}
                   canOffer={canAssignTherapist}
                   isOffert={isOffert}
