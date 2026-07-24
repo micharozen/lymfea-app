@@ -143,7 +143,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     }
   }, [clientType, roomNumber, payByVoucher, form]);
 
-  const [createdBooking, setCreatedBooking] = useState<{ id: string; booking_id: number; hotel_name: string } | null>(null);
+  const [createdBooking, setCreatedBooking] = useState<{ id: string; booking_id: number; hotel_name: string; groupBookings?: Array<{ id: string; booking_id?: number }> } | null>(null);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
@@ -256,6 +256,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   // Horaire par leg (multi-horaire). "" = créneau principal. Longueur = practitionerCount.
   const [legTimes, setLegTimes] = useState<string[]>([]);
   const [legDates, setLegDates] = useState<(Date | undefined)[]>([]);
+  // Diffusion par leg : un leg à true est ouvert à toute l'équipe (pas de praticien fixe).
+  const [legBroadcast, setLegBroadcast] = useState<boolean[]>([]);
 
   useEffect(() => {
     if (!comboDuoEligible && comboDuoEnabled) setComboDuoEnabled(false);
@@ -301,6 +303,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       next[i] = value;
       return next;
     });
+  const setLegBroadcastAt = (i: number, value: boolean) =>
+    setLegBroadcast((prev) => {
+      const next = [...prev];
+      next[i] = value;
+      return next;
+    });
+  const isLegBroadcast = (i: number) => legBroadcast[i] === true;
 
   // Additional therapist IDs for duo/trio bookings (index 0 = therapist 2, etc.)
   const [additionalTherapistIds, setAdditionalTherapistIds] = useState<string[]>([]);
@@ -426,6 +435,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           id: data.id,
           booking_id: data.booking_id,
           hotel_name: data.hotel_name || '',
+          groupBookings: data.groupBookings,
         });
         const ct = form.getValues("clientType");
         const byVoucher = form.getValues("payByVoucher");
@@ -513,9 +523,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     }
     if (canAssignTherapist && !amenityOnlyCart && duoMode !== "broadcast") {
       if (staffingCount > 1) {
-        const assigned = [values.therapistId, ...additionalTherapistIds].filter(Boolean);
-        if (assigned.length < staffingCount) {
-          toast({ title: "Veuillez sélectionner tous les thérapeutes ou diffuser", variant: "destructive" });
+        // Chaque leg doit être soit assigné à un praticien, soit diffusé à l'équipe.
+        const slotIds = [values.therapistId, ...additionalTherapistIds];
+        const incomplete = Array.from({ length: staffingCount }).some(
+          (_, i) => !isLegBroadcast(i) && !slotIds[i],
+        );
+        if (incomplete) {
+          toast({ title: "Chaque praticien doit être choisi ou diffusé", variant: "destructive" });
           return;
         }
       } else if (!values.therapistId) {
@@ -545,8 +559,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       const s = legScheduleOf(i);
       return s.date !== mainDateStr || s.time !== values.time;
     });
+    // Un leg diffusé (ou des horaires distincts) → groupe de N réservations liées :
+    // chaque leg devient une réservation autonome, les legs diffusés sans praticien fixe.
+    const anyLegBroadcast = legList.some((_, i) => isLegBroadcast(i));
 
-    if (isMultiHoraire) {
+    if (isMultiHoraire || anyLegBroadcast) {
       const surchargeFor = (price: number, tm: string) => {
         const ooh = isAdmin && selectedHotel?.allow_out_of_hours_booking
           ? isOutOfHours(tm, selectedHotel.opening_time || "10:00", selectedHotel.closing_time || "20:00")
@@ -558,7 +575,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         const legPrice = offered ? 0 : leg.priceSum;
         const { ooh, amount } = offered ? { ooh: false, amount: 0 } : surchargeFor(legPrice, sch.time);
         return {
-          therapistId: allTherapistIdsSel[i] || null,
+          therapistId: isLegBroadcast(i) ? null : allTherapistIdsSel[i] || null,
           roomId: i === 0 ? values.roomId || null : null,
           date: sch.date,
           time: sch.time,
@@ -890,11 +907,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   legSoinLabels={legSoinLabels}
                   legTimes={legTimes}
                   legDates={legDates}
+                  legBroadcast={legBroadcast}
                   mainDate={date}
                   mainTime={time}
                   slotInterval={venueSlotInterval}
                   onLegTimeChange={setLegTimeAt}
                   onLegDateChange={setLegDateAt}
+                  onLegBroadcastToggle={setLegBroadcastAt}
                 />
             </TabsContent>
 

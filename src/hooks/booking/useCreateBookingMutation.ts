@@ -474,6 +474,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       if (d.comboLegs && d.comboLegs.length > 0) {
         const groupId = crypto.randomUUID();
         let firstBooking: { id: string; booking_id?: number; hotel_name?: string; status?: string } | null = null;
+        const groupBookings: Array<{ id: string; booking_id?: number }> = [];
 
         for (const leg of d.comboLegs) {
           const legTherapistIds = leg.therapistId ? [leg.therapistId] : [];
@@ -536,6 +537,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           );
 
           if (!firstBooking) firstBooking = legBooking;
+          if (legBooking) groupBookings.push({ id: legBooking.id, booking_id: legBooking.booking_id });
         }
 
         // Amenities (piscine/sauna…) : rattachées au 1er booking du groupe.
@@ -567,12 +569,15 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         }
 
         // Notifications agrégées par groupe (les handlers détectent le groupId).
+        // Si un leg n'a pas de praticien assigné, on diffuse à toute l'équipe.
+        const groupNeedsBroadcast = d.comboLegs.some((leg) => !leg.therapistId);
         try {
           await invokeEdgeFunction("trigger-new-booking-notifications", {
             body: {
               bookingId: firstBooking?.id,
               groupId,
               sendPaymentLink: false,
+              ...(groupNeedsBroadcast ? { notifyAll: true } : {}),
             },
           });
         } catch (notifyError) {
@@ -584,7 +589,9 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           });
         }
 
-        return firstBooking;
+        // On renvoie le 1er booking (pour la navigation) + la liste du groupe
+        // (pour afficher N cartes sur l'écran de confirmation).
+        return firstBooking ? { ...firstBooking, groupBookings } : null;
       }
 
       const guestCount = d.guestCount ?? 1;

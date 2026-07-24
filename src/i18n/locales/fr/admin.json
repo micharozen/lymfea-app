@@ -1106,6 +1106,8 @@
       "practitionerOption": "Praticien {{index}}",
       "legScheduleLabel": "Horaire",
       "differentTimeHint": "horaire distinct",
+      "broadcastLeg": "Diffuser à l'équipe",
+      "broadcastLegHint": "Ce soin est diffusé à toute l'équipe — le premier praticien disponible l'accepte.",
       "emptyLegError": "Chaque praticien doit avoir au moins un soin",
       "repartitionTitle": "Répartition des soins",
       "repartitionHint": "Glissez un soin vers un praticien (ou cliquez pour le déplacer).",

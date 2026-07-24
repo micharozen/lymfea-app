@@ -1106,6 +1106,8 @@
       "practitionerOption": "Practitioner {{index}}",
       "legScheduleLabel": "Time",
       "differentTimeHint": "different time",
+      "broadcastLeg": "Broadcast to team",
+      "broadcastLegHint": "This treatment is broadcast to the whole team — the first available practitioner takes it.",
       "emptyLegError": "Each practitioner must have at least one treatment",
       "repartitionTitle": "Treatment allocation",
       "repartitionHint": "Drag a treatment onto a practitioner (or click to move it).",
