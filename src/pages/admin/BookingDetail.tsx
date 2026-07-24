@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -114,6 +114,11 @@ function useBookingDetailDialogs() {
 export default function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Origine explicite fournie par l'appelant (ex. recherche globale) : le retour
+  // y mène directement. Sinon, retour naturel dans l'historique.
+  const backTo = (location.state as { from?: string } | null)?.from ?? null;
+  const goBack = () => (backTo ? navigate(backTo) : navigate(-1));
 
   const { t } = useTranslation('admin');
   const { showsConciergeUx: isConcierge, isAdmin } = useEffectiveRole();
@@ -498,7 +503,7 @@ export default function BookingDetail() {
       <header className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-stone-200 px-6 py-3">
         <div className="flex items-start justify-between gap-4 max-w-6xl mx-auto w-full">
           <div className="flex items-start gap-3 min-w-0">
-            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="flex-shrink-0 mt-0.5 -ml-2">
+            <Button variant="ghost" size="sm" onClick={goBack} className="flex-shrink-0 mt-0.5 -ml-2">
               <ArrowLeft className="h-4 w-4" />
               <span className="sr-only">Retour</span>
             </Button>

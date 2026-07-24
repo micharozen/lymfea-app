@@ -232,7 +232,9 @@ export function GlobalSearch() {
     runAfterPaint(() => {
       setPending(null);
       setOpen(false);
-      navigate(`/admin/bookings/${id}`);
+      // La recherche globale peut être ouverte depuis n'importe où : on force le
+      // retour vers la liste des réservations plutôt que vers un historique ambigu.
+      navigate(`/admin/bookings/${id}`, { state: { from: "/admin/bookings" } });
     });
   };
 
@@ -350,7 +352,7 @@ export function GlobalSearch() {
                           key={booking.id}
                           // FIX 3: Valeur explicite pour que la modale retrouve ses petits
                           value={`${booking.client_first_name} ${booking.client_last_name} ${booking.booking_id} ${booking.phone || ''} ${booking.client_email || ''}`}
-                          onSelect={() => onSelect(`/admin/bookings?id=${booking.id}`)}
+                          onSelect={() => openBooking(booking.id)}
                           className="gs-item gs-book"
                         >
                           <div className="gs-when">

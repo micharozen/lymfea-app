@@ -22,6 +22,7 @@ interface Treatment {
   price?: number | null;
   duration?: number | null;
   price_on_request?: boolean | null;
+  is_addon?: boolean | null;
   service_for?: string | null;
   category?: string | null;
   treatment_variants?: TreatmentVariant[];
@@ -209,6 +210,12 @@ export function BookingPrestationsStep({
     </span>
   );
 
+  const AddonBadge = () => (
+    <span className="shrink-0 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 rounded">
+      {t("bookings.addonBadge", { defaultValue: "Add-on" })}
+    </span>
+  );
+
   const priceLine = (treatment: Treatment, price: number | null | undefined, duration: number | null | undefined) =>
     treatment.price_on_request
       ? `${duration} min`
@@ -298,6 +305,7 @@ export function BookingPrestationsStep({
                             <span className="font-normal text-foreground text-sm truncate flex-1">
                               {treatment.name}
                             </span>
+                            {treatment.is_addon && <AddonBadge />}
                             {treatment.price_on_request && <OnRequestBadge />}
                             {totalQty > 0 && (
                               <span className="shrink-0 text-xs font-bold text-primary">×{totalQty}</span>
@@ -342,6 +350,7 @@ export function BookingPrestationsStep({
                             <span className="font-normal text-foreground text-sm truncate">
                               {treatment.name}
                             </span>
+                            {treatment.is_addon && <AddonBadge />}
                             {treatment.price_on_request && <OnRequestBadge />}
                           </div>
                           <span className="text-xs text-muted-foreground">

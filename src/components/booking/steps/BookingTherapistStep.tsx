@@ -19,6 +19,8 @@ import { useTranslation } from "react-i18next";
 import type { CartItem } from "../CreateBookingDialog.schema";
 import type { AvailableRoom } from "@/hooks/booking/useAvailableRooms";
 import { partitionTherapistsForSlot } from "@/hooks/booking/useAvailableTherapistsForSlot";
+import { TimeSelect } from "../TimeSelect";
+import { STAFF_BOOKING_MINUTES } from "@/lib/bookingTimeOptions";
 
 interface Therapist {
   id: string;
@@ -423,6 +425,7 @@ export function BookingTherapistStep({
   comboDuoActive = false,
   legSoinLabels = [],
   legTimes = [],
+  mainDate,
   mainTime = "",
   onLegTimeChange,
 }: BookingTherapistStepProps) {
@@ -570,13 +573,13 @@ export function BookingTherapistStep({
                           <span className="text-[11px] text-muted-foreground">
                             {t("booking.comboDuo.legScheduleLabel", { defaultValue: "Horaire" })}
                           </span>
-                          <Input
-                            type="time"
+                          <TimeSelect
                             value={legTimes[idx] || mainTime}
-                            onChange={(e) =>
-                              onLegTimeChange(idx, e.target.value === mainTime ? "" : e.target.value)
-                            }
-                            className="h-8 w-28 text-xs"
+                            onChange={(v) => onLegTimeChange(idx, v === mainTime ? "" : v)}
+                            minuteOptions={STAFF_BOOKING_MINUTES}
+                            date={mainDate}
+                            isHourUnavailable={() => false}
+                            isMinuteUnavailable={() => false}
                           />
                           {legTimes[idx] && legTimes[idx] !== mainTime && (
                             <span className="text-[10px] text-violet-600 dark:text-violet-400">
