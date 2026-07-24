@@ -245,6 +245,11 @@ serve(async (req) => {
           return requiredTreatmentIds.every(id => owned.has(id));
         });
         console.log(`Qualified therapists after treatment filter: ${eligibleTherapists.length}`);
+      } else {
+        // Panier 100% amenity (privatisation espace, piscine…) : aucune prestation
+        // soin ne requiert de praticien. Ne solliciter personne, même en notifyAll.
+        eligibleTherapists = [];
+        console.log("Amenity-only booking: no therapist broadcast");
       }
     }
 
