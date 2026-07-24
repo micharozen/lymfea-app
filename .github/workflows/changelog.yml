@@ -55,7 +55,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if git diff --quiet && git diff --staged --quiet; then
+          # Le fichier de note est un fichier NOUVEAU (untracked) : git diff
+          # l'ignore, il faut donc tester git status --porcelain qui, lui, le voit.
+          if [ -z "$(git status --porcelain src/content/changelog/)" ]; then
             echo "Aucun fichier écrit — rien à publier"
             exit 0
           fi
