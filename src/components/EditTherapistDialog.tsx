@@ -365,11 +365,13 @@ export default function EditTherapistDialog({
             <Label>
               {t("admin:therapistTreatments.title", "Prestations réalisables")}
             </Label>
-            <TherapistTreatmentsSelector
-              venues={hotels.filter((h) => selectedHotels.includes(h.id))}
-              value={selectedTreatmentIds}
-              onChange={setSelectedTreatmentIds}
-            />
+            <div className="max-h-64 overflow-y-auto rounded-lg border p-3">
+              <TherapistTreatmentsSelector
+                venues={hotels.filter((h) => selectedHotels.includes(h.id))}
+                value={selectedTreatmentIds}
+                onChange={setSelectedTreatmentIds}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
