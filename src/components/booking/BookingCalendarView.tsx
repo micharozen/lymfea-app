@@ -646,7 +646,6 @@ function BookingCard({
     : (booking.treatmentsTotalPrice || 0);
 
   const therapistShort = formatTherapistShort(booking.therapist_name);
-  const hasTherapist = !!booking.therapist_id && !!booking.therapist_name;
   const clientName = formatClientFull(booking.client_first_name, booking.client_last_name);
   const treatmentsLabel = treatments.map((t) => t.name).filter(Boolean).join(", ");
 
@@ -657,6 +656,18 @@ function BookingCard({
     (bt) => bt.status === "accepted",
   ).length;
   const therapistNames = booking.therapist_display_names ?? [];
+  // A duo names every accepted practitioner on the card ("Marie.L + Florence.S");
+  // a solo keeps the primary therapist. Falls back to the primary while a duo is
+  // still being staffed and no accepted name is resolved yet.
+  const therapistLabel =
+    isDuo && therapistNames.length > 0
+      ? therapistNames.map(formatTherapistShort).join(" + ")
+      : therapistShort;
+  const therapistTitle =
+    isDuo && therapistNames.length > 0
+      ? therapistNames.join(", ")
+      : booking.therapist_name || "";
+  const hasTherapist = !!therapistLabel;
 
   // Small payment tag — "Payé" once settled by card/cash, "Facturé chambre" when
   // charged to the hotel room. Mirrors the canonical payment_status logic used
@@ -773,19 +784,21 @@ function BookingCard({
             {showTherapistRow && (
               <div className="flex items-center gap-1 text-[12px] font-medium text-foreground/80 min-w-0">
                 <Users className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate" title={booking.therapist_name || ""}>
-                  {therapistShort}
+                <span className="truncate" title={therapistTitle}>
+                  {therapistLabel}
                 </span>
-                <button
-                  className="opacity-0 group-hover:opacity-100 transition-opacity h-3 w-3 flex items-center justify-center rounded-full hover:bg-foreground/10 flex-shrink-0 ml-auto"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/admin/therapists/${booking.therapist_id}`);
-                  }}
-                  title="Voir la fiche thérapeute"
-                >
-                  <ExternalLink className="h-2.5 w-2.5" />
-                </button>
+                {booking.therapist_id && (
+                  <button
+                    className="opacity-0 group-hover:opacity-100 transition-opacity h-3 w-3 flex items-center justify-center rounded-full hover:bg-foreground/10 flex-shrink-0 ml-auto"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/admin/therapists/${booking.therapist_id}`);
+                    }}
+                    title="Voir la fiche thérapeute"
+                  >
+                    <ExternalLink className="h-2.5 w-2.5" />
+                  </button>
+                )}
               </div>
             )}
             {showTreatmentRow && (
