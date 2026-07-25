@@ -158,6 +158,9 @@ const queryClient = new QueryClient({
       staleTime: 30000, // 30 seconds
       gcTime: 5 * 60 * 1000, // 5 minutes
       refetchOnWindowFocus: false,
+      // Default is 3 retries with exponential backoff → a slow/failing query
+      // feels very long. One retry is enough for transient blips.
+      retry: 1,
     },
   },
 });

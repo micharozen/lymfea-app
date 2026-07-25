@@ -64,6 +64,42 @@ export function myLegDuration(
   return (mine ? mine.duration : bases[0]?.duration ?? 0) + myAddons;
 }
 
+/**
+ * Wall-clock minutes a booking occupies on a calendar, used when
+ * `bookings.duration` is missing. A solo adds its treatments up; a duo runs one
+ * leg per guest IN PARALLEL, so the slot lasts as long as the longest leg —
+ * never the sum (which would stretch a 2×75 min duo to 2h30).
+ */
+export function bookingSlotDuration(treatments: LegTreatment[], guestCount: number): number {
+  if (guestCount <= 1) return sumDurations(treatments);
+
+  const bases = treatments.filter((t) => !t.is_addon);
+  const addons = treatments.filter((t) => t.is_addon);
+  if (bases.length === 0) return sumDurations(treatments);
+
+  // Shared-duo: a single soin worked in parallel by every therapist.
+  if (bases.length < guestCount) return (bases[0].duration || 0) + sumDurations(addons);
+
+  // Stable link set: group the soins per therapist, the slot is the longest leg.
+  if (bases.every((t) => t.therapist_id != null)) {
+    const byTherapist = new Map<string, number>();
+    for (const t of [...bases, ...addons]) {
+      if (t.therapist_id == null) continue;
+      byTherapist.set(t.therapist_id, (byTherapist.get(t.therapist_id) ?? 0) + (t.duration || 0));
+    }
+    const unlinkedAddons = sumDurations(addons.filter((t) => t.therapist_id == null));
+    return Math.max(...byTherapist.values()) + unlinkedAddons;
+  }
+
+  // Combo-duo without the link: one base soin per guest, worked in parallel.
+  if (bases.length === guestCount) {
+    return Math.max(...bases.map((t) => t.duration || 0)) + sumDurations(addons);
+  }
+
+  // More soins than guests and nothing to group them by: keep the safe upper bound.
+  return sumDurations(treatments);
+}
+
 export interface EstimateTherapistShareInput {
   /** booking.global_therapist_commission — false = fixed-rate mode (Eïa). */
   globalTherapistCommission: boolean | null;

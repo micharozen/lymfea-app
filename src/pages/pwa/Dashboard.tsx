@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { fetchTherapistUnavailableDates } from "@/hooks/pwa/useScheduleCompleteness";
 import { useTherapistOrganizationName } from "@/hooks/pwa/useTherapistOrganizationName";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
-import { myLegDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
+import { myLegDuration, bookingSlotDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
 
 interface Therapist {
   id: string;
@@ -49,6 +49,8 @@ interface Booking {
   booking_therapists?: { status: string; therapist_id?: string }[];
   payment_method?: string | null;
   booking_treatments?: Array<{
+    therapist_id?: string | null;
+    is_addon?: boolean | null;
     treatment_menus: {
       name: string;
       price: number;
@@ -784,11 +786,18 @@ const PwaDashboard = () => {
     if ((booking as any).duration && (booking as any).duration > 0) {
       return (booking as any).duration;
     }
-    // Fallback: Calculate from treatments
+    // Fallback: Calculate from treatments (duo legs run in parallel, never summed)
     if (!booking.booking_treatments || booking.booking_treatments.length === 0) {
       return 60; // default fallback
     }
-    const duration = booking.booking_treatments.reduce((sum, bt) => sum + (bt.treatment_menus?.duration || 0), 0);
+    const duration = bookingSlotDuration(
+      booking.booking_treatments.map((bt) => ({
+        therapist_id: bt.therapist_id ?? null,
+        duration: bt.treatment_menus?.duration ?? null,
+        is_addon: bt.is_addon ?? false,
+      })),
+      (booking as { guest_count?: number }).guest_count ?? 1
+    );
     return duration > 0 ? duration : 60; // fallback if all are 0
   };
 

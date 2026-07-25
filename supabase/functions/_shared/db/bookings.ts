@@ -169,16 +169,11 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
   };
 }
 
-export async function listBookings(
-  client: TClient,
-  scope: OrgScope,
-  filters: BookingListFilters = {},
-): Promise<BookingListItem[]> {
-  // Single query with nested select replaces the previous N+1 (one fetch per booking for treatments).
-  let q = client
-    .from("bookings")
-    .select(
-      `
+// Nested select shared by listBookings and getBookingById. Kept in sync so a
+// booking rendered from the list cache and one fetched by id have identical shape.
+// NB: the org filter join (`hotels!inner(id, organization_id)`) is appended only
+// by listBookings — getBookingById looks up by PK and relies on RLS for scoping.
+const BOOKING_SELECT = `
       *,
       booking_treatments(
         id,
@@ -195,10 +190,38 @@ export async function listBookings(
       booking_payment_infos(payment_status, stripe_payment_method_id),
       treatment_rooms!room_id(name),
       secondary_room:treatment_rooms!secondary_room_id(name),
-      customers(health_notes),
-      hotels!inner(id, organization_id)
-    `,
-    )
+      customers(health_notes)`;
+
+/**
+ * Fetch a single booking by its primary key, with the same nested shape as
+ * listBookings. No org filter: `id` is the PK and RLS already scopes access, so
+ * this is the fastest possible lookup (used by the detail page instead of
+ * loading the whole org's list to `.find()` one row).
+ */
+export async function getBookingById(
+  client: TClient,
+  id: string,
+): Promise<BookingListItem | null> {
+  const { data, error } = await client
+    .from("bookings")
+    .select(BOOKING_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return computeBookingItem(data as RawBookingRow);
+}
+
+export async function listBookings(
+  client: TClient,
+  scope: OrgScope,
+  filters: BookingListFilters = {},
+): Promise<BookingListItem[]> {
+  // Single query with nested select replaces the previous N+1 (one fetch per booking for treatments).
+  // hotels!inner is appended here only to enable the org filter; it's stripped client-side below.
+  let q = client
+    .from("bookings")
+    .select(`${BOOKING_SELECT},\n      hotels!inner(id, organization_id)`)
     .order("booking_date", { ascending: true })
     .order("booking_time", { ascending: true });
 

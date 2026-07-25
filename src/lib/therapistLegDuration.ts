@@ -2,6 +2,7 @@
 // Supabase edge functions attribute therapist legs identically. Thin re-export at @/lib.
 export {
   myLegDuration,
+  bookingSlotDuration,
   estimateTherapistShare,
   type LegTreatment,
   type EstimateTherapistShareInput,
