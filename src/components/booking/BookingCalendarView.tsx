@@ -127,6 +127,21 @@ function horizontalStyleFor(
   };
 }
 
+/** Compact client name for short/narrow cards — "S.Martin". */
+function formatClientCompact(
+  firstName: string | null | undefined,
+  lastName: string | null | undefined,
+): string {
+  const first = (firstName ?? "").trim();
+  const last = (lastName ?? "").trim();
+  if (!last) return first;
+  if (!first) return last;
+  return `${first[0].toUpperCase()}.${last}`;
+}
+
+/** Vertical gap (px) left below a card so consecutive bookings stay distinguishable. */
+const CARD_GAP = 3;
+
 function addMinutesToTime(time: string, minutes: number): string {
   const [h, m] = time.split(":").map(Number);
   const total = h * 60 + m + minutes;
@@ -808,8 +823,10 @@ function BookingCard({
               borderLeftColor: hotelInfo.calendar_color,
             }),
             top: `${top}px`,
-            height: `${height}px`,
-            minHeight: '20px',
+            // A few pixels shorter than the real slot so two back-to-back
+            // bookings read as two blocks instead of one solid band.
+            height: `${Math.max(18, height - CARD_GAP)}px`,
+            minHeight: '18px',
             ...horizontalStyle,
           }}
           onClick={(e) => {
@@ -889,7 +906,9 @@ function BookingCard({
             {paymentTag && (
               <div
                 className={cn(
-                  "mt-auto self-start px-1.5 h-4 rounded-[3px] flex items-center text-[8px] font-bold flex-shrink-0 border shadow-sm whitespace-nowrap max-w-[70%] truncate",
+                  // Kept in flow right under the detail rows: pinning it to the
+                  // bottom left a large empty gap and clipped the tag on short cards.
+                  "mt-0.5 self-start px-1.5 h-4 rounded-[3px] flex items-center text-[8px] font-bold flex-shrink-0 border shadow-sm whitespace-nowrap max-w-[70%] truncate",
                   // Reserve room on the right for the absolute "À ASSIGNER" badge when present.
                   !hasTherapist && "mr-16",
                   paymentTag.className
@@ -1091,6 +1110,13 @@ function AmenityBookingCard({
     ? `${booking.customer.first_name} ${booking.customer.last_name || ""}`.trim()
     : "";
 
+  // A 30-min slot (or a narrow band) can't fit "Sophie Martin" — the client is
+  // still the key info there, so abbreviate the first name instead of dropping it.
+  const isShort = height < 70;
+  const clientNameOnCard = (isShort || isNarrow)
+    ? formatClientCompact(booking.customer?.first_name, booking.customer?.last_name)
+    : clientName;
+
   const clientTypeBadge = {
     external: "Ext",
     internal: "Int",
@@ -1109,8 +1135,8 @@ function AmenityBookingCard({
             borderLeftColor: booking.amenity_color,
             backgroundColor: booking.amenity_color + "22",
             top: `${top}px`,
-            height: `${height}px`,
-            minHeight: "20px",
+            height: `${Math.max(18, height - CARD_GAP)}px`,
+            minHeight: "18px",
             ...horizontalStyle,
           }}
           onClick={(e) => {
@@ -1142,8 +1168,8 @@ function AmenityBookingCard({
               </div>
             </div>
             {/* Client name is always shown — it's the first thing staff look for. */}
-            <div className="truncate text-[11px] font-medium leading-tight">
-              {clientName || booking.amenity_name}
+            <div className="truncate text-[11px] font-medium leading-tight" title={clientName}>
+              {clientNameOnCard || booking.amenity_name}
             </div>
             {height >= 48 && (
               <div
