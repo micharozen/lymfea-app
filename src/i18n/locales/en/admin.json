@@ -1628,6 +1628,13 @@
         "en": "Information (EN)",
         "placeholder": "Beach & Self Care offer: €180 per person, includes beach access, lunch and a 60-min massage.\nSpa access: reserved for hotel guests.\nRelais & Châteaux Rose gift box: covers one 75-min treatment."
       }
+    },
+    "view": {
+      "table": "Table",
+      "kanban": "Kanban"
+    },
+    "kanban": {
+      "emptyColumn": "No inquiry"
     }
   },
   "checkoutIntents": {

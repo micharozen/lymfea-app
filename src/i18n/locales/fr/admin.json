@@ -1628,6 +1628,13 @@
         "en": "Informations (EN)",
         "placeholder": "Offre Beach & Self Care : 180 €/personne, comprend l'accès plage, le déjeuner et un massage 60 min.\nAccès spa : réservé aux clients de l'hôtel.\nCoffret Relais & Châteaux Rose : donne droit à un soin de 75 min."
       }
+    },
+    "view": {
+      "table": "Tableau",
+      "kanban": "Kanban"
+    },
+    "kanban": {
+      "emptyColumn": "Aucune demande"
     }
   },
   "checkoutIntents": {
