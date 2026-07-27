@@ -14,7 +14,7 @@ import { AvailabilityOverlay } from "./AvailabilityOverlay";
 import { CleanupBufferZone } from "./CleanupBufferZone";
 import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar } from "@/hooks/booking";
 import { getAmenityType } from "@/lib/amenityTypes";
-import { computeColumnLayout, toLayoutItem, type CalendarLayoutItem, type CalendarLayoutSlot } from "@/hooks/booking/useCalendarLogic";
+import { computeColumnLayout, type CalendarLayoutItem, type CalendarLayoutSlot } from "@/hooks/booking/useCalendarLogic";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 
 // Human-readable payment-status labels for the booking hover tooltip.
@@ -107,6 +107,26 @@ function formatClientFull(
   return [first, last].filter(Boolean).join(" ");
 }
 
+/**
+ * Horizontal placement of a card: the day column is split into `bandCount`
+ * bands (one per visible calendar), and overlapping cards share their band's
+ * width through the column layout.
+ */
+function horizontalStyleFor(
+  layoutInfo: CalendarLayoutSlot | undefined,
+  band: number,
+  bandCount: number,
+) {
+  const column = layoutInfo?.column ?? 0;
+  const totalColumns = layoutInfo?.totalColumns ?? 1;
+  const bands = Math.max(1, bandCount);
+  const width = 1 / (totalColumns * bands);
+  return {
+    left: `calc(${(band / bands + column / (totalColumns * bands)) * 100}% + 2px)`,
+    width: `calc(${width * 100}% - 4px)`,
+  };
+}
+
 function addMinutesToTime(time: string, minutes: number): string {
   const [h, m] = time.split(":").map(Number);
   const total = h * 60 + m + minutes;
@@ -182,47 +202,53 @@ export function BookingCalendarView({
     return { top, height };
   };
 
-  // On a single-day view each column is wide enough to give amenities their own
-  // column next to the treatments. On 3/7-day views the columns are far too
-  // narrow for that, so amenities are drawn as a translucent layer *above* the
-  // treatments instead — otherwise back-to-back bookings hide them entirely.
-  const amenitiesInline = weekDays.length === 1;
-
-  const AMENITY_KEY_PREFIX = "am:";
-
   const toAmenityLayoutItem = (booking: AmenityBookingForCalendar): CalendarLayoutItem => {
     const [h, m] = booking.booking_time.split(":").map(Number);
     return {
-      id: `${AMENITY_KEY_PREFIX}${booking.id}`,
+      id: booking.id,
       startMinutes: h * 60 + m,
       duration: booking.duration > 0 ? booking.duration : 60,
     };
   };
 
   /**
-   * Layout for one day: in inline mode treatments and amenities share a single
-   * column allocation so no block ever covers another. In overlay mode the
-   * amenities are only laid out against each other (so two simultaneous
-   * amenities don't stack perfectly).
+   * Each visible calendar (treatments + one per amenity that has bookings in the
+   * displayed range) gets its own vertical band inside a day, so an amenity is
+   * never covered by back-to-back treatments. With a single visible calendar the
+   * band spans the whole day column.
    */
+  const amenityCalendarIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const b of amenityBookings ?? []) {
+      if (visibleCalendars && visibleCalendars[b.venue_amenity_id] === false) continue;
+      if (!ids.includes(b.venue_amenity_id)) ids.push(b.venue_amenity_id);
+    }
+    return ids;
+  }, [amenityBookings, visibleCalendars]);
+
+  const bandCount = (showTreatments ? 1 : 0) + amenityCalendarIds.length;
+  const treatmentBand = 0;
+  const amenityBand = (amenityId: string) =>
+    (showTreatments ? 1 : 0) + amenityCalendarIds.indexOf(amenityId);
+
   const getDayLayout = (day: Date) => {
     const dayBookings = getBookingsForDay(day);
     const dayAmenities = getAmenityBookingsForDay(day);
-    const layoutBookings = showTreatments ? dayBookings : [];
 
-    if (amenitiesInline) {
-      const merged = computeColumnLayout([
-        ...layoutBookings.map(toLayoutItem),
-        ...dayAmenities.map(toAmenityLayoutItem),
-      ]);
-      return { dayBookings, dayAmenities, treatmentLayout: merged, amenityLayout: merged };
+    // Overlaps are resolved inside each band independently.
+    const amenityLayout = new Map<string, CalendarLayoutSlot>();
+    for (const amenityId of amenityCalendarIds) {
+      const items = dayAmenities.filter((b) => b.venue_amenity_id === amenityId);
+      computeColumnLayout(items.map(toAmenityLayoutItem)).forEach((slot, id) =>
+        amenityLayout.set(id, slot)
+      );
     }
 
     return {
       dayBookings,
       dayAmenities,
-      treatmentLayout: getBookingsLayoutForDay(layoutBookings),
-      amenityLayout: computeColumnLayout(dayAmenities.map(toAmenityLayoutItem)),
+      treatmentLayout: getBookingsLayoutForDay(showTreatments ? dayBookings : []),
+      amenityLayout,
     };
   };
 
@@ -495,6 +521,8 @@ export function BookingCalendarView({
                             key={booking.id}
                             booking={booking}
                             layoutInfo={dayLayout.get(booking.id)}
+                            band={treatmentBand}
+                            bandCount={bandCount}
                             getBookingPosition={getBookingPosition}
                             getCalendarCardColor={getCalendarCardColor}
                             getStatusColor={getStatusColor}
@@ -514,8 +542,9 @@ export function BookingCalendarView({
                         key={ab.id}
                         booking={ab}
                         position={getAmenityPosition(ab)}
-                        layoutInfo={amenityLayout.get(`${AMENITY_KEY_PREFIX}${ab.id}`)}
-                        variant={amenitiesInline ? "inline" : "overlay"}
+                        layoutInfo={amenityLayout.get(ab.id)}
+                        band={amenityBand(ab.venue_amenity_id)}
+                        bandCount={bandCount}
                         onClick={onAmenityBookingClick}
                       />
                     ))}
@@ -600,6 +629,8 @@ export function BookingCalendarView({
                             key={booking.id}
                             booking={booking}
                             layoutInfo={dayLayout.get(booking.id)}
+                            band={treatmentBand}
+                            bandCount={bandCount}
                             getBookingPosition={getBookingPosition}
                             getCalendarCardColor={getCalendarCardColor}
                             getStatusColor={getStatusColor}
@@ -619,8 +650,9 @@ export function BookingCalendarView({
                         key={ab.id}
                         booking={ab}
                         position={getAmenityPosition(ab)}
-                        layoutInfo={amenityLayout.get(`${AMENITY_KEY_PREFIX}${ab.id}`)}
-                        variant={amenitiesInline ? "inline" : "overlay"}
+                        layoutInfo={amenityLayout.get(ab.id)}
+                        band={amenityBand(ab.venue_amenity_id)}
+                        bandCount={bandCount}
                         onClick={onAmenityBookingClick}
                       />
                     ))}
@@ -648,6 +680,8 @@ export function BookingCalendarView({
 function BookingCard({
   booking,
   layoutInfo,
+  band,
+  bandCount,
   getBookingPosition,
   getCalendarCardColor,
   getStatusColor,
@@ -658,7 +692,10 @@ function BookingCard({
   showCleanupBuffer = true,
 }: {
   booking: BookingWithTreatments;
-  layoutInfo?: { column: number; totalColumns: number };
+  layoutInfo?: CalendarLayoutSlot;
+  /** Index of the calendar band this card belongs to, and how many bands the day has. */
+  band: number;
+  bandCount: number;
   getBookingPosition: (booking: BookingWithTreatments) => { top: number; height: number };
   getCalendarCardColor: (status: string, paymentStatus?: string | null) => string;
   getStatusColor: (status: string) => string;
@@ -743,14 +780,8 @@ function BookingCard({
   // When the client doesn't get its own row, keep it visible inline next to the time.
   const showInlineClient = !!clientName && !showClientRow;
 
-  const column = layoutInfo?.column ?? 0;
-  const totalColumns = layoutInfo?.totalColumns ?? 1;
-
   // Horizontal placement shared by the booking card and its cleanup buffer zone.
-  const horizontalStyle = {
-    left: `calc(${(column / totalColumns) * 100}% + 2px)`,
-    width: `calc(${(1 / totalColumns) * 100}% - 4px)`,
-  };
+  const horizontalStyle = horizontalStyleFor(layoutInfo, band, bandCount);
 
   return (
     <>
@@ -1019,22 +1050,19 @@ function AmenityBookingCard({
   booking,
   position,
   layoutInfo,
-  variant,
+  band,
+  bandCount,
   onClick,
 }: {
   booking: AmenityBookingForCalendar;
   position: { top: number; height: number };
   layoutInfo?: CalendarLayoutSlot;
-  /**
-   * "inline" — the amenity owns a column next to the treatments (single-day view).
-   * "overlay" — it floats above them as a translucent layer (3/7-day views),
-   * so back-to-back treatments never hide it.
-   */
-  variant: "inline" | "overlay";
+  /** Index of the calendar band this card belongs to, and how many bands the day has. */
+  band: number;
+  bandCount: number;
   onClick?: (booking: AmenityBookingForCalendar) => void;
 }) {
   const { top, height } = position;
-  const isOverlay = variant === "overlay";
   const typeDef = getAmenityType(booking.amenity_type);
   const Icon = typeDef?.icon;
 
@@ -1069,61 +1097,7 @@ function AmenityBookingCard({
     lymfea: "Lym",
   }[booking.client_type];
 
-  const column = layoutInfo?.column ?? 0;
-  const totalColumns = layoutInfo?.totalColumns ?? 1;
-
-  const horizontalStyle = {
-    left: `calc(${(column / totalColumns) * 100}% + 2px)`,
-    width: `calc(${(1 / totalColumns) * 100}% - 4px)`,
-  };
-
-  // Narrow columns (3/7-day views) can't fit a second card, so the amenity is
-  // reduced to a slim opaque band pinned to the top of its time range, with a
-  // colored right edge marking how long it runs. It covers ~20px of the
-  // treatment underneath instead of its whole body, which stays readable.
-  if (isOverlay) {
-    return (
-      <Tooltip delayDuration={300}>
-        <TooltipTrigger asChild>
-          <div
-            className="absolute z-20 rounded-sm overflow-hidden pointer-events-none"
-            style={{
-              top: `${top}px`,
-              height: `${height}px`,
-              minHeight: "20px",
-              borderRight: `2px solid ${booking.amenity_color}`,
-              backgroundColor: booking.amenity_color + "14",
-              ...horizontalStyle,
-            }}
-          >
-            <div
-              className="flex items-center gap-1 px-1 h-[20px] text-white pointer-events-auto cursor-pointer"
-              style={{ backgroundColor: booking.amenity_color }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onClick?.(booking);
-              }}
-            >
-              {Icon && <Icon className="h-3 w-3 flex-shrink-0" />}
-              <span className="text-[11px] font-bold leading-none">
-                {booking.booking_time?.substring(0, 5)}
-              </span>
-              <span className="text-[10px] font-medium leading-none truncate opacity-90">
-                {durationFormatted} · {booking.num_guests}/{booking.capacity_total}
-              </span>
-            </div>
-          </div>
-        </TooltipTrigger>
-        <AmenityTooltipContent
-          booking={booking}
-          Icon={Icon}
-          clientName={clientName}
-          clientTypeBadge={clientTypeBadge}
-          durationFormatted={durationFormatted}
-        />
-      </Tooltip>
-    );
-  }
+  const horizontalStyle = horizontalStyleFor(layoutInfo, band, bandCount);
 
   return (
     <Tooltip delayDuration={300}>
@@ -1167,11 +1141,10 @@ function AmenityBookingCard({
                 )}
               </div>
             </div>
-            {height >= 32 && (
-              <div className="truncate text-[8px] opacity-80 font-medium">
-                {clientName || booking.amenity_name}
-              </div>
-            )}
+            {/* Client name is always shown — it's the first thing staff look for. */}
+            <div className="truncate text-[11px] font-medium leading-tight">
+              {clientName || booking.amenity_name}
+            </div>
             {height >= 48 && (
               <div
                 className={cn(
@@ -1200,7 +1173,7 @@ function AmenityBookingCard({
   );
 }
 
-/** Hover details, shared by the inline card and the slim overlay band. */
+/** Hover details for an amenity booking. */
 function AmenityTooltipContent({
   booking,
   Icon,
