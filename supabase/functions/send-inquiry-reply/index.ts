@@ -28,11 +28,6 @@ interface InquiryRow {
   parent_inquiry_id: string | null;
 }
 
-interface HotelRow {
-  id: string;
-  name: string | null;
-}
-
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -49,15 +44,15 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function bodyToHtml(body: string, venueName: string | null): string {
+// The signature belongs to the body: the AI draft already signs with the venue's
+// configured sign-off + signature block (venue_inbox_settings), and an admin writing
+// by hand signs as they see fit. Appending the venue name here produced a duplicate.
+function bodyToHtml(body: string): string {
   const paragraphs = body
     .split(/\n{2,}/)
     .map(p => `<p style="margin:0 0 12px 0">${escapeHtml(p).replace(/\n/g, "<br />")}</p>`)
     .join("");
-  const signature = venueName
-    ? `<p style="margin:16px 0 0 0;color:#666;font-size:13px">${escapeHtml(venueName)}</p>`
-    : "";
-  return `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;line-height:1.55;color:#1a1a1a">${paragraphs}${signature}</div>`;
+  return `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;line-height:1.55;color:#1a1a1a">${paragraphs}</div>`;
 }
 
 function reSubject(original: string | null, override: string | null): string {
@@ -135,20 +130,9 @@ serve(async (req) => {
       return jsonResponse({ error: "Can only reply to a root inbound inquiry" }, 400);
     }
 
-    // 4. Load venue (for signature)
-    let venueName: string | null = null;
-    if (inquiry.hotel_id) {
-      const { data: hotelData } = await supabaseClient
-        .from("hotels")
-        .select("id, name")
-        .eq("id", inquiry.hotel_id)
-        .maybeSingle();
-      venueName = (hotelData as HotelRow | null)?.name ?? null;
-    }
-
-    // 5. Send via Resend (helper supports headers for threading)
+    // 4. Send via Resend (helper supports headers for threading)
     const finalSubject = reSubject(inquiry.subject, subjectOverride);
-    const html = bodyToHtml(replyBody, venueName);
+    const html = bodyToHtml(replyBody);
     const headers: Record<string, string> = {};
     if (inquiry.message_id) {
       headers["In-Reply-To"] = inquiry.message_id;
@@ -169,7 +153,7 @@ serve(async (req) => {
       return jsonResponse({ error: `Email send failed: ${sendResult.error ?? "no id"}` }, 502);
     }
 
-    // 6. Persist outbound row
+    // 5. Persist outbound row
     const { data: outbound, error: insertErr } = await supabaseClient
       .from("email_inquiries")
       .insert({

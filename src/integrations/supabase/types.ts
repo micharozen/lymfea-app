@@ -3669,6 +3669,56 @@ export type Database = {
           },
         ]
       }
+      venue_inbox_settings: {
+        Row: {
+          created_at: string
+          hotel_id: string
+          knowledge_base_en: string | null
+          knowledge_base_fr: string | null
+          reply_greeting_en: string | null
+          reply_greeting_fr: string | null
+          reply_signature: string | null
+          reply_signoff_en: string | null
+          reply_signoff_fr: string | null
+          reply_tone_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hotel_id: string
+          knowledge_base_en?: string | null
+          knowledge_base_fr?: string | null
+          reply_greeting_en?: string | null
+          reply_greeting_fr?: string | null
+          reply_signature?: string | null
+          reply_signoff_en?: string | null
+          reply_signoff_fr?: string | null
+          reply_tone_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hotel_id?: string
+          knowledge_base_en?: string | null
+          knowledge_base_fr?: string | null
+          reply_greeting_en?: string | null
+          reply_greeting_fr?: string | null
+          reply_signature?: string | null
+          reply_signoff_en?: string | null
+          reply_signoff_fr?: string | null
+          reply_tone_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_inbox_settings_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: true
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -1468,8 +1468,26 @@
       "errorTitle": "Erreur de traitement",
       "dismissAction": "Ignorer",
       "dismissed": "Email ignoré.",
-      "convertAction": "Convertir en réservation",
       "close": "Fermer",
+      "aiTitle": "Analyse IA",
+      "date": "Date",
+      "time": "Heure",
+      "variant": "Variante",
+      "reviewAction": "Réviser et convertir",
+      "autoConvertAction": "Convertir automatiquement",
+      "autoDisabledReason": "Soin, variante, date, heure et confiance ≥ 80 % requis",
+      "autoConverted": "Réservation créée",
+      "autoMissingFields": "Informations insuffisantes",
+      "autoLookupFailed": "Lieu ou soin introuvable",
+      "autoPriceOnRequest": "Prix sur demande — utilisez « Réviser et convertir »",
+      "convertedTitle": "Convertie en réservation",
+      "convertedOn": "le",
+      "viewBooking": "Voir la réservation",
+      "viewCustomer": "Voir le client",
+      "unknownClient": "Client",
+      "bookingNotFound": "Réservation introuvable",
+      "loading": "Chargement…",
+      "missingLine": "Il manque : {{fields}}",
       "reply": {
         "replyAction": "Répondre",
         "composerTitle": "Brouillon de réponse",
@@ -1487,7 +1505,8 @@
         "sent": "Réponse envoyée",
         "sentWithWarning": "Envoyé mais une étape a échoué : {{warning}}",
         "missingFields": "Sujet et corps requis",
-        "referencedSlots": "Disponibilités prises en compte : {{slots}}"
+        "referencedSlots": "Disponibilités prises en compte : {{slots}}",
+        "collapsedTo": "à : {{email}}"
       }
     },
     "convert": {
@@ -1587,7 +1606,35 @@
         "step2": "L'email arrive sur notre webhook sécurisé. Notre IA extrait les champs : nom, contact, date, heure, soin, nombre de personnes, notes.",
         "step3": "Une nouvelle entrée apparaît dans /admin/inbox avec un score de confiance. Les demandes ambiguës restent à valider à la main.",
         "step4": "L'admin clique sur \"Convertir en réservation\" : une réservation est créée en statut 'pending', prête à être assignée à un thérapeute."
+      },
+      "tone": {
+        "title": "Ton des réponses IA",
+        "description": "Les formules saisies ici sont reprises telles quelles par l'agent. Laissez vide pour utiliser les formules par défaut.",
+        "greetingFr": "Salutation (FR)",
+        "greetingEn": "Salutation (EN)",
+        "signoffFr": "Formule de fin (FR)",
+        "signoffEn": "Formule de fin (EN)",
+        "signature": "Signature",
+        "signatureHelp": "Bloc placé après la formule de fin. C'est la seule signature ajoutée à l'email.",
+        "notes": "Consignes de rédaction",
+        "notesPlaceholder": "Vouvoiement systématique, ne jamais proposer de remise, mentionner le vestiaire…",
+        "save": "Enregistrer",
+        "saved": "Ton des réponses enregistré"
+      },
+      "knowledge": {
+        "title": "Base de connaissance",
+        "description": "Tout ce que le catalogue de soins ne contient pas : offres packagées, accès plage, horaires, coffrets cadeaux. L'agent n'a pas le droit d'affirmer quoi que ce soit au-delà.",
+        "fr": "Informations (FR)",
+        "en": "Informations (EN)",
+        "placeholder": "Offre Beach & Self Care : 180 €/personne, comprend l'accès plage, le déjeuner et un massage 60 min.\nAccès spa : réservé aux clients de l'hôtel.\nCoffret Relais & Châteaux Rose : donne droit à un soin de 75 min."
       }
+    },
+    "view": {
+      "table": "Tableau",
+      "kanban": "Kanban"
+    },
+    "kanban": {
+      "emptyColumn": "Aucune demande"
     }
   },
   "checkoutIntents": {

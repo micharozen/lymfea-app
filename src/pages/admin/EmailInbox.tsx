@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { Inbox, Search, AlertCircle, CheckCircle2, Clock, XCircle, ArrowUp, ArrowDown, ArrowUpDown, MailCheck } from "lucide-react";
+import { Inbox, Search, ArrowUp, ArrowDown, ArrowUpDown, List, Columns3 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,13 @@ import {
   type EmailInquiryStatus,
 } from "@/hooks/inbox/useEmailInquiries";
 import { EmailInquiryDetail } from "@/components/admin/inbox/EmailInquiryDetail";
+import { InquiryKanban } from "@/components/admin/inbox/InquiryKanban";
+import {
+  STATUS_ORDER,
+  confidenceClass,
+  formatConfidence,
+  statusBadge,
+} from "@/components/admin/inbox/inquiryStatus";
 
 // Inbox lists root inbound rows only; outbound `sent` rows never appear here.
 const STATUS_OPTIONS: Array<EmailInquiryStatus | "all"> = [
@@ -45,57 +52,21 @@ const STATUS_OPTIONS: Array<EmailInquiryStatus | "all"> = [
   "failed",
 ];
 
-const STATUS_DISPLAY: Partial<Record<EmailInquiryStatus, { tkey: string; cls: string; Icon: typeof Clock }>> = {
-  received: { tkey: "inbox.status.received", cls: "bg-blue-50 text-blue-700 border-blue-200", Icon: Clock },
-  parsed: { tkey: "inbox.status.parsed", cls: "bg-amber-50 text-amber-700 border-amber-200", Icon: AlertCircle },
-  replied: { tkey: "inbox.status.replied", cls: "bg-indigo-50 text-indigo-700 border-indigo-200", Icon: MailCheck },
-  converted: { tkey: "inbox.status.converted", cls: "bg-green-50 text-green-700 border-green-200", Icon: CheckCircle2 },
-  dismissed: { tkey: "inbox.status.dismissed", cls: "bg-gray-50 text-gray-600 border-gray-200", Icon: XCircle },
-  failed: { tkey: "inbox.status.failed", cls: "bg-red-50 text-red-700 border-red-200", Icon: XCircle },
-};
-
-function statusBadge(status: EmailInquiryStatus, t: (k: string, opts?: Record<string, unknown>) => string) {
-  const cfg = STATUS_DISPLAY[status];
-  if (!cfg) {
-    return <Badge variant="outline" className="gap-1 font-normal">{status}</Badge>;
-  }
-  const Icon = cfg.Icon;
-  return (
-    <Badge variant="outline" className={cn("gap-1 font-normal", cfg.cls)}>
-      <Icon className="h-3 w-3" />
-      {t(cfg.tkey, { defaultValue: status })}
-    </Badge>
-  );
-}
-
-function formatConfidence(score: number | null): string {
-  if (score === null || Number.isNaN(score)) return "—";
-  return `${Math.round(score * 100)}%`;
-}
-
-function confidenceClass(score: number | null): string {
-  if (score === null || Number.isNaN(score)) return "text-muted-foreground";
-  if (score >= 0.8) return "text-emerald-700";
-  if (score >= 0.5) return "text-amber-700";
-  return "text-red-700";
-}
-
 type SortKey = "received" | "status" | "confidence";
 type SortDir = "asc" | "desc";
+type View = "table" | "kanban";
 
-const STATUS_ORDER: Record<EmailInquiryStatus, number> = {
-  received: 0,
-  parsed: 1,
-  failed: 2,
-  replied: 3,
-  converted: 4,
-  dismissed: 5,
-  sent: 6,
-};
+const VIEW_STORAGE_KEY = "inbox-view";
+
+function readStoredView(): View {
+  if (typeof window === "undefined") return "table";
+  return window.localStorage.getItem(VIEW_STORAGE_KEY) === "kanban" ? "kanban" : "table";
+}
 
 export default function EmailInbox() {
   const { t } = useTranslation("admin");
   const [tab, setTab] = useState<"active" | "archived">("active");
+  const [view, setView] = useState<View>(readStoredView);
   const [statusFilter, setStatusFilter] = useState<EmailInquiryStatus | "all">("all");
   const [venueFilter, setVenueFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,7 +74,16 @@ export default function EmailInbox() {
   const [sortKey, setSortKey] = useState<SortKey>("received");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  const { data: inquiries = [], isLoading, refetch } = useEmailInquiries({ status: statusFilter });
+  // On the board the columns are the statuses, so filtering by one would leave
+  // every other column empty — fetch them all.
+  const { data: inquiries = [], isLoading, refetch } = useEmailInquiries({
+    status: view === "kanban" ? "all" : statusFilter,
+  });
+
+  const changeView = (next: View) => {
+    setView(next);
+    window.localStorage.setItem(VIEW_STORAGE_KEY, next);
+  };
 
   const venueOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -216,21 +196,23 @@ export default function EmailInbox() {
               />
             </div>
 
-            <Select
-              value={statusFilter}
-              onValueChange={v => setStatusFilter(v as EmailInquiryStatus | "all")}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map(s => (
-                  <SelectItem key={s} value={s}>
-                    {s === "all" ? t("inbox.status.all") : t(`inbox.status.${s}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {view === "table" && (
+              <Select
+                value={statusFilter}
+                onValueChange={v => setStatusFilter(v as EmailInquiryStatus | "all")}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map(s => (
+                    <SelectItem key={s} value={s}>
+                      {s === "all" ? t("inbox.status.all") : t(`inbox.status.${s}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             <Select value={venueFilter} onValueChange={setVenueFilter}>
               <SelectTrigger className="w-[220px]">
@@ -247,8 +229,36 @@ export default function EmailInbox() {
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               {t("inbox.refresh")}
             </Button>
+
+            <div className="flex items-center rounded-md border border-border overflow-hidden ml-auto">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-pressed={view === "table"}
+                onClick={() => changeView("table")}
+                className={cn("rounded-none gap-1.5 h-9", view === "table" && "bg-muted text-foreground")}
+              >
+                <List className="h-4 w-4" />
+                {t("inbox.view.table", { defaultValue: "Tableau" })}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-pressed={view === "kanban"}
+                onClick={() => changeView("kanban")}
+                className={cn("rounded-none gap-1.5 h-9", view === "kanban" && "bg-muted text-foreground")}
+              >
+                <Columns3 className="h-4 w-4" />
+                {t("inbox.view.kanban", { defaultValue: "Kanban" })}
+              </Button>
+            </div>
           </div>
 
+          {view === "kanban" ? (
+            <InquiryKanban inquiries={filtered} isLoading={isLoading} onSelect={setSelected} />
+          ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -328,6 +338,7 @@ export default function EmailInbox() {
               </TableBody>
             </Table>
           </div>
+          )}
         </div>
       </div>
 
