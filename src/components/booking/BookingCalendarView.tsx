@@ -1077,50 +1077,74 @@ function AmenityBookingCard({
     width: `calc(${(1 / totalColumns) * 100}% - 4px)`,
   };
 
+  // Narrow columns (3/7-day views) can't fit a second card, so the amenity is
+  // reduced to a slim opaque band pinned to the top of its time range, with a
+  // colored right edge marking how long it runs. It covers ~20px of the
+  // treatment underneath instead of its whole body, which stays readable.
+  if (isOverlay) {
+    return (
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <div
+            className="absolute z-20 rounded-sm overflow-hidden pointer-events-none"
+            style={{
+              top: `${top}px`,
+              height: `${height}px`,
+              minHeight: "20px",
+              borderRight: `2px solid ${booking.amenity_color}`,
+              backgroundColor: booking.amenity_color + "14",
+              ...horizontalStyle,
+            }}
+          >
+            <div
+              className="flex items-center gap-1 px-1 h-[20px] text-white pointer-events-auto cursor-pointer"
+              style={{ backgroundColor: booking.amenity_color }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick?.(booking);
+              }}
+            >
+              {Icon && <Icon className="h-3 w-3 flex-shrink-0" />}
+              <span className="text-[11px] font-bold leading-none">
+                {booking.booking_time?.substring(0, 5)}
+              </span>
+              <span className="text-[10px] font-medium leading-none truncate opacity-90">
+                {durationFormatted} · {booking.num_guests}/{booking.capacity_total}
+              </span>
+            </div>
+          </div>
+        </TooltipTrigger>
+        <AmenityTooltipContent
+          booking={booking}
+          Icon={Icon}
+          clientName={clientName}
+          clientTypeBadge={clientTypeBadge}
+          durationFormatted={durationFormatted}
+        />
+      </Tooltip>
+    );
+  }
+
   return (
     <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
         <div
           ref={cardRef}
-          className={cn(
-            "absolute rounded text-sm overflow-hidden border-l-4 group transition-opacity",
-            isOverlay
-              // Above the treatments, translucent so they stay readable through it.
-              // Clicks pass through except on the header band (see below).
-              ? "z-20 pointer-events-none border border-l-4 backdrop-blur-[1px]"
-              : "z-[5] cursor-pointer hover:opacity-90"
-          )}
+          className="absolute rounded text-sm overflow-hidden border-l-4 group transition-opacity z-[5] cursor-pointer hover:opacity-90"
           style={{
             borderLeftColor: booking.amenity_color,
-            ...(isOverlay && { borderColor: booking.amenity_color + "55", borderLeftColor: booking.amenity_color }),
-            backgroundColor: booking.amenity_color + (isOverlay ? "1A" : "22"),
+            backgroundColor: booking.amenity_color + "22",
             top: `${top}px`,
             height: `${height}px`,
             minHeight: "20px",
             ...horizontalStyle,
           }}
-          onClick={isOverlay ? undefined : (e) => {
+          onClick={(e) => {
             e.stopPropagation();
             onClick?.(booking);
           }}
         >
-          <div
-            className={cn(
-              "p-1 h-full flex flex-col",
-              // In overlay mode only the top band captures the pointer, so the
-              // treatments underneath remain clickable.
-              isOverlay && "pointer-events-none"
-            )}
-          >
-            {isOverlay && (
-              <div
-                className="absolute inset-x-0 top-0 h-[18px] pointer-events-auto cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClick?.(booking);
-                }}
-              />
-            )}
+          <div className="p-1 h-full flex flex-col">
             <div
               className={cn(
                 "flex gap-0.5",
@@ -1165,41 +1189,66 @@ function AmenityBookingCard({
           </div>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="right" className="max-w-sm z-50">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            {Icon && <Icon className="h-4 w-4" style={{ color: booking.amenity_color }} />}
-            <span className="font-semibold text-sm">{booking.amenity_name}</span>
-            <Badge variant="secondary" className="text-[8px]">{clientTypeBadge}</Badge>
-          </div>
-          {clientName && (
-            <div className="flex items-center gap-2 text-xs">
-              <User className="h-3 w-3" />
-              <span>{clientName}</span>
-            </div>
-          )}
-          {booking.room_number && (
-            <div className="text-xs">Chambre: {booking.room_number}</div>
-          )}
-          <div className="flex items-center gap-2 text-xs">
-            <Clock className="h-3 w-3" />
-            <span>{booking.booking_time?.substring(0, 5)} · {durationFormatted}</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <Users className="h-3 w-3" />
-            <span>{booking.num_guests} / {booking.capacity_total} personnes</span>
-          </div>
-          {booking.price > 0 && (
-            <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
-              <Euro className="h-3 w-3" />
-              <span>{formatPrice(booking.price, "EUR")}</span>
-            </div>
-          )}
-          {booking.notes && (
-            <div className="text-xs text-muted-foreground italic">{booking.notes}</div>
-          )}
-        </div>
-      </TooltipContent>
+      <AmenityTooltipContent
+        booking={booking}
+        Icon={Icon}
+        clientName={clientName}
+        clientTypeBadge={clientTypeBadge}
+        durationFormatted={durationFormatted}
+      />
     </Tooltip>
+  );
+}
+
+/** Hover details, shared by the inline card and the slim overlay band. */
+function AmenityTooltipContent({
+  booking,
+  Icon,
+  clientName,
+  clientTypeBadge,
+  durationFormatted,
+}: {
+  booking: AmenityBookingForCalendar;
+  Icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  clientName: string;
+  clientTypeBadge?: string;
+  durationFormatted: string;
+}) {
+  return (
+    <TooltipContent side="right" className="max-w-sm z-50">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="h-4 w-4" style={{ color: booking.amenity_color }} />}
+          <span className="font-semibold text-sm">{booking.amenity_name}</span>
+          <Badge variant="secondary" className="text-[8px]">{clientTypeBadge}</Badge>
+        </div>
+        {clientName && (
+          <div className="flex items-center gap-2 text-xs">
+            <User className="h-3 w-3" />
+            <span>{clientName}</span>
+          </div>
+        )}
+        {booking.room_number && (
+          <div className="text-xs">Chambre: {booking.room_number}</div>
+        )}
+        <div className="flex items-center gap-2 text-xs">
+          <Clock className="h-3 w-3" />
+          <span>{booking.booking_time?.substring(0, 5)} · {durationFormatted}</span>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <Users className="h-3 w-3" />
+          <span>{booking.num_guests} / {booking.capacity_total} personnes</span>
+        </div>
+        {booking.price > 0 && (
+          <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
+            <Euro className="h-3 w-3" />
+            <span>{formatPrice(booking.price, "EUR")}</span>
+          </div>
+        )}
+        {booking.notes && (
+          <div className="text-xs text-muted-foreground italic">{booking.notes}</div>
+        )}
+      </div>
+    </TooltipContent>
   );
 }
