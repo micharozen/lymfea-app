@@ -14,6 +14,7 @@ import { AvailabilityOverlay } from "./AvailabilityOverlay";
 import { CleanupBufferZone } from "./CleanupBufferZone";
 import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar } from "@/hooks/booking";
 import { getAmenityType } from "@/lib/amenityTypes";
+import { computeColumnLayout, toLayoutItem, type CalendarLayoutItem, type CalendarLayoutSlot } from "@/hooks/booking/useCalendarLogic";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 
 // Human-readable payment-status labels for the booking hover tooltip.
@@ -179,6 +180,50 @@ export function BookingCalendarView({
     const top = ((h - startHour) + m / 60) * hourHeight;
     const height = Math.max(20, (booking.duration / 60) * hourHeight);
     return { top, height };
+  };
+
+  // On a single-day view each column is wide enough to give amenities their own
+  // column next to the treatments. On 3/7-day views the columns are far too
+  // narrow for that, so amenities are drawn as a translucent layer *above* the
+  // treatments instead — otherwise back-to-back bookings hide them entirely.
+  const amenitiesInline = weekDays.length === 1;
+
+  const AMENITY_KEY_PREFIX = "am:";
+
+  const toAmenityLayoutItem = (booking: AmenityBookingForCalendar): CalendarLayoutItem => {
+    const [h, m] = booking.booking_time.split(":").map(Number);
+    return {
+      id: `${AMENITY_KEY_PREFIX}${booking.id}`,
+      startMinutes: h * 60 + m,
+      duration: booking.duration > 0 ? booking.duration : 60,
+    };
+  };
+
+  /**
+   * Layout for one day: in inline mode treatments and amenities share a single
+   * column allocation so no block ever covers another. In overlay mode the
+   * amenities are only laid out against each other (so two simultaneous
+   * amenities don't stack perfectly).
+   */
+  const getDayLayout = (day: Date) => {
+    const dayBookings = getBookingsForDay(day);
+    const dayAmenities = getAmenityBookingsForDay(day);
+    const layoutBookings = showTreatments ? dayBookings : [];
+
+    if (amenitiesInline) {
+      const merged = computeColumnLayout([
+        ...layoutBookings.map(toLayoutItem),
+        ...dayAmenities.map(toAmenityLayoutItem),
+      ]);
+      return { dayBookings, dayAmenities, treatmentLayout: merged, amenityLayout: merged };
+    }
+
+    return {
+      dayBookings,
+      dayAmenities,
+      treatmentLayout: getBookingsLayoutForDay(layoutBookings),
+      amenityLayout: computeColumnLayout(dayAmenities.map(toAmenityLayoutItem)),
+    };
   };
 
   // Compute off-hours based on filtered venue or all venues
@@ -402,8 +447,7 @@ export function BookingCalendarView({
               {/* Day columns */}
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                const dayBookings = getBookingsForDay(day);
-                const dayLayout = getBookingsLayoutForDay(dayBookings);
+                const { dayBookings, dayAmenities, treatmentLayout: dayLayout, amenityLayout } = getDayLayout(day);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -465,17 +509,16 @@ export function BookingCalendarView({
                     )}
 
                     {/* Positioned amenity bookings */}
-                    {(() => {
-                      const dayAmenities = getAmenityBookingsForDay(day);
-                      return dayAmenities.map((ab) => (
-                        <AmenityBookingCard
-                          key={ab.id}
-                          booking={ab}
-                          position={getAmenityPosition(ab)}
-                          onClick={onAmenityBookingClick}
-                        />
-                      ));
-                    })()}
+                    {dayAmenities.map((ab) => (
+                      <AmenityBookingCard
+                        key={ab.id}
+                        booking={ab}
+                        position={getAmenityPosition(ab)}
+                        layoutInfo={amenityLayout.get(`${AMENITY_KEY_PREFIX}${ab.id}`)}
+                        variant={amenitiesInline ? "inline" : "overlay"}
+                        onClick={onAmenityBookingClick}
+                      />
+                    ))}
 
                     {/* Current time indicator */}
                     {showIndicator && (
@@ -511,8 +554,7 @@ export function BookingCalendarView({
               {/* Day columns */}
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                const dayBookings = getBookingsForDay(day);
-                const dayLayout = getBookingsLayoutForDay(dayBookings);
+                const { dayBookings, dayAmenities, treatmentLayout: dayLayout, amenityLayout } = getDayLayout(day);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -572,17 +614,16 @@ export function BookingCalendarView({
                     )}
 
                     {/* Amenity bookings */}
-                    {(() => {
-                      const dayAmenities = getAmenityBookingsForDay(day);
-                      return dayAmenities.map((ab) => (
-                        <AmenityBookingCard
-                          key={ab.id}
-                          booking={ab}
-                          position={getAmenityPosition(ab)}
-                          onClick={onAmenityBookingClick}
-                        />
-                      ));
-                    })()}
+                    {dayAmenities.map((ab) => (
+                      <AmenityBookingCard
+                        key={ab.id}
+                        booking={ab}
+                        position={getAmenityPosition(ab)}
+                        layoutInfo={amenityLayout.get(`${AMENITY_KEY_PREFIX}${ab.id}`)}
+                        variant={amenitiesInline ? "inline" : "overlay"}
+                        onClick={onAmenityBookingClick}
+                      />
+                    ))}
 
                     {showIndicator && (
                       <div
@@ -977,13 +1018,23 @@ function BookingCard({
 function AmenityBookingCard({
   booking,
   position,
+  layoutInfo,
+  variant,
   onClick,
 }: {
   booking: AmenityBookingForCalendar;
   position: { top: number; height: number };
+  layoutInfo?: CalendarLayoutSlot;
+  /**
+   * "inline" — the amenity owns a column next to the treatments (single-day view).
+   * "overlay" — it floats above them as a translucent layer (3/7-day views),
+   * so back-to-back treatments never hide it.
+   */
+  variant: "inline" | "overlay";
   onClick?: (booking: AmenityBookingForCalendar) => void;
 }) {
   const { top, height } = position;
+  const isOverlay = variant === "overlay";
   const typeDef = getAmenityType(booking.amenity_type);
   const Icon = typeDef?.icon;
 
@@ -1018,31 +1069,58 @@ function AmenityBookingCard({
     lymfea: "Lym",
   }[booking.client_type];
 
+  const column = layoutInfo?.column ?? 0;
+  const totalColumns = layoutInfo?.totalColumns ?? 1;
+
+  const horizontalStyle = {
+    left: `calc(${(column / totalColumns) * 100}% + 2px)`,
+    width: `calc(${(1 / totalColumns) * 100}% - 4px)`,
+  };
+
   return (
     <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
         <div
           ref={cardRef}
           className={cn(
-            "absolute rounded text-sm cursor-pointer overflow-hidden z-[5] border-l-4 group transition-opacity",
-            "hover:opacity-90"
+            "absolute rounded text-sm overflow-hidden border-l-4 group transition-opacity",
+            isOverlay
+              // Above the treatments, translucent so they stay readable through it.
+              // Clicks pass through except on the header band (see below).
+              ? "z-20 pointer-events-none border border-l-4 backdrop-blur-[1px]"
+              : "z-[5] cursor-pointer hover:opacity-90"
           )}
           style={{
             borderLeftColor: booking.amenity_color,
-            backgroundColor: booking.amenity_color + "22",
+            ...(isOverlay && { borderColor: booking.amenity_color + "55", borderLeftColor: booking.amenity_color }),
+            backgroundColor: booking.amenity_color + (isOverlay ? "1A" : "22"),
             top: `${top}px`,
             height: `${height}px`,
             minHeight: "20px",
-            left: "auto",
-            right: "2px",
-            width: "38%",
+            ...horizontalStyle,
           }}
-          onClick={(e) => {
+          onClick={isOverlay ? undefined : (e) => {
             e.stopPropagation();
             onClick?.(booking);
           }}
         >
-          <div className="p-1 h-full flex flex-col">
+          <div
+            className={cn(
+              "p-1 h-full flex flex-col",
+              // In overlay mode only the top band captures the pointer, so the
+              // treatments underneath remain clickable.
+              isOverlay && "pointer-events-none"
+            )}
+          >
+            {isOverlay && (
+              <div
+                className="absolute inset-x-0 top-0 h-[18px] pointer-events-auto cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick?.(booking);
+                }}
+              />
+            )}
             <div
               className={cn(
                 "flex gap-0.5",

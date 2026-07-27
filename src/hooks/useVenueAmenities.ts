@@ -11,7 +11,10 @@ export interface VenueAmenity {
   name: string | null;
   color: string;
   capacity_per_slot: number;
+  /** Default duration pre-selected when creating a booking. */
   slot_duration: number;
+  /** Durations (minutes) selectable at booking time. Empty means only slot_duration. */
+  allowed_durations: number[];
   prep_time: number;
   price_external: number;
   price_lymfea: number;
@@ -32,6 +35,7 @@ export type VenueAmenityInsert = {
   color?: string;
   capacity_per_slot?: number;
   slot_duration?: number;
+  allowed_durations?: number[];
   prep_time?: number;
   price_external?: number;
   price_lymfea?: number;
