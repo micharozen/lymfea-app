@@ -4,13 +4,35 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, staging]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  migrations:
+    name: Migration collision check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Cible l'environnement de destination de la PR : staging par défaut,
+      # prod quand la PR vise main.
+      - name: Check migration timestamps against destination
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          TARGET=staging
+          if [ "${{ github.base_ref || github.ref_name }}" = "main" ]; then TARGET=prod; fi
+          bun scripts/check-migrations.mts --env "$TARGET"
+
   ci:
     name: Lint, Type Check & Build
     runs-on: ubuntu-latest
