@@ -29,23 +29,15 @@ export function InquiryThreadView({ rootInquiryId, rootFallback }: Props) {
       : [];
 
   if (isLoading && messages.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground italic">
-        {t("inbox.detail.loading", { defaultValue: "Chargement..." })}
-      </p>
-    );
+    return <p className="card-empty">{t("inbox.detail.loading", { defaultValue: "Chargement…" })}</p>;
   }
 
   if (messages.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground italic">
-        {t("inbox.detail.noBody")}
-      </p>
-    );
+    return <p className="card-empty">{t("inbox.detail.noBody")}</p>;
   }
 
   return (
-    <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+    <div className="thread">
       {messages.map((msg) => {
         const isOutbound = msg.direction === "outbound";
         const body = plainBody(msg);
@@ -53,24 +45,9 @@ export function InquiryThreadView({ rootInquiryId, rootFallback }: Props) {
         const Icon = isOutbound ? MailCheck : Mail;
 
         return (
-          <div
-            key={msg.id}
-            className={cn("flex", isOutbound ? "justify-end" : "justify-start")}
-          >
-            <div
-              className={cn(
-                "max-w-[85%] rounded-2xl px-4 py-2.5 shadow-sm",
-                isOutbound
-                  ? "rounded-br-md bg-[#0A84FF] text-white"
-                  : "rounded-bl-md bg-[#0A84FF] text-white",
-              )}
-            >
-              <div
-                className={cn(
-                  "flex items-center gap-1.5 text-[11px] mb-1 opacity-80",
-                  isOutbound ? "justify-end" : "justify-start",
-                )}
-              >
+          <div key={msg.id} className={cn("msg", isOutbound ? "out" : "in")}>
+            <div className="bubble">
+              <div className="hdr">
                 <Icon className="h-3 w-3" />
                 <span>
                   {isOutbound
@@ -79,9 +56,7 @@ export function InquiryThreadView({ rootInquiryId, rootFallback }: Props) {
                 </span>
                 <span>· {when}</span>
               </div>
-              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                {body}
-              </p>
+              <p>{body}</p>
             </div>
           </div>
         );
