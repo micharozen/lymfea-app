@@ -136,6 +136,10 @@
     "filters": "Filters",
     "searchPlaceholder": "Search by client, hotel...",
     "searchTreatment": "Search a treatment…",
+    "addonBadge": "Add-on",
+    "showTreatments": "Show treatments",
+    "hideTreatments": "Hide treatments",
+    "treatmentsList": "Treatments",
     "clientType": {
       "label": "Client type",
       "hotel": "Hotel",
@@ -1093,10 +1097,23 @@
       "shiftEnds": "Shift ends at {{time}}"
     },
     "comboDuo": {
-      "toggle": "Book as duo ({{count}} practitioners in parallel)",
-      "helper": "The {{count}} treatments run in parallel, each with their own practitioner.",
+      "toggle": "Book in parallel ({{count}} practitioners)",
+      "helper": "The treatments run in parallel, each with their own practitioner.",
       "ineligibleVariantDuo": "Duo booking via catalogue variant — combo mode is not available.",
-      "practitionerLabel": "Practitioner {{index}}"
+      "practitionerLabel": "Practitioner {{index}}",
+      "practitionerCountLabel": "Number of practitioners",
+      "assignSoinLabel": "Treatment allocation",
+      "practitionerOption": "Practitioner {{index}}",
+      "legScheduleLabel": "Time",
+      "differentTimeHint": "different time",
+      "broadcastLeg": "Broadcast to team",
+      "broadcastLegHint": "This treatment is broadcast to the whole team — the first available practitioner takes it.",
+      "emptyLegError": "Each practitioner must have at least one treatment",
+      "repartitionTitle": "Treatment allocation",
+      "repartitionHint": "Drag a treatment onto a practitioner (or click to move it).",
+      "repartitionAside": "Allocate the treatments in the panel on the right.",
+      "dropHere": "Drop a treatment here",
+      "totalShort": "Total"
     },
     "civility": {
       "label": "Title",

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { myLegDuration, estimateTherapistShare } from "./therapistLegDuration";
+import { myLegDuration, bookingSlotDuration, estimateTherapistShare } from "./therapistLegDuration";
 
 describe("myLegDuration", () => {
   it("solo (guestCount ≤ 1): sums every treatment duration", () => {
@@ -94,6 +94,63 @@ describe("myLegDuration", () => {
     ];
     expect(myLegDuration("t1", treatments, ["t1", "t2"], 2)).toBe(60);
     expect(myLegDuration("t2", treatments, ["t1", "t2"], 2)).toBe(90);
+  });
+});
+
+describe("bookingSlotDuration", () => {
+  it("solo: sums every treatment", () => {
+    const treatments = [
+      { therapist_id: null, duration: 60 },
+      { therapist_id: null, duration: 30, is_addon: true },
+    ];
+    expect(bookingSlotDuration(treatments, 1)).toBe(90);
+  });
+
+  it("duo with stable link: the longest leg, not the sum (booking #963)", () => {
+    const treatments = [
+      { therapist_id: "marie", duration: 75 },
+      { therapist_id: "florence", duration: 75 },
+    ];
+    expect(bookingSlotDuration(treatments, 2)).toBe(75);
+  });
+
+  it("duo with uneven legs: the longest one drives the slot", () => {
+    const treatments = [
+      { therapist_id: "t1", duration: 60 },
+      { therapist_id: "t2", duration: 90 },
+    ];
+    expect(bookingSlotDuration(treatments, 2)).toBe(90);
+  });
+
+  it("combo-duo: add-ons extend the leg that carries them", () => {
+    const treatments = [
+      { therapist_id: "t1", duration: 90 },
+      { therapist_id: "t2", duration: 90 },
+      { therapist_id: "t1", duration: 15, is_addon: true },
+    ];
+    expect(bookingSlotDuration(treatments, 2)).toBe(105);
+  });
+
+  it("duo without stable link: parallel soins, longest one wins", () => {
+    const treatments = [
+      { therapist_id: null, duration: 60 },
+      { therapist_id: null, duration: 75 },
+    ];
+    expect(bookingSlotDuration(treatments, 2)).toBe(75);
+  });
+
+  it("shared-duo: a single soin worked in parallel", () => {
+    const treatments = [{ therapist_id: null, duration: 60 }];
+    expect(bookingSlotDuration(treatments, 2)).toBe(60);
+  });
+
+  it("more soins than guests without a link: keeps the sum as a safe upper bound", () => {
+    const treatments = [
+      { therapist_id: null, duration: 60 },
+      { therapist_id: null, duration: 30 },
+      { therapist_id: null, duration: 45 },
+    ];
+    expect(bookingSlotDuration(treatments, 2)).toBe(135);
   });
 });
 

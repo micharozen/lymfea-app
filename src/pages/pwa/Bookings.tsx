@@ -22,6 +22,7 @@ import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 
 interface BookingTreatment {
   therapist_id?: string | null;
+  is_addon?: boolean | null;
   // Resolved client-side for duo bookings: "Prénom N." of the assigned therapist.
   therapistShortName?: string | null;
   treatment_menus: {
@@ -192,13 +193,13 @@ const PwaBookings = () => {
       const venueScope = scope === "venue" && conciergeHotels.length > 0;
 
       const mineSelect =
-        "*, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(therapist_id, treatment_menus(name, price, duration))";
+        "*, treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(therapist_id, is_addon, treatment_menus(name, price, duration))";
 
       let query = supabase
         .from("bookings")
         .select(
           venueScope
-            ? "*, treatment_rooms!bookings_trunk_id_fkey(name), therapists(first_name, last_name), booking_treatments(therapist_id, treatment_menus(name, price, duration))"
+            ? "*, treatment_rooms!bookings_trunk_id_fkey(name), therapists(first_name, last_name), booking_treatments(therapist_id, is_addon, treatment_menus(name, price, duration))"
             : mineSelect,
         );
 

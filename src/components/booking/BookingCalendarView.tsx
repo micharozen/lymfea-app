@@ -14,6 +14,7 @@ import { AvailabilityOverlay } from "./AvailabilityOverlay";
 import { CleanupBufferZone } from "./CleanupBufferZone";
 import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar } from "@/hooks/booking";
 import { getAmenityType } from "@/lib/amenityTypes";
+import { computeColumnLayout, type CalendarLayoutItem, type CalendarLayoutSlot } from "@/hooks/booking/useCalendarLogic";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 
 // Human-readable payment-status labels for the booking hover tooltip.
@@ -106,6 +107,41 @@ function formatClientFull(
   return [first, last].filter(Boolean).join(" ");
 }
 
+/**
+ * Horizontal placement of a card: the day column is split into `bandCount`
+ * bands (one per visible calendar), and overlapping cards share their band's
+ * width through the column layout.
+ */
+function horizontalStyleFor(
+  layoutInfo: CalendarLayoutSlot | undefined,
+  band: number,
+  bandCount: number,
+) {
+  const column = layoutInfo?.column ?? 0;
+  const totalColumns = layoutInfo?.totalColumns ?? 1;
+  const bands = Math.max(1, bandCount);
+  const width = 1 / (totalColumns * bands);
+  return {
+    left: `calc(${(band / bands + column / (totalColumns * bands)) * 100}% + 2px)`,
+    width: `calc(${width * 100}% - 4px)`,
+  };
+}
+
+/** Compact client name for short/narrow cards — "S.Martin". */
+function formatClientCompact(
+  firstName: string | null | undefined,
+  lastName: string | null | undefined,
+): string {
+  const first = (firstName ?? "").trim();
+  const last = (lastName ?? "").trim();
+  if (!last) return first;
+  if (!first) return last;
+  return `${first[0].toUpperCase()}.${last}`;
+}
+
+/** Vertical gap (px) left below a card so consecutive bookings stay distinguishable. */
+const CARD_GAP = 3;
+
 function addMinutesToTime(time: string, minutes: number): string {
   const [h, m] = time.split(":").map(Number);
   const total = h * 60 + m + minutes;
@@ -179,6 +215,56 @@ export function BookingCalendarView({
     const top = ((h - startHour) + m / 60) * hourHeight;
     const height = Math.max(20, (booking.duration / 60) * hourHeight);
     return { top, height };
+  };
+
+  const toAmenityLayoutItem = (booking: AmenityBookingForCalendar): CalendarLayoutItem => {
+    const [h, m] = booking.booking_time.split(":").map(Number);
+    return {
+      id: booking.id,
+      startMinutes: h * 60 + m,
+      duration: booking.duration > 0 ? booking.duration : 60,
+    };
+  };
+
+  /**
+   * Each visible calendar (treatments + one per amenity that has bookings in the
+   * displayed range) gets its own vertical band inside a day, so an amenity is
+   * never covered by back-to-back treatments. With a single visible calendar the
+   * band spans the whole day column.
+   */
+  const amenityCalendarIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const b of amenityBookings ?? []) {
+      if (visibleCalendars && visibleCalendars[b.venue_amenity_id] === false) continue;
+      if (!ids.includes(b.venue_amenity_id)) ids.push(b.venue_amenity_id);
+    }
+    return ids;
+  }, [amenityBookings, visibleCalendars]);
+
+  const bandCount = (showTreatments ? 1 : 0) + amenityCalendarIds.length;
+  const treatmentBand = 0;
+  const amenityBand = (amenityId: string) =>
+    (showTreatments ? 1 : 0) + amenityCalendarIds.indexOf(amenityId);
+
+  const getDayLayout = (day: Date) => {
+    const dayBookings = getBookingsForDay(day);
+    const dayAmenities = getAmenityBookingsForDay(day);
+
+    // Overlaps are resolved inside each band independently.
+    const amenityLayout = new Map<string, CalendarLayoutSlot>();
+    for (const amenityId of amenityCalendarIds) {
+      const items = dayAmenities.filter((b) => b.venue_amenity_id === amenityId);
+      computeColumnLayout(items.map(toAmenityLayoutItem)).forEach((slot, id) =>
+        amenityLayout.set(id, slot)
+      );
+    }
+
+    return {
+      dayBookings,
+      dayAmenities,
+      treatmentLayout: getBookingsLayoutForDay(showTreatments ? dayBookings : []),
+      amenityLayout,
+    };
   };
 
   // Compute off-hours based on filtered venue or all venues
@@ -402,8 +488,7 @@ export function BookingCalendarView({
               {/* Day columns */}
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                const dayBookings = getBookingsForDay(day);
-                const dayLayout = getBookingsLayoutForDay(dayBookings);
+                const { dayBookings, dayAmenities, treatmentLayout: dayLayout, amenityLayout } = getDayLayout(day);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -451,6 +536,8 @@ export function BookingCalendarView({
                             key={booking.id}
                             booking={booking}
                             layoutInfo={dayLayout.get(booking.id)}
+                            band={treatmentBand}
+                            bandCount={bandCount}
                             getBookingPosition={getBookingPosition}
                             getCalendarCardColor={getCalendarCardColor}
                             getStatusColor={getStatusColor}
@@ -465,17 +552,17 @@ export function BookingCalendarView({
                     )}
 
                     {/* Positioned amenity bookings */}
-                    {(() => {
-                      const dayAmenities = getAmenityBookingsForDay(day);
-                      return dayAmenities.map((ab) => (
-                        <AmenityBookingCard
-                          key={ab.id}
-                          booking={ab}
-                          position={getAmenityPosition(ab)}
-                          onClick={onAmenityBookingClick}
-                        />
-                      ));
-                    })()}
+                    {dayAmenities.map((ab) => (
+                      <AmenityBookingCard
+                        key={ab.id}
+                        booking={ab}
+                        position={getAmenityPosition(ab)}
+                        layoutInfo={amenityLayout.get(ab.id)}
+                        band={amenityBand(ab.venue_amenity_id)}
+                        bandCount={bandCount}
+                        onClick={onAmenityBookingClick}
+                      />
+                    ))}
 
                     {/* Current time indicator */}
                     {showIndicator && (
@@ -511,8 +598,7 @@ export function BookingCalendarView({
               {/* Day columns */}
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                const dayBookings = getBookingsForDay(day);
-                const dayLayout = getBookingsLayoutForDay(dayBookings);
+                const { dayBookings, dayAmenities, treatmentLayout: dayLayout, amenityLayout } = getDayLayout(day);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -558,6 +644,8 @@ export function BookingCalendarView({
                             key={booking.id}
                             booking={booking}
                             layoutInfo={dayLayout.get(booking.id)}
+                            band={treatmentBand}
+                            bandCount={bandCount}
                             getBookingPosition={getBookingPosition}
                             getCalendarCardColor={getCalendarCardColor}
                             getStatusColor={getStatusColor}
@@ -572,17 +660,17 @@ export function BookingCalendarView({
                     )}
 
                     {/* Amenity bookings */}
-                    {(() => {
-                      const dayAmenities = getAmenityBookingsForDay(day);
-                      return dayAmenities.map((ab) => (
-                        <AmenityBookingCard
-                          key={ab.id}
-                          booking={ab}
-                          position={getAmenityPosition(ab)}
-                          onClick={onAmenityBookingClick}
-                        />
-                      ));
-                    })()}
+                    {dayAmenities.map((ab) => (
+                      <AmenityBookingCard
+                        key={ab.id}
+                        booking={ab}
+                        position={getAmenityPosition(ab)}
+                        layoutInfo={amenityLayout.get(ab.id)}
+                        band={amenityBand(ab.venue_amenity_id)}
+                        bandCount={bandCount}
+                        onClick={onAmenityBookingClick}
+                      />
+                    ))}
 
                     {showIndicator && (
                       <div
@@ -607,6 +695,8 @@ export function BookingCalendarView({
 function BookingCard({
   booking,
   layoutInfo,
+  band,
+  bandCount,
   getBookingPosition,
   getCalendarCardColor,
   getStatusColor,
@@ -617,7 +707,10 @@ function BookingCard({
   showCleanupBuffer = true,
 }: {
   booking: BookingWithTreatments;
-  layoutInfo?: { column: number; totalColumns: number };
+  layoutInfo?: CalendarLayoutSlot;
+  /** Index of the calendar band this card belongs to, and how many bands the day has. */
+  band: number;
+  bandCount: number;
   getBookingPosition: (booking: BookingWithTreatments) => { top: number; height: number };
   getCalendarCardColor: (status: string, paymentStatus?: string | null) => string;
   getStatusColor: (status: string) => string;
@@ -646,7 +739,6 @@ function BookingCard({
     : (booking.treatmentsTotalPrice || 0);
 
   const therapistShort = formatTherapistShort(booking.therapist_name);
-  const hasTherapist = !!booking.therapist_id && !!booking.therapist_name;
   const clientName = formatClientFull(booking.client_first_name, booking.client_last_name);
   const treatmentsLabel = treatments.map((t) => t.name).filter(Boolean).join(", ");
 
@@ -657,6 +749,18 @@ function BookingCard({
     (bt) => bt.status === "accepted",
   ).length;
   const therapistNames = booking.therapist_display_names ?? [];
+  // A duo names every accepted practitioner on the card ("Marie.L + Florence.S");
+  // a solo keeps the primary therapist. Falls back to the primary while a duo is
+  // still being staffed and no accepted name is resolved yet.
+  const therapistLabel =
+    isDuo && therapistNames.length > 0
+      ? therapistNames.map(formatTherapistShort).join(" + ")
+      : therapistShort;
+  const therapistTitle =
+    isDuo && therapistNames.length > 0
+      ? therapistNames.join(", ")
+      : booking.therapist_name || "";
+  const hasTherapist = !!therapistLabel;
 
   // Small payment tag — "Payé" once settled by card/cash, "Facturé chambre" when
   // charged to the hotel room. Mirrors the canonical payment_status logic used
@@ -683,22 +787,16 @@ function BookingCard({
     : 'bg-muted text-foreground';
 
   // Show each detail row only when it fully fits, so nothing is half-clipped.
-  // Rows are tight (~15px each) on top of the time row + padding.
-  const showClientRow = !!clientName && height >= 44;
-  const showTherapistRow = hasTherapist && height >= 60;
-  const showTreatmentRow = !!treatmentsLabel && height >= 76;
-  const showRoomRow = !!booking.room_name && height >= 92;
+  // Budget: 4px padding + 17px time row, then one 15px row each.
+  const showClientRow = !!clientName && height >= 40;
+  const showTherapistRow = hasTherapist && height >= 56;
+  const showTreatmentRow = !!treatmentsLabel && height >= 72;
+  const showRoomRow = !!booking.room_name && height >= 88;
   // When the client doesn't get its own row, keep it visible inline next to the time.
   const showInlineClient = !!clientName && !showClientRow;
 
-  const column = layoutInfo?.column ?? 0;
-  const totalColumns = layoutInfo?.totalColumns ?? 1;
-
   // Horizontal placement shared by the booking card and its cleanup buffer zone.
-  const horizontalStyle = {
-    left: `calc(${(column / totalColumns) * 100}% + 2px)`,
-    width: `calc(${(1 / totalColumns) * 100}% - 4px)`,
-  };
+  const horizontalStyle = horizontalStyleFor(layoutInfo, band, bandCount);
 
   return (
     <>
@@ -725,8 +823,10 @@ function BookingCard({
               borderLeftColor: hotelInfo.calendar_color,
             }),
             top: `${top}px`,
-            height: `${height}px`,
-            minHeight: '20px',
+            // A few pixels shorter than the real slot so two back-to-back
+            // bookings read as two blocks instead of one solid band.
+            height: `${Math.max(18, height - CARD_GAP)}px`,
+            minHeight: '18px',
             ...horizontalStyle,
           }}
           onClick={(e) => {
@@ -734,9 +834,9 @@ function BookingCard({
             onBookingClick(booking);
           }}
         >
-          <div className="p-1 h-full flex flex-col gap-px relative leading-none">
+          <div className="px-1 py-0.5 h-full flex flex-col gap-0 relative leading-none">
             {/* Time range (+ out-of-hours indicator, + inline client on short cards) */}
-            <div className="flex items-center gap-1 min-w-0">
+            <div className="flex items-center gap-1 min-w-0 h-[17px]">
               <span className="font-medium text-[14px] flex-shrink-0 whitespace-nowrap">
                 {booking.booking_time
                   ? `${booking.booking_time.substring(0, 5)} – ${addMinutesToTime(booking.booking_time, duration)}`
@@ -765,37 +865,39 @@ function BookingCard({
             {/* Stacked details (therapist · client · room), each with its icon.
                 Each row renders only when it fully fits (see flags above). */}
             {showClientRow && (
-              <div className="flex items-center gap-1 text-[12px] font-medium opacity-90 min-w-0" title={clientName}>
+              <div className="flex items-center gap-1 text-[12px] font-medium opacity-90 min-w-0 h-[15px]" title={clientName}>
                 <User className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">{clientName}</span>
               </div>
             )}
             {showTherapistRow && (
-              <div className="flex items-center gap-1 text-[12px] font-medium text-foreground/80 min-w-0">
+              <div className="flex items-center gap-1 text-[12px] font-medium text-foreground/80 min-w-0 h-[15px]">
                 <Users className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate" title={booking.therapist_name || ""}>
-                  {therapistShort}
+                <span className="truncate" title={therapistTitle}>
+                  {therapistLabel}
                 </span>
-                <button
-                  className="opacity-0 group-hover:opacity-100 transition-opacity h-3 w-3 flex items-center justify-center rounded-full hover:bg-foreground/10 flex-shrink-0 ml-auto"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/admin/therapists/${booking.therapist_id}`);
-                  }}
-                  title="Voir la fiche thérapeute"
-                >
-                  <ExternalLink className="h-2.5 w-2.5" />
-                </button>
+                {booking.therapist_id && (
+                  <button
+                    className="opacity-0 group-hover:opacity-100 transition-opacity h-3 w-3 flex items-center justify-center rounded-full hover:bg-foreground/10 flex-shrink-0 ml-auto"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/admin/therapists/${booking.therapist_id}`);
+                    }}
+                    title="Voir la fiche thérapeute"
+                  >
+                    <ExternalLink className="h-2.5 w-2.5" />
+                  </button>
+                )}
               </div>
             )}
             {showTreatmentRow && (
-              <div className="flex items-center gap-1 text-[12px] font-medium opacity-90 min-w-0" title={treatmentsLabel}>
+              <div className="flex items-center gap-1 text-[12px] font-medium opacity-90 min-w-0 h-[15px]" title={treatmentsLabel}>
                 <Sparkles className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">{treatmentsLabel}</span>
               </div>
             )}
             {showRoomRow && (
-              <div className="flex items-center gap-1 text-[12px] font-medium opacity-90 min-w-0" title={booking.room_name || ""}>
+              <div className="flex items-center gap-1 text-[12px] font-medium opacity-90 min-w-0 h-[15px]" title={booking.room_name || ""}>
                 <DoorOpen className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">{booking.room_name}</span>
               </div>
@@ -804,7 +906,9 @@ function BookingCard({
             {paymentTag && (
               <div
                 className={cn(
-                  "mt-auto self-start px-1.5 h-4 rounded-[3px] flex items-center text-[8px] font-bold flex-shrink-0 border shadow-sm whitespace-nowrap max-w-[70%] truncate",
+                  // Kept in flow right under the detail rows: pinning it to the
+                  // bottom left a large empty gap and clipped the tag on short cards.
+                  "mt-0.5 self-start px-1.5 h-4 rounded-[3px] flex items-center text-[8px] font-bold flex-shrink-0 border shadow-sm whitespace-nowrap max-w-[70%] truncate",
                   // Reserve room on the right for the absolute "À ASSIGNER" badge when present.
                   !hasTherapist && "mr-16",
                   paymentTag.className
@@ -964,10 +1068,17 @@ function BookingCard({
 function AmenityBookingCard({
   booking,
   position,
+  layoutInfo,
+  band,
+  bandCount,
   onClick,
 }: {
   booking: AmenityBookingForCalendar;
   position: { top: number; height: number };
+  layoutInfo?: CalendarLayoutSlot;
+  /** Index of the calendar band this card belongs to, and how many bands the day has. */
+  band: number;
+  bandCount: number;
   onClick?: (booking: AmenityBookingForCalendar) => void;
 }) {
   const { top, height } = position;
@@ -999,52 +1110,56 @@ function AmenityBookingCard({
     ? `${booking.customer.first_name} ${booking.customer.last_name || ""}`.trim()
     : "";
 
+  // A narrow band can't fit "Sophie Martin" — the client is still the key info
+  // there, so abbreviate the first name instead of dropping it. Short cards keep
+  // the full name: the rows are tight enough for it to fit on a 30-min slot.
+  const clientNameOnCard = isNarrow
+    ? formatClientCompact(booking.customer?.first_name, booking.customer?.last_name)
+    : clientName;
+
   const clientTypeBadge = {
     external: "Ext",
     internal: "Int",
     lymfea: "Lym",
   }[booking.client_type];
 
+  const horizontalStyle = horizontalStyleFor(layoutInfo, band, bandCount);
+
   return (
     <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
         <div
           ref={cardRef}
-          className={cn(
-            "absolute rounded text-sm cursor-pointer overflow-hidden z-[5] border-l-4 group transition-opacity",
-            "hover:opacity-90"
-          )}
+          className="absolute rounded text-sm overflow-hidden border-l-4 group transition-opacity z-[5] cursor-pointer hover:opacity-90"
           style={{
             borderLeftColor: booking.amenity_color,
             backgroundColor: booking.amenity_color + "22",
             top: `${top}px`,
-            height: `${height}px`,
-            minHeight: "20px",
-            left: "auto",
-            right: "2px",
-            width: "38%",
+            height: `${Math.max(18, height - CARD_GAP)}px`,
+            minHeight: "18px",
+            ...horizontalStyle,
           }}
           onClick={(e) => {
             e.stopPropagation();
             onClick?.(booking);
           }}
         >
-          <div className="p-1 h-full flex flex-col">
+          <div className="px-1 py-0.5 h-full flex flex-col gap-0 leading-none">
             <div
               className={cn(
                 "flex gap-0.5",
                 isNarrow
                   ? "flex-col items-start"
-                  : "flex-row items-start justify-between"
+                  : "flex-row items-center justify-between h-[16px]"
               )}
             >
-              <div className="font-bold text-[13px] leading-tight" style={{ color: booking.amenity_color }}>
+              <div className="font-bold text-[13px]" style={{ color: booking.amenity_color }}>
                 {booking.booking_time?.substring(0, 5)}
               </div>
               <div className="flex items-center gap-0.5 flex-shrink-0">
                 {Icon && (
                   <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center"
+                    className="w-4 h-4 rounded-full flex items-center justify-center"
                     style={{ backgroundColor: booking.amenity_color + "25" }}
                   >
                     <Icon className="h-2.5 w-2.5" style={{ color: booking.amenity_color }} />
@@ -1052,18 +1167,17 @@ function AmenityBookingCard({
                 )}
               </div>
             </div>
-            {height >= 32 && (
-              <div className="truncate text-[8px] opacity-80 font-medium">
-                {clientName || booking.amenity_name}
-              </div>
-            )}
-            {height >= 48 && (
+            {/* Client name is always shown — it's the first thing staff look for. */}
+            <div className="truncate text-[12px] font-medium h-[14px] flex items-center" title={clientName}>
+              {clientNameOnCard || booking.amenity_name}
+            </div>
+            {height >= 46 && (
               <div
                 className={cn(
                   "flex text-[12px] font-semibold opacity-80",
                   isNarrow
-                    ? "flex-col items-start leading-tight"
-                    : "flex-row items-center gap-1"
+                    ? "flex-col items-start"
+                    : "flex-row items-center gap-1 h-[14px]"
                 )}
               >
                 <span>{durationFormatted}</span>
@@ -1074,41 +1188,66 @@ function AmenityBookingCard({
           </div>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="right" className="max-w-sm z-50">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            {Icon && <Icon className="h-4 w-4" style={{ color: booking.amenity_color }} />}
-            <span className="font-semibold text-sm">{booking.amenity_name}</span>
-            <Badge variant="secondary" className="text-[8px]">{clientTypeBadge}</Badge>
-          </div>
-          {clientName && (
-            <div className="flex items-center gap-2 text-xs">
-              <User className="h-3 w-3" />
-              <span>{clientName}</span>
-            </div>
-          )}
-          {booking.room_number && (
-            <div className="text-xs">Chambre: {booking.room_number}</div>
-          )}
-          <div className="flex items-center gap-2 text-xs">
-            <Clock className="h-3 w-3" />
-            <span>{booking.booking_time?.substring(0, 5)} · {durationFormatted}</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <Users className="h-3 w-3" />
-            <span>{booking.num_guests} / {booking.capacity_total} personnes</span>
-          </div>
-          {booking.price > 0 && (
-            <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
-              <Euro className="h-3 w-3" />
-              <span>{formatPrice(booking.price, "EUR")}</span>
-            </div>
-          )}
-          {booking.notes && (
-            <div className="text-xs text-muted-foreground italic">{booking.notes}</div>
-          )}
-        </div>
-      </TooltipContent>
+      <AmenityTooltipContent
+        booking={booking}
+        Icon={Icon}
+        clientName={clientName}
+        clientTypeBadge={clientTypeBadge}
+        durationFormatted={durationFormatted}
+      />
     </Tooltip>
+  );
+}
+
+/** Hover details for an amenity booking. */
+function AmenityTooltipContent({
+  booking,
+  Icon,
+  clientName,
+  clientTypeBadge,
+  durationFormatted,
+}: {
+  booking: AmenityBookingForCalendar;
+  Icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  clientName: string;
+  clientTypeBadge?: string;
+  durationFormatted: string;
+}) {
+  return (
+    <TooltipContent side="right" className="max-w-sm z-50">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="h-4 w-4" style={{ color: booking.amenity_color }} />}
+          <span className="font-semibold text-sm">{booking.amenity_name}</span>
+          <Badge variant="secondary" className="text-[8px]">{clientTypeBadge}</Badge>
+        </div>
+        {clientName && (
+          <div className="flex items-center gap-2 text-xs">
+            <User className="h-3 w-3" />
+            <span>{clientName}</span>
+          </div>
+        )}
+        {booking.room_number && (
+          <div className="text-xs">Chambre: {booking.room_number}</div>
+        )}
+        <div className="flex items-center gap-2 text-xs">
+          <Clock className="h-3 w-3" />
+          <span>{booking.booking_time?.substring(0, 5)} · {durationFormatted}</span>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <Users className="h-3 w-3" />
+          <span>{booking.num_guests} / {booking.capacity_total} personnes</span>
+        </div>
+        {booking.price > 0 && (
+          <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
+            <Euro className="h-3 w-3" />
+            <span>{formatPrice(booking.price, "EUR")}</span>
+          </div>
+        )}
+        {booking.notes && (
+          <div className="text-xs text-muted-foreground italic">{booking.notes}</div>
+        )}
+      </div>
+    </TooltipContent>
   );
 }

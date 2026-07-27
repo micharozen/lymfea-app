@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Minus, Loader2, Clock, Ticket, Gift, Search, ChevronDown, ShoppingBag, Trash2 } from "lucide-react";
+import { SelectField } from "@/components/ui/select-field";
+import { ComboDuoRepartitionPanel } from "./ComboDuoRepartitionPanel";
+import { Plus, Minus, Loader2, Clock, Ticket, Gift, Search, ChevronDown, ChevronLeft, ChevronRight, ShoppingBag, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
@@ -20,6 +22,7 @@ interface Treatment {
   price?: number | null;
   duration?: number | null;
   price_on_request?: boolean | null;
+  is_addon?: boolean | null;
   service_for?: string | null;
   category?: string | null;
   treatment_variants?: TreatmentVariant[];
@@ -80,8 +83,18 @@ interface BookingPrestationsStepProps {
   comboDuoEnabled?: boolean;
   onComboDuoChange?: (enabled: boolean) => void;
   sessionCount?: number;
-  /** Base soins only — the number of practitioners a combo-duo needs. */
+  /** Number of practitioners chosen (defaults to one per base soin). */
   practitionerCount?: number;
+  /** Number of base soins in the cart — upper bound for the practitioner count. */
+  baseSessionCount?: number;
+  onPractitionerCountChange?: (count: number) => void;
+  /** Manual assignment: base soin i → practitioner index (0..N-1). */
+  legAssignments?: number[];
+  onLegAssignmentsChange?: (assignments: number[]) => void;
+  /** Labels of the base soins, aligned with `legAssignments`. */
+  baseSoinLabels?: string[];
+  /** Durations (min) of the base soins, aligned with `legAssignments`. */
+  baseSoinDurations?: number[];
   variantDuoInCart?: boolean;
   // Offert (gratuit) — réservé admin/concierge
   canOffer: boolean;
@@ -131,6 +144,12 @@ export function BookingPrestationsStep({
   onComboDuoChange,
   sessionCount = 0,
   practitionerCount = 0,
+  baseSessionCount = 0,
+  onPractitionerCountChange,
+  legAssignments = [],
+  onLegAssignmentsChange,
+  baseSoinLabels = [],
+  baseSoinDurations = [],
   variantDuoInCart = false,
   canOffer,
   isOffert,
@@ -139,6 +158,12 @@ export function BookingPrestationsStep({
   const { t } = useTranslation('admin');
   const [searchQuery, setSearchQuery] = useState("");
   const [showAmenities, setShowAmenities] = useState(false);
+  // Répartition combo-duo : quand elle est ouverte, on masque le catalogue de soins
+  // (plus nécessaire) pour laisser la place au panneau ; une flèche le ré-ouvre.
+  const [listExpanded, setListExpanded] = useState(false);
+  const repartitionActive =
+    !!comboDuoEnabled && practitionerCount < baseSessionCount && !!onLegAssignmentsChange;
+  const showTreatmentList = !repartitionActive || listExpanded;
   const voucherSupported = clientType === "hotel" || clientType === "external";
   const enabledAmenities = (venueAmenities ?? []).filter((a) => a.is_enabled);
   const selectedAmenityCount = enabledAmenities.filter((a) => selectedAmenityIds?.includes(a.id)).length;
@@ -185,6 +210,12 @@ export function BookingPrestationsStep({
     </span>
   );
 
+  const AddonBadge = () => (
+    <span className="shrink-0 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 rounded">
+      {t("bookings.addonBadge", { defaultValue: "Add-on" })}
+    </span>
+  );
+
   const priceLine = (treatment: Treatment, price: number | null | undefined, duration: number | null | undefined) =>
     treatment.price_on_request
       ? `${duration} min`
@@ -192,8 +223,34 @@ export function BookingPrestationsStep({
 
   return (
     <div className="flex-1 flex flex-col md:flex-row min-h-0">
+      {/* Rail replié : rouvre le catalogue quand la répartition l'a masqué. */}
+      {repartitionActive && !listExpanded && (
+        <button
+          type="button"
+          onClick={() => setListExpanded(true)}
+          className="hidden md:flex shrink-0 w-9 flex-col items-center justify-center gap-2 border-r border-border bg-muted/40 text-muted-foreground hover:bg-muted transition-colors"
+          title={t("bookings.showTreatments", { defaultValue: "Voir les prestations" })}
+        >
+          <ChevronRight className="h-4 w-4" />
+          <span className="[writing-mode:vertical-rl] rotate-180 text-[11px] font-medium">
+            {t("bookings.treatmentsList", { defaultValue: "Prestations" })}
+          </span>
+        </button>
+      )}
+
       {/* ── Colonne gauche : catalogue des soins ── */}
+      {showTreatmentList && (
       <div className="flex-1 flex flex-col min-h-0 px-6 pt-3 pb-3 md:border-r border-border">
+        {repartitionActive && (
+          <button
+            type="button"
+            onClick={() => setListExpanded(false)}
+            className="shrink-0 mb-2 inline-flex items-center gap-1 self-start text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            {t("bookings.hideTreatments", { defaultValue: "Masquer les prestations" })}
+          </button>
+        )}
         <div className="relative shrink-0 mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
@@ -248,6 +305,7 @@ export function BookingPrestationsStep({
                             <span className="font-normal text-foreground text-sm truncate flex-1">
                               {treatment.name}
                             </span>
+                            {treatment.is_addon && <AddonBadge />}
                             {treatment.price_on_request && <OnRequestBadge />}
                             {totalQty > 0 && (
                               <span className="shrink-0 text-xs font-bold text-primary">×{totalQty}</span>
@@ -292,6 +350,7 @@ export function BookingPrestationsStep({
                             <span className="font-normal text-foreground text-sm truncate">
                               {treatment.name}
                             </span>
+                            {treatment.is_addon && <AddonBadge />}
                             {treatment.price_on_request && <OnRequestBadge />}
                           </div>
                           <span className="text-xs text-muted-foreground">
@@ -321,6 +380,7 @@ export function BookingPrestationsStep({
           })()}
         </div>
       </div>
+      )}
 
       {/* ── Colonne droite : panier ── */}
       <div className="w-full md:w-[300px] shrink-0 flex flex-col min-h-0 bg-muted/30 border-t md:border-t-0 border-border">
@@ -570,7 +630,7 @@ export function BookingPrestationsStep({
                   <span className="text-xs font-medium">
                     {t("booking.comboDuo.toggle", {
                       count: practitionerCount,
-                      defaultValue: `Réserver en duo (${practitionerCount} praticiens en parallèle)`,
+                      defaultValue: `Réserver en parallèle (${practitionerCount} praticiens)`,
                     })}
                   </span>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -581,6 +641,38 @@ export function BookingPrestationsStep({
                   </p>
                 </div>
               </label>
+
+              {comboDuoEnabled && baseSessionCount >= 2 && onPractitionerCountChange && (
+                <div className="space-y-2 pl-6 pt-1">
+                  {/* Nombre de praticiens en parallèle (2..nombre de soins). */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-medium">
+                      {t("booking.comboDuo.practitionerCountLabel", { defaultValue: "Nombre de praticiens" })}
+                    </Label>
+                    <SelectField
+                      value={String(practitionerCount)}
+                      onChange={(v) => onPractitionerCountChange(Number(v))}
+                      searchable={false}
+                      options={Array.from({ length: baseSessionCount - 1 }, (_, i) => {
+                        const n = i + 2;
+                        return { value: String(n), label: String(n) };
+                      })}
+                      aria-label={t("booking.comboDuo.practitionerCountLabel", { defaultValue: "Nombre de praticiens" })}
+                    />
+                  </div>
+
+                  {/* La répartition manuelle soin → praticien s'ouvre dans un panneau
+                      dédié à droite (voir ComboDuoRepartitionPanel) dès que le nombre
+                      de praticiens est inférieur au nombre de soins. */}
+                  {practitionerCount < baseSessionCount && (
+                    <p className="text-[10px] text-muted-foreground">
+                      {t("booking.comboDuo.repartitionAside", {
+                        defaultValue: "Répartissez les soins dans le panneau à droite.",
+                      })}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {variantDuoInCart && sessionCount >= 2 && !comboDuoEligible && (
@@ -658,6 +750,25 @@ export function BookingPrestationsStep({
           </div>
         </div>
       </div>
+
+      {/* Panneau de répartition (extension à droite) — seulement si moins de
+          praticiens que de soins. */}
+      {repartitionActive && onLegAssignmentsChange && (
+        <div
+          className={cn(
+            "w-full flex flex-col min-h-0 border-t md:border-t-0 md:border-l border-border bg-violet-50/30 dark:bg-violet-950/10 px-4 py-4",
+            showTreatmentList ? "md:w-[420px] shrink-0" : "flex-1",
+          )}
+        >
+          <ComboDuoRepartitionPanel
+            baseSoinLabels={baseSoinLabels}
+            baseSoinDurations={baseSoinDurations}
+            legAssignments={legAssignments}
+            practitionerCount={practitionerCount}
+            onLegAssignmentsChange={onLegAssignmentsChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

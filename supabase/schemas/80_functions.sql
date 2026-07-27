@@ -1511,6 +1511,9 @@ CREATE OR REPLACE FUNCTION "public"."get_hotel_analytics_summary"("_hotel_id" "t
 DECLARE
   _device_breakdown JSONB;
   _daily_visitors JSONB;
+  _sessions BIGINT;
+  _page_views BIGINT;
+  _conversions BIGINT;
 BEGIN
   -- Device breakdown
   SELECT COALESCE(jsonb_object_agg(dt, cnt), '{}'::JSONB)
@@ -1540,22 +1543,39 @@ BEGIN
     GROUP BY DATE(created_at)
   ) sub;
 
-  RETURN QUERY
+  -- Sessions + pages vues : issues du tracking client_analytics.
   SELECT
-    COUNT(DISTINCT session_id)::BIGINT as total_sessions,
-    COUNT(*) FILTER (WHERE event_type = 'page_view')::BIGINT as total_page_views,
-    COUNT(*) FILTER (WHERE event_type = 'conversion')::BIGINT as total_conversions,
-    CASE
-      WHEN COUNT(DISTINCT session_id) > 0
-      THEN ROUND((COUNT(*) FILTER (WHERE event_type = 'conversion')::NUMERIC / COUNT(DISTINCT session_id)::NUMERIC) * 100, 2)
-      ELSE 0
-    END as conversion_rate,
-    _device_breakdown as device_breakdown,
-    _daily_visitors as daily_visitors
+    COUNT(DISTINCT session_id)::BIGINT,
+    COUNT(*) FILTER (WHERE event_type = 'page_view')::BIGINT
+  INTO _sessions, _page_views
   FROM public.client_analytics
   WHERE created_at >= _start_date
     AND created_at < _end_date + INTERVAL '1 day'
     AND (_hotel_id IS NULL OR hotel_id = _hotel_id);
+
+  -- Conversions : vraies réservations prises en ligne (source 'client' = "Site",
+  -- 'api' = partenaire), comptées par date de création. Découplé des évènements
+  -- client_analytics qui ne sont jamais émis pour une conversion.
+  SELECT COUNT(*)::BIGINT
+  INTO _conversions
+  FROM public.bookings
+  WHERE created_at >= _start_date
+    AND created_at < _end_date + INTERVAL '1 day'
+    AND source IN ('client', 'api')
+    AND (_hotel_id IS NULL OR hotel_id = _hotel_id);
+
+  RETURN QUERY
+  SELECT
+    _sessions,
+    _page_views,
+    _conversions,
+    CASE
+      WHEN _sessions > 0
+      THEN ROUND((_conversions::NUMERIC / _sessions::NUMERIC) * 100, 2)
+      ELSE 0
+    END,
+    _device_breakdown,
+    _daily_visitors;
 END;
 $$;
 

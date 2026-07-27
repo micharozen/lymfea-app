@@ -283,7 +283,17 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
     width: 10,
     sortKey: "therapist",
     defaultVisible: true,
-    cell: (booking) => text(formatTherapistShortName(booking.therapist_name)),
+    // Un duo est porté par plusieurs praticiens : on les nomme tous, pas
+    // seulement le thérapeute principal.
+    cell: (booking) =>
+      text(
+        booking.therapist_display_names?.length
+          ? booking.therapist_display_names
+              .map(formatTherapistShortName)
+              .filter(Boolean)
+              .join(" + ")
+          : formatTherapistShortName(booking.therapist_name),
+      ),
   },
 
   // ── Colonnes optionnelles (masquées par défaut) ────────────────

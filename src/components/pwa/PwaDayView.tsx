@@ -6,10 +6,13 @@ import { ChevronLeft, ChevronRight, Check, DoorOpen, User, Users } from "lucide-
 import { getCalendarFlowStage } from "@/utils/statusStyles";
 import { formatPrice } from "@/lib/formatPrice";
 import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
+import { bookingSlotDuration } from "@/lib/therapistLegDuration";
 import { useLongPress } from "@/hooks/pwa/useLongPress";
 import { BookingPreviewPopover } from "@/components/pwa/BookingPreviewPopover";
 
 interface BookingTreatment {
+  therapist_id?: string | null;
+  is_addon?: boolean | null;
   therapistShortName?: string | null;
   treatment_menus: {
     name: string;
@@ -75,9 +78,13 @@ function getTreatmentLines(booking: DayViewBooking): TreatmentLine[] {
 function calculateDuration(booking: DayViewBooking): number {
   if (booking.duration && booking.duration > 0) return booking.duration;
   if (!booking.booking_treatments || booking.booking_treatments.length === 0) return 60;
-  const dur = booking.booking_treatments.reduce(
-    (sum, bt) => sum + (bt.treatment_menus?.duration || 0),
-    0
+  const dur = bookingSlotDuration(
+    booking.booking_treatments.map((bt) => ({
+      therapist_id: bt.therapist_id ?? null,
+      duration: bt.treatment_menus?.duration ?? null,
+      is_addon: bt.is_addon ?? false,
+    })),
+    booking.guest_count ?? 1
   );
   return dur > 0 ? dur : 60;
 }
