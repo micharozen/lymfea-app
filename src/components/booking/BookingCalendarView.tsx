@@ -1110,10 +1110,10 @@ function AmenityBookingCard({
     ? `${booking.customer.first_name} ${booking.customer.last_name || ""}`.trim()
     : "";
 
-  // A 30-min slot (or a narrow band) can't fit "Sophie Martin" — the client is
-  // still the key info there, so abbreviate the first name instead of dropping it.
-  const isShort = height < 70;
-  const clientNameOnCard = (isShort || isNarrow)
+  // A narrow band can't fit "Sophie Martin" — the client is still the key info
+  // there, so abbreviate the first name instead of dropping it. Short cards keep
+  // the full name: the rows are tight enough for it to fit on a 30-min slot.
+  const clientNameOnCard = isNarrow
     ? formatClientCompact(booking.customer?.first_name, booking.customer?.last_name)
     : clientName;
 
@@ -1144,22 +1144,22 @@ function AmenityBookingCard({
             onClick?.(booking);
           }}
         >
-          <div className="p-1 h-full flex flex-col">
+          <div className="px-1 py-0.5 h-full flex flex-col gap-0 leading-none">
             <div
               className={cn(
                 "flex gap-0.5",
                 isNarrow
                   ? "flex-col items-start"
-                  : "flex-row items-start justify-between"
+                  : "flex-row items-center justify-between h-[16px]"
               )}
             >
-              <div className="font-bold text-[13px] leading-tight" style={{ color: booking.amenity_color }}>
+              <div className="font-bold text-[13px]" style={{ color: booking.amenity_color }}>
                 {booking.booking_time?.substring(0, 5)}
               </div>
               <div className="flex items-center gap-0.5 flex-shrink-0">
                 {Icon && (
                   <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center"
+                    className="w-4 h-4 rounded-full flex items-center justify-center"
                     style={{ backgroundColor: booking.amenity_color + "25" }}
                   >
                     <Icon className="h-2.5 w-2.5" style={{ color: booking.amenity_color }} />
@@ -1168,16 +1168,16 @@ function AmenityBookingCard({
               </div>
             </div>
             {/* Client name is always shown — it's the first thing staff look for. */}
-            <div className="truncate text-[11px] font-medium leading-tight" title={clientName}>
+            <div className="truncate text-[12px] font-medium h-[14px] flex items-center" title={clientName}>
               {clientNameOnCard || booking.amenity_name}
             </div>
-            {height >= 48 && (
+            {height >= 46 && (
               <div
                 className={cn(
                   "flex text-[12px] font-semibold opacity-80",
                   isNarrow
-                    ? "flex-col items-start leading-tight"
-                    : "flex-row items-center gap-1"
+                    ? "flex-col items-start"
+                    : "flex-row items-center gap-1 h-[14px]"
                 )}
               >
                 <span>{durationFormatted}</span>
