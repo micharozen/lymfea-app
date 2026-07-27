@@ -1468,8 +1468,26 @@
       "errorTitle": "Processing error",
       "dismissAction": "Dismiss",
       "dismissed": "Email dismissed.",
-      "convertAction": "Convert to booking",
       "close": "Close",
+      "aiTitle": "AI analysis",
+      "date": "Date",
+      "time": "Time",
+      "variant": "Variant",
+      "reviewAction": "Review and convert",
+      "autoConvertAction": "Convert automatically",
+      "autoDisabledReason": "Treatment, variant, date, time and confidence ≥ 80% required",
+      "autoConverted": "Booking created",
+      "autoMissingFields": "Not enough information",
+      "autoLookupFailed": "Venue or treatment not found",
+      "autoPriceOnRequest": "Price on request — use “Review and convert”",
+      "convertedTitle": "Converted to booking",
+      "convertedOn": "on",
+      "viewBooking": "View booking",
+      "viewCustomer": "View customer",
+      "unknownClient": "Customer",
+      "bookingNotFound": "Booking not found",
+      "loading": "Loading…",
+      "missingLine": "Missing: {{fields}}",
       "reply": {
         "replyAction": "Reply",
         "composerTitle": "Reply draft",
@@ -1487,7 +1505,8 @@
         "sent": "Reply sent",
         "sentWithWarning": "Sent, but one step failed: {{warning}}",
         "missingFields": "Subject and body required",
-        "referencedSlots": "Availability used: {{slots}}"
+        "referencedSlots": "Availability used: {{slots}}",
+        "collapsedTo": "to: {{email}}"
       }
     },
     "convert": {
@@ -1587,6 +1606,27 @@
         "step2": "The email reaches our secure webhook. Our AI extracts: name, contact, date, time, treatment, party size, notes.",
         "step3": "A new entry shows up in /admin/inbox with a confidence score. Ambiguous requests stay manual.",
         "step4": "The admin clicks \"Convert to booking\": a booking is created with status 'pending', ready to be assigned to a therapist."
+      },
+      "tone": {
+        "title": "AI reply tone",
+        "description": "The wording entered here is reproduced verbatim by the agent. Leave empty to use the built-in wording.",
+        "greetingFr": "Opening line (FR)",
+        "greetingEn": "Opening line (EN)",
+        "signoffFr": "Sign-off (FR)",
+        "signoffEn": "Sign-off (EN)",
+        "signature": "Signature",
+        "signatureHelp": "Block placed after the sign-off. It is the only signature added to the email.",
+        "notes": "Writing instructions",
+        "notesPlaceholder": "Always use the formal register, never offer a discount, mention the changing room…",
+        "save": "Save",
+        "saved": "Reply tone saved"
+      },
+      "knowledge": {
+        "title": "Knowledge base",
+        "description": "Everything the treatment menu does not carry: packages, beach access, opening hours, gift boxes. The agent may not state anything beyond it.",
+        "fr": "Information (FR)",
+        "en": "Information (EN)",
+        "placeholder": "Beach & Self Care offer: €180 per person, includes beach access, lunch and a 60-min massage.\nSpa access: reserved for hotel guests.\nRelais & Châteaux Rose gift box: covers one 75-min treatment."
       }
     }
   },
