@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, ChevronDown, ChevronUp, Users } from "lucide-react";
+import { Plus, Trash2, Loader2, ChevronDown, ChevronUp, Users, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVenueAmenities, type VenueAmenityUpdate } from "@/hooks/useVenueAmenities";
 import {
@@ -53,6 +53,15 @@ const SLOT_DURATIONS = [
   { value: 120, label: "2h" },
 ];
 
+const durationLabel = (minutes: number) =>
+  SLOT_DURATIONS.find((d) => d.value === minutes)?.label ?? `${minutes} min`;
+
+/** Collapsed summary, e.g. "30 min · 1h". Falls back to the legacy single duration. */
+function formatDurationList(allowed: number[], fallback: number): string {
+  const durations = allowed.length > 0 ? allowed : [fallback];
+  return durations.map(durationLabel).join(" · ");
+}
+
 export function VenueAmenitiesTab({ hotelId, venueType }: VenueAmenitiesTabProps) {
   const { i18n } = useTranslation();
   const locale = i18n.language;
@@ -83,6 +92,8 @@ export function VenueAmenitiesTab({ hotelId, venueType }: VenueAmenitiesTabProps
         hotel_id: hotelId,
         type: typeKey,
         color: typeDef.defaultColor,
+        // Mirror the DB default slot_duration so the new amenity is immediately bookable.
+        allowed_durations: [60],
       });
       setExpandedId(newId);
     } catch {
@@ -155,7 +166,7 @@ export function VenueAmenitiesTab({ hotelId, venueType }: VenueAmenitiesTabProps
                         <Users className="h-3 w-3" />
                         <span>{amenity.capacity_per_slot} pers.</span>
                         <span>·</span>
-                        <span>{amenity.slot_duration} min</span>
+                        <span>{formatDurationList(amenity.allowed_durations, amenity.slot_duration)}</span>
                         {amenity.prep_time > 0 && (
                           <>
                             <span>·</span>
@@ -274,6 +285,7 @@ interface AmenityConfigProps {
     color: string;
     capacity_per_slot: number;
     slot_duration: number;
+    allowed_durations: number[];
     prep_time: number;
     price_external: number;
     price_lymfea: number;
@@ -294,7 +306,13 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
   const [name, setName] = useState(amenity.name || "");
   const [color, setColor] = useState(amenity.color);
   const [capacityPerSlot, setCapacityPerSlot] = useState(String(amenity.capacity_per_slot));
-  const [slotDuration, setSlotDuration] = useState(String(amenity.slot_duration));
+  // Durations offered at booking time; `defaultDuration` is the one pre-selected
+  // (persisted as `slot_duration`). Amenities created before this feature have an
+  // empty array, so fall back to their single legacy duration.
+  const [allowedDurations, setAllowedDurations] = useState<number[]>(
+    amenity.allowed_durations.length > 0 ? [...amenity.allowed_durations] : [amenity.slot_duration]
+  );
+  const [defaultDuration, setDefaultDuration] = useState(amenity.slot_duration);
   const [prepTime, setPrepTime] = useState(String(amenity.prep_time));
   const [openingTime, setOpeningTime] = useState(amenity.opening_time || "");
   const [closingTime, setClosingTime] = useState(amenity.closing_time || "");
@@ -303,11 +321,30 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
   const [lymfeaAccessIncluded, setLymfeaAccessIncluded] = useState(amenity.lymfea_access_included);
   const [lymfeaAccessDuration, setLymfeaAccessDuration] = useState(String(amenity.lymfea_access_duration || 60));
 
+  // Toggling a duration off never leaves the list empty, and always keeps the
+  // default duration inside the list.
+  const toggleDuration = (value: number) => {
+    const next = allowedDurations.includes(value)
+      ? allowedDurations.filter((d) => d !== value)
+      : [...allowedDurations, value].sort((a, b) => a - b);
+    if (next.length === 0) {
+      toast.error("Au moins une durée doit rester sélectionnée");
+      return;
+    }
+    setAllowedDurations(next);
+    if (!next.includes(defaultDuration)) setDefaultDuration(next[0]);
+  };
+
+  const sameDurations =
+    allowedDurations.length === amenity.allowed_durations.length &&
+    allowedDurations.every((d, i) => d === amenity.allowed_durations[i]);
+
   const isDirty =
     (name.trim() || null) !== amenity.name ||
     color !== amenity.color ||
     (parseInt(capacityPerSlot) || 1) !== amenity.capacity_per_slot ||
-    parseInt(slotDuration) !== amenity.slot_duration ||
+    !sameDurations ||
+    defaultDuration !== amenity.slot_duration ||
     (parseInt(prepTime) || 0) !== amenity.prep_time ||
     (openingTime || null) !== amenity.opening_time ||
     (closingTime || null) !== amenity.closing_time ||
@@ -323,8 +360,8 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
     if (color !== amenity.color) updates.color = color;
     const cap = parseInt(capacityPerSlot) || 1;
     if (cap !== amenity.capacity_per_slot) updates.capacity_per_slot = cap;
-    const dur = parseInt(slotDuration);
-    if (dur !== amenity.slot_duration) updates.slot_duration = dur;
+    if (!sameDurations) updates.allowed_durations = allowedDurations;
+    if (defaultDuration !== amenity.slot_duration) updates.slot_duration = defaultDuration;
     const prep = parseInt(prepTime) || 0;
     if (prep !== amenity.prep_time) updates.prep_time = prep;
     const open = openingTime || null;
@@ -371,8 +408,8 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
         </div>
       </div>
 
-      {/* Row 2: Capacity + Duration + Prep time */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Row 2: Capacity + Prep time */}
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label className="text-xs">Capacité / créneau</Label>
           <Input
@@ -382,24 +419,6 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
             onChange={(e) => setCapacityPerSlot(e.target.value)}
             className="h-9"
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Durée créneau</Label>
-          <Select
-            value={slotDuration}
-            onValueChange={setSlotDuration}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SLOT_DURATIONS.map((d) => (
-                <SelectItem key={d.value} value={String(d.value)}>
-                  {d.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Temps préparation</Label>
@@ -415,6 +434,54 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
             <span className="text-xs text-muted-foreground whitespace-nowrap">min</span>
           </div>
         </div>
+      </div>
+
+      {/* Row 2b: Durées proposées à la réservation (multi-choix + défaut) */}
+      <div className="space-y-1.5">
+        <Label className="text-xs">Durée créneau</Label>
+        <div className="flex flex-wrap gap-2">
+          {SLOT_DURATIONS.map((d) => {
+            const isSelected = allowedDurations.includes(d.value);
+            const isDefault = isSelected && d.value === defaultDuration;
+            return (
+              <div
+                key={d.value}
+                className={cn(
+                  "flex items-center rounded-md border text-xs transition-colors",
+                  isSelected
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-input bg-background text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <button
+                  type="button"
+                  className="px-2.5 h-8"
+                  onClick={() => toggleDuration(d.value)}
+                >
+                  {d.label}
+                </button>
+                {isSelected && (
+                  <button
+                    type="button"
+                    className="pr-2 h-8 flex items-center"
+                    title={isDefault ? "Durée par défaut" : "Définir comme durée par défaut"}
+                    onClick={() => setDefaultDuration(d.value)}
+                  >
+                    <Star
+                      className={cn(
+                        "h-3 w-3",
+                        isDefault ? "fill-amber-400 text-amber-500" : "text-muted-foreground/50"
+                      )}
+                    />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Durées sélectionnables à la réservation. L'étoile marque celle proposée par défaut.
+        </p>
       </div>
 
       {/* Row 3: Horaires spécifiques */}

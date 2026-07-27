@@ -3459,6 +3459,7 @@ export type Database = {
       }
       venue_amenities: {
         Row: {
+          allowed_durations: number[]
           capacity_per_slot: number
           closing_time: string | null
           color: string
@@ -3479,6 +3480,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allowed_durations?: number[]
           capacity_per_slot?: number
           closing_time?: string | null
           color?: string
@@ -3499,6 +3501,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allowed_durations?: number[]
           capacity_per_slot?: number
           closing_time?: string | null
           color?: string

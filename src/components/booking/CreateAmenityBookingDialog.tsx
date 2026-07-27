@@ -47,6 +47,7 @@ const formSchema = z.object({
   num_guests: z.number().min(1).default(1),
   booking_date: z.string().min(1, "Date requise"),
   booking_time: z.string().min(1, "Heure requise"),
+  duration: z.number().min(1),
   notes: z.string().optional(),
 });
 
@@ -63,6 +64,13 @@ const TIME_OPTIONS = (() => {
   }
   return opts;
 })();
+
+const formatDuration = (minutes: number): string => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, "0")}`;
+};
 
 interface CreateAmenityBookingDialogProps {
   open: boolean;
@@ -152,6 +160,7 @@ export function CreateAmenityBookingDialog({
       num_guests: 1,
       booking_date: preselectedDate ? format(preselectedDate, "yyyy-MM-dd") : "",
       booking_time: preselectedTime || "",
+      duration: 60,
       notes: "",
     },
   });
@@ -172,6 +181,7 @@ export function CreateAmenityBookingDialog({
           num_guests: editBooking.num_guests,
           booking_date: editBooking.booking_date,
           booking_time: editBooking.booking_time?.substring(0, 5) || "",
+          duration: editBooking.duration,
           notes: editBooking.notes ?? "",
         });
         return;
@@ -188,6 +198,7 @@ export function CreateAmenityBookingDialog({
         num_guests: 1,
         booking_date: preselectedDate ? format(preselectedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
         booking_time: preselectedTime || "",
+        duration: enabledAmenities.length === 1 ? enabledAmenities[0].slot_duration : 60,
         notes: "",
       });
     }
@@ -264,6 +275,19 @@ export function CreateAmenityBookingDialog({
 
   const selectedAmenity = enabledAmenities.find((a) => a.id === selectedAmenityId);
 
+  // Durations the venue allows for this amenity (legacy rows only expose their
+  // single `slot_duration`). Derived at render so switching amenity can't leave
+  // a stale duration selected.
+  const durationOptions = selectedAmenity
+    ? (selectedAmenity.allowed_durations?.length
+        ? [...selectedAmenity.allowed_durations].sort((a, b) => a - b)
+        : [selectedAmenity.slot_duration])
+    : [];
+  const watchedDuration = form.watch("duration");
+  const duration = durationOptions.includes(watchedDuration)
+    ? watchedDuration
+    : (selectedAmenity?.slot_duration ?? 60);
+
   // Compute price
   const computedPrice = useMemo(() => {
     if (!selectedAmenity) return 0;
@@ -275,10 +299,10 @@ export function CreateAmenityBookingDialog({
 
   // Check current occupancy for the selected slot
   const { data: currentOccupancy } = useQuery({
-    queryKey: ["amenity-occupancy", selectedAmenityId, bookingDate, bookingTime],
+    queryKey: ["amenity-occupancy", selectedAmenityId, bookingDate, bookingTime, duration],
     queryFn: async () => {
       if (!selectedAmenity || !bookingDate || !bookingTime) return 0;
-      const endTime = computeEndTime(bookingTime, selectedAmenity.slot_duration);
+      const endTime = computeEndTime(bookingTime, duration);
       const { data, error } = await supabase.rpc("get_amenity_slot_occupancy", {
         p_venue_amenity_id: selectedAmenityId,
         p_date: bookingDate,
@@ -328,14 +352,15 @@ export function CreateAmenityBookingDialog({
       );
       if (customerError) throw customerError;
 
-      const endTime = computeEndTime(values.booking_time, amenity.slot_duration);
+      const bookingDuration = values.duration > 0 ? values.duration : amenity.slot_duration;
+      const endTime = computeEndTime(values.booking_time, bookingDuration);
 
       const payload = {
         hotel_id: effectiveHotelId,
         venue_amenity_id: values.venue_amenity_id,
         booking_date: values.booking_date,
         booking_time: values.booking_time,
-        duration: amenity.slot_duration,
+        duration: bookingDuration,
         end_time: endTime,
         customer_id: customerId,
         client_type: values.client_type,
@@ -379,7 +404,8 @@ export function CreateAmenityBookingDialog({
       toast.error(`Capacité insuffisante (${remainingCapacity} places restantes)`);
       return;
     }
-    createMutation.mutate(values);
+    // `duration` is normalised against the amenity's allowed durations at render.
+    createMutation.mutate({ ...values, duration });
   };
 
   return (
@@ -695,14 +721,49 @@ export function CreateAmenityBookingDialog({
               )}
             </div>
 
-            {/* Duration info */}
+            {/* Duration — picked among the durations the venue allows */}
             {selectedAmenity && (
-              <div className="text-sm text-muted-foreground">
-                Durée: {selectedAmenity.slot_duration} min
-                {selectedAmenity.prep_time > 0 && (
-                  <span> (+{selectedAmenity.prep_time} min préparation)</span>
-                )}
-              </div>
+              durationOptions.length > 1 ? (
+                <FormField
+                  control={form.control}
+                  name="duration"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel>Durée</FormLabel>
+                      <Select
+                        value={String(duration)}
+                        onValueChange={(v) => form.setValue("duration", parseInt(v))}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {durationOptions.map((d) => (
+                            <SelectItem key={d} value={String(d)}>
+                              {formatDuration(d)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedAmenity.prep_time > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{selectedAmenity.prep_time} min de préparation
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  Durée: {formatDuration(duration)}
+                  {selectedAmenity.prep_time > 0 && (
+                    <span> (+{selectedAmenity.prep_time} min préparation)</span>
+                  )}
+                </div>
+              )
             )}
 
             {/* Price */}
