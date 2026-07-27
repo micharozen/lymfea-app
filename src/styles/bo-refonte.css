@@ -284,6 +284,175 @@
 .bo-refonte .recharts-cartesian-axis-tick-line{stroke:var(--line);}
 
 /* ────────────────────────────────────────────────────────────
+   Inbox — drawer de détail d'une demande
+   Le Sheet shadcn pose bg-background + p-6 : on neutralise ici pour
+   gérer nous-mêmes en-tête fixe / corps scrollable / barre d'actions.
+   ──────────────────────────────────────────────────────────── */
+
+.bo-refonte.inbox-sheet{background:var(--bo-bg);border-color:var(--line);}
+
+/* —— En-tête —— */
+.bo-refonte .inbox-head{display:flex;align-items:flex-start;gap:12px;padding:18px 20px 14px;background:var(--bo-surface);border-bottom:1px solid var(--line);flex:none;}
+.bo-refonte .inbox-head .subj{font-weight:600;font-size:16px;line-height:1.3;letter-spacing:-.01em;margin:0;}
+.bo-refonte .inbox-head .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px;font-size:11.5px;color:var(--ink-mute);}
+.bo-refonte .inbox-head .meta .addr{font-variant-numeric:tabular-nums;}
+/* Bouton de fermeture (en-tête du drawer et en-tête de carte). */
+.bo-refonte .x{width:30px;height:30px;border-radius:var(--r-s);display:inline-flex;align-items:center;justify-content:center;color:var(--ink-mute);background:transparent;border:none;flex:none;transition:background .12s,color .12s;}
+.bo-refonte .x:hover:not(:disabled){background:var(--bo-surface-2);color:var(--ink);}
+.bo-refonte .x:disabled{opacity:.45;cursor:default;}
+
+/* —— Chip de statut —— */
+.bo-refonte .inbox-chip{display:inline-flex;align-items:center;gap:6px;height:21px;padding:0 9px;border-radius:var(--r-pill);font-size:11px;font-weight:600;white-space:nowrap;}
+.bo-refonte .inbox-chip .bo-dot{width:6px;height:6px;}
+.bo-refonte .inbox-chip.ok{background:var(--ok-bg);color:var(--ok);}
+.bo-refonte .inbox-chip.ok .bo-dot{background:var(--ok-dot);}
+.bo-refonte .inbox-chip.wait{background:var(--wait-bg);color:var(--wait);}
+.bo-refonte .inbox-chip.wait .bo-dot{background:var(--wait-dot);}
+.bo-refonte .inbox-chip.info{background:var(--info-bg);color:var(--info);}
+.bo-refonte .inbox-chip.info .bo-dot{background:var(--info-dot);}
+.bo-refonte .inbox-chip.bad{background:var(--bad-bg);color:var(--bad);}
+.bo-refonte .inbox-chip.bad .bo-dot{background:var(--bad-dot);}
+.bo-refonte .inbox-chip.mute{background:var(--bo-surface-2);color:var(--ink-mute);}
+.bo-refonte .inbox-chip.mute .bo-dot{background:var(--ink-mute);}
+
+/* —— Deux colonnes : le mail (héros) à gauche, la fiche de la demande à droite —— */
+.bo-refonte .inbox-cols{flex:1;min-height:0;display:flex;}
+.bo-refonte .inbox-thread-col{flex:1;min-width:0;display:flex;flex-direction:column;}
+.bo-refonte .inbox-rail{width:306px;flex:none;display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--line);background:var(--bo-surface);}
+.bo-refonte .rail-scroll{flex:1;min-height:0;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px;}
+.bo-refonte .rail-head{display:flex;align-items:center;gap:10px;}
+.bo-refonte .rail-head .bo-sec-title{display:inline-flex;align-items:center;gap:6px;}
+.bo-refonte .rail-head .conf{margin-left:auto;}
+
+/* —— Actions (rail en desktop, barre pleine largeur en dessous de 1024px) —— */
+.bo-refonte .inbox-actions{display:flex;flex-direction:column;gap:8px;padding:14px 18px;background:var(--bo-surface);border-top:1px solid var(--line);flex:none;}
+/* Le <span> intermédiaire du TooltipTrigger ne doit pas rétrécir le bouton. */
+.bo-refonte .inbox-actions > span{display:block;width:100%;}
+.bo-refonte .inbox-actions .bo-btn{width:100%;}
+.bo-refonte .inbox-actions .state{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-mute);}
+
+/* —— Variantes de boutons (génériques, réutilisables hors Inbox) —— */
+.bo-refonte .bo-btn.primary{background:var(--clay);color:#FBF6EC;}
+.bo-refonte .bo-btn.primary:hover:not(:disabled){background:var(--clay-deep);}
+.bo-refonte .bo-btn.outline{background:var(--bo-surface);color:var(--ink);border-color:var(--line);}
+.bo-refonte .bo-btn.outline:hover:not(:disabled){border-color:var(--ink-soft);background:var(--bo-surface-2);}
+/* Ignorer : destructif mais réversible — discret au repos, rouge au survol. */
+.bo-refonte .bo-btn.ghost.danger:hover:not(:disabled){background:var(--bad-bg);color:var(--bad);}
+.bo-refonte .bo-btn svg{flex:none;}
+
+/* —— Carte « Analyse IA » —— */
+.bo-refonte .conf{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums;}
+.bo-refonte .conf .track{width:56px;height:5px;border-radius:3px;background:var(--bo-surface-2);overflow:hidden;}
+.bo-refonte .conf .track i{display:block;height:100%;border-radius:3px;}
+.bo-refonte .conf.ok .track i{background:var(--ok-dot);}
+.bo-refonte .conf.ok .pct{color:var(--ok);font-weight:600;}
+.bo-refonte .conf.wait .track i{background:var(--wait-dot);}
+.bo-refonte .conf.wait .pct{color:var(--wait);font-weight:600;}
+.bo-refonte .conf.bad .track i{background:var(--bad-dot);}
+.bo-refonte .conf.bad .pct{color:var(--bad);font-weight:600;}
+
+/* Synthèse : la phrase qu'on lit en premier, pas une grille de champs. */
+.bo-refonte .rail-sum{font-size:15px;line-height:1.45;color:var(--ink);margin:10px 0 0;}
+.bo-refonte .rail-sum .dim{color:var(--ink-mute);}
+/* Une seule ligne d'alerte au lieu d'une case rouge par champ vide : c'est
+   elle qui explique le bouton « Convertir automatiquement » grisé. */
+.bo-refonte .rail-missing{display:flex;align-items:flex-start;gap:7px;margin-top:10px;padding:8px 10px;border-radius:var(--r-m);background:var(--bad-bg);color:var(--bad);font-size:12px;line-height:1.4;}
+.bo-refonte .rail-missing svg{flex:none;margin-top:1px;}
+
+/* Détails en lignes clé/valeur — pas de boîte, pas de bordure autour. */
+.bo-refonte .kv{display:flex;flex-direction:column;}
+.bo-refonte .kv > div{display:flex;align-items:baseline;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-soft);}
+.bo-refonte .kv > div:last-child{border-bottom:none;}
+.bo-refonte .kv .k{font-size:11.5px;color:var(--ink-mute);flex:none;width:74px;}
+.bo-refonte .kv .v{font-size:12.5px;color:var(--ink);margin-left:auto;text-align:right;min-width:0;overflow-wrap:anywhere;}
+.bo-refonte .kv .v.na{color:var(--ink-mute);}
+.bo-refonte .kv .v .score{font-size:10.5px;color:var(--ink-mute);font-variant-numeric:tabular-nums;}
+
+/* Notes IA : texte long, replié pour ne pas pousser les actions hors de vue. */
+.bo-refonte .rail-notes > summary{list-style:none;cursor:pointer;font-size:12px;color:var(--ink-soft);display:flex;align-items:center;gap:6px;}
+.bo-refonte .rail-notes > summary::-webkit-details-marker{display:none;}
+.bo-refonte .rail-notes > summary::after{content:"⌄";margin-left:auto;color:var(--ink-mute);}
+.bo-refonte .rail-notes[open] > summary::after{content:"⌃";}
+.bo-refonte .rail-notes p{font-size:12.5px;line-height:1.55;white-space:pre-wrap;margin:8px 0 0;padding:9px 11px;border-radius:var(--r-m);background:var(--bo-surface-2);border:1px solid var(--line-soft);}
+
+/* —— Bandeaux d'état (convertie / erreur) —— */
+.bo-refonte .card.banner-ok{border-color:rgba(85,112,60,.32);background:var(--ok-bg);}
+.bo-refonte .card.banner-ok .bo-sec-title{color:var(--ok);}
+.bo-refonte .card.banner-bad{border-color:rgba(156,58,50,.32);background:var(--bad-bg);}
+.bo-refonte .card.banner-bad .bo-sec-title{color:var(--bad);}
+.bo-refonte .card.banner-bad p{font-size:13px;color:var(--bad);margin:0;}
+.bo-refonte .banner-links{display:flex;gap:8px;flex-wrap:wrap;}
+.bo-refonte .banner-links .bo-btn{background:var(--bo-surface);border-color:var(--line);color:var(--ink);}
+
+/* —— Fil de conversation (colonne de gauche) —— */
+.bo-refonte .thread-scroll{flex:1;min-height:0;overflow-y:auto;padding:16px 18px;}
+.bo-refonte .thread{display:flex;flex-direction:column;gap:12px;}
+.bo-refonte .thread .msg{display:flex;}
+.bo-refonte .thread .msg.out{justify-content:flex-end;}
+/* Colonne étroite : on laisse les bulles respirer plutôt que de les tasser
+   à 86 % — un décalage de 32 px suffit à marquer l'expéditeur. */
+.bo-refonte .thread .msg.in .bubble{margin-right:32px;}
+.bo-refonte .thread .msg.out .bubble{margin-left:32px;}
+.bo-refonte .thread .bubble{padding:10px 13px 11px;border-radius:var(--r-l);}
+/* Entrant et sortant doivent se distinguer d'un coup d'œil. */
+.bo-refonte .thread .msg.in .bubble{background:var(--bo-surface-2);border:1px solid var(--line-soft);color:var(--ink);border-bottom-left-radius:var(--r-s);}
+.bo-refonte .thread .msg.out .bubble{background:var(--clay);color:#FBF6EC;border-bottom-right-radius:var(--r-s);}
+.bo-refonte .thread .bubble .hdr{display:flex;align-items:center;gap:6px;font-size:10.5px;margin-bottom:4px;color:var(--ink-mute);}
+.bo-refonte .thread .msg.out .bubble .hdr{color:rgba(251,246,236,.78);justify-content:flex-end;}
+.bo-refonte .thread .bubble p{font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:break-word;margin:0;}
+
+/* —— Zone de réponse ancrée en bas du fil (messagerie) —— */
+.bo-refonte .compose-dock{flex:none;border-top:1px solid var(--line);background:var(--bo-surface);padding:12px 18px;}
+.bo-refonte .compose-dock .bo-btn.reply-cta{width:100%;}
+.bo-refonte .compose-bar{display:flex;flex-direction:column;gap:9px;}
+.bo-refonte .compose-bar .top{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-soft);}
+.bo-refonte .compose-bar .top .who{display:inline-flex;align-items:center;gap:6px;font-weight:600;}
+.bo-refonte .compose-bar .top .to{margin-left:auto;display:inline-flex;align-items:center;gap:5px;max-width:55%;color:var(--ink-mute);background:none;border:none;padding:0;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bo-refonte .compose-bar .top .to:hover{color:var(--ink);}
+.bo-refonte .compose-bar .top .to.alt{color:var(--wait);}
+
+.bo-refonte .fld{display:flex;flex-direction:column;gap:5px;}
+.bo-refonte .fld > label{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-mute);}
+.bo-refonte .fld input,
+.bo-refonte .compose-bar textarea{width:100%;font-family:var(--sans);font-size:13.5px;line-height:1.55;color:var(--ink);background:var(--bo-surface-2);border:1px solid var(--line);border-radius:var(--r-m);padding:10px 12px;transition:border-color .13s;}
+.bo-refonte .fld input:focus,
+.bo-refonte .compose-bar textarea:focus{outline:none;border-color:var(--clay);}
+.bo-refonte .compose-bar textarea{resize:vertical;min-height:120px;max-height:40vh;}
+.bo-refonte .fld .hint,
+.bo-refonte .compose-bar .hint{font-size:11px;color:var(--wait);}
+.bo-refonte .compose-bar .err{font-size:11.5px;color:var(--bad);}
+.bo-refonte .compose-bar .foot{display:flex;align-items:center;gap:8px;}
+.bo-refonte .compose-bar .foot .seg-note{margin-right:auto;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bo-refonte .compose-loading{display:flex;align-items:center;gap:9px;padding:14px 0;font-size:13px;color:var(--ink-soft);}
+
+/* Cartes du rail : padding réduit, la colonne ne fait que 306px. */
+.bo-refonte .inbox-rail .card{padding:12px 14px;}
+.bo-refonte .inbox-rail .card .hd{margin-bottom:10px;}
+.bo-refonte .inbox-rail .banner-links{flex-direction:column;}
+.bo-refonte .inbox-rail .banner-links .bo-btn{width:100%;justify-content:flex-start;}
+
+/* —— Sous 1024px : une seule colonne (fiche, puis fil, puis actions) —— */
+@media(max-width:1024px){
+  .bo-refonte .inbox-cols{flex-direction:column;overflow-y:auto;}
+  .bo-refonte .inbox-rail{width:auto;border-left:none;border-bottom:1px solid var(--line);}
+  .bo-refonte .rail-scroll{overflow:visible;padding:14px 18px;}
+  /* Les actions repassent en rangée sous la fiche — un seul rendu dans le DOM. */
+  .bo-refonte .inbox-actions{flex-direction:row;flex-wrap:wrap;align-items:center;}
+  .bo-refonte .inbox-actions > span{width:auto;flex:1 1 auto;}
+  .bo-refonte .inbox-actions .bo-btn{width:100%;}
+  .bo-refonte .inbox-thread-col{min-height:320px;}
+  .bo-refonte .thread-scroll{overflow:visible;}
+}
+
+@media(max-width:640px){
+  .bo-refonte .inbox-head{padding:16px;}
+  .bo-refonte .rail-scroll{padding:14px 16px;}
+  .bo-refonte .thread-scroll,
+  .bo-refonte .compose-dock{padding-left:16px;padding-right:16px;}
+  .bo-refonte .inbox-actions{padding:10px 16px;}
+}
+
+/* ────────────────────────────────────────────────────────────
    Dark mode — variante sombre cohérente (le design d'origine est
    light-only). On garde l'accent clay ; le hero reste un dégradé
    clay assumé sur fond sombre.
