@@ -503,10 +503,12 @@ serve(async (req) => {
 
         const isExternal = (booking as any).client_type === 'external';
         const isPending = booking.status === 'pending';
-        // 'offert' = nothing to collect: never route to the payment-link branch,
-        // let it fall through to the standard branch so the confirmation email
-        // (or pending template) is sent like an already-paid booking.
-        const isOffert = (booking as any).payment_status === 'offert';
+        // Rien à encaisser en ligne (offert, déjà payé sur place, facturé
+        // chambre ou partenaire) : ne jamais router vers la branche lien de
+        // paiement, laisser tomber dans la branche standard pour que l'email
+        // de confirmation (ou le template pending) parte normalement.
+        const SETTLED_STATUSES = ['offert', 'paid', 'charged', 'charged_to_room', 'pending_partner_billing'];
+        const isSettled = SETTLED_STATUSES.includes((booking as any).payment_status);
 
         // If a payment method has already been registered for this booking
         // (e.g. client paid via SetupIntent in the client flow), skip the
@@ -544,12 +546,12 @@ serve(async (req) => {
           hasPaymentMethod = !!existingPaymentInfo;
         }
 
-        if (isExternal && !hasPaymentMethod && !isOffert && sendPaymentLink === false) {
+        if (isExternal && !hasPaymentMethod && !isSettled && sendPaymentLink === false) {
           // Admin-created bookings (sendPaymentLink === false): do NOT auto-send
           // the Stripe payment link. The operator sends it manually from the
           // payment tab (FAB → SendPaymentLinkDialog). No client email here.
           console.log('[trigger-new-booking-notifications] sendPaymentLink=false → skipping auto payment-link for external booking:', bookingId);
-        } else if (isExternal && !hasPaymentMethod && !isOffert) {
+        } else if (isExternal && !hasPaymentMethod && !isSettled) {
           // External clients: create a Stripe payment link and send the
           // payment-required email template instead of the standard confirmation.
           const language: 'fr' | 'en' = resolvedLanguage;
@@ -700,8 +702,29 @@ serve(async (req) => {
           const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing', 'offert'];
           const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
 
+          // Idempotence : l'email de confirmation peut désormais être déclenché
+          // par plusieurs chemins (création avec thérapeute, acceptation
+          // thérapeute, passage à payé côté admin). On relit l'historique
+          // d'envoi (audit_log, écrit par sendEmail) pour ne jamais l'envoyer
+          // deux fois. Le template pending n'est pas concerné : il ne part
+          // qu'à la création.
+          let alreadyConfirmedByEmail = false;
+          if (!isPending) {
+            const { data: sentRows } = await supabaseClient
+              .from('audit_log')
+              .select('id')
+              .eq('record_id', bookingId)
+              .eq('change_type', 'action')
+              .eq('new_values->>action', 'email_sent')
+              .in('new_values->>email_type', ['booking_confirmed', 'booking_confirmation'])
+              .limit(1);
+            alreadyConfirmedByEmail = !!(sentRows && sentRows.length > 0);
+          }
+
           if (!isPending && !isPaidEnough) {
             console.log('[trigger-new-booking-notifications] Confirmed booking not paid yet → skipping client email:', bookingId);
+          } else if (alreadyConfirmedByEmail) {
+            console.log('[trigger-new-booking-notifications] Confirmation email already sent → skipping client email:', bookingId);
           } else {
             const confirmedSubject = clientLanguage === 'en'
               ? `✅ Your treatment is confirmed · ${booking.hotel_name ?? ''}`
@@ -735,7 +758,9 @@ serve(async (req) => {
                 ? getBookingPendingHtml(clientLanguage, templateVariables)
                 : getBookingConfirmedHtml(clientLanguage, templateVariables),
               attachments: clientAttachments,
-              audit: { bookingId, emailType: 'new_booking_notifications', metadata: { booking_number: booking.booking_id } },
+              // email_type distinct pending/confirmed : c'est ce qui rend le
+              // verrou d'idempotence ci-dessus possible.
+              audit: { bookingId, emailType: isPending ? 'booking_pending' : 'booking_confirmed', metadata: { booking_number: booking.booking_id } },
             });
 
             if (clientEmailResult.error) {
