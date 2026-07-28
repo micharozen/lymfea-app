@@ -37,9 +37,7 @@ serve(async (req) => {
     const { bookingId } = await req.json();
     console.log('[notify-booking-confirmed] Processing booking:', bookingId);
 
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .select(`
+    const BOOKING_SELECT = `
         id,
         booking_id,
         booking_group_id,
@@ -62,7 +60,11 @@ serve(async (req) => {
         customer_id,
         language,
         hotels(organization_id, name, address, postal_code, city, country, timezone, website_url, contact_email, image, currency, cancellation_policy_text_en, cancellation_policy_text_fr, organizations(name))
-      `)
+      `;
+
+    let { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select(BOOKING_SELECT)
       .eq('id', bookingId)
       .single();
 
@@ -72,9 +74,14 @@ serve(async (req) => {
     }
 
     // Group-mode gating: when the booking belongs to a booking_group_id,
-    // suppress per-booking emails and only fire once — when ALL siblings are
-    // confirmed AND this booking is the canonical first (smallest id-sort).
-    // This keeps the client/admin/concierge inboxes from receiving N copies.
+    // suppress per-booking emails and only fire ONE notification for the whole
+    // group — once ALL siblings are confirmed. The trigger can come from any
+    // sibling (each therapist acceptance fires its own call): whichever call
+    // observes the group fully confirmed sends, on behalf of the canonical
+    // booking (earliest slot). An audit_log lock on the canonical id keeps two
+    // near-simultaneous acceptances from double-sending.
+    // `groupSiblings` non-null downstream = group mode (aggregated content).
+    let groupSiblings: Array<{ id: string; booking_date: string; booking_time: string }> | null = null;
     if (booking.booking_group_id) {
       const { data: siblings } = await supabase
         .from('bookings')
@@ -85,14 +92,48 @@ serve(async (req) => {
         .order('id', { ascending: true });
 
       const allConfirmed = (siblings ?? []).every((b: any) => b.status === 'confirmed');
-      const canonicalId = siblings?.[0]?.id;
-      if (!allConfirmed || canonicalId !== bookingId) {
-        console.log('[notify-booking-confirmed] Skipping group sibling — waiting for full group confirmation');
+      if (!allConfirmed) {
+        console.log('[notify-booking-confirmed] Skipping — group not fully confirmed yet');
         return new Response(
-          JSON.stringify({ success: true, skipped: 'group_partial_or_non_canonical' }),
+          JSON.stringify({ success: true, skipped: 'group_partial' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
+      const canonicalId = siblings![0].id;
+      const { data: sentRows } = await supabase
+        .from('audit_log')
+        .select('id')
+        .eq('record_id', canonicalId)
+        .eq('change_type', 'action')
+        .eq('new_values->>action', 'email_sent')
+        .eq('new_values->>email_type', 'booking_confirmed')
+        .limit(1);
+      if (sentRows && sentRows.length > 0) {
+        console.log('[notify-booking-confirmed] Skipping — group confirmation already sent');
+        return new Response(
+          JSON.stringify({ success: true, skipped: 'group_already_sent' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Continue with the canonical booking as the email's anchor, whichever
+      // sibling triggered this call.
+      if (canonicalId !== booking.id) {
+        const { data: canonical, error: canonicalError } = await supabase
+          .from('bookings')
+          .select(BOOKING_SELECT)
+          .eq('id', canonicalId)
+          .single();
+        if (canonicalError || !canonical) {
+          console.error('[notify-booking-confirmed] Canonical group booking not found:', canonicalError);
+          throw new Error('Canonical group booking not found');
+        }
+        booking = canonical;
+      }
+      groupSiblings = (siblings ?? []).map((s: any) => ({
+        id: s.id, booking_date: s.booking_date, booking_time: s.booking_time,
+      }));
     }
 
     console.log('[notify-booking-confirmed] Booking found:', booking.booking_id);
@@ -109,21 +150,50 @@ serve(async (req) => {
         ? query.or(`is_super_admin.eq.true,organization_id.eq.${organizationId}`)
         : query.eq('is_super_admin', true);
 
+    // Group mode: one email for the whole group → pull the treatments of every
+    // sibling and label each line with its slot (date · heure), so the client
+    // sees all their appointments. Solo mode: unchanged.
+    const groupBookingIds = groupSiblings?.map((s) => s.id) ?? [booking.id];
+    const slotById = new Map((groupSiblings ?? []).map((s) => [s.id, s]));
+    const slotLabel = (siblingId: string): string => {
+      const slot = slotById.get(siblingId);
+      if (!slot || !groupSiblings || groupSiblings.length < 2) return '';
+      const d = new Date(slot.booking_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+      return ` · ${d} ${slot.booking_time?.substring(0, 5) ?? ''}`;
+    };
+
     const { data: bookingTreatments } = await supabase
       .from('booking_treatments')
-      .select('treatment_id, price_override, treatment_menus(name, price, duration, amenity_id), treatment_variants(label, price, duration)')
-      .eq('booking_id', bookingId);
+      .select('booking_id, treatment_id, price_override, treatment_menus(name, price, duration, amenity_id), treatment_variants(label, price, duration)')
+      .in('booking_id', groupBookingIds);
 
-    const treatments = bookingTreatments?.map(bt => {
-      const menu = bt.treatment_menus as any;
-      const variant = bt.treatment_variants as any;
-      return {
-        name: (menu?.name || 'Unknown') + (variant?.label ? ` · ${variant.label}` : ''),
-        price: resolveTreatmentPrice(bt as any),
-        duration: Number(variant?.duration ?? menu?.duration) || 0,
-        is_amenity: !!menu?.amenity_id,
-      };
-    }) || [];
+    // Preserve slot order (groupBookingIds is sorted by date/time).
+    const orderByBooking = new Map(groupBookingIds.map((id, i) => [id, i]));
+    const treatmentRows = (bookingTreatments ?? [])
+      .sort((a: any, b: any) => (orderByBooking.get(a.booking_id) ?? 0) - (orderByBooking.get(b.booking_id) ?? 0))
+      .map(bt => {
+        const menu = bt.treatment_menus as any;
+        const variant = bt.treatment_variants as any;
+        return {
+          booking_id: (bt as any).booking_id as string,
+          baseName: (menu?.name || 'Unknown') + (variant?.label ? ` · ${variant.label}` : ''),
+          price: resolveTreatmentPrice(bt as any),
+          duration: Number(variant?.duration ?? menu?.duration) || 0,
+          is_amenity: !!menu?.amenity_id,
+        };
+      });
+    const treatments = treatmentRows.map((t) => ({
+      name: t.baseName + slotLabel(t.booking_id),
+      price: t.price,
+      duration: t.duration,
+      is_amenity: t.is_amenity,
+    }));
+    // Per-slot treatments (unlabeled) — used for the .ics so each calendar
+    // event carries only its own soins and duration.
+    const treatmentsForBooking = (siblingId: string) =>
+      treatmentRows
+        .filter((t) => t.booking_id === siblingId)
+        .map((t) => ({ name: t.baseName, price: t.price, duration: t.duration, is_amenity: t.is_amenity }));
 
     // Client language drives which confirmation template (FR/EN) is sent to the
     // client. Admin/concierge emails stay in French. The booking-level language
@@ -148,7 +218,7 @@ serve(async (req) => {
       clientLanguage = 'en';
     }
     console.log('[notify-booking-confirmed] language resolution', {
-      bookingId,
+      bookingId: booking.id,
       booking_language: bookingLanguage ?? null,
       customer_id: (booking as any).customer_id ?? null,
       customer_language: customerLanguage,
@@ -167,34 +237,63 @@ serve(async (req) => {
     const formattedTime = booking.booking_time?.substring(0, 5) || '';
 
     const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
-    const bookingDetailsUrl = `${siteUrl}/admin/bookings/${bookingId}`;
+    const bookingDetailsUrl = `${siteUrl}/admin/bookings/${booking.id}`;
     // Client-facing manage URL (short token link, else the manage route) — the
     // admin detail URL must not leak into the client email. Mirrors the SMS.
     const shortToken = (booking as any).short_token;
     const clientManageUrl = shortToken
       ? `${siteUrl}/m/${shortToken}`
-      : `${siteUrl}/booking/manage/${bookingId}`;
+      : `${siteUrl}/booking/manage/${booking.id}`;
 
     const venue = (booking as any).hotels as (EmailVenue & { name?: string | null; timezone?: string | null }) | null;
 
     // Build the .ics and attach it to the client email — mail clients
     // (Apple/Google/Outlook) auto-detect it and offer "Add to calendar".
-    const icsResult = buildBookingIcs({
-      id: booking.id,
-      booking_id: booking.booking_id,
-      booking_date: booking.booking_date,
-      booking_time: booking.booking_time,
-      venue_name: venue?.name || booking.hotel_name,
-      timezone: venue?.timezone,
-      address: venue?.address,
-      postal_code: venue?.postal_code,
-      city: venue?.city,
-      country: venue?.country,
-      treatments,
-    });
-    const clientAttachments: EmailAttachment[] | undefined = icsResult
-      ? [{ filename: icsResult.filename, content: toBase64Utf8(icsResult.ics), contentType: "text/calendar" }]
-      : undefined;
+    // Group mode: one .ics per slot so every appointment lands in the calendar.
+    const icsSources = groupSiblings && groupSiblings.length > 1
+      ? groupSiblings.map((s) => ({ id: s.id, booking_date: s.booking_date, booking_time: s.booking_time }))
+      : [{ id: booking.id, booking_date: booking.booking_date, booking_time: booking.booking_time }];
+    const clientAttachmentList: EmailAttachment[] = [];
+    for (const src of icsSources) {
+      const icsResult = buildBookingIcs({
+        id: src.id,
+        booking_id: booking.booking_id,
+        booking_date: src.booking_date,
+        booking_time: src.booking_time,
+        venue_name: venue?.name || booking.hotel_name,
+        timezone: venue?.timezone,
+        address: venue?.address,
+        postal_code: venue?.postal_code,
+        city: venue?.city,
+        country: venue?.country,
+        treatments: treatmentsForBooking(src.id),
+      });
+      if (icsResult) {
+        const filename = icsSources.length > 1
+          ? icsResult.filename.replace(/\.ics$/, `-${src.booking_date}-${(src.booking_time ?? '').substring(0, 5).replace(':', 'h')}.ics`)
+          : icsResult.filename;
+        clientAttachmentList.push({ filename, content: toBase64Utf8(icsResult.ics), contentType: "text/calendar" });
+      }
+    }
+    const clientAttachments: EmailAttachment[] | undefined =
+      clientAttachmentList.length > 0 ? clientAttachmentList : undefined;
+
+    // Group mode: the email's totals cover the whole group, not just the
+    // canonical booking. Surcharge rows aggregate the same way.
+    let groupTotalPrice = booking.total_price;
+    let groupSurchargeAmount = booking.surcharge_amount;
+    let groupIsOutOfHours = booking.is_out_of_hours;
+    if (groupSiblings && groupSiblings.length > 1) {
+      const { data: siblingTotals } = await supabase
+        .from('bookings')
+        .select('total_price, surcharge_amount, is_out_of_hours')
+        .in('id', groupBookingIds);
+      if (siblingTotals && siblingTotals.length > 0) {
+        groupTotalPrice = siblingTotals.reduce((s: number, b: any) => s + (Number(b.total_price) || 0), 0);
+        groupSurchargeAmount = siblingTotals.reduce((s: number, b: any) => s + (Number(b.surcharge_amount) || 0), 0);
+        groupIsOutOfHours = siblingTotals.some((b: any) => !!b.is_out_of_hours);
+      }
+    }
 
     // Shared email variables (civilité, nom, dates, prix, durée, logo du lieu…)
     // sont construits par le builder centralisé. Les emails admin/concierge
@@ -207,9 +306,9 @@ serve(async (req) => {
         phone: booking.phone,
         room_number: booking.room_number,
         therapist_name: booking.therapist_name,
-        total_price: booking.total_price,
-        surcharge_amount: booking.surcharge_amount,
-        is_out_of_hours: booking.is_out_of_hours,
+        total_price: groupTotalPrice,
+        surcharge_amount: groupSurchargeAmount,
+        is_out_of_hours: groupIsOutOfHours,
         hotel_name: booking.hotel_name,
         booking_date: booking.booking_date,
         booking_time: booking.booking_time,
@@ -309,13 +408,14 @@ serve(async (req) => {
     const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
 
     // 3. Send to client (only once payment is engaged)
+    const isGroup = !!groupSiblings && groupSiblings.length > 1;
     let clientEmailOk = false;
     if (booking.client_email && isPaidEnough) {
       const { error: emailError } = await sendEmail({
         to: booking.client_email,
         subject: clientLanguage === 'en'
-          ? `✅ Your treatment is confirmed · ${booking.hotel_name ?? ''}`
-          : `✅ Votre soin est confirmé · ${booking.hotel_name ?? ''}`,
+          ? `✅ Your ${isGroup ? 'treatments are' : 'treatment is'} confirmed · ${booking.hotel_name ?? ''}`
+          : `✅ ${isGroup ? 'Vos soins sont confirmés' : 'Votre soin est confirmé'} · ${booking.hotel_name ?? ''}`,
         from: transactionalFrom(clientLanguage),
         html: getBookingConfirmedHtml(clientLanguage, clientVars),
         attachments: clientAttachments,
@@ -348,9 +448,15 @@ serve(async (req) => {
           booking.client_last_name,
           clientLanguage,
         );
+        // Group mode: the SMS covers the whole group (first slot + count).
+        const groupCount = groupSiblings?.length ?? 1;
         const smsBody = clientLanguage === 'en'
-          ? `Hello ${smsGreetingName}, your treatment at ${booking.hotel_name ?? ''} on ${formattedDate} at ${formattedTime} is confirmed. Manage: ${clientManageUrl}`
-          : `Bonjour ${smsGreetingName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${clientManageUrl}`;
+          ? (groupCount > 1
+            ? `Hello ${smsGreetingName}, your ${groupCount} treatments at ${booking.hotel_name ?? ''} starting ${formattedDate} at ${formattedTime} are confirmed. Manage: ${clientManageUrl}`
+            : `Hello ${smsGreetingName}, your treatment at ${booking.hotel_name ?? ''} on ${formattedDate} at ${formattedTime} is confirmed. Manage: ${clientManageUrl}`)
+          : (groupCount > 1
+            ? `Bonjour ${smsGreetingName}, vos ${groupCount} soins chez ${booking.hotel_name ?? ''} à partir du ${formattedDate} à ${formattedTime} sont confirmés. Gérer : ${clientManageUrl}`
+            : `Bonjour ${smsGreetingName}, votre soin chez ${booking.hotel_name ?? ''} le ${formattedDate} à ${formattedTime} est confirmé. Gérer : ${clientManageUrl}`);
         const smsResult = await sendSms({ to: clientPhone, body: smsBody });
         if (smsResult.error) {
           console.error('[notify-booking-confirmed][sms] Confirmation SMS error:', smsResult.error);
@@ -370,14 +476,15 @@ serve(async (req) => {
       });
     }
 
-    // 4. Send push notification to all accepted therapists (primary + duo secondary)
+    // 4. Send push notification to all accepted therapists (primary + duo
+    // secondary; group mode: every therapist across the group's bookings)
     const { data: acceptedTherapists } = await supabase
       .from('booking_therapists')
       .select('therapist_id')
-      .eq('booking_id', bookingId)
+      .in('booking_id', groupBookingIds)
       .eq('status', 'accepted');
 
-    const therapistIds = (acceptedTherapists || []).map(bt => bt.therapist_id);
+    const therapistIds = [...new Set((acceptedTherapists || []).map(bt => bt.therapist_id))];
     // Fallback to primary therapist_id if bridge table is empty (solo booking pre-migration)
     if (therapistIds.length === 0 && booking.therapist_id) {
       therapistIds.push(booking.therapist_id);
