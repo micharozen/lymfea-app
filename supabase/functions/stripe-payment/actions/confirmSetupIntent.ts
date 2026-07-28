@@ -23,6 +23,17 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+// Langue de communication client. Priorité au `language` explicite des metadata
+// de session (posé par le frontend), sinon dérivée de l'indicatif téléphonique
+// (+33 → fr, tout le reste → en — même règle que create-client-booking). Le
+// fallback 'fr' ne reste que pour un client sans langue ni téléphone.
+function resolveClientLanguage(meta: Record<string, string>): "fr" | "en" {
+  if (meta.language === "en" || meta.language === "fr") return meta.language;
+  const p = (meta.phone ?? "").replace(/\s/g, "");
+  if (!p) return "fr";
+  return p.startsWith("+33") ? "fr" : "en";
+}
+
 async function resolveCustomer(
   supabase: ActionContext["supabase"],
   clientEmail: string | undefined,
@@ -165,7 +176,7 @@ async function atomicReserveSingle(
     _duration: totalDuration,
     _hotel_id: meta.hotelId,
     _hotel_name: hotel?.name || "Hotel",
-    _language: meta.language || "fr",
+    _language: resolveClientLanguage(meta),
     _payment_method: "card",
     _payment_status: "pending",
     _phone: meta.phone,
@@ -437,7 +448,7 @@ export async function handleConfirmSetupIntent(
           _duration: slotDurations[i] || 60,
           _hotel_id: meta.hotelId,
           _hotel_name: venueData?.name || "Hotel",
-          _language: meta.language || "fr",
+          _language: resolveClientLanguage(meta),
           _payment_method: "card",
           _payment_status: "pending",
           _phone: meta.phone,
@@ -514,6 +525,9 @@ export async function handleConfirmSetupIntent(
         phone: meta.phone,
         room_number: meta.roomNumber || null,
         client_note: meta.note || null,
+        // Les drafts sont créés sans données client → sans ça ils gardent le
+        // défaut DB 'fr' même pour un client anglophone (bug résa #1088).
+        language: resolveClientLanguage(meta),
         status: "pending",
         source: "client",
         payment_method: "card",
