@@ -807,7 +807,17 @@ serve(async (req) => {
       console.error('[trigger-new-booking-notifications] Error sending client email:', emailError);
     }
 
-    // Send Slack notification for new booking
+    // Send Slack notification for new booking. Un re-broadcast après refus
+    // d'un thérapeute (notifyAll + declined_by non vide, booking toujours
+    // pending) ré-invoque cette fonction sans que rien de visible n'ait changé
+    // sur la résa : elle a déjà été annoncée sur Slack à la création — ne pas
+    // la ré-annoncer à chaque refus.
+    const isDeclineRebroadcast = !!notifyAll
+      && booking.status === 'pending'
+      && ((booking as any).declined_by?.length ?? 0) > 0;
+    if (isDeclineRebroadcast) {
+      console.log('[trigger-new-booking-notifications] Decline re-broadcast — skipping Slack announcement');
+    } else {
     try {
       // Reuse the treatments fetched once at the top of the function.
       const treatmentNames = treatments.map(t => t.name).filter(Boolean);
@@ -846,6 +856,7 @@ serve(async (req) => {
     } catch (slackError) {
       console.error('Error sending Slack notification:', slackError);
       // Don't fail the whole request if Slack fails
+    }
     }
 
     return new Response(
