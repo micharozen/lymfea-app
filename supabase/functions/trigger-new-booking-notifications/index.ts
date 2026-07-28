@@ -702,29 +702,29 @@ serve(async (req) => {
           const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing', 'offert'];
           const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
 
-          // Idempotence : l'email de confirmation peut désormais être déclenché
-          // par plusieurs chemins (création avec thérapeute, acceptation
-          // thérapeute, passage à payé côté admin). On relit l'historique
-          // d'envoi (audit_log, écrit par sendEmail) pour ne jamais l'envoyer
-          // deux fois. Le template pending n'est pas concerné : il ne part
-          // qu'à la création.
-          let alreadyConfirmedByEmail = false;
-          if (!isPending) {
-            const { data: sentRows } = await supabaseClient
-              .from('audit_log')
-              .select('id')
-              .eq('record_id', bookingId)
-              .eq('change_type', 'action')
-              .eq('new_values->>action', 'email_sent')
-              .in('new_values->>email_type', ['booking_confirmed', 'booking_confirmation'])
-              .limit(1);
-            alreadyConfirmedByEmail = !!(sentRows && sentRows.length > 0);
-          }
+          // Idempotence : l'email client peut être déclenché par plusieurs
+          // chemins (création, acceptation thérapeute, passage à payé côté
+          // admin, re-broadcast après refus d'un thérapeute — notifyAll). On
+          // relit l'historique d'envoi (audit_log, écrit par sendEmail) pour
+          // ne jamais renvoyer le même template : le pending comme le
+          // confirmed ne doivent partir qu'une seule fois.
+          const dedupEmailTypes = isPending
+            ? ['booking_pending']
+            : ['booking_confirmed', 'booking_confirmation'];
+          const { data: sentRows } = await supabaseClient
+            .from('audit_log')
+            .select('id')
+            .eq('record_id', bookingId)
+            .eq('change_type', 'action')
+            .eq('new_values->>action', 'email_sent')
+            .in('new_values->>email_type', dedupEmailTypes)
+            .limit(1);
+          const alreadySentByEmail = !!(sentRows && sentRows.length > 0);
 
           if (!isPending && !isPaidEnough) {
             console.log('[trigger-new-booking-notifications] Confirmed booking not paid yet → skipping client email:', bookingId);
-          } else if (alreadyConfirmedByEmail) {
-            console.log('[trigger-new-booking-notifications] Confirmation email already sent → skipping client email:', bookingId);
+          } else if (alreadySentByEmail) {
+            console.log('[trigger-new-booking-notifications] Client email already sent → skipping client email:', bookingId);
           } else {
             const confirmedSubject = clientLanguage === 'en'
               ? `✅ Your treatment is confirmed · ${booking.hotel_name ?? ''}`
