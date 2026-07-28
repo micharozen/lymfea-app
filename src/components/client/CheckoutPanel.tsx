@@ -377,6 +377,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
           treatmentIds: items.map(item => item.id),
           treatments: buildTreatmentsPayload(items),
           totalPrice: total,
+          language: languageFromCountryCode(clientInfo.countryCode),
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
           ...(checkoutIntentFields(checkoutIntentId)),
