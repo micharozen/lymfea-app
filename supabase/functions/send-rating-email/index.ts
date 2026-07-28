@@ -44,7 +44,6 @@ serve(async (req: Request): Promise<Response> => {
         client_first_name,
         client_last_name,
         therapist_id,
-        therapist_name,
         hotel_name
       `)
       .eq("id", bookingId)
@@ -90,7 +89,7 @@ serve(async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: brand.emails.from.default,
       to: [booking.client_email],
-      subject: `Rate your experience with ${booking.therapist_name || "your therapist"}`,
+      subject: `Rate your experience at ${booking.hotel_name}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -104,8 +103,7 @@ serve(async (req: Request): Promise<Response> => {
               Thank you, ${booking.client_first_name}!
             </h1>
             <p style="font-size: 16px; color: #666; line-height: 1.6; margin: 0 0 24px 0;">
-              We hope you enjoyed your experience at <strong>${booking.hotel_name}</strong> with 
-              <strong>${booking.therapist_name || "your therapist"}</strong>.
+              We hope you enjoyed your experience at <strong>${booking.hotel_name}</strong>.
             </p>
             <p style="font-size: 16px; color: #666; line-height: 1.6; margin: 0 0 32px 0;">
               Your feedback helps us provide the best service. Please take a moment to rate your experience.
