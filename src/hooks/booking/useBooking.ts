@@ -22,11 +22,14 @@ export function useBooking(id: string | undefined) {
   // Seed from any cached bookings list for this scope (list or windowed planning).
   const seedFromListCache = (): BookingListItem | undefined => {
     if (!id || !scope) return undefined;
+    // Prefix-match only the list caches: `forOrg` would also match the
+    // `detail` caches, whose data is a single booking (not an array).
     const lists = queryClient.getQueriesData<BookingListItem[]>({
-      queryKey: bookingKeys.forOrg(scope),
+      queryKey: [...bookingKeys.forOrg(scope), "list"],
     });
     for (const [, data] of lists) {
-      const found = data?.find((b) => b.id === id);
+      if (!Array.isArray(data)) continue;
+      const found = data.find((b) => b.id === id);
       if (found) return found;
     }
     return undefined;
