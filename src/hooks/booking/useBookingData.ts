@@ -13,6 +13,7 @@ import { useCalendarHotels, type Hotel } from "./useCalendarHotels";
 import { useActiveTherapists, type Therapist } from "./useActiveTherapists";
 
 export type Treatment = BookingTreatment;
+export type { BookingTreatment };
 export type BookingWithTreatments = BookingListItem;
 
 export type { Hotel, Therapist };

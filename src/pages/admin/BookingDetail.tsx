@@ -432,6 +432,26 @@ export default function BookingDetail() {
           .update({ payment_at: new Date().toISOString() })
           .eq("booking_id", booking.id);
       }
+      // Le paiement est le dernier verrou de l'email de confirmation : une résa
+      // confirmée mais impayée ne reçoit rien à la création. Encaisser sur place
+      // n'ouvre aucun webhook Stripe, donc c'est ici qu'on relance l'envoi.
+      // La fonction est idempotente (audit_log) et ne renvoie rien si le mail
+      // est déjà parti, ni si le booking n'est pas encore confirmé.
+      //
+      // Régularisation a posteriori (soin déjà passé, on saisit l'encaissement) :
+      // confirmer une séance déjà eue n'a aucun intérêt pour le client, on ne
+      // déclenche rien.
+      const isPastBooking =
+        new Date(`${booking.booking_date}T${booking.booking_time ?? "00:00"}`) < new Date();
+      if (!isMethodOnly && !isPastBooking && booking.status === "confirmed") {
+        try {
+          await invokeEdgeFunction("trigger-new-booking-notifications", {
+            body: { bookingId: booking.id, notifyClient: true, sendPaymentLink: false },
+          });
+        } catch (notifyError) {
+          console.error("Error triggering confirmation email after payment:", notifyError);
+        }
+      }
       toast.success(
         isPartner
           ? "Facturation partenaire enregistrée."

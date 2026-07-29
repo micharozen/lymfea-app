@@ -308,7 +308,9 @@ export async function handleCreateSetupIntent(
       note: clientData.note || "",
       treatmentIds: JSON.stringify(effectiveTreatmentIds),
       treatmentsPayload: JSON.stringify(safeTreatmentsPayload),
-      language: language || "fr",
+      // Vide si le frontend n'a rien envoyé : confirm-setup-intent dérive alors
+      // la langue de l'indicatif téléphonique au lieu de forcer 'fr'.
+      language: language || "",
       therapistGender: therapistGender || "",
       draftBookingId: draftBookingId || "",
       checkoutIntentId: checkoutIntentId || "",

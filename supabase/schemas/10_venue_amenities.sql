@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS "public"."venue_amenities" (
     "color" "text" DEFAULT '#3b82f6'::"text" NOT NULL,
     "capacity_per_slot" integer DEFAULT 10 NOT NULL,
     "slot_duration" integer DEFAULT 60 NOT NULL,
+    "allowed_durations" integer[] DEFAULT '{}'::integer[] NOT NULL,
     "prep_time" integer DEFAULT 0 NOT NULL,
     "price_external" numeric(10,2) DEFAULT 0,
     "price_lymfea" numeric(10,2) DEFAULT 0,
@@ -24,6 +25,10 @@ ALTER TABLE "public"."venue_amenities" OWNER TO "postgres";
 COMMENT ON TABLE "public"."venue_amenities" IS 'Per-venue amenity configuration (pool, fitness, sauna, etc.)';
 
 COMMENT ON COLUMN "public"."venue_amenities"."type" IS 'Amenity type key matching frontend AMENITY_TYPES constant';
+
+COMMENT ON COLUMN "public"."venue_amenities"."allowed_durations" IS 'Durations (minutes) selectable when booking this amenity. Empty means only slot_duration.';
+
+COMMENT ON COLUMN "public"."venue_amenities"."slot_duration" IS 'Default booking duration in minutes; must be one of allowed_durations.';
 
 COMMENT ON COLUMN "public"."venue_amenities"."prep_time" IS 'Cleaning/prep time in minutes between bookings for privatized amenities';
 

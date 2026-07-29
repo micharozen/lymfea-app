@@ -2,11 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Send, Sparkles, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Send, Sparkles, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 
 interface Props {
@@ -38,6 +35,9 @@ export function ReplyDraftComposer({ inquiryId, defaultRecipient, smtpSender, on
   const [stage, setStage] = useState<Stage>("loading");
   const [loadingStep, setLoadingStep] = useState<"availability" | "drafting">("availability");
   const [recipient, setRecipient] = useState(defaultRecipient);
+  // Champs À / Sujet repliés par défaut — dépliés d'emblée si l'adresse extraite
+  // ne correspond pas à l'expéditeur SMTP, cas qui mérite une vérification.
+  const [fieldsOpen, setFieldsOpen] = useState(defaultRecipient !== smtpSender);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -130,121 +130,122 @@ export function ReplyDraftComposer({ inquiryId, defaultRecipient, smtpSender, on
     ? t("inbox.detail.reply.checkingAvailability", { defaultValue: "Vérification des disponibilités…" })
     : t("inbox.detail.reply.draftingReply", { defaultValue: "Rédaction du brouillon…" });
 
+  // L'adresse mérite un coup d'œil quand elle a été modifiée, ou quand le parser
+  // l'a tirée du corps du mail alors que l'expéditeur SMTP est différent.
+  const recipientEdited = recipient.trim() !== defaultRecipient;
+  const recipientFromBody = !recipientEdited && defaultRecipient !== smtpSender;
+
   return (
-    <div className="rounded-md border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium flex items-center gap-1.5 text-indigo-900">
-          <Sparkles className="h-3.5 w-3.5" />
+    <div className="compose-bar">
+      <div className="top">
+        <span className="who">
+          <Sparkles className="h-[15px] w-[15px]" strokeWidth={1.5} />
           {t("inbox.detail.reply.composerTitle", { defaultValue: "Brouillon de réponse" })}
-        </h3>
-        <Button
-          variant="ghost"
-          size="sm"
+        </span>
+        <button
+          type="button"
+          className={`to${recipientEdited || recipientFromBody ? " alt" : ""}`}
+          onClick={() => setFieldsOpen(v => !v)}
+          aria-expanded={fieldsOpen}
+        >
+          {t("inbox.detail.reply.collapsedTo", { defaultValue: "à : {{email}}", email: recipient })}
+          {fieldsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+        <button
+          type="button"
+          className="x"
           onClick={onClose}
           disabled={stage === "sending"}
-          className="h-7 w-7 p-0 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100"
+          aria-label={t("inbox.detail.reply.cancel", { defaultValue: "Annuler" })}
         >
           <X className="h-4 w-4" />
-        </Button>
+        </button>
       </div>
 
       {stage === "loading" ? (
-        <div className="flex items-center gap-2 text-sm text-indigo-700 py-6 justify-center">
+        <div className="compose-loading">
           <Loader2 className="h-4 w-4 animate-spin" />
           {loadingMessage}
         </div>
       ) : (
         <>
-          {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700">
-              {error}
-            </div>
+          {error && <p className="err">{error}</p>}
+
+          {fieldsOpen && (
+            <>
+              <div className="fld">
+                <label htmlFor="reply-to">
+                  {t("inbox.detail.reply.recipientLabel", { defaultValue: "À" })}
+                </label>
+                <input
+                  id="reply-to"
+                  type="email"
+                  value={recipient}
+                  onChange={e => setRecipient(e.target.value)}
+                  disabled={stage === "sending"}
+                />
+                {recipientEdited ? (
+                  <p className="hint">
+                    {t("inbox.detail.reply.recipientEdited", {
+                      defaultValue: "Destinataire modifié (proposé : {{original}})",
+                      original: defaultRecipient,
+                    })}
+                  </p>
+                ) : recipientFromBody && (
+                  <p className="hint">
+                    {t("inbox.detail.reply.recipientFromBody", {
+                      defaultValue: "Adresse extraite du message — l'expéditeur du mail est {{sender}}",
+                      sender: smtpSender,
+                    })}
+                  </p>
+                )}
+              </div>
+
+              <div className="fld">
+                <label htmlFor="reply-subject">
+                  {t("inbox.detail.reply.subjectLabel", { defaultValue: "Sujet" })}
+                </label>
+                <input
+                  id="reply-subject"
+                  value={subject}
+                  onChange={e => setSubject(e.target.value)}
+                  disabled={stage === "sending"}
+                />
+              </div>
+            </>
           )}
 
-          {meta.availabilityChecked && meta.slots.length > 0 && (
-            <p className="text-[11px] text-indigo-700/80">
-              {t("inbox.detail.reply.referencedSlots", {
-                defaultValue: "Disponibilités prises en compte : {{slots}}",
-                slots: meta.slots.slice(0, 6).join(", "),
-              })}
-            </p>
-          )}
+          <textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            rows={6}
+            disabled={stage === "sending"}
+            aria-label={t("inbox.detail.reply.bodyLabel", { defaultValue: "Message" })}
+          />
 
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">
-              {t("inbox.detail.reply.recipientLabel", { defaultValue: "À" })}
-            </label>
-            <Input
-              type="email"
-              value={recipient}
-              onChange={e => setRecipient(e.target.value)}
-              disabled={stage === "sending"}
-              className="bg-white"
-            />
-            {recipient.trim() !== defaultRecipient ? (
-              <p className="text-[11px] text-amber-700">
-                {t("inbox.detail.reply.recipientEdited", {
-                  defaultValue: "Destinataire modifié (proposé : {{original}})",
-                  original: defaultRecipient,
+          <div className="foot">
+            {meta.availabilityChecked && meta.slots.length > 0 && (
+              <span className="seg-note">
+                {t("inbox.detail.reply.referencedSlots", {
+                  defaultValue: "Disponibilités prises en compte : {{slots}}",
+                  slots: meta.slots.slice(0, 6).join(", "),
                 })}
-              </p>
-            ) : defaultRecipient !== smtpSender && (
-              // The parser found an address in the body that differs from the SMTP
-              // sender (forwarded email, or a client signing with another address).
-              <p className="text-[11px] text-amber-700">
-                {t("inbox.detail.reply.recipientFromBody", {
-                  defaultValue: "Adresse extraite du message — l'expéditeur du mail est {{sender}}",
-                  sender: smtpSender,
-                })}
-              </p>
+              </span>
             )}
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">
-              {t("inbox.detail.reply.subjectLabel", { defaultValue: "Sujet" })}
-            </label>
-            <Input
-              value={subject}
-              onChange={e => setSubject(e.target.value)}
-              disabled={stage === "sending"}
-              className="bg-white"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">
-              {t("inbox.detail.reply.bodyLabel", { defaultValue: "Message" })}
-            </label>
-            <Textarea
-              value={body}
-              onChange={e => setBody(e.target.value)}
-              rows={10}
-              disabled={stage === "sending"}
-              className="bg-white font-sans text-sm leading-relaxed"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-1">
-            <Button
-              variant="ghost"
-              onClick={onClose}
-              disabled={stage === "sending"}
-            >
-              {t("inbox.detail.reply.cancel", { defaultValue: "Annuler" })}
-            </Button>
-            <Button
+            <button
+              type="button"
+              className="bo-btn sm primary"
               onClick={handleSend}
               disabled={stage === "sending" || !body.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              style={{ marginLeft: "auto" }}
             >
               {stage === "sending" ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                <Loader2 className="h-[15px] w-[15px] animate-spin" />
               ) : (
-                <Send className="h-4 w-4 mr-1.5" />
+                <Send className="h-[15px] w-[15px]" strokeWidth={1.5} />
               )}
               {t("inbox.detail.reply.send", { defaultValue: "Envoyer" })}
-            </Button>
+            </button>
           </div>
         </>
       )}

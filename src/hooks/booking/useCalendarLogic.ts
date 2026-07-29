@@ -14,6 +14,89 @@ export const CALENDAR_CONSTANTS = {
   HOUR_HEIGHT: 120,
 } as const;
 
+/** Minimal shape needed to lay out a block on the calendar grid. */
+export interface CalendarLayoutItem {
+  id: string;
+  startMinutes: number;
+  duration: number;
+}
+
+export interface CalendarLayoutSlot {
+  column: number;
+  totalColumns: number;
+}
+
+/** Convert a treatment booking into a layout item. */
+export function toLayoutItem(booking: BookingWithTreatments): CalendarLayoutItem {
+  const [h, m] = (booking.booking_time || "0:0").split(":").map(Number);
+  return {
+    id: booking.id,
+    startMinutes: h * 60 + m,
+    duration: (booking.totalDuration && booking.totalDuration > 0) ? booking.totalDuration : 60,
+  };
+}
+
+/**
+ * Assign non-overlapping columns to a set of time blocks: overlapping blocks are
+ * grouped into clusters, then each cluster is split into as many columns as needed.
+ */
+export function computeColumnLayout(items: CalendarLayoutItem[]): Map<string, CalendarLayoutSlot> {
+  const layout = new Map<string, CalendarLayoutSlot>();
+  if (items.length === 0) return layout;
+
+  // Sort by start time, then by id for stable ordering
+  const sorted = [...items].sort((a, b) => {
+    const diff = a.startMinutes - b.startMinutes;
+    return diff !== 0 ? diff : (a.id || '').localeCompare(b.id || '');
+  });
+
+  // Group overlapping items into clusters
+  const clusters: CalendarLayoutItem[][] = [];
+  let currentCluster: CalendarLayoutItem[] = [];
+  let clusterEnd = -1;
+
+  for (const item of sorted) {
+    const end = item.startMinutes + item.duration;
+
+    if (currentCluster.length === 0 || item.startMinutes < clusterEnd) {
+      currentCluster.push(item);
+      clusterEnd = Math.max(clusterEnd, end);
+    } else {
+      clusters.push(currentCluster);
+      currentCluster = [item];
+      clusterEnd = end;
+    }
+  }
+  if (currentCluster.length > 0) clusters.push(currentCluster);
+
+  // Assign columns within each cluster
+  for (const cluster of clusters) {
+    const columns: number[] = []; // end time of each column
+    const assignments = new Map<string, number>();
+
+    for (const item of cluster) {
+      // Find first column where this item fits (no overlap)
+      let col = columns.findIndex(colEnd => colEnd <= item.startMinutes);
+      if (col === -1) {
+        col = columns.length;
+        columns.push(0);
+      }
+      columns[col] = item.startMinutes + item.duration;
+      assignments.set(item.id, col);
+    }
+
+    const totalColumns = columns.length;
+    for (const item of cluster) {
+      layout.set(item.id, {
+        column: assignments.get(item.id) || 0,
+        totalColumns,
+      });
+    }
+  }
+
+  return layout;
+}
+
 interface UseCalendarLogicOptions {
   filteredBookings: BookingWithTreatments[] | undefined;
   activeTimezone: string;
@@ -136,72 +219,8 @@ export function useCalendarLogic({
     return { top, height: Math.max(height, 20) };
   }, []);
 
-  const getBookingsLayoutForDay = useCallback((bookings: BookingWithTreatments[]): Map<string, { column: number; totalColumns: number }> => {
-    const layout = new Map<string, { column: number; totalColumns: number }>();
-    if (bookings.length === 0) return layout;
-
-    const getStartMinutes = (b: BookingWithTreatments) => {
-      if (!b.booking_time) return 0;
-      const [h, m] = b.booking_time.split(':').map(Number);
-      return h * 60 + m;
-    };
-
-    const getDuration = (b: BookingWithTreatments) =>
-      (b.totalDuration && b.totalDuration > 0) ? b.totalDuration : 60;
-
-    // Sort by start time, then by id for stable ordering
-    const sorted = [...bookings].sort((a, b) => {
-      const diff = getStartMinutes(a) - getStartMinutes(b);
-      return diff !== 0 ? diff : (a.id || '').localeCompare(b.id || '');
-    });
-
-    // Group overlapping bookings into clusters
-    const clusters: BookingWithTreatments[][] = [];
-    let currentCluster: BookingWithTreatments[] = [];
-    let clusterEnd = -1;
-
-    for (const booking of sorted) {
-      const start = getStartMinutes(booking);
-      const end = start + getDuration(booking);
-
-      if (currentCluster.length === 0 || start < clusterEnd) {
-        currentCluster.push(booking);
-        clusterEnd = Math.max(clusterEnd, end);
-      } else {
-        clusters.push(currentCluster);
-        currentCluster = [booking];
-        clusterEnd = end;
-      }
-    }
-    if (currentCluster.length > 0) clusters.push(currentCluster);
-
-    // Assign columns within each cluster
-    for (const cluster of clusters) {
-      const columns: number[] = []; // end time of each column
-      const assignments = new Map<string, number>();
-
-      for (const booking of cluster) {
-        const start = getStartMinutes(booking);
-        // Find first column where this booking fits (no overlap)
-        let col = columns.findIndex(colEnd => colEnd <= start);
-        if (col === -1) {
-          col = columns.length;
-          columns.push(0);
-        }
-        columns[col] = start + getDuration(booking);
-        assignments.set(booking.id, col);
-      }
-
-      const totalColumns = columns.length;
-      for (const booking of cluster) {
-        layout.set(booking.id, {
-          column: assignments.get(booking.id) || 0,
-          totalColumns,
-        });
-      }
-    }
-
-    return layout;
+  const getBookingsLayoutForDay = useCallback((bookings: BookingWithTreatments[]) => {
+    return computeColumnLayout(bookings.map(toLayoutItem));
   }, []);
 
   const isCurrentHour = useCallback((date: Date, hour: number) => {
