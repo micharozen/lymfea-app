@@ -68,4 +68,6 @@ export interface CreateBookingDialogProps {
   selectedDate?: Date;
   selectedTime?: string;
   presetHotelId?: string;
+  /** Pre-assign a therapist (therapist-day planning: clicking a free slot in their column). */
+  presetTherapistId?: string;
 }

@@ -1,5 +1,6 @@
 export { BookingFilters } from "./BookingFilters";
 export { BookingCalendarView } from "./BookingCalendarView";
+export { TherapistDayView } from "./TherapistDayView";
 export { BookingListView } from "./BookingListView";
 export type { BookingSortKey, SortDirection } from "./BookingListView";
 export { InvoicePreviewDialog } from "./InvoicePreviewDialog";
