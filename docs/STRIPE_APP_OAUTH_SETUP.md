@@ -46,6 +46,18 @@ Dashboard Stripe → l'app **Saoma** :
 Test et production sont deux environnements OAuth **strictement séparés** : `client_id`
 différents, et l'échange doit être signé avec la clé du même mode (`sk_test_` / `sk_live_`).
 
+⚠️ Les deux liens n'ont pas la même forme, et Stripe refuse le mauvais avec
+« The provided OAuth link is invalid » :
+
+```
+External test  https://marketplace.stripe.com/oauth/v2/chnlink_XXX/authorize?client_id=…
+Publié         https://marketplace.stripe.com/oauth/v2/authorize?client_id=…
+```
+
+Le segment `chnlink_…` du lien External test se pose dans `STRIPE_APP_OAUTH_LINK_ID` ;
+tant que l'app n'est pas publiée, la forme sans segment échoue **même avec le bon
+`client_id`**.
+
 ## 3. Variables d'environnement
 
 À poser sur Supabase Edge Functions (et Railway si le backend Hono sert les paiements) :
@@ -53,6 +65,7 @@ différents, et l'échange doit être signé avec la clé du même mode (`sk_tes
 | Variable | Valeur | Note |
 |---|---|---|
 | `STRIPE_APP_CLIENT_ID` | `client_id` de l'app | test sur staging, live en prod |
+| `STRIPE_APP_OAUTH_LINK_ID` | `chnlink_…` du lien External test | **obligatoire tant que l'app n'est pas publiée** — à retirer une fois en ligne sur le Marketplace |
 | `STRIPE_APP_SECRET_KEY` | clé secrète du compte propriétaire de l'app | **fallback** sur `STRIPE_SECRET_KEY` si absente — à poser explicitement si l'app Saoma n'appartient pas au même compte Stripe qu'Eïa |
 | `STRIPE_APP_WEBHOOK_SECRET` | app signing secret de l'endpoint de l'app | cf. §4bis — unique pour tous les lieux |
 | `SITE_URL` | prod : `https://app.saoma.io` · env de test : `https://demo.saoma.io` | **obligatoire** — déjà posée |

@@ -17,7 +17,7 @@
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-const AUTHORIZE_URL = "https://marketplace.stripe.com/oauth/v2/authorize";
+const MARKETPLACE_OAUTH_BASE = "https://marketplace.stripe.com/oauth/v2";
 const TOKEN_URL = "https://api.stripe.com/v1/oauth/token";
 
 /** Fallback TTL when Stripe does not return `expires_in` (documented at 1h). */
@@ -77,18 +77,36 @@ export function buildRedirectUri(): string {
   return `${siteUrl.replace(/\/+$/, "")}/admin/payment-oauth-callback/stripe`;
 }
 
+/**
+ * Authorize URL of the app.
+ *
+ * Two forms exist, and Stripe rejects the wrong one with "The provided OAuth
+ * link is invalid":
+ *   - `/oauth/v2/authorize`            → public link, valid only once the app is
+ *                                        published on the Marketplace.
+ *   - `/oauth/v2/<chnlink_…>/authorize` → channel link, the one shown under
+ *                                        "External test" while the app is not
+ *                                        published yet.
+ * `STRIPE_APP_OAUTH_LINK_ID` carries that `chnlink_…` id; leave it unset in
+ * production once the app is live.
+ */
 export function buildAuthorizeUrl(state: string): string {
   const clientId = Deno.env.get("STRIPE_APP_CLIENT_ID");
   if (!clientId) {
     throw new Error("STRIPE_APP_CLIENT_ID is not configured");
   }
 
+  const linkId = Deno.env.get("STRIPE_APP_OAUTH_LINK_ID")?.trim();
+  const authorizeUrl = linkId
+    ? `${MARKETPLACE_OAUTH_BASE}/${linkId}/authorize`
+    : `${MARKETPLACE_OAUTH_BASE}/authorize`;
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: buildRedirectUri(),
     state,
   });
-  return `${AUTHORIZE_URL}?${params.toString()}`;
+  return `${authorizeUrl}?${params.toString()}`;
 }
 
 async function requestTokens(
