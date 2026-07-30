@@ -30,8 +30,8 @@ stripe apps status            # suivre le traitement
 ```
 
 Le manifeste déclare déjà `distribution_type: public`, `stripe_api_access_type: oauth`,
-les 3 redirect URIs et 18 permissions. Toute modification passe par le fichier puis un
-nouvel `upload` — les 18 slugs ont été validés contre `stripe apps grant list-permissions`.
+`sandbox_install_compatible: true` (cf. §2), les 4 redirect URIs et 17 permissions. Toute modification passe par le fichier puis un
+nouvel `upload` — les slugs ont été validés contre `stripe apps grant list-permissions`.
 
 > ⚠️ `stripe apps upload` demande d'accepter le [Stripe Apps Agreement](https://stripe.com/legal/apps).
 
@@ -57,6 +57,23 @@ Publié         https://marketplace.stripe.com/oauth/v2/authorize?client_id=…
 Le segment `chnlink_…` du lien External test se pose dans `STRIPE_APP_OAUTH_LINK_ID` ;
 tant que l'app n'est pas publiée, la forme sans segment échoue **même avec le bon
 `client_id`**.
+
+### Où le compte testeur doit-il se trouver ?
+
+Le lien External test installe une version **test-mode** de l'app. Le compte qui
+l'installe doit donc être en mode test, avec un **administrateur** aux commandes
+(max 25 testeurs par app). Deux refus possibles, opposés :
+
+| Message | Ce qu'il veut dire |
+|---|---|
+| « Switch to a sandbox to install this app » | le compte est en **live** — passer en mode test |
+| « This app can't currently be installed into a sandbox » | le compte est dans une **sandbox**, et le manifeste ne les autorisait pas |
+
+Les sandboxes ont remplacé le mode test hérité, mais une app n'y est installable que si
+elle déclare `sandbox_install_compatible: true` — d'où sa présence dans le manifeste.
+Stripe le vérifie à la review, donc un compte qui n'a que des sandboxes ne pourra
+peut-être pas installer la version external test avant publication ; le repli est un
+compte disposant encore du **mode test hérité**.
 
 ## 3. Variables d'environnement
 
