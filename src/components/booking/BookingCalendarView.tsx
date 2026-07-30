@@ -692,7 +692,7 @@ export function BookingCalendarView({
 }
 
 // Extracted booking card component for cleaner code
-function BookingCard({
+export function BookingCard({
   booking,
   layoutInfo,
   band,

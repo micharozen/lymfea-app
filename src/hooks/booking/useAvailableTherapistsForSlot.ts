@@ -48,7 +48,8 @@ interface UseAvailableTherapistsForSlotParams {
 }
 
 const ACTIVE_STATUSES = ["Actif", "active", "Active"];
-const EXCLUDED_BOOKING_STATUSES = [
+/** Statuses that no longer hold a therapist's time. Shared with the planning views. */
+export const EXCLUDED_BOOKING_STATUSES = [
   "Annulé",
   "cancelled",
   "canceled",
