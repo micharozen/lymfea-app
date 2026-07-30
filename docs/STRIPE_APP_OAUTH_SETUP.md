@@ -55,7 +55,7 @@ différents, et l'échange doit être signé avec la clé du même mode (`sk_tes
 | `STRIPE_APP_CLIENT_ID` | `client_id` de l'app | test sur staging, live en prod |
 | `STRIPE_APP_SECRET_KEY` | clé secrète du compte propriétaire de l'app | **fallback** sur `STRIPE_SECRET_KEY` si absente — à poser explicitement si l'app Saoma n'appartient pas au même compte Stripe qu'Eïa |
 | `STRIPE_APP_WEBHOOK_SECRET` | app signing secret de l'endpoint de l'app | cf. §4bis — unique pour tous les lieux |
-| `SITE_URL` | prod : `https://app.saoma.io` · staging : `https://apptest.eiaspa.fr` | **obligatoire** |
+| `SITE_URL` | prod : `https://app.saoma.io` · env de test : `https://demo.saoma.io` | **obligatoire** — déjà posée |
 
 `SITE_URL` n'est pas optionnelle ici : la redirect URI en est dérivée et Stripe fait un
 **exact match**. Le fallback historique `https://${brand.appDomain}` pointe sur
@@ -67,8 +67,14 @@ Les redirect URIs déclarées :
 ```
 https://app.saoma.io/admin/payment-oauth-callback/stripe       (prod)
 https://app.eiaspa.fr/admin/payment-oauth-callback/stripe      (prod, domaine historique)
-https://apptest.eiaspa.fr/admin/payment-oauth-callback/stripe  (staging)
+https://apptest.eiaspa.fr/admin/payment-oauth-callback/stripe  (staging historique)
+https://demo.saoma.io/admin/payment-oauth-callback/stripe      (env de test — SITE_URL actuelle)
 ```
+
+⚠️ `SITE_URL` de l'environnement de test vaut `https://demo.saoma.io`. Ne la change
+pas pour faire coller une URI : **38 fichiers** la lisent pour construire les liens
+clients (confirmations, liens de paiement, invitations, OTP…). C'est le manifeste
+qu'on adapte, jamais `SITE_URL`.
 
 Route générique avec le provider en segment de chemin : ajouter un provider n'oblige
 jamais à renommer une URI existante, et la page de callback sait quelle edge function
