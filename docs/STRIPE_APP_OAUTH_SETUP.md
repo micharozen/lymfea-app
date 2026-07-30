@@ -75,6 +75,31 @@ Stripe le vérifie à la review, donc un compte qui n'a que des sandboxes ne pou
 peut-être pas installer la version external test avant publication ; le repli est un
 compte disposant encore du **mode test hérité**.
 
+### Trois environnements, trois clés d'échange
+
+Une installation en sandbox ne se rattache pas à notre mode test : Stripe crée dans le
+compte propriétaire un **environnement de test géré** (*managed sandbox*), nommé d'après
+l'id de l'app (`saoma`), auquel se connectent toutes les installations sandbox. La clé qui
+signe `code → tokens` doit appartenir au même environnement que le lien d'installation :
+
+| Le lieu a installé depuis… | `STRIPE_APP_SECRET_KEY` doit être… |
+|---|---|
+| une **sandbox** | la clé de la **managed sandbox** de l'app (Dashboard → basculer sur l'environnement `saoma`) |
+| le **mode test hérité** | la clé test du compte propriétaire |
+| la **prod** (app publiée) | la clé live du compte propriétaire |
+
+Se tromper donne `invalid_grant: Authorization code provided does not belong to you`,
+message identique dans les trois cas. Test rapide d'une clé avant de la poser :
+
+```bash
+curl -s https://api.stripe.com/v1/account -u "sk_test_XXX:" | head -3   # → acct_ de l'environnement
+```
+
+Stripe recommande des **redirect URIs distinctes** par environnement pour choisir la clé
+au moment de l'échange. On s'en passe : un déploiement donné ne sert qu'un environnement
+(staging → sandbox, prod → live), donc la clé suit l'environnement de déploiement et non
+la requête. À revoir le jour où un même déploiement devrait accueillir les deux.
+
 ## 3. Variables d'environnement
 
 À poser sur Supabase Edge Functions (et Railway si le backend Hono sert les paiements) :
@@ -83,7 +108,7 @@ compte disposant encore du **mode test hérité**.
 |---|---|---|
 | `STRIPE_APP_CLIENT_ID` | `client_id` de l'app | test sur staging, live en prod |
 | `STRIPE_APP_OAUTH_LINK_ID` | `chnlink_…` du lien External test | **obligatoire tant que l'app n'est pas publiée** — à retirer une fois en ligne sur le Marketplace |
-| `STRIPE_APP_SECRET_KEY` | clé secrète du compte propriétaire de l'app | **fallback** sur `STRIPE_SECRET_KEY` si absente — à poser explicitement si l'app Saoma n'appartient pas au même compte Stripe qu'Eïa |
+| `STRIPE_APP_SECRET_KEY` | clé secrète de l'**environnement** du compte propriétaire qui a servi à l'installation (cf. §2) | **fallback** sur `STRIPE_SECRET_KEY` si absente — à poser explicitement dès que l'app n'appartient pas au même compte Stripe qu'Eïa, ou que les lieux installent depuis une sandbox |
 | `STRIPE_APP_WEBHOOK_SECRET` | app signing secret de l'endpoint de l'app | cf. §4bis — unique pour tous les lieux |
 | `SITE_URL` | prod : `https://app.saoma.io` · env de test : `https://demo.saoma.io` | **obligatoire** — déjà posée |
 
