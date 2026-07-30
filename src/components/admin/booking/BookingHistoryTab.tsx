@@ -48,6 +48,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   offert: "Offert",
   voucher: "Payé par voucher",
   partner_billed: "Facturé au partenaire",
+  cure_fresha: "Cure Fresha",
 };
 
 const PAYMENT_STATUS_LABELS: Record<string, string> = {

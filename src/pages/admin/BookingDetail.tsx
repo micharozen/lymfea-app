@@ -54,7 +54,7 @@ import {
 } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType, isPartnerBilledBooking, isPaymentStatusLocked } from "@/lib/clientTypePayment";
 
-import { PAYMENT_METHOD_LABELS, MANUAL_PAYMENT_METHODS } from "@/lib/paymentMethod";
+import { PAYMENT_METHOD_LABELS, manualPaymentMethodsForVenue } from "@/lib/paymentMethod";
 
 // Origine de la réservation (colonne bookings.source) → tag affiché dans le header.
 // label = texte, className = couleurs du badge (bg + texte + bordure).
@@ -77,6 +77,7 @@ const PAYMENT_METHOD_ICONS: Record<string, typeof CreditCard> = {
   gift_amount: Gift,
   voucher: Ticket,
   partner_billed: Building2,
+  cure_fresha: Package,
 };
 
 // Hex → pastille : la couleur vient de statusStyles, le rendu est un point +
@@ -148,15 +149,16 @@ export default function BookingDetail() {
   const getHotelInfo = (hotelId: string | null) =>
     (hotelId && hotels?.find((h) => h.id === hotelId)) || null;
 
-  // Méthodes proposées à la saisie manuelle. Les modes écrits par le système
-  // (`card` = Stripe, `bundle`) ne sont ajoutés que si la réservation les porte
-  // déjà, pour que "Modifier la méthode" affiche sa valeur courante.
+  // Méthodes proposées à la saisie manuelle, enrichies des modes propres au lieu
+  // (`cure_fresha` pour EÏA). `bundle`, écrit par le système, n'est ajouté que si
+  // la réservation le porte déjà, pour que "Modifier la méthode" affiche sa
+  // valeur courante.
   const markPaidMethodOptions = useMemo(() => {
-    const options: string[] = [...MANUAL_PAYMENT_METHODS];
+    const options = manualPaymentMethodsForVenue(booking?.hotel_id);
     const current = booking?.payment_method;
     if (current && !options.includes(current)) options.unshift(current);
     return options;
-  }, [booking?.payment_method]);
+  }, [booking?.payment_method, booking?.hotel_id]);
 
   // Fetch bundle info when booking has a bundle_usage_id
   const bundleUsageId = (booking as any)?.bundle_usage_id as string | undefined;
@@ -983,8 +985,8 @@ export default function BookingDetail() {
             <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
               <SelectTrigger><SelectValue placeholder="Choisir une méthode" /></SelectTrigger>
               <SelectContent>
-                {/* `card` (Stripe) est réservé au système : on ne l'expose que
-                    s'il est déjà la valeur courante, pour ne pas vider le Select. */}
+                {/* `bundle` est réservé au système : on ne l'expose que s'il est
+                    déjà la valeur courante, pour ne pas vider le Select. */}
                 {markPaidMethodOptions.map((value) => (
                   <SelectItem key={value} value={value}>
                     {PAYMENT_METHOD_LABELS[value] ?? value}

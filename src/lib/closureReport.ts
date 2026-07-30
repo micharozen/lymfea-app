@@ -118,6 +118,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   gift_amount: "Carte cadeau",
   voucher: "Payé par voucher",
   partner_billed: "Facturé au partenaire",
+  cure_fresha: "Cure Fresha",
 };
 
 /** Libellé du mode de paiement tel qu'affiché dans la clôture. */
