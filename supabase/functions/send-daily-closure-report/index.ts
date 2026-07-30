@@ -60,6 +60,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   gift_amount: "Carte cadeau",
   voucher: "Payé par voucher",
   partner_billed: "Facturé au partenaire",
+  cure_fresha: "Cure Fresha",
 };
 
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
