@@ -20,6 +20,7 @@ import {
   useCalendarLogic,
   useBookingSelection,
   useAmenityBookingData,
+  useTherapistDayPlanning,
   type BookingWithTreatments,
   type AmenityBookingForCalendar,
 } from "@/hooks/booking";
@@ -28,8 +29,12 @@ import {
   BookingFilters,
   BookingCalendarView,
   BookingListView,
+  TherapistDayView,
   SendPaymentLinkDialog,
 } from "@/components/booking";
+import { ALL_TREATMENTS } from "@/components/booking/TherapistDayView";
+import type { PlanningMode } from "@/components/booking/BookingFilters";
+import { useVenueTreatmentMenus } from "@/hooks/useVenueTreatmentMenus";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import {
   CalendarSidebarDesktop,
@@ -45,7 +50,7 @@ export default function Booking() {
   const { isAdmin } = useUserContext();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const { activeTimezone } = useTimezone();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("admin");
   
   // AJOUT : Récupération des paramètres de recherche de l'URL
   const [searchParams] = useSearchParams();
@@ -60,6 +65,27 @@ export default function Booking() {
   useEffect(() => {
     localStorage.setItem('planning-day-count', String(dayCount));
   }, [dayCount]);
+
+  // Layout of the planning: days side by side, or one column per therapist.
+  const [planningMode, setPlanningMode] = useState<PlanningMode>(() =>
+    localStorage.getItem('planning-mode') === 'therapists' ? 'therapists' : 'day',
+  );
+
+  useEffect(() => {
+    localStorage.setItem('planning-mode', planningMode);
+  }, [planningMode]);
+
+  // Therapist mode: hide people who aren't working that day (Fresha's "scheduled team").
+  const [showOnlyScheduled, setShowOnlyScheduled] = useState<boolean>(
+    () => localStorage.getItem('planning-scheduled-team') !== 'false',
+  );
+
+  useEffect(() => {
+    localStorage.setItem('planning-scheduled-team', String(showOnlyScheduled));
+  }, [showOnlyScheduled]);
+
+  // "Who can take this treatment?" — drives qualification + required duration.
+  const [searchedTreatmentId, setSearchedTreatmentId] = useState<string>(ALL_TREATMENTS);
 
   // Sliding date window: only load bookings around the period the calendar shows
   // (same `?date=` source as useCalendarLogic), instead of the whole org history.
@@ -87,6 +113,7 @@ export default function Booking() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
+  const [selectedTherapistId, setSelectedTherapistId] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
 
   // Amenity dialog state
@@ -144,6 +171,13 @@ useEffect(() => {
   // un lieu unique : une sélection multiple retombe sur la vue "tous lieux".
   const singleVenueId = hotelFilter.length === 1 ? hotelFilter[0] : null;
   const hasVenueFilter = !!singleVenueId;
+
+  // Therapist columns only make sense for one venue on one day: a therapist can
+  // work several venues the same day. Derived rather than reset via an effect, so
+  // the stored preference comes back as soon as a single venue is selected again.
+  const effectivePlanningMode: PlanningMode =
+    planningMode === "therapists" && singleVenueId ? "therapists" : "day";
+  const effectiveDayCount = effectivePlanningMode === "therapists" ? 1 : dayCount;
 
   // Calendar-only visibility of cancelled bookings (toggled via the legend).
   // Reset to hidden whenever we leave a single-venue view.
@@ -205,8 +239,32 @@ useEffect(() => {
   const calendar = useCalendarLogic({
     filteredBookings: calendarBookings,
     activeTimezone,
-    dayCount,
+    dayCount: effectiveDayCount,
     persistDateInUrl: true,
+  });
+
+  // Treatments of the venue, for the therapist-view search.
+  const { data: venueTreatments } = useVenueTreatmentMenus(
+    effectivePlanningMode === "therapists" ? singleVenueId : null,
+  );
+
+  // Memoized: the hook recomputes everything whenever this object identity changes.
+  const searchedTreatment = useMemo(() => {
+    if (searchedTreatmentId === ALL_TREATMENTS) return null;
+    const found = (venueTreatments ?? []).find((tm) => tm.id === searchedTreatmentId);
+    return found ? { id: found.id, duration: found.duration } : null;
+  }, [searchedTreatmentId, venueTreatments]);
+
+  // Therapist-day planning. Fed with the *unfiltered* bookings on purpose: a
+  // booking hidden by the toolbar filters still occupies its therapist.
+  const therapistPlanning = useTherapistDayPlanning({
+    venueId: effectivePlanningMode === "therapists" ? singleVenueId : null,
+    date: calendar.currentWeekStart,
+    bookings,
+    startHour: calendar.startHour,
+    endHour: calendar.endHour,
+    showOnlyScheduled,
+    treatment: searchedTreatment,
   });
 
   // Overflow control
@@ -248,6 +306,14 @@ useEffect(() => {
   const handleCalendarClick = (date: Date, time: string) => {
     setSelectedDate(date);
     setSelectedTime(time);
+    setSelectedTherapistId(undefined);
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleTherapistSlotClick = (date: Date, time: string, therapistId: string) => {
+    setSelectedDate(date);
+    setSelectedTime(time);
+    setSelectedTherapistId(therapistId);
     setIsCreateDialogOpen(true);
   };
 
@@ -308,6 +374,11 @@ useEffect(() => {
           onViewChange={setView}
           dayCount={dayCount}
           onDayCountChange={setDayCount}
+          planningMode={effectivePlanningMode}
+          onPlanningModeChange={setPlanningMode}
+          therapistModeDisabledReason={
+            singleVenueId ? undefined : t("planning.selectVenueFirst")
+          }
           isAdmin={isAdmin}
           hotels={hotels}
           therapists={therapists}
@@ -381,6 +452,33 @@ useEffect(() => {
           <div className="flex-1 flex flex-col overflow-hidden">
           {isLoading && !bookings ? (
             <AppLoader fullScreen={false} className="flex-1" />
+          ) : view === "calendar" && effectivePlanningMode === "therapists" ? (
+            <TherapistDayView
+              date={calendar.currentWeekStart}
+              planning={therapistPlanning}
+              hours={calendar.hours}
+              hourHeight={calendar.hourHeight}
+              startHour={calendar.startHour}
+              endHour={calendar.endHour}
+              onPreviousDay={calendar.handlePreviousWeek}
+              onNextDay={calendar.handleNextWeek}
+              onGoToToday={calendar.goToToday}
+              onSetDate={calendar.setViewDate}
+              getBookingPosition={calendar.getBookingPosition}
+              getBookingsLayoutForDay={calendar.getBookingsLayoutForDay}
+              getCurrentTimePosition={calendar.getCurrentTimePosition}
+              getCalendarCardColor={calendar.getCalendarCardColor}
+              getStatusColor={calendar.getStatusColor}
+              getTranslatedStatus={calendar.getTranslatedStatus}
+              getHotelInfo={getHotelInfo}
+              onBookingClick={handleBookingClick}
+              onSlotClick={handleTherapistSlotClick}
+              showOnlyScheduled={showOnlyScheduled}
+              onShowOnlyScheduledChange={setShowOnlyScheduled}
+              treatments={venueTreatments ?? []}
+              selectedTreatmentId={searchedTreatmentId}
+              onSelectedTreatmentChange={setSearchedTreatmentId}
+            />
           ) : view === "calendar" ? (
             <BookingCalendarView
               weekDays={calendar.weekDays}
@@ -437,6 +535,7 @@ useEffect(() => {
         onOpenChange={setIsCreateDialogOpen}
         selectedDate={selectedDate}
         selectedTime={selectedTime}
+        presetTherapistId={selectedTherapistId}
       />
 
       <BookingDetailDialog

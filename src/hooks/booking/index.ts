@@ -18,5 +18,14 @@ export type { CreateBookingPayload } from "./useCreateBookingMutation";
 export { useVenueAvailability } from "./useVenueAvailability";
 export type { VenueAvailabilityData, DaySummary, HourAvailability, AvailabilityLevel } from "./useVenueAvailability";
 
+export { useTherapistDayPlanning } from "./useTherapistDayPlanning";
+export type {
+  TherapistDayPlanning,
+  TherapistDayColumn,
+  TherapistLite,
+  BlockedRange,
+  TimeRange,
+} from "./useTherapistDayPlanning";
+
 export { useAmenityBookingData } from "./useAmenityBookingData";
 export type { AmenityBookingForCalendar } from "./useAmenityBookingData";

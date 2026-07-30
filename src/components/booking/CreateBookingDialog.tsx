@@ -67,7 +67,7 @@ import {
 } from "@/features/admin-combo-duo";
 import type { ComboLegPayload } from "@/hooks/booking/useCreateBookingMutation";
 
-export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
+export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId, presetTherapistId }: CreateBookingDialogProps) {
   const { hotelIds, isAdmin } = useUserContext();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const canAssignTherapist = isAdmin || isConcierge;
@@ -80,7 +80,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     resolver: zodResolver(formSchema),
     defaultValues: {
       hotelId: presetHotelId || (isConcierge && hotelIds.length > 0 ? hotelIds[0] : ""),
-      therapistId: "",
+      therapistId: presetTherapistId || "",
       date: selectedDate,
       time: selectedTime || "",
       slot2Date: undefined,
@@ -154,7 +154,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   useEffect(() => {
     if (selectedDate) form.setValue("date", selectedDate);
     if (selectedTime) form.setValue("time", selectedTime);
-  }, [selectedDate, selectedTime]);
+    if (presetTherapistId) form.setValue("therapistId", presetTherapistId);
+  }, [selectedDate, selectedTime, presetTherapistId]);
 
 
   const scope = useOrgScope();
@@ -703,7 +704,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setSecondaryRoomEnabled(false);
     form.reset({
       hotelId: presetHotelId || "",
-      therapistId: "",
+      therapistId: presetTherapistId || "",
       date: selectedDate,
       time: selectedTime || "",
       slot2Date: undefined,

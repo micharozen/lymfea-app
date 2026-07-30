@@ -15,7 +15,7 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Ban, Calendar as CalendarIcon, Check, CheckCheck, CheckCircle2, Clock, FilterX, List, Search, SlidersHorizontal, Users } from "lucide-react";
+import { Ban, Calendar as CalendarIcon, CalendarDays, Check, CheckCheck, CheckCircle2, Clock, FilterX, List, Search, SlidersHorizontal, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { Hotel, Therapist } from "@/hooks/booking";
@@ -26,6 +26,9 @@ import {
 } from "@/lib/paymentMethod";
 
 const CUSTOM_PERIOD = "custom";
+
+/** Planning layout: days side by side, or one column per therapist for one day. */
+export type PlanningMode = "day" | "therapists";
 
 /**
  * Filtres que l'utilisateur peut afficher ou masquer via le bouton "Filtres".
@@ -102,6 +105,14 @@ interface BookingFiltersProps {
   groupFiltersRight?: boolean;
   showAvailability?: boolean;
   onShowAvailabilityChange?: (show: boolean) => void;
+  /**
+   * Planning layout: days side by side, or one column per therapist for a single
+   * day. Provide the handler to expose the switch (calendar view only).
+   */
+  planningMode?: PlanningMode;
+  onPlanningModeChange?: (mode: PlanningMode) => void;
+  /** Set to disable the therapist mode and explain why (e.g. no single venue selected). */
+  therapistModeDisabledReason?: string;
   /** Period filter in days (window: [today - N days, future]). Omit to hide the selector. */
   periodDays?: number;
   onPeriodDaysChange?: (days: number) => void;
@@ -153,6 +164,9 @@ export function BookingFilters({
   groupFiltersRight = false,
   showAvailability,
   onShowAvailabilityChange,
+  planningMode = "day",
+  onPlanningModeChange,
+  therapistModeDisabledReason,
   periodDays,
   onPeriodDaysChange,
   customRange = null,
@@ -440,7 +454,54 @@ export function BookingFilters({
       )}
 
       <div className="flex items-center gap-1.5 ml-auto">
-        {view === "calendar" && (
+        {onPlanningModeChange && view === "calendar" && (
+          <ButtonGroup>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => onPlanningModeChange("day")}
+                  className={cn(
+                    "h-8 w-8",
+                    planningMode === "day"
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{t("planning.dayViewMode")}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {/* span wrapper: a disabled button doesn't fire the events the tooltip needs */}
+                <span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={!!therapistModeDisabledReason}
+                    onClick={() => onPlanningModeChange("therapists")}
+                    className={cn(
+                      "h-8 w-8",
+                      planningMode === "therapists"
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {therapistModeDisabledReason || t("planning.therapistViewMode")}
+              </TooltipContent>
+            </Tooltip>
+          </ButtonGroup>
+        )}
+
+        {view === "calendar" && planningMode === "day" && (
           <ButtonGroup>
             {[
               { count: 1, label: "1J" },
