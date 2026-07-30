@@ -158,9 +158,11 @@ export async function handleFinalizePayment(
 
     // Resolve venue Stripe based on the booking's hotel_id
     let stripe = defaultStripe;
+    let stripeSource: "venue" | "global" = "global";
     if (booking.hotel_id) {
       const resolved = await getStripeForVenue(supabase, booking.hotel_id);
       stripe = resolved.client;
+      stripeSource = resolved.source;
     }
 
     if (payment_method === "room" && hotel.venue_type === "coworking") {
@@ -420,9 +422,24 @@ export async function handleFinalizePayment(
         })
         .eq("id", booking_id);
 
-      // Cash advance to therapist (Connect transfer) — only if a Connect account is set
+      // Cash advance to therapist (Connect transfer) — only if a Connect account is set.
+      //
+      // Therapist Connect accounts belong to the Eïa platform, not to the venue,
+      // so a transfer can only originate from the platform's own Stripe account.
+      // When the booking resolves to a venue credential (OAuth or BYOK) the
+      // transfer would be rejected, so we skip it explicitly instead of logging
+      // a failed payout row on every room-charge booking.
       let transferResult: Record<string, unknown> | null = null;
-      if (therapist?.stripe_account_id && breakdown.therapistShare > 0) {
+      if (stripeSource === "venue" && breakdown.therapistShare > 0) {
+        console.warn(
+          `[finalizePayment] booking=${booking.id} skipping therapist transfer: venue-scoped Stripe credential cannot pay platform Connect accounts`,
+        );
+        transferResult = {
+          success: false,
+          error:
+            "Therapist transfers require the platform Stripe account; this venue uses its own Stripe account",
+        };
+      } else if (therapist?.stripe_account_id && breakdown.therapistShare > 0) {
         try {
           const transfer = await stripe.transfers.create({
             amount: Math.round(breakdown.therapistShare * 100),

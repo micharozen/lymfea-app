@@ -16,18 +16,22 @@ import { computeTherapistEarnings } from "../lib/therapist-earnings";
  *
  * Migrated from: supabase/functions/stripe-webhook/index.ts
  *
- * Per-venue webhook routing: each venue configures their endpoint URL
- * with `?hotel_id=<uuid>` in their Stripe Dashboard. We resolve the
- * matching Stripe client + webhook secret from Vault. Bookings made on
- * the platform's global Stripe account fall back to STRIPE_WEBHOOK_SECRET
- * if it exists (legacy).
+ * Three routes, in order of specificity:
+ *   1. `?hotel_id=<uuid>` — BYOK venue that created the endpoint itself; key and
+ *      signing secret both come from Vault.
+ *   2. Saoma Stripe App — ONE endpoint shared by every venue that installed the
+ *      app, signed with STRIPE_APP_WEBHOOK_SECRET, venue identified by
+ *      `event.account`. Stripe Apps cannot create per-venue endpoints
+ *      (webhook_write is disallowed), hence routing via the payload.
+ *   3. Neither — platform's own account, STRIPE_WEBHOOK_SECRET (legacy).
  *
  * MIGRATION NOTE:
  * The full event handlers (checkout.session.completed, invoice.payment_succeeded,
  * payment failures) are still skeletons — the bulk of the original handler
  * logic from supabase/functions/stripe-webhook/index.ts (~500 lines) needs
- * to be ported. The per-venue signature verification below already matches
- * the original behavior.
+ * to be ported. The routing + signature verification below already matches
+ * the original behavior, including `account.application.deauthorized`, which
+ * the edge function handles but this skeleton does not.
  */
 const webhooks = new Hono();
 
@@ -37,47 +41,103 @@ webhooks.post("/stripe", async (c) => {
     return c.json({ error: "No signature" }, 400);
   }
 
-  // Per-venue webhook routing via ?hotel_id=<uuid> query param.
+  // Per-venue webhook routing via ?hotel_id=<uuid> query param (BYOK venues).
   const hotelIdParam = c.req.query("hotel_id") || null;
 
+  const body = await c.req.text();
+
   let stripeClient: Stripe;
-  let webhookSecret: string | null;
+  let event: Stripe.Event;
+  let hotelId: string | null = hotelIdParam;
+  let route: "venue-endpoint" | "app" | "platform";
 
   if (hotelIdParam) {
     const resolved = await getStripeForVenue(supabaseAdmin, hotelIdParam);
-    stripeClient = resolved.client;
-    webhookSecret = resolved.webhookSecret ?? process.env.STRIPE_WEBHOOK_SECRET ?? null;
-  } else {
-    // Legacy fallback for events posted to the global endpoint (no hotel_id).
-    // Will throw at this point if neither STRIPE_SECRET_KEY nor a venue key
-    // is configured — which is the desired behavior (no silent acceptance).
+    const secret = resolved.webhookSecret ?? process.env.STRIPE_WEBHOOK_SECRET ?? null;
+    if (!secret) {
+      console.error(`[stripe-webhook] No webhook secret for hotel_id=${hotelIdParam}`);
+      return c.json({ error: "Webhook secret not configured" }, 400);
+    }
     try {
-      stripeClient = getGlobalStripe().client;
+      event = await resolved.client.webhooks.constructEventAsync(body, signature, secret);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Invalid signature";
+      console.error("[stripe-webhook] Signature verification failed:", message);
+      return c.json({ error: message }, 400);
+    }
+    stripeClient = resolved.client;
+    route = "venue-endpoint";
+  } else {
+    // Either a Saoma Stripe App event (single endpoint for every installed
+    // venue, signed with STRIPE_APP_WEBHOOK_SECRET, venue carried in
+    // `event.account`) or a legacy platform event. Signature verification is
+    // pure crypto, so one client can test both secrets.
+    let verifier: Stripe;
+    try {
+      verifier = getGlobalStripe().client;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Stripe not configured";
       console.error(`[stripe-webhook] No global Stripe client: ${msg}`);
       return c.json({ error: "Webhook endpoint requires ?hotel_id=<uuid> when no global Stripe key is configured" }, 400);
     }
-    webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? null;
+
+    const candidates: Array<{ route: "app" | "platform"; secret: string | undefined }> = [
+      { route: "app", secret: process.env.STRIPE_APP_WEBHOOK_SECRET },
+      { route: "platform", secret: process.env.STRIPE_WEBHOOK_SECRET },
+    ];
+
+    let verified: { route: "app" | "platform"; event: Stripe.Event } | null = null;
+    for (const candidate of candidates) {
+      if (!candidate.secret) continue;
+      try {
+        verified = {
+          route: candidate.route,
+          event: await verifier.webhooks.constructEventAsync(body, signature, candidate.secret),
+        };
+        break;
+      } catch {
+        // Wrong secret for this event — try the next one.
+      }
+    }
+
+    if (!verified) {
+      console.error("[stripe-webhook] Signature matched no configured secret");
+      return c.json({ error: "Invalid signature" }, 400);
+    }
+
+    event = verified.event;
+    route = verified.route;
+
+    if (route === "app") {
+      const account = event.account;
+      if (!account) {
+        console.warn("[stripe-webhook] App event without account — ignoring");
+        return c.json({ received: true });
+      }
+
+      const { data: cfg } = await supabaseAdmin
+        .from("hotel_payment_configs")
+        .select("hotel_id")
+        .eq("stripe_account_id", account)
+        .maybeSingle();
+
+      if (!cfg?.hotel_id) {
+        // Unknown venue (uninstalled, or another platform's account). 200 so
+        // Stripe stops retrying.
+        console.warn(`[stripe-webhook] No venue for account=${account} — ignoring`);
+        return c.json({ received: true });
+      }
+
+      hotelId = cfg.hotel_id;
+      stripeClient = (await getStripeForVenue(supabaseAdmin, hotelId)).client;
+    } else {
+      stripeClient = verifier;
+    }
   }
 
-  if (!webhookSecret) {
-    console.error(`[stripe-webhook] No webhook secret for hotel_id=${hotelIdParam ?? "<none>"}`);
-    return c.json({ error: "Webhook secret not configured" }, 400);
-  }
-
-  const body = await c.req.text();
-
-  let event: Stripe.Event;
-  try {
-    event = await stripeClient.webhooks.constructEventAsync(body, signature, webhookSecret);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Invalid signature";
-    console.error("[stripe-webhook] Signature verification failed:", message);
-    return c.json({ error: message }, 400);
-  }
-
-  console.log(`[stripe-webhook] Event: ${event.type} (hotel=${hotelIdParam ?? "global"})`);
+  console.log(
+    `[stripe-webhook] Event: ${event.type} (route=${route} hotel=${hotelId ?? "platform"})`,
+  );
 
   try {
     switch (event.type) {

@@ -102,7 +102,10 @@ export function buildPaymentConfig(
 ): StripeProviderConfig | AdyenProviderConfig {
   switch (provider) {
     case "stripe":
-      return { secretKey: secrets?.stripe_secret_key ?? "" } as StripeProviderConfig;
+      // An OAuth access token is used exactly like a secret key on the wire.
+      return {
+        secretKey: secrets?.stripe_access_token ?? secrets?.stripe_secret_key ?? "",
+      } as StripeProviderConfig;
     case "adyen":
       return {
         apiKey: secrets?.adyen_api_key ?? "",
