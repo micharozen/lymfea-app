@@ -1,0 +1,86 @@
+{
+  "$schema": "https://stripe.com/stripe-app.schema.json",
+  "id": "saoma",
+  "name": "Saoma",
+  "version": "0.0.1",
+  "icon": "./icon.png",
+  "extensions": null,
+  "permissions": [
+    {
+      "permission": "balance_read",
+      "purpose": "Verify the connection to your Stripe account is working."
+    },
+    {
+      "permission": "checkout_session_read",
+      "purpose": "Track the status of payments made by your spa guests."
+    },
+    {
+      "permission": "checkout_session_write",
+      "purpose": "Collect payments for treatments booked at your venue."
+    },
+    {
+      "permission": "payment_intent_read",
+      "purpose": "Show the payment status of each booking in your dashboard."
+    },
+    {
+      "permission": "payment_intent_write",
+      "purpose": "Charge, capture and cancel payments for bookings."
+    },
+    {
+      "permission": "setup_intent_read",
+      "purpose": "Check whether a guest's saved card is ready to be charged."
+    },
+    {
+      "permission": "setup_intent_write",
+      "purpose": "Save a guest's card securely so it can be charged after their treatment."
+    },
+    {
+      "permission": "customer_read",
+      "purpose": "Match returning guests to their existing Stripe customer record."
+    },
+    {
+      "permission": "customer_write",
+      "purpose": "Create a Stripe customer for each guest and save their card for later."
+    },
+    {
+      "permission": "payment_links_read",
+      "purpose": "Check whether a payment link sent to a guest has been paid."
+    },
+    {
+      "permission": "payment_links_write",
+      "purpose": "Send payment links to guests by email or SMS."
+    },
+    {
+      "permission": "charge_read",
+      "purpose": "Reconcile settled charges with your bookings."
+    },
+    {
+      "permission": "charge_write",
+      "purpose": "Issue refunds when a booking is cancelled."
+    },
+    {
+      "permission": "invoice_read",
+      "purpose": "Retrieve invoices generated for room-charge bookings."
+    },
+    {
+      "permission": "invoice_write",
+      "purpose": "Generate an invoice when a guest charges a treatment to their room."
+    },
+    {
+      "permission": "product_write",
+      "purpose": "Describe the treatments being purchased on the payment page."
+    },
+    {
+      "permission": "plan_write",
+      "purpose": "Set the price of the treatments being purchased on the payment page."
+    }
+  ],
+  "allowed_redirect_uris": [
+    "https://app.saoma.io/admin/payment-oauth-callback/stripe",
+    "https://app.eiaspa.fr/admin/payment-oauth-callback/stripe",
+    "https://apptest.eiaspa.fr/admin/payment-oauth-callback/stripe",
+    "https://demo.saoma.io/admin/payment-oauth-callback/stripe"
+  ],
+  "distribution_type": "public",
+  "stripe_api_access_type": "oauth"
+}

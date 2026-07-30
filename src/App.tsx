@@ -42,6 +42,7 @@ const BookingsList = lazy(() => import("./pages/admin/BookingsList"));
 const Therapists = lazy(() => import("./pages/admin/Therapists"));
 const AdminHotels = lazy(() => import("./pages/admin/Hotels"));
 const VenueDetail = lazy(() => import("./pages/admin/VenueDetail"));
+const PaymentOAuthCallback = lazy(() => import("./pages/admin/PaymentOAuthCallback"));
 const MyVenue = lazy(() => import("./pages/admin/MyVenue"));
 const TherapistDetail = lazy(() => import("./pages/admin/TherapistDetail"));
 const AdminTreatments = lazy(() => import("./pages/admin/Treatments"));
@@ -532,6 +533,9 @@ const App = () => {
                               <Route path="/places" element={<AdminHotels />} />
                               <Route path="/places/new" element={<VenueDetail />} />
                               <Route path="/places/:id" element={<VenueDetail />} />
+                              {/* Redirect target of a payment provider's OAuth consent screen.
+                                  For Stripe, must match saoma/stripe-app.json allowed_redirect_uris */}
+                              <Route path="/payment-oauth-callback/:provider" element={<PaymentOAuthCallback />} />
                               <Route path="/my-venue" element={<MyVenue />} />
                               <Route path="/treatments" element={<AdminTreatments />} />
                               <Route path="/treatments/new" element={<TreatmentDetail />} />

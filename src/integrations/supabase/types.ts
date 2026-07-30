@@ -1664,12 +1664,16 @@ export type Database = {
           adyen_environment: string | null
           adyen_merchant_account: string | null
           adyen_vault_secret_id: string | null
+          auth_method: string
           connection_error: string | null
           connection_status: string | null
           connection_verified_at: string | null
           created_at: string | null
           hotel_id: string
           id: string
+          livemode: boolean | null
+          oauth_connected_at: string | null
+          oauth_expires_at: string | null
           provider: string
           stripe_account_id: string | null
           stripe_publishable_key: string | null
@@ -1681,12 +1685,16 @@ export type Database = {
           adyen_environment?: string | null
           adyen_merchant_account?: string | null
           adyen_vault_secret_id?: string | null
+          auth_method?: string
           connection_error?: string | null
           connection_status?: string | null
           connection_verified_at?: string | null
           created_at?: string | null
           hotel_id: string
           id?: string
+          livemode?: boolean | null
+          oauth_connected_at?: string | null
+          oauth_expires_at?: string | null
           provider?: string
           stripe_account_id?: string | null
           stripe_publishable_key?: string | null
@@ -1698,12 +1706,16 @@ export type Database = {
           adyen_environment?: string | null
           adyen_merchant_account?: string | null
           adyen_vault_secret_id?: string | null
+          auth_method?: string
           connection_error?: string | null
           connection_status?: string | null
           connection_verified_at?: string | null
           created_at?: string | null
           hotel_id?: string
           id?: string
+          livemode?: boolean | null
+          oauth_connected_at?: string | null
+          oauth_expires_at?: string | null
           provider?: string
           stripe_account_id?: string | null
           stripe_publishable_key?: string | null
@@ -2227,6 +2239,38 @@ export type Database = {
           request_type?: string
         }
         Relationships: []
+      }
+      payment_oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          hotel_id: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          hotel_id: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          hotel_id?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_oauth_states_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       plans: {
         Row: {
@@ -2896,13 +2940,13 @@ export type Database = {
           password_set: boolean | null
           phone: string
           profile_image: string | null
+          rate_105: number | null
+          rate_120: number | null
+          rate_150: number | null
           rate_45: number | null
           rate_60: number | null
           rate_75: number | null
           rate_90: number | null
-          rate_105: number | null
-          rate_120: number | null
-          rate_150: number | null
           skills: string[] | null
           status: string
           stripe_account_id: string | null
@@ -2924,13 +2968,13 @@ export type Database = {
           password_set?: boolean | null
           phone: string
           profile_image?: string | null
+          rate_105?: number | null
+          rate_120?: number | null
+          rate_150?: number | null
           rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
           rate_90?: number | null
-          rate_105?: number | null
-          rate_120?: number | null
-          rate_150?: number | null
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
@@ -2952,13 +2996,13 @@ export type Database = {
           password_set?: boolean | null
           phone?: string
           profile_image?: string | null
+          rate_105?: number | null
+          rate_120?: number | null
+          rate_150?: number | null
           rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
           rate_90?: number | null
-          rate_105?: number | null
-          rate_120?: number | null
-          rate_150?: number | null
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
@@ -3936,6 +3980,13 @@ export type Database = {
           bundle_id: string
           hotel_id: string
           status: string
+        }[]
+      }
+      claim_payment_oauth_state: {
+        Args: { p_state: string }
+        Returns: {
+          hotel_id: string
+          user_id: string
         }[]
       }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
