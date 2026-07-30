@@ -80,39 +80,42 @@ serve(async (req) => {
       route = "venue-endpoint";
     } else {
       // Signature verification is pure crypto — any client instance will do.
+      // Both secrets are tried because the app signing secret and the platform
+      // one are indistinguishable from here.
       const verifier = getGlobalStripe().client;
-      const candidates: Array<{ route: "app" | "platform"; secret: string | undefined }> = [
-        { route: "app", secret: Deno.env.get("STRIPE_APP_WEBHOOK_SECRET") },
-        { route: "platform", secret: Deno.env.get("STRIPE_WEBHOOK_SECRET") },
-      ];
+      const secrets = [
+        Deno.env.get("STRIPE_APP_WEBHOOK_SECRET"),
+        Deno.env.get("STRIPE_WEBHOOK_SECRET"),
+      ].filter((s): s is string => !!s);
 
-      let verified: { route: "app" | "platform"; event: Stripe.Event } | null = null;
-      for (const candidate of candidates) {
-        if (!candidate.secret) continue;
+      let verifiedEvent: Stripe.Event | null = null;
+      for (const secret of secrets) {
         try {
-          verified = {
-            route: candidate.route,
-            event: await verifier.webhooks.constructEventAsync(
-              body,
-              signature,
-              candidate.secret,
-            ),
-          };
+          verifiedEvent = await verifier.webhooks.constructEventAsync(
+            body,
+            signature,
+            secret,
+          );
           break;
         } catch {
           // Wrong secret for this event — try the next one.
         }
       }
 
-      if (!verified) {
+      if (!verifiedEvent) {
         console.error("[STRIPE-WEBHOOK] Signature matched no configured secret");
         log.error("webhook.signature_unmatched", null, {});
         await log.flush();
         return new Response("Invalid signature", { status: 400 });
       }
 
-      event = verified.event;
-      route = verified.route;
+      event = verifiedEvent;
+
+      // Route on the payload, not on which secret verified it: an event carrying
+      // `account` comes from an installed venue whatever the secret. This makes a
+      // whsec_/absec_ mix-up between the two env vars harmless, instead of
+      // silently sending a venue event down the platform path.
+      route = event.account ? "app" : "platform";
 
       if (route === "app") {
         const account = event.account;

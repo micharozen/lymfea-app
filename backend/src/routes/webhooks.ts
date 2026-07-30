@@ -81,32 +81,33 @@ webhooks.post("/stripe", async (c) => {
       return c.json({ error: "Webhook endpoint requires ?hotel_id=<uuid> when no global Stripe key is configured" }, 400);
     }
 
-    const candidates: Array<{ route: "app" | "platform"; secret: string | undefined }> = [
-      { route: "app", secret: process.env.STRIPE_APP_WEBHOOK_SECRET },
-      { route: "platform", secret: process.env.STRIPE_WEBHOOK_SECRET },
-    ];
+    // Both secrets are tried because the app signing secret and the platform one
+    // are indistinguishable from here.
+    const secrets = [
+      process.env.STRIPE_APP_WEBHOOK_SECRET,
+      process.env.STRIPE_WEBHOOK_SECRET,
+    ].filter((s): s is string => !!s);
 
-    let verified: { route: "app" | "platform"; event: Stripe.Event } | null = null;
-    for (const candidate of candidates) {
-      if (!candidate.secret) continue;
+    let verifiedEvent: Stripe.Event | null = null;
+    for (const secret of secrets) {
       try {
-        verified = {
-          route: candidate.route,
-          event: await verifier.webhooks.constructEventAsync(body, signature, candidate.secret),
-        };
+        verifiedEvent = await verifier.webhooks.constructEventAsync(body, signature, secret);
         break;
       } catch {
         // Wrong secret for this event — try the next one.
       }
     }
 
-    if (!verified) {
+    if (!verifiedEvent) {
       console.error("[stripe-webhook] Signature matched no configured secret");
       return c.json({ error: "Invalid signature" }, 400);
     }
 
-    event = verified.event;
-    route = verified.route;
+    event = verifiedEvent;
+
+    // Route on the payload, not on which secret happened to verify — see the
+    // edge function for the rationale.
+    route = event.account ? "app" : "platform";
 
     if (route === "app") {
       const account = event.account;
