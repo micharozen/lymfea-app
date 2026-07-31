@@ -594,7 +594,8 @@ export async function handleConfirmSetupIntent(
   const pricingLines: TreatmentLine[] = treatmentsPayload.length > 0
     ? treatmentsPayload
     : (treatmentIds as string[]).map((id) => ({ treatmentId: id, quantity: 1 }));
-  // Jours autorisés portés par la variante (formules Semaine / Week-end).
+  // Prix, durée et jours autorisés portés par la variante (formules Semaine /
+  // Week-end).
   const selectedVariantIds = pricingLines
     .map((l) => l.variantId)
     .filter((v): v is string => !!v);
@@ -616,9 +617,30 @@ export async function handleConfirmSetupIntent(
     (treatments || []).map((t: { id: string; duration: number }) => [t.id, t.duration || 0]),
   );
 
+  // La variante prime sur le soin pour le prix ET la durée : create-setup-intent
+  // facture déjà le tarif de la variante, la résa doit être enregistrée au même
+  // montant (sinon un booking week-end est stocké au tarif semaine alors que
+  // Stripe a bien encaissé le tarif week-end).
+  type VariantRow = { id: string; price: number | null; duration: number | null };
+  const { data: variantRows } = selectedVariantIds.length > 0
+    ? await supabase
+      .from("treatment_variants")
+      .select("id, price, duration")
+      .in("id", selectedVariantIds)
+    : { data: [] as VariantRow[] };
+  const variantById = new Map<string, VariantRow>(
+    (variantRows || []).map((v: VariantRow) => [v.id, v]),
+  );
+
+  const unitPriceOfLine = (line: TreatmentLine) =>
+    (line.variantId ? variantById.get(line.variantId)?.price : null) ??
+      priceById.get(line.treatmentId) ?? 0;
+
   const addonTreatmentIds = await fetchAddonTreatmentIds(supabase, meta.hotelId, treatments || []);
   const isAddonLine = (treatmentId: string) => addonTreatmentIds.has(treatmentId);
-  const durationOfLine = (line: TreatmentLine) => durationById.get(line.treatmentId) || 0;
+  const durationOfLine = (line: TreatmentLine) =>
+    ((line.variantId ? variantById.get(line.variantId)?.duration : null) ??
+      durationById.get(line.treatmentId)) || 0;
 
   // Amenity lines (pool/sauna access) occupy their own block — exclude them from
   // the soin slot duration. And an amenity-only cart (every line is an amenity)
@@ -637,7 +659,7 @@ export async function handleConfirmSetupIntent(
   let basePrice = 0;
   for (const line of pricingLines) {
     const qty = Math.max(1, Number(line.quantity) || 1);
-    basePrice += (priceById.get(line.treatmentId) || 0) * qty;
+    basePrice += unitPriceOfLine(line) * qty;
   }
   const totalDuration = computeSlotDuration(pricingLines, isDuo, durationOfLine, isAddonLine, isAmenityLine) || 30;
 
