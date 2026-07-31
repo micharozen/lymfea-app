@@ -4,7 +4,10 @@
 //   1. Venue connected via OAuth (Saoma Stripe App) → its access token,
 //      refreshed transparently when it is about to expire.
 //   2. Venue on legacy BYOK → the secret key it pasted, read from Vault.
-//   3. Otherwise → the global STRIPE_SECRET_KEY env var.
+//   3. Venue with NO credential of its own → the global STRIPE_SECRET_KEY.
+//
+// A venue that declares a credential but whose credential is unreadable is an
+// error, never a fallback — see VenueStripeCredentialError.
 //
 // Also exposes the venue's Stripe account_id (if any) and the per-venue webhook
 // secret needed by stripe-webhook.
@@ -21,6 +24,23 @@ const STRIPE_API_VERSION = "2025-08-27.basil" as const;
 
 /** Refresh this long before actual expiry, to absorb clock skew and latency. */
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
+
+/**
+ * A venue declares a Stripe credential but it cannot be used.
+ *
+ * Never fall back to the platform key here: the venue's customers, payment
+ * intents and payouts live on ITS account, so the platform key would silently
+ * charge the wrong account instead of failing.
+ */
+export class VenueStripeCredentialError extends Error {
+  readonly hotelId: string;
+
+  constructor(hotelId: string, reason: string) {
+    super(`Stripe credential unusable for venue ${hotelId}: ${reason}`);
+    this.name = "VenueStripeCredentialError";
+    this.hotelId = hotelId;
+  }
+}
 
 export interface ResolvedStripe {
   client: Stripe;
@@ -187,8 +207,9 @@ export async function getStripeForVenue(
         );
       }
 
-      console.warn(
-        `[stripe-resolver] hotel=${hotelId} OAuth token unusable → falling back to global`,
+      throw new VenueStripeCredentialError(
+        hotelId,
+        "OAuth token missing or refresh failed",
       );
     } else if (secrets?.stripe_secret_key) {
       console.log(`[stripe-resolver] hotel=${hotelId} source=venue auth=keys`);
@@ -205,8 +226,9 @@ export async function getStripeForVenue(
         Infinity,
       );
     } else {
-      console.warn(
-        `[stripe-resolver] hotel=${hotelId} configured for stripe but Vault read failed → falling back to global`,
+      throw new VenueStripeCredentialError(
+        hotelId,
+        "Vault holds no usable credential for this venue",
       );
     }
   }
