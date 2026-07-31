@@ -35,6 +35,16 @@ nouvel `upload` — les slugs ont été validés contre `stripe apps grant list-
 
 > ⚠️ `stripe apps upload` demande d'accepter le [Stripe Apps Agreement](https://stripe.com/legal/apps).
 
+Les permissions ne couvrent pas que nos appels serveur : la **clé publiable** rendue par
+l'OAuth hérite elle aussi des permissions de l'app, donc la page Checkout hébergée par
+Stripe tombe sur le même mur. C'est ainsi que `payment_method_write` s'est révélée
+nécessaire — `POST /v1/payment_methods` appelé depuis `checkout.stripe.com`, pas depuis
+nos edge functions. Un refus se lit dans les logs du compte du lieu :
+`more_permissions_required_for_application` + le path exact.
+
+Ajouter une permission oblige le lieu à **réautoriser** : les tokens émis restent figés
+sur les permissions consenties.
+
 ## 2. Récupérer les identifiants OAuth
 
 Dashboard Stripe → l'app **Saoma** :

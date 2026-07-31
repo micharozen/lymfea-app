@@ -2,7 +2,7 @@
   "$schema": "https://stripe.com/stripe-app.schema.json",
   "id": "saoma",
   "name": "Saoma",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "icon": "./icon.png",
   "extensions": null,
   "permissions": [
@@ -41,6 +41,14 @@
     {
       "permission": "customer_write",
       "purpose": "Create a Stripe customer for each guest and save their card for later."
+    },
+    {
+      "permission": "payment_method_read",
+      "purpose": "Show the guest which card will be charged for their treatment."
+    },
+    {
+      "permission": "payment_method_write",
+      "purpose": "Let the guest enter their card on the secure Stripe payment page."
     },
     {
       "permission": "payment_links_read",
