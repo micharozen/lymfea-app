@@ -219,23 +219,22 @@ async function refundChargeAfterFailure(
 async function triggerBookingNotifications(
   supabase: ActionContext["supabase"],
   bookingIds: string[],
-  broadcast: boolean = true,
 ): Promise<void> {
   await Promise.all(
     bookingIds.flatMap((bookingId) => [
-      // Panier 100% amenity : aucun praticien requis, pas de diffusion — mais on
-      // envoie quand même l'email admin ci-dessous.
-      ...(broadcast
-        ? [
-            supabase.functions
-              .invoke("trigger-new-booking-notifications", {
-                body: { bookingId, notifyAll: true },
-              })
-              .catch((err: unknown) =>
-                console.error(`[CONFIRM-SETUP] Notif error for ${bookingId}:`, err),
-              ),
-          ]
-        : []),
+      // trigger-new-booking-notifications porte DEUX responsabilités : la
+      // diffusion aux praticiens ET l'email/SMS/.ics de confirmation client.
+      // Elle est donc toujours appelée, y compris pour un panier 100% amenity
+      // (privatisation piscine…) qui ne requiert aucun praticien : la fonction
+      // sait elle-même ne solliciter personne dans ce cas, et le client doit
+      // recevoir sa confirmation.
+      supabase.functions
+        .invoke("trigger-new-booking-notifications", {
+          body: { bookingId, notifyAll: true },
+        })
+        .catch((err: unknown) =>
+          console.error(`[CONFIRM-SETUP] Notif error for ${bookingId}:`, err),
+        ),
       supabase.functions
         .invoke("notify-admin-new-booking", {
           body: { bookingId },
@@ -822,9 +821,7 @@ export async function handleConfirmSetupIntent(
     });
   }
 
-  // Panier 100% amenity : diffusion aux thérapeutes désactivée (broadcast=false),
-  // l'email admin reste envoyé.
-  await triggerBookingNotifications(supabase, [bookingId], !isAmenityOnly);
+  await triggerBookingNotifications(supabase, [bookingId]);
 
   await tryMarkCheckoutIntentConverted(supabase, meta.checkoutIntentId, bookingId, "[CONFIRM-SETUP]");
 
