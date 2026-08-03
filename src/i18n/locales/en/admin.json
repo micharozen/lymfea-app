@@ -147,7 +147,9 @@
     "canTakeAtHour": "Can take this treatment at {{hour}}:00",
     "noneAvailable": "Nobody",
     "overflowsShift": "runs past their shift",
-    "slotOverflowsShift": "Careful, the selected treatment runs past the therapist's shift"
+    "slotOverflowsShift": "Careful, the selected treatment runs past the therapist's shift",
+    "roomBlock": "Block",
+    "moreCreateActions": "More create actions"
   },
   "bookings": {
     "title": "Bookings",
@@ -1748,5 +1750,36 @@
     "count_other": "{{count}} treatments",
     "none": "No treatment",
     "thisVenue": "this venue"
+  },
+  "roomBlocks": {
+    "sectionTitle": "One-off blocks",
+    "sectionDescription": "Close a time range on a given date (photo shoot, maintenance) without creating a booking.",
+    "add": "Add a block",
+    "loading": "Loading…",
+    "empty": "No upcoming blocks.",
+    "dialogTitle": "Block a time range",
+    "dialogDescription": "The slot becomes unavailable for booking. Existing bookings are not cancelled.",
+    "labelField": "Reason",
+    "labelPlaceholder": "e.g. Photo shoot",
+    "startDate": "From",
+    "endDate": "To",
+    "startTime": "Start",
+    "endTime": "End",
+    "scope": "Scope",
+    "wholeVenue": "Whole venue",
+    "noRooms": "No active treatment room in this venue.",
+    "invalidTimeRange": "Start time must be before end time",
+    "invalidForm": "Please fill in the reason, dates, times and scope",
+    "existingBookingsWarning_one": "{{count}} existing booking falls within this range. It will not be cancelled.",
+    "existingBookingsWarning_other": "{{count}} existing bookings fall within this range. They will not be cancelled.",
+    "confirmDelete": "Delete the block “{{label}}”?",
+    "created_one": "Block created ({{count}} slot)",
+    "created_other": "Block created ({{count}} slots)",
+    "createError": "Could not create the block: {{message}}",
+    "deleted": "Block deleted",
+    "deleteError": "Could not delete the block: {{message}}",
+    "cancel": "Cancel",
+    "submit": "Block",
+    "selectVenueFirst": "Select a venue to block"
   }
 }

@@ -147,7 +147,9 @@
     "canTakeAtHour": "Peuvent prendre ce soin à {{hour}}h",
     "noneAvailable": "Personne",
     "overflowsShift": "dépasse son shift",
-    "slotOverflowsShift": "Attention, le soin sélectionné dépasse le shift du thérapeute"
+    "slotOverflowsShift": "Attention, le soin sélectionné dépasse le shift du thérapeute",
+    "roomBlock": "Blocage",
+    "moreCreateActions": "Plus d'actions de création"
   },
   "bookings": {
     "title": "Réservations",
@@ -1748,5 +1750,36 @@
     "count_other": "{{count}} prestations",
     "none": "Aucune prestation",
     "thisVenue": "ce lieu"
+  },
+  "roomBlocks": {
+    "sectionTitle": "Blocages ponctuels",
+    "sectionDescription": "Neutraliser une plage horaire à une date donnée (shooting, maintenance) sans créer de réservation.",
+    "add": "Ajouter un blocage",
+    "loading": "Chargement…",
+    "empty": "Aucun blocage à venir.",
+    "dialogTitle": "Bloquer une plage horaire",
+    "dialogDescription": "Le créneau devient indisponible à la réservation. Les réservations déjà enregistrées ne sont pas annulées.",
+    "labelField": "Motif",
+    "labelPlaceholder": "ex : Shooting photo",
+    "startDate": "Du",
+    "endDate": "Au",
+    "startTime": "De",
+    "endTime": "À",
+    "scope": "Portée",
+    "wholeVenue": "Tout le lieu",
+    "noRooms": "Aucune salle active sur ce lieu.",
+    "invalidTimeRange": "L'heure de début doit être avant l'heure de fin",
+    "invalidForm": "Veuillez compléter le motif, les dates, les horaires et la portée",
+    "existingBookingsWarning_one": "{{count}} réservation existante tombe dans cette plage. Elle ne sera pas annulée.",
+    "existingBookingsWarning_other": "{{count}} réservations existantes tombent dans cette plage. Elles ne seront pas annulées.",
+    "confirmDelete": "Supprimer le blocage « {{label}} » ?",
+    "created_one": "Blocage créé ({{count}} créneau)",
+    "created_other": "Blocage créé ({{count}} créneaux)",
+    "createError": "Impossible de créer le blocage : {{message}}",
+    "deleted": "Blocage supprimé",
+    "deleteError": "Impossible de supprimer le blocage : {{message}}",
+    "cancel": "Annuler",
+    "submit": "Bloquer",
+    "selectVenueFirst": "Sélectionnez un lieu pour bloquer"
   }
 }

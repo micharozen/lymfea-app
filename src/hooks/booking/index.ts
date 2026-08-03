@@ -27,5 +27,13 @@ export type {
   TimeRange,
 } from "./useTherapistDayPlanning";
 
+export {
+  useRoomBlocks,
+  useCreateRoomBlock,
+  useDeleteRoomBlock,
+  groupRoomBlocks,
+} from "./useRoomBlocks";
+export type { RoomBlockRow, RoomBlockGroup, CreateRoomBlockPayload } from "./useRoomBlocks";
+
 export { useAmenityBookingData } from "./useAmenityBookingData";
 export type { AmenityBookingForCalendar } from "./useAmenityBookingData";

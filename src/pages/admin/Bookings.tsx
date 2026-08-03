@@ -1,12 +1,19 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addDays, subDays, startOfMonth, endOfMonth, format, parseISO, isValid } from "date-fns";
-import { RefreshCw, Waves } from "lucide-react";
+import { Ban, ChevronDown, RefreshCw, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppLoader } from "@/components/AppLoader";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
+import { RoomBlockDialog } from "@/components/admin/venue/RoomBlockDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
@@ -115,6 +122,11 @@ export default function Booking() {
   const [selectedTime, setSelectedTime] = useState<string>();
   const [selectedTherapistId, setSelectedTherapistId] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
+
+  // Blocage ponctuel de créneaux (shooting, maintenance), depuis le menu
+  // accolé au bouton "Nouvelle réservation".
+  const [isRoomBlockOpen, setIsRoomBlockOpen] = useState(false);
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
 
   // Amenity dialog state
   const [isAmenityCreateOpen, setIsAmenityCreateOpen] = useState(false);
@@ -421,13 +433,46 @@ useEffect(() => {
                 Commodité
                 <Waves className="h-3.5 w-3.5 ml-1" />
               </Button>
-              <Button
-                onClick={() => setIsCreateDialogOpen(true)}
-                size="sm"
-                className="h-8 text-xs transition-transform duration-100 active:scale-90"
+              {/* Split button : action principale + menu (ouvert au survol) */}
+              <div
+                className="flex"
+                onMouseEnter={() => !isConcierge && setIsCreateMenuOpen(true)}
+                onMouseLeave={() => setIsCreateMenuOpen(false)}
               >
-                {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
-              </Button>
+                <Button
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  size="sm"
+                  className={`h-8 text-xs transition-transform duration-100 active:scale-90 ${
+                    isConcierge ? "" : "rounded-r-none"
+                  }`}
+                >
+                  {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
+                </Button>
+                {!isConcierge && (
+                  <DropdownMenu open={isCreateMenuOpen} onOpenChange={setIsCreateMenuOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        aria-label={t("planning.moreCreateActions")}
+                        className="h-8 w-7 rounded-l-none border-l border-background/30 px-0"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem
+                        disabled={!singleVenueId}
+                        onSelect={() => setIsRoomBlockOpen(true)}
+                      >
+                        <Ban className="mr-2 h-3.5 w-3.5" />
+                        {singleVenueId
+                          ? t("roomBlocks.dialogTitle")
+                          : t("roomBlocks.selectVenueFirst")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </>
           }
         />
@@ -606,6 +651,15 @@ useEffect(() => {
             booking_time: cancelBooking.booking_time,
           }}
           userRole={isConcierge ? "concierge" : "admin"}
+        />
+      )}
+
+      {singleVenueId && (
+        <RoomBlockDialog
+          open={isRoomBlockOpen}
+          onOpenChange={setIsRoomBlockOpen}
+          hotelId={singleVenueId}
+          defaultDate={format(calendar.currentWeekStart, "yyyy-MM-dd")}
         />
       )}
 

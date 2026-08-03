@@ -3577,33 +3577,42 @@ export type Database = {
       }
       venue_blocked_slots: {
         Row: {
+          block_date: string | null
           created_at: string
           days_of_week: number[] | null
           end_time: string
+          group_id: string | null
           hotel_id: string
           id: string
           is_active: boolean
           label: string
+          room_id: string | null
           start_time: string
         }
         Insert: {
+          block_date?: string | null
           created_at?: string
           days_of_week?: number[] | null
           end_time: string
+          group_id?: string | null
           hotel_id: string
           id?: string
           is_active?: boolean
           label: string
+          room_id?: string | null
           start_time: string
         }
         Update: {
+          block_date?: string | null
           created_at?: string
           days_of_week?: number[] | null
           end_time?: string
+          group_id?: string | null
           hotel_id?: string
           id?: string
           is_active?: boolean
           label?: string
+          room_id?: string | null
           start_time?: string
         }
         Relationships: [
@@ -3612,6 +3621,13 @@ export type Database = {
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_blocked_slots_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_rooms"
             referencedColumns: ["id"]
           },
         ]

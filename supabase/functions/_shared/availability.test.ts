@@ -5,10 +5,12 @@ import {
 
 import {
   type Booking,
+  computeSlotCapacity,
   doesBookingBlockSlot,
   filterQualifiedTherapists,
   isSlotAvailable,
   type Room,
+  type RoomBlock,
   type SlotAvailabilityInput,
 } from "./availability.ts";
 
@@ -583,4 +585,64 @@ Deno.test("qualification: input array is not mutated", () => {
     owned({ [THERAPIST_2]: [SOIN_B] }),
   );
   assertEquals(ids(roster), [THERAPIST_1, THERAPIST_2]);
+});
+
+// ---------------------------------------------------------------------------
+// roomBlocks — blocages ponctuels datés (shooting, maintenance)
+// Slot de référence : 19:30 + 60 min → [1170, 1230[ minutes.
+// ---------------------------------------------------------------------------
+
+const block = (over: Partial<RoomBlock> = {}): RoomBlock => ({
+  room_id: ROOM_A.id,
+  startMin: 1170,
+  endMin: 1230,
+  ...over,
+});
+
+Deno.test("roomBlocks: la seule salle est bloquée → capacité 0", () => {
+  const { capacity } = computeSlotCapacity(input({ roomBlocks: [block()] }));
+  assertStrictEquals(capacity, 0);
+});
+
+Deno.test("roomBlocks: deux salles, une bloquée → capacité 1", () => {
+  const { capacity } = computeSlotCapacity(
+    input({ rooms: [ROOM_A, ROOM_B], roomBlocks: [block()] }),
+  );
+  assertStrictEquals(capacity, 1);
+});
+
+Deno.test("roomBlocks: room_id null bloque tout le lieu", () => {
+  const { capacity } = computeSlotCapacity(
+    input({ rooms: [ROOM_A, ROOM_B], roomBlocks: [block({ room_id: null })] }),
+  );
+  assertStrictEquals(capacity, 0);
+});
+
+Deno.test("roomBlocks: fermeture stricte — un blocage adjacent ne bloque pas", () => {
+  // Blocage 18:30-19:30, slot 19:30-20:30 : contigus. Contrairement aux
+  // bookings, aucun turnover buffer ne s'applique — même règle que le RPC.
+  const { capacity } = computeSlotCapacity(
+    input({ roomBlocks: [block({ startMin: 1110, endMin: 1170 })] }),
+  );
+  assertStrictEquals(capacity, 1);
+});
+
+Deno.test("roomBlocks: chevauchement partiel de fin de slot → bloquant", () => {
+  // Blocage 20:00-21:00, slot 19:30-20:30.
+  const { capacity } = computeSlotCapacity(
+    input({ roomBlocks: [block({ startMin: 1200, endMin: 1260 })] }),
+  );
+  assertStrictEquals(capacity, 0);
+});
+
+Deno.test("roomBlocks: une salle bloquée + l'autre occupée → capacité 0", () => {
+  // occupiedRoomIds est un Set : aucun double comptage.
+  const { capacity } = computeSlotCapacity(
+    input({
+      rooms: [ROOM_A, ROOM_B],
+      roomBlocks: [block()],
+      bookings: [booking({ room_id: ROOM_B.id })],
+    }),
+  );
+  assertStrictEquals(capacity, 0);
 });

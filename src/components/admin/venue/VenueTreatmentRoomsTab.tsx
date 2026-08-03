@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, X, Check, Upload, Loader2, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROOM_CAPABILITIES } from "@/components/admin/treatment-room/TreatmentRoomGeneralTab";
+import { RoomBlocksSection } from "./RoomBlocksSection";
 
 const ROOM_TYPES = ROOM_CAPABILITIES;
 
@@ -463,6 +464,8 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
           </div>
         )}
       </div>
+
+      <RoomBlocksSection hotelId={hotelId} />
     </div>
   );
 }
