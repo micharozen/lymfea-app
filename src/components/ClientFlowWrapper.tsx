@@ -109,7 +109,7 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
       <VenueThemeProvider venue={venue}>
         <AnalyticsProvider hotelId={venue.id}>
           <CartProvider hotelId={venue.id}>
-            <ClientFlowProvider>
+            <ClientFlowProvider hotelId={venue.id}>
               <UrlStateHydrator hotelId={venue.id} />
               <PageTransition>
                 <div className="lymfea-client">{children}</div>

@@ -36,6 +36,8 @@ interface BlockedSlot {
   end_time: string;
   days_of_week: number[] | null;
   is_active: boolean;
+  /** NULL = récurrent hebdomadaire ; renseigné = blocage ponctuel de cette date. */
+  block_date: string | null;
 }
 
 interface UseVenueAvailabilityOptions {
@@ -51,12 +53,26 @@ function timeToMinutes(time: string | undefined | null): number {
   return parts[0] * 60 + (parts[1] || 0);
 }
 
-function isHourBlocked(hour: number, blockedSlots: BlockedSlot[], dayOfWeek: number): boolean {
+/**
+ * Ne considère que les blocages fermant TOUT le lieu — récurrents hebdomadaires
+ * ou ponctuels datés (room_id NULL, filtré côté requête). Un blocage ciblant une
+ * seule salle ne ferme pas l'heure : cette vue est un indicateur d'effectif
+ * thérapeutes, pas la source de vérité de la réservabilité (get-availability
+ * l'est). Le détail salle par salle est affiché dans la vue jour.
+ */
+function isHourBlocked(
+  hour: number,
+  blockedSlots: BlockedSlot[],
+  dayOfWeek: number,
+  dateStr: string,
+): boolean {
   const hourStart = hour * 60;
   const hourEnd = (hour + 1) * 60;
 
   return blockedSlots.some((block) => {
-    if (block.days_of_week !== null && !block.days_of_week.includes(dayOfWeek)) {
+    if (block.block_date !== null) {
+      if (block.block_date !== dateStr) return false;
+    } else if (block.days_of_week !== null && !block.days_of_week.includes(dayOfWeek)) {
       return false;
     }
     const blockStart = timeToMinutes(block.start_time);
@@ -144,9 +160,10 @@ export function useVenueAvailability({
     queryFn: async () => {
       const { data } = await supabase
         .from("venue_blocked_slots")
-        .select("start_time, end_time, days_of_week, is_active")
+        .select("start_time, end_time, days_of_week, is_active, block_date")
         .eq("hotel_id", venueId)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .is("room_id", null);
 
       return (data || []) as BlockedSlot[];
     },
@@ -202,7 +219,7 @@ export function useVenueAvailability({
 
       for (let hour = openingHour; hour < closingHour; hour++) {
         // Check blocked slots
-        if (blockedSlots && isHourBlocked(hour, blockedSlots, dayOfWeek)) {
+        if (blockedSlots && isHourBlocked(hour, blockedSlots, dayOfWeek, dateStr)) {
           hours.push({ hour, availableTherapistCount: 0, level: "blocked" });
           continue;
         }

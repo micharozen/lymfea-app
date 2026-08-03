@@ -677,16 +677,21 @@ export default function BookingDetail() {
               onReassigned={() => { refetch(); setTherapistRefreshKey((k) => k + 1); }}
             />
 
-            <section
-              onClick={() => (booking as any).customer_id && navigate(`/admin/customers/${(booking as any).customer_id}`)}
-              className={`bg-white rounded-2xl border border-stone-100 p-6 shadow-sm transition-all duration-200 ${(booking as any).customer_id ? 'cursor-pointer hover:border-primary/50 hover:shadow-md group' : ''}`}
-            >
+            <section className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase flex items-center gap-2">
                   <User className="h-4 w-4" /> Client
                 </h3>
                 {(booking as any).customer_id && (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 translate-x-[-10px] group-hover:translate-x-0" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => navigate(`/admin/customers/${(booking as any).customer_id}`)}
+                  >
+                    Voir le client
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
                 )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -701,7 +706,6 @@ export default function BookingDetail() {
                     {booking.client_email ? (
                       <a
                         href={`mailto:${booking.client_email}`}
-                        onClick={(e) => e.stopPropagation()}
                         className="text-primary hover:underline"
                       >
                         {booking.client_email}
