@@ -34,11 +34,35 @@ export function isPartnerBilledClientType(clientType: string | null | undefined)
 }
 
 /**
- * Paiement différé : partenaire OU hôtel (chambre). Sert aux notices client
- * « aucun paiement sur place » dans les emails de confirmation.
+ * Paiement différé : le client n'a aucune démarche de paiement à faire, la
+ * facturation intervient plus tard (partenaire en fin de mois, ou hôtel sur la
+ * note de chambre). Sert aux notices « aucun paiement sur place » des emails de
+ * confirmation et à l'autorisation d'envoi de ces emails.
+ *
+ * Le type de client ne suffit PAS à trancher : depuis que le flow client public
+ * transmet la case « je suis client de l'hôtel », un résident peut être typé
+ * 'hotel' tout en payant par carte au moment de la réservation. Pour lui le
+ * paiement n'est pas différé — d'où le paiement en paramètre obligatoire.
  */
-export function isDeferredBillingClientType(clientType: string | null | undefined): boolean {
-  return isPartnerBilledClientType(clientType) || clientType === "hotel";
+export function isDeferredBillingBooking(
+  clientType: string | null | undefined,
+  payment: BookingPayment,
+): boolean {
+  return isPartnerBilledClientType(clientType) || isRoomChargedBooking(clientType, payment);
+}
+
+export interface BookingPayment {
+  paymentMethod?: string | null;
+  paymentStatus?: string | null;
+}
+
+/** Le soin part sur la note de chambre du résident (et pas sur sa carte). */
+export function isRoomChargedBooking(
+  clientType: string | null | undefined,
+  payment: BookingPayment,
+): boolean {
+  return clientType === "hotel" &&
+    (payment.paymentMethod === "room" || payment.paymentStatus === "charged_to_room");
 }
 
 /** Normalise une valeur brute en BookingClientType, avec repli sur "external". */
@@ -46,6 +70,21 @@ export function normalizeClientType(value: string | null | undefined): BookingCl
   return (BOOKING_CLIENT_TYPES as string[]).includes(value ?? "")
     ? (value as BookingClientType)
     : "external";
+}
+
+/**
+ * Type de client pour une réservation issue du flow client public.
+ *
+ * Le visiteur déclare lui-même s'il est client de l'hôtel à l'étape GuestInfo :
+ * c'est le signal prioritaire, car un résident peut très bien payer par carte
+ * plutôt que sur sa chambre. Le paiement chambre reste un repli quand le flag
+ * n'a pas été transmis (onglet ouvert avant le déploiement, appel direct).
+ */
+export function deriveClientFlowClientType(
+  isHotelGuest: boolean | undefined,
+  paymentMethod: string | null | undefined,
+): BookingClientType {
+  return isHotelGuest || paymentMethod === "room" ? "hotel" : "external";
 }
 
 const LABELS: Record<BookingClientType, { fr: string; en: string }> = {

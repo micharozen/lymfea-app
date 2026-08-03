@@ -35,6 +35,10 @@ export interface ClientInfo {
   pmsGuestCheckIn?: string;
   pmsGuestCheckOut?: string;
   isExternalGuest?: boolean;
+  /** Résident de l'hôtel qui n'a pas encore son numéro de chambre. Il reste un
+   *  client de l'hôtel (client_type 'hotel'), mais le paiement sur la note de
+   *  chambre ne lui est pas proposé et la vérification PMS est impossible. */
+  roomNumberUnknown?: boolean;
   /** True when the hotel guest was verified against the PMS (room + last name match).
    *  When set, email/phone are left empty client-side and resolved server-side from the PMS. */
   pmsVerified?: boolean;

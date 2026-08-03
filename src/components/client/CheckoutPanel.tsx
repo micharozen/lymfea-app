@@ -117,6 +117,15 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
     }
   }, [venueType]);
 
+  // Sur desktop le formulaire client reste éditable à côté du panneau : cocher
+  // « je ne connais pas ma chambre » après avoir choisi le paiement chambre
+  // masquerait le bouton sans annuler la sélection.
+  useEffect(() => {
+    if (selectedMethod === 'room' && (clientInfo?.isExternalGuest || clientInfo?.roomNumberUnknown)) {
+      setSelectedMethod('card');
+    }
+  }, [selectedMethod, clientInfo?.isExternalGuest, clientInfo?.roomNumberUnknown]);
+
   // Separate fixed and variable items
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
@@ -171,6 +180,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
               email: clientInfo.email,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
+              isHotelGuest: clientInfo.isExternalGuest === false,
             },
             bundleItems: items.map(item => ({
               treatmentId: item.id,
@@ -229,6 +239,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
                 email: clientInfo.email,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
+                isHotelGuest: clientInfo.isExternalGuest === false,
                 pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
                 pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
               },
@@ -269,6 +280,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
                 email: clientInfo.email,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
+                isHotelGuest: clientInfo.isExternalGuest === false,
               },
               bookingData: {
                 date: bookingDateTime.date,
@@ -309,6 +321,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
               email: clientInfo.email,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
+              isHotelGuest: clientInfo.isExternalGuest === false,
               pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
               pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
             },
@@ -361,6 +374,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
             email: clientInfo.email,
             roomNumber: clientInfo.roomNumber,
             note: clientInfo.note || '',
+            isHotelGuest: clientInfo.isExternalGuest === false,
             pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
             pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
           },
@@ -403,6 +417,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
           email: clientInfo.email,
           roomNumber: clientInfo.roomNumber,
           note: clientInfo.note || '',
+          isHotelGuest: clientInfo.isExternalGuest === false,
           pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
           pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
         };
@@ -858,7 +873,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
           </button>
 
           {/* Room Payment */}
-          {supportsRoomPayment && !isBundleOnlyPurchase && !clientInfo?.isExternalGuest && (
+          {supportsRoomPayment && !isBundleOnlyPurchase && !clientInfo?.isExternalGuest && !clientInfo?.roomNumberUnknown && (
             <button
               type="button"
               onClick={() => setSelectedMethod('room')}
