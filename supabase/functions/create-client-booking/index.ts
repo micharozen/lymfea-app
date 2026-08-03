@@ -1221,26 +1221,25 @@ try {
       }
     } else {
       // Broadcast to therapists with gender-preference filtering.
-      // Panier 100% amenity (privatisation espace, piscine…) : aucun praticien requis,
-      // on ne diffuse pas — mais l'email admin ci-dessous reste envoyé.
-      if (isAmenityOnly) {
-        console.log('Amenity-only booking: skipping therapist broadcast', bookingId);
-      } else {
-        try {
-          console.log('Broadcasting booking notifications (gender-aware):', bookingId);
-          const notifResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
-            body: { bookingId: bookingId, notifyAll: true },
-            headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
-          });
+      // trigger-new-booking-notifications porte DEUX responsabilités : la diffusion
+      // aux praticiens ET l'email/SMS/.ics de confirmation client. Elle est donc
+      // toujours appelée, y compris pour un panier 100% amenity (privatisation
+      // piscine…) qui ne requiert aucun praticien : la fonction sait elle-même ne
+      // solliciter personne dans ce cas, et le client doit recevoir sa confirmation.
+      try {
+        console.log('Broadcasting booking notifications (gender-aware):', bookingId);
+        const notifResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
+          body: { bookingId: bookingId, notifyAll: true },
+          headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+        });
 
-          if (notifResponse.error) {
-            console.error('Failed to broadcast notifications:', notifResponse.error);
-          } else {
-            console.log('Broadcast result:', notifResponse.data);
-          }
-        } catch (notifError) {
-          console.error('Error broadcasting notifications:', notifError);
+        if (notifResponse.error) {
+          console.error('Failed to broadcast notifications:', notifResponse.error);
+        } else {
+          console.log('Broadcast result:', notifResponse.data);
         }
+      } catch (notifError) {
+        console.error('Error broadcasting notifications:', notifError);
       }
 
       // Trigger email notification to admins
