@@ -48,6 +48,21 @@ export function normalizeClientType(value: string | null | undefined): BookingCl
     : "external";
 }
 
+/**
+ * Type de client pour une réservation issue du flow client public.
+ *
+ * Le visiteur déclare lui-même s'il est client de l'hôtel à l'étape GuestInfo :
+ * c'est le signal prioritaire, car un résident peut très bien payer par carte
+ * plutôt que sur sa chambre. Le paiement chambre reste un repli quand le flag
+ * n'a pas été transmis (onglet ouvert avant le déploiement, appel direct).
+ */
+export function deriveClientFlowClientType(
+  isHotelGuest: boolean | undefined,
+  paymentMethod: string | null | undefined,
+): BookingClientType {
+  return isHotelGuest || paymentMethod === "room" ? "hotel" : "external";
+}
+
 const LABELS: Record<BookingClientType, { fr: string; en: string }> = {
   hotel: { fr: "Résident hôtel", en: "Hotel guest" },
   staycation: { fr: "Staycation", en: "Staycation" },

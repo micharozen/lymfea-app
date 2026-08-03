@@ -3,6 +3,7 @@ import { computeOutOfHoursSurcharge } from "../../_shared/surcharge.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
 import type { ActionContext } from "../index.ts";
 import { tryMarkCheckoutIntentConverted } from "../../_shared/checkoutIntent.ts";
+import { normalizeClientType } from "../../_shared/client-type.ts";
 import {
   computeSlotDuration,
   fetchAddonTreatmentIds,
@@ -472,6 +473,7 @@ export async function handleConfirmSetupIntent(
           booking_group_id: multiGroupId,
           therapist_id: null,
           source: "client",
+          client_type: normalizeClientType(meta.clientType),
           is_out_of_hours: slotSurcharge.isOutOfHours,
           surcharge_amount: slotSurcharge.surchargeAmount,
           payment_status: bookingPaymentStatus,
@@ -529,6 +531,7 @@ export async function handleConfirmSetupIntent(
         language: resolveClientLanguage(meta),
         status: "pending",
         source: "client",
+        client_type: normalizeClientType(meta.clientType),
         payment_method: "card",
         payment_status: bookingPaymentStatus,
         customer_id: customerId,
@@ -714,6 +717,7 @@ export async function handleConfirmSetupIntent(
       await supabase.from("bookings").update({
         therapist_id: null,
         source: "client",
+        client_type: normalizeClientType(meta.clientType),
         is_out_of_hours: surcharge.isOutOfHours,
         surcharge_amount: surcharge.surchargeAmount,
         payment_status: bookingPaymentStatus,
@@ -730,6 +734,7 @@ export async function handleConfirmSetupIntent(
           client_note: meta.note || null,
           status: bookingStatus,
           source: "client",
+          client_type: normalizeClientType(meta.clientType),
           payment_method: "card",
           payment_status: bookingPaymentStatus,
           total_price: verifiedPrice,
@@ -770,6 +775,7 @@ export async function handleConfirmSetupIntent(
     await supabase.from("bookings").update({
       therapist_id: null,
       source: "client",
+      client_type: normalizeClientType(meta.clientType),
       is_out_of_hours: surcharge.isOutOfHours,
       surcharge_amount: surcharge.surchargeAmount,
       payment_status: bookingPaymentStatus,

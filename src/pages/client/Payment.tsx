@@ -160,6 +160,7 @@ export default function Payment() {
               pmsVerified: clientInfo.pmsVerified,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
+              isHotelGuest: clientInfo.isExternalGuest === false,
             },
             bundleItems: items.map(item => ({
               treatmentId: item.id,
@@ -220,6 +221,7 @@ export default function Payment() {
                 pmsVerified: clientInfo.pmsVerified,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
+                isHotelGuest: clientInfo.isExternalGuest === false,
                 pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
                 pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
               },
@@ -262,6 +264,7 @@ export default function Payment() {
                 pmsVerified: clientInfo.pmsVerified,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
+                isHotelGuest: clientInfo.isExternalGuest === false,
               },
               bookingData: {
                 date: bookingDateTime.date,
@@ -303,6 +306,7 @@ export default function Payment() {
               pmsVerified: clientInfo.pmsVerified,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
+              isHotelGuest: clientInfo.isExternalGuest === false,
               pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
               pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
             },
@@ -357,6 +361,7 @@ export default function Payment() {
             pmsVerified: clientInfo.pmsVerified,
             roomNumber: clientInfo.roomNumber,
             note: clientInfo.note || '',
+            isHotelGuest: clientInfo.isExternalGuest === false,
             pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
             pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
           },
@@ -400,6 +405,7 @@ export default function Payment() {
           pmsVerified: clientInfo.pmsVerified,
           roomNumber: clientInfo.roomNumber,
           note: clientInfo.note || '',
+          isHotelGuest: clientInfo.isExternalGuest === false,
           pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
           pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
         };

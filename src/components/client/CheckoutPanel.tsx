@@ -171,6 +171,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
               email: clientInfo.email,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
+              isHotelGuest: clientInfo.isExternalGuest === false,
             },
             bundleItems: items.map(item => ({
               treatmentId: item.id,
@@ -229,6 +230,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
                 email: clientInfo.email,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
+                isHotelGuest: clientInfo.isExternalGuest === false,
                 pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
                 pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
               },
@@ -269,6 +271,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
                 email: clientInfo.email,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
+                isHotelGuest: clientInfo.isExternalGuest === false,
               },
               bookingData: {
                 date: bookingDateTime.date,
@@ -309,6 +312,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
               email: clientInfo.email,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
+              isHotelGuest: clientInfo.isExternalGuest === false,
               pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
               pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
             },
@@ -361,6 +365,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
             email: clientInfo.email,
             roomNumber: clientInfo.roomNumber,
             note: clientInfo.note || '',
+            isHotelGuest: clientInfo.isExternalGuest === false,
             pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
             pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
           },
@@ -403,6 +408,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
           email: clientInfo.email,
           roomNumber: clientInfo.roomNumber,
           note: clientInfo.note || '',
+          isHotelGuest: clientInfo.isExternalGuest === false,
           pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
           pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
         };

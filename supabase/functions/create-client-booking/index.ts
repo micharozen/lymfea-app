@@ -13,6 +13,7 @@ import {
   insertBookingTreatmentLines,
 } from '../_shared/bookingTreatmentLines.ts';
 import { runInBackground } from '../_shared/backgroundTask.ts';
+import { deriveClientFlowClientType } from '../_shared/client-type.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,6 +54,9 @@ const clientDataSchema = z.object({
   // Set by the client flow when the visitor declared they are a hotel guest and
   // passed the PMS verify step. The server RE-verifies before trusting it.
   pmsVerified: z.boolean().optional(),
+  // Déclaré par le visiteur à l'étape GuestInfo (« je suis client de l'hôtel »).
+  // Sert à typer la réservation même quand le paiement n'est pas sur la chambre.
+  isHotelGuest: z.boolean().optional(),
   pmsGuestCheckIn: z.string().max(40).optional().or(z.literal('')).nullable(),
   pmsGuestCheckOut: z.string().max(40).optional().or(z.literal('')).nullable(),
 });
@@ -266,10 +270,7 @@ async function handleMultiBookingConfirm(
   const bookingStatus = 'pending';
   const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
   const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : 'pending');
-  // Paiement chambre = résident hôtel. Règle à sens unique : un paiement carte
-  // n'implique pas 'external' (un résident peut payer par carte), mais dans le
-  // flow client public il n'y a pas d'autre signal — on garde le défaut.
-  const effectiveClientType = paymentMethod === 'room' ? 'hotel' : 'external';
+  const effectiveClientType = deriveClientFlowClientType(clientData.isHotelGuest, paymentMethod);
 
   // Update each draft with real client data + per-item recomputed totals.
   for (let i = 0; i < items.length; i++) {
@@ -689,8 +690,7 @@ try {
         : paymentMethod === 'gift_amount'
           ? 'paid'
           : 'pending';
-    // Paiement chambre = résident hôtel (règle à sens unique, cf. mode multi).
-    const effectiveClientType = paymentMethod === 'room' ? 'hotel' : 'external';
+    const effectiveClientType = deriveClientFlowClientType(clientData.isHotelGuest, paymentMethod);
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Find or create customer by phone
