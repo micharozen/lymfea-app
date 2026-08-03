@@ -59,32 +59,36 @@ serve(async (req) => {
     }
 
     // Stripe goes through the resolver so an OAuth venue gets its access token
-    // refreshed before we test it. The source guard keeps the test honest: the
-    // resolver silently falls back to the platform key, which would otherwise
-    // report "connected" for a venue whose own credential is broken.
+    // refreshed before we test it. A venue whose own credential is broken must
+    // report "failed", so both the resolver error and the source guard (a venue
+    // with no credential at all, which resolves to the platform key) end up as
+    // connected:false rather than bubbling up as a 500.
     if (provider === "stripe") {
-      const resolved = await getStripeForVenue(supabase, hotelId);
-
       let result: { connected: boolean; error?: string };
-      if (resolved.source !== "venue") {
-        result = {
-          connected: false,
-          error: "No working Stripe credential for this venue",
-        };
-      } else {
-        try {
-          await resolved.client.balance.retrieve();
-          result = { connected: true };
-        } catch (error) {
+      let authMethod: string | null = null;
+
+      try {
+        const resolved = await getStripeForVenue(supabase, hotelId);
+        authMethod = resolved.authMethod;
+
+        if (resolved.source !== "venue") {
           result = {
             connected: false,
-            error: error instanceof Error ? error.message : "Unknown Stripe error",
+            error: "No working Stripe credential for this venue",
           };
+        } else {
+          await resolved.client.balance.retrieve();
+          result = { connected: true };
         }
+      } catch (error) {
+        result = {
+          connected: false,
+          error: error instanceof Error ? error.message : "Unknown Stripe error",
+        };
       }
 
       console.log(
-        `[payment-test-connection] stripe auth=${resolved.authMethod ?? "none"} result=`,
+        `[payment-test-connection] stripe auth=${authMethod ?? "none"} result=`,
         result,
       );
 
