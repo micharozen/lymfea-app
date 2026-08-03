@@ -30,7 +30,9 @@ export type {
 export {
   useRoomBlocks,
   useCreateRoomBlock,
+  useUpdateRoomBlock,
   useDeleteRoomBlock,
+  useDeleteRoomBlockRow,
   groupRoomBlocks,
 } from "./useRoomBlocks";
 export type { RoomBlockRow, RoomBlockGroup, CreateRoomBlockPayload } from "./useRoomBlocks";

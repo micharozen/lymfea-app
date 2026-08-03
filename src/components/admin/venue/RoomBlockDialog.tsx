@@ -4,10 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useCreateRoomBlock } from "@/hooks/booking";
-import { Button } from "@/components/ui/button";
+import { useCreateRoomBlock, useUpdateRoomBlock, type RoomBlockRow } from "@/hooks/booking";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SelectField } from "@/components/ui/select-field";
 import {
@@ -25,6 +23,12 @@ interface RoomBlockDialogProps {
   hotelId: string;
   /** Date préremplie (YYYY-MM-DD), typiquement celle affichée sur le planning. */
   defaultDate?: string;
+  /**
+   * Occurrence à éditer (une ligne, pas la série). Le composant lit ses props
+   * une seule fois à l'initialisation de son état : le parent doit lui passer
+   * une `key` qui change avec le blocage édité.
+   */
+  block?: RoomBlockRow;
 }
 
 const ACTIVE_STATUSES = ["active", "actif"];
@@ -46,18 +50,22 @@ export function RoomBlockDialog({
   onOpenChange,
   hotelId,
   defaultDate,
+  block,
 }: RoomBlockDialogProps) {
   const { t } = useTranslation("admin");
   const createBlock = useCreateRoomBlock();
+  const updateBlock = useUpdateRoomBlock();
+  const isEdit = !!block;
+  const pending = createBlock.isPending || updateBlock.isPending;
 
-  const initialDate = defaultDate || todayIso();
-  const [label, setLabel] = useState("");
+  const initialDate = block?.block_date || defaultDate || todayIso();
+  const [label, setLabel] = useState(block?.label ?? "");
   const [startDate, setStartDate] = useState(initialDate);
   const [endDate, setEndDate] = useState(initialDate);
-  const [startTime, setStartTime] = useState("08:00");
-  const [endTime, setEndTime] = useState("12:00");
-  const [wholeVenue, setWholeVenue] = useState(true);
-  const [roomIds, setRoomIds] = useState<string[]>([]);
+  const [startTime, setStartTime] = useState(block?.start_time.substring(0, 5) ?? "08:00");
+  const [endTime, setEndTime] = useState(block?.end_time.substring(0, 5) ?? "12:00");
+  const [wholeVenue, setWholeVenue] = useState(block ? block.room_id === null : true);
+  const [roomIds, setRoomIds] = useState<string[]>(block?.room_id ? [block.room_id] : []);
 
   const { data: rooms } = useQuery({
     queryKey: ["treatment-rooms", "active", hotelId],
@@ -121,7 +129,7 @@ export function RoomBlockDialog({
       toast.error(t("roomBlocks.invalidForm"));
       return;
     }
-    await createBlock.mutateAsync({
+    const payload = {
       venueId: hotelId,
       label: label.trim(),
       startDate,
@@ -129,22 +137,33 @@ export function RoomBlockDialog({
       startTime,
       endTime,
       roomIds: wholeVenue ? [] : roomIds,
-    });
-    reset();
+    };
+    if (block) {
+      await updateBlock.mutateAsync({ rowId: block.id, payload });
+    } else {
+      await createBlock.mutateAsync(payload);
+      reset();
+    }
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t("roomBlocks.dialogTitle")}</DialogTitle>
-          <DialogDescription>{t("roomBlocks.dialogDescription")}</DialogDescription>
+      <DialogContent className="app-refonte rb-dialog sm:max-w-lg">
+        <DialogHeader className="rb-hdr">
+          <DialogTitle>
+            {isEdit ? t("roomBlocks.editTitle") : t("roomBlocks.dialogTitle")}
+          </DialogTitle>
+          <DialogDescription>
+            {isEdit ? t("roomBlocks.editDescription") : t("roomBlocks.dialogDescription")}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="room-block-label">{t("roomBlocks.labelField")}</Label>
+        <div className="rb-body">
+          <div className="rb-field">
+            <label className="rb-lbl" htmlFor="room-block-label">
+              {t("roomBlocks.labelField")}
+            </label>
             <Input
               id="room-block-label"
               value={label}
@@ -153,9 +172,11 @@ export function RoomBlockDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="room-block-start-date">{t("roomBlocks.startDate")}</Label>
+          <div className="rb-grid">
+            <div className="rb-field">
+              <label className="rb-lbl" htmlFor="room-block-start-date">
+                {t("roomBlocks.startDate")}
+              </label>
               <Input
                 id="room-block-start-date"
                 type="date"
@@ -166,8 +187,10 @@ export function RoomBlockDialog({
                 }}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="room-block-end-date">{t("roomBlocks.endDate")}</Label>
+            <div className="rb-field">
+              <label className="rb-lbl" htmlFor="room-block-end-date">
+                {t("roomBlocks.endDate")}
+              </label>
               <Input
                 id="room-block-end-date"
                 type="date"
@@ -178,9 +201,9 @@ export function RoomBlockDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>{t("roomBlocks.startTime")}</Label>
+          <div className="rb-grid">
+            <div className="rb-field">
+              <span className="rb-lbl">{t("roomBlocks.startTime")}</span>
               <SelectField
                 options={TIME_OPTIONS}
                 value={startTime}
@@ -189,8 +212,8 @@ export function RoomBlockDialog({
                 aria-label={t("roomBlocks.startTime")}
               />
             </div>
-            <div className="space-y-2">
-              <Label>{t("roomBlocks.endTime")}</Label>
+            <div className="rb-field">
+              <span className="rb-lbl">{t("roomBlocks.endTime")}</span>
               <SelectField
                 options={TIME_OPTIONS}
                 value={endTime}
@@ -200,37 +223,31 @@ export function RoomBlockDialog({
               />
             </div>
           </div>
-          {!timesValid && (
-            <p className="text-xs text-destructive">{t("roomBlocks.invalidTimeRange")}</p>
-          )}
+          {!timesValid && <p className="rb-err">{t("roomBlocks.invalidTimeRange")}</p>}
 
-          <div className="space-y-2">
-            <Label>{t("roomBlocks.scope")}</Label>
-            <div className="flex items-center gap-2">
+          <div className="rb-field">
+            <span className="rb-lbl">{t("roomBlocks.scope")}</span>
+            <div className="rb-check">
               <Checkbox
                 id="room-block-whole-venue"
                 checked={wholeVenue}
                 onCheckedChange={(checked) => setWholeVenue(checked === true)}
               />
-              <label htmlFor="room-block-whole-venue" className="text-sm">
-                {t("roomBlocks.wholeVenue")}
-              </label>
+              <label htmlFor="room-block-whole-venue">{t("roomBlocks.wholeVenue")}</label>
             </div>
             {!wholeVenue && (
-              <div className="space-y-2 rounded-md border p-3">
+              <div className="rb-rooms">
                 {roomOptions.length === 0 && (
-                  <p className="text-xs text-muted-foreground">{t("roomBlocks.noRooms")}</p>
+                  <p className="empty">{t("roomBlocks.noRooms")}</p>
                 )}
                 {roomOptions.map((room) => (
-                  <div key={room.id} className="flex items-center gap-2">
+                  <div key={room.id} className="rb-check">
                     <Checkbox
                       id={`room-block-${room.id}`}
                       checked={roomIds.includes(room.id)}
                       onCheckedChange={(checked) => toggleRoom(room.id, checked === true)}
                     />
-                    <label htmlFor={`room-block-${room.id}`} className="text-sm">
-                      {room.name}
-                    </label>
+                    <label htmlFor={`room-block-${room.id}`}>{room.name}</label>
                   </div>
                 ))}
               </div>
@@ -238,21 +255,26 @@ export function RoomBlockDialog({
           </div>
 
           {!!overlappingCount && overlappingCount > 0 && (
-            <div className="flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            <div className="rb-warn">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>{t("roomBlocks.existingBookingsWarning", { count: overlappingCount })}</span>
             </div>
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="rb-ftr">
+          <button type="button" className="rb-btn" onClick={() => onOpenChange(false)}>
             {t("roomBlocks.cancel")}
-          </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit || createBlock.isPending}>
-            {createBlock.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t("roomBlocks.submit")}
-          </Button>
+          </button>
+          <button
+            type="button"
+            className="rb-btn primary"
+            onClick={handleSubmit}
+            disabled={!canSubmit || pending}
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isEdit ? t("roomBlocks.save") : t("roomBlocks.submit")}
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -149,6 +149,8 @@
     "overflowsShift": "dépasse son shift",
     "slotOverflowsShift": "Attention, le soin sélectionné dépasse le shift du thérapeute",
     "roomBlock": "Blocage",
+    "editRoomBlock": "Modifier ce blocage",
+    "deleteRoomBlock": "Supprimer ce blocage",
     "moreCreateActions": "Plus d'actions de création"
   },
   "bookings": {
@@ -1778,6 +1780,13 @@
     "createError": "Impossible de créer le blocage : {{message}}",
     "deleted": "Blocage supprimé",
     "deleteError": "Impossible de supprimer le blocage : {{message}}",
+    "editTitle": "Modifier le blocage",
+    "editDescription": "La modification ne porte que sur cette journée. Les autres jours du même blocage ne changent pas.",
+    "save": "Enregistrer",
+    "updated": "Blocage modifié",
+    "updateError": "Impossible de modifier le blocage : {{message}}",
+    "confirmDeleteOccurrence": "Seul le créneau du {{date}}, de {{start}} à {{end}}, sera supprimé. Les autres jours du même blocage sont conservés.",
+    "delete": "Supprimer",
     "cancel": "Annuler",
     "submit": "Bloquer",
     "selectVenueFirst": "Sélectionnez un lieu pour bloquer"

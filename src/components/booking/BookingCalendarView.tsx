@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink, DoorOpen, CreditCard, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink, DoorOpen, CreditCard, Sparkles, Pencil, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities, cn } from "@/lib/utils";
 import { AvailabilityOverlay } from "./AvailabilityOverlay";
 import { CleanupBufferZone } from "./CleanupBufferZone";
-import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar } from "@/hooks/booking";
+import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar, RoomBlockRow } from "@/hooks/booking";
 import { getAmenityType } from "@/lib/amenityTypes";
 import { computeColumnLayout, type CalendarLayoutItem, type CalendarLayoutSlot } from "@/hooks/booking/useCalendarLogic";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
@@ -84,6 +85,11 @@ interface BookingCalendarViewProps {
   amenityBookings?: AmenityBookingForCalendar[];
   visibleCalendars?: Record<string, boolean>;
   onAmenityBookingClick?: (booking: AmenityBookingForCalendar) => void;
+  /** Blocages ponctuels datés couvrant la plage affichée, tous lieux visibles confondus. */
+  roomBlocks?: RoomBlockRow[];
+  /** Actions au survol d'une bande. Portent sur cette occurrence seule, pas sur la série. */
+  onEditRoomBlock?: (block: RoomBlockRow) => void;
+  onDeleteRoomBlock?: (block: RoomBlockRow) => void;
 }
 
 // Display the therapist as "Prénom.N" — full first name + initial of last name.
@@ -179,8 +185,12 @@ export function BookingCalendarView({
   amenityBookings,
   visibleCalendars,
   onAmenityBookingClick,
+  roomBlocks,
+  onEditRoomBlock,
+  onDeleteRoomBlock,
 }: BookingCalendarViewProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation("admin");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to current time on mount
@@ -289,6 +299,110 @@ export function BookingCalendarView({
       latestClose: Math.max(...closes),
     };
   }, [hotels, hotelFilter]);
+
+  // ── Blocages ponctuels datés (shooting, maintenance, fermeture) ──────────
+  // Ici une colonne = un jour, tous lieux confondus : on ne grise donc pas la
+  // colonne entière comme le fait la vue Thérapeutes (mono-lieu), sinon un
+  // blocage d'un seul lieu ferait croire que tout le planning est fermé. On
+  // pose une bande légendée, sous les réservations.
+  const blocksByDate = useMemo(() => {
+    const map = new Map<string, RoomBlockRow[]>();
+    for (const row of roomBlocks ?? []) {
+      const list = map.get(row.block_date) ?? [];
+      list.push(row);
+      map.set(row.block_date, list);
+    }
+    return map;
+  }, [roomBlocks]);
+
+  // Le nom du lieu n'est utile que lorsque le planning en affiche plusieurs.
+  const showBlockVenueName =
+    (hotelFilter.length === 0 ? hotels?.length ?? 0 : hotelFilter.length) > 1;
+
+  const renderRoomBlocks = (day: Date) => {
+    const rows = blocksByDate.get(format(day, "yyyy-MM-dd"));
+    if (!rows || rows.length === 0) return null;
+
+    const gridEndMin = (hours[hours.length - 1] + 1) * 60;
+    const toMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+
+    return rows.map((row) => {
+      // Un blocage peut déborder de la fenêtre affichée : on le rogne.
+      const startMin = Math.max(toMinutes(row.start_time), startHour * 60);
+      const endMin = Math.min(toMinutes(row.end_time), gridEndMin);
+      if (endMin <= startMin) return null;
+
+      const isWholeVenue = row.room_id === null;
+      const venueName = showBlockVenueName ? getHotelInfo(row.hotel_id)?.name : null;
+      const details = [row.room_name, venueName].filter(Boolean).join(" · ");
+
+      const hasActions = !!onEditRoomBlock || !!onDeleteRoomBlock;
+
+      return (
+        <div
+          key={`block-${row.id}`}
+          className={cn(
+            "group absolute left-0.5 right-0.5 rounded-sm border px-1 py-0.5 overflow-hidden",
+            // Sans action câblée la bande reste décorative et laisse passer le
+            // clic de création de réservation sur le créneau.
+            hasActions ? "cursor-default" : "pointer-events-none",
+            isWholeVenue
+              ? "bg-red-500/20 border-red-500/45"
+              : "bg-amber-500/15 border-amber-500/40"
+          )}
+          style={{
+            top: `${((startMin - startHour * 60) / 60) * hourHeight}px`,
+            height: `${((endMin - startMin) / 60) * hourHeight}px`,
+          }}
+        >
+          <span
+            className={cn(
+              "text-[10px] font-medium leading-tight",
+              isWholeVenue ? "text-red-800 dark:text-red-300" : "text-amber-800 dark:text-amber-300"
+            )}
+          >
+            {row.label}
+            {details ? ` · ${details}` : ""}
+          </span>
+
+          {hasActions && (
+            <div className="absolute top-0.5 right-0.5 hidden group-hover:flex gap-0.5">
+              {onEditRoomBlock && (
+                <button
+                  type="button"
+                  aria-label={t("planning.editRoomBlock")}
+                  title={t("planning.editRoomBlock")}
+                  // h/w figés + min-h-0 : sans ça la règle globale min-height:44px
+                  // (cible tactile) étire le bouton en ovale dans la bande.
+                  className="flex h-5 w-5 min-h-0 shrink-0 items-center justify-center rounded-md bg-background/85 hover:bg-background text-foreground/70 hover:text-foreground p-0 shadow-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditRoomBlock(row);
+                  }}
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              )}
+              {onDeleteRoomBlock && (
+                <button
+                  type="button"
+                  aria-label={t("planning.deleteRoomBlock")}
+                  title={t("planning.deleteRoomBlock")}
+                  className="flex h-5 w-5 min-h-0 shrink-0 items-center justify-center rounded-md bg-background/85 hover:bg-background text-destructive/80 hover:text-destructive p-0 shadow-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteRoomBlock(row);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
 
   // Date range label
   const dateRangeLabel = useMemo(() => {
@@ -518,6 +632,9 @@ export function BookingCalendarView({
                       );
                     })}
 
+                    {/* Blocages ponctuels datés — sous les réservations */}
+                    {renderRoomBlocks(day)}
+
                     {/* Availability overlay */}
                     {showAvailability && availabilityData && (
                       <AvailabilityOverlay
@@ -626,6 +743,9 @@ export function BookingCalendarView({
                         />
                       );
                     })}
+
+                    {/* Blocages ponctuels datés — sous les réservations */}
+                    {renderRoomBlocks(day)}
 
                     {/* Availability overlay */}
                     {showAvailability && availabilityData && (

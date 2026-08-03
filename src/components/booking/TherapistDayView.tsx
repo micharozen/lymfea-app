@@ -670,13 +670,13 @@ function TherapistColumn({
       {blockedRanges.map((range) => (
         <div
           key={`blocked-${range.id}`}
-          className="absolute left-0.5 right-0.5 rounded-sm bg-muted-foreground/15 border border-muted-foreground/25 px-1 py-0.5 pointer-events-none overflow-hidden"
+          className="absolute left-0.5 right-0.5 rounded-sm bg-red-500/20 border border-red-500/45 px-1 py-0.5 pointer-events-none overflow-hidden"
           style={{
             top: `${minutesToTop(range.startMin)}px`,
             height: `${((range.endMin - range.startMin) / 60) * hourHeight}px`,
           }}
         >
-          <span className="text-[10px] font-medium text-muted-foreground leading-tight">
+          <span className="text-[10px] font-medium text-red-800 dark:text-red-300 leading-tight">
             {range.label || t("planning.blockedSlot")}
           </span>
         </div>

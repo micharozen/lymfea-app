@@ -149,6 +149,8 @@
     "overflowsShift": "runs past their shift",
     "slotOverflowsShift": "Careful, the selected treatment runs past the therapist's shift",
     "roomBlock": "Block",
+    "editRoomBlock": "Edit this block",
+    "deleteRoomBlock": "Delete this block",
     "moreCreateActions": "More create actions"
   },
   "bookings": {
@@ -1778,6 +1780,13 @@
     "createError": "Could not create the block: {{message}}",
     "deleted": "Block deleted",
     "deleteError": "Could not delete the block: {{message}}",
+    "editTitle": "Edit block",
+    "editDescription": "Changes apply to this day only. The other days of the same block are left untouched.",
+    "save": "Save",
+    "updated": "Block updated",
+    "updateError": "Could not update the block: {{message}}",
+    "confirmDeleteOccurrence": "Only the slot on {{date}}, from {{start}} to {{end}}, will be deleted. The other days of the same block are kept.",
+    "delete": "Delete",
     "cancel": "Cancel",
     "submit": "Block",
     "selectVenueFirst": "Select a venue to block"

@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface RoomBlockRow {
   id: string;
   group_id: string | null;
+  hotel_id: string;
   label: string;
   block_date: string;
   start_time: string;
@@ -42,7 +43,8 @@ export interface RoomBlockGroup {
 }
 
 interface RoomBlocksParams {
-  venueId: string | undefined;
+  /** Un lieu (fiche lieu) ou plusieurs (planning multi-lieux). */
+  venueId: string | string[] | undefined;
   /** Bornes incluses (YYYY-MM-DD). */
   from: string;
   to: string;
@@ -54,15 +56,17 @@ const toRows = (data: unknown[]): RoomBlockRow[] =>
   );
 
 export function useRoomBlocks({ venueId, from, to }: RoomBlocksParams) {
+  const venueIds = venueId === undefined ? [] : Array.isArray(venueId) ? venueId : [venueId];
+
   return useQuery({
-    queryKey: ["room-blocks", venueId, from, to],
-    enabled: !!venueId,
+    queryKey: ["room-blocks", venueIds, from, to],
+    enabled: venueIds.length > 0,
     staleTime: 60_000,
     queryFn: async (): Promise<RoomBlockRow[]> => {
       const { data, error } = await supabase
         .from("venue_blocked_slots")
-        .select("id, group_id, label, block_date, start_time, end_time, room_id, treatment_rooms(name)")
-        .eq("hotel_id", venueId!)
+        .select("id, group_id, hotel_id, label, block_date, start_time, end_time, room_id, treatment_rooms(name)")
+        .in("hotel_id", venueIds)
         .eq("is_active", true)
         .not("block_date", "is", null)
         .gte("block_date", from)
@@ -169,6 +173,75 @@ export function useCreateRoomBlock() {
     },
     onError: (error: Error) => {
       toast.error(t("roomBlocks.createError", { message: error.message }));
+    },
+  });
+}
+
+/**
+ * Édition d'une seule occurrence — la bande survolée sur le planning, pas la
+ * série. Tant que la saisie reste sur un jour et une portée, c'est un UPDATE en
+ * place qui préserve le `group_id`. Si l'admin élargit la plage, la ligne est
+ * remplacée par la nouvelle expansion, détachée de la série d'origine.
+ */
+export function useUpdateRoomBlock() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation("admin");
+
+  return useMutation({
+    mutationFn: async ({ rowId, payload }: { rowId: string; payload: CreateRoomBlockPayload }) => {
+      const rows = expandRows(payload, crypto.randomUUID());
+
+      if (rows.length === 1) {
+        const { group_id: _groupId, ...fields } = rows[0];
+        const { error } = await supabase
+          .from("venue_blocked_slots")
+          .update(fields)
+          .eq("id", rowId);
+        if (error) throw error;
+        return 1;
+      }
+
+      // Insert avant delete : un doublon se corrige à la main, une suppression
+      // suivie d'un insert en échec perdrait le blocage.
+      const { error: insertError } = await supabase.from("venue_blocked_slots").insert(rows);
+      if (insertError) throw insertError;
+      const { error: deleteError } = await supabase
+        .from("venue_blocked_slots")
+        .delete()
+        .eq("id", rowId);
+      if (deleteError) throw deleteError;
+      return rows.length;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["room-blocks"] });
+      queryClient.invalidateQueries({ queryKey: ["venue-availability"] });
+      queryClient.invalidateQueries({ queryKey: ["therapist-day-planning"] });
+      toast.success(t("roomBlocks.updated"));
+    },
+    onError: (error: Error) => {
+      toast.error(t("roomBlocks.updateError", { message: error.message }));
+    },
+  });
+}
+
+/** Suppression d'une seule occurrence (une ligne), pas de la série. */
+export function useDeleteRoomBlockRow() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation("admin");
+
+  return useMutation({
+    mutationFn: async (rowId: string) => {
+      const { error } = await supabase.from("venue_blocked_slots").delete().eq("id", rowId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["room-blocks"] });
+      queryClient.invalidateQueries({ queryKey: ["venue-availability"] });
+      queryClient.invalidateQueries({ queryKey: ["therapist-day-planning"] });
+      toast.success(t("roomBlocks.deleted"));
+    },
+    onError: (error: Error) => {
+      toast.error(t("roomBlocks.deleteError", { message: error.message }));
     },
   });
 }
