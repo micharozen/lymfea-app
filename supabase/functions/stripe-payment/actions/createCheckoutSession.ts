@@ -95,8 +95,31 @@ export async function handleCreateCheckoutSession(
       throw new Error("Some treatments are not available for this hotel");
     }
 
+    // La variante (formules Semaine / Week-end) porte son propre prix et sa
+    // propre durée, qui priment sur ceux du soin.
+    type VariantRow = { id: string; price: number | null; duration: number | null };
+    const variantIds = Object.values(variantMap);
+    const { data: variantRows, error: variantsError } = variantIds.length > 0
+      ? await supabase
+        .from("treatment_variants")
+        .select("id, price, duration")
+        .in("id", variantIds)
+      : { data: [] as VariantRow[], error: null };
+
+    if (variantsError) throw new Error("Failed to fetch treatment variants");
+    const variantById = new Map<string, VariantRow>(
+      (variantRows || []).map((v: VariantRow) => [v.id, v]),
+    );
+    const unitOf = (t: { id: string; price: number | null; duration: number | null }) => {
+      const variant = variantMap[t.id] ? variantById.get(variantMap[t.id]) : null;
+      return {
+        price: variant?.price ?? t.price ?? 0,
+        duration: variant?.duration ?? t.duration ?? 0,
+      };
+    };
+
     const verifiedTotalPrice = treatments.reduce(
-      (sum, t) => sum + (t.price || 0),
+      (sum, t) => sum + unitOf(t).price,
       0,
     );
     if (verifiedTotalPrice <= 0) {
@@ -104,7 +127,7 @@ export async function handleCreateCheckoutSession(
     }
 
     const totalDuration =
-      treatments.reduce((sum, t) => sum + (t.duration || 0), 0) || 30;
+      treatments.reduce((sum, t) => sum + unitOf(t).duration, 0) || 30;
 
     const { data: hotel, error: hotelError } = await supabase
       .from("hotels")
