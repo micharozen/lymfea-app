@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { brand } from "@/config/brand";
 import {
+  CLIENT_TYPE_COLORS,
+  closureIssuer,
+  closurePaymentLabel,
+  closureRoomNumber,
   computeClosureStats,
   renderClosureReportHtml,
   type ClosureBooking,
@@ -257,17 +262,20 @@ describe("renderClosureReportHtml — hideCommissions flag", () => {
     ],
   };
 
-  it("includes commission sections when flag is false", () => {
+  it("never renders the commission split cards", () => {
     const html = renderClosureReportHtml(report, { includeDetails: false, hideCommissions: false });
-    expect(html).toContain("Part lieu");
-    expect(html).toContain("Part thérapeute");
-    expect(html).toContain("Part plateforme");
-  });
-
-  it("hides commission sections when flag is true", () => {
-    const html = renderClosureReportHtml(report, { includeDetails: false, hideCommissions: true });
     expect(html).not.toContain("Part lieu");
     expect(html).not.toContain("Part plateforme");
+  });
+
+  it("omits the upcoming/pending metrics", () => {
+    const html = renderClosureReportHtml(report, { includeDetails: false });
+    expect(html).not.toContain("Confirmées (à venir)");
+    expect(html).not.toContain("En attente");
+  });
+
+  it("never renders the per-therapist share column", () => {
+    expect(renderClosureReportHtml(report, { includeDetails: false })).not.toContain("Part thér");
   });
 
   it("does not change underlying stats numbers when hidden", () => {
@@ -312,5 +320,169 @@ describe("renderClosureReportHtml — hideCommissions flag", () => {
       hideCommissions: true,
     });
     expect(html).not.toContain("sans tarif thérapeute");
+  });
+});
+
+describe("détail des prestations", () => {
+  const hotelGuest = makeBooking({
+    id: "b1",
+    client_type: "hotel",
+    room_number: "412",
+    payment_method: "room",
+    payment_status: "charged_to_room",
+  });
+  const walkIn = makeBooking({
+    id: "b2",
+    client_type: "external",
+    room_number: null,
+    payment_method: null,
+    payment_status: "pending",
+  });
+
+  const report = {
+    venue,
+    date: "2026-05-11",
+    stats: computeClosureStats([hotelGuest, walkIn], venue, rates),
+    bookings: [hotelGuest, walkIn],
+  };
+  const html = renderClosureReportHtml(report, { includeDetails: true });
+
+  it("drops the time column", () => {
+    expect(html).not.toContain(">Heure<");
+  });
+
+  it("shows a room number column filled for hotel guests only", () => {
+    expect(html).toContain(">Chambre<");
+    expect(closureRoomNumber(hotelGuest)).toBe("412");
+    expect(closureRoomNumber(walkIn)).toBe("—");
+  });
+
+  it("keeps a room number off non-hotel clients even when one is stored", () => {
+    expect(closureRoomNumber({ client_type: "external", room_number: "412" })).toBe("—");
+  });
+
+  it("labels on-site payments instead of showing a dash", () => {
+    expect(closurePaymentLabel(null, "pending")).toBe("À régler sur place");
+    expect(closurePaymentLabel("card", "paid")).toBe("Carte — paiement en ligne");
+    expect(closurePaymentLabel(null, null)).toBe("—");
+    expect(html).toContain("À régler sur place");
+  });
+
+  it("groups on-site payments in the payment breakdown", () => {
+    const labels = report.stats.byPaymentMethod.map((b) => b.label);
+    expect(labels).toContain("À régler sur place");
+    expect(labels).toContain("Note de chambre");
+  });
+});
+
+describe("répartition par type de client", () => {
+  it("exposes the share of completed bookings as a percentage", () => {
+    const stats = computeClosureStats(
+      [
+        makeBooking({ id: "b1", client_type: "hotel" }),
+        makeBooking({ id: "b2", client_type: "hotel" }),
+        makeBooking({ id: "b3", client_type: "external" }),
+        makeBooking({ id: "b4", client_type: "external" }),
+      ],
+      venue,
+      rates,
+    );
+    expect(stats.byClientType).toHaveLength(2);
+    for (const bucket of stats.byClientType) {
+      expect(bucket.count).toBe(2);
+      expect(bucket.sharePercent).toBeCloseTo(50, 5);
+    }
+  });
+
+  it("renders the percentage column in the report", () => {
+    const bookings = [
+      makeBooking({ id: "b1", client_type: "hotel" }),
+      makeBooking({ id: "b2", client_type: "external" }),
+    ];
+    const html = renderClosureReportHtml(
+      { venue, date: "2026-05-11", stats: computeClosureStats(bookings, venue, rates), bookings },
+      { includeDetails: false },
+    );
+    expect(html).toContain("Part");
+    expect(html).toContain("50 %");
+  });
+
+  it("renders no gauge in the report", () => {
+    const bookings = [
+      makeBooking({ id: "b1", client_type: "hotel" }),
+      makeBooking({ id: "b2", client_type: "external" }),
+    ];
+    const html = renderClosureReportHtml(
+      { venue, date: "2026-05-11", stats: computeClosureStats(bookings, venue, rates), bookings },
+      { includeDetails: false },
+    );
+    expect(html).not.toContain(CLIENT_TYPE_COLORS.hotel);
+    expect(html).not.toContain(CLIENT_TYPE_COLORS.external);
+  });
+});
+
+describe("croisement type de client × moyen de paiement", () => {
+  const bookings = [
+    makeBooking({ id: "b1", client_type: "hotel", payment_method: "room", payment_status: "charged_to_room", total_price: 90 }),
+    makeBooking({ id: "b2", client_type: "hotel", payment_method: "room", payment_status: "charged_to_room", total_price: 75 }),
+    makeBooking({ id: "b3", client_type: "external", payment_method: null, payment_status: "pending", total_price: 60 }),
+    makeBooking({ id: "b4", client_type: "external", payment_method: "card", payment_status: "paid", total_price: 55 }),
+  ];
+  const stats = computeClosureStats(bookings, venue, rates);
+
+  it("groups completed bookings by client type and payment method", () => {
+    expect(stats.byClientTypeAndPayment).toHaveLength(3);
+    const hotelRoom = stats.byClientTypeAndPayment.find(
+      (b) => b.clientTypeKey === "hotel" && b.paymentLabel === "Note de chambre",
+    );
+    expect(hotelRoom).toMatchObject({ count: 2, revenue: 165 });
+  });
+
+  it("keeps on-site payments as their own cell", () => {
+    const onSite = stats.byClientTypeAndPayment.find(
+      (b) => b.clientTypeKey === "external" && b.paymentLabel === "À régler sur place",
+    );
+    expect(onSite).toMatchObject({ count: 1, revenue: 60 });
+  });
+
+  it("excludes non-completed bookings", () => {
+    const withCancelled = computeClosureStats(
+      [...bookings, makeBooking({ id: "b5", client_type: "hotel", status: "cancelled", total_price: 200 })],
+      venue,
+      rates,
+    );
+    const total = withCancelled.byClientTypeAndPayment.reduce((sum, b) => sum + b.count, 0);
+    expect(total).toBe(4);
+  });
+
+  it("renders the cross table in the report", () => {
+    const html = renderClosureReportHtml(
+      { venue, date: "2026-05-11", stats, bookings },
+      { includeDetails: false },
+    );
+    expect(html).toContain("Type de client × moyen de paiement");
+    expect(html).toContain("À régler sur place");
+  });
+});
+
+describe("émetteur du rapport", () => {
+  it("uses the venue organisation name when present", () => {
+    const html = renderClosureReportHtml(
+      {
+        venue: { ...venue, organization_name: "Groupe Hana" },
+        date: "2026-05-11",
+        stats: computeClosureStats([makeBooking()], venue, rates),
+        bookings: [makeBooking()],
+      },
+      { includeDetails: false },
+    );
+    expect(html).toContain("Groupe Hana · Clôture quotidienne");
+    expect(html).toContain("Rapport généré par Groupe Hana");
+    expect(html).not.toContain("Eïa");
+  });
+
+  it("falls back to the platform brand when the venue has no organisation", () => {
+    expect(closureIssuer(venue)).toBe(brand.name);
+    expect(closureIssuer({ ...venue, organization_name: "   " })).toBe(brand.name);
   });
 });
