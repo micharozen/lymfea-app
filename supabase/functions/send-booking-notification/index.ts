@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { sendEmail } from "../_shared/send-email.ts";
 import { sendSms } from "../_shared/send-sms.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
-import { isPartnerBilledClientType, isDeferredBillingClientType } from "../_shared/client-type.ts";
+import { isDeferredBillingBooking, isRoomChargedBooking } from "../_shared/client-type.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,10 +59,12 @@ function buildEmailHtml(params: {
   totalPrice: number;
   currency: string;
   language: "fr" | "en";
-  clientType: string | null;
+  /** Facturation différée (partenaire ou note de chambre) : aucune démarche
+   *  de paiement côté client. Faux dès que le client a payé par carte. */
+  isDeferredBilling: boolean;
 }) {
-  const { clientName, hotelName, bookingId, dateLong, bookingTime, roomNumber, treatments, totalPrice, currency, language, clientType } = params;
-  const showPartnerNotice = isDeferredBillingClientType(clientType);
+  const { clientName, hotelName, bookingId, dateLong, bookingTime, roomNumber, treatments, totalPrice, currency, language, isDeferredBilling } = params;
+  const showPartnerNotice = isDeferredBilling;
   const labels = language === "fr"
     ? {
         title: "Votre réservation bien-être est confirmée",
@@ -118,7 +120,9 @@ function buildSmsBody(params: {
   dateLong: string;
   bookingTime: string;
   roomNumber: string | null;
-  clientType: string | null;
+  /** Le soin part sur la note de chambre. Un résident hôtel qui a payé par
+   *  carte ne doit PAS lire « facturation en chambre ». */
+  isRoomCharged: boolean;
   manageUrl: string;
   rebookUrl: string;
   language: "fr" | "en";
@@ -130,7 +134,7 @@ function buildSmsBody(params: {
     dateLong,
     bookingTime,
     roomNumber,
-    clientType,
+    isRoomCharged,
     manageUrl,
     rebookUrl,
     language,
@@ -151,21 +155,14 @@ function buildSmsBody(params: {
     return `Hello ${clientName},\n\nYour treatment at ${hotelName} on ${dateLong} at ${bookingTime} has been cancelled.\n\nBook again: ${rebookUrl}\n\nSee you soon!`;
   }
 
-  const isPartner = isPartnerBilledClientType(clientType);
-  const isHotel = clientType === "hotel";
-
   if (language === "fr") {
-    const paymentLine = isPartner
-      ? ""
-      : isHotel
+    const paymentLine = isRoomCharged
       ? `\n\nFacturation en chambre${roomNumber ? ` ${roomNumber}` : ""}.`
       : "";
     return `Bonjour ${clientName},\n\nVotre soin à ${hotelName} est confirmé le ${dateLong} à ${bookingTime}.${paymentLine}\n\nGérer ma réservation : ${manageUrl}\n\nÀ très vite !`;
   }
 
-  const paymentLine = isPartner
-    ? ""
-    : isHotel
+  const paymentLine = isRoomCharged
     ? `\n\nCharged to your room${roomNumber ? ` ${roomNumber}` : ""}.`
     : "";
   return `Hello ${clientName},\n\nYour treatment at ${hotelName} is confirmed on ${dateLong} at ${bookingTime}.${paymentLine}\n\nManage my booking: ${manageUrl}\n\nSee you soon!`;
@@ -210,7 +207,7 @@ serve(async (req: Request) => {
       .select(
         `id, booking_id, client_first_name, client_last_name, client_email, phone,
          booking_date, booking_time, room_number, total_price, hotel_id, client_type,
-         status, payment_status,
+         status, payment_status, payment_method,
          hotels(name, currency)`
       )
       .eq("id", bookingId)
@@ -222,15 +219,23 @@ serve(async (req: Request) => {
 
     const bookingClientType = (booking as any).client_type as string | null;
     const bookingPaymentStatus = (booking as any).payment_status as string | null;
-    const isPartnerBilled = isDeferredBillingClientType(bookingClientType);
+    const bookingPaymentMethod = (booking as any).payment_method as string | null;
+    // Facturation différée : le client n'a rien à régler maintenant, on peut
+    // confirmer sans attendre un paiement. Un résident hôtel qui a choisi la
+    // carte n'entre PAS dans ce cas — il doit passer par le gate de paiement
+    // comme n'importe quel client, sinon on confirmerait un soin non payé.
+    const isDeferredBilling = isDeferredBillingBooking(bookingClientType, {
+      paymentMethod: bookingPaymentMethod,
+      paymentStatus: bookingPaymentStatus,
+    });
     const isPaymentEngaged = bookingPaymentStatus === "paid" || bookingPaymentStatus === "authorized" || bookingPaymentStatus === "engaged";
     const isReschedOrCancel = body.type === "reschedule" || body.type === "cancellation";
 
-    if (!isReschedOrCancel && !isPartnerBilled && !isPaymentEngaged) {
+    if (!isReschedOrCancel && !isDeferredBilling && !isPaymentEngaged) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: `Confirmation email blocked: client_type=${bookingClientType ?? "null"} requires payment_status to be paid/authorized/engaged (got ${bookingPaymentStatus ?? "null"}). Use the Stripe payment link flow instead.`,
+          error: `Confirmation email blocked: client_type=${bookingClientType ?? "null"} / payment_method=${bookingPaymentMethod ?? "null"} requires payment_status to be paid/authorized/engaged (got ${bookingPaymentStatus ?? "null"}). Use the Stripe payment link flow instead.`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
@@ -272,7 +277,7 @@ serve(async (req: Request) => {
           totalPrice: Number(booking.total_price ?? 0),
           currency,
           language,
-          clientType: bookingClientType,
+          isDeferredBilling,
         });
         const subject = language === "fr"
           ? `Confirmation de votre réservation #${booking.booking_id}`
@@ -306,7 +311,10 @@ serve(async (req: Request) => {
           dateLong,
           bookingTime: booking.booking_time.substring(0, 5),
           roomNumber: booking.room_number ?? null,
-          clientType: (booking as any).client_type ?? null,
+          isRoomCharged: isRoomChargedBooking(bookingClientType, {
+            paymentMethod: bookingPaymentMethod,
+            paymentStatus: bookingPaymentStatus,
+          }),
           manageUrl,
           rebookUrl,
           language,
