@@ -1,12 +1,29 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addDays, subDays, startOfMonth, endOfMonth, format, parseISO, isValid } from "date-fns";
-import { RefreshCw, Waves } from "lucide-react";
+import { Ban, ChevronDown, RefreshCw, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppLoader } from "@/components/AppLoader";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
+import { RoomBlockDialog } from "@/components/admin/venue/RoomBlockDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
@@ -21,6 +38,9 @@ import {
   useBookingSelection,
   useAmenityBookingData,
   useTherapistDayPlanning,
+  useRoomBlocks,
+  useDeleteRoomBlockRow,
+  type RoomBlockRow,
   type BookingWithTreatments,
   type AmenityBookingForCalendar,
 } from "@/hooks/booking";
@@ -115,6 +135,26 @@ export default function Booking() {
   const [selectedTime, setSelectedTime] = useState<string>();
   const [selectedTherapistId, setSelectedTherapistId] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
+
+  // Blocage ponctuel de créneaux (shooting, maintenance), depuis le menu
+  // accolé au bouton "Nouvelle réservation".
+  const [isRoomBlockOpen, setIsRoomBlockOpen] = useState(false);
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+  // Le menu s'ouvre au survol : on retarde la fermeture pour laisser le curseur
+  // traverser le vide entre le bouton et le panneau (rendu dans un portail,
+  // donc hors du conteneur qui porte les handlers de survol).
+  const createMenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openCreateMenu = useCallback(() => {
+    if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
+    setIsCreateMenuOpen(true);
+  }, []);
+  const scheduleCloseCreateMenu = useCallback(() => {
+    if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
+    createMenuCloseTimer.current = setTimeout(() => setIsCreateMenuOpen(false), 150);
+  }, []);
+  useEffect(() => () => {
+    if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
+  }, []);
 
   // Amenity dialog state
   const [isAmenityCreateOpen, setIsAmenityCreateOpen] = useState(false);
@@ -265,6 +305,25 @@ useEffect(() => {
     endHour: calendar.endHour,
     showOnlyScheduled,
     treatment: searchedTreatment,
+  });
+
+  // Blocages ponctuels datés de la plage affichée, pour la vue calendrier.
+  // Sans filtre de lieu on interroge tous les lieux visibles : la vue les
+  // mélange dans une même colonne, chaque bande porte donc le nom du lieu.
+  const visibleVenueIds = useMemo(
+    () => (hotelFilter.length > 0 ? hotelFilter : (hotels ?? []).map((h) => h.id)),
+    [hotelFilter, hotels],
+  );
+  const [editingRoomBlock, setEditingRoomBlock] = useState<RoomBlockRow | null>(null);
+  const [deletingRoomBlock, setDeletingRoomBlock] = useState<RoomBlockRow | null>(null);
+  const deleteRoomBlockRow = useDeleteRoomBlockRow();
+
+  const rangeStart = calendar.weekDays[0] ?? calendar.currentWeekStart;
+  const rangeEnd = calendar.weekDays[calendar.weekDays.length - 1] ?? rangeStart;
+  const { data: roomBlocks } = useRoomBlocks({
+    venueId: visibleVenueIds,
+    from: format(rangeStart, "yyyy-MM-dd"),
+    to: format(rangeEnd, "yyyy-MM-dd"),
   });
 
   // Overflow control
@@ -421,13 +480,52 @@ useEffect(() => {
                 Commodité
                 <Waves className="h-3.5 w-3.5 ml-1" />
               </Button>
-              <Button
-                onClick={() => setIsCreateDialogOpen(true)}
-                size="sm"
-                className="h-8 text-xs transition-transform duration-100 active:scale-90"
-              >
-                {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
-              </Button>
+              {/* Split button : action principale + menu (ouvert au survol) */}
+              <div className="flex">
+                <Button
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  size="sm"
+                  className={`h-8 text-xs transition-transform duration-100 active:scale-90 ${
+                    isConcierge ? "" : "rounded-r-none"
+                  }`}
+                >
+                  {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
+                </Button>
+                {!isConcierge && (
+                  // modal={false} : en mode modal Radix pose pointer-events:none
+                  // sur le body, le conteneur perdait le survol et le menu
+                  // s'ouvrait/fermait en boucle.
+                  <DropdownMenu modal={false} open={isCreateMenuOpen} onOpenChange={setIsCreateMenuOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        aria-label={t("planning.moreCreateActions")}
+                        className="h-8 w-7 rounded-l-none border-l border-background/30 px-0"
+                        onMouseEnter={openCreateMenu}
+                        onMouseLeave={scheduleCloseCreateMenu}
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      className="w-56"
+                      onMouseEnter={openCreateMenu}
+                      onMouseLeave={scheduleCloseCreateMenu}
+                    >
+                      <DropdownMenuItem
+                        disabled={!singleVenueId}
+                        onSelect={() => setIsRoomBlockOpen(true)}
+                      >
+                        <Ban className="mr-2 h-3.5 w-3.5" />
+                        {singleVenueId
+                          ? t("roomBlocks.dialogTitle")
+                          : t("roomBlocks.selectVenueFirst")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </>
           }
         />
@@ -507,6 +605,9 @@ useEffect(() => {
               amenityBookings={amenityBookings}
               visibleCalendars={hasVenueFilter ? visibleCalendars : undefined}
               onAmenityBookingClick={handleAmenityBookingClick}
+              roomBlocks={roomBlocks}
+              onEditRoomBlock={setEditingRoomBlock}
+              onDeleteRoomBlock={setDeletingRoomBlock}
             />
           ) : (
             <BookingListView
@@ -608,6 +709,59 @@ useEffect(() => {
           userRole={isConcierge ? "concierge" : "admin"}
         />
       )}
+
+      {singleVenueId && (
+        <RoomBlockDialog
+          open={isRoomBlockOpen}
+          onOpenChange={setIsRoomBlockOpen}
+          hotelId={singleVenueId}
+          defaultDate={format(calendar.currentWeekStart, "yyyy-MM-dd")}
+        />
+      )}
+
+      {/* Édition d'un blocage depuis le planning : le lieu vient de la ligne,
+          pas du filtre — une bande peut appartenir à un autre lieu affiché.
+          La `key` force la ré-initialisation du formulaire à chaque blocage. */}
+      {editingRoomBlock && (
+        <RoomBlockDialog
+          key={editingRoomBlock.id}
+          open
+          onOpenChange={(next) => !next && setEditingRoomBlock(null)}
+          hotelId={editingRoomBlock.hotel_id}
+          block={editingRoomBlock}
+        />
+      )}
+
+      <AlertDialog
+        open={!!deletingRoomBlock}
+        onOpenChange={(next) => !next && setDeletingRoomBlock(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("roomBlocks.confirmDelete", { label: deletingRoomBlock?.label ?? "" })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("roomBlocks.confirmDeleteOccurrence", {
+                date: deletingRoomBlock?.block_date ?? "",
+                start: deletingRoomBlock?.start_time.substring(0, 5) ?? "",
+                end: deletingRoomBlock?.end_time.substring(0, 5) ?? "",
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("roomBlocks.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletingRoomBlock) deleteRoomBlockRow.mutate(deletingRoomBlock.id);
+                setDeletingRoomBlock(null);
+              }}
+            >
+              {t("roomBlocks.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {paymentLinkBooking && (
         <SendPaymentLinkDialog

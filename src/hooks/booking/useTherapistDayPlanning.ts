@@ -23,6 +23,12 @@ export interface BlockedRange extends TimeRange {
   label: string;
 }
 
+/** Blocage ponctuel daté ciblant une salle de soin précise. */
+export interface RoomBlockedRange extends BlockedRange {
+  roomId: string;
+  roomName: string | null;
+}
+
 export interface TherapistDayColumn {
   therapist: TherapistLite;
   /** Declared working ranges for the day. Empty = not working (absent or undeclared). */
@@ -59,6 +65,8 @@ export interface TherapistDayPlanning {
   /** Bookings of the day with no therapist attached yet (awaiting broadcast/assignment). */
   unassignedBookings: BookingWithTreatments[];
   blockedRanges: BlockedRange[];
+  /** Blocages datés ciblant une salle. Informatifs : les autres salles restent réservables. */
+  roomBlockedRanges: RoomBlockedRange[];
   /** hour → who could take the treatment then. Computed over the whole team. */
   availabilityByHour: Map<number, HourAvailability>;
   /** Active therapists attached to the venue, regardless of any filter. */
@@ -231,18 +239,40 @@ export function useTherapistDayPlanning({
     },
   });
 
+  // Blocages du lieu : récurrents hebdomadaires (block_date NULL) + ponctuels
+  // datés de ce jour. Un blocage daté peut viser une salle précise (room_id) —
+  // il ne ferme alors pas l'heure, il informe.
   const { data: blockedSlots } = useQuery({
-    queryKey: ["therapist-day-planning", "blocked-slots", venueId],
+    queryKey: ["therapist-day-planning", "blocked-slots", venueId, dateStr],
     enabled: !!venueId,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("venue_blocked_slots")
-        .select("id, label, start_time, end_time, days_of_week")
+        .select("id, label, start_time, end_time, days_of_week, block_date, room_id, treatment_rooms(name)")
         .eq("hotel_id", venueId!)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .or(`block_date.is.null,block_date.eq.${dateStr}`);
       if (error) throw error;
       return data || [];
+    },
+  });
+
+  // Nombre de salles actives : une heure n'est réellement fermée que si tous les
+  // blocages salle du créneau couvrent l'intégralité du lieu.
+  const { data: activeRoomIds } = useQuery({
+    queryKey: ["therapist-day-planning", "rooms", venueId],
+    enabled: !!venueId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("treatment_rooms")
+        .select("id, status")
+        .eq("hotel_id", venueId!);
+      if (error) throw error;
+      return (data || [])
+        .filter((r) => ACTIVE_STATUSES.includes((r.status || "").toLowerCase()))
+        .map((r) => r.id);
     },
   });
 
@@ -277,15 +307,44 @@ export function useTherapistDayPlanning({
     });
     const isVisible = (range: TimeRange) => range.endMin > range.startMin;
 
+    // Un blocage récurrent ne vaut que les jours qu'il déclare ; un blocage daté
+    // est déjà restreint à ce jour par la requête.
+    const appliesToday = (b: { block_date: string | null; days_of_week: number[] | null }) =>
+      b.block_date !== null || b.days_of_week === null || b.days_of_week.includes(dayOfWeek);
+
+    const toRange = (b: { id: string; label: string; start_time: string; end_time: string }) => ({
+      id: b.id,
+      label: b.label,
+      ...clamp({ startMin: timeToMinutes(b.start_time), endMin: timeToMinutes(b.end_time) }),
+    });
+
+    // Ferment le lieu entier : récurrents, et blocages datés sans salle ciblée.
     const blockedRanges: BlockedRange[] = (blockedSlots || [])
-      .filter((b) => b.days_of_week === null || b.days_of_week.includes(dayOfWeek))
+      .filter((b) => appliesToday(b) && b.room_id === null)
+      .map(toRange)
+      .filter(isVisible)
+      .sort((a, b) => a.startMin - b.startMin);
+
+    // Ciblent une salle : informatifs tant qu'il reste une salle libre.
+    const roomBlockedRanges: RoomBlockedRange[] = (blockedSlots || [])
+      .filter((b) => b.block_date !== null && b.room_id !== null)
       .map((b) => ({
-        id: b.id,
-        label: b.label,
-        ...clamp({ startMin: timeToMinutes(b.start_time), endMin: timeToMinutes(b.end_time) }),
+        ...toRange(b),
+        roomId: b.room_id as string,
+        roomName: (b.treatment_rooms as { name: string } | null)?.name ?? null,
       }))
       .filter(isVisible)
       .sort((a, b) => a.startMin - b.startMin);
+
+    // Toutes les salles actives bloquées sur un créneau = le lieu y est fermé.
+    const roomCount = (activeRoomIds || []).length;
+    const isFullyBlockedByRooms = (range: TimeRange): boolean => {
+      if (roomCount === 0) return false;
+      const covered = new Set(
+        roomBlockedRanges.filter((b) => overlaps(range, b)).map((b) => b.roomId),
+      );
+      return (activeRoomIds || []).every((id) => covered.has(id));
+    };
 
     const dayBookings = (bookings || []).filter(
       (b) =>
@@ -376,7 +435,7 @@ export function useTherapistDayPlanning({
         ? { startMin: hourStart, endMin: hourStart + requiredDuration }
         : { startMin: hourStart, endMin: hourStart + 60 };
 
-      if (blockedRanges.some((b) => overlaps(needed, b))) {
+      if (blockedRanges.some((b) => overlaps(needed, b)) || isFullyBlockedByRooms(needed)) {
         availabilityByHour.set(hour, { hour, free: [], isBlocked: true });
         continue;
       }
@@ -410,6 +469,7 @@ export function useTherapistDayPlanning({
       columns,
       unassignedBookings,
       blockedRanges,
+      roomBlockedRanges,
       availabilityByHour,
       totalTherapistCount: allColumns.length,
       qualifiedTherapistCount: allColumns.filter((col) => col.isQualified).length,
@@ -420,6 +480,7 @@ export function useTherapistDayPlanning({
     venueTherapists,
     schedules,
     blockedSlots,
+    activeRoomIds,
     therapistTreatments,
     treatment,
     bookings,

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react";
 import type { AuthBundles } from "@/components/client/GiftCardLoginModal";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -111,23 +111,42 @@ interface ClientFlowContextType extends ClientFlowState {
 
 const ClientFlowContext = createContext<ClientFlowContextType | undefined>(undefined);
 
-export function ClientFlowProvider({ children }: { children: React.ReactNode }) {
-  const [bookingDateTime, setBookingDateTimeState] = useState<BookingDateTime | null>(null);
-  const [clientInfo, setClientInfoState] = useState<ClientInfo | null>(null);
-  const [pendingCheckoutSession, setPendingCheckoutSessionState] = useState<string | null>(null);
-  const [therapistGenderPreference, setTherapistGenderPreferenceState] = useState<TherapistGender>(null);
-  const [selectedBundle, setSelectedBundleState] = useState<SelectedBundle | null>(null);
-  const [isBundleOnlyPurchase, setIsBundleOnlyPurchaseState] = useState(false);
-  const [draftBookingId, setDraftBookingIdState] = useState<string | null>(null);
-  const [holdExpiresAt, setHoldExpiresAtState] = useState<number | null>(null);
-  const [giftInfo, setGiftInfoState] = useState<GiftInfo | null>(null);
-  const [authBundles, setAuthBundlesState] = useState<AuthBundles | null>(null);
-  const [scheduleMode, setScheduleModeState] = useState<ScheduleMode>('shared');
-  const [amenityTiming, setAmenityTimingState] = useState<AmenityTiming | null>(null);
-  const [perItemSchedule, setPerItemScheduleState] = useState<PerItemSchedule>({});
-  const [groupId, setGroupIdState] = useState<string | null>(null);
-  const [bookingIds, setBookingIdsState] = useState<string[]>([]);
-  const [checkoutIntentId, setCheckoutIntentIdState] = useState<string | null>(null);
+/**
+ * Le paiement sort du SPA (`window.location.href` vers Stripe Checkout). Sans
+ * persistance, un retour arrière depuis Stripe repart d'un contexte vide : le
+ * client est renvoyé sur le choix du créneau et doit tout re-saisir alors que
+ * son panier, lui persisté, est encore là. On garde donc l'état du flow en
+ * sessionStorage, scopé par lieu comme le panier.
+ */
+function readStoredFlow(storageKey: string): Partial<ClientFlowState> {
+  try {
+    const raw = sessionStorage.getItem(storageKey);
+    return raw ? (JSON.parse(raw) as Partial<ClientFlowState>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function ClientFlowProvider({ children, hotelId }: { children: React.ReactNode; hotelId: string }) {
+  const storageKey = `clientFlow_${hotelId}`;
+  const [restored] = useState<Partial<ClientFlowState>>(() => readStoredFlow(storageKey));
+
+  const [bookingDateTime, setBookingDateTimeState] = useState<BookingDateTime | null>(restored.bookingDateTime ?? null);
+  const [clientInfo, setClientInfoState] = useState<ClientInfo | null>(restored.clientInfo ?? null);
+  const [pendingCheckoutSession, setPendingCheckoutSessionState] = useState<string | null>(restored.pendingCheckoutSession ?? null);
+  const [therapistGenderPreference, setTherapistGenderPreferenceState] = useState<TherapistGender>(restored.therapistGenderPreference ?? null);
+  const [selectedBundle, setSelectedBundleState] = useState<SelectedBundle | null>(restored.selectedBundle ?? null);
+  const [isBundleOnlyPurchase, setIsBundleOnlyPurchaseState] = useState(restored.isBundleOnlyPurchase ?? false);
+  const [draftBookingId, setDraftBookingIdState] = useState<string | null>(restored.draftBookingId ?? null);
+  const [holdExpiresAt, setHoldExpiresAtState] = useState<number | null>(restored.holdExpiresAt ?? null);
+  const [giftInfo, setGiftInfoState] = useState<GiftInfo | null>(restored.giftInfo ?? null);
+  const [authBundles, setAuthBundlesState] = useState<AuthBundles | null>(restored.authBundles ?? null);
+  const [scheduleMode, setScheduleModeState] = useState<ScheduleMode>(restored.scheduleMode ?? 'shared');
+  const [amenityTiming, setAmenityTimingState] = useState<AmenityTiming | null>(restored.amenityTiming ?? null);
+  const [perItemSchedule, setPerItemScheduleState] = useState<PerItemSchedule>(restored.perItemSchedule ?? {});
+  const [groupId, setGroupIdState] = useState<string | null>(restored.groupId ?? null);
+  const [bookingIds, setBookingIdsState] = useState<string[]>(restored.bookingIds ?? []);
+  const [checkoutIntentId, setCheckoutIntentIdState] = useState<string | null>(restored.checkoutIntentId ?? null);
 
   const setBookingDateTime = useCallback((data: BookingDateTime) => setBookingDateTimeState(data), []);
   const setClientInfo = useCallback((data: ClientInfo) => setClientInfoState(data), []);
@@ -174,6 +193,31 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
   const setGroupId = useCallback((id: string | null) => setGroupIdState(id), []);
   const setBookingIds = useCallback((ids: string[]) => setBookingIdsState(ids), []);
   const setCheckoutIntentId = useCallback((id: string | null) => setCheckoutIntentIdState(id), []);
+
+  // Écrivain unique du sessionStorage : `clearFlow` remet l'état à ses valeurs
+  // par défaut, que cet effet réécrit — inutile de purger la clé à la main.
+  useEffect(() => {
+    const snapshot: ClientFlowState = {
+      bookingDateTime, clientInfo, pendingCheckoutSession,
+      therapistGenderPreference, selectedBundle, isBundleOnlyPurchase,
+      draftBookingId, holdExpiresAt, giftInfo, authBundles,
+      scheduleMode, perItemSchedule, amenityTiming,
+      groupId, bookingIds, checkoutIntentId,
+    };
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(snapshot));
+    } catch {
+      // Quota plein ou storage indisponible (navigation privée) : le flow
+      // fonctionne toujours, il ne survivra simplement pas au retour Stripe.
+    }
+  }, [
+    storageKey,
+    bookingDateTime, clientInfo, pendingCheckoutSession,
+    therapistGenderPreference, selectedBundle, isBundleOnlyPurchase,
+    draftBookingId, holdExpiresAt, giftInfo, authBundles,
+    scheduleMode, perItemSchedule, amenityTiming,
+    groupId, bookingIds, checkoutIntentId,
+  ]);
 
   const clearFlow = useCallback(() => {
     setBookingDateTimeState(null);

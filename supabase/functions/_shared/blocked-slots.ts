@@ -9,6 +9,12 @@ function timeToMinutes(time: string): number {
  * Checks if a booking time + duration overlaps with any active blocked slot
  * for the given hotel on the given date.
  * Returns true if the slot is blocked (booking should be rejected).
+ *
+ * Ne considère que les blocages portant sur TOUT le lieu (room_id IS NULL),
+ * qu'ils soient récurrents hebdomadaires (block_date IS NULL) ou ponctuels
+ * datés. Un blocage ciblant une salle précise laisse les autres salles
+ * réservables : il ne peut pas se trancher ici sans rejouer l'allocation, et
+ * c'est reserve_trunk_atomically qui le tranche, atomiquement.
  */
 export async function isInBlockedSlot(
   supabase: SupabaseClient,
@@ -19,9 +25,11 @@ export async function isInBlockedSlot(
 ): Promise<boolean> {
   const { data: blockedSlots, error } = await supabase
     .from('venue_blocked_slots')
-    .select('start_time, end_time, days_of_week')
+    .select('start_time, end_time, days_of_week, block_date')
     .eq('hotel_id', hotelId)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .is('room_id', null)
+    .or(`block_date.is.null,block_date.eq.${bookingDate}`);
 
   if (error || !blockedSlots || blockedSlots.length === 0) {
     return false;
@@ -32,8 +40,13 @@ export async function isInBlockedSlot(
   const bookingEndMinutes = bookingStartMinutes + durationMinutes;
 
   return blockedSlots.some((block: any) => {
-    // Check day of week applicability (null = every day)
-    if (block.days_of_week !== null && !block.days_of_week.includes(dayOfWeek)) {
+    // Un blocage daté vaut pour cette date seule (déjà filtré côté requête) ;
+    // days_of_week ne s'applique qu'aux blocages récurrents.
+    if (
+      block.block_date === null &&
+      block.days_of_week !== null &&
+      !block.days_of_week.includes(dayOfWeek)
+    ) {
       return false;
     }
 

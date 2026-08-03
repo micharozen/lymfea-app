@@ -421,11 +421,13 @@ export default function VenueDetail({
         });
       }
 
-      // Load blocked slots
+      // Load blocked slots (recurring weekly only — dated blocks are managed
+      // separately in the treatment rooms tab)
       const { data: blockedSlotsData } = await supabase
         .from("venue_blocked_slots")
         .select("*")
         .eq("hotel_id", hotelId)
+        .is("block_date", null)
         .order("start_time");
 
       if (blockedSlotsData) {
@@ -502,7 +504,8 @@ export default function VenueDetail({
     const { data: existingSlots } = await supabase
       .from("venue_blocked_slots")
       .select("id")
-      .eq("hotel_id", targetHotelId);
+      .eq("hotel_id", targetHotelId)
+      .is("block_date", null);
 
     const existingIds = new Set((existingSlots || []).map((s: any) => s.id));
     const currentIds = new Set(blockedSlots.filter(s => s.id).map(s => s.id!));
