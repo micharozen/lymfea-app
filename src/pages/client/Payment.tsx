@@ -35,10 +35,12 @@ export default function Payment() {
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
 
   useEffect(() => {
-    if (selectedMethod === 'room' && clientInfo?.isExternalGuest) {
+    // Sans numéro de chambre il n'y a rien à débiter : le résident qui ne le
+    // connaît pas encore paie comme un client externe.
+    if (selectedMethod === 'room' && (clientInfo?.isExternalGuest || clientInfo?.roomNumberUnknown)) {
       setSelectedMethod('card');
     }
-  }, [selectedMethod, clientInfo?.isExternalGuest]);
+  }, [selectedMethod, clientInfo?.isExternalGuest, clientInfo?.roomNumberUnknown]);
   const [isProcessing, setIsProcessing] = useState(false);
   const { t, i18n } = useTranslation('client');
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
@@ -159,6 +161,7 @@ export default function Payment() {
               pmsVerified: clientInfo.pmsVerified,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
+              isHotelGuest: clientInfo.isExternalGuest === false,
             },
             bundleItems: items.map(item => ({
               treatmentId: item.id,
@@ -224,6 +227,7 @@ export default function Payment() {
                 pmsVerified: clientInfo.pmsVerified,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
+                isHotelGuest: clientInfo.isExternalGuest === false,
                 pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
                 pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
               },
@@ -266,6 +270,7 @@ export default function Payment() {
                 pmsVerified: clientInfo.pmsVerified,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
+                isHotelGuest: clientInfo.isExternalGuest === false,
               },
               bookingData: {
                 date: bookingDateTime.date,
@@ -312,6 +317,7 @@ export default function Payment() {
               pmsVerified: clientInfo.pmsVerified,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
+              isHotelGuest: clientInfo.isExternalGuest === false,
               pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
               pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
             },
@@ -366,6 +372,7 @@ export default function Payment() {
             pmsVerified: clientInfo.pmsVerified,
             roomNumber: clientInfo.roomNumber,
             note: clientInfo.note || '',
+            isHotelGuest: clientInfo.isExternalGuest === false,
             pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
             pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
           },
@@ -414,6 +421,7 @@ export default function Payment() {
           pmsVerified: clientInfo.pmsVerified,
           roomNumber: clientInfo.roomNumber,
           note: clientInfo.note || '',
+          isHotelGuest: clientInfo.isExternalGuest === false,
           pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
           pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
         };
@@ -773,7 +781,7 @@ export default function Payment() {
             </button>
 
             {/* Chambre */}
-            {supportsRoomPayment && !isBundleOnlyPurchase && !clientInfo?.isExternalGuest && (
+            {supportsRoomPayment && !isBundleOnlyPurchase && !clientInfo?.isExternalGuest && !clientInfo?.roomNumberUnknown && (
               <button
                 type="button"
                 onClick={() => setSelectedMethod('room')}
