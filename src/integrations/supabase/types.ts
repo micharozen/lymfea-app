@@ -4239,6 +4239,7 @@ export type Database = {
         Args: { p_token: string }
         Returns: {
           client_first_name: string
+          client_language: string
           client_last_name: string
           hotel_name: string
           total_price: number
