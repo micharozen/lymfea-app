@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
@@ -92,19 +92,58 @@ export default function Signature() {
   };
 
   // --- LOGIQUE CANVAS ---
+  // La résolution interne du canvas doit suivre sa taille affichée : sinon les
+  // coordonnées du doigt (en pixels CSS) ne correspondent pas à l'espace de
+  // dessin et seule une fraction de l'encadré est atteignable sur mobile.
+  // Renvoie true si la résolution a dû être (re)calée, ce qui vide le canvas.
+  const configureCanvas = useCallback((node: HTMLCanvasElement) => {
+    const rect = node.getBoundingClientRect();
+    if (!rect.width || !rect.height) return false;
+    const dpr = window.devicePixelRatio || 1;
+    const width = Math.round(rect.width * dpr);
+    const height = Math.round(rect.height * dpr);
+    if (node.width === width && node.height === height) return false;
+    node.width = width;
+    node.height = height;
+    const ctx = node.getContext('2d');
+    if (!ctx) return false;
+    // On dessine ensuite en pixels CSS : le contexte convertit vers la résolution réelle.
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#2C2622';
+    return true;
+  }, []);
+
+  const setupCanvas = useCallback((node: HTMLCanvasElement | null) => {
+    canvasRef.current = node;
+    if (node) configureCanvas(node);
+  }, [configureCanvas]);
+
+  const getPoint = (
+    canvas: HTMLCanvasElement,
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>,
+  ) => {
+    const rect = canvas.getBoundingClientRect();
+    const touch = 'touches' in e ? (e.touches[0] ?? e.changedTouches[0]) : null;
+    const clientX = touch ? touch.clientX : (e as React.MouseEvent).clientX;
+    const clientY = touch ? touch.clientY : (e as React.MouseEvent).clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
+    // La taille affichée a pu changer depuis le montage (rotation de l'écran) :
+    // on recale avant de tracer, sinon le trait serait décalé du doigt.
+    if (configureCanvas(canvas)) setHasDrawn(false);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const { x, y } = getPoint(canvas, e);
     ctx.beginPath();
-    ctx.moveTo(clientX - rect.left, clientY - rect.top);
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = '#2C2622';
+    ctx.moveTo(x, y);
     setIsDrawing(true);
   };
 
@@ -115,10 +154,8 @@ export default function Signature() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    ctx.lineTo(clientX - rect.left, clientY - rect.top);
+    const { x, y } = getPoint(canvas, e);
+    ctx.lineTo(x, y);
     ctx.stroke();
     setHasDrawn(true);
   };
@@ -129,7 +166,11 @@ export default function Signature() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    // clearRect suit la transformation dpr : on l'annule le temps d'effacer.
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
     setHasDrawn(false);
   };
 
@@ -395,8 +436,8 @@ export default function Signature() {
             <div className="border border-[#E8DFD2] p-2 bg-[#F8F3EC] relative shadow-inner rounded-sm">
               <span className="absolute top-4 left-6 text-[#D9CDBC] font-serif italic pointer-events-none select-none text-lg">{tr('consent.canvasPlaceholder')}</span>
               <canvas
-                ref={canvasRef} width={800} height={250}
-                className="w-full bg-transparent touch-none cursor-crosshair relative z-10"
+                ref={setupCanvas}
+                className="w-full h-[200px] sm:h-[250px] bg-transparent touch-none cursor-crosshair relative z-10"
                 onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
                 onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing}
               />
