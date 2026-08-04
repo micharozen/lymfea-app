@@ -128,6 +128,9 @@
     "vite": "^8.1.4",
     "vitest": "^4.1.6"
   },
+  "overrides": {
+    "@radix-ui/react-focus-scope": "1.1.13"
+  },
   "trustedDependencies": [
     "@swc/core",
     "core-js",
