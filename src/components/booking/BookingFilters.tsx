@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
@@ -178,6 +178,7 @@ export function BookingFilters({
 }: BookingFiltersProps) {
   const { t } = useTranslation("admin");
   const [customPeriodOpen, setCustomPeriodOpen] = useState(false);
+  const customPeriodRequested = useRef(false);
   const [draftRange, setDraftRange] = useState<DateRange | undefined>(() =>
     customRange
       ? { from: parseISO(customRange.from), to: parseISO(customRange.to) }
@@ -343,11 +344,26 @@ export function BookingFilters({
           value={customRange ? CUSTOM_PERIOD : String(periodDays)}
           onValueChange={(v) => {
             if (v === CUSTOM_PERIOD) {
-              setCustomPeriodOpen(true);
+              customPeriodRequested.current = true;
               return;
             }
             onCustomRangeChange?.(null);
             onPeriodDaysChange(Number(v));
+          }}
+          onOpenChange={(open) => {
+            if (open || !customPeriodRequested.current) return;
+            customPeriodRequested.current = false;
+            // Le Select rend le focus à son trigger pendant sa fermeture : ouvrir
+            // le popover tout de suite le ferait aussitôt (focus/clic extérieur).
+            // On attend donc la fin de cette séquence.
+            requestAnimationFrame(() => {
+              setDraftRange(
+                customRange
+                  ? { from: parseISO(customRange.from), to: parseISO(customRange.to) }
+                  : undefined
+              );
+              setCustomPeriodOpen(true);
+            });
           }}
         >
           <SelectTrigger className="w-[170px] h-8 text-xs">
@@ -359,7 +375,15 @@ export function BookingFilters({
             <SelectItem value="60">60 derniers jours</SelectItem>
             <SelectItem value="90">90 derniers jours</SelectItem>
             {onCustomRangeChange && (
-              <SelectItem value={CUSTOM_PERIOD}>
+              <SelectItem
+                value={CUSTOM_PERIOD}
+                // Re-choisir la période déjà active ne déclenche pas
+                // onValueChange : on marque l'intention depuis l'item lui-même
+                // pour pouvoir rouvrir le calendrier et modifier les dates.
+                onPointerUp={() => {
+                  customPeriodRequested.current = true;
+                }}
+              >
                 {customRange
                   ? `${formatIsoShort(customRange.from)} → ${formatIsoShort(customRange.to)}`
                   : "Période personnalisée"}
