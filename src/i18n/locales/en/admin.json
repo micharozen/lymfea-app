@@ -13,7 +13,12 @@
       "declined": "declined",
       "not_qualified": "does not perform this treatment",
       "unavailable": "unavailable that day",
+      "gender_mismatch": "gender not prioritised",
       "unknown": "unknown reason"
+    },
+    "genderPreference": {
+      "female": "a female therapist",
+      "male": "a male therapist"
     },
     "reasonsLong": {
       "no_pwa_account": "This therapist has no PWA account and cannot receive any push notification.",
@@ -21,6 +26,7 @@
       "declined": "They declined this booking and are no longer contacted about it.",
       "not_qualified": "Does not perform: {{treatments}}.",
       "unavailable": "They marked themselves unavailable for this date.",
+      "gender_mismatch": "The booking requested {{preference}}. Matching therapists were available, so the broadcast was limited to them. A therapist with no gender set is also left out of the priority group.",
       "unknown": "No exclusion reason applies today. The broadcast most likely never ran, or this therapist was linked to the venue after it was sent."
     }
   },

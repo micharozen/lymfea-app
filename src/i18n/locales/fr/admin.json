@@ -13,7 +13,12 @@
       "declined": "a refusé",
       "not_qualified": "ne réalise pas ce soin",
       "unavailable": "indisponible ce jour",
+      "gender_mismatch": "genre non prioritaire",
       "unknown": "raison inconnue"
+    },
+    "genderPreference": {
+      "female": "une femme",
+      "male": "un homme"
     },
     "reasonsLong": {
       "no_pwa_account": "Ce thérapeute n'a pas de compte PWA : il ne peut recevoir aucune notification push.",
@@ -21,6 +26,7 @@
       "declined": "Il a refusé cette réservation, il n'est donc plus resollicité.",
       "not_qualified": "Ne réalise pas : {{treatments}}.",
       "unavailable": "Il s'est déclaré indisponible pour cette date.",
+      "gender_mismatch": "La réservation demandait {{preference}}. Des praticiens correspondant à cette préférence étaient disponibles : la diffusion s'est limitée à eux. Un genre non renseigné sur la fiche exclut aussi du groupe prioritaire.",
       "unknown": "Aucun motif d'exclusion ne s'applique aujourd'hui. La diffusion n'a probablement jamais été déclenchée, ou ce thérapeute a été rattaché au lieu après l'envoi."
     }
   },
