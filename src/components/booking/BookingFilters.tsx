@@ -400,7 +400,15 @@ export function BookingFilters({
           <PopoverTrigger asChild>
             <span className="block h-8 w-0" aria-hidden />
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-3 space-y-3" align="start">
+          <PopoverContent
+            className="w-auto p-3 space-y-3"
+            align="start"
+            // Le Select rend le focus à son trigger une fraction de seconde après
+            // sa fermeture, donc alors que ce popover vient de s'ouvrir : sans
+            // ça, ce focus extérieur le refermerait aussitôt. Le clic extérieur
+            // et Échap continuent de fermer normalement.
+            onFocusOutside={(e) => e.preventDefault()}
+          >
             <p className="text-xs font-medium text-muted-foreground">
               Sélectionnez une période
             </p>
