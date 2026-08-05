@@ -3,14 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { EXCLUDED_BOOKING_STATUSES } from "./useAvailableTherapistsForSlot";
+import { therapistsOfVenue, useVenueTherapists } from "./useVenueTherapists";
 import type { BookingWithTreatments } from "./useBookingData";
+import type { TherapistLite } from "./useVenueTherapists";
 
-export interface TherapistLite {
-  id: string;
-  first_name: string;
-  last_name: string | null;
-  profile_image: string | null;
-}
+export type { TherapistLite };
 
 /** Half-open minute range from midnight: [startMin, endMin). */
 export interface TimeRange {
@@ -78,7 +75,7 @@ export interface TherapistDayPlanning {
   isLoading: boolean;
 }
 
-interface Shift {
+export interface Shift {
   start: string;
   end: string;
 }
@@ -111,14 +108,14 @@ const ACTIVE_STATUSES = ["active", "actif"];
 /** Bookings that never appear on the planning: they occupy nobody and add noise. */
 const HIDDEN_BOOKING_STATUSES = ["Annulé", "cancelled", "canceled", "noshow", "no_show"];
 
-function timeToMinutes(time: string | null | undefined): number {
+export function timeToMinutes(time: string | null | undefined): number {
   if (!time) return 0;
   const [h, m] = time.split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
 }
 
 /** `therapist_availability.shifts` is untyped Json — keep only usable entries. */
-function parseShifts(value: unknown): Shift[] {
+export function parseShifts(value: unknown): Shift[] {
   if (!Array.isArray(value)) return [];
   return value.filter(
     (s): s is Shift =>
@@ -192,30 +189,17 @@ export function useTherapistDayPlanning({
   const dateStr = format(date, "yyyy-MM-dd");
   const dayOfWeek = date.getDay(); // 0 = Sunday
 
-  const { data: venueTherapists, isLoading: isLoadingTherapists } = useQuery({
-    queryKey: ["therapist-day-planning", "venue-therapists", venueId],
-    enabled: !!venueId,
-    staleTime: 60_000,
-    queryFn: async (): Promise<TherapistLite[]> => {
-      const { data, error } = await supabase
-        .from("therapist_venues")
-        .select("therapist_id, therapists!inner(id, first_name, last_name, profile_image, status)")
-        .eq("hotel_id", venueId!);
-      if (error) throw error;
+  const { data: therapistLinks, isLoading: isLoadingTherapists } = useVenueTherapists(
+    venueId ? [venueId] : null,
+  );
 
-      type Row = { therapists: (TherapistLite & { status: string }) | null };
-      return ((data as unknown as Row[]) || [])
-        .map((row) => row.therapists)
-        .filter((t): t is TherapistLite & { status: string } =>
-          !!t && ACTIVE_STATUSES.includes((t.status || "").toLowerCase()),
-        )
-        .map(({ status: _status, ...t }) => t)
-        .sort((a, b) => a.first_name.localeCompare(b.first_name));
-    },
-  });
+  const venueTherapists = useMemo(
+    () => (venueId ? therapistsOfVenue(therapistLinks, venueId) : []),
+    [therapistLinks, venueId],
+  );
 
   const therapistIds = useMemo(
-    () => (venueTherapists || []).map((t) => t.id),
+    () => venueTherapists.map((t) => t.id),
     [venueTherapists],
   );
 

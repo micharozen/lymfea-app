@@ -151,7 +151,29 @@
     "roomBlock": "Blocage",
     "editRoomBlock": "Modifier ce blocage",
     "deleteRoomBlock": "Supprimer ce blocage",
-    "moreCreateActions": "Plus d'actions de création"
+    "moreCreateActions": "Plus d'actions de création",
+    "coverage": {
+      "title": "Couverture des prestations",
+      "description": "Pour chaque prestation et chaque jour, nombre de thérapeutes disponibles sur le nombre de thérapeutes qualifiés.",
+      "searchPlaceholder": "Rechercher une prestation...",
+      "venue": "Lieu",
+      "allVenues": "Tous les lieux",
+      "treatment": "Prestation",
+      "thisWeek": "Cette semaine",
+      "previousWeek": "Semaine précédente",
+      "nextWeek": "Semaine suivante",
+      "onlyGaps": "Masquer les prestations sans problème",
+      "gapSummary_one": "{{count}} prestation sans thérapeute disponible sur la période",
+      "gapSummary_other": "{{count}} prestations sans thérapeute disponible sur la période",
+      "noGap": "Toutes les prestations sont couvertes sur la période",
+      "empty": "Aucune prestation ne correspond.",
+      "notOffered": "Prestation non proposée ce jour",
+      "noneAvailable": "Aucun thérapeute disponible ce jour",
+      "noTherapistLinked": "Aucun thérapeute rattaché à cette prestation",
+      "allDay": "Journée",
+      "absent": "Absent",
+      "notScheduled": "Non planifié"
+    }
   },
   "bookings": {
     "title": "Réservations",
