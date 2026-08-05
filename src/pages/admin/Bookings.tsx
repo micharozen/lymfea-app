@@ -138,6 +138,7 @@ export default function Booking() {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
   const [selectedTherapistId, setSelectedTherapistId] = useState<string>();
+  const [selectedHotelId, setSelectedHotelId] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
 
   // Blocage ponctuel de créneaux (shooting, maintenance), depuis le menu
@@ -216,12 +217,10 @@ useEffect(() => {
   const singleVenueId = hotelFilter.length === 1 ? hotelFilter[0] : null;
   const hasVenueFilter = !!singleVenueId;
 
-  // Therapist columns only make sense for one venue on one day: a therapist can
-  // work several venues the same day. Derived rather than reset via an effect, so
-  // the stored preference comes back as soon as a single venue is selected again.
-  const effectivePlanningMode: PlanningMode =
-    planningMode === "therapists" && singleVenueId ? "therapists" : "day";
-  const effectiveDayCount = effectivePlanningMode === "therapists" ? 1 : dayCount;
+  // Les colonnes thérapeutes n'ont de sens que sur une seule journée : un même
+  // thérapeute peut travailler sur plusieurs lieux le même jour, et c'est
+  // justement ce que la vue multi-lieux rend visible.
+  const effectiveDayCount = planningMode === "therapists" ? 1 : dayCount;
 
   // Calendar-only visibility of cancelled bookings (toggled via the legend).
   // Reset to hidden whenever we leave a single-venue view.
@@ -287,9 +286,16 @@ useEffect(() => {
     persistDateInUrl: true,
   });
 
-  // Treatments of the venue, for the therapist-view search.
+  // Lieux affichés : la sélection, ou tous les lieux quand aucun filtre n'est posé.
+  const visibleVenueIds = useMemo(
+    () => (hotelFilter.length > 0 ? hotelFilter : (hotels ?? []).map((h) => h.id)),
+    [hotelFilter, hotels],
+  );
+
+  // Treatments of the venue, for the therapist-view search. Les menus étant par
+  // lieu, la recherche par soin reste réservée au mono-lieu.
   const { data: venueTreatments } = useVenueTreatmentMenus(
-    effectivePlanningMode === "therapists" ? singleVenueId : null,
+    planningMode === "therapists" ? singleVenueId : null,
   );
 
   // Memoized: the hook recomputes everything whenever this object identity changes.
@@ -302,7 +308,7 @@ useEffect(() => {
   // Therapist-day planning. Fed with the *unfiltered* bookings on purpose: a
   // booking hidden by the toolbar filters still occupies its therapist.
   const therapistPlanning = useTherapistDayPlanning({
-    venueId: effectivePlanningMode === "therapists" ? singleVenueId : null,
+    venueIds: planningMode === "therapists" ? visibleVenueIds : [],
     date: calendar.currentWeekStart,
     bookings,
     startHour: calendar.startHour,
@@ -314,10 +320,6 @@ useEffect(() => {
   // Blocages ponctuels datés de la plage affichée, pour la vue calendrier.
   // Sans filtre de lieu on interroge tous les lieux visibles : la vue les
   // mélange dans une même colonne, chaque bande porte donc le nom du lieu.
-  const visibleVenueIds = useMemo(
-    () => (hotelFilter.length > 0 ? hotelFilter : (hotels ?? []).map((h) => h.id)),
-    [hotelFilter, hotels],
-  );
   const [editingRoomBlock, setEditingRoomBlock] = useState<RoomBlockRow | null>(null);
   const [deletingRoomBlock, setDeletingRoomBlock] = useState<RoomBlockRow | null>(null);
   const deleteRoomBlockRow = useDeleteRoomBlockRow();
@@ -370,13 +372,28 @@ useEffect(() => {
     setSelectedDate(date);
     setSelectedTime(time);
     setSelectedTherapistId(undefined);
+    setSelectedHotelId(undefined);
     setIsCreateDialogOpen(true);
   };
 
-  const handleTherapistSlotClick = (date: Date, time: string, therapistId: string) => {
+  // `hotelId` est absent quand le thérapeute tourne sur plusieurs lieux affichés :
+  // le dialog laisse alors le choix du lieu.
+  const handleTherapistSlotClick = (
+    date: Date,
+    time: string,
+    therapistId: string,
+    hotelId?: string,
+  ) => {
     setSelectedDate(date);
     setSelectedTime(time);
     setSelectedTherapistId(therapistId);
+    setSelectedHotelId(hotelId);
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleOpenCreateDialog = () => {
+    setSelectedTherapistId(undefined);
+    setSelectedHotelId(undefined);
     setIsCreateDialogOpen(true);
   };
 
@@ -437,11 +454,8 @@ useEffect(() => {
           onViewChange={setView}
           dayCount={dayCount}
           onDayCountChange={setDayCount}
-          planningMode={effectivePlanningMode}
+          planningMode={planningMode}
           onPlanningModeChange={setPlanningMode}
-          therapistModeDisabledReason={
-            singleVenueId ? undefined : t("planning.selectVenueFirst")
-          }
           isAdmin={isAdmin}
           hotels={hotels}
           therapists={therapists}
@@ -496,7 +510,7 @@ useEffect(() => {
               {/* Split button : action principale + menu (ouvert au survol) */}
               <div className="flex">
                 <Button
-                  onClick={() => setIsCreateDialogOpen(true)}
+                  onClick={handleOpenCreateDialog}
                   size="sm"
                   className="h-8 text-xs transition-transform duration-100 active:scale-90 rounded-r-none"
                 >
@@ -559,7 +573,7 @@ useEffect(() => {
           <div className="flex-1 flex flex-col overflow-hidden">
           {isLoading && !bookings ? (
             <AppLoader fullScreen={false} className="flex-1" />
-          ) : view === "calendar" && effectivePlanningMode === "therapists" ? (
+          ) : view === "calendar" && planningMode === "therapists" ? (
             <TherapistDayView
               date={calendar.currentWeekStart}
               planning={therapistPlanning}
@@ -646,6 +660,7 @@ useEffect(() => {
         selectedDate={selectedDate}
         selectedTime={selectedTime}
         presetTherapistId={selectedTherapistId}
+        presetHotelId={selectedHotelId}
       />
 
       <BookingDetailDialog
