@@ -10,8 +10,30 @@
 // platform brand is degraded, never dangerous, so nothing throws here. A venue
 // whose organization has no branding row simply keeps the platform brand.
 
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand, EMAIL_LOGO_URL } from "./brand.ts";
+
+/**
+ * Minimal structural view of the two reads this module performs.
+ *
+ * Deliberately NOT `SupabaseClient` from a pinned esm.sh version: this repo
+ * pins three different supabase-js versions across functions (2.39.3, 2.49.1,
+ * 2.57.2) and their client types are mutually incompatible, so a pinned
+ * signature would fail `deno check` at every caller on another version.
+ */
+// The query chain is intentionally left untyped. Spelling it out
+// (select → eq → maybeSingle) made TypeScript match it structurally against
+// PostgrestQueryBuilder and give up with "type instantiation is excessively
+// deep". Only `from` needs to be checked; the two queries below are short
+// enough to read at a glance.
+export interface BrandDbClient {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from(table: string): any;
+}
+
+/** Postgrest errors carry a `message`; narrow without depending on its type. */
+function errorMessage(error: unknown): string {
+  return (error as { message?: string } | null)?.message ?? String(error);
+}
 
 /** Branding rarely changes; long enough to spare the DB, short enough to see edits. */
 const CACHE_TTL_MS = 60_000;
@@ -141,7 +163,7 @@ function mergeBranding(
 }
 
 async function organizationIdForHotel(
-  supabase: SupabaseClient,
+  supabase: BrandDbClient,
   hotelId: string,
 ): Promise<string | null> {
   const cached = hotelOrgCache.get(hotelId);
@@ -154,11 +176,11 @@ async function organizationIdForHotel(
     .maybeSingle();
 
   if (error) {
-    console.error(`[brand-resolver] hotel=${hotelId} org lookup failed:`, error.message);
+    console.error(`[brand-resolver] hotel=${hotelId} org lookup failed:`, errorMessage(error));
     return null;
   }
 
-  const organizationId = data?.organization_id ?? null;
+  const organizationId = (data as { organization_id?: string } | null)?.organization_id ?? null;
   hotelOrgCache.set(hotelId, {
     value: organizationId,
     expiresAt: Date.now() + HOTEL_ORG_TTL_MS,
@@ -167,7 +189,7 @@ async function organizationIdForHotel(
 }
 
 async function resolveByOrganization(
-  supabase: SupabaseClient,
+  supabase: BrandDbClient,
   organizationId: string,
 ): Promise<ResolvedBrand> {
   const cached = orgCache.get(organizationId);
@@ -181,11 +203,11 @@ async function resolveByOrganization(
 
   if (error) {
     // Degraded, not broken: keep the platform brand and don't cache the miss.
-    console.error(`[brand-resolver] org=${organizationId} branding read failed:`, error.message);
+    console.error(`[brand-resolver] org=${organizationId} branding read failed:`, errorMessage(error));
     return { ...platformBrand(), organizationId };
   }
 
-  const resolved = mergeBranding(organizationId, (data as BrandingRow | null) ?? null);
+  const resolved = mergeBranding(organizationId, (data as unknown as BrandingRow | null) ?? null);
   orgCache.set(organizationId, { value: resolved, expiresAt: Date.now() + CACHE_TTL_MS });
   return resolved;
 }
@@ -197,7 +219,7 @@ async function resolveByOrganization(
  * (admin invitations, support tickets) that belong to no client.
  */
 export async function resolveBrand(
-  supabase: SupabaseClient,
+  supabase: BrandDbClient,
   scope: { hotelId?: string | null; organizationId?: string | null },
 ): Promise<ResolvedBrand> {
   if (scope.organizationId) {
