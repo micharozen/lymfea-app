@@ -144,9 +144,19 @@ export const useOneSignal = () => {
       console.log('[OneSignal] User Agent:', navigator.userAgent);
       console.log('[OneSignal] Notification permission:', Notification.permission);
 
-      // The App ID is bound to a domain, so each brand needs its own OneSignal
-      // app. The env var stays the fallback for localhost and for a brand that
-      // has not been given one yet.
+      // A OneSignal app is bound to one origin, so each PWA domain needs its
+      // own — this is per DOMAIN, not per brand (the client booking flow is in
+      // EXCLUDED_PAGES and never initializes push at all).
+      //
+      // The env var remains the fallback, but on a registered host it is very
+      // likely the App ID of a *different* domain: OneSignal then refuses to
+      // initialize and does so quietly. Say it out loud instead.
+      if (!resolved.onesignalAppId && resolved.organizationId) {
+        console.warn(
+          `[OneSignal] No onesignal_app_id for host ${currentHost} — falling back to VITE_ONESIGNAL_APP_ID, ` +
+          `which belongs to another origin. Push will not work here until this host gets its own OneSignal app.`,
+        );
+      }
       const appId = resolved.onesignalAppId ?? import.meta.env.VITE_ONESIGNAL_APP_ID;
       if (!appId) {
         console.warn('[OneSignal] No App ID (organization_branding.onesignal_app_id nor VITE_ONESIGNAL_APP_ID), skipping initialization');

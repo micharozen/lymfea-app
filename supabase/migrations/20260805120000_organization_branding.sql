@@ -84,6 +84,10 @@ CREATE TABLE IF NOT EXISTS public.organization_domains (
   -- Per DOMAIN, not per organization: a OneSignal Web Push app is bound to a
   -- single origin. Eïa already proves it — app.eiaspa.fr and apptest.eiaspa.fr
   -- belong to the same organization but must use different apps.
+  --
+  -- Only domains that serve the PWA / admin need one. The client booking flow
+  -- never initializes push (see EXCLUDED_PAGES in src/hooks/useOneSignal.ts),
+  -- so a client-facing brand domain leaves this NULL.
   onesignal_app_id text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
