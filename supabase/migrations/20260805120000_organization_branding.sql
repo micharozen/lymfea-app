@@ -221,7 +221,11 @@ AS $$
   SELECT
     o.id,
     o.slug,
-    COALESCE(b.display_name, o.name),
+    -- Raw, never COALESCE'd onto organizations.name: that column is an internal
+    -- tenant label, not a brand name — the seed organization is literally called
+    -- "Lymfea Default". NULL here means "not branded", and the caller falls back
+    -- to brand.json, which is the correct display name today.
+    b.display_name,
     b.tagline_fr,
     b.tagline_en,
     b.website_url,

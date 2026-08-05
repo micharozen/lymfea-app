@@ -56,7 +56,8 @@ export function applyBrandToDocument(brand: ResolvedFrontBrand): void {
   setMeta('meta[name="description"]', config.description.fr);
   setMeta('meta[name="author"]', config.name);
   setMeta('meta[name="apple-mobile-web-app-title"]', config.fullName);
-  setMeta('meta[name="theme-color"]', config.colors.dark);
+  // theme-color deliberately left alone: it was #ffffff before this change and
+  // driving it from the brand would alter the browser chrome without being asked.
 
   setMeta('meta[property="og:title"]', config.fullName);
   setMeta('meta[property="og:description"]', config.description.fr);
