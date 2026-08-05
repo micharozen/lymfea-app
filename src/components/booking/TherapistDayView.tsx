@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { AppLoader } from "@/components/AppLoader";
 import { cn } from "@/lib/utils";
 import { BookingCard } from "./BookingCalendarView";
+import { initials, shortName } from "./therapistDisplay";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 import type {
   FreeTherapist,
@@ -54,16 +55,6 @@ interface TherapistDayViewProps {
   treatments: VenueTreatmentMenu[];
   selectedTreatmentId: string;
   onSelectedTreatmentChange: (treatmentId: string) => void;
-}
-
-/** Display a therapist as "Marie D." */
-function shortName(firstName: string, lastName: string | null): string {
-  const last = (lastName ?? "").trim();
-  return last ? `${firstName} ${last[0].toUpperCase()}.` : firstName;
-}
-
-function initials(firstName: string, lastName: string | null): string {
-  return `${firstName[0] ?? ""}${(lastName ?? "")[0] ?? ""}`.toUpperCase();
 }
 
 function minutesToLabel(min: number): string {

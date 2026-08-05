@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addDays, subDays, startOfMonth, endOfMonth, format, parseISO, isValid } from "date-fns";
-import { Ban, ChevronDown, RefreshCw, Waves } from "lucide-react";
+import { Ban, ChevronDown, LayoutGrid, RefreshCw, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppLoader } from "@/components/AppLoader";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
@@ -53,6 +53,7 @@ import {
   SendPaymentLinkDialog,
 } from "@/components/booking";
 import { ALL_TREATMENTS } from "@/components/booking/TherapistDayView";
+import { TreatmentCoverageDialog } from "@/components/booking/TreatmentCoverageDialog";
 import type { PlanningMode } from "@/components/booking/BookingFilters";
 import { useVenueTreatmentMenus } from "@/hooks/useVenueTreatmentMenus";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
@@ -106,6 +107,9 @@ export default function Booking() {
 
   // "Who can take this treatment?" — drives qualification + required duration.
   const [searchedTreatmentId, setSearchedTreatmentId] = useState<string>(ALL_TREATMENTS);
+
+  // Lecture inverse du planning : prestations × jours. Indépendante du filtre de lieu.
+  const [isCoverageOpen, setIsCoverageOpen] = useState(false);
 
   // Sliding date window: only load bookings around the period the calendar shows
   // (same `?date=` source as useCalendarLogic), instead of the whole org history.
@@ -466,6 +470,15 @@ useEffect(() => {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
+                onClick={() => setIsCoverageOpen(true)}
+                title={t("planning.coverage.title")}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
                 title="Refresh"
@@ -780,6 +793,12 @@ useEffect(() => {
           }}
         />
       )}
+
+      <TreatmentCoverageDialog
+        open={isCoverageOpen}
+        onOpenChange={setIsCoverageOpen}
+        hotels={hotels ?? []}
+      />
     </div>
   );
 }

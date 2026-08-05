@@ -153,7 +153,29 @@
     "roomBlock": "Block",
     "editRoomBlock": "Edit this block",
     "deleteRoomBlock": "Delete this block",
-    "moreCreateActions": "More create actions"
+    "moreCreateActions": "More create actions",
+    "coverage": {
+      "title": "Treatment coverage",
+      "description": "For each treatment and each day, the number of available therapists out of the qualified ones.",
+      "searchPlaceholder": "Search a treatment...",
+      "venue": "Venue",
+      "allVenues": "All venues",
+      "treatment": "Treatment",
+      "thisWeek": "This week",
+      "previousWeek": "Previous week",
+      "nextWeek": "Next week",
+      "onlyGaps": "Hide treatments without issues",
+      "gapSummary_one": "{{count}} treatment with no available therapist over the period",
+      "gapSummary_other": "{{count}} treatments with no available therapist over the period",
+      "noGap": "All treatments are covered over the period",
+      "empty": "No treatment matches.",
+      "notOffered": "Treatment not offered on this day",
+      "noneAvailable": "No therapist available on this day",
+      "noTherapistLinked": "No therapist linked to this treatment",
+      "allDay": "All day",
+      "absent": "Away",
+      "notScheduled": "Not scheduled"
+    }
   },
   "bookings": {
     "title": "Bookings",
