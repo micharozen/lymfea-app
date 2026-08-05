@@ -30,7 +30,7 @@ stripe apps status            # suivre le traitement
 ```
 
 Le manifeste déclare déjà `distribution_type: public`, `stripe_api_access_type: oauth`,
-`sandbox_install_compatible: true` (cf. §2), les 4 redirect URIs et 17 permissions. Toute modification passe par le fichier puis un
+`sandbox_install_compatible: true` (cf. §2), les 3 redirect URIs et 17 permissions. Toute modification passe par le fichier puis un
 nouvel `upload` — les slugs ont été validés contre `stripe apps grant list-permissions`.
 
 > ⚠️ `stripe apps upload` demande d'accepter le [Stripe Apps Agreement](https://stripe.com/legal/apps).
@@ -44,6 +44,13 @@ nos edge functions. Un refus se lit dans les logs du compte du lieu :
 
 Ajouter une permission oblige le lieu à **réautoriser** : les tokens émis restent figés
 sur les permissions consenties.
+
+`product_write` et `plan_write` ont été retirées en 0.0.5, la review Stripe App
+Marketplace les jugeant non justifiées par la description de l'app. Aucun appel direct à
+`stripe.products` / `stripe.prices` n'existe dans le code : elles ne pouvaient servir qu'aux
+objets ad hoc créés par les `price_data` / `product_data` inline des Checkout Sessions. Si
+le Checkout casse en sandbox (`more_permissions_required_for_application`), il faut les
+remettre et justifier ce chemin auprès de Stripe.
 
 ## 2. Récupérer les identifiants OAuth
 
@@ -120,7 +127,7 @@ la requête. À revoir le jour où un même déploiement devrait accueillir les 
 | `STRIPE_APP_OAUTH_LINK_ID` | `chnlink_…` du lien External test | **obligatoire tant que l'app n'est pas publiée** — à retirer une fois en ligne sur le Marketplace |
 | `STRIPE_APP_SECRET_KEY` | clé secrète de l'**environnement** du compte propriétaire qui a servi à l'installation (cf. §2) | **fallback** sur `STRIPE_SECRET_KEY` si absente — à poser explicitement dès que l'app n'appartient pas au même compte Stripe qu'Eïa, ou que les lieux installent depuis une sandbox |
 | `STRIPE_APP_WEBHOOK_SECRET` | app signing secret de l'endpoint de l'app | cf. §4bis — unique pour tous les lieux |
-| `SITE_URL` | prod : `https://app.saoma.io` · env de test : `https://demo.saoma.io` | **obligatoire** — déjà posée |
+| `SITE_URL` | prod : `https://saoma.io` · env de test : `https://demo.saoma.io` | **obligatoire** — déjà posée |
 
 `SITE_URL` n'est pas optionnelle ici : la redirect URI en est dérivée et Stripe fait un
 **exact match**. Le fallback historique `https://${brand.appDomain}` pointe sur
@@ -130,11 +137,17 @@ si la variable manque, plutôt que de produire une URI rejetée.
 Les redirect URIs déclarées :
 
 ```
-https://app.saoma.io/admin/payment-oauth-callback/stripe       (prod)
+https://saoma.io/admin/payment-oauth-callback/stripe           (prod)
 https://app.eiaspa.fr/admin/payment-oauth-callback/stripe      (prod, domaine historique)
-https://apptest.eiaspa.fr/admin/payment-oauth-callback/stripe  (staging historique)
 https://demo.saoma.io/admin/payment-oauth-callback/stripe      (env de test — SITE_URL actuelle)
 ```
+
+Deux URIs ont sauté en 0.0.5. `app.saoma.io` ne résolvait sur aucun déploiement
+(404 `DEPLOYMENT_NOT_FOUND`) : la prod est servie à la racine, `https://saoma.io`, et
+l'URI déclarée ne correspondait donc à rien — l'installation live aurait échoué sur un
+exact match. `apptest.eiaspa.fr` a été retirée à la demande de la review Marketplace
+(« remove the external test URLs »). `demo.saoma.io` est conservée tant que Stripe teste
+le parcours sur le compte de démo.
 
 ⚠️ `SITE_URL` de l'environnement de test vaut `https://demo.saoma.io`. Ne la change
 pas pour faire coller une URI : **38 fichiers** la lisent pour construire les liens
