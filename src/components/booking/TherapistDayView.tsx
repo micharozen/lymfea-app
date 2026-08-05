@@ -47,11 +47,14 @@ interface TherapistDayViewProps {
   getTranslatedStatus: (status: string) => string;
   getHotelInfo: (hotelId: string | null) => Hotel | null;
   onBookingClick: (booking: BookingWithTreatments) => void;
-  /** Clicking a free hour inside a shift — creates a booking for that therapist. */
-  onSlotClick: (date: Date, time: string, therapistId: string) => void;
+  /**
+   * Clicking a free hour inside a shift — creates a booking for that therapist.
+   * `hotelId` n'est fourni que si le thérapeute n'est rattaché qu'à un lieu visible.
+   */
+  onSlotClick: (date: Date, time: string, therapistId: string, hotelId?: string) => void;
   showOnlyScheduled: boolean;
   onShowOnlyScheduledChange: (value: boolean) => void;
-  /** Treatments of the venue, for the "who can take this?" search. */
+  /** Treatments of the venue, for the "who can take this?" search. Vide en multi-lieux. */
   treatments: VenueTreatmentMenu[];
   selectedTreatmentId: string;
   onSelectedTreatmentChange: (treatmentId: string) => void;
@@ -120,6 +123,7 @@ export function TherapistDayView({
     availabilityByHour,
     qualifiedTherapistCount,
     hiddenColumnCount,
+    isMultiVenue,
   } = planning;
 
   const dayStart = startHour * 60;
@@ -218,15 +222,30 @@ export function TherapistDayView({
         </div>
 
         <div className="flex items-center gap-1.5">
-          <SelectField
-            options={treatmentOptions}
-            value={selectedTreatmentId}
-            onChange={onSelectedTreatmentChange}
-            placeholder={t("planning.allTreatments")}
-            searchPlaceholder={t("planning.searchTreatment")}
-            className="h-7 w-[230px] text-xs"
-            aria-label={t("planning.searchTreatment")}
-          />
+          {/* Les menus de soins sont par lieu : la recherche n'a de sens qu'en mono-lieu. */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className={cn(isMultiVenue && "cursor-not-allowed")}>
+                  <SelectField
+                    options={treatmentOptions}
+                    value={selectedTreatmentId}
+                    onChange={onSelectedTreatmentChange}
+                    placeholder={t("planning.allTreatments")}
+                    searchPlaceholder={t("planning.searchTreatment")}
+                    className="h-7 w-[230px] text-xs"
+                    aria-label={t("planning.searchTreatment")}
+                    disabled={isMultiVenue}
+                  />
+                </span>
+              </TooltipTrigger>
+              {isMultiVenue && (
+                <TooltipContent side="bottom">
+                  <span className="text-xs">{t("planning.treatmentSearchNeedsVenue")}</span>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
           <Button
             variant="outline"
             size="sm"
@@ -292,7 +311,9 @@ export function TherapistDayView({
           ) : columnCount === 0 ? (
             <div className="flex-1 flex items-center justify-center p-6 text-center">
               <div className="text-sm text-muted-foreground">
-                {t("planning.noTherapistsForDay")}
+                {isMultiVenue
+                  ? t("planning.noTherapistsForVenues")
+                  : t("planning.noTherapistsForDay")}
               </div>
             </div>
           ) : (
@@ -329,6 +350,8 @@ export function TherapistDayView({
                     key={col.therapist.id}
                     column={col}
                     hasTreatmentSearch={!!searchedTreatment}
+                    showVenues={isMultiVenue}
+                    getHotelInfo={getHotelInfo}
                   />
                 ))}
               </div>
@@ -427,6 +450,7 @@ export function TherapistDayView({
                     minutesToTop={minutesToTop}
                     blockedRanges={blockedRanges}
                     roomBlockedRanges={roomBlockedRanges}
+                    showVenueOnBlocks={isMultiVenue}
                     getBookingPosition={getBookingPosition}
                     getBookingsLayoutForDay={getBookingsLayoutForDay}
                     getCalendarCardColor={getCalendarCardColor}
@@ -509,13 +533,25 @@ function CurrentTimeLine({ top }: { top: number }) {
 function TherapistColumnHeader({
   column,
   hasTreatmentSearch,
+  showVenues,
+  getHotelInfo,
 }: {
   column: TherapistDayColumn;
   hasTreatmentSearch: boolean;
+  /** Multi-lieux : on nomme les spas sous le thérapeute, sinon c'est du bruit. */
+  showVenues: boolean;
+  getHotelInfo: TherapistDayViewProps["getHotelInfo"];
 }) {
   const { t } = useTranslation("admin");
-  const { therapist, openRanges, isAbsent, hasNoSchedule, isQualified } = column;
+  const { therapist, venueIds, openRanges, isAbsent, hasNoSchedule, isQualified } = column;
   const dimmed = hasTreatmentSearch && !isQualified;
+
+  const venueLabel = showVenues
+    ? venueIds
+        .map((id) => getHotelInfo(id)?.name)
+        .filter(Boolean)
+        .join(" · ")
+    : "";
 
   const shiftLabel = openRanges
     .map((r) => `${minutesToLabel(r.startMin)}–${minutesToLabel(r.endMin)}`)
@@ -537,6 +573,11 @@ function TherapistColumnHeader({
       <span className="text-xs font-medium text-foreground text-center leading-tight">
         {shortName(therapist.first_name, therapist.last_name)}
       </span>
+      {venueLabel && (
+        <span className="text-[10px] text-muted-foreground text-center leading-tight truncate max-w-full">
+          {venueLabel}
+        </span>
+      )}
       {dimmed ? (
         <span className="text-[10px] font-medium px-1.5 rounded-full bg-muted-foreground/15 text-muted-foreground text-center leading-tight">
           {t("planning.notQualified")}
@@ -568,6 +609,8 @@ interface TherapistColumnProps {
   minutesToTop: (min: number) => number;
   blockedRanges: TherapistDayPlanning["blockedRanges"];
   roomBlockedRanges: TherapistDayPlanning["roomBlockedRanges"];
+  /** Multi-lieux : chaque bande porte le nom de son spa. */
+  showVenueOnBlocks: boolean;
   getBookingPosition: TherapistDayViewProps["getBookingPosition"];
   getBookingsLayoutForDay: TherapistDayViewProps["getBookingsLayoutForDay"];
   getCalendarCardColor: TherapistDayViewProps["getCalendarCardColor"];
@@ -591,6 +634,7 @@ function TherapistColumn({
   minutesToTop,
   blockedRanges,
   roomBlockedRanges,
+  showVenueOnBlocks,
   getBookingPosition,
   getBookingsLayoutForDay,
   getCalendarCardColor,
@@ -604,7 +648,7 @@ function TherapistColumn({
   navigate,
 }: TherapistColumnProps) {
   const { t } = useTranslation("admin");
-  const { therapist, openRanges, bookings } = column;
+  const { therapist, venueIds, openRanges, bookings } = column;
 
   const layout = useMemo(() => getBookingsLayoutForDay(bookings), [getBookingsLayoutForDay, bookings]);
   const closed = useMemo(
@@ -612,11 +656,31 @@ function TherapistColumn({
     [openRanges, dayStart, dayEnd],
   );
 
+  // Une fermeture ne concerne que les thérapeutes du lieu bloqué.
+  const ownBlockedRanges = useMemo(
+    () => blockedRanges.filter((b) => venueIds.includes(b.hotelId)),
+    [blockedRanges, venueIds],
+  );
+  const ownRoomBlockedRanges = useMemo(
+    () => roomBlockedRanges.filter((b) => venueIds.includes(b.hotelId)),
+    [roomBlockedRanges, venueIds],
+  );
+
+  // Un thérapeute rattaché à plusieurs lieux ne peut pas voir son lieu déduit :
+  // le dialog de création le fera choisir.
+  const slotHotelId = venueIds.length === 1 ? venueIds[0] : undefined;
+
   const isHourBookable = (hour: number) => {
     const hourStart = hour * 60;
     const hourEnd = hourStart + 60;
     if (!openRanges.some((r) => hourStart < r.endMin && hourEnd > r.startMin)) return false;
-    return !blockedRanges.some((b) => hourStart < b.endMin && hourEnd > b.startMin);
+    // Bookable dès qu'un de ses lieux reste ouvert.
+    return venueIds.some(
+      (id) =>
+        !ownBlockedRanges.some(
+          (b) => b.hotelId === id && hourStart < b.endMin && hourEnd > b.startMin,
+        ),
+    );
   };
 
   return (
@@ -637,7 +701,12 @@ function TherapistColumn({
             onClick={
               bookable
                 ? () =>
-                    onSlotClick(date, `${hour.toString().padStart(2, "0")}:00`, therapist.id)
+                    onSlotClick(
+                      date,
+                      `${hour.toString().padStart(2, "0")}:00`,
+                      therapist.id,
+                      slotHotelId,
+                    )
                 : undefined
             }
           />
@@ -658,7 +727,7 @@ function TherapistColumn({
       ))}
 
       {/* Venue-wide blocked slots (lunch break, maintenance…) */}
-      {blockedRanges.map((range) => (
+      {ownBlockedRanges.map((range) => (
         <div
           key={`blocked-${range.id}`}
           className="absolute left-0.5 right-0.5 rounded-sm bg-red-500/20 border border-red-500/45 px-1 py-0.5 pointer-events-none overflow-hidden"
@@ -669,13 +738,16 @@ function TherapistColumn({
         >
           <span className="text-[10px] font-medium text-red-800 dark:text-red-300 leading-tight">
             {range.label || t("planning.blockedSlot")}
+            {showVenueOnBlocks && getHotelInfo(range.hotelId)?.name
+              ? ` · ${getHotelInfo(range.hotelId)?.name}`
+              : ""}
           </span>
         </div>
       ))}
 
       {/* Blocages datés ciblant une salle : la colonne reste réservable via les
           autres salles, on informe seulement. */}
-      {roomBlockedRanges.map((range) => (
+      {ownRoomBlockedRanges.map((range) => (
         <div
           key={`room-blocked-${range.id}`}
           className="absolute left-0.5 right-0.5 rounded-sm bg-amber-500/15 border border-amber-500/40 px-1 py-0.5 pointer-events-none overflow-hidden"
@@ -687,6 +759,9 @@ function TherapistColumn({
           <span className="text-[10px] font-medium text-amber-800 dark:text-amber-300 leading-tight">
             {range.label || t("planning.roomBlock")}
             {range.roomName ? ` · ${range.roomName}` : ""}
+            {showVenueOnBlocks && getHotelInfo(range.hotelId)?.name
+              ? ` · ${getHotelInfo(range.hotelId)?.name}`
+              : ""}
           </span>
         </div>
       ))}

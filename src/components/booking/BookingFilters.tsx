@@ -111,8 +111,6 @@ interface BookingFiltersProps {
    */
   planningMode?: PlanningMode;
   onPlanningModeChange?: (mode: PlanningMode) => void;
-  /** Set to disable the therapist mode and explain why (e.g. no single venue selected). */
-  therapistModeDisabledReason?: string;
   /** Period filter in days (window: [today - N days, future]). Omit to hide the selector. */
   periodDays?: number;
   onPeriodDaysChange?: (days: number) => void;
@@ -166,7 +164,6 @@ export function BookingFilters({
   onShowAvailabilityChange,
   planningMode = "day",
   onPlanningModeChange,
-  therapistModeDisabledReason,
   periodDays,
   onPeriodDaysChange,
   customRange = null,
@@ -508,27 +505,21 @@ export function BookingFilters({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                {/* span wrapper: a disabled button doesn't fire the events the tooltip needs */}
-                <span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    disabled={!!therapistModeDisabledReason}
-                    onClick={() => onPlanningModeChange("therapists")}
-                    className={cn(
-                      "h-8 w-8",
-                      planningMode === "therapists"
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    <Users className="h-3.5 w-3.5" />
-                  </Button>
-                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => onPlanningModeChange("therapists")}
+                  className={cn(
+                    "h-8 w-8",
+                    planningMode === "therapists"
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  <Users className="h-3.5 w-3.5" />
+                </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {therapistModeDisabledReason || t("planning.therapistViewMode")}
-              </TooltipContent>
+              <TooltipContent side="bottom">{t("planning.therapistViewMode")}</TooltipContent>
             </Tooltip>
           </ButtonGroup>
         )}

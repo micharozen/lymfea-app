@@ -84,3 +84,34 @@ export function therapistsOfVenue(
   }
   return [...byId.values()].sort(compareTherapists);
 }
+
+/** Un thérapeute et les lieux demandés auxquels il est rattaché. */
+export interface TherapistWithVenues {
+  therapist: TherapistLite;
+  hotelIds: string[];
+}
+
+/**
+ * Thérapeutes distincts de l'ensemble des lieux demandés, triés par prénom.
+ *
+ * Un thérapeute rattaché à plusieurs lieux n'apparaît qu'une fois : ses horaires
+ * (`therapist_availability`) sont globaux, une seule colonne rend donc ses
+ * conflits inter-lieux visibles.
+ */
+export function distinctTherapists(
+  links: VenueTherapistLink[] | undefined,
+): TherapistWithVenues[] {
+  const byId = new Map<string, TherapistWithVenues>();
+  for (const link of links ?? []) {
+    const known = byId.get(link.therapist.id);
+    if (!known) {
+      byId.set(link.therapist.id, { therapist: link.therapist, hotelIds: [link.hotelId] });
+    } else if (!known.hotelIds.includes(link.hotelId)) {
+      byId.set(link.therapist.id, {
+        ...known,
+        hotelIds: [...known.hotelIds, link.hotelId],
+      });
+    }
+  }
+  return [...byId.values()].sort((a, b) => compareTherapists(a.therapist, b.therapist));
+}
