@@ -122,7 +122,7 @@ const CLIENT_COPY_FR: ConfirmedCopy = {
   clientBlockTitle: "",
   labelPhone: "Téléphone",
   footerContactLabel: "Une question ?",
-  footerPoweredBy: "propulsé par Eïa",
+  footerPoweredBy: "{{{powered_by}}}",
   footerUnsubscribe: "Se désabonner",
 };
 
@@ -148,7 +148,7 @@ const CLIENT_COPY_EN: ConfirmedCopy = {
   clientBlockTitle: "",
   labelPhone: "Phone",
   footerContactLabel: "A question?",
-  footerPoweredBy: "powered by Eïa",
+  footerPoweredBy: "{{{powered_by}}}",
   footerUnsubscribe: "Unsubscribe",
 };
 
@@ -173,7 +173,7 @@ const ADMIN_COPY_FR: ConfirmedCopy = {
   clientBlockTitle: "Client",
   labelPhone: "Téléphone",
   footerContactLabel: "Une question ?",
-  footerPoweredBy: "propulsé par Eïa",
+  footerPoweredBy: "{{{powered_by}}}",
   footerUnsubscribe: "Se désabonner",
 };
 

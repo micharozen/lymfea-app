@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { brand } from "../_shared/brand.ts";
+import { resolveBrand, siteUrlFor } from "../_shared/brand-resolver.ts";
+import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,13 +57,19 @@ serve(async (req) => {
 
     const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID");
     const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
-    const SITE_URL = (Deno.env.get("SITE_URL") || `https://${brand.appDomain}`).replace(/\/+$/, "");
 
     if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
       throw new Error("OneSignal credentials not configured");
     }
 
-    const { userId, title, body, titleFr, bodyFr, data } = await req.json();
+    const { userId, title, body, titleFr, bodyFr, data, hotelId } = await req.json();
+
+    // Title and link follow the venue's brand. The OneSignal app itself is
+    // still global — sending through a per-brand app would also need that
+    // brand's REST API key, which has no secure home yet (see Vault pattern in
+    // hotel_payment_configs).
+    const resolvedBrand = await resolveBrand(supabaseAdmin, { hotelId });
+    const SITE_URL = siteUrlFor(resolvedBrand);
 
     console.log("[OneSignal] Sending notification to user:", userId);
     console.log("[OneSignal] Title:", title);
@@ -76,8 +83,8 @@ serve(async (req) => {
     const notificationPayload = {
       app_id: ONESIGNAL_APP_ID,
       headings: {
-        en: title || brand.name,
-        fr: titleFr || title || brand.name,
+        en: title || resolvedBrand.name,
+        fr: titleFr || title || resolvedBrand.name,
       },
       contents: {
         en: body || "New notification",

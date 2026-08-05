@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { sendEmail } from "../_shared/send-email.ts";
 import { sendSms } from "../_shared/send-sms.ts";
-import { brand } from "../_shared/brand.ts";
+import { resolveBrand, siteUrlFor } from "../_shared/brand-resolver.ts";
 import {
   buildCancelledVars,
   type BookingEmailContext,
@@ -74,7 +74,8 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
     month: "short",
   });
   const formattedTime = String(booking.booking_time ?? "").substring(0, 5);
-  const siteUrl = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
+  const resolvedBrand = await resolveBrand(supabase, { hotelId: booking.hotel_id as string });
+  const siteUrl = siteUrlFor(resolvedBrand);
   const clientName = `${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim();
   const sym = currencySymbol(venue?.currency);
   const cardLine = paymentInfo?.card_brand && paymentInfo?.card_last4
@@ -100,6 +101,7 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
     lang: l,
     treatments: [],
     contactEmail: venue?.contact_email ?? null,
+    brand: resolvedBrand,
   });
 
   // Cancellation / refund summary rows. Branching (refund vs partner-billed vs
@@ -142,6 +144,7 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
     try {
       await sendEmail({
         to: String(booking.client_email),
+        hotelId: booking.hotel_id as string,
         subject: msg.emailSubject(formattedDate),
         html: getBookingCancelledHtml(lang, buildCancelledVars(makeCtx(lang), buildExtras(msg, lang))),
         audit: { bookingId: resolvedBookingId, emailType: 'booking_cancelled', metadata: { booking_number: booking.booking_id } },

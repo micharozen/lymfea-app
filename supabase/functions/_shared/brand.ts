@@ -15,17 +15,15 @@ export const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/
 // `${EMAIL_ICON_BASE}/icon-<name>.png`.
 export const EMAIL_ICON_BASE = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/email-icons';
 
-// Localized display name for the transactional sender. The address stays the
-// same (parsed from brand.emails.from.transactional); only the name shown in
-// the inbox is translated to match the email's language.
-const TRANSACTIONAL_FROM_NAME: Record<'fr' | 'en', string> = {
-  fr: 'Eïa Réservation',
-  en: 'Eïa Booking',
-};
-
-/** `"<Localized name> <address>"` for the transactional sender in `lang`. */
+/**
+ * `"<Localized name> <address>"` for the platform transactional sender.
+ *
+ * Only correct for sends that belong to no client (platform invitations,
+ * support). Anything venue-scoped must go through `transactionalFromFor()` in
+ * brand-resolver.ts so the client's own sender is used.
+ */
 export function transactionalFrom(lang: 'fr' | 'en'): string {
   const raw = brand.emails.from.transactional;
   const address = raw.match(/<([^>]+)>/)?.[1] ?? raw;
-  return `${TRANSACTIONAL_FROM_NAME[lang]} <${address}>`;
+  return `${brand.emails.fromName[lang]} <${address}>`;
 }

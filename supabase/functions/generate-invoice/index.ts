@@ -1,15 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
+import { resolveBrand, type ResolvedBrand } from "../_shared/brand-resolver.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Logo URL (hosted publicly)
-const LOGO_URL = EMAIL_LOGO_URL;
 
 // Security: Escape HTML entities to prevent XSS attacks
 const escapeHtml = (unsafe: string | null | undefined): string => {
@@ -49,10 +46,16 @@ interface InvoiceData {
   booking: any;
   treatments: any[];
   hotel: any;
+  /**
+   * Brand of the venue's organization. This document carries no issuer legal
+   * block (it is a service voucher, not a legal invoice — see
+   * generate-venue-invoices for that), so only the logo and footer are branded.
+   */
+  brand: ResolvedBrand;
 }
 
 const generateInvoiceHTML = (data: InvoiceData): string => {
-  const { booking, treatments, hotel } = data;
+  const { booking, treatments, hotel, brand } = data;
   
   const documentNumber = `#${booking.booking_id}`;
   const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', { 
@@ -297,7 +300,7 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
   <div class="document">
     <div class="header">
       <div class="logo">
-        <img src="${LOGO_URL}" alt="${brand.name}" />
+        <img src="${brand.emailLogoUrl}" alt="${escapeHtml(brand.name)}" />
       </div>
       <div class="doc-meta">
         <div class="doc-type">Bon de Prestation</div>
@@ -372,7 +375,7 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
     </div>
 
     <div class="footer">
-      Merci d'avoir choisi ${brand.name} · Ce document constitue un justificatif de prestation
+      Merci d'avoir choisi ${escapeHtml(brand.name)} · Ce document constitue un justificatif de prestation
     </div>
   </div>
 </body>
@@ -446,7 +449,8 @@ serve(async (req: Request) => {
       .eq('id', booking.hotel_id)
       .single();
 
-    const invoiceHTML = generateInvoiceHTML({ booking, treatments, hotel });
+    const brand = await resolveBrand(supabase, { hotelId: booking.hotel_id });
+    const invoiceHTML = generateInvoiceHTML({ booking, treatments, hotel, brand });
 
     console.log('Invoice generated successfully');
 

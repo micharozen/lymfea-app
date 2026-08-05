@@ -10,11 +10,16 @@
     "en": "Holistic wellness center – More than a relaxation venue, an experience that awakens the senses through holistic treatments that transform and balance your whole being"
   },
   "website": "https://lymfea.fr",
-  "appDomain": "app.lymfea.fr",
+  "appDomain": "app.eiaspa.fr",
 
   "philosophy": {
     "fr": "Votre renaissance commence ici",
     "en": "Your rebirth begins here"
+  },
+
+  "poweredBy": {
+    "fr": "propulsé par Eïa",
+    "en": "powered by Eïa"
   },
 
   "serviceCategories": [
@@ -37,11 +42,12 @@
     "siret": "900 979 592 00012",
     "rcs": "900 979 592",
     "vatNumber": "FR32900979592",
-    "address": "71 av. Victor Hugo, 75116 Paris, France",
+    "address": "38 rue de Grenelle, 75007 Paris, France",
     "founder": "Sarah-Line Attlan",
-    "contactEmail": "hello@lymfea.fr",
-    "bookingEmail": "booking@lymfea.fr",
-    "phone": "+33 1 88 60 94 96",
+    "director": "Tom Uzan",
+    "contactEmail": "contact@lymfea.com",
+    "bookingEmail": "booking@lymfea.com",
+    "phone": "+33 6 74 67 82 93",
     "host": {
       "name": "OVHcloud",
       "address": "2 rue Kellermann, 59100 Roubaix, France"
@@ -59,12 +65,16 @@
 
   "emails": {
     "from": {
-      "default": "Lymfea <booking@lymfea.fr>",
-      "noreply": "Lymfea <noreply@lymfea.fr>",
-      "transactional": "Lymfea Booking <noreply@transactional.lymfea.fr>"
+      "default": "Eïa <noreply@hello.eiaspa.fr>",
+      "noreply": "Eïa <noreply@hello.eiaspa.fr>",
+      "transactional": "Eïa Booking <booking@hello.eiaspa.fr>"
     },
-    "adminRecipient": "hello@lymfea.fr",
-    "bookingRecipient": "booking@lymfea.fr"
+    "fromName": {
+      "fr": "Eïa Réservation",
+      "en": "Eïa Booking"
+    },
+    "adminRecipient": "michael@saoma.io",
+    "bookingRecipient": "booking@lymfea.com"
   },
 
   "logos": {

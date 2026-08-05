@@ -1,5 +1,5 @@
-import { brand } from "./brand.ts";
 import { supabaseAdmin } from "./supabase-admin.ts";
+import { platformBrand, resolveBrand } from "./brand-resolver.ts";
 
 /**
  * When provided to `sendEmail`, a successful send is recorded as a line in the
@@ -31,6 +31,8 @@ interface SendEmailWithHtml {
   to: string | string[];
   subject: string;
   from?: string;
+  /** Venue this email belongs to — resolves the sender to the client's brand. */
+  hotelId?: string | null;
   html: string;
   headers?: Record<string, string>;
   attachments?: EmailAttachment[];
@@ -43,6 +45,8 @@ interface SendEmailWithTemplate {
   to: string | string[];
   subject?: string;
   from?: string;
+  /** Venue this email belongs to — resolves the sender to the client's brand. */
+  hotelId?: string | null;
   html?: never;
   headers?: Record<string, string>;
   attachments?: EmailAttachment[];
@@ -56,6 +60,19 @@ type SendEmailOptions = SendEmailWithHtml | SendEmailWithTemplate;
 interface SendEmailResult {
   id?: string;
   error?: string;
+}
+
+/**
+ * Sender to use when the caller did not pass one explicitly.
+ *
+ * With a `hotelId`, this is the sender of that venue's brand; without one it is
+ * the platform sender. The sending domain must be verified in Resend (SPF/DKIM)
+ * or Resend rejects the send outright — it does not silently fall back.
+ */
+async function defaultSender(hotelId?: string | null): Promise<string> {
+  if (!hotelId) return platformBrand().emails.fromDefault;
+  const resolved = await resolveBrand(supabaseAdmin, { hotelId });
+  return resolved.emails.fromDefault;
 }
 
 /**
@@ -73,7 +90,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   const to = isLocal ? ["romainthierryom@gmail.com"] : intendedRecipients;
   const from = isLocal
     ? "onboarding@resend.dev"
-    : (options.from ?? brand.emails.from.default);
+    : (options.from ?? await defaultSender(options.hotelId));
 
   const body: Record<string, unknown> = { from, to };
 

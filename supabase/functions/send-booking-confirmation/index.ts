@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
+import { resolveBrand, siteUrlFor, type ResolvedBrand } from "../_shared/brand-resolver.ts";
+import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 
 const corsHeaders = {
@@ -71,7 +72,8 @@ function generateBookingConfirmationHtml({
   siteUrl,
   isQuotePending,
   language = 'fr',
-  venueType = 'hotel'
+  venueType = 'hotel',
+  brand
 }: {
   bookingId: string;
   bookingNumber: string;
@@ -87,9 +89,11 @@ function generateBookingConfirmationHtml({
   isQuotePending: boolean;
   language?: 'fr' | 'en';
   venueType?: 'hotel' | 'coworking' | 'enterprise';
+  /** Brand of the venue's organization (see _shared/brand-resolver.ts). */
+  brand: ResolvedBrand;
 }) {
   const t = i18n[language] ?? i18n.en;
-  const logoUrl = EMAIL_LOGO_URL;
+  const logoUrl = brand.emailLogoUrl;
   const brandName = brand.name;
   const manageBookingUrl = `${siteUrl}/booking/manage/${bookingId}`;
   const safeCurrency = (currency || 'EUR').toUpperCase();
@@ -213,7 +217,7 @@ function generateBookingConfirmationHtml({
           <!-- Footer -->
           <tr>
             <td align="center" style="border-top:1px solid #e5e5e5;padding-top:24px;">
-              <p style="margin:0;font-size:10px;letter-spacing:3px;color:#bbb;font-family:Helvetica,Arial,sans-serif;">${brandName.toUpperCase()} &nbsp;·&nbsp; ${brand.tagline.toUpperCase()}</p>
+              <p style="margin:0;font-size:10px;letter-spacing:3px;color:#bbb;font-family:Helvetica,Arial,sans-serif;">${brandName.toUpperCase()} &nbsp;·&nbsp; ${brand.tagline[language].toUpperCase()}</p>
             </td>
           </tr>
 
@@ -253,11 +257,21 @@ serve(async (req) => {
 
     console.log('Sending booking confirmation email to:', email, '| isQuotePending:', isQuotePending, '| language:', lang);
 
-    // Prefer the app URL coming from the checkout metadata/webhook, fallback to env
+    // The venue isn't in the payload — resolve it from the booking so the email
+    // carries the client's brand rather than the platform's.
+    const { data: bookingRow } = await supabaseAdmin
+      .from('bookings')
+      .select('hotel_id')
+      .eq('id', bookingId)
+      .maybeSingle();
+    const hotelId = bookingRow?.hotel_id ?? null;
+    const resolvedBrand = await resolveBrand(supabaseAdmin, { hotelId });
+
+    // Prefer the app URL coming from the checkout metadata/webhook, else the
+    // brand's own domain.
     const siteUrl =
       (typeof siteUrlFromBody === 'string' && siteUrlFromBody) ||
-      Deno.env.get('SITE_URL') ||
-      brand.website;
+      siteUrlFor(resolvedBrand);
 
     const normalizedTreatments: Treatment[] = (Array.isArray(treatments) ? treatments : []).map(
       (t: IncomingTreatment) => {
@@ -296,6 +310,7 @@ serve(async (req) => {
       isQuotePending,
       language: lang,
       venueType,
+      brand: resolvedBrand,
     });
 
     const subjectPrefix = lang === 'fr'
@@ -304,6 +319,7 @@ serve(async (req) => {
 
     const clientResult = await sendEmail({
       to: email,
+      hotelId,
       subject: `${subjectPrefix} #${bookingNumber} - ${hotelName}`,
       html,
       audit: { bookingId, emailType: 'booking_confirmation', metadata: { booking_number: bookingNumber } },
@@ -316,7 +332,7 @@ serve(async (req) => {
     console.log('Client email sent:', clientResult.id);
 
     const adminResult = await sendEmail({
-      to: brand.emails.bookingRecipient,
+      to: resolvedBrand.emails.adminRecipient,
       subject: `[ADMIN] ${subjectPrefix} #${bookingNumber} - ${hotelName}`,
       html,
     });

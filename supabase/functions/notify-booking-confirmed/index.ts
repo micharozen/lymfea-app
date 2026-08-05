@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { brand, transactionalFrom } from "../_shared/brand.ts";
+import {
+  resolveBrand,
+  siteUrlFor,
+  transactionalFromFor,
+} from "../_shared/brand-resolver.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 import { sendSms } from "../_shared/send-sms.ts";
@@ -262,7 +266,13 @@ serve(async (req) => {
     );
     const formattedTime = booking.booking_time?.substring(0, 5) || '';
 
-    const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
+    // organizationId is already resolved above — pass it so the resolver skips
+    // its hotel → org lookup.
+    const resolvedBrand = await resolveBrand(supabase, {
+      organizationId,
+      hotelId: booking.hotel_id,
+    });
+    const siteUrl = siteUrlFor(resolvedBrand);
     const bookingDetailsUrl = `${siteUrl}/admin/bookings/${booking.id}`;
     // Client-facing manage URL (short token link, else the manage route) — the
     // admin detail URL must not leak into the client email. Mirrors the SMS.
@@ -343,6 +353,7 @@ serve(async (req) => {
       civility: customerCivility,
       treatments,
       bookingUrl: bookingDetailsUrl,
+      brand: resolvedBrand,
     };
     const adminVars = buildConfirmedVars({ ...emailCtx, lang: 'fr', variant: 'admin' });
     const clientVars = buildConfirmedVars({ ...emailCtx, lang: clientLanguage, bookingUrl: clientManageUrl, variant: 'client' });
@@ -371,7 +382,7 @@ serve(async (req) => {
         const { error: emailError } = await sendEmail({
           to: admin.email,
           subject,
-          from: transactionalFrom('fr'),
+          from: transactionalFromFor(resolvedBrand, 'fr'),
           html: getBookingConfirmedAdminHtml(adminVars),
         });
 
@@ -408,7 +419,7 @@ serve(async (req) => {
           const { error: emailError } = await sendEmail({
             to: concierge.email,
             subject: `✅ #${booking.booking_id} confirmée · ${booking.hotel_name ?? ''}`,
-            from: transactionalFrom('fr'),
+            from: transactionalFromFor(resolvedBrand, 'fr'),
             html: getBookingConfirmedAdminHtml(adminVars),
           });
 
@@ -445,7 +456,7 @@ serve(async (req) => {
         subject: clientLanguage === 'en'
           ? `✅ Your ${isGroup ? 'treatments are' : 'treatment is'} confirmed · ${booking.hotel_name ?? ''}`
           : `✅ ${isGroup ? 'Vos soins sont confirmés' : 'Votre soin est confirmé'} · ${booking.hotel_name ?? ''}`,
-        from: transactionalFrom(clientLanguage),
+        from: transactionalFromFor(resolvedBrand, clientLanguage),
         html: getBookingConfirmedHtml(clientLanguage, clientVars),
         attachments: clientAttachments,
         audit: { bookingId: booking.id, emailType: 'booking_confirmed', metadata: { booking_number: booking.booking_id } },

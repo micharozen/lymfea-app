@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { brand } from "../_shared/brand.ts";
+import { resolveBrand, siteUrlFor } from "../_shared/brand-resolver.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 import { venueLocalToUtc } from "../_shared/venue-time.ts";
 import {
@@ -93,7 +93,6 @@ serve(async (_req: Request) => {
     const bookedSince = await fetchBookedSince(supabase, intents, oldestAllowed);
     const optedOut = await fetchOptedOut(supabase, intents);
     const durations = await fetchDurations(supabase, intents);
-    const appUrl = Deno.env.get("SITE_URL") ?? `https://${brand.appDomain}`;
 
     let sent = 0;
 
@@ -163,6 +162,9 @@ serve(async (_req: Request) => {
       }
 
       const lang: "fr" | "en" = intent.language === "en" ? "en" : "fr";
+      // Per intent, not per run: this cron sweeps intents across every venue, so
+      // each reminder must link to its own venue's brand domain.
+      const appUrl = siteUrlFor(await resolveBrand(supabase, { hotelId: intent.hotel_id }));
       const resumeUrl = `${appUrl}/client/${venue.slug}/resume?token=${intent.resume_token}`;
       // `resume` lets the opt-out page offer a last "stay, actually" way back in.
       const unsubscribeUrl =
@@ -172,6 +174,7 @@ serve(async (_req: Request) => {
 
       const emailResult = await sendEmail({
         to: intent.client_email,
+        hotelId: intent.hotel_id,
         subject: getCheckoutIntentReminderSubject(lang, venue.name),
         html: getCheckoutIntentReminderHtml({
           lang,

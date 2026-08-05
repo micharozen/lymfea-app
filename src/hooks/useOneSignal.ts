@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import OneSignal from 'react-onesignal';
+import { getResolvedBrand } from '@/config/brand';
 
 
 const PENDING_URL_KEY = 'onesignal_pending_url';
@@ -100,18 +101,17 @@ export const useOneSignal = () => {
         return;
       }
 
-      // Check if we're on a supported domain for OneSignal
-      const allowedDomains = [
-        'eiaspa.fr',
-        'lymfea.fr',
-        'localhost',
-      ];
+      // A host is supported when it resolved to a brand (i.e. it is registered
+      // in organization_domains). That replaces the old hardcoded domain list,
+      // which could not grow with each new client.
+      const resolved = getResolvedBrand();
       const currentHost = window.location.hostname;
-      const isAllowedDomain = allowedDomains.some(domain => currentHost.endsWith(domain));
-      
+      const isAllowedDomain = resolved.organizationId !== null ||
+        currentHost === 'localhost' ||
+        currentHost === '127.0.0.1';
+
       if (!isAllowedDomain) {
-        console.log('[OneSignal] Skipping initialization - domain not configured:', currentHost);
-        console.log('[OneSignal] To enable push notifications on this domain, add it to OneSignal dashboard');
+        console.log('[OneSignal] Skipping initialization - host not registered in organization_domains:', currentHost);
         return;
       }
 
@@ -144,9 +144,12 @@ export const useOneSignal = () => {
       console.log('[OneSignal] User Agent:', navigator.userAgent);
       console.log('[OneSignal] Notification permission:', Notification.permission);
 
-      const appId = import.meta.env.VITE_ONESIGNAL_APP_ID;
+      // The App ID is bound to a domain, so each brand needs its own OneSignal
+      // app. The env var stays the fallback for localhost and for a brand that
+      // has not been given one yet.
+      const appId = resolved.onesignalAppId ?? import.meta.env.VITE_ONESIGNAL_APP_ID;
       if (!appId) {
-        console.warn('[OneSignal] VITE_ONESIGNAL_APP_ID not set, skipping initialization');
+        console.warn('[OneSignal] No App ID (organization_branding.onesignal_app_id nor VITE_ONESIGNAL_APP_ID), skipping initialization');
         return;
       }
       console.log('[OneSignal] App ID:', appId, '| Origin:', window.location.origin);

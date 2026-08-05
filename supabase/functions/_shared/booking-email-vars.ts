@@ -12,6 +12,7 @@
 //   - logo_url : venue logo (falls back to the brand logo)
 
 import { EMAIL_LOGO_URL } from "./brand.ts";
+import type { ResolvedBrand } from "./brand-resolver.ts";
 import { civilityLabel } from "./civility.ts";
 import {
   ICON_PERSON,
@@ -52,12 +53,21 @@ export interface EmailTreatment {
 // Unit helpers (reusable on their own by callers)
 // ---------------------------------------------------------------------------
 
-/** Venue logo for emails: the venue's own image, else the brand logo. */
-export function venueLogoUrl(venue?: EmailVenue | null): string {
+/**
+ * Venue logo for emails: the venue's own image, else the brand logo.
+ *
+ * Pass `brand` (from resolveBrand) so a client without a venue logo falls back
+ * to ITS brand rather than the platform's.
+ */
+export function venueLogoUrl(
+  venue?: EmailVenue | null,
+  brand?: Pick<ResolvedBrand, "emailLogoUrl"> | null,
+): string {
   const img = venue?.image?.trim();
   // Only trust absolute https URLs. Local-dev uploads (http://127.0.0.1…) or
   // relative paths render as a broken image in email clients → use brand logo.
-  return img && /^https:\/\//i.test(img) ? img : EMAIL_LOGO_URL;
+  if (img && /^https:\/\//i.test(img)) return img;
+  return brand?.emailLogoUrl ?? EMAIL_LOGO_URL;
 }
 
 /** Escape a string for safe interpolation into email HTML. */
@@ -185,6 +195,12 @@ export interface BookingEmailContext {
   contactEmail?: string | null;
   /** Which "confirmed" template consumes these vars (drives copy nuances). */
   variant?: 'client' | 'admin';
+  /**
+   * Brand of the venue's organization (see _shared/brand-resolver.ts). Drives
+   * the email logo fallback and the footer "powered by" line. Omit only for
+   * platform-level sends that belong to no client.
+   */
+  brand?: ResolvedBrand | null;
 }
 
 function greetingFor(ctx: BookingEmailContext) {
@@ -389,7 +405,8 @@ export function buildConfirmedVars(ctx: BookingEmailContext): Record<string, str
     footer_website_html: footerWebsiteHtml(ctx.venue?.website_url),
     organization_name: ctx.organizationName ?? ctx.venue?.organizations?.name ?? '',
     cancel_annulation: policy,
-    logo_url: venueLogoUrl(ctx.venue),
+    logo_url: venueLogoUrl(ctx.venue, ctx.brand),
+    powered_by: ctx.brand?.poweredBy[ctx.lang] ?? "",
     // Pre-rendered HTML fragments consumed by the new email template.
     treatments_html: treatmentsHtml(ctx.treatments, sym, ctx.lang)
       + surchargeRow(ctx.booking.is_out_of_hours, ctx.booking.surcharge_amount, sym, ctx.lang),
@@ -478,7 +495,8 @@ export function buildCancelledVars(
     contact_email: ctx.contactEmail ?? ctx.venue?.contact_email ?? '',
     venue_address: formatVenueAddress(ctx.venue),
     footer_website_html: footerWebsiteHtml(ctx.venue?.website_url),
-    logo_url: venueLogoUrl(ctx.venue),
+    logo_url: venueLogoUrl(ctx.venue, ctx.brand),
+    powered_by: ctx.brand?.poweredBy[ctx.lang] ?? "",
     rebook_url: extras.rebookUrl,
     extra_rows_html: extraRows,
     payment_details_html: cancelSummaryBox(extras.detailsTitle, extras.rows, extras.refund ?? null),
@@ -524,7 +542,8 @@ export function buildPendingVars(ctx: BookingEmailContext): Record<string, strin
     contact_email: ctx.contactEmail ?? ctx.venue?.contact_email ?? '',
     venue_address: formatVenueAddress(ctx.venue),
     organization_name: ctx.organizationName ?? ctx.venue?.organizations?.name ?? '',
-    logo_url: venueLogoUrl(ctx.venue),
+    logo_url: venueLogoUrl(ctx.venue, ctx.brand),
+    powered_by: ctx.brand?.poweredBy[ctx.lang] ?? "",
     // Pre-rendered HTML fragments consumed by the shared layout. Therapist row
     // stays empty (unassigned while pending) so the row collapses.
     treatments_html: treatmentsHtml(ctx.treatments, sym, ctx.lang)
@@ -566,6 +585,7 @@ export function buildPaymentLinkVars(
     payment_url: extras.paymentUrl,
     expiry_date: extras.expiryDate,
     intro_text: extras.introText,
-    logo_url: venueLogoUrl(ctx.venue),
+    logo_url: venueLogoUrl(ctx.venue, ctx.brand),
+    powered_by: ctx.brand?.poweredBy[ctx.lang] ?? "",
   };
 }

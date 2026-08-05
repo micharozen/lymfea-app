@@ -27,7 +27,7 @@
     "sup:console": "supabase console",
     "sup:open": "supabase open",
     "sup:deploy": "supabase functions deploy",
-    "sync:brand": "cp src/config/brand.json supabase/functions/_shared/brand.json",
+    "sync:brand": "node scripts/sync-brand.mjs",
     "generate:manifests": "node scripts/generate-manifests.js",
     "og:generate": "node scripts/generate-og-image.mjs",
     "favicons:generate": "node scripts/generate-favicons.mjs",

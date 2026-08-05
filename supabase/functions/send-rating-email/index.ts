@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
-import { brand } from "../_shared/brand.ts";
+import { resolveBrand, siteUrlFor } from "../_shared/brand-resolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +44,7 @@ serve(async (req: Request): Promise<Response> => {
         client_first_name,
         client_last_name,
         therapist_id,
+        hotel_id,
         hotel_name
       `)
       .eq("id", bookingId)
@@ -80,14 +81,15 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Build rating URL
-    const siteUrl = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
+    const brand = await resolveBrand(supabaseClient, { hotelId: booking.hotel_id });
+    const siteUrl = siteUrlFor(brand);
     const ratingUrl = `${siteUrl}/rate/${ratingToken}`;
 
     // Send email
     const resend = new Resend(resendKey);
-    
+
     const emailResponse = await resend.emails.send({
-      from: brand.emails.from.default,
+      from: brand.emails.fromDefault,
       to: [booking.client_email],
       subject: `Rate your experience at ${booking.hotel_name}`,
       html: `

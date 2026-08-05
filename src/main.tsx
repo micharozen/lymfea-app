@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import { BrandProvider } from "./config/BrandProvider";
 import "./index.css";
 import "./styles/app-refonte.css";
 import "./styles/bo-refonte.css";
@@ -96,5 +97,11 @@ window.addEventListener("unhandledrejection", (e) => {
   }
 });
 
-// OneSignal handles its own service worker registration
-createRoot(document.getElementById("root")!).render(<App />);
+// OneSignal handles its own service worker registration.
+// BrandProvider wraps App rather than living inside it: App calls useOneSignal()
+// on its first render, and the OneSignal App ID is part of the resolved brand.
+createRoot(document.getElementById("root")!).render(
+  <BrandProvider>
+    <App />
+  </BrandProvider>,
+);

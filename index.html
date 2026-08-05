@@ -3,15 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
-    <title>{{brand.fullName}}</title>
-    <meta name="description" content="{{brand.description.fr}}" />
-    <meta name="author" content="{{brand.name}}" />
+    <!--
+      Brand-neutral on purpose: one build serves every domain, so the brand is
+      resolved from the hostname at runtime and these tags are rewritten by
+      src/config/applyBrandToDocument.ts.
+    -->
+    <title>Réservation bien-être</title>
+    <meta name="description" content="Réservez vos soins bien-être." />
+    <meta name="author" content="" />
 
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#ffffff" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="{{brand.fullName}}" />
+    <meta name="apple-mobile-web-app-title" content="Réservation bien-être" />
 
     <!-- Favicons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -24,8 +29,12 @@
       if (window.location.pathname.startsWith('/admin-pwa')) {
         document.querySelector('link[rel="manifest"]').href = '/admin-manifest.webmanifest';
       }
-      // Distinct favicon on non-prod hosts (localhost, apptest, staging) to differentiate from PROD
-      if (window.location.hostname !== 'app.eiaspa.fr') {
+      // Distinct favicon on non-prod hosts to differentiate from PROD. Listed
+      // explicitly rather than "anything but app.eiaspa.fr": every client brand
+      // has its own production domain now, and none of them is a dev host.
+      var host = window.location.hostname;
+      var isDevHost = host === 'localhost' || host === '127.0.0.1' || host.startsWith('apptest.');
+      if (isDevHost) {
         var svgIcon = document.querySelector('link[rel="icon"][type="image/svg+xml"]');
         if (svgIcon) svgIcon.href = '/favicon-dev.svg';
       }
@@ -40,13 +49,14 @@
     <link rel="preconnect" href="https://api.onesignal.com" crossorigin />
     <link rel="dns-prefetch" href="https://api.onesignal.com" />
 
-    <meta property="og:title" content="{{brand.fullName}}" />
-    <meta property="og:description" content="{{brand.description.fr}}" />
+    <!-- Rewritten at runtime once the hostname resolves to a brand. -->
+    <meta property="og:title" content="Réservation bien-être" />
+    <meta property="og:description" content="Réservez vos soins bien-être." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="{{brand.logos.ogImage}}" />
+    <meta property="og:image" content="" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="{{brand.logos.ogImage}}" />
+    <meta name="twitter:image" content="" />
   </head>
 
   <body>

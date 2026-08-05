@@ -3,28 +3,9 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from 'vite-plugin-pwa';
-import brandConfig from './src/config/brand.json';
-
-// Injects brand values into index.html at build time
-function brandPlugin(): Plugin {
-  return {
-    name: 'brand-inject',
-    transformIndexHtml(html: string) {
-      return html.replace(/\{\{brand\.([a-zA-Z.]+)\}\}/g, (_match, keyPath: string) => {
-        const keys = keyPath.split('.');
-        let value: unknown = brandConfig;
-        for (const key of keys) {
-          if (value && typeof value === 'object' && key in value) {
-            value = (value as Record<string, unknown>)[key];
-          } else {
-            return _match; 
-          }
-        }
-        return String(value);
-      });
-    }
-  };
-}
+// Note: index.html used to be brand-injected here at build time. One build now
+// serves every domain, so the brand is resolved from the hostname at runtime —
+// see src/config/applyBrandToDocument.ts.
 
 // Adds crossorigin="anonymous" to all script tags for proper error reporting
 function crossoriginPlugin(): Plugin {
@@ -93,7 +74,6 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000, // Augmenté car les chunks vendor sont souvent > 500kb
   },
   plugins: [
-    brandPlugin(),
     crossoriginPlugin(),
     react(),
     mode === "development" && componentTagger(),

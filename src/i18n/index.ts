@@ -73,7 +73,6 @@ i18n
       defaultVariables: {
         brandName: brand.name,
         brandFullName: brand.fullName,
-        brandTagline: brand.tagline,
         companyName: brand.legal.companyName,
         companyType: brand.legal.companyType,
         companyTypeEn: brand.legal.companyTypeEn,

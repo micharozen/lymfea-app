@@ -19,6 +19,8 @@ export const getBaseEmailTemplate = (content: string, options?: {
   showButton?: boolean;
   buttonText?: string;
   buttonUrl?: string;
+  /** Brand name shown in the footer; defaults to the platform brand. */
+  brandName?: string;
 }) => `
 <!DOCTYPE html>
 <html>
@@ -51,7 +53,7 @@ export const getBaseEmailTemplate = (content: string, options?: {
           <!-- Footer -->
           <tr>
             <td style="text-align: center; padding: 30px; background-color: #fafafa; border-top: 1px solid #f0f0f0;">
-              <p style="margin: 0 0 8px 0; font-size: 14px; color: #6b7280;">${brand.name}</p>
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #6b7280;">${options?.brandName ?? brand.name}</p>
               <p style="margin: 0; font-size: 12px; color: #9ca3af;">Beauty & Wellness Services</p>
             </td>
           </tr>
@@ -63,11 +65,17 @@ export const getBaseEmailTemplate = (content: string, options?: {
 </html>
 `;
 
-export const getEmailHeader = (title: string, badgeText?: string, badgeColor: string = '#22c55e') => `
+export const getEmailHeader = (
+  title: string,
+  badgeText?: string,
+  badgeColor: string = '#22c55e',
+  /** Brand name to display; defaults to the platform brand. */
+  brandName: string = brand.name,
+) => `
 <!-- Header -->
 <tr>
   <td style="text-align: center; padding: 40px 30px 20px;">
-    <h1 style="margin: 0; font-size: 32px; font-weight: bold; color: #000;">${brand.name}</h1>
+    <h1 style="margin: 0; font-size: 32px; font-weight: bold; color: #000;">${brandName}</h1>
     ${badgeText ? `
     <div style="margin-top: 16px;">
       <span style="display: inline-block; background-color: ${badgeColor}; color: white; padding: 10px 24px; border-radius: 24px; font-size: 14px; font-weight: 600;">${badgeText}</span>

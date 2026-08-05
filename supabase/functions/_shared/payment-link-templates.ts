@@ -1,6 +1,6 @@
 // Payment link email templates (French and English)
 
-import { brand, EMAIL_LOGO_URL } from './brand.ts';
+import { platformBrand, type ResolvedBrand } from './brand-resolver.ts';
 import {
   getBaseEmailTemplate,
   getEmailHeader,
@@ -24,7 +24,11 @@ export interface PaymentLinkTemplateData {
   contactPhone?: string;  // Ajouté pour le redesign
   contactEmail?: string;  // Ajouté pour le redesign
   urgency?: 'normal' | 'urgent' | 'very_urgent' | 'immediate';
-  
+  /**
+   * Brand of the venue's organization (see _shared/brand-resolver.ts). Omitted
+   * means the platform brand — correct only for sends that belong to no client.
+   */
+  brand?: ResolvedBrand;
 }
 
 export const getPaymentLinkEmailSubject = (language: 'fr' | 'en', data: PaymentLinkTemplateData): string => {
@@ -139,7 +143,7 @@ export const getExternalClientPaymentEmailHtml = (language: 'fr' | 'en', data: P
       <table width="100%" border="0" cellspacing="0" cellpadding="0">
         <tr>
           <td align="center" style="padding: 40px 0;">
-            <img src="${EMAIL_LOGO_URL}" alt="Lymfea" width="140" style="display: block; margin-bottom: 40px;">
+            <img src="${(data.brand ?? platformBrand()).emailLogoUrl}" alt="${(data.brand ?? platformBrand()).name}" width="140" style="display: block; margin-bottom: 40px;">
             ${data.hotelImageUrl ? `
             <img src="${data.hotelImageUrl}" alt="${data.hotelName}" style="display: block; width: 100%; max-width: 600px; height: auto; margin-bottom: 40px; border-radius: 4px;">
             ` : ''}
@@ -179,7 +183,7 @@ export const getExternalClientPaymentEmailHtml = (language: 'fr' | 'en', data: P
                   <p style="font-size: 13px; color: #666; margin-bottom: 40px;">
                     ${labels.contact}<br/>
                     ${data.contactPhone ? `<a href="tel:${data.contactPhone}" style="color: #000; text-decoration: none;">${data.contactPhone}</a> | ` : ''}
-                    <a href="mailto:${data.contactEmail || 'hello@lymfea.com'}" style="color: #000; text-decoration: none;">${data.contactEmail || 'hello@lymfea.com'}</a>
+                    <a href="mailto:${data.contactEmail || (data.brand ?? platformBrand()).contactEmail}" style="color: #000; text-decoration: none;">${data.contactEmail || (data.brand ?? platformBrand()).contactEmail}</a>
                   </p>
 
                   <div style="${styles.footerCard}">
@@ -208,18 +212,19 @@ export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLink
   const currency = data.currency || '€';
   const isFr = language === 'fr';
   const urgency = data.urgency || 'normal';
+  const b = data.brand ?? platformBrand();
 
   const introText = (() => {
     if (isFr) {
       if (urgency === 'immediate') return `Votre soin débute très prochainement. Pour le confirmer, merci de procéder au règlement <strong>avant le ${data.expiresAtText}</strong>.`;
       if (urgency === 'very_urgent') return `Votre rendez-vous est dans quelques heures. Afin de le maintenir, nous vous invitons à finaliser votre règlement <strong>avant le ${data.expiresAtText}</strong>.`;
       if (urgency === 'urgent') return `Afin de garantir votre créneau, nous vous invitons à finaliser votre règlement <strong>avant le ${data.expiresAtText}</strong>.`;
-      return `Un professionnel ${brand.name} se déplacera directement dans votre chambre pour vous offrir un moment de détente. <strong>Vous n'avez rien à faire</strong>, installez-vous confortablement et profitez.`;
+      return `Un professionnel ${b.name} se déplacera directement dans votre chambre pour vous offrir un moment de détente. <strong>Vous n'avez rien à faire</strong>, installez-vous confortablement et profitez.`;
     } else {
       if (urgency === 'immediate') return `Your treatment is about to begin. To confirm it, please complete your payment <strong>before ${data.expiresAtText}</strong>.`;
       if (urgency === 'very_urgent') return `Your appointment is in a few hours. To secure it, please finalize your payment <strong>before ${data.expiresAtText}</strong>.`;
       if (urgency === 'urgent') return `To secure your slot, please finalize your payment <strong>before ${data.expiresAtText}</strong>.`;
-      return `A ${brand.name} professional will come directly to your hotel room to provide you with a relaxing experience. <strong>You don't have to do anything</strong>, just sit back and enjoy.`;
+      return `A ${b.name} professional will come directly to your hotel room to provide you with a relaxing experience. <strong>You don't have to do anything</strong>, just sit back and enjoy.`;
     }
   })();
 
@@ -244,7 +249,7 @@ export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLink
   const headerTitle = isFr ? 'Lien de paiement' : 'Payment Link';
 
   return getBaseEmailTemplate(`
-    ${getEmailHeader('', headerTitle, '#000000')}
+    ${getEmailHeader('', headerTitle, '#000000', b.name)}
 
     <tr>
       <td style="padding: 0 30px 30px;">
@@ -284,11 +289,13 @@ export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLink
     showButton: true,
     buttonText,
     buttonUrl: data.paymentUrl,
+    brandName: b.name,
   });
 };
-export const getPaymentCancellationEmailHtml = (language: 'fr' | 'en', data: { clientName: string, bookingDate: string, bookingUrl?: string }) => {
+export const getPaymentCancellationEmailHtml = (language: 'fr' | 'en', data: { clientName: string, bookingDate: string, bookingUrl?: string, brand?: ResolvedBrand }) => {
   const isFr = language === 'fr';
-  const ctaUrl = data.bookingUrl || brand.website;
+  const b = data.brand ?? platformBrand();
+  const ctaUrl = data.bookingUrl || b.website;
 
   return `<!DOCTYPE html>
 <html lang="${language}">
@@ -298,7 +305,7 @@ export const getPaymentCancellationEmailHtml = (language: 'fr' | 'en', data: { c
     <tr>
       <td align="center" style="padding:40px 20px;">
 
-        <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" width="140" style="display:block;margin-bottom:40px;">
+        <img src="${b.emailLogoUrl}" alt="${b.name}" width="140" style="display:block;margin-bottom:40px;">
 
         <table width="600" border="0" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;">
 
@@ -343,14 +350,14 @@ export const getPaymentCancellationEmailHtml = (language: 'fr' | 'en', data: { c
             <td align="center" style="padding-bottom:40px;">
               <p style="margin:0;font-size:12px;color:#999;font-family:Georgia,serif;font-style:italic;">
                 ${isFr ? 'Une question ? Contactez-nous à ' : 'Any question? Contact us at '}
-                <a href="mailto:${brand.legal.contactEmail}" style="color:#999;">${brand.legal.contactEmail}</a>
+                <a href="mailto:${b.contactEmail}" style="color:#999;">${b.contactEmail}</a>
               </p>
             </td>
           </tr>
 
           <tr>
             <td align="center" style="border-top:1px solid #e5e5e5;padding-top:24px;">
-              <p style="margin:0;font-size:10px;letter-spacing:3px;color:#bbb;font-family:Helvetica,Arial,sans-serif;">${brand.name.toUpperCase()} &nbsp;·&nbsp; ${brand.tagline.toUpperCase()}</p>
+              <p style="margin:0;font-size:10px;letter-spacing:3px;color:#bbb;font-family:Helvetica,Arial,sans-serif;">${b.name.toUpperCase()} &nbsp;·&nbsp; ${b.tagline[isFr ? "fr" : "en"].toUpperCase()}</p>
             </td>
           </tr>
 
@@ -376,13 +383,14 @@ export const getPaymentReminderEmailHtml = (language: 'fr' | 'en', data: Payment
 };
 // WhatsApp message templates
 export const getPaymentLinkWhatsAppMessage = (language: 'fr' | 'en', data: PaymentLinkTemplateData): string => {
+  const b = data.brand ?? platformBrand();
   const currency = data.currency || '€';
   const treatmentsList = data.treatments.map(t => `• ${t.name} - ${t.price}${currency}`).join('\n');
   const hasRoom = data.roomNumber && data.roomNumber !== '';
 
   if (language === 'fr') {
     const roomInfo = hasRoom ? ` directement dans votre chambre ${data.roomNumber}` : '';
-    return `💫 ${brand.name} - Lien de paiement
+    return `💫 ${b.name} - Lien de paiement
 
 Bonjour ${data.clientName} !
 
@@ -402,12 +410,12 @@ ${treatmentsList}
 
 Ce lien est valide pour une durée limitée.
 
-L'équipe ${brand.name}`;
+L'équipe ${b.name}`;
   }
 
   // English version
   const roomInfo = hasRoom ? ` directly to your room ${data.roomNumber}` : '';
-  return `💫 ${brand.name} - Payment Link
+  return `💫 ${b.name} - Payment Link
 
 Hello ${data.clientName}!
 
@@ -427,5 +435,5 @@ ${treatmentsList}
 
 This link is valid for a limited time.
 
-The ${brand.name} Team`;
+The ${b.name} Team`;
 };

@@ -1,14 +1,17 @@
 {
   "name": "Eïa",
   "tagline": "Awaken Your Senses",
-  "fullName": "Eïa - Awaken Your Senses",
+  "fullName": "Eïa – Centre Holistique",
   "description": {
-    "fr": "Plateforme de gestion de spa - Réservez vos soins bien-être",
-    "en": "Spa management platform - Book your wellness treatments"
+    "fr": "Centre holistique de soins et massages – Bien plus qu'un lieu de détente, une expérience qui éveille les sens à travers des soins holistiques qui transforment et équilibrent tout l'être",
+    "en": "Holistic wellness center – More than a relaxation venue, an experience that awakens the senses through holistic treatments that transform and balance your whole being"
   },
   "website": "https://lymfea.fr",
-  "appDomain": "app.lymfea.fr",
-
+  "appDomain": "app.eiaspa.fr",
+  "poweredBy": {
+    "fr": "propulsé par Eïa",
+    "en": "powered by Eïa"
+  },
   "legal": {
     "companyName": "EÏA SAS",
     "companyType": "SAS (Société par Actions Simplifiée)",
@@ -19,6 +22,7 @@
     "rcs": "900 979 592",
     "vatNumber": "FR32900979592",
     "address": "38 rue de Grenelle, 75007 Paris, France",
+    "founder": "Sarah-Line Attlan",
     "director": "Tom Uzan",
     "contactEmail": "contact@lymfea.com",
     "bookingEmail": "booking@lymfea.com",
@@ -28,17 +32,19 @@
       "address": "2 rue Kellermann, 59100 Roubaix, France"
     }
   },
-
   "emails": {
     "from": {
       "default": "Eïa <noreply@hello.eiaspa.fr>",
       "noreply": "Eïa <noreply@hello.eiaspa.fr>",
       "transactional": "Eïa Booking <booking@hello.eiaspa.fr>"
     },
+    "fromName": {
+      "fr": "Eïa Réservation",
+      "en": "Eïa Booking"
+    },
     "adminRecipient": "michael@saoma.io",
     "bookingRecipient": "booking@lymfea.com"
   },
-
   "logos": {
     "primary": "/assets/brand-logo.svg",
     "monogram": "/assets/brand-monogram.svg",
@@ -50,26 +56,28 @@
     "ogImage": "/images/brand-og-image.png",
     "secondaryBlack": "/images/brand-logo-secondary-black.svg"
   },
-
+  "colors": {
+    "primary": "#03bfac",
+    "dark": "#1b1b1b"
+  },
   "pwa": {
     "therapist": {
-      "name": "Eïa - Awaken Your Senses",
+      "name": "Eïa – Éveillez vos sens",
       "shortName": "Eïa",
       "description": {
-        "fr": "Plateforme de gestion de spa - Réservez vos soins bien-être",
-        "en": "Spa management platform - Book your wellness treatments"
+        "fr": "Centre holistique de soins et massages – Gérez vos rendez-vous",
+        "en": "Holistic wellness center – Manage your appointments"
       }
     },
     "admin": {
       "name": "Eïa Admin",
       "shortName": "Eïa Admin",
       "description": {
-        "fr": "Eïa Admin - Gestion des réservations",
-        "en": "Eïa Admin - Booking Management"
+        "fr": "Eïa Admin – Gestion des réservations et soins",
+        "en": "Eïa Admin – Booking & treatment management"
       }
     }
   },
-
   "storageKeys": {
     "guestSession": "lymfea-guest-session",
     "analyticsSession": "lymfea-analytics-session",
