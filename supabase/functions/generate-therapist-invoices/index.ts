@@ -68,10 +68,58 @@ interface Hotel {
   name: string;
   vat: number | null;
   address: string | null;
+  postal_code: string | null;
   city: string | null;
   organization_id: string | null;
   out_of_hours_surcharge_percent: number | null;
 }
+
+// ── Correctif ciblé — destinataire de facture = le lieu ─────────────────────
+// Par défaut l'auto-facture du thérapeute est adressée à l'organisation
+// propriétaire du lieu (LYMFA CENTER). Le Cap d'Antibes Beach Hôtel facture en
+// direct : ses thérapeutes doivent adresser leur facture à l'hôtel.
+// Contournement volontairement minimal, à remplacer par un réglage par lieu
+// (ex. hotels.invoice_client = 'platform' | 'venue') quand le besoin se
+// généralisera.
+const INVOICE_CLIENT_IS_VENUE_HOTEL_IDS = new Set<string>([
+  "7a33f87a-5751-41ac-998d-0596d9eeda08", // Cap d'Antibes Beach Hôtel
+]);
+
+/**
+ * Identité du destinataire de la facture pour un lieu qui facture en direct.
+ * Utilise le profil de facturation du lieu quand il existe, sinon retombe sur
+ * les coordonnées saisies sur la fiche du lieu.
+ */
+const resolveVenueClient = (
+  hotel: Hotel,
+  venueProfile: BillingProfile | null,
+): ResolvedIssuer => {
+  const address =
+    [
+      venueProfile?.billing_address ?? hotel.address,
+      [
+        venueProfile?.billing_postal_code ?? hotel.postal_code,
+        venueProfile?.billing_city ?? hotel.city,
+      ]
+        .map((p) => p?.trim())
+        .filter(Boolean)
+        .join(" "),
+      venueProfile?.billing_country,
+    ]
+      .map((p) => p?.trim())
+      .filter(Boolean)
+      .join(", ") || "";
+
+  return {
+    issuerName: venueProfile?.company_name?.trim() || hotel.name.trim(),
+    companyName: venueProfile?.company_name?.trim() || hotel.name.trim(),
+    companyType: venueProfile?.legal_form?.trim() || "",
+    capital: "",
+    siren: (venueProfile?.siren || venueProfile?.siret?.slice(0, 9) || "").trim(),
+    vatNumber: (venueProfile?.tva_number || "").trim(),
+    address,
+  };
+};
 
 // One detail row on the invoice = one billed booking.
 interface InvoiceLineDetail {
@@ -85,8 +133,12 @@ interface GeneratedInvoiceData {
   therapist: Therapist;
   hotel: Hotel;
   billingProfile: BillingProfile;
-  // Platform party (récepteur / client) = the organization that owns the venue.
+  // Platform party = the organization that owns the venue. Always used for the
+  // legal mentions in the footer.
   platformLegal: ResolvedIssuer;
+  // Party billed by the therapist ("Client ou Cliente"). Equals platformLegal
+  // except for the venues listed in INVOICE_CLIENT_IS_VENUE_HOTEL_IDS.
+  invoiceClient: ResolvedIssuer;
   invoiceNumber: string;
   issueDate: Date;
   dueDate: Date;
@@ -149,7 +201,11 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     issuerLegalLines.push(`N° TVA ${escapeHtml(billingProfile.tva_number)}`);
 
   const legal = data.platformLegal;
-  const clientAddressHtml = escapeHtml(legal.address).replace(/, /g, "<br>");
+  const client = data.invoiceClient;
+  const clientAddressHtml = escapeHtml(client.address).replace(/, /g, "<br>");
+  const clientLegalLines: string[] = [];
+  if (client.siren) clientLegalLines.push(`SIREN ${escapeHtml(client.siren)}`);
+  if (client.vatNumber) clientLegalLines.push(`N° TVA ${escapeHtml(client.vatNumber)}`);
 
   const detailRows = lines
     .map((ln) => {
@@ -361,11 +417,9 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
       </div>
       <div class="party">
         <div class="party-label">Client ou Cliente</div>
-        <div class="party-name">${escapeHtml(legal.companyName)}</div>
+        <div class="party-name">${escapeHtml(client.companyName)}</div>
         <div class="party-lines">
-          ${clientAddressHtml}<br>
-          SIREN ${escapeHtml(legal.siren)}<br>
-          N° TVA ${escapeHtml(legal.vatNumber)}
+          ${clientAddressHtml}${clientLegalLines.length ? "<br>" + clientLegalLines.join("<br>") : ""}
         </div>
       </div>
     </div>
@@ -661,6 +715,20 @@ const generateForTherapistHotel = async (
   }
   const platformLegal = resolveIssuerLegal(orgLegal);
 
+  // Destinataire de la facture : la plateforme, sauf pour les lieux qui
+  // facturent en direct (voir INVOICE_CLIENT_IS_VENUE_HOTEL_IDS).
+  const billedByVenue = INVOICE_CLIENT_IS_VENUE_HOTEL_IDS.has(hotel.id);
+  let invoiceClient = platformLegal;
+  if (billedByVenue) {
+    const { data: venueProfile } = await supabaseAdmin
+      .from("billing_profiles")
+      .select("*")
+      .eq("owner_type", "hotel")
+      .eq("owner_id", hotel.id)
+      .maybeSingle();
+    invoiceClient = resolveVenueClient(hotel, venueProfile);
+  }
+
   const vatRate = profile.vat_exempt ? 0 : 20;
   const vatAmount = Math.round(((amountHt * vatRate) / 100) * 100) / 100;
   const amountTtc = Math.round((amountHt + vatAmount) * 100) / 100;
@@ -686,6 +754,7 @@ const generateForTherapistHotel = async (
     hotel,
     billingProfile: profile,
     platformLegal,
+    invoiceClient,
     invoiceNumber,
     issueDate,
     dueDate,
@@ -707,8 +776,8 @@ const generateForTherapistHotel = async (
         invoice_kind: "therapist_commission",
         issuer_type: "therapist",
         issuer_id: therapist.id,
-        client_type: "lymfea",
-        client_id: null,
+        client_type: billedByVenue ? "hotel" : "lymfea",
+        client_id: billedByVenue ? hotel.id : null,
         therapist_id: therapist.id,
         hotel_id: hotel.id,
         invoice_number: invoiceNumber,
@@ -724,7 +793,7 @@ const generateForTherapistHotel = async (
         bookings_count: eligibleBookings.length,
         html_snapshot: invoiceHTML,
         issuer_snapshot: profile,
-        client_snapshot: platformLegal,
+        client_snapshot: invoiceClient,
         metadata: {
           booking_ids: bookingIds,
           therapist_name: `${therapist.first_name} ${therapist.last_name}`,
@@ -864,7 +933,7 @@ serve(async (req: Request) => {
       let venuesQuery = supabaseAdmin
         .from("therapist_venues")
         .select(
-          "hotel_id, hotels(id, name, vat, address, city, organization_id, out_of_hours_surcharge_percent)",
+          "hotel_id, hotels(id, name, vat, address, postal_code, city, organization_id, out_of_hours_surcharge_percent)",
         )
         .eq("therapist_id", therapist.id);
       if (hotel_id) venuesQuery = venuesQuery.eq("hotel_id", hotel_id);
