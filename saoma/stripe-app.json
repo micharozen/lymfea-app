@@ -76,7 +76,7 @@
     }
   ],
   "allowed_redirect_uris": [
-    "https://saoma.io/admin/payment-oauth-callback/stripe",
+    "https://app.saoma.io/admin/payment-oauth-callback/stripe",
     "https://app.eiaspa.fr/admin/payment-oauth-callback/stripe",
     "https://demo.saoma.io/admin/payment-oauth-callback/stripe"
   ],

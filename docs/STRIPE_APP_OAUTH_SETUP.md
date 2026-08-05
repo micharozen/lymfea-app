@@ -127,7 +127,7 @@ la requête. À revoir le jour où un même déploiement devrait accueillir les 
 | `STRIPE_APP_OAUTH_LINK_ID` | `chnlink_…` du lien External test | **obligatoire tant que l'app n'est pas publiée** — à retirer une fois en ligne sur le Marketplace |
 | `STRIPE_APP_SECRET_KEY` | clé secrète de l'**environnement** du compte propriétaire qui a servi à l'installation (cf. §2) | **fallback** sur `STRIPE_SECRET_KEY` si absente — à poser explicitement dès que l'app n'appartient pas au même compte Stripe qu'Eïa, ou que les lieux installent depuis une sandbox |
 | `STRIPE_APP_WEBHOOK_SECRET` | app signing secret de l'endpoint de l'app | cf. §4bis — unique pour tous les lieux |
-| `SITE_URL` | prod : `https://saoma.io` · env de test : `https://demo.saoma.io` | **obligatoire** — déjà posée |
+| `SITE_URL` | prod : `https://app.saoma.io` · env de test : `https://demo.saoma.io` | **obligatoire** — doit correspondre au domaine servi, Stripe fait un exact match |
 
 `SITE_URL` n'est pas optionnelle ici : la redirect URI en est dérivée et Stripe fait un
 **exact match**. Le fallback historique `https://${brand.appDomain}` pointe sur
@@ -137,17 +137,25 @@ si la variable manque, plutôt que de produire une URI rejetée.
 Les redirect URIs déclarées :
 
 ```
-https://saoma.io/admin/payment-oauth-callback/stripe           (prod)
+https://app.saoma.io/admin/payment-oauth-callback/stripe       (prod Saoma)
 https://app.eiaspa.fr/admin/payment-oauth-callback/stripe      (prod, domaine historique)
 https://demo.saoma.io/admin/payment-oauth-callback/stripe      (env de test — SITE_URL actuelle)
 ```
 
-Deux URIs ont sauté en 0.0.5. `app.saoma.io` ne résolvait sur aucun déploiement
-(404 `DEPLOYMENT_NOT_FOUND`) : la prod est servie à la racine, `https://saoma.io`, et
-l'URI déclarée ne correspondait donc à rien — l'installation live aurait échoué sur un
-exact match. `apptest.eiaspa.fr` a été retirée à la demande de la review Marketplace
+`apptest.eiaspa.fr` a sauté en 0.0.5, à la demande de la review Marketplace
 (« remove the external test URLs »). `demo.saoma.io` est conservée tant que Stripe teste
 le parcours sur le compte de démo.
+
+`app.saoma.io` a un temps renvoyé 404 (`DEPLOYMENT_NOT_FOUND`) : le domaine était déclaré
+ici sans déploiement derrière, ce qui aurait fait échouer toute installation live puisque
+Stripe fait un **exact match** sur la redirect URI. Le domaine est déployé depuis, et
+reste la cible : Eïa garde `app.eiaspa.fr` avec ses thérapeutes déjà installés, Saoma part
+sur le sien. Vérifier qu'il répond avant toute soumission — un lien cassé dans
+`allowed_redirect_uris` est un motif de rejet explicite de la review.
+
+⚠️ Toute modification du manifeste (permissions, redirect URIs) impose une **resoumission
+et un nouveau passage en review** d'environ 4 jours ouvrés une fois l'app publiée. Le
+domaine se tranche donc avant l'upload, pas après.
 
 ⚠️ `SITE_URL` de l'environnement de test vaut `https://demo.saoma.io`. Ne la change
 pas pour faire coller une URI : **38 fichiers** la lisent pour construire les liens
