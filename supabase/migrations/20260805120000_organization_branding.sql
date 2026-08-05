@@ -57,7 +57,6 @@ CREATE TABLE IF NOT EXISTS public.organization_branding (
   pwa_therapist_short_name text,
   pwa_admin_name text,
   pwa_admin_short_name text,
-  onesignal_app_id text,
 
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -73,8 +72,6 @@ COMMENT ON COLUMN public.organization_branding.email_from_name_fr IS
   'Localized display name for the transactional sender. The address comes from email_from_transactional; only the inbox-visible name is translated.';
 COMMENT ON COLUMN public.organization_branding.powered_by_label IS
   'Replaces the "propulsé par Eïa" line in the email footer. NULL keeps the platform label.';
-COMMENT ON COLUMN public.organization_branding.onesignal_app_id IS
-  'OneSignal App ID for this brand. The App ID is bound to a domain, so every brand needs its own OneSignal app.';
 
 -- -------------------------------------------------------------------------
 -- 2. organization_domains — this is what makes N domains possible
@@ -84,6 +81,10 @@ CREATE TABLE IF NOT EXISTS public.organization_domains (
   host text PRIMARY KEY,
   organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
   kind text NOT NULL DEFAULT 'app' CHECK (kind IN ('app', 'landing')),
+  -- Per DOMAIN, not per organization: a OneSignal Web Push app is bound to a
+  -- single origin. Eïa already proves it — app.eiaspa.fr and apptest.eiaspa.fr
+  -- belong to the same organization but must use different apps.
+  onesignal_app_id text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -231,7 +232,7 @@ AS $$
     b.pwa_therapist_short_name,
     b.pwa_admin_name,
     b.pwa_admin_short_name,
-    b.onesignal_app_id
+    d.onesignal_app_id
   FROM public.organization_domains d
   JOIN public.organizations o ON o.id = d.organization_id
   LEFT JOIN public.organization_branding b ON b.organization_id = o.id
@@ -252,6 +253,12 @@ GRANT EXECUTE ON FUNCTION public.get_public_brand_by_host(text) TO service_role;
 --    once its Resend domain and OneSignal app exist.
 -- -------------------------------------------------------------------------
 
+-- onesignal_app_id deliberately left NULL: these two hosts share an
+-- organization but NOT a OneSignal app, and the real full App IDs (UUIDs) must
+-- be pasted from the OneSignal dashboard rather than guessed. NULL keeps the
+-- current behaviour exactly — the front falls back to VITE_ONESIGNAL_APP_ID,
+-- which is already set per deployment — so existing therapists keep their
+-- subscription and nobody reinstalls anything.
 INSERT INTO public.organization_domains (host, organization_id, kind)
 VALUES
   ('app.eiaspa.fr',     'a0000000-0000-0000-0000-000000000001', 'app'),
