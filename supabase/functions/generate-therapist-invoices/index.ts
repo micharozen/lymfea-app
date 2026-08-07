@@ -123,11 +123,10 @@ interface GeneratedInvoiceData {
   therapist: Therapist;
   hotel: Hotel;
   billingProfile: BillingProfile;
-  // Platform party = the organization that owns the venue. Always used for the
-  // legal mentions in the footer.
+  // Organisation propriétaire du lieu : destinataire par défaut de la facture.
   platformLegal: ResolvedIssuer;
-  // Party billed by the therapist ("Client ou Cliente"). Equals platformLegal
-  // except for the venues listed in INVOICE_CLIENT_IS_VENUE_HOTEL_IDS.
+  // Partie facturée par le thérapeute (« Client ou Cliente »). Vaut
+  // platformLegal, sauf pour les lieux réglés sur hotels.invoice_client = 'venue'.
   invoiceClient: ResolvedIssuer;
   invoiceNumber: string;
   issueDate: Date;
@@ -190,17 +189,21 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   if (billingProfile.tva_number && !billingProfile.vat_exempt)
     issuerLegalLines.push(`N° TVA ${escapeHtml(billingProfile.tva_number)}`);
 
-  const legal = data.platformLegal;
-  // Mentions légales du pied de page : chaque segment est omis quand la donnée
+  // Mentions légales du pied de page = celles de l'émetteur, ici le thérapeute.
+  // L'organisation propriétaire du lieu n'y figure pas : elle n'est partie à la
+  // facture que lorsqu'elle en est la destinataire, et elle apparaît alors dans
+  // le bloc « Client ou Cliente ». Chaque segment est omis quand la donnée
   // manque, jamais remplacé par celle d'une autre société.
   const footerLegalLine = [
-    [legal.companyName, legal.companyType].filter(Boolean).join(" · "),
-    legal.capital ? `au capital de ${legal.capital}` : "",
-    legal.siren ? `N° SIREN ${legal.siren}` : "",
-    legal.vatNumber ? `N° TVA ${legal.vatNumber}` : "",
+    [issuerName, billingProfile.legal_form].filter(Boolean).join(" · "),
+    billingProfile.siret ? `N° SIRET ${billingProfile.siret}` : "",
+    !billingProfile.siret && billingProfile.siren ? `N° SIREN ${billingProfile.siren}` : "",
+    billingProfile.tva_number && !billingProfile.vat_exempt
+      ? `N° TVA ${billingProfile.tva_number}`
+      : "",
   ]
     .filter(Boolean)
-    .map((part) => escapeHtml(part))
+    .map((part) => escapeHtml(part as string))
     .join(" · ");
   const client = data.invoiceClient;
   const clientAddressHtml = escapeHtml(client.address).replace(/, /g, "<br>");
@@ -490,7 +493,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
 
   <div class="footer">
     ${footerLegalLine}${footerLegalLine ? "<br>" : ""}
-    Généré par ${escapeHtml(brand.name)}
+    Généré par Saoma
   </div>
 </div>
 </body>
