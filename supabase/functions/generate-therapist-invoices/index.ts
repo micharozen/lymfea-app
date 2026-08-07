@@ -453,20 +453,28 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   </table>
 
   <div class="summary">
-    <div class="tva-details">
+    ${
+      billingProfile.vat_exempt
+        ? `<div class="tva-details"></div>`
+        : `<div class="tva-details">
       <div class="tva-title">Détails TVA</div>
       <div class="tva-grid">
         <div class="head">Taux</div><div class="head">Montant TVA</div><div class="head">Base HT</div>
-        <div>${billingProfile.vat_exempt ? "—" : `${vatRate}%`}</div>
+        <div>${vatRate}%</div>
         <div>${formatAmount(vatAmount)}</div>
         <div>${formatAmount(amountHt)}</div>
       </div>
-    </div>
+    </div>`
+    }
     <div class="reca">
       <div class="reca-title">Récapitulatif</div>
       <div class="reca-row"><span>Total HT</span><span>${formatAmount(amountHt)}</span></div>
-      <div class="reca-row"><span>Total TVA</span><span>${formatAmount(vatAmount)}</span></div>
-      <div class="reca-row total"><span>Total TTC</span><span>${formatAmount(amountTtc)}</span></div>
+      ${
+        billingProfile.vat_exempt
+          ? ""
+          : `<div class="reca-row"><span>Total TVA</span><span>${formatAmount(vatAmount)}</span></div>`
+      }
+      <div class="reca-row total"><span>${billingProfile.vat_exempt ? "Net à payer" : "Total TTC"}</span><span>${formatAmount(amountTtc)}</span></div>
     </div>
   </div>
 
