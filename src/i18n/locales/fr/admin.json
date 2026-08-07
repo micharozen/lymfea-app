@@ -1802,5 +1802,14 @@
     "cancel": "Annuler",
     "submit": "Bloquer",
     "selectVenueFirst": "Sélectionnez un lieu pour bloquer"
+  },
+  "organization": {
+    "billingProfile": {
+      "commercialName": "Nom commercial",
+      "commercialNameHint": "Affiché en tête de facture. À défaut, la raison sociale est utilisée.",
+      "legalCapital": "Capital social",
+      "legalCapitalHint": "Repris dans les mentions légales en pied de facture.",
+      "missingDescription": "Les factures émises ou reçues par cette organisation sortiront sans raison sociale, sans SIREN et sans numéro de TVA."
+    }
   }
 }

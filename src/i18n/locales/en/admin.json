@@ -1802,5 +1802,14 @@
     "cancel": "Cancel",
     "submit": "Block",
     "selectVenueFirst": "Select a venue to block"
+  },
+  "organization": {
+    "billingProfile": {
+      "commercialName": "Trading name",
+      "commercialNameHint": "Shown at the top of the invoice. Falls back to the registered name.",
+      "legalCapital": "Share capital",
+      "legalCapitalHint": "Included in the legal mentions at the bottom of invoices.",
+      "missingDescription": "Invoices issued or received by this organization will come out without a registered name, company number or VAT number."
+    }
   }
 }

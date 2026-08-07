@@ -35,8 +35,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, FileText, Landmark, Loader2, Save } from "lucide-react";
 
 const billingSchema = z.object({
+  commercial_name: z.string().optional().default(""),
   company_name: z.string().optional().default(""),
   legal_form: z.string().optional().default(""),
+  legal_capital: z.string().optional().default(""),
   siret: z.string().optional().default(""),
   siren: z.string().optional().default(""),
   tva_number: z.string().optional().default(""),
@@ -55,8 +57,10 @@ const billingSchema = z.object({
 export type BillingProfileFormValues = z.infer<typeof billingSchema>;
 
 const defaultValues: BillingProfileFormValues = {
+  commercial_name: "",
   company_name: "",
   legal_form: "",
+  legal_capital: "",
   siret: "",
   siren: "",
   tva_number: "",
@@ -73,7 +77,7 @@ const defaultValues: BillingProfileFormValues = {
 };
 
 interface BillingProfileFormProps {
-  ownerType: "therapist" | "hotel";
+  ownerType: "therapist" | "hotel" | "organization";
   ownerId: string;
   disabled?: boolean;
   /**
@@ -117,8 +121,10 @@ export function BillingProfileForm({
       }
       if (data) {
         form.reset({
+          commercial_name: data.commercial_name ?? "",
           company_name: data.company_name ?? "",
           legal_form: data.legal_form ?? "",
+          legal_capital: data.legal_capital ?? "",
           siret: data.siret ?? "",
           siren: data.siren ?? "",
           tva_number: data.tva_number ?? "",
@@ -153,8 +159,10 @@ export function BillingProfileForm({
       const payload = {
         owner_type: ownerType,
         owner_id: ownerId,
+        commercial_name: values.commercial_name || null,
         company_name: values.company_name || null,
         legal_form: values.legal_form || null,
+        legal_capital: values.legal_capital || null,
         siret: values.siret || null,
         siren: values.siren || null,
         tva_number: values.vat_exempt ? null : values.tva_number || null,
@@ -239,7 +247,12 @@ export function BillingProfileForm({
                   )}
                 </AlertTitle>
                 <AlertDescription>
-                  {ownerType === "hotel"
+                  {ownerType === "organization"
+                    ? t(
+                        "admin:organization.billingProfile.missingDescription",
+                        "Les factures émises ou reçues par cette organisation sortiront sans raison sociale, sans SIREN et sans numéro de TVA.",
+                      )
+                    : ownerType === "hotel"
                     ? t(
                         "admin:venue.billingProfile.missingDescription",
                         "Les factures des thérapeutes seront adressées à ce lieu avec les coordonnées de sa fiche, sans SIRET ni numéro de TVA.",
@@ -250,6 +263,30 @@ export function BillingProfileForm({
                       )}
                 </AlertDescription>
               </Alert>
+            )}
+
+            {ownerType === "organization" && (
+              <FormField
+                control={form.control}
+                name="commercial_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("admin:organization.billingProfile.commercialName", "Nom commercial")}
+                    </FormLabel>
+                    <FormControl>
+                      <Input {...field} disabled={disabled} />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        "admin:organization.billingProfile.commercialNameHint",
+                        "Affiché en tête de facture. À défaut, la raison sociale est utilisée.",
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -302,6 +339,30 @@ export function BillingProfileForm({
                 )}
               />
             </div>
+
+            {ownerType === "organization" && (
+              <FormField
+                control={form.control}
+                name="legal_capital"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("admin:organization.billingProfile.legalCapital", "Capital social")}
+                    </FormLabel>
+                    <FormControl>
+                      <Input {...field} disabled={disabled} placeholder="10 000 €" />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      {t(
+                        "admin:organization.billingProfile.legalCapitalHint",
+                        "Repris dans les mentions légales en pied de facture.",
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
