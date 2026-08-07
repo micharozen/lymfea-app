@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Download, Eye, FileText, Loader2, Plus } from "lucide-react";
 import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
 import { VenueInvoiceGenerateDialog } from "./VenueInvoiceGenerateDialog";
+import { VenueBillingProfileSection } from "./VenueBillingProfileSection";
 
 interface InvoiceRow {
   id: string;
@@ -140,7 +141,9 @@ export function VenueBillingTab({ hotelId }: VenueBillingTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <VenueBillingProfileSection hotelId={hotelId} />
+
+      <div className="flex items-center justify-between pt-2">
         <div>
           <h2 className="text-lg font-semibold">
             {t("venue.billingTab.title", "Factures")}

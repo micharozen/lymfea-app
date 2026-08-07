@@ -614,6 +614,16 @@
       "surchargeDescription": "Percentage added to the treatment total for bookings outside operating hours.",
       "indicator": "Outside operating hours — {{percent}}% surcharge applied",
       "surchargeBreakdown": "Out-of-hours surcharge ({{percent}}%)"
+    },
+    "billingProfile": {
+      "recipientTitle": "Therapist invoice recipient",
+      "recipientDescription": "The therapist remains the issuer of their invoice. This setting defines who it is addressed to.",
+      "billedByVenue": "This venue bills directly",
+      "billedByVenueOn": "Invoices are addressed to this venue, using the details below.",
+      "billedByVenueOff": "Invoices are addressed to the organization that owns the venue.",
+      "recipientSaved": "Recipient updated",
+      "recipientError": "Error saving",
+      "missingDescription": "Therapist invoices will be addressed to this venue using the details from its profile, without a company number or VAT number."
     }
   },
   "customers": {

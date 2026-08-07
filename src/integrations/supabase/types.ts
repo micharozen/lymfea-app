@@ -1840,6 +1840,7 @@ export type Database = {
           inbound_email_alias: string
           inbound_email_domain: string
           inter_venue_buffer_minutes: number | null
+          invoice_client: string
           landing_subtitle: string | null
           landing_subtitle_en: string | null
           min_booking_notice_minutes: number | null
@@ -1895,6 +1896,7 @@ export type Database = {
           inbound_email_alias: string
           inbound_email_domain: string
           inter_venue_buffer_minutes?: number | null
+          invoice_client?: string
           landing_subtitle?: string | null
           landing_subtitle_en?: string | null
           min_booking_notice_minutes?: number | null
@@ -1950,6 +1952,7 @@ export type Database = {
           inbound_email_alias?: string
           inbound_email_domain?: string
           inter_venue_buffer_minutes?: number | null
+          invoice_client?: string
           landing_subtitle?: string | null
           landing_subtitle_en?: string | null
           min_booking_notice_minutes?: number | null

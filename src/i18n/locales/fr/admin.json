@@ -614,6 +614,16 @@
       "surchargeDescription": "Pourcentage ajouté au total des soins pour les réservations hors horaires.",
       "indicator": "Hors horaires d'ouverture — Majoration de {{percent}}% appliquée",
       "surchargeBreakdown": "Majoration hors horaires ({{percent}}%)"
+    },
+    "billingProfile": {
+      "recipientTitle": "Destinataire des factures thérapeutes",
+      "recipientDescription": "Le thérapeute reste l'émetteur de sa facture. Ce réglage définit à qui elle est adressée.",
+      "billedByVenue": "Le lieu facture en direct",
+      "billedByVenueOn": "Les factures sont adressées à ce lieu, avec les informations ci-dessous.",
+      "billedByVenueOff": "Les factures sont adressées à l'organisation propriétaire du lieu.",
+      "recipientSaved": "Destinataire mis à jour",
+      "recipientError": "Erreur lors de l'enregistrement",
+      "missingDescription": "Les factures des thérapeutes seront adressées à ce lieu avec les coordonnées de sa fiche, sans SIRET ni numéro de TVA."
     }
   },
   "customers": {

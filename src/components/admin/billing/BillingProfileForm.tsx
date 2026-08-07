@@ -239,10 +239,15 @@ export function BillingProfileForm({
                   )}
                 </AlertTitle>
                 <AlertDescription>
-                  {t(
-                    "admin:therapists.billingInfo.missingDescription",
-                    "Les factures mensuelles seront générées sans adresse, sans SIRET, sans coordonnées bancaires et avec une TVA à 20 %, ce qui les rend non conformes.",
-                  )}
+                  {ownerType === "hotel"
+                    ? t(
+                        "admin:venue.billingProfile.missingDescription",
+                        "Les factures des thérapeutes seront adressées à ce lieu avec les coordonnées de sa fiche, sans SIRET ni numéro de TVA.",
+                      )
+                    : t(
+                        "admin:therapists.billingInfo.missingDescription",
+                        "Les factures mensuelles seront générées sans adresse, sans SIRET, sans coordonnées bancaires et avec une TVA à 20 %, ce qui les rend non conformes.",
+                      )}
                 </AlertDescription>
               </Alert>
             )}

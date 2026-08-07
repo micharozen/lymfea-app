@@ -72,18 +72,8 @@ interface Hotel {
   city: string | null;
   organization_id: string | null;
   out_of_hours_surcharge_percent: number | null;
+  invoice_client: string | null;
 }
-
-// ── Correctif ciblé — destinataire de facture = le lieu ─────────────────────
-// Par défaut l'auto-facture du thérapeute est adressée à l'organisation
-// propriétaire du lieu (LYMFA CENTER). Le Cap d'Antibes Beach Hôtel facture en
-// direct : ses thérapeutes doivent adresser leur facture à l'hôtel.
-// Contournement volontairement minimal, à remplacer par un réglage par lieu
-// (ex. hotels.invoice_client = 'platform' | 'venue') quand le besoin se
-// généralisera.
-const INVOICE_CLIENT_IS_VENUE_HOTEL_IDS = new Set<string>([
-  "7a33f87a-5751-41ac-998d-0596d9eeda08", // Cap d'Antibes Beach Hôtel
-]);
 
 /**
  * Identité du destinataire de la facture pour un lieu qui facture en direct.
@@ -542,13 +532,16 @@ const generateForTherapistHotel = async (
   const endStr = periodEnd.toISOString().slice(0, 10);
 
   const bookingSelect =
-    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, booking_treatments(therapist_id, treatment_menus(name, duration))";
+    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, booking_treatments(therapist_id, treatment_menus(name, duration), treatment_variants(label, duration))";
+  // Un no-show est facturé 100 % au client : le thérapeute s'est déplacé, il est
+  // rémunéré comme pour un soin réalisé. Les deux orthographes du statut
+  // coexistent en base (legacy `no_show`).
   const applyEligibility = (q: any) =>
     q
       .eq("hotel_id", hotel.id)
       .gte("booking_date", startStr)
       .lte("booking_date", endStr)
-      .in("status", ["completed"])
+      .in("status", ["completed", "noshow", "no_show"])
       .in("payment_status", ["paid", "charged_to_room", "offert"]);
 
   // Bookings where this therapist is the primary (solo + legacy).
@@ -627,29 +620,39 @@ const generateForTherapistHotel = async (
     const treatments = ((b as any).booking_treatments || []) as Array<{
       therapist_id?: string | null;
       treatment_menus?: { name?: string | null; duration?: number | null } | null;
+      treatment_variants?: { label?: string | null; duration?: number | null } | null;
     }>;
+    // La durée réellement réservée est celle de la variante quand il y en a une
+    // (ex. « LET IT GO BODY » 60 min au menu, variante 90 min) ; sans variante on
+    // retombe sur la durée du soin.
+    const lineDuration = (bt: (typeof treatments)[number]): number =>
+      bt.treatment_variants?.duration ?? bt.treatment_menus?.duration ?? 0;
     // When the stable soin↔therapist link is present, this therapist is paid on
     // the sum of THEIR soins; otherwise fall back to the booking duration (or the
     // total treatment duration). Only used when no payout row exists (see below).
     const linkedDuration = treatments.some((bt) => bt.therapist_id != null)
       ? treatments
           .filter((bt) => bt.therapist_id === therapist.id)
-          .reduce((sum, bt) => sum + (bt.treatment_menus?.duration || 0), 0)
+          .reduce((sum, bt) => sum + lineDuration(bt), 0)
       : 0;
-    const treatmentsDuration = treatments.reduce(
-      (sum, bt) => sum + (bt.treatment_menus?.duration || 0),
-      0,
-    );
+    const treatmentsDuration = treatments.reduce((sum, bt) => sum + lineDuration(bt), 0);
     const dur = linkedDuration > 0
       ? linkedDuration
       : (b as any).duration && (b as any).duration > 0
       ? (b as any).duration
       : treatmentsDuration;
-    const label =
+    const isNoShow = ["noshow", "no_show"].includes(String((b as any).status));
+    const treatmentsLabel =
       treatments
-        .map((bt) => bt.treatment_menus?.name)
+        .map((bt) => {
+          const name = bt.treatment_menus?.name;
+          if (!name) return null;
+          const variant = bt.treatment_variants?.label?.trim();
+          return variant ? `${name} · ${variant}` : name;
+        })
         .filter(Boolean)
         .join(" + ") || "Prestation";
+    const label = isNoShow ? `${treatmentsLabel} (no-show)` : treatmentsLabel;
 
     // Payouts are the per-therapist source of truth; fall back to
     // duration-based rates only when no payout row exists. The fallback must
@@ -723,9 +726,9 @@ const generateForTherapistHotel = async (
   }
   const platformLegal = resolveIssuerLegal(orgLegal);
 
-  // Destinataire de la facture : la plateforme, sauf pour les lieux qui
-  // facturent en direct (voir INVOICE_CLIENT_IS_VENUE_HOTEL_IDS).
-  const billedByVenue = INVOICE_CLIENT_IS_VENUE_HOTEL_IDS.has(hotel.id);
+  // Destinataire de la facture : l'organisation propriétaire du lieu, sauf
+  // pour les lieux réglés sur « facture en direct » (hotels.invoice_client).
+  const billedByVenue = hotel.invoice_client === "venue";
   let invoiceClient = platformLegal;
   if (billedByVenue) {
     const { data: venueProfile } = await supabaseAdmin
@@ -941,7 +944,7 @@ serve(async (req: Request) => {
       let venuesQuery = supabaseAdmin
         .from("therapist_venues")
         .select(
-          "hotel_id, hotels(id, name, vat, address, postal_code, city, organization_id, out_of_hours_surcharge_percent)",
+          "hotel_id, hotels(id, name, vat, address, postal_code, city, organization_id, out_of_hours_surcharge_percent, invoice_client)",
         )
         .eq("therapist_id", therapist.id);
       if (hotel_id) venuesQuery = venuesQuery.eq("hotel_id", hotel_id);
