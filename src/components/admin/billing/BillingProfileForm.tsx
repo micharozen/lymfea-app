@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { SelectField } from "@/components/ui/select-field";
 import {
   Select,
   SelectContent,
@@ -410,25 +410,41 @@ export function BillingProfileForm({
                 control={form.control}
                 name="vat_exempt"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="space-y-0.5">
-                      <FormLabel>
-                        {t("admin:therapists.billingInfo.vatExempt", "Non assujetti à la TVA")}
-                      </FormLabel>
-                      <FormDescription className="text-xs">
-                        {t(
-                          "admin:therapists.billingInfo.vatExemptHint",
-                          "Article 293 B du CGI (auto-entrepreneurs)",
-                        )}
-                      </FormDescription>
-                    </div>
+                  <FormItem>
+                    <FormLabel>
+                      {t("admin:therapists.billingInfo.vatStatus", "Régime de TVA")}
+                    </FormLabel>
                     <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
+                      <SelectField
+                        options={[
+                          {
+                            value: "subject",
+                            label: t(
+                              "admin:therapists.billingInfo.vatSubject",
+                              "Assujetti à la TVA",
+                            ),
+                          },
+                          {
+                            value: "exempt",
+                            label: t(
+                              "admin:therapists.billingInfo.vatExempt",
+                              "Non assujetti à la TVA",
+                            ),
+                          },
+                        ]}
+                        value={field.value ? "exempt" : "subject"}
+                        onChange={(v) => field.onChange(v === "exempt")}
+                        searchable={false}
                         disabled={disabled}
                       />
                     </FormControl>
+                    <FormDescription className="text-xs">
+                      {t(
+                        "admin:therapists.billingInfo.vatExemptHint",
+                        "Article 293 B du CGI (auto-entrepreneurs)",
+                      )}
+                    </FormDescription>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
