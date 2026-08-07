@@ -403,32 +403,36 @@ export function BillingProfileForm({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="vat_exempt"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
-                    <FormLabel>
-                      {t("admin:therapists.billingInfo.vatExempt", "Non assujetti à la TVA")}
-                    </FormLabel>
-                    <FormDescription className="text-xs">
-                      {t(
-                        "admin:therapists.billingInfo.vatExemptHint",
-                        "Article 293 B du CGI (auto-entrepreneurs)",
-                      )}
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={disabled}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            {/* Franchise en base (293 B) : cas des thérapeutes indépendants.
+                Un lieu ou une organisation est une société assujettie. */}
+            {ownerType === "therapist" && (
+              <FormField
+                control={form.control}
+                name="vat_exempt"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>
+                        {t("admin:therapists.billingInfo.vatExempt", "Non assujetti à la TVA")}
+                      </FormLabel>
+                      <FormDescription className="text-xs">
+                        {t(
+                          "admin:therapists.billingInfo.vatExemptHint",
+                          "Article 293 B du CGI (auto-entrepreneurs)",
+                        )}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={disabled}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
