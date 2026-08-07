@@ -75,12 +75,19 @@ interface BillingProfileFormProps {
   ownerType: "therapist" | "hotel";
   ownerId: string;
   disabled?: boolean;
+  /**
+   * When provided, the parent page owns the save action: the ref receives a
+   * function that persists the profile (silently on success) so the page's own
+   * "Enregistrer" button saves this card too, and the local button is hidden.
+   */
+  submitRef?: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
 export function BillingProfileForm({
   ownerType,
   ownerId,
   disabled = false,
+  submitRef,
 }: BillingProfileFormProps) {
   const { t } = useTranslation("common");
   const [loading, setLoading] = useState(true);
@@ -137,7 +144,7 @@ export function BillingProfileForm({
 
   const vatExempt = form.watch("vat_exempt");
 
-  const onSubmit = async (values: BillingProfileFormValues) => {
+  const persist = async (values: BillingProfileFormValues, silent = false) => {
     setSaving(true);
     try {
       const payload = {
@@ -165,18 +172,31 @@ export function BillingProfileForm({
       });
 
       if (error) throw error;
-      toast.success(
-        t("admin:therapists.billingInfo.saveSuccess", "Informations de facturation enregistrées"),
-      );
+      if (!silent) {
+        toast.success(
+          t("admin:therapists.billingInfo.saveSuccess", "Informations de facturation enregistrées"),
+        );
+      }
     } catch (err) {
       console.error("Error saving billing profile:", err);
       toast.error(
         t("admin:therapists.billingInfo.saveError", "Erreur lors de l'enregistrement"),
       );
+      throw err;
     } finally {
       setSaving(false);
     }
   };
+
+  const onSubmit = (values: BillingProfileFormValues) => persist(values);
+
+  useEffect(() => {
+    if (!submitRef) return;
+    submitRef.current = () => form.handleSubmit((values) => persist(values, true))();
+    return () => {
+      submitRef.current = null;
+    };
+  });
 
   if (loading) {
     return (
@@ -506,7 +526,7 @@ export function BillingProfileForm({
           </CardContent>
         </Card>
 
-        {!disabled && (
+        {!disabled && !submitRef && (
           <div className="flex justify-end">
             <Button type="submit" disabled={saving}>
               {saving ? (

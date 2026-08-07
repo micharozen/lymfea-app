@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -84,6 +84,9 @@ export default function TherapistDetail() {
   const [minimumGuarantee, setMinimumGuarantee] = useState<Record<string, number>>({});
   const [minimumGuaranteeActive, setMinimumGuaranteeActive] = useState(false);
   const [resending, setResending] = useState(false);
+
+  // Filled by the billing card so the page's "Enregistrer" saves it too.
+  const billingSubmitRef = useRef<(() => Promise<void>) | null>(null);
 
   const {
     url: profileImage,
@@ -305,6 +308,8 @@ export default function TherapistDetail() {
           therapistId: targetId,
           treatmentMenuIds: selectedTreatmentIds,
         });
+
+        await billingSubmitRef.current?.();
 
         toast.success(
           t("admin:therapists.saveSuccess", "Thérapeute enregistré avec succès")
@@ -536,6 +541,7 @@ export default function TherapistDetail() {
                   handleImageUpload={handleImageUpload}
                   triggerFileSelect={triggerFileSelect}
                   therapistId={effectiveTherapistId}
+                  billingSubmitRef={billingSubmitRef}
                 />
               </TabsContent>
             </Form>
