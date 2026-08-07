@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
-import { brand } from "../_shared/brand.ts";
 import {
   resolveIssuerLegal,
   type BillingProfileLegal,
@@ -295,7 +294,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
 
   <div class="footer">
     ${footerLegalLine}${footerLegalLine ? "<br>" : ""}
-    Généré par ${escapeHtml(brand.name)}
+    Généré par Saoma
   </div>
 </div>
 </body>

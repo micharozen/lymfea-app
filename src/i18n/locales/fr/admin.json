@@ -378,6 +378,8 @@
       "siret": "SIRET",
       "siretHint": "Laisser vide si auto-entrepreneur sans SIRET",
       "siren": "SIREN",
+      "vatStatus": "Régime de TVA",
+      "vatSubject": "Assujetti à la TVA",
       "vatExempt": "Non assujetti à la TVA",
       "vatExemptHint": "Article 293 B du CGI (auto-entrepreneurs)",
       "tvaNumber": "N° TVA intracommunautaire",
