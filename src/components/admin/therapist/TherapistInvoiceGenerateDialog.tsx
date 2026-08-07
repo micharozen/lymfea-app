@@ -68,8 +68,10 @@ export function TherapistInvoiceGenerateDialog({
   }, [year, month]);
 
   // Load bookings in the period that are paid but not yet finalized
-  // (neither completed nor cancelled) — these are excluded from the invoice
-  // until finalized.
+  // (neither completed, no-show nor cancelled) — these are excluded from the
+  // invoice until finalized. Les no-shows sont déjà facturés à 100 % : ils ne
+  // doivent pas être proposés à la finalisation, qui les passerait en
+  // "completed".
   const loadPending = async () => {
     try {
       const { data, error } = await supabase
@@ -80,7 +82,7 @@ export function TherapistInvoiceGenerateDialog({
         .eq("therapist_id", therapistId)
         .gte("booking_date", period.periodStart)
         .lte("booking_date", period.periodEnd)
-        .not("status", "in", "(completed,cancelled)")
+        .not("status", "in", "(completed,cancelled,noshow,no_show)")
         .in("payment_status", PAID_STATUSES)
         .order("booking_date");
       if (error) throw error;
