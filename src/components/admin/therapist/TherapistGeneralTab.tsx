@@ -76,6 +76,7 @@ interface TherapistGeneralTabProps {
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   triggerFileSelect: () => void;
   therapistId: string | null;
+  billingSubmitRef?: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
 export function TherapistGeneralTab({
@@ -87,6 +88,7 @@ export function TherapistGeneralTab({
   handleImageUpload,
   triggerFileSelect,
   therapistId,
+  billingSubmitRef,
 }: TherapistGeneralTabProps) {
   const { t } = useTranslation("common");
 
@@ -406,6 +408,7 @@ export function TherapistGeneralTab({
           ownerType="therapist"
           ownerId={therapistId}
           disabled={disabled}
+          submitRef={billingSubmitRef}
         />
       )}
     </div>

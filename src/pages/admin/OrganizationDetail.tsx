@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { BillingProfileForm } from "@/components/admin/billing/BillingProfileForm";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Building2, Pencil, Trash2, UserPlus } from "lucide-react";
 import {
@@ -182,6 +183,18 @@ export default function OrganizationDetail() {
       </div>
 
       <div className="flex-1 px-4 md:px-6 pb-6 space-y-6">
+        {!loading && org && (
+          <section>
+            <div className="mb-3">
+              <h2 className="text-sm font-medium text-foreground">Informations de facturation</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Identité reprise sur les factures émises et reçues par l'organisation.
+              </p>
+            </div>
+            <BillingProfileForm ownerType="organization" ownerId={org.id} />
+          </section>
+        )}
+
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-medium text-foreground">Hôtels rattachés</h2>

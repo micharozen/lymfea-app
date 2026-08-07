@@ -1,22 +1,20 @@
-import { brand } from "./brand.ts";
+// L'identité juridique portée par une facture — organisation ou lieu — vient de
+// `billing_profiles`. Aucun repli sur _shared/brand.json : un champ vide reste
+// vide plutôt que d'emprunter les mentions d'une autre entité juridique (une
+// facture ne doit jamais mélanger deux sociétés).
 
-// The invoice ISSUER (émetteur) is the organization. These columns live on the
-// `organizations` table; each field falls back to the platform-wide
-// _shared/brand.json legal block when the organization has not been filled in.
-
-export interface OrgLegal {
+export interface BillingProfileLegal {
   commercial_name?: string | null;
-  legal_name?: string | null;
+  company_name?: string | null;
   legal_form?: string | null;
   legal_capital?: string | null;
   siren?: string | null;
   siret?: string | null;
-  rcs?: string | null;
-  vat_number?: string | null;
-  legal_address?: string | null;
-  legal_postal_code?: string | null;
-  legal_city?: string | null;
-  legal_country?: string | null;
+  tva_number?: string | null;
+  billing_address?: string | null;
+  billing_postal_code?: string | null;
+  billing_city?: string | null;
+  billing_country?: string | null;
 }
 
 export interface ResolvedIssuer {
@@ -32,31 +30,35 @@ export interface ResolvedIssuer {
   address: string;
 }
 
-const composeAddress = (org: OrgLegal): string | null => {
-  const street = org.legal_address?.trim();
-  const cityLine = [org.legal_postal_code, org.legal_city]
+const clean = (value: string | null | undefined): string => value?.trim() || "";
+
+export const composeBillingAddress = (
+  profile: BillingProfileLegal | null | undefined,
+): string => {
+  const cityLine = [profile?.billing_postal_code, profile?.billing_city]
+    .map((p) => clean(p))
     .filter(Boolean)
-    .join(" ")
-    .trim();
-  const parts = [street, cityLine, org.legal_country?.trim()].filter(Boolean);
-  return parts.length ? parts.join(", ") : null;
+    .join(" ");
+  return [clean(profile?.billing_address), cityLine, clean(profile?.billing_country)]
+    .filter(Boolean)
+    .join(", ");
 };
 
 /**
- * Resolves the invoice issuer identity from an organization row, falling back
- * to brand.json per field so no invoice breaks before organizations are filled.
+ * Resolves an invoice party identity from its billing profile. Missing fields
+ * come back as empty strings — the caller omits the corresponding line.
  */
 export const resolveIssuerLegal = (
-  org: OrgLegal | null | undefined,
+  profile: BillingProfileLegal | null | undefined,
 ): ResolvedIssuer => {
-  const fb = brand.legal;
+  const companyName = clean(profile?.company_name);
   return {
-    issuerName: org?.commercial_name || org?.legal_name || fb.companyName,
-    companyName: org?.legal_name || fb.companyName,
-    companyType: org?.legal_form || fb.companyType,
-    capital: org?.legal_capital || fb.capital,
-    siren: org?.siren || fb.siren,
-    vatNumber: org?.vat_number || fb.vatNumber,
-    address: composeAddress(org ?? {}) || fb.address,
+    issuerName: clean(profile?.commercial_name) || companyName,
+    companyName,
+    companyType: clean(profile?.legal_form),
+    capital: clean(profile?.legal_capital),
+    siren: clean(profile?.siren) || clean(profile?.siret).slice(0, 9),
+    vatNumber: clean(profile?.tva_number),
+    address: composeBillingAddress(profile),
   };
 };
