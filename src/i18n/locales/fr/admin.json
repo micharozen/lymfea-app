@@ -394,7 +394,9 @@
       "iban": "IBAN",
       "bic": "BIC",
       "saveSuccess": "Informations de facturation enregistrées",
-      "saveError": "Erreur lors de l'enregistrement"
+      "saveError": "Erreur lors de l'enregistrement",
+      "missingTitle": "Aucun profil de facturation défini",
+      "missingDescription": "Les factures mensuelles seront générées sans adresse, sans SIRET, sans coordonnées bancaires et avec une TVA à 20 %, ce qui les rend non conformes."
     }
   },
   "treatments": {

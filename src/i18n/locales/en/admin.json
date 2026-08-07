@@ -394,7 +394,9 @@
       "iban": "IBAN",
       "bic": "BIC",
       "saveSuccess": "Billing information saved",
-      "saveError": "Error saving billing information"
+      "saveError": "Error saving billing information",
+      "missingTitle": "No billing profile set",
+      "missingDescription": "Monthly invoices will be generated without an address, without a company number, without bank details and with 20% VAT, which makes them non-compliant."
     }
   },
   "treatments": {

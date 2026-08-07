@@ -31,7 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Landmark, Loader2, Save } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle, FileText, Landmark, Loader2, Save } from "lucide-react";
 
 const billingSchema = z.object({
   company_name: z.string().optional().default(""),
@@ -92,6 +93,7 @@ export function BillingProfileForm({
   const { t } = useTranslation("common");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasProfile, setHasProfile] = useState(true);
 
   const form = useForm<BillingProfileFormValues>({
     resolver: zodResolver(billingSchema),
@@ -134,6 +136,7 @@ export function BillingProfileForm({
       } else {
         form.reset(defaultValues);
       }
+      setHasProfile(!!data);
       setLoading(false);
     };
     if (ownerId) load();
@@ -172,6 +175,7 @@ export function BillingProfileForm({
       });
 
       if (error) throw error;
+      setHasProfile(true);
       if (!silent) {
         toast.success(
           t("admin:therapists.billingInfo.saveSuccess", "Informations de facturation enregistrées"),
@@ -225,6 +229,24 @@ export function BillingProfileForm({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {!hasProfile && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle className="font-normal">
+                  {t(
+                    "admin:therapists.billingInfo.missingTitle",
+                    "Aucun profil de facturation défini",
+                  )}
+                </AlertTitle>
+                <AlertDescription>
+                  {t(
+                    "admin:therapists.billingInfo.missingDescription",
+                    "Les factures mensuelles seront générées sans adresse, sans SIRET, sans coordonnées bancaires et avec une TVA à 20 %, ce qui les rend non conformes.",
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
