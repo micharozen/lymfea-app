@@ -394,7 +394,9 @@
       "iban": "IBAN",
       "bic": "BIC",
       "saveSuccess": "Billing information saved",
-      "saveError": "Error saving billing information"
+      "saveError": "Error saving billing information",
+      "missingTitle": "No billing profile set",
+      "missingDescription": "Monthly invoices will be generated without an address, without a company number, without bank details and with 20% VAT, which makes them non-compliant."
     }
   },
   "treatments": {
@@ -612,6 +614,16 @@
       "surchargeDescription": "Percentage added to the treatment total for bookings outside operating hours.",
       "indicator": "Outside operating hours — {{percent}}% surcharge applied",
       "surchargeBreakdown": "Out-of-hours surcharge ({{percent}}%)"
+    },
+    "billingProfile": {
+      "recipientTitle": "Therapist invoice recipient",
+      "recipientDescription": "The therapist remains the issuer of their invoice. This setting defines who it is addressed to.",
+      "billedByVenue": "This venue bills directly",
+      "billedByVenueOn": "Invoices are addressed to this venue, using the details below.",
+      "billedByVenueOff": "Invoices are addressed to the organization that owns the venue.",
+      "recipientSaved": "Recipient updated",
+      "recipientError": "Error saving",
+      "missingDescription": "Therapist invoices will be addressed to this venue using the details from its profile, without a company number or VAT number."
     }
   },
   "customers": {
@@ -1771,5 +1783,14 @@
     "cancel": "Cancel",
     "submit": "Block",
     "selectVenueFirst": "Select a venue to block"
+  },
+  "organization": {
+    "billingProfile": {
+      "commercialName": "Trading name",
+      "commercialNameHint": "Shown at the top of the invoice. Falls back to the registered name.",
+      "legalCapital": "Share capital",
+      "legalCapitalHint": "Included in the legal mentions at the bottom of invoices.",
+      "missingDescription": "Invoices issued or received by this organization will come out without a registered name, company number or VAT number."
+    }
   }
 }

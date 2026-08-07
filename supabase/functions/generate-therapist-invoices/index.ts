@@ -6,7 +6,7 @@ import { sendEmail } from "../_shared/send-email.ts";
 import { getBaseEmailTemplate, getEmailHeader } from "../_shared/email-template.ts";
 import {
   resolveIssuerLegal,
-  type OrgLegal,
+  type BillingProfileLegal,
   type ResolvedIssuer,
 } from "../_shared/issuer-legal.ts";
 
@@ -72,18 +72,8 @@ interface Hotel {
   city: string | null;
   organization_id: string | null;
   out_of_hours_surcharge_percent: number | null;
+  invoice_client: string | null;
 }
-
-// ── Correctif ciblé — destinataire de facture = le lieu ─────────────────────
-// Par défaut l'auto-facture du thérapeute est adressée à l'organisation
-// propriétaire du lieu (LYMFA CENTER). Le Cap d'Antibes Beach Hôtel facture en
-// direct : ses thérapeutes doivent adresser leur facture à l'hôtel.
-// Contournement volontairement minimal, à remplacer par un réglage par lieu
-// (ex. hotels.invoice_client = 'platform' | 'venue') quand le besoin se
-// généralisera.
-const INVOICE_CLIENT_IS_VENUE_HOTEL_IDS = new Set<string>([
-  "7a33f87a-5751-41ac-998d-0596d9eeda08", // Cap d'Antibes Beach Hôtel
-]);
 
 /**
  * Identité du destinataire de la facture pour un lieu qui facture en direct.
@@ -201,6 +191,17 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     issuerLegalLines.push(`N° TVA ${escapeHtml(billingProfile.tva_number)}`);
 
   const legal = data.platformLegal;
+  // Mentions légales du pied de page : chaque segment est omis quand la donnée
+  // manque, jamais remplacé par celle d'une autre société.
+  const footerLegalLine = [
+    [legal.companyName, legal.companyType].filter(Boolean).join(" · "),
+    legal.capital ? `au capital de ${legal.capital}` : "",
+    legal.siren ? `N° SIREN ${legal.siren}` : "",
+    legal.vatNumber ? `N° TVA ${legal.vatNumber}` : "",
+  ]
+    .filter(Boolean)
+    .map((part) => escapeHtml(part))
+    .join(" · ");
   const client = data.invoiceClient;
   const clientAddressHtml = escapeHtml(client.address).replace(/, /g, "<br>");
   const clientLegalLines: string[] = [];
@@ -453,20 +454,28 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   </table>
 
   <div class="summary">
-    <div class="tva-details">
+    ${
+      billingProfile.vat_exempt
+        ? `<div class="tva-details"></div>`
+        : `<div class="tva-details">
       <div class="tva-title">Détails TVA</div>
       <div class="tva-grid">
         <div class="head">Taux</div><div class="head">Montant TVA</div><div class="head">Base HT</div>
-        <div>${billingProfile.vat_exempt ? "—" : `${vatRate}%`}</div>
+        <div>${vatRate}%</div>
         <div>${formatAmount(vatAmount)}</div>
         <div>${formatAmount(amountHt)}</div>
       </div>
-    </div>
+    </div>`
+    }
     <div class="reca">
       <div class="reca-title">Récapitulatif</div>
       <div class="reca-row"><span>Total HT</span><span>${formatAmount(amountHt)}</span></div>
-      <div class="reca-row"><span>Total TVA</span><span>${formatAmount(vatAmount)}</span></div>
-      <div class="reca-row total"><span>Total TTC</span><span>${formatAmount(amountTtc)}</span></div>
+      ${
+        billingProfile.vat_exempt
+          ? ""
+          : `<div class="reca-row"><span>Total TVA</span><span>${formatAmount(vatAmount)}</span></div>`
+      }
+      <div class="reca-row total"><span>${billingProfile.vat_exempt ? "Net à payer" : "Total TTC"}</span><span>${formatAmount(amountTtc)}</span></div>
     </div>
   </div>
 
@@ -480,7 +489,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   </div>
 
   <div class="footer">
-    ${escapeHtml(legal.companyName)} · ${escapeHtml(legal.companyType)} au capital de ${escapeHtml(legal.capital)} · N° SIREN ${escapeHtml(legal.siren)} · N° TVA ${escapeHtml(legal.vatNumber)}<br>
+    ${footerLegalLine}${footerLegalLine ? "<br>" : ""}
     Généré par ${escapeHtml(brand.name)}
   </div>
 </div>
@@ -534,13 +543,16 @@ const generateForTherapistHotel = async (
   const endStr = periodEnd.toISOString().slice(0, 10);
 
   const bookingSelect =
-    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, booking_treatments(therapist_id, treatment_menus(name, duration))";
+    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, booking_treatments(therapist_id, treatment_menus(name, duration), treatment_variants(label, duration))";
+  // Un no-show est facturé 100 % au client : le thérapeute s'est déplacé, il est
+  // rémunéré comme pour un soin réalisé. Les deux orthographes du statut
+  // coexistent en base (legacy `no_show`).
   const applyEligibility = (q: any) =>
     q
       .eq("hotel_id", hotel.id)
       .gte("booking_date", startStr)
       .lte("booking_date", endStr)
-      .in("status", ["completed"])
+      .in("status", ["completed", "noshow", "no_show"])
       .in("payment_status", ["paid", "charged_to_room", "offert"]);
 
   // Bookings where this therapist is the primary (solo + legacy).
@@ -619,29 +631,39 @@ const generateForTherapistHotel = async (
     const treatments = ((b as any).booking_treatments || []) as Array<{
       therapist_id?: string | null;
       treatment_menus?: { name?: string | null; duration?: number | null } | null;
+      treatment_variants?: { label?: string | null; duration?: number | null } | null;
     }>;
+    // La durée réellement réservée est celle de la variante quand il y en a une
+    // (ex. « LET IT GO BODY » 60 min au menu, variante 90 min) ; sans variante on
+    // retombe sur la durée du soin.
+    const lineDuration = (bt: (typeof treatments)[number]): number =>
+      bt.treatment_variants?.duration ?? bt.treatment_menus?.duration ?? 0;
     // When the stable soin↔therapist link is present, this therapist is paid on
     // the sum of THEIR soins; otherwise fall back to the booking duration (or the
     // total treatment duration). Only used when no payout row exists (see below).
     const linkedDuration = treatments.some((bt) => bt.therapist_id != null)
       ? treatments
           .filter((bt) => bt.therapist_id === therapist.id)
-          .reduce((sum, bt) => sum + (bt.treatment_menus?.duration || 0), 0)
+          .reduce((sum, bt) => sum + lineDuration(bt), 0)
       : 0;
-    const treatmentsDuration = treatments.reduce(
-      (sum, bt) => sum + (bt.treatment_menus?.duration || 0),
-      0,
-    );
+    const treatmentsDuration = treatments.reduce((sum, bt) => sum + lineDuration(bt), 0);
     const dur = linkedDuration > 0
       ? linkedDuration
       : (b as any).duration && (b as any).duration > 0
       ? (b as any).duration
       : treatmentsDuration;
-    const label =
+    const isNoShow = ["noshow", "no_show"].includes(String((b as any).status));
+    const treatmentsLabel =
       treatments
-        .map((bt) => bt.treatment_menus?.name)
+        .map((bt) => {
+          const name = bt.treatment_menus?.name;
+          if (!name) return null;
+          const variant = bt.treatment_variants?.label?.trim();
+          return variant ? `${name} · ${variant}` : name;
+        })
         .filter(Boolean)
         .join(" + ") || "Prestation";
+    const label = isNoShow ? `${treatmentsLabel} (no-show)` : treatmentsLabel;
 
     // Payouts are the per-therapist source of truth; fall back to
     // duration-based rates only when no payout row exists. The fallback must
@@ -700,24 +722,23 @@ const generateForTherapistHotel = async (
 
   const profile: BillingProfile = billingProfile ?? {};
 
-  // Platform party (client / récepteur of the auto-invoice) = the organization
-  // that owns the venue; falls back to brand.json per field.
-  let orgLegal: OrgLegal | null = null;
+  // Destinataire par défaut de l'auto-facture : l'organisation propriétaire du
+  // lieu, via son profil de facturation.
+  let orgProfile: BillingProfileLegal | null = null;
   if (hotel.organization_id) {
     const { data: org } = await supabaseAdmin
-      .from("organizations")
-      .select(
-        "commercial_name, legal_name, legal_form, legal_capital, siren, siret, rcs, vat_number, legal_address, legal_postal_code, legal_city, legal_country",
-      )
-      .eq("id", hotel.organization_id)
+      .from("billing_profiles")
+      .select("*")
+      .eq("owner_type", "organization")
+      .eq("owner_id", hotel.organization_id)
       .maybeSingle();
-    orgLegal = org;
+    orgProfile = org;
   }
-  const platformLegal = resolveIssuerLegal(orgLegal);
+  const platformLegal = resolveIssuerLegal(orgProfile);
 
-  // Destinataire de la facture : la plateforme, sauf pour les lieux qui
-  // facturent en direct (voir INVOICE_CLIENT_IS_VENUE_HOTEL_IDS).
-  const billedByVenue = INVOICE_CLIENT_IS_VENUE_HOTEL_IDS.has(hotel.id);
+  // Destinataire de la facture : l'organisation propriétaire du lieu, sauf
+  // pour les lieux réglés sur « facture en direct » (hotels.invoice_client).
+  const billedByVenue = hotel.invoice_client === "venue";
   let invoiceClient = platformLegal;
   if (billedByVenue) {
     const { data: venueProfile } = await supabaseAdmin
@@ -933,7 +954,7 @@ serve(async (req: Request) => {
       let venuesQuery = supabaseAdmin
         .from("therapist_venues")
         .select(
-          "hotel_id, hotels(id, name, vat, address, postal_code, city, organization_id, out_of_hours_surcharge_percent)",
+          "hotel_id, hotels(id, name, vat, address, postal_code, city, organization_id, out_of_hours_surcharge_percent, invoice_client)",
         )
         .eq("therapist_id", therapist.id);
       if (hotel_id) venuesQuery = venuesQuery.eq("hotel_id", hotel_id);

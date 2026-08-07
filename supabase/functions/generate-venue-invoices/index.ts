@@ -3,7 +3,7 @@ import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { brand } from "../_shared/brand.ts";
 import {
   resolveIssuerLegal,
-  type OrgLegal,
+  type BillingProfileLegal,
   type ResolvedIssuer,
 } from "../_shared/issuer-legal.ts";
 
@@ -99,6 +99,17 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
 
   const legal = data.issuer;
 
+  // Mentions légales du pied de page : segment omis quand la donnée manque,
+  // jamais remplacé par celle d'une autre société.
+  const footerLegalLine = [
+    [legal.companyName, legal.companyType].filter(Boolean).join(" · "),
+    legal.capital ? `au capital de ${legal.capital}` : "",
+    legal.siren ? `N° SIREN ${legal.siren}` : "",
+    legal.vatNumber ? `N° TVA ${legal.vatNumber}` : "",
+  ]
+    .filter(Boolean)
+    .map((part) => escapeHtml(part))
+    .join(" · ");
   const issuerName = legal.issuerName;
   const issuerAddressHtml = escapeHtml(legal.address).replace(/, /g, "<br>");
 
@@ -211,9 +222,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
         <div class="party-label">Émetteur</div>
         <div class="party-name">${escapeHtml(issuerName)}</div>
         <div class="party-lines">
-          ${issuerAddressHtml}<br>
-          SIREN ${escapeHtml(legal.siren)}<br>
-          N° TVA ${escapeHtml(legal.vatNumber)}
+          ${issuerAddressHtml}${legal.siren ? `<br>SIREN ${escapeHtml(legal.siren)}` : ""}${legal.vatNumber ? `<br>N° TVA ${escapeHtml(legal.vatNumber)}` : ""}
         </div>
       </div>
       <div class="party">
@@ -285,7 +294,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   </div>
 
   <div class="footer">
-    ${escapeHtml(legal.companyName)} · ${escapeHtml(legal.companyType)} au capital de ${escapeHtml(legal.capital)} · N° SIREN ${escapeHtml(legal.siren)} · N° TVA ${escapeHtml(legal.vatNumber)}<br>
+    ${footerLegalLine}${footerLegalLine ? "<br>" : ""}
     Généré par ${escapeHtml(brand.name)}
   </div>
 </div>
@@ -357,20 +366,19 @@ const generateForHotel = async (
 
   const profile: BillingProfile = billingProfile ?? {};
 
-  // Issuer (émetteur) = the organization that owns the venue; falls back to
-  // brand.json per field until the organization's legal identity is filled in.
-  let orgLegal: OrgLegal | null = null;
+  // Issuer (émetteur) = the organization that owns the venue, via its billing
+  // profile. Missing fields stay empty rather than borrowing another entity's.
+  let orgProfile: BillingProfileLegal | null = null;
   if (hotel.organization_id) {
     const { data: org } = await supabaseAdmin
-      .from("organizations")
-      .select(
-        "commercial_name, legal_name, legal_form, legal_capital, siren, siret, rcs, vat_number, legal_address, legal_postal_code, legal_city, legal_country",
-      )
-      .eq("id", hotel.organization_id)
+      .from("billing_profiles")
+      .select("*")
+      .eq("owner_type", "organization")
+      .eq("owner_id", hotel.organization_id)
       .maybeSingle();
-    orgLegal = org;
+    orgProfile = org;
   }
-  const issuer = resolveIssuerLegal(orgLegal);
+  const issuer = resolveIssuerLegal(orgProfile);
 
   // Les montants des bookings sont TTC — on extrait la TVA (20%) plutôt que de l'ajouter.
   const vatRate = 20;

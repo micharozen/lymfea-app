@@ -394,7 +394,9 @@
       "iban": "IBAN",
       "bic": "BIC",
       "saveSuccess": "Informations de facturation enregistrées",
-      "saveError": "Erreur lors de l'enregistrement"
+      "saveError": "Erreur lors de l'enregistrement",
+      "missingTitle": "Aucun profil de facturation défini",
+      "missingDescription": "Les factures mensuelles seront générées sans adresse, sans SIRET, sans coordonnées bancaires et avec une TVA à 20 %, ce qui les rend non conformes."
     }
   },
   "treatments": {
@@ -612,6 +614,16 @@
       "surchargeDescription": "Pourcentage ajouté au total des soins pour les réservations hors horaires.",
       "indicator": "Hors horaires d'ouverture — Majoration de {{percent}}% appliquée",
       "surchargeBreakdown": "Majoration hors horaires ({{percent}}%)"
+    },
+    "billingProfile": {
+      "recipientTitle": "Destinataire des factures thérapeutes",
+      "recipientDescription": "Le thérapeute reste l'émetteur de sa facture. Ce réglage définit à qui elle est adressée.",
+      "billedByVenue": "Le lieu facture en direct",
+      "billedByVenueOn": "Les factures sont adressées à ce lieu, avec les informations ci-dessous.",
+      "billedByVenueOff": "Les factures sont adressées à l'organisation propriétaire du lieu.",
+      "recipientSaved": "Destinataire mis à jour",
+      "recipientError": "Erreur lors de l'enregistrement",
+      "missingDescription": "Les factures des thérapeutes seront adressées à ce lieu avec les coordonnées de sa fiche, sans SIRET ni numéro de TVA."
     }
   },
   "customers": {
@@ -1771,5 +1783,14 @@
     "cancel": "Annuler",
     "submit": "Bloquer",
     "selectVenueFirst": "Sélectionnez un lieu pour bloquer"
+  },
+  "organization": {
+    "billingProfile": {
+      "commercialName": "Nom commercial",
+      "commercialNameHint": "Affiché en tête de facture. À défaut, la raison sociale est utilisée.",
+      "legalCapital": "Capital social",
+      "legalCapitalHint": "Repris dans les mentions légales en pied de facture.",
+      "missingDescription": "Les factures émises ou reçues par cette organisation sortiront sans raison sociale, sans SIREN et sans numéro de TVA."
+    }
   }
 }
