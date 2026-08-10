@@ -592,8 +592,20 @@ try {
       (validTreatments || []).filter(t => t.amenity_id != null).map(t => t.id),
     );
     const isAmenityLine = (treatmentId: string) => amenityLineIds.has(treatmentId);
-    const durationOfLine = (line: { treatmentId: string }) =>
-      validTreatments?.find(t => t.id === line.treatmentId)?.duration || 0;
+    // La variante prime sur le soin pour la durée : une variante 90 min doit
+    // bloquer 90 min de salle, pas la durée de base du menu (60 min).
+    const { data: selectedVariants } = selectedVariantIds.length > 0
+      ? await supabase
+        .from('treatment_variants')
+        .select('id, duration')
+        .in('id', selectedVariantIds)
+      : { data: [] as Array<{ id: string; duration: number | null }> };
+    const variantDurationById = new Map(
+      (selectedVariants || []).map(v => [v.id, v.duration]),
+    );
+    const durationOfLine = (line: { treatmentId: string; variantId?: string | null }) =>
+      ((line.variantId ? variantDurationById.get(line.variantId) : null) ??
+        validTreatments?.find(t => t.id === line.treatmentId)?.duration) || 0;
 
     const totalDuration = computeSlotDuration(treatments, isDuoBooking, durationOfLine, isAddonLine, isAmenityLine);
     console.log('Total booking duration:', totalDuration, 'minutes');
