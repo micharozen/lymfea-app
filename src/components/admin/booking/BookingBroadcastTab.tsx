@@ -78,10 +78,21 @@ export function BookingBroadcastTab({ bookingId, enabled }: BookingBroadcastTabP
   const reasonLabel = (row: BroadcastAuditRow) =>
     t(`broadcast.reasons.${row.exclusionReason ?? "unknown"}`);
 
-  const reasonDetail = (row: BroadcastAuditRow) =>
-    row.exclusionReason === "not_qualified" && row.missingTreatments.length > 0
-      ? t("broadcast.reasonsLong.not_qualified", { treatments: row.missingTreatments.join(", ") })
-      : t(`broadcast.reasonsLong.${row.exclusionReason ?? "unknown"}`);
+  const genderPreference = data?.genderPreference?.toLowerCase() ?? null;
+
+  const reasonDetail = (row: BroadcastAuditRow) => {
+    if (row.exclusionReason === "not_qualified" && row.missingTreatments.length > 0) {
+      return t("broadcast.reasonsLong.not_qualified", { treatments: row.missingTreatments.join(", ") });
+    }
+    if (row.exclusionReason === "gender_mismatch") {
+      return t("broadcast.reasonsLong.gender_mismatch", {
+        preference: t(`broadcast.genderPreference.${genderPreference}`, {
+          defaultValue: genderPreference ?? "",
+        }),
+      });
+    }
+    return t(`broadcast.reasonsLong.${row.exclusionReason ?? "unknown"}`);
+  };
 
   return (
     <TooltipProvider delayDuration={200}>
