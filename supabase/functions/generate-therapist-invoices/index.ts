@@ -546,7 +546,7 @@ const generateForTherapistHotel = async (
   const endStr = periodEnd.toISOString().slice(0, 10);
 
   const bookingSelect =
-    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, booking_treatments(therapist_id, treatment_menus(name, duration), treatment_variants(label, duration))";
+    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, booking_treatments(therapist_id, is_addon, treatment_menus(name, duration), treatment_variants(label, duration))";
   // Un no-show est facturé 100 % au client : le thérapeute s'est déplacé, il est
   // rémunéré comme pour un soin réalisé. Les deux orthographes du statut
   // coexistent en base (legacy `no_show`).
@@ -633,6 +633,7 @@ const generateForTherapistHotel = async (
   for (const b of eligibleBookings) {
     const treatments = ((b as any).booking_treatments || []) as Array<{
       therapist_id?: string | null;
+      is_addon?: boolean | null;
       treatment_menus?: { name?: string | null; duration?: number | null } | null;
       treatment_variants?: { label?: string | null; duration?: number | null } | null;
     }>;
@@ -650,10 +651,19 @@ const generateForTherapistHotel = async (
           .reduce((sum, bt) => sum + lineDuration(bt), 0)
       : 0;
     const treatmentsDuration = treatments.reduce((sum, bt) => sum + lineDuration(bt), 0);
+    // bookings.duration peut rester sur la durée du menu alors que la variante
+    // réservée est plus longue (résa #627 : 2 × variante 90 min, duration = 60),
+    // ce qui facture le thérapeute au tarif 60. Le repli est donc plancher-né par
+    // le soin de base le plus long : on ne somme pas (duo = soins en parallèle,
+    // solo enchaîné = bookings.duration porte déjà la somme).
+    const longestBaseTreatment = treatments
+      .filter((bt) => !bt.is_addon)
+      .reduce((max, bt) => Math.max(max, lineDuration(bt)), 0);
+    const bookingDuration = Math.max(Number((b as any).duration) || 0, longestBaseTreatment);
     const dur = linkedDuration > 0
       ? linkedDuration
-      : (b as any).duration && (b as any).duration > 0
-      ? (b as any).duration
+      : bookingDuration > 0
+      ? bookingDuration
       : treatmentsDuration;
     const isNoShow = ["noshow", "no_show"].includes(String((b as any).status));
     const treatmentsLabel =
