@@ -155,7 +155,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     if (selectedDate) form.setValue("date", selectedDate);
     if (selectedTime) form.setValue("time", selectedTime);
     if (presetTherapistId) form.setValue("therapistId", presetTherapistId);
-  }, [selectedDate, selectedTime, presetTherapistId]);
+    if (presetHotelId) form.setValue("hotelId", presetHotelId);
+  }, [selectedDate, selectedTime, presetTherapistId, presetHotelId]);
 
 
   const scope = useOrgScope();

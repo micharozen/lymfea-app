@@ -3,14 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { EXCLUDED_BOOKING_STATUSES } from "./useAvailableTherapistsForSlot";
+import { distinctTherapists, useVenueTherapists } from "./useVenueTherapists";
 import type { BookingWithTreatments } from "./useBookingData";
+import type { TherapistLite } from "./useVenueTherapists";
 
-export interface TherapistLite {
-  id: string;
-  first_name: string;
-  last_name: string | null;
-  profile_image: string | null;
-}
+export type { TherapistLite };
 
 /** Half-open minute range from midnight: [startMin, endMin). */
 export interface TimeRange {
@@ -21,6 +18,8 @@ export interface TimeRange {
 export interface BlockedRange extends TimeRange {
   id: string;
   label: string;
+  /** Lieu concerné : en multi-lieux une bande ne vaut que pour ses thérapeutes. */
+  hotelId: string;
 }
 
 /** Blocage ponctuel daté ciblant une salle de soin précise. */
@@ -31,6 +30,8 @@ export interface RoomBlockedRange extends BlockedRange {
 
 export interface TherapistDayColumn {
   therapist: TherapistLite;
+  /** Lieux visibles auxquels il est rattaché : plusieurs = il tourne sur plusieurs spas. */
+  venueIds: string[];
   /** Declared working ranges for the day. Empty = not working (absent or undeclared). */
   openRanges: TimeRange[];
   /** An absence was recorded (therapist_availability.is_available = false). */
@@ -56,7 +57,7 @@ export interface HourAvailability {
   hour: number;
   /** Therapists who can take the searched treatment at this hour (or who are simply free). */
   free: FreeTherapist[];
-  /** The hour is closed venue-wide (blocked slot). */
+  /** Closed venue-wide (blocked slot) — en multi-lieux, seulement si tous le sont. */
   isBlocked: boolean;
 }
 
@@ -75,10 +76,12 @@ export interface TherapistDayPlanning {
   qualifiedTherapistCount: number;
   /** Columns hidden by the scheduled-only filter. */
   hiddenColumnCount: number;
+  /** Plusieurs lieux affichés : mode dégradé (pas de recherche par soin, bandes par lieu). */
+  isMultiVenue: boolean;
   isLoading: boolean;
 }
 
-interface Shift {
+export interface Shift {
   start: string;
   end: string;
 }
@@ -90,7 +93,11 @@ export interface SearchedTreatment {
 }
 
 interface UseTherapistDayPlanningOptions {
-  venueId: string | null;
+  /**
+   * Lieux affichés. Un seul lieu = vue complète ; plusieurs = vue « équipe », où
+   * une fermeture ne vaut que pour les thérapeutes du lieu concerné.
+   */
+  venueIds: string[];
   date: Date;
   /**
    * The page's unfiltered booking list — scoping to the venue and the day happens
@@ -111,14 +118,14 @@ const ACTIVE_STATUSES = ["active", "actif"];
 /** Bookings that never appear on the planning: they occupy nobody and add noise. */
 const HIDDEN_BOOKING_STATUSES = ["Annulé", "cancelled", "canceled", "noshow", "no_show"];
 
-function timeToMinutes(time: string | null | undefined): number {
+export function timeToMinutes(time: string | null | undefined): number {
   if (!time) return 0;
   const [h, m] = time.split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
 }
 
 /** `therapist_availability.shifts` is untyped Json — keep only usable entries. */
-function parseShifts(value: unknown): Shift[] {
+export function parseShifts(value: unknown): Shift[] {
   if (!Array.isArray(value)) return [];
   return value.filter(
     (s): s is Shift =>
@@ -158,8 +165,16 @@ export function therapistIdsForBooking(booking: BookingWithTreatments): string[]
 }
 
 /**
- * One column per therapist for a single day at a single venue: declared shifts,
- * their bookings, and who could actually take a given treatment each hour.
+ * One column per therapist for a single day, over one or several venues:
+ * declared shifts, their bookings, and who could actually take a given treatment
+ * each hour.
+ *
+ * Sur plusieurs lieux, un thérapeute rattaché à deux spas garde une seule colonne
+ * (ses horaires sont globaux) et une fermeture de lieu ne s'applique qu'à ses
+ * thérapeutes : une heure n'est déclarée fermée que si tous les lieux visibles le
+ * sont. La recherche par soin, elle, reste réservée au mono-lieu — les
+ * `treatment_menus` sont par lieu, donc les qualifications ne sont comparables
+ * qu'à l'intérieur d'un même lieu.
  *
  * Availability is strictly declarative — no therapist_availability row means
  * "not available", matching `useAvailableTherapistsForSlot` (the reference for
@@ -181,7 +196,7 @@ export function therapistIdsForBooking(booking: BookingWithTreatments): string[]
  * authority before committing a reservation.
  */
 export function useTherapistDayPlanning({
-  venueId,
+  venueIds,
   date,
   bookings,
   startHour,
@@ -192,36 +207,27 @@ export function useTherapistDayPlanning({
   const dateStr = format(date, "yyyy-MM-dd");
   const dayOfWeek = date.getDay(); // 0 = Sunday
 
-  const { data: venueTherapists, isLoading: isLoadingTherapists } = useQuery({
-    queryKey: ["therapist-day-planning", "venue-therapists", venueId],
-    enabled: !!venueId,
-    staleTime: 60_000,
-    queryFn: async (): Promise<TherapistLite[]> => {
-      const { data, error } = await supabase
-        .from("therapist_venues")
-        .select("therapist_id, therapists!inner(id, first_name, last_name, profile_image, status)")
-        .eq("hotel_id", venueId!);
-      if (error) throw error;
+  // Clé stable quel que soit l'ordre reçu, pour les dépendances de mémoïsation.
+  const venueKey = [...venueIds].sort().join(",");
 
-      type Row = { therapists: (TherapistLite & { status: string }) | null };
-      return ((data as unknown as Row[]) || [])
-        .map((row) => row.therapists)
-        .filter((t): t is TherapistLite & { status: string } =>
-          !!t && ACTIVE_STATUSES.includes((t.status || "").toLowerCase()),
-        )
-        .map(({ status: _status, ...t }) => t)
-        .sort((a, b) => a.first_name.localeCompare(b.first_name));
-    },
-  });
+  const { data: therapistLinks, isLoading: isLoadingTherapists } =
+    useVenueTherapists(venueIds);
 
-  const therapistIds = useMemo(
-    () => (venueTherapists || []).map((t) => t.id),
-    [venueTherapists],
+  const therapistEntries = useMemo(
+    () => distinctTherapists(therapistLinks),
+    [therapistLinks],
   );
 
+  const therapistIds = useMemo(
+    () => therapistEntries.map((e) => e.therapist.id),
+    [therapistEntries],
+  );
+
+  // `therapist_availability` n'a pas de lieu : les horaires valent pour la journée
+  // entière du thérapeute, tous spas confondus.
   const { data: schedules, isLoading: isLoadingSchedules } = useQuery({
-    queryKey: ["therapist-day-planning", "schedules", venueId, dateStr, therapistIds],
-    enabled: !!venueId && therapistIds.length > 0,
+    queryKey: ["therapist-day-planning", "schedules", dateStr, therapistIds],
+    enabled: therapistIds.length > 0,
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -243,14 +249,14 @@ export function useTherapistDayPlanning({
   // datés de ce jour. Un blocage daté peut viser une salle précise (room_id) —
   // il ne ferme alors pas l'heure, il informe.
   const { data: blockedSlots } = useQuery({
-    queryKey: ["therapist-day-planning", "blocked-slots", venueId, dateStr],
-    enabled: !!venueId,
+    queryKey: ["therapist-day-planning", "blocked-slots", venueIds, dateStr],
+    enabled: venueIds.length > 0,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("venue_blocked_slots")
-        .select("id, label, start_time, end_time, days_of_week, block_date, room_id, treatment_rooms(name)")
-        .eq("hotel_id", venueId!)
+        .select("id, hotel_id, label, start_time, end_time, days_of_week, block_date, room_id, treatment_rooms(name)")
+        .in("hotel_id", venueIds)
         .eq("is_active", true)
         .or(`block_date.is.null,block_date.eq.${dateStr}`);
       if (error) throw error;
@@ -258,30 +264,30 @@ export function useTherapistDayPlanning({
     },
   });
 
-  // Nombre de salles actives : une heure n'est réellement fermée que si tous les
+  // Salles actives par lieu : une heure n'est réellement fermée que si tous les
   // blocages salle du créneau couvrent l'intégralité du lieu.
-  const { data: activeRoomIds } = useQuery({
-    queryKey: ["therapist-day-planning", "rooms", venueId],
-    enabled: !!venueId,
+  const { data: activeRooms } = useQuery({
+    queryKey: ["therapist-day-planning", "rooms", venueIds],
+    enabled: venueIds.length > 0,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("treatment_rooms")
-        .select("id, status")
-        .eq("hotel_id", venueId!);
+        .select("id, hotel_id, status")
+        .in("hotel_id", venueIds);
       if (error) throw error;
       return (data || [])
         .filter((r) => ACTIVE_STATUSES.includes((r.status || "").toLowerCase()))
-        .map((r) => r.id);
+        .map((r) => ({ id: r.id, hotelId: r.hotel_id }));
     },
   });
 
-  // Which treatments each therapist of the venue performs. Only needed while a
-  // treatment is searched. One row per (therapist, treatment) association, so a
-  // single venue's team stays well under the PostgREST 1000-row cap.
+  // Which treatments each therapist performs. Only needed while a treatment is
+  // searched — donc en mono-lieu uniquement, ce qui garde la requête bien en
+  // dessous du plafond PostgREST de 1000 lignes.
   const { data: therapistTreatments, isLoading: isLoadingQualifications } = useQuery({
-    queryKey: ["therapist-day-planning", "qualifications", venueId, therapistIds],
-    enabled: !!venueId && !!treatment && therapistIds.length > 0,
+    queryKey: ["therapist-day-planning", "qualifications", therapistIds],
+    enabled: !!treatment && therapistIds.length > 0,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -312,8 +318,15 @@ export function useTherapistDayPlanning({
     const appliesToday = (b: { block_date: string | null; days_of_week: number[] | null }) =>
       b.block_date !== null || b.days_of_week === null || b.days_of_week.includes(dayOfWeek);
 
-    const toRange = (b: { id: string; label: string; start_time: string; end_time: string }) => ({
+    const toRange = (b: {
+      id: string;
+      hotel_id: string;
+      label: string;
+      start_time: string;
+      end_time: string;
+    }) => ({
       id: b.id,
+      hotelId: b.hotel_id,
       label: b.label,
       ...clamp({ startMin: timeToMinutes(b.start_time), endMin: timeToMinutes(b.end_time) }),
     });
@@ -336,19 +349,33 @@ export function useTherapistDayPlanning({
       .filter(isVisible)
       .sort((a, b) => a.startMin - b.startMin);
 
-    // Toutes les salles actives bloquées sur un créneau = le lieu y est fermé.
-    const roomCount = (activeRoomIds || []).length;
-    const isFullyBlockedByRooms = (range: TimeRange): boolean => {
-      if (roomCount === 0) return false;
+    const roomsByVenue = new Map<string, string[]>();
+    for (const room of activeRooms || []) {
+      roomsByVenue.set(room.hotelId, [...(roomsByVenue.get(room.hotelId) ?? []), room.id]);
+    }
+
+    /**
+     * Le lieu est fermé sur ce créneau : blocage couvrant tout le lieu, ou toutes
+     * ses salles actives bloquées. Raisonné lieu par lieu — en multi-lieux, une
+     * fermeture à un spa n'empêche rien chez le voisin.
+     */
+    const isVenueClosedAt = (hotelId: string, range: TimeRange): boolean => {
+      if (blockedRanges.some((b) => b.hotelId === hotelId && overlaps(range, b))) return true;
+      const rooms = roomsByVenue.get(hotelId) ?? [];
+      if (rooms.length === 0) return false;
       const covered = new Set(
-        roomBlockedRanges.filter((b) => overlaps(range, b)).map((b) => b.roomId),
+        roomBlockedRanges
+          .filter((b) => b.hotelId === hotelId && overlaps(range, b))
+          .map((b) => b.roomId),
       );
-      return (activeRoomIds || []).every((id) => covered.has(id));
+      return rooms.every((id) => covered.has(id));
     };
 
+    const venueSet = new Set(venueIds);
     const dayBookings = (bookings || []).filter(
       (b) =>
-        b.hotel_id === venueId &&
+        !!b.hotel_id &&
+        venueSet.has(b.hotel_id) &&
         b.booking_date === dateStr &&
         !!b.booking_time &&
         !HIDDEN_BOOKING_STATUSES.includes(b.status),
@@ -394,7 +421,7 @@ export function useTherapistDayPlanning({
       (schedules || []).map((s) => [s.therapist_id, s]),
     );
 
-    const allColumns: TherapistDayColumn[] = (venueTherapists || []).map((therapist) => {
+    const allColumns: TherapistDayColumn[] = therapistEntries.map(({ therapist, hotelIds }) => {
       const schedule = scheduleByTherapist.get(therapist.id);
       const hasNoSchedule = !schedule;
       const isAbsent = !!schedule && !schedule.is_available;
@@ -415,6 +442,7 @@ export function useTherapistDayPlanning({
 
       return {
         therapist,
+        venueIds: hotelIds,
         openRanges,
         isAbsent,
         hasNoSchedule,
@@ -435,7 +463,10 @@ export function useTherapistDayPlanning({
         ? { startMin: hourStart, endMin: hourStart + requiredDuration }
         : { startMin: hourStart, endMin: hourStart + 60 };
 
-      if (blockedRanges.some((b) => overlaps(needed, b)) || isFullyBlockedByRooms(needed)) {
+      // L'heure n'est déclarée fermée que si tous les lieux affichés le sont ;
+      // en mono-lieu on retrouve exactement le comportement d'origine.
+      const closedVenues = new Set(venueIds.filter((id) => isVenueClosedAt(id, needed)));
+      if (venueIds.length > 0 && closedVenues.size === venueIds.length) {
         availabilityByHour.set(hour, { hour, free: [], isBlocked: true });
         continue;
       }
@@ -443,6 +474,8 @@ export function useTherapistDayPlanning({
       const free: FreeTherapist[] = [];
       for (const col of allColumns) {
         if (!col.isQualified) continue;
+        // Indisponible seulement si tous ses lieux sont fermés à cette heure.
+        if (col.venueIds.length > 0 && col.venueIds.every((id) => closedVenues.has(id))) continue;
         // The shift only has to cover the start, like both booking engines.
         const shift = col.openRanges.find(
           (r) => r.startMin <= hourStart && hourStart < r.endMin,
@@ -474,17 +507,20 @@ export function useTherapistDayPlanning({
       totalTherapistCount: allColumns.length,
       qualifiedTherapistCount: allColumns.filter((col) => col.isQualified).length,
       hiddenColumnCount: allColumns.length - columns.length,
+      isMultiVenue: venueIds.length > 1,
       isLoading,
     };
+    // `venueKey` remplace `venueIds` : le tableau est recréé à chaque rendu de la page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    venueTherapists,
+    therapistEntries,
     schedules,
     blockedSlots,
-    activeRoomIds,
+    activeRooms,
     therapistTreatments,
     treatment,
     bookings,
-    venueId,
+    venueKey,
     dateStr,
     dayOfWeek,
     startHour,
