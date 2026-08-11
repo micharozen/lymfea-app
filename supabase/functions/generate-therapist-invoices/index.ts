@@ -216,7 +216,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
       const durLabel = ln.durationMin > 0 ? `${ln.durationMin} min` : "—";
       return `<tr>
         <td class="date">${formatDateFr(new Date(`${ln.date}T00:00:00Z`))}</td>
-        <td>${escapeHtml(ln.label)}</td>
+        <td class="desc">${escapeHtml(ln.label)}</td>
         <td>${durLabel}</td>
         <td>${formatAmount(ln.amountHt)}</td>
       </tr>`;
@@ -325,6 +325,13 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     white-space: nowrap;
   }
   table.items tbody td:first-child { text-align: left; white-space: normal; word-break: break-word; }
+  table.items thead th:nth-child(2) { text-align: left; }
+  table.items tbody td.desc {
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 
   .summary { display: flex; gap: 40px; margin-top: 24px; }
   .tva-details { flex: 1; }
@@ -449,7 +456,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
       ${detailRows}
       <tr class="items-total">
         <td></td>
-        <td>Total prestations (${data.bookingsCount})</td>
+        <td class="desc">Total prestations (${data.bookingsCount})</td>
         <td></td>
         <td>${formatAmount(amountHt)}</td>
       </tr>
