@@ -2,7 +2,7 @@
   "$schema": "https://stripe.com/stripe-app.schema.json",
   "id": "saoma",
   "name": "Saoma",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "icon": "./icon.png",
   "extensions": null,
   "permissions": [
@@ -43,6 +43,14 @@
       "purpose": "Create a Stripe customer for each guest and save their card for later."
     },
     {
+      "permission": "payment_method_read",
+      "purpose": "Show the guest which card will be charged for their treatment."
+    },
+    {
+      "permission": "payment_method_write",
+      "purpose": "Let the guest enter their card on the secure Stripe payment page."
+    },
+    {
       "permission": "payment_links_read",
       "purpose": "Check whether a payment link sent to a guest has been paid."
     },
@@ -65,22 +73,14 @@
     {
       "permission": "invoice_write",
       "purpose": "Generate an invoice when a guest charges a treatment to their room."
-    },
-    {
-      "permission": "product_write",
-      "purpose": "Describe the treatments being purchased on the payment page."
-    },
-    {
-      "permission": "plan_write",
-      "purpose": "Set the price of the treatments being purchased on the payment page."
     }
   ],
   "allowed_redirect_uris": [
     "https://app.saoma.io/admin/payment-oauth-callback/stripe",
     "https://app.eiaspa.fr/admin/payment-oauth-callback/stripe",
-    "https://apptest.eiaspa.fr/admin/payment-oauth-callback/stripe",
     "https://demo.saoma.io/admin/payment-oauth-callback/stripe"
   ],
   "distribution_type": "public",
-  "stripe_api_access_type": "oauth"
+  "stripe_api_access_type": "oauth",
+  "sandbox_install_compatible": true
 }

@@ -49,13 +49,23 @@ export class StripeOAuthError extends Error {
  * account.
  */
 function appSecretKey(): string {
-  const key = Deno.env.get("STRIPE_APP_SECRET_KEY") ??
-    Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+  const appKey = Deno.env.get("STRIPE_APP_SECRET_KEY");
+  const key = appKey ?? Deno.env.get("STRIPE_SECRET_KEY") ?? "";
   if (!key) {
     throw new Error(
       "STRIPE_APP_SECRET_KEY (or STRIPE_SECRET_KEY) is not configured",
     );
   }
+  // Stripe answers `invalid_grant: Authorization code provided does not belong
+  // to you` whenever this key is not the app owner's, in the right mode — the
+  // two mistakes being a missing STRIPE_APP_SECRET_KEY (silent fallback to the
+  // platform key) and a live key against a test-channel code. Neither is
+  // visible from the error, hence this trace. Never log the key itself.
+  console.log(
+    `[stripe-oauth] app key from ${
+      appKey ? "STRIPE_APP_SECRET_KEY" : "STRIPE_SECRET_KEY (fallback)"
+    }, mode=${key.startsWith("sk_test_") ? "test" : "live"}`,
+  );
   return key;
 }
 
