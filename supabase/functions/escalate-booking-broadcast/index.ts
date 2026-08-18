@@ -119,9 +119,9 @@ serve(async (_req: Request) => {
           body: {
             bookingId: booking.id,
             notifyAll: true,
-            // Le client a déjà reçu sa confirmation à la création : une escalade
-            // est une affaire interne au lieu.
-            notifyClient: false,
+            // Une escalade est une affaire interne au lieu : le client a déjà reçu
+            // sa confirmation et Slack a déjà annoncé la réservation à sa création.
+            therapistsOnly: true,
             wave: booking.broadcast_wave + 1,
           },
           headers: {
