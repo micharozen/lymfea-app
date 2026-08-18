@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS "public"."bookings" (
     "client_type" "text" DEFAULT 'external'::"text" NOT NULL,
     "payment_reference" "text",
     "therapist_gender_preference" "text",
+    "broadcast_wave" integer,
+    "broadcast_wave_sent_at" timestamp with time zone,
     "external_reference" "text",
     "external_id" "text",
     CONSTRAINT "bookings_client_type_check" CHECK (("client_type" = ANY (ARRAY['hotel'::"text", 'staycation'::"text", 'classpass'::"text", 'sezame'::"text", 'external'::"text"]))),
@@ -99,6 +101,8 @@ ALTER TABLE ONLY "public"."bookings"
 CREATE UNIQUE INDEX "bookings_booking_id_idx" ON "public"."bookings" USING "btree" ("booking_id");
 
 CREATE INDEX "idx_bookings_awaiting_payment" ON "public"."bookings" USING "btree" ("payment_status", "created_at") WHERE ("payment_status" = 'awaiting_payment'::"text");
+
+CREATE INDEX "idx_bookings_broadcast_wave_pending" ON "public"."bookings" USING "btree" ("broadcast_wave_sent_at") WHERE (("status" = 'pending'::"text") AND ("broadcast_wave" IS NOT NULL));
 
 CREATE INDEX "idx_bookings_bundle_usage" ON "public"."bookings" USING "btree" ("bundle_usage_id") WHERE ("bundle_usage_id" IS NOT NULL);
 
