@@ -300,6 +300,7 @@
       "venue": "Venue",
       "status": "Status",
       "amount": "Amount",
+      "earnings": "Earnings",
       "allStatuses": "All statuses",
       "pending": "Pending",
       "confirmed": "Confirmed",

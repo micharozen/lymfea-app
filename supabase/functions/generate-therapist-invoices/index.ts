@@ -114,6 +114,7 @@ const resolveVenueClient = (
 // One detail row on the invoice = one billed booking.
 interface InvoiceLineDetail {
   date: string; // booking_date (YYYY-MM-DD)
+  clientName: string; // nom du client du soin
   label: string; // treatment name(s)
   durationMin: number;
   amountHt: number;
@@ -216,7 +217,8 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
       const durLabel = ln.durationMin > 0 ? `${ln.durationMin} min` : "—";
       return `<tr>
         <td class="date">${formatDateFr(new Date(`${ln.date}T00:00:00Z`))}</td>
-        <td>${escapeHtml(ln.label)}</td>
+        <td class="client">${escapeHtml(ln.clientName)}</td>
+        <td class="desc">${escapeHtml(ln.label)}</td>
         <td>${durLabel}</td>
         <td>${formatAmount(ln.amountHt)}</td>
       </tr>`;
@@ -295,6 +297,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   }
   table.items { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
   table.items col.col-date { width: 100px; }
+  table.items col.col-client { width: 130px; }
   table.items col.col-desc { width: auto; }
   table.items col.col-dur { width: 70px; }
   table.items col.col-ht { width: 110px; }
@@ -317,6 +320,13 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     white-space: nowrap;
   }
   table.items thead th:first-child { text-align: left; }
+  table.items thead th:nth-child(3) { text-align: left; }
+  table.items td.client {
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
   table.items tbody td {
     padding: 14px 6px;
     border-bottom: 1px solid #f2f2f2;
@@ -325,6 +335,13 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     white-space: nowrap;
   }
   table.items tbody td:first-child { text-align: left; white-space: normal; word-break: break-word; }
+  table.items thead th:nth-child(2) { text-align: left; }
+  table.items tbody td.desc {
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 
   .summary { display: flex; gap: 40px; margin-top: 24px; }
   .tva-details { flex: 1; }
@@ -433,6 +450,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   <table class="items">
     <colgroup>
       <col class="col-date">
+      <col class="col-client">
       <col class="col-desc">
       <col class="col-dur">
       <col class="col-ht">
@@ -440,6 +458,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     <thead>
       <tr>
         <th>Date</th>
+        <th>Client</th>
         <th>Prestation</th>
         <th>Durée</th>
         <th>Montant HT</th>
@@ -449,7 +468,8 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
       ${detailRows}
       <tr class="items-total">
         <td></td>
-        <td>Total prestations (${data.bookingsCount})</td>
+        <td></td>
+        <td class="desc">Total prestations (${data.bookingsCount})</td>
         <td></td>
         <td>${formatAmount(amountHt)}</td>
       </tr>
@@ -546,7 +566,7 @@ const generateForTherapistHotel = async (
   const endStr = periodEnd.toISOString().slice(0, 10);
 
   const bookingSelect =
-    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, booking_treatments(therapist_id, treatment_menus(name, duration), treatment_variants(label, duration))";
+    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, client_first_name, client_last_name, customers(first_name, last_name), booking_treatments(therapist_id, is_addon, treatment_menus(name, duration), treatment_variants(label, duration))";
   // Un no-show est facturé 100 % au client : le thérapeute s'est déplacé, il est
   // rémunéré comme pour un soin réalisé. Les deux orthographes du statut
   // coexistent en base (legacy `no_show`).
@@ -633,6 +653,7 @@ const generateForTherapistHotel = async (
   for (const b of eligibleBookings) {
     const treatments = ((b as any).booking_treatments || []) as Array<{
       therapist_id?: string | null;
+      is_addon?: boolean | null;
       treatment_menus?: { name?: string | null; duration?: number | null } | null;
       treatment_variants?: { label?: string | null; duration?: number | null } | null;
     }>;
@@ -650,10 +671,19 @@ const generateForTherapistHotel = async (
           .reduce((sum, bt) => sum + lineDuration(bt), 0)
       : 0;
     const treatmentsDuration = treatments.reduce((sum, bt) => sum + lineDuration(bt), 0);
+    // bookings.duration peut rester sur la durée du menu alors que la variante
+    // réservée est plus longue (résa #627 : 2 × variante 90 min, duration = 60),
+    // ce qui facture le thérapeute au tarif 60. Le repli est donc plancher-né par
+    // le soin de base le plus long : on ne somme pas (duo = soins en parallèle,
+    // solo enchaîné = bookings.duration porte déjà la somme).
+    const longestBaseTreatment = treatments
+      .filter((bt) => !bt.is_addon)
+      .reduce((max, bt) => Math.max(max, lineDuration(bt)), 0);
+    const bookingDuration = Math.max(Number((b as any).duration) || 0, longestBaseTreatment);
     const dur = linkedDuration > 0
       ? linkedDuration
-      : (b as any).duration && (b as any).duration > 0
-      ? (b as any).duration
+      : bookingDuration > 0
+      ? bookingDuration
       : treatmentsDuration;
     const isNoShow = ["noshow", "no_show"].includes(String((b as any).status));
     const treatmentsLabel =
@@ -667,6 +697,23 @@ const generateForTherapistHotel = async (
         .filter(Boolean)
         .join(" + ") || "Prestation";
     const label = isNoShow ? `${treatmentsLabel} (no-show)` : treatmentsLabel;
+
+    // Identité du client : la fiche customer fait foi (les colonnes client_* de
+    // bookings sont en cours de retrait), avec repli sur ces colonnes tant
+    // qu'une réservation n'est pas rattachée à un customer.
+    const customer = (b as any).customers as
+      | { first_name?: string | null; last_name?: string | null }
+      | null;
+    const clientName =
+      [customer?.first_name, customer?.last_name]
+        .map((p) => p?.trim())
+        .filter(Boolean)
+        .join(" ") ||
+      [(b as any).client_first_name, (b as any).client_last_name]
+        .map((p: string | null) => p?.trim())
+        .filter(Boolean)
+        .join(" ") ||
+      "—";
 
     // Payouts are the per-therapist source of truth; fall back to
     // duration-based rates only when no payout row exists. The fallback must
@@ -691,6 +738,7 @@ const generateForTherapistHotel = async (
     amountHt += amount;
     lines.push({
       date: (b as any).booking_date,
+      clientName,
       label,
       durationMin: dur,
       amountHt: Math.round(amount * 100) / 100,
