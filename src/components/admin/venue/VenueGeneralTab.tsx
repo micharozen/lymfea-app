@@ -1125,6 +1125,42 @@ export function VenueGeneralTab({
 
           <FormField
             control={form.control}
+            name="therapist_escalation_delay_minutes"
+            render={({ field }) => (
+              <FormItem className="py-4">
+                <FormLabel className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t('venue.therapistEscalationDelay', 'Délai avant sollicitation du groupe suivant')}
+                </FormLabel>
+                <FormControl>
+                  <div className="relative w-40">
+                    <Input
+                      type="number"
+                      step="5"
+                      min="1"
+                      max="240"
+                      placeholder="10"
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        field.onChange(val === '' ? null : parseInt(val) || null);
+                      }}
+                      disabled={disabled}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">min</span>
+                  </div>
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  {t('venue.therapistEscalationDelayDesc', "Temps laissé au groupe de thérapeutes prioritaire avant que le suivant soit notifié. Sans effet tant que tous les thérapeutes du lieu sont dans le même groupe (onglet Thérapeutes). Vide = 10 min.")}
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="min_booking_notice_minutes"
             render={({ field }) => {
               const minutes = field.value ?? 0;

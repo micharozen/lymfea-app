@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS "public"."hotels" (
     "inter_venue_buffer_minutes" integer DEFAULT 0,
     "slug" "text" NOT NULL,
     "room_turnover_buffer_minutes" integer DEFAULT 0,
+    "therapist_escalation_delay_minutes" integer,
     "booking_hold_enabled" boolean DEFAULT true NOT NULL,
     "booking_hold_duration_minutes" integer DEFAULT 5 NOT NULL,
     "min_booking_notice_minutes" integer DEFAULT 0,
@@ -62,6 +63,9 @@ ALTER TABLE ONLY "public"."hotels"
 
 ALTER TABLE ONLY "public"."hotels"
     ADD CONSTRAINT "hotels_slug_key" UNIQUE ("slug");
+
+ALTER TABLE ONLY "public"."hotels"
+    ADD CONSTRAINT "hotels_therapist_escalation_delay_range" CHECK (("therapist_escalation_delay_minutes" IS NULL OR ("therapist_escalation_delay_minutes" >= 1 AND "therapist_escalation_delay_minutes" <= 240)));
 
 ALTER TABLE "public"."hotels" ENABLE ROW LEVEL SECURITY;
 
