@@ -61,7 +61,12 @@ serve(async (req) => {
     // wave : rang de priorité minimum à solliciter. Passé par le cron d'escalade
     // (escalate-booking-broadcast) pour interdire de redescendre sur un groupe
     // déjà notifié. Absent à la création → on part du groupe le plus prioritaire.
-    const { bookingId, notifyAll, sendPaymentLink, notifyClient, wave } = await req.json();
+    //
+    // therapistsOnly : re-sollicitation interne au lieu. Seul le push praticien part ;
+    // ni email/SMS client, ni Slack. Une escalade de vague n'est pas une nouvelle
+    // réservation — sans ce drapeau, chaque vague renverrait un « new_booking » Slack.
+    const { bookingId, notifyAll, sendPaymentLink, notifyClient, wave, therapistsOnly } =
+      await req.json();
 
     if (!bookingId) {
       throw new Error("Booking ID is required");
@@ -458,6 +463,23 @@ serve(async (req) => {
       if (waveError) {
         console.error("[WAVE] Échec de l'horodatage de la vague:", waveError);
       }
+    }
+
+    // Re-sollicitation interne : on s'arrête au push praticien. Tout ce qui suit
+    // (email/SMS client, Slack) annonce une NOUVELLE réservation et n'a aucun sens
+    // sur une vague d'escalade ou un re-broadcast après refus.
+    if (therapistsOnly) {
+      console.log(`[THERAPISTS-ONLY] Push praticien seul : ni email/SMS client, ni Slack`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          notificationsSent,
+          skippedDuplicates,
+          totalEligible: eligibleTherapists.length,
+          therapistsOnly: true,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Send confirmation email to the client (Resend template)

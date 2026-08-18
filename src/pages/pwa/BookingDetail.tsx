@@ -566,7 +566,9 @@ const PwaBookingDetail = () => {
       if (error) throw error;
 
       // Re-trigger notifications so the fallback gender group gets notified if all priority therapists have declined
-      invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id, notifyAll: true } }).catch(() => {});
+      // therapistsOnly : un refus rouvre la réservation aux autres praticiens, ce n'est
+      // pas une nouvelle réservation — ni email/SMS client, ni Slack ne doivent repartir.
+      invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id, notifyAll: true, therapistsOnly: true } }).catch(() => {});
 
       toast.success("Réservation refusée.");
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
