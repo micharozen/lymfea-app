@@ -298,7 +298,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
         <p className="text-xs text-muted-foreground mb-3">
           {t(
             "admin:venueTherapists.groupHint",
-            "Le groupe 1 est sollicité en premier lors d'une nouvelle réservation. Le groupe 2 ne l'est qu'après le délai réglé dans l'onglet Général, ou dès que tout le groupe 1 a refusé. Tant que tout le monde est en groupe 1, tous sont notifiés en même temps.",
+            "Le groupe 1 est sollicité en premier lors d'une nouvelle réservation. Le groupe 2 ne l'est qu'après le délai réglé dans l'onglet Configuration, ou dès que tout le groupe 1 a refusé. Tant que tout le monde est en groupe 1, tous sont notifiés en même temps.",
           )}
         </p>
         {loadingAssigned ? (

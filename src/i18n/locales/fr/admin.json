@@ -664,9 +664,10 @@
   "venueTherapists": {
     "groupLabel": "Groupe de priorité",
     "groupOption": "Groupe {{group}}",
-    "groupHint": "Le groupe 1 est sollicité en premier lors d'une nouvelle réservation. Le groupe 2 ne l'est qu'après le délai réglé dans l'onglet Général, ou dès que tout le groupe 1 a refusé. Tant que tout le monde est en groupe 1, tous sont notifiés en même temps.",
+    "groupHint": "Le groupe 1 est sollicité en premier lors d'une nouvelle réservation. Le groupe 2 ne l'est qu'après le délai réglé dans l'onglet Configuration, ou dès que tout le groupe 1 a refusé. Tant que tout le monde est en groupe 1, tous sont notifiés en même temps.",
     "priorityUpdated": "Groupe mis à jour",
-    "priorityError": "Erreur lors du changement de groupe"
+    "priorityError": "Erreur lors du changement de groupe",
+    "groupOnVenueHint": "Se règle depuis la fiche du lieu, onglet Thérapeutes."
   },
   "customers": {
     "title": "Clients",

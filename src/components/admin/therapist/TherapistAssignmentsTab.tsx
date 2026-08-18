@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +13,8 @@ import { TherapistTreatmentsSelector } from "@/components/admin/therapist/Therap
 
 interface TherapistAssignmentsTabProps {
   disabled: boolean;
+  /** Absent à la création : le groupe de priorité n'existe qu'une fois le lien au lieu créé. */
+  therapistId?: string;
   selectedHotels: string[];
   onHotelsChange: (hotels: string[]) => void;
   selectedTreatmentIds: string[];
@@ -44,6 +48,7 @@ function VenueLogo({ hotel }: { hotel: Hotel }) {
 
 export function TherapistAssignmentsTab({
   disabled,
+  therapistId,
   selectedHotels,
   onHotelsChange,
   selectedTreatmentIds,
@@ -55,6 +60,35 @@ export function TherapistAssignmentsTab({
 }: TherapistAssignmentsTabProps) {
   const { t } = useTranslation("common");
   const [hotels, setHotels] = useState<Hotel[]>([]);
+
+  // Groupe de priorité du praticien sur chaque lieu, en lecture seule : il se règle
+  // côté lieu (onglet Thérapeutes), puisqu'il appartient au couple lieu↔praticien et
+  // peut différer d'un lieu à l'autre. On ne l'affiche que sur les lieux qui ont
+  // réellement plusieurs groupes — ailleurs le rang 1 par défaut ne veut rien dire.
+  const { data: venueGroups } = useQuery({
+    queryKey: ["therapist-venue-groups", therapistId],
+    enabled: !!therapistId,
+    queryFn: async (): Promise<Record<string, number>> => {
+      const { data, error } = await supabase
+        .from("therapist_venues")
+        .select("hotel_id, therapist_id, priority");
+      if (error) throw error;
+
+      const ranksByHotel = new Map<string, Set<number>>();
+      for (const row of data ?? []) {
+        const ranks = ranksByHotel.get(row.hotel_id) ?? new Set<number>();
+        ranks.add(row.priority ?? 1);
+        ranksByHotel.set(row.hotel_id, ranks);
+      }
+
+      return Object.fromEntries(
+        (data ?? [])
+          .filter((row) => row.therapist_id === therapistId)
+          .filter((row) => (ranksByHotel.get(row.hotel_id)?.size ?? 1) > 1)
+          .map((row) => [row.hotel_id, row.priority ?? 1]),
+      );
+    },
+  });
 
   useEffect(() => {
     fetchHotels();
@@ -121,6 +155,21 @@ export function TherapistAssignmentsTab({
                         <p className="truncate text-[11px] text-muted-foreground">
                           {hotel.city}
                         </p>
+                      )}
+                      {venueGroups?.[hotel.id] && (
+                        <Badge
+                          variant="secondary"
+                          className="mt-1 text-[10px] px-1.5 py-0 font-normal"
+                          title={t(
+                            "admin:venueTherapists.groupOnVenueHint",
+                            "Se règle depuis la fiche du lieu, onglet Thérapeutes.",
+                          )}
+                        >
+                          {t("admin:venueTherapists.groupOption", {
+                            group: venueGroups[hotel.id],
+                            defaultValue: "Groupe {{group}}",
+                          })}
+                        </Badge>
                       )}
                     </div>
                     {isSelected && !disabled && (

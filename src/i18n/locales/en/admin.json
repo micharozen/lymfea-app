@@ -664,9 +664,10 @@
   "venueTherapists": {
     "groupLabel": "Priority group",
     "groupOption": "Group {{group}}",
-    "groupHint": "Group 1 is contacted first when a booking comes in. Group 2 only follows after the delay set in the General tab, or as soon as every therapist in group 1 has declined. While everyone sits in group 1, all therapists are notified at once.",
+    "groupHint": "Group 1 is contacted first when a booking comes in. Group 2 only follows after the delay set in the Configuration tab, or as soon as every therapist in group 1 has declined. While everyone sits in group 1, all therapists are notified at once.",
     "priorityUpdated": "Group updated",
-    "priorityError": "Could not change the group"
+    "priorityError": "Could not change the group",
+    "groupOnVenueHint": "Set from the venue page, Therapists tab."
   },
   "customers": {
     "title": "Customers",
