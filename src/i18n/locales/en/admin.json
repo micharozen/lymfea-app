@@ -659,6 +659,112 @@
       "recipientSaved": "Recipient updated",
       "recipientError": "Error saving",
       "missingDescription": "Therapist invoices will be addressed to this venue using the details from its profile, without a company number or VAT number."
+    },
+    "billingTab": {
+      "title": "Invoices",
+      "description": "History of invoices generated for this venue",
+      "generateInvoice": "Generate an invoice",
+      "generateDesc": "One invoice will cover every treatment delivered at this venue over the selected period.",
+      "generate": "Generate",
+      "generated": "{{count}} invoice(s) generated",
+      "generateError": "Generation failed",
+      "noBookings": "No treatment to invoice for this period",
+      "noInvoices": "No invoice generated yet",
+      "noInvoicesHint": "Click Generate an invoice to bill a period",
+      "currentMonth": "Current month",
+      "previousMonth": "Previous month",
+      "periodStart": "From",
+      "periodEnd": "To",
+      "missingPeriod": "Please select a period",
+      "invalidPeriod": "The end date must be after the start date",
+      "columns": {
+        "number": "Number",
+        "generatedAt": "Generated on",
+        "period": "Period",
+        "totalHt": "Total excl. VAT",
+        "vat": "VAT",
+        "totalTtc": "Total incl. VAT",
+        "status": "Status"
+      },
+      "status": {
+        "draft": "Draft",
+        "issued": "Issued",
+        "paid": "Paid",
+        "cancelled": "Cancelled"
+      }
+    },
+    "therapistInvoices": {
+      "title": "Therapist invoices",
+      "description": "Generate in one go the invoices of therapists who worked at this venue over the period.",
+      "periodStart": "From",
+      "periodEnd": "To",
+      "currentMonth": "Current month",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "preview": "Preview",
+      "previewing": "Calculating…",
+      "previewError": "Preview failed",
+      "emptyPreview": "No therapist to invoice for this period",
+      "notPreviewedYet": "Pick a period then click Preview",
+      "missingPeriod": "Please select a period",
+      "invalidPeriod": "The end date must be after the start date",
+      "selectAll": "Select all",
+      "generateSelected": "Generate selected invoices ({{count}})",
+      "generating": "Generating {{done}}/{{total}}…",
+      "generated": "{{count}} invoice(s) generated",
+      "generateFailures": "{{count}} failure(s) — see details in the table",
+      "generateError": "Generation failed",
+      "downloadAll": "Download PDFs ({{count}})",
+      "downloading": "Downloading {{done}}/{{total}}…",
+      "downloadDone": "{{count}} PDF(s) downloaded",
+      "summary": {
+        "billable": "{{count}} therapist(s) to invoice",
+        "skipped": "{{count}} skipped",
+        "totalHt": "Selected total excl. VAT",
+        "totalTtc": "Selected total incl. VAT"
+      },
+      "columns": {
+        "therapist": "Therapist",
+        "bookings": "Bookings",
+        "totalHt": "Total excl. VAT",
+        "vat": "VAT",
+        "totalTtc": "Total incl. VAT",
+        "status": "Status"
+      },
+      "status": {
+        "toGenerate": "To generate",
+        "alreadyInvoiced": "Already invoiced · {{number}}",
+        "willReplace": "Will replace {{number}} ({{period}})",
+        "missingRates": "Missing rates",
+        "missingRatesAction": "Configure rates",
+        "noBookings": "No treatments",
+        "zeroAmount": "Zero amount",
+        "error": "Error",
+        "generated": "Generated"
+      },
+      "overwrite": {
+        "title": "Replace existing invoices?",
+        "description": "{{count}} invoice(s) already exist for this start date and will be replaced (the number is kept):",
+        "confirm": "Replace and generate"
+      },
+      "unfinalized": {
+        "warning": "{{count}} paid booking(s) in this period are not finalized and will be excluded from the invoices.",
+        "finalizeAll": "Finalize them",
+        "finalized": "{{count}} booking(s) finalized",
+        "finalizeError": "Finalization failed"
+      },
+      "downloadError": "No PDF available",
+      "issued": {
+        "title": "Issued therapist invoices",
+        "columns": {
+          "number": "Number",
+          "period": "Period",
+          "generatedAt": "Generated on"
+        },
+        "invoiceCount": "{{count}} invoice(s)",
+        "searchPlaceholder": "Therapist or invoice number",
+        "noSearchResult": "No invoice matches this search"
+      }
     }
   },
   "venueTherapists": {
