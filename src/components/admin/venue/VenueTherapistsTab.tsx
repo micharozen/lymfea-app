@@ -19,6 +19,10 @@ import { Plus, X, Loader2, UserPlus, Phone } from "lucide-react";
 import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
 import { TherapistTreatmentsSelector } from "@/components/admin/therapist/TherapistTreatmentsSelector";
 import { useTherapistTreatmentCounts } from "@/hooks/useTherapistTreatments";
+import { SelectField } from "@/components/ui/select-field";
+
+/** Groupes de priorité proposés à l'écran. La colonne accepte N rangs, l'UI en expose deux. */
+const PRIORITY_OPTIONS = [1, 2];
 
 const countries = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -75,11 +79,17 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("therapist_venues")
-        .select("hotel_id, therapist_id, therapists(*, therapist_venues(hotel_id))")
+        .select("hotel_id, therapist_id, priority, therapists(*, therapist_venues(hotel_id))")
         .eq("hotel_id", hotelId);
       if (error) throw error;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (data || []).map((row: any) => row.therapists).filter(Boolean);
+      return (data || [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((row: any) => (row.therapists ? { ...row.therapists, priority: row.priority ?? 1 } : null))
+        .filter(Boolean)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .sort((a: any, b: any) =>
+          a.priority - b.priority || (a.first_name || "").localeCompare(b.first_name || ""),
+        );
     },
   });
 
@@ -135,6 +145,27 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     },
     onError: () => {
       toast.error("Erreur lors de l'assignation");
+    },
+  });
+
+  // Groupe de priorité : le broadcast sollicite le groupe 1, puis le suivant après
+  // le délai du lieu. Tant que tout le monde est au groupe 1, tous sont notifiés
+  // en même temps — c'est la présence d'un second groupe qui active les vagues.
+  const priorityMutation = useMutation({
+    mutationFn: async ({ therapistId, priority }: { therapistId: string; priority: number }) => {
+      const { error } = await supabase
+        .from("therapist_venues")
+        .update({ priority })
+        .eq("therapist_id", therapistId)
+        .eq("hotel_id", hotelId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateQueries();
+      toast.success(t("admin:venueTherapists.priorityUpdated", "Groupe mis à jour"));
+    },
+    onError: () => {
+      toast.error(t("admin:venueTherapists.priorityError", "Erreur lors du changement de groupe"));
     },
   });
 
@@ -261,9 +292,15 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     <div className="space-y-6">
       {/* Assigned therapists list */}
       <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3">
+        <h3 className="text-sm font-semibold text-foreground mb-1">
           Thérapeutes assignés ({assignedTherapists.length})
         </h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          {t(
+            "admin:venueTherapists.groupHint",
+            "Le groupe 1 est sollicité en premier lors d'une nouvelle réservation. Le groupe 2 ne l'est qu'après le délai réglé dans l'onglet Général, ou dès que tout le groupe 1 a refusé. Tant que tout le monde est en groupe 1, tous sont notifiés en même temps.",
+          )}
+        </p>
         {loadingAssigned ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -321,6 +358,24 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                       </Badge>
                     )}
                   </div>
+                </div>
+                <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <SelectField
+                    options={PRIORITY_OPTIONS.map((p) => ({
+                      value: String(p),
+                      label: t("admin:venueTherapists.groupOption", {
+                        group: p,
+                        defaultValue: "Groupe {{group}}",
+                      }),
+                    }))}
+                    value={String(therapist.priority ?? 1)}
+                    onChange={(value) =>
+                      priorityMutation.mutate({ therapistId: therapist.id, priority: Number(value) })
+                    }
+                    searchable={false}
+                    className="h-8 w-[120px] text-xs"
+                    aria-label={t("admin:venueTherapists.groupLabel", "Groupe de priorité")}
+                  />
                 </div>
                 <Button
                   variant="ghost"

@@ -128,6 +128,10 @@ const PwaDashboard = () => {
   const [processing, setProcessing] = useState<{ id: string; action: "accept" | "decline" } | null>(null);
   const processingBookingId = processing?.id ?? null;
   const [unavailableDates, setUnavailableDates] = useState<Set<string>>(new Set());
+  // Mon groupe de priorité sur chaque lieu (therapist_venues.priority). Sert à
+  // masquer les demandes dont la vague de broadcast n'est pas encore arrivée
+  // jusqu'à moi : le push est filtré côté serveur, cette liste doit l'être aussi.
+  const [priorityByHotel, setPriorityByHotel] = useState<Record<string, number>>({});
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -383,7 +387,7 @@ const PwaDashboard = () => {
 
     const { data: affiliatedHotels, error: hotelsError } = await supabase
       .from("therapist_venues")
-      .select("hotel_id")
+      .select("hotel_id, priority")
       .eq("therapist_id", therapistId);
 
     if (!isMountedRef.current) return;
@@ -398,6 +402,9 @@ const PwaDashboard = () => {
     }
 
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
+    setPriorityByHotel(
+      Object.fromEntries(affiliatedHotels.map(h => [h.hotel_id, h.priority ?? 1]))
+    );
 
     // Fetch hotel images/currency + commission & surcharge settings separately
     // (no FK relationship). Commission/surcharge live on the venue, not the booking.
@@ -808,6 +815,17 @@ const PwaDashboard = () => {
       if (hasDeclined) return false;
 
       if (unavailableDates.has(b.booking_date)) return false;
+
+      // Vagues de sollicitation : tant que le broadcast n'a pas atteint mon groupe
+      // sur ce lieu, la demande ne m'est pas encore ouverte. Miroir du filtrage
+      // serveur du push (trigger-new-booking-notifications), sans quoi la liste le
+      // contournerait. broadcast_wave reste null quand le lieu n'a qu'un groupe.
+      const currentWave = (b as { broadcast_wave?: number | null }).broadcast_wave ?? null;
+      const alreadyMine = b.therapist_id === therapist?.id
+        || b.booking_therapists?.some(bt => bt.therapist_id === therapist?.id);
+      if (currentWave !== null && !alreadyMine && (priorityByHotel[b.hotel_id] ?? 1) > currentWave) {
+        return false;
+      }
 
       if (b.status === "pending" && b.guest_count > 1) {
         // Open duo booking (pending until fully staffed): show unless current

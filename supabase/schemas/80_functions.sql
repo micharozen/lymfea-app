@@ -2816,6 +2816,10 @@ BEGIN
     -- Le filtre individuel ci-dessous et le comptage _qualified_available
     -- partagent la même boucle, donc le même prédicat par construction.
     _qualified_available := 0;
+    -- ORDER BY tv.priority : la pré-assignation solo retient le PREMIER praticien
+    -- qualifié rencontré. Sans tri, elle tirait au hasard et court-circuitait la
+    -- priorisation par groupes du lieu. t.id départage à rang égal — l'ordre
+    -- n'était pas déterministe non plus.
     FOR _therapist_id IN
       SELECT t.id
       FROM therapist_venues tv
@@ -2827,6 +2831,7 @@ BEGIN
           OR _therapist_gender IS NULL
           OR LOWER(t.gender) = LOWER(_therapist_gender)
         )
+      ORDER BY tv.priority, t.id
     LOOP
       -- Qualification : un thérapeute sans aucune association reste polyvalent
       -- (comportement hérité de skills) ; dès qu'il en a au moins une, il doit
