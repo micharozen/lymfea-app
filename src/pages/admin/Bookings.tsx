@@ -485,46 +485,42 @@ useEffect(() => {
                 <Button
                   onClick={() => setIsCreateDialogOpen(true)}
                   size="sm"
-                  className={`h-8 text-xs transition-transform duration-100 active:scale-90 ${
-                    isConcierge ? "" : "rounded-r-none"
-                  }`}
+                  className="h-8 text-xs transition-transform duration-100 active:scale-90 rounded-r-none"
                 >
                   {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
                 </Button>
-                {!isConcierge && (
-                  // modal={false} : en mode modal Radix pose pointer-events:none
-                  // sur le body, le conteneur perdait le survol et le menu
-                  // s'ouvrait/fermait en boucle.
-                  <DropdownMenu modal={false} open={isCreateMenuOpen} onOpenChange={setIsCreateMenuOpen}>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        size="sm"
-                        aria-label={t("planning.moreCreateActions")}
-                        className="h-8 w-7 rounded-l-none border-l border-background/30 px-0"
-                        onMouseEnter={openCreateMenu}
-                        onMouseLeave={scheduleCloseCreateMenu}
-                      >
-                        <ChevronDown className="h-3.5 w-3.5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="end"
-                      className="w-56"
+                {/* modal={false} : en mode modal Radix pose pointer-events:none
+                    sur le body, le conteneur perdait le survol et le menu
+                    s'ouvrait/fermait en boucle. */}
+                <DropdownMenu modal={false} open={isCreateMenuOpen} onOpenChange={setIsCreateMenuOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      aria-label={t("planning.moreCreateActions")}
+                      className="h-8 w-7 rounded-l-none border-l border-background/30 px-0"
                       onMouseEnter={openCreateMenu}
                       onMouseLeave={scheduleCloseCreateMenu}
                     >
-                      <DropdownMenuItem
-                        disabled={!singleVenueId}
-                        onSelect={() => setIsRoomBlockOpen(true)}
-                      >
-                        <Ban className="mr-2 h-3.5 w-3.5" />
-                        {singleVenueId
-                          ? t("roomBlocks.dialogTitle")
-                          : t("roomBlocks.selectVenueFirst")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-56"
+                    onMouseEnter={openCreateMenu}
+                    onMouseLeave={scheduleCloseCreateMenu}
+                  >
+                    <DropdownMenuItem
+                      disabled={!singleVenueId}
+                      onSelect={() => setIsRoomBlockOpen(true)}
+                    >
+                      <Ban className="mr-2 h-3.5 w-3.5" />
+                      {singleVenueId
+                        ? t("roomBlocks.dialogTitle")
+                        : t("roomBlocks.selectVenueFirst")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </>
           }
