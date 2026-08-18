@@ -27,15 +27,39 @@ const escapeHtml = (unsafe: string | null | undefined): string => {
 };
 
 interface RequestBody {
-  mode?: "auto" | "manual" | "send";
+  /** `preview` calcule les montants sans rien écrire en base (dry-run). */
+  mode?: "auto" | "manual" | "send" | "preview";
   therapist_id?: string;
   hotel_id?: string;
   period_start?: string;
   period_end?: string;
+  /** En mode preview : renvoie aussi le HTML de la facture (coûteux, un seul thérapeute). */
+  include_html?: boolean;
   // Used only when mode === "send"
   invoice_id?: string;
   /** Base64-encoded PDF (without data-URI prefix), rendered client-side. */
   pdf_base64?: string;
+}
+
+type SkipReason = "no_bookings" | "zero_amount" | "missing_rates";
+
+interface TherapistHotelResult {
+  success: boolean;
+  skipped?: boolean;
+  reason?: SkipReason;
+  /** Renseigné uniquement lors d'une écriture réelle. */
+  invoiceId?: string;
+  bookingsCount?: number;
+  amountHt?: number;
+  vatRate?: number;
+  vatAmount?: number;
+  amountTtc?: number;
+  /** Facture déjà en base sur cette date de début — sera remplacée. */
+  existingInvoiceId?: string;
+  existingInvoiceNumber?: string;
+  existingPeriodEnd?: string;
+  /** Dry-run avec `include_html` uniquement. */
+  htmlSnapshot?: string;
 }
 
 interface BillingProfile {
@@ -155,6 +179,24 @@ const formatAmount = (n: number): string =>
 const formatMonthYear = (d: Date): string =>
   d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
+/**
+ * Libellé de la période facturée. Un mois entier reste affiché « août 2026 » ;
+ * toute autre plage affiche ses bornes, sans quoi une facture du 10 au 20 août
+ * s'annoncerait comme couvrant le mois complet.
+ */
+const formatPeriodLabel = (start: Date, end: Date): string => {
+  const isFirstOfMonth = start.getUTCDate() === 1;
+  const isLastOfMonth =
+    end.getUTCDate() ===
+    new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0)).getUTCDate();
+  const sameMonth =
+    start.getUTCFullYear() === end.getUTCFullYear() &&
+    start.getUTCMonth() === end.getUTCMonth();
+
+  if (isFirstOfMonth && isLastOfMonth && sameMonth) return formatMonthYear(start);
+  return `${formatDateFr(start)} → ${formatDateFr(end)}`;
+};
+
 const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   const {
     therapist,
@@ -164,6 +206,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     issueDate,
     dueDate,
     periodStart,
+    periodEnd,
     amountHt,
     vatRate,
     vatAmount,
@@ -446,7 +489,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     </div>
   </div>
 
-  <div class="items-caption">Détail des prestations — ${escapeHtml(hotel.name)} — ${formatMonthYear(periodStart)}</div>
+  <div class="items-caption">Détail des prestations — ${escapeHtml(hotel.name)} — ${formatPeriodLabel(periodStart, periodEnd)}</div>
   <table class="items">
     <colgroup>
       <col class="col-date">
@@ -524,17 +567,8 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
 // Business logic
 // ============================================================================
 
-const monthPeriod = (baseDate?: string): { start: string; end: string } => {
-  if (baseDate) {
-    const [y, m] = baseDate.split("-").map(Number);
-    const start = new Date(Date.UTC(y, m - 1, 1));
-    const end = new Date(Date.UTC(y, m, 0));
-    return {
-      start: start.toISOString().slice(0, 10),
-      end: end.toISOString().slice(0, 10),
-    };
-  }
-  // Default: previous month
+/** Mois précédent — période par défaut de la génération automatique. */
+const monthPeriod = (): { start: string; end: string } => {
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
@@ -555,13 +589,8 @@ const generateForTherapistHotel = async (
   hotel: Hotel,
   periodStart: Date,
   periodEnd: Date,
-): Promise<{
-  success: boolean;
-  skipped?: boolean;
-  reason?: string;
-  invoiceId?: string;
-  bookingsCount?: number;
-}> => {
+  opts: { dryRun?: boolean; includeHtml?: boolean } = {},
+): Promise<TherapistHotelResult> => {
   const startStr = periodStart.toISOString().slice(0, 10);
   const endStr = periodEnd.toISOString().slice(0, 10);
 
@@ -585,11 +614,17 @@ const generateForTherapistHotel = async (
   if (bookingsError) throw bookingsError;
 
   // Duo bookings where this therapist is an accepted (possibly non-primary) participant.
+  // Le filtre lieu + période est appliqué via la jointure : sans lui, PostgREST
+  // plafonne à 1000 lignes et un thérapeute au long historique perdrait ses duos
+  // récents.
   const { data: btRows } = await supabaseAdmin
     .from("booking_therapists")
-    .select("booking_id")
+    .select("booking_id, bookings!inner(hotel_id, booking_date)")
     .eq("therapist_id", therapist.id)
-    .eq("status", "accepted");
+    .eq("status", "accepted")
+    .eq("bookings.hotel_id", hotel.id)
+    .gte("bookings.booking_date", startStr)
+    .lte("bookings.booking_date", endStr);
   const duoIds = (btRows ?? []).map((r: { booking_id: string }) => r.booking_id);
   let duoBookings: any[] = [];
   if (duoIds.length > 0) {
@@ -604,7 +639,7 @@ const generateForTherapistHotel = async (
   for (const b of [...(primaryBookings ?? []), ...duoBookings]) bookingById.set(b.id, b);
   const eligibleBookings = [...bookingById.values()];
   if (eligibleBookings.length === 0) {
-    return { success: true, skipped: true, reason: "no_bookings" };
+    return { success: true, skipped: true, reason: "no_bookings", bookingsCount: 0 };
   }
 
   // Load THIS therapist's payouts for these bookings (preferred source of truth).
@@ -758,9 +793,16 @@ const generateForTherapistHotel = async (
         skipped: true,
         reason: "missing_rates",
         bookingsCount: eligibleBookings.length,
+        amountHt,
       };
     }
-    return { success: true, skipped: true, reason: "zero_amount" };
+    return {
+      success: true,
+      skipped: true,
+      reason: "zero_amount",
+      bookingsCount: eligibleBookings.length,
+      amountHt,
+    };
   }
 
   // Load therapist billing profile
@@ -812,16 +854,20 @@ const generateForTherapistHotel = async (
   // Check if an invoice already exists for this (kind, therapist, hotel, period) — reuse its number
   const { data: existing } = await supabaseAdmin
     .from("invoices")
-    .select("id, invoice_number")
+    .select("id, invoice_number, period_end")
     .eq("invoice_kind", "therapist_commission")
     .eq("therapist_id", therapist.id)
     .eq("hotel_id", hotel.id)
     .eq("period_start", startStr)
     .maybeSingle();
 
-  const invoiceNumber = existing?.invoice_number ?? (await nextInvoiceNumber());
+  // `next_invoice_number()` consomme définitivement un numéro de séquence : un
+  // dry-run ne doit jamais l'appeler, au risque de trouer la numérotation.
+  const invoiceNumber = existing?.invoice_number ??
+    (opts.dryRun ? "—" : await nextInvoiceNumber());
 
-  const invoiceHTML = generateInvoiceHTML({
+  const needsHtml = !opts.dryRun || opts.includeHtml === true;
+  const invoiceHTML = !needsHtml ? null : generateInvoiceHTML({
     therapist,
     hotel,
     billingProfile: profile,
@@ -839,6 +885,27 @@ const generateForTherapistHotel = async (
     bookingsCount: eligibleBookings.length,
     lines,
   });
+
+  const amounts = {
+    bookingsCount: eligibleBookings.length,
+    amountHt,
+    vatRate,
+    vatAmount,
+    amountTtc,
+  };
+
+  // Dry-run : on sort avant toute écriture, en signalant la facture qui serait
+  // remplacée pour que l'UI puisse demander confirmation.
+  if (opts.dryRun) {
+    return {
+      success: true,
+      ...amounts,
+      existingInvoiceId: existing?.id,
+      existingInvoiceNumber: existing?.invoice_number,
+      existingPeriodEnd: existing?.period_end,
+      htmlSnapshot: invoiceHTML ?? undefined,
+    };
+  }
 
   // Upsert invoice record
   const { data: upserted, error: upsertError } = await supabaseAdmin
@@ -880,7 +947,7 @@ const generateForTherapistHotel = async (
 
   if (upsertError) throw upsertError;
 
-  return { success: true, invoiceId: upserted.id };
+  return { success: true, invoiceId: upserted.id, ...amounts };
 };
 
 // ============================================================================
@@ -983,9 +1050,13 @@ serve(async (req: Request) => {
       return await handleSendInvoice(body);
     }
 
-    const { start, end } = monthPeriod(body.period_start);
+    // La période demandée est respectée telle quelle : la normaliser au mois
+    // entier ferait facturer des prestations hors de la plage choisie.
+    const fallback = monthPeriod();
+    const start = body.period_start ?? fallback.start;
+    const end = body.period_end ?? fallback.end;
     const periodStart = new Date(`${start}T00:00:00Z`);
-    const periodEnd = new Date(`${body.period_end ?? end}T00:00:00Z`);
+    const periodEnd = new Date(`${end}T00:00:00Z`);
 
     console.log(`[GENERATE-THERAPIST-INVOICES] mode=${mode} period=${start}→${end}`);
 
@@ -998,9 +1069,16 @@ serve(async (req: Request) => {
     const { data: therapists, error: therapistsError } = await therapistQuery;
     if (therapistsError) throw therapistsError;
 
+    const dryRun = mode === "preview";
     const results: Array<Record<string, unknown>> = [];
 
-    for (const therapist of therapists ?? []) {
+    // Le traitement d'un thérapeute est indépendant des autres : on en mène
+    // plusieurs de front, sans quoi un lieu à 30 thérapeutes met une dizaine de
+    // secondes à répondre.
+    const CONCURRENCY = 5;
+    const queue = [...(therapists ?? [])];
+
+    const processTherapist = async (therapist: Therapist) => {
       // Fetch therapist's venues
       let venuesQuery = supabaseAdmin
         .from("therapist_venues")
@@ -1012,6 +1090,12 @@ serve(async (req: Request) => {
       const { data: venues, error: venuesError } = await venuesQuery;
       if (venuesError) throw venuesError;
 
+      const identity = {
+        therapist_id: therapist.id,
+        therapist_name: `${therapist.first_name} ${therapist.last_name}`.trim(),
+        therapist_email: therapist.email ?? null,
+      };
+
       for (const venue of venues ?? []) {
         const hotel = (venue as unknown as { hotels: Hotel }).hotels;
         if (!hotel) continue;
@@ -1021,23 +1105,46 @@ serve(async (req: Request) => {
             hotel,
             periodStart,
             periodEnd,
+            { dryRun, includeHtml: body.include_html === true },
           );
           results.push({
-            therapist_id: therapist.id,
+            ...identity,
             hotel_id: hotel.id,
+            hotel_name: hotel.name,
             ...r,
           });
         } catch (err) {
           console.error(`[GENERATE-THERAPIST-INVOICES] error for ${therapist.id}/${hotel.id}`, err);
           results.push({
-            therapist_id: therapist.id,
+            ...identity,
             hotel_id: hotel.id,
+            hotel_name: hotel.name,
             success: false,
             error: err instanceof Error ? err.message : String(err),
           });
         }
       }
-    }
+    };
+
+    const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+      for (let next = queue.shift(); next; next = queue.shift()) {
+        try {
+          await processTherapist(next as Therapist);
+        } catch (err) {
+          // L'échec d'un thérapeute (lecture de ses lieux) ne doit pas
+          // interrompre le traitement des autres.
+          console.error(`[GENERATE-THERAPIST-INVOICES] therapist ${next.id} failed`, err);
+          results.push({
+            therapist_id: next.id,
+            therapist_name: `${next.first_name} ${next.last_name}`.trim(),
+            hotel_id: hotel_id ?? null,
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+    });
+    await Promise.all(workers);
 
     return new Response(
       JSON.stringify({
