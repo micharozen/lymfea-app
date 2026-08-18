@@ -655,6 +655,112 @@
       "recipientSaved": "Destinataire mis à jour",
       "recipientError": "Erreur lors de l'enregistrement",
       "missingDescription": "Les factures des thérapeutes seront adressées à ce lieu avec les coordonnées de sa fiche, sans SIRET ni numéro de TVA."
+    },
+    "billingTab": {
+      "title": "Factures",
+      "description": "Historique des factures générées pour ce lieu",
+      "generateInvoice": "Générer une facture",
+      "generateDesc": "Une facture regroupera toutes les prestations du lieu sur la période sélectionnée.",
+      "generate": "Générer",
+      "generated": "{{count}} facture(s) générée(s)",
+      "generateError": "Erreur lors de la génération",
+      "noBookings": "Aucune prestation à facturer sur cette période",
+      "noInvoices": "Aucune facture générée",
+      "noInvoicesHint": "Cliquez sur Générer une facture pour créer la facturation sur une période",
+      "currentMonth": "Mois en cours",
+      "previousMonth": "Mois précédent",
+      "periodStart": "Du",
+      "periodEnd": "Au",
+      "missingPeriod": "Veuillez sélectionner une période",
+      "invalidPeriod": "La date de fin doit être postérieure à la date de début",
+      "columns": {
+        "number": "Numéro",
+        "generatedAt": "Date de génération",
+        "period": "Période",
+        "totalHt": "Total HT",
+        "vat": "TVA",
+        "totalTtc": "Total TTC",
+        "status": "Statut"
+      },
+      "status": {
+        "draft": "Brouillon",
+        "issued": "Émise",
+        "paid": "Payée",
+        "cancelled": "Annulée"
+      }
+    },
+    "therapistInvoices": {
+      "title": "Factures thérapeutes",
+      "description": "Générez en une fois les factures des thérapeutes ayant travaillé dans ce lieu sur la période.",
+      "periodStart": "Du",
+      "periodEnd": "Au",
+      "currentMonth": "Mois en cours",
+      "previousMonth": "Mois précédent",
+      "nextMonth": "Mois prochain",
+      "preview": "Prévisualiser",
+      "previewing": "Calcul en cours…",
+      "previewError": "Erreur lors de la prévisualisation",
+      "emptyPreview": "Aucun thérapeute à facturer sur cette période",
+      "notPreviewedYet": "Choisissez une période puis cliquez sur Prévisualiser",
+      "missingPeriod": "Veuillez sélectionner une période",
+      "invalidPeriod": "La date de fin doit être postérieure à la date de début",
+      "selectAll": "Tout sélectionner",
+      "generateSelected": "Générer les factures sélectionnées ({{count}})",
+      "generating": "Génération {{done}}/{{total}}…",
+      "generated": "{{count}} facture(s) générée(s)",
+      "generateFailures": "{{count}} échec(s) — voir le détail dans le tableau",
+      "generateError": "Erreur lors de la génération",
+      "downloadAll": "Télécharger les PDF ({{count}})",
+      "downloading": "Téléchargement {{done}}/{{total}}…",
+      "downloadDone": "{{count}} PDF téléchargé(s)",
+      "summary": {
+        "billable": "{{count}} thérapeute(s) à facturer",
+        "skipped": "{{count}} ignoré(s)",
+        "totalHt": "Total HT sélectionné",
+        "totalTtc": "Total TTC sélectionné"
+      },
+      "columns": {
+        "therapist": "Thérapeute",
+        "bookings": "Résas",
+        "totalHt": "Total HT",
+        "vat": "TVA",
+        "totalTtc": "Total TTC",
+        "status": "Statut"
+      },
+      "status": {
+        "toGenerate": "À générer",
+        "alreadyInvoiced": "Déjà facturé · {{number}}",
+        "willReplace": "Remplacera {{number}} ({{period}})",
+        "missingRates": "Tarifs manquants",
+        "missingRatesAction": "Configurer les tarifs",
+        "noBookings": "Aucune prestation",
+        "zeroAmount": "Montant nul",
+        "error": "Erreur",
+        "generated": "Générée"
+      },
+      "overwrite": {
+        "title": "Remplacer des factures existantes ?",
+        "description": "{{count}} facture(s) existent déjà pour cette date de début et seront remplacées (le numéro est conservé) :",
+        "confirm": "Remplacer et générer"
+      },
+      "unfinalized": {
+        "warning": "{{count}} réservation(s) payée(s) sur cette période ne sont pas finalisées et seront exclues des factures.",
+        "finalizeAll": "Les finaliser",
+        "finalized": "{{count}} réservation(s) finalisée(s)",
+        "finalizeError": "Erreur lors de la finalisation"
+      },
+      "downloadError": "Aucun PDF disponible",
+      "issued": {
+        "title": "Factures thérapeutes émises",
+        "columns": {
+          "number": "Numéro",
+          "period": "Période",
+          "generatedAt": "Générée le"
+        },
+        "invoiceCount": "{{count}} facture(s)",
+        "searchPlaceholder": "Thérapeute ou numéro de facture",
+        "noSearchResult": "Aucune facture ne correspond à cette recherche"
+      }
     }
   },
   "customers": {

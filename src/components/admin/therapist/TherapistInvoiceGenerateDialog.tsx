@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,20 +19,10 @@ import {
 } from "@/components/ui/select";
 import { Loader2, FileText, AlertTriangle, CheckCheck } from "lucide-react";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
-import { supabase } from "@/integrations/supabase/client";
-
-// Payment statuses considered as "paid" — must stay in sync with the
-// generate-therapist-invoices edge function.
-const PAID_STATUSES = ["paid", "charged_to_room", "offert"] as const;
-
-interface PendingBooking {
-  id: string;
-  booking_date: string;
-  total_price: number | null;
-  client_first_name: string | null;
-  client_last_name: string | null;
-  hotel_name: string | null;
-}
+import {
+  useUnfinalizedBookings,
+  type PendingBooking,
+} from "@/hooks/useUnfinalizedBookings";
 
 interface TherapistInvoiceGenerateDialogProps {
   open: boolean;
@@ -51,8 +41,6 @@ export function TherapistInvoiceGenerateDialog({
 }: TherapistInvoiceGenerateDialogProps) {
   const { t } = useTranslation("common");
   const [generating, setGenerating] = useState(false);
-  const [finalizing, setFinalizing] = useState(false);
-  const [pending, setPending] = useState<PendingBooking[]>([]);
 
   const now = new Date();
   const defaultMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -67,72 +55,30 @@ export function TherapistInvoiceGenerateDialog({
     return { periodStart, periodEnd };
   }, [year, month]);
 
-  // Load bookings in the period that are paid but not yet finalized
-  // (neither completed, no-show nor cancelled) — these are excluded from the
-  // invoice until finalized. Les no-shows sont déjà facturés à 100 % : ils ne
-  // doivent pas être proposés à la finalisation, qui les passerait en
-  // "completed".
-  const loadPending = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select(
-          "id, booking_date, total_price, client_first_name, client_last_name, hotels(name)",
-        )
-        .eq("therapist_id", therapistId)
-        .gte("booking_date", period.periodStart)
-        .lte("booking_date", period.periodEnd)
-        .not("status", "in", "(completed,cancelled,noshow,no_show)")
-        .in("payment_status", PAID_STATUSES)
-        .order("booking_date");
-      if (error) throw error;
-      setPending(
-        (data ?? []).map((b) => ({
-          id: b.id,
-          booking_date: b.booking_date,
-          total_price: b.total_price,
-          client_first_name: b.client_first_name,
-          client_last_name: b.client_last_name,
-          hotel_name: (b as { hotels?: { name?: string } | null }).hotels?.name ?? null,
-        })),
-      );
-    } catch (err) {
-      console.error("Error loading pending bookings:", err);
-      setPending([]);
-    }
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    loadPending();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, period]);
+  const {
+    bookings: pending,
+    finalizing,
+    finalize,
+  } = useUnfinalizedBookings({
+    therapistId,
+    range: { start: period.periodStart, end: period.periodEnd },
+    enabled: open,
+  });
 
   const handleFinalize = async () => {
-    if (pending.length === 0) return;
-    setFinalizing(true);
     try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({ status: "completed" })
-        .in(
-          "id",
-          pending.map((b) => b.id),
-        );
-      if (error) throw error;
+      const count = await finalize();
+      if (count === 0) return;
       toast.success(
         t("admin:therapists.billingTab.finalized", "{{count}} réservation(s) finalisée(s)", {
-          count: pending.length,
+          count,
         }),
       );
-      await loadPending();
     } catch (err) {
       console.error("Error finalizing bookings:", err);
       toast.error(
         t("admin:therapists.billingTab.finalizeError", "Erreur lors de la finalisation"),
       );
-    } finally {
-      setFinalizing(false);
     }
   };
 

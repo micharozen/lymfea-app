@@ -17,6 +17,10 @@ import { Download, Eye, FileText, Loader2, Plus } from "lucide-react";
 import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
 import { VenueInvoiceGenerateDialog } from "./VenueInvoiceGenerateDialog";
 import { VenueBillingProfileSection } from "./VenueBillingProfileSection";
+import { VenueTherapistInvoicesSection } from "./VenueTherapistInvoicesSection";
+import { downloadInvoicePdf } from "@/lib/invoicePdf";
+import { formatPeriodFr } from "@/lib/billingPeriod";
+import { cn } from "@/lib/utils";
 
 interface InvoiceRow {
   id: string;
@@ -48,12 +52,6 @@ const formatAmount = (n: number): string =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }) + " €";
-
-const formatPeriod = (start: string, end: string): string => {
-  const s = new Date(start);
-  const e = new Date(end);
-  return `${s.toLocaleDateString("fr-FR")} → ${e.toLocaleDateString("fr-FR")}`;
-};
 
 export function VenueBillingTab({ hotelId }: VenueBillingTabProps) {
   const { t } = useTranslation("admin");
@@ -109,23 +107,7 @@ export function VenueBillingTab({ hotelId }: VenueBillingTabProps) {
   const handleDownload = async (invoice: InvoiceRow) => {
     if (!invoice.html_snapshot) return;
     try {
-      const html2pdf = (await import("html2pdf.js")).default;
-      const element = document.createElement("div");
-      element.innerHTML = invoice.html_snapshot;
-      document.body.appendChild(element);
-      html2pdf()
-        .set({
-          margin: 0,
-          filename: `${invoice.invoice_number}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, letterRendering: true },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        })
-        .from(element)
-        .save()
-        .then(() => {
-          document.body.removeChild(element);
-        });
+      await downloadInvoicePdf(invoice.html_snapshot, `${invoice.invoice_number}.pdf`);
     } catch (err) {
       console.error("Error downloading invoice:", err);
     }
@@ -145,7 +127,7 @@ export function VenueBillingTab({ hotelId }: VenueBillingTabProps) {
 
       <div className="flex items-center justify-between pt-2">
         <div>
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-lg font-normal">
             {t("venue.billingTab.title", "Factures")}
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -165,7 +147,7 @@ export function VenueBillingTab({ hotelId }: VenueBillingTabProps) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
-            <h3 className="text-sm font-medium">
+            <h3 className="text-sm font-normal">
               {t("venue.billingTab.noInvoices", "Aucune facture générée")}
             </h3>
             <p className="text-xs text-muted-foreground mt-1">
@@ -221,7 +203,7 @@ export function VenueBillingTab({ hotelId }: VenueBillingTabProps) {
                     })}
                   </TableCell>
                   <TableCell>
-                    {formatPeriod(inv.period_start, inv.period_end)}
+                    {formatPeriodFr(inv.period_start, inv.period_end)}
                   </TableCell>
                   <TableCell className="text-right">
                     {formatAmount(inv.amount_ht)}
@@ -229,13 +211,16 @@ export function VenueBillingTab({ hotelId }: VenueBillingTabProps) {
                   <TableCell className="text-right text-muted-foreground">
                     {formatAmount(inv.vat_amount)}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
+                  <TableCell className="text-right">
                     {formatAmount(inv.amount_ttc)}
                   </TableCell>
                   <TableCell>
                     <Badge
                       variant="secondary"
-                      className={statusColors[inv.status] ?? ""}
+                      className={cn(
+                        "font-normal",
+                        statusColors[inv.status] ?? "",
+                      )}
                     >
                       {t(
                         `venue.billingTab.status.${inv.status}`,
@@ -271,6 +256,8 @@ export function VenueBillingTab({ hotelId }: VenueBillingTabProps) {
           </Table>
         </Card>
       )}
+
+      <VenueTherapistInvoicesSection hotelId={hotelId} />
 
       <VenueInvoiceGenerateDialog
         open={generateOpen}
