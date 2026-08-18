@@ -9,7 +9,8 @@ export type BroadcastExclusionReason =
   | "declined"
   | "not_qualified"
   | "unavailable"
-  | "gender_mismatch";
+  | "gender_mismatch"
+  | "wave_pending";
 
 export interface BroadcastTherapist {
   id: string;
@@ -36,6 +37,8 @@ export interface BookingBroadcastAudit {
   notReached: BroadcastAuditRow[];
   /** Préférence de genre demandée sur la réservation, pour libeller "gender_mismatch". */
   genderPreference: string | null;
+  /** Dernier groupe de priorité sollicité, pour libeller "wave_pending". null = lieu sans groupes. */
+  currentWave: number | null;
 }
 
 interface UseBookingBroadcastAuditParams {
@@ -66,14 +69,19 @@ export function useBookingBroadcastAudit({
     enabled: enabled && !!bookingId,
     staleTime: 30_000,
     queryFn: async (): Promise<BookingBroadcastAudit> => {
-      const empty: BookingBroadcastAudit = { notified: [], notReached: [], genderPreference: null };
+      const empty: BookingBroadcastAudit = {
+        notified: [],
+        notReached: [],
+        genderPreference: null,
+        currentWave: null,
+      };
       if (!bookingId) return empty;
 
       // 0. Les colonnes du booking dont dépend le prédicat. Lues ici plutôt qu'ajoutées au
       // select partagé de useBookingData, qui alimente toutes les listes de réservations.
       const { data: booking, error: bookingError } = await supabase
         .from("bookings")
-        .select("hotel_id, booking_date, declined_by, therapist_gender_preference")
+        .select("hotel_id, booking_date, declined_by, therapist_gender_preference, broadcast_wave")
         .eq("id", bookingId)
         .single();
       if (bookingError) throw bookingError;
@@ -82,19 +90,24 @@ export function useBookingBroadcastAudit({
       const bookingDate = booking?.booking_date;
       const declinedBy = booking?.declined_by ?? [];
       const genderPreference = booking?.therapist_gender_preference ?? null;
+      const currentWave = booking?.broadcast_wave ?? null;
       if (!hotelId) return empty;
 
       // 1. Périmètre : les thérapeutes rattachés au lieu.
       const { data: links, error: linksError } = await supabase
         .from("therapist_venues")
         .select(
-          "therapist_id, therapists (id, first_name, last_name, profile_image, status, gender, user_id)",
+          "therapist_id, priority, therapists (id, first_name, last_name, profile_image, status, gender, user_id)",
         )
         .eq("hotel_id", hotelId);
       if (linksError) throw linksError;
 
       type TherapistRow = BroadcastTherapist & { user_id: string | null };
-      type LinkRow = { therapists: TherapistRow | TherapistRow[] | null };
+      type LinkRow = { therapist_id: string; priority: number | null; therapists: TherapistRow | TherapistRow[] | null };
+
+      const priorityByTherapist = new Map(
+        ((links as LinkRow[] | null) || []).map((row) => [row.therapist_id, row.priority ?? 1]),
+      );
 
       const venueTherapists = ((links as LinkRow[] | null) || [])
         .flatMap((row) => {
@@ -226,6 +239,18 @@ export function useBookingBroadcastAudit({
         }
       }
 
+      // Passe 3 : les vagues de priorité, appliquées par l'edge function après le genre. Un
+      // praticien encore éligible mais rangé dans un groupe au-delà de la vague courante n'a
+      // pas été écarté, seulement pas encore sollicité — d'où un libellé distinct.
+      if (currentWave !== null) {
+        evaluated.forEach((e) => {
+          if (e.notifiedAt || e.row.exclusionReason !== null) return;
+          if ((priorityByTherapist.get(e.source.id) ?? 1) > currentWave) {
+            e.row.exclusionReason = "wave_pending";
+          }
+        });
+      }
+
       evaluated.forEach((e) => (e.notifiedAt ? notified : notReached).push(e.row));
 
       notified.sort(
@@ -235,7 +260,7 @@ export function useBookingBroadcastAudit({
       );
       notReached.sort((a, b) => a.therapist.first_name.localeCompare(b.therapist.first_name));
 
-      return { notified, notReached, genderPreference };
+      return { notified, notReached, genderPreference, currentWave };
     },
   });
 }

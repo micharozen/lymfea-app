@@ -91,6 +91,9 @@ export function BookingBroadcastTab({ bookingId, enabled }: BookingBroadcastTabP
         }),
       });
     }
+    if (row.exclusionReason === "wave_pending") {
+      return t("broadcast.reasonsLong.wave_pending", { wave: data?.currentWave ?? 1 });
+    }
     return t(`broadcast.reasonsLong.${row.exclusionReason ?? "unknown"}`);
   };
 

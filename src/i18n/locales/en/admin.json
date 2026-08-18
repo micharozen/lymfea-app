@@ -14,6 +14,7 @@
       "not_qualified": "does not perform this treatment",
       "unavailable": "unavailable that day",
       "gender_mismatch": "gender not prioritised",
+      "wave_pending": "group not contacted yet",
       "unknown": "unknown reason"
     },
     "genderPreference": {
@@ -27,6 +28,7 @@
       "not_qualified": "Does not perform: {{treatments}}.",
       "unavailable": "They marked themselves unavailable for this date.",
       "gender_mismatch": "The booking requested {{preference}}. Matching therapists were available, so the broadcast was limited to them. A therapist with no gender set is also left out of the priority group.",
+      "wave_pending": "They belong to a priority group beyond group {{wave}}, the only one contacted so far. They will be notified on the next wave, or immediately if the whole current group declines.",
       "unknown": "No exclusion reason applies today. The broadcast most likely never ran, or this therapist was linked to the venue after it was sent."
     }
   },
@@ -576,6 +578,8 @@
     "interVenueBufferDesc": "Buffer added before and after each booking when the therapist comes from another venue. 0 = no buffer.",
     "roomTurnoverBuffer": "Room turnover buffer",
     "roomTurnoverBufferDesc": "Time added after each treatment for room cleanup. Blocks the room and therapist. 0 = no buffer.",
+    "therapistEscalationDelay": "Delay before contacting the next group",
+    "therapistEscalationDelayDesc": "Time given to the priority therapist group before the next one is notified. Has no effect while every therapist at the venue sits in the same group (Therapists tab). Empty = 10 min.",
     "minBookingNotice": "Minimum booking notice",
     "minBookingNoticeDesc": "Minimum delay between now and any bookable slot (e.g. 2h, 4h, 24h). Slots that are too soon are hidden from the client. 0 = no delay.",
     "bookingRules": {
@@ -762,6 +766,14 @@
         "noSearchResult": "No invoice matches this search"
       }
     }
+  },
+  "venueTherapists": {
+    "groupLabel": "Priority group",
+    "groupOption": "Group {{group}}",
+    "groupHint": "Group 1 is contacted first when a booking comes in. Group 2 only follows after the delay set in the Configuration tab, or as soon as every therapist in group 1 has declined. While everyone sits in group 1, all therapists are notified at once.",
+    "priorityUpdated": "Group updated",
+    "priorityError": "Could not change the group",
+    "groupOnVenueHint": "Set from the venue page, Therapists tab."
   },
   "customers": {
     "title": "Customers",

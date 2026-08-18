@@ -727,6 +727,8 @@ export type Database = {
           booking_group_id: string | null
           booking_id: number
           booking_time: string
+          broadcast_wave: number | null
+          broadcast_wave_sent_at: string | null
           bundle_usage_id: string | null
           cancellation_reason: string | null
           client_email: string | null
@@ -791,6 +793,8 @@ export type Database = {
           booking_group_id?: string | null
           booking_id?: number
           booking_time: string
+          broadcast_wave?: number | null
+          broadcast_wave_sent_at?: string | null
           bundle_usage_id?: string | null
           cancellation_reason?: string | null
           client_email?: string | null
@@ -855,6 +859,8 @@ export type Database = {
           booking_group_id?: string | null
           booking_id?: number
           booking_time?: string
+          broadcast_wave?: number | null
+          broadcast_wave_sent_at?: string | null
           bundle_usage_id?: string | null
           cancellation_reason?: string | null
           client_email?: string | null
@@ -1866,6 +1872,7 @@ export type Database = {
           slug: string
           status: string | null
           therapist_commission: number | null
+          therapist_escalation_delay_minutes: number | null
           timezone: string | null
           updated_at: string
           vat: number | null
@@ -1922,6 +1929,7 @@ export type Database = {
           slug: string
           status?: string | null
           therapist_commission?: number | null
+          therapist_escalation_delay_minutes?: number | null
           timezone?: string | null
           updated_at?: string
           vat?: number | null
@@ -1978,6 +1986,7 @@ export type Database = {
           slug?: string
           status?: string | null
           therapist_commission?: number | null
+          therapist_escalation_delay_minutes?: number | null
           timezone?: string | null
           updated_at?: string
           vat?: number | null
@@ -2903,18 +2912,21 @@ export type Database = {
           created_at: string | null
           hotel_id: string
           id: string
+          priority: number
           therapist_id: string
         }
         Insert: {
           created_at?: string | null
           hotel_id: string
           id?: string
+          priority?: number
           therapist_id: string
         }
         Update: {
           created_at?: string | null
           hotel_id?: string
           id?: string
+          priority?: number
           therapist_id?: string
         }
         Relationships: [
