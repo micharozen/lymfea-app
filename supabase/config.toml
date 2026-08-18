@@ -231,5 +231,8 @@ verify_jwt = false
 [functions.complete-past-paid-bookings]
 verify_jwt = false
 
+[functions.escalate-booking-broadcast]
+verify_jwt = false
+
 [functions.finalize-payment]
 verify_jwt = false

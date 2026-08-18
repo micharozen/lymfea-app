@@ -13,6 +13,7 @@
       "declined": "a refusé",
       "not_qualified": "ne réalise pas ce soin",
       "unavailable": "indisponible ce jour",
+      "wave_pending": "groupe pas encore sollicité",
       "unknown": "raison inconnue"
     },
     "reasonsLong": {
@@ -21,6 +22,7 @@
       "declined": "Il a refusé cette réservation, il n'est donc plus resollicité.",
       "not_qualified": "Ne réalise pas : {{treatments}}.",
       "unavailable": "Il s'est déclaré indisponible pour cette date.",
+      "wave_pending": "Il appartient à un groupe de priorité au-delà du groupe {{wave}}, seul sollicité pour l'instant. Il sera notifié à la vague suivante, ou immédiatement si tout le groupe courant refuse.",
       "unknown": "Aucun motif d'exclusion ne s'applique aujourd'hui. La diffusion n'a probablement jamais été déclenchée, ou ce thérapeute a été rattaché au lieu après l'envoi."
     }
   },
@@ -548,6 +550,8 @@
     "interVenueBufferDesc": "Buffer ajouté avant et après chaque prestation quand le thérapeute vient d'un autre lieu. 0 = pas de buffer.",
     "roomTurnoverBuffer": "Temps de remise en état",
     "roomTurnoverBufferDesc": "Temps ajouté après chaque soin pour la remise en état de la salle. Bloque la salle et le thérapeute. 0 = pas de buffer.",
+    "therapistEscalationDelay": "Délai avant sollicitation du groupe suivant",
+    "therapistEscalationDelayDesc": "Temps laissé au groupe de thérapeutes prioritaire avant que le suivant soit notifié. Sans effet tant que tous les thérapeutes du lieu sont dans le même groupe (onglet Thérapeutes). Vide = 10 min.",
     "minBookingNotice": "Délai minimum avant réservation",
     "minBookingNoticeDesc": "Délai minimum entre maintenant et l'heure d'un créneau réservable (ex. 2h, 4h, 24h). Les créneaux trop proches sont masqués côté client. 0 = pas de délai.",
     "bookingRules": {
@@ -628,6 +632,14 @@
       "recipientError": "Erreur lors de l'enregistrement",
       "missingDescription": "Les factures des thérapeutes seront adressées à ce lieu avec les coordonnées de sa fiche, sans SIRET ni numéro de TVA."
     }
+  },
+  "venueTherapists": {
+    "groupLabel": "Groupe de priorité",
+    "groupOption": "Groupe {{group}}",
+    "groupHint": "Le groupe 1 est sollicité en premier lors d'une nouvelle réservation. Le groupe 2 ne l'est qu'après le délai réglé dans l'onglet Configuration, ou dès que tout le groupe 1 a refusé. Tant que tout le monde est en groupe 1, tous sont notifiés en même temps.",
+    "groupOnVenueHint": "Se règle depuis la fiche du lieu, onglet Thérapeutes.",
+    "priorityUpdated": "Groupe mis à jour",
+    "priorityError": "Erreur lors du changement de groupe"
   },
   "customers": {
     "title": "Clients",

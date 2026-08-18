@@ -8,7 +8,8 @@ export type BroadcastExclusionReason =
   | "inactive"
   | "declined"
   | "not_qualified"
-  | "unavailable";
+  | "unavailable"
+  | "wave_pending";
 
 export interface BroadcastTherapist {
   id: string;
@@ -33,6 +34,8 @@ export interface BroadcastAuditRow {
 export interface BookingBroadcastAudit {
   notified: BroadcastAuditRow[];
   notReached: BroadcastAuditRow[];
+  /** Dernier groupe de priorité sollicité, pour libeller "wave_pending". null = lieu sans groupes. */
+  currentWave: number | null;
 }
 
 interface UseBookingBroadcastAuditParams {
@@ -63,13 +66,14 @@ export function useBookingBroadcastAudit({
     enabled: enabled && !!bookingId,
     staleTime: 30_000,
     queryFn: async (): Promise<BookingBroadcastAudit> => {
-      if (!bookingId) return { notified: [], notReached: [] };
+      const empty: BookingBroadcastAudit = { notified: [], notReached: [], currentWave: null };
+      if (!bookingId) return empty;
 
       // 0. Les colonnes du booking dont dépend le prédicat. Lues ici plutôt qu'ajoutées au
       // select partagé de useBookingData, qui alimente toutes les listes de réservations.
       const { data: booking, error: bookingError } = await supabase
         .from("bookings")
-        .select("hotel_id, booking_date, declined_by")
+        .select("hotel_id, booking_date, declined_by, broadcast_wave")
         .eq("id", bookingId)
         .single();
       if (bookingError) throw bookingError;
@@ -77,19 +81,24 @@ export function useBookingBroadcastAudit({
       const hotelId = booking?.hotel_id;
       const bookingDate = booking?.booking_date;
       const declinedBy = booking?.declined_by ?? [];
-      if (!hotelId) return { notified: [], notReached: [] };
+      const currentWave = booking?.broadcast_wave ?? null;
+      if (!hotelId) return empty;
 
       // 1. Périmètre : les thérapeutes rattachés au lieu.
       const { data: links, error: linksError } = await supabase
         .from("therapist_venues")
         .select(
-          "therapist_id, therapists (id, first_name, last_name, profile_image, status, gender, user_id)",
+          "therapist_id, priority, therapists (id, first_name, last_name, profile_image, status, gender, user_id)",
         )
         .eq("hotel_id", hotelId);
       if (linksError) throw linksError;
 
       type TherapistRow = BroadcastTherapist & { user_id: string | null };
-      type LinkRow = { therapists: TherapistRow | TherapistRow[] | null };
+      type LinkRow = { therapist_id: string; priority: number | null; therapists: TherapistRow | TherapistRow[] | null };
+
+      const priorityByTherapist = new Map(
+        ((links as LinkRow[] | null) || []).map((row) => [row.therapist_id, row.priority ?? 1]),
+      );
 
       const venueTherapists = ((links as LinkRow[] | null) || [])
         .flatMap((row) => {
@@ -98,7 +107,7 @@ export function useBookingBroadcastAudit({
         })
         .filter((t): t is TherapistRow => !!t);
 
-      if (venueTherapists.length === 0) return { notified: [], notReached: [] };
+      if (venueTherapists.length === 0) return empty;
 
       // 2. Les lignes de log : ciblage effectif (insérées avant l'envoi du push).
       const { data: logs, error: logsError } = await supabase
@@ -187,6 +196,10 @@ export function useBookingBroadcastAudit({
         else if (declinedSet.has(t.id)) exclusionReason = "declined";
         else if (missingTreatments.length > 0) exclusionReason = "not_qualified";
         else if (blockedTherapistIds.has(t.id)) exclusionReason = "unavailable";
+        // Un praticien encore éligible mais rangé au-delà de la vague courante n'a pas été
+        // écarté, seulement pas encore sollicité — d'où un libellé distinct.
+        else if (currentWave !== null && (priorityByTherapist.get(t.id) ?? 1) > currentWave)
+          exclusionReason = "wave_pending";
 
         notReached.push({ therapist, notifiedAt: null, exclusionReason, missingTreatments });
       });
@@ -198,7 +211,7 @@ export function useBookingBroadcastAudit({
       );
       notReached.sort((a, b) => a.therapist.first_name.localeCompare(b.therapist.first_name));
 
-      return { notified, notReached };
+      return { notified, notReached, currentWave };
     },
   });
 }
