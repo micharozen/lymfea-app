@@ -582,6 +582,7 @@
     "cancelSuccessDescription": "A confirmation email has been sent to you."
   },
   "resume": {
-    "expired": "This link has expired. Pick your treatments again below."
+    "expired": "This link has expired. Pick your treatments again below.",
+    "slotGone": "That time slot is no longer available. Please pick another one."
   }
 }
