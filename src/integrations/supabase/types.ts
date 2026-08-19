@@ -4671,6 +4671,7 @@ export type Database = {
           client_email: string
           client_first_name: string
           client_last_name: string
+          client_phone: string
           hotel_id: string
           hotel_slug: string
           language: string
