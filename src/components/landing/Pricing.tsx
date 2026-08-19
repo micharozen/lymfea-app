@@ -141,10 +141,16 @@ export const Pricing = () => {
   const starterPlan = plansByCode.get("starter");
   const proPlan = plansByCode.get("pro");
 
-  const starterAmount =
-    cycle === "yearly" ? starterPlan?.yearly_amount_cents : starterPlan?.monthly_amount_cents;
-  const proAmount =
-    cycle === "yearly" ? proPlan?.yearly_amount_cents : proPlan?.monthly_amount_cents;
+  // Yearly plans are stored as a full-year amount but displayed as their monthly
+  // equivalent, so both cycles show a per-month price the visitor can compare.
+  function displayedAmount(plan: PublicPlan | undefined): number | null | undefined {
+    if (cycle !== "yearly") return plan?.monthly_amount_cents;
+    const yearly = plan?.yearly_amount_cents;
+    return yearly == null ? yearly : Math.round(yearly / 12);
+  }
+
+  const starterAmount = displayedAmount(starterPlan);
+  const proAmount = displayedAmount(proPlan);
 
   return (
     <section id="pricing" className="py-24 md:py-32">
@@ -218,7 +224,7 @@ export const Pricing = () => {
                   {formatPrice(starterAmount, starterPlan?.currency ?? "eur")}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  /{cycle === "yearly" ? t("pricing.unit.year", { defaultValue: "an" }) : t("pricing.starter.unit")}
+                  /{t("pricing.starter.unit")}
                 </span>
               </div>
             </div>
@@ -276,7 +282,7 @@ export const Pricing = () => {
                   {formatPrice(proAmount, proPlan?.currency ?? "eur")}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  /{cycle === "yearly" ? t("pricing.unit.year", { defaultValue: "an" }) : t("pricing.pro.unit")}
+                  /{t("pricing.pro.unit")}
                 </span>
               </div>
             </div>
