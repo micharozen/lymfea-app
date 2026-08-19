@@ -262,7 +262,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
       return `<tr>
         <td class="date">${formatDateFr(new Date(`${ln.date}T00:00:00Z`))}</td>
         <td class="client">${escapeHtml(ln.clientName)}</td>
-        <td>${escapeHtml(ln.label)}</td>
+        <td class="desc">${escapeHtml(ln.label)}</td>
         <td>${durLabel}</td>
         <td>${formatAmount(ln.amountHt)}</td>
       </tr>`;
@@ -368,6 +368,13 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   table.items thead th:nth-child(3) { text-align: left; }
   table.items td.client {
     text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  /* Un booking peut cumuler plusieurs soins (« Soin A + Soin B ») : le libellé
+     passe à la ligne au lieu de déborder sur la colonne Durée. */
+  table.items td.desc {
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
