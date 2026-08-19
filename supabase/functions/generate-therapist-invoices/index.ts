@@ -371,6 +371,13 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     overflow-wrap: anywhere;
     word-break: break-word;
   }
+  /* Un booking peut cumuler plusieurs soins (« Soin A + Soin B ») : le libellé
+     passe à la ligne au lieu de déborder sur la colonne Durée. */
+  table.items td.desc {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
   table.items tbody td {
     padding: 14px 6px;
     border-bottom: 1px solid #f2f2f2;
