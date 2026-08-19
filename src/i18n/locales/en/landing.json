@@ -158,6 +158,14 @@
     "eyebrow": "Pricing",
     "title": "Simple pricing, aligned with your business",
     "subtitle": "No hidden fees, no long-term commitment. Two plans, all inclusive.",
+    "cycle": {
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "yearlyHint": "−2 months"
+    },
+    "unit": {
+      "year": "excl. VAT / year"
+    },
     "starter": {
       "name": "Starter",
       "tagline": "For an independent spa or a day spa getting started.",
