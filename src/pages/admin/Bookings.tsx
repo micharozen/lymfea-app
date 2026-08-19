@@ -36,13 +36,11 @@ import {
   useBookingFilters,
   useCalendarLogic,
   useBookingSelection,
-  useAmenityBookingData,
   useTherapistDayPlanning,
   useRoomBlocks,
   useDeleteRoomBlockRow,
   type RoomBlockRow,
   type BookingWithTreatments,
-  type AmenityBookingForCalendar,
 } from "@/hooks/booking";
 
 import {
@@ -63,8 +61,6 @@ import {
   buildCalendarEntries,
 } from "@/components/booking/CalendarSidebar";
 import { useVenueAmenities } from "@/hooks/useVenueAmenities";
-import { CreateAmenityBookingDialog } from "@/components/booking/CreateAmenityBookingDialog";
-import { AmenityBookingDetailDialog } from "@/components/booking/AmenityBookingDetailDialog";
 
 export default function Booking() {
   const navigate = useNavigate();
@@ -161,11 +157,6 @@ export default function Booking() {
     if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
   }, []);
 
-  // Amenity dialog state
-  const [isAmenityDetailOpen, setIsAmenityDetailOpen] = useState(false);
-  const [viewedAmenityBooking, setViewedAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
-  const [editingAmenityBooking, setEditingAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
-
   // --- LOGIQUE DE REDIRECTION (ADAPTÉE À LA NOUVELLE PAGE) ---
 useEffect(() => {
   const bookingId = searchParams.get("id");
@@ -241,10 +232,6 @@ useEffect(() => {
   }, [filteredBookings, hasVenueFilter, showCancelled]);
 
   const { amenities: venueAmenities } = useVenueAmenities(singleVenueId ?? "");
-  const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({
-    hotelFilter: singleVenueId ?? undefined,
-  });
-
   // Calendar sidebar state
   const [visibleCalendars, setVisibleCalendars] = useState<Record<string, boolean>>({ treatments: true });
 
@@ -431,11 +418,6 @@ useEffect(() => {
     setIsRefreshing(false);
   };
 
-  const handleAmenityBookingClick = (booking: AmenityBookingForCalendar) => {
-    setViewedAmenityBooking(booking);
-    setIsAmenityDetailOpen(true);
-  };
-
   return (
     <div className="h-full min-h-0 bg-background flex flex-col overflow-hidden">
       {/* Header & Filters — single toolbar row to maximize planning space */}
@@ -620,9 +602,7 @@ useEffect(() => {
               hotels={hotels}
               hotelFilter={hotelFilter}
               showCleanupBuffer={!!hasVenueFilter}
-              amenityBookings={amenityBookings}
               visibleCalendars={hasVenueFilter ? visibleCalendars : undefined}
-              onAmenityBookingClick={handleAmenityBookingClick}
               roomBlocks={roomBlocks}
               onEditRoomBlock={setEditingRoomBlock}
               onDeleteRoomBlock={setDeletingRoomBlock}
@@ -671,26 +651,6 @@ useEffect(() => {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         booking={selectedBooking}
-      />
-
-      {/* Edit an existing amenity booking (reuses the create dialog in edit mode) */}
-      <CreateAmenityBookingDialog
-        open={!!editingAmenityBooking}
-        onOpenChange={(o) => {
-          if (!o) setEditingAmenityBooking(null);
-        }}
-        hotelId={editingAmenityBooking?.hotel_id}
-        editBooking={editingAmenityBooking}
-      />
-
-      <AmenityBookingDetailDialog
-        open={isAmenityDetailOpen}
-        onOpenChange={setIsAmenityDetailOpen}
-        booking={viewedAmenityBooking}
-        onEdit={(booking) => {
-          setIsAmenityDetailOpen(false);
-          setEditingAmenityBooking(booking);
-        }}
       />
 
       {cancelBooking && (

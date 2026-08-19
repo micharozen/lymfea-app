@@ -53,6 +53,7 @@ const createFormSchema = (t: TFunction) =>
     is_addon: z.boolean().default(false),
     addon_ids: z.array(z.string().uuid()).default([]),
     // Amenity access treatments have no therapist, so no specialty is required.
+    is_amenity: z.boolean().default(false),
     amenity_id: z.string().uuid().nullable().default(null),
     specialty: z.string().default(""),
     variants: z
@@ -75,7 +76,15 @@ const createFormSchema = (t: TFunction) =>
     .superRefine((val, ctx) => {
       // Specialty and service_for are mandatory for real soins, but irrelevant
       // for amenity treatments (no therapist, no gender targeting).
-      if (!val.amenity_id) {
+      if (val.is_amenity) {
+        if (!val.amenity_id) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["amenity_id"],
+            message: "Sélectionnez la commodité associée",
+          });
+        }
+      } else {
         if (!val.specialty) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -128,7 +137,9 @@ export default function TreatmentDetail() {
     defaultValues: {
       name: "",
       slug: "",
+      name_en: "",
       description: "",
+      description_en: "",
       lead_time: "0",
       service_for: "",
       category: "",
@@ -139,6 +150,7 @@ export default function TreatmentDetail() {
       available_days: [],
       is_addon: false,
       addon_ids: [],
+      is_amenity: false,
       amenity_id: null,
       specialty: "",
       variants: [
@@ -231,6 +243,7 @@ export default function TreatmentDetail() {
             available_days: (treatment as any).available_days ?? [],
             is_addon: treatment.is_addon ?? false,
             addon_ids: addonIds,
+            is_amenity: !!treatment.amenity_id,
             amenity_id: treatment.amenity_id ?? null,
             specialty: treatment.treatment_type || "",
             variants: variantsData,
@@ -264,6 +277,7 @@ export default function TreatmentDetail() {
       if (errors.hotel_id) missingFields.push("Hôtel");
       if (errors.category) missingFields.push("Catégorie");
       if (errors.service_for) missingFields.push("Service pour");
+      if (errors.amenity_id) missingFields.push("Commodité associée");
       if (errors.variants) missingFields.push("Variantes");
       toast.error(
         missingFields.length > 0
@@ -303,7 +317,7 @@ export default function TreatmentDetail() {
         available_days: values.available_days.length > 0 ? values.available_days : null,
         is_addon: values.is_addon,
         treatment_type: values.specialty || null,
-        amenity_id: values.amenity_id || null,
+        amenity_id: values.is_amenity ? values.amenity_id : null,
       };
 
       // An add-on cannot itself have sub-add-ons — clear links if toggled on
