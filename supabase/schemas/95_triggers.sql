@@ -12,6 +12,8 @@ CREATE OR REPLACE TRIGGER "trg_booking_audit" AFTER INSERT OR UPDATE ON "public"
 
 CREATE OR REPLACE TRIGGER "trg_prevent_overlapping_treatment_room_bookings" BEFORE INSERT OR UPDATE OF "hotel_id", "booking_date", "booking_time", "duration", "room_id", "secondary_room_id", "status", "payment_status" ON "public"."bookings" FOR EACH ROW EXECUTE FUNCTION "public"."prevent_overlapping_treatment_room_bookings"();
 
+CREATE OR REPLACE TRIGGER "trg_propagate_booking_status_to_amenities" AFTER UPDATE OF "status" ON "public"."bookings" FOR EACH ROW EXECUTE FUNCTION "public"."propagate_booking_status_to_amenities"();
+
 CREATE OR REPLACE TRIGGER "trg_therapist_availability_audit" AFTER INSERT OR DELETE OR UPDATE ON "public"."therapist_availability" FOR EACH ROW EXECUTE FUNCTION "public"."log_therapist_availability_change"();
 
 CREATE OR REPLACE TRIGGER "trg_ticket_closed_at" BEFORE UPDATE ON "public"."tickets" FOR EACH ROW EXECUTE FUNCTION "public"."set_ticket_closed_at"();

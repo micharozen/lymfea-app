@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addDays, subDays, startOfMonth, endOfMonth, format, parseISO, isValid } from "date-fns";
-import { Ban, ChevronDown, LayoutGrid, RefreshCw, Waves } from "lucide-react";
+import { Ban, ChevronDown, LayoutGrid, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppLoader } from "@/components/AppLoader";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
@@ -162,7 +162,6 @@ export default function Booking() {
   }, []);
 
   // Amenity dialog state
-  const [isAmenityCreateOpen, setIsAmenityCreateOpen] = useState(false);
   const [isAmenityDetailOpen, setIsAmenityDetailOpen] = useState(false);
   const [viewedAmenityBooking, setViewedAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
   const [editingAmenityBooking, setEditingAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
@@ -499,14 +498,10 @@ useEffect(() => {
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
-              <Button
-                size="sm"
-                className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700 text-white transition-transform duration-100 active:scale-90"
-                onClick={() => setIsAmenityCreateOpen(true)}
-              >
-                Commodité
-                <Waves className="h-3.5 w-3.5 ml-1" />
-              </Button>
+              {/* Bouton « Commodité » retiré : une réservation de commodité se crée
+                  désormais via « Nouvelle réservation », en choisissant le soin lié à
+                  l'équipement — seul chemin qui décompte la capacité et alimente le
+                  planning. Le dialog reste monté plus bas pour l'édition. */}
               {/* Split button : action principale + menu (ouvert au survol) */}
               <div className="flex">
                 <Button
@@ -676,17 +671,6 @@ useEffect(() => {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         booking={selectedBooking}
-      />
-
-      {/* Amenity dialogs */}
-      <CreateAmenityBookingDialog
-        open={isAmenityCreateOpen}
-        onOpenChange={setIsAmenityCreateOpen}
-        hotelId={singleVenueId ?? undefined}
-        venueAmenities={hasVenueFilter ? venueAmenities : undefined}
-        hotels={hotels}
-        preselectedDate={selectedDate}
-        preselectedTime={selectedTime}
       />
 
       {/* Edit an existing amenity booking (reuses the create dialog in edit mode) */}
