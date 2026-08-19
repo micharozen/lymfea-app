@@ -39,6 +39,7 @@ import { VenueResourcesTab } from "@/components/admin/venue/VenueResourcesTab";
 import { VenueTherapistsTab } from "@/components/admin/venue/VenueTherapistsTab";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
 import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
+import { VenueTherapistInvoicesSection } from "@/components/admin/venue/VenueTherapistInvoicesSection";
 import { VenueHistoryTab } from "@/components/admin/venue/VenueHistoryTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { VenueCompletenessPanel } from "@/components/admin/venue/VenueCompletenessPanel";
@@ -153,6 +154,12 @@ interface VenueDetailProps {
    * so venue managers can manage their venue's therapists.
    */
   showTherapistTab?: boolean;
+  /**
+   * In restricted mode, expose a "Facturation" tab limited to the therapist
+   * auto-invoices — the venue's own billing profile and the platform → venue
+   * invoices stay admin-only.
+   */
+  showBillingTab?: boolean;
   /** Where the back button should navigate. Defaults to /admin/places. */
   backTo?: string;
 }
@@ -162,6 +169,7 @@ export default function VenueDetail({
   restricted = false,
   restrictedSections,
   showTherapistTab = false,
+  showBillingTab = false,
   backTo = "/admin/places",
 }: VenueDetailProps = {}) {
   const params = useParams<{ id: string }>();
@@ -923,16 +931,23 @@ export default function VenueDetail({
         </div>
       ) : (
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          {/* Restricted tab bar (venue manager) — Configuration + Thérapeutes only */}
-          {restricted && showTherapistTab && (
+          {/* Restricted tab bar (venue manager) — Configuration + Thérapeutes + Facturation */}
+          {restricted && (showTherapistTab || showBillingTab) && (
           <div className="px-4 md:px-6 pt-4 bg-background sticky top-[57px] z-[9]">
             <TabsList className="w-full justify-start overflow-x-auto bg-transparent rounded-none border-b p-0 h-auto">
               <TabsTrigger value="configuration" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Configuration
               </TabsTrigger>
-              <TabsTrigger value="therapists" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Thérapeutes
-              </TabsTrigger>
+              {showTherapistTab && (
+                <TabsTrigger value="therapists" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                  Thérapeutes
+                </TabsTrigger>
+              )}
+              {showBillingTab && (
+                <TabsTrigger value="billing" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                  Facturation
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
           )}
@@ -982,7 +997,7 @@ export default function VenueDetail({
                   )}
                   {/* Option 2: Horizontal sticky sub-nav */}
                   <VenueSectionNavBar
-                    topOffset={restricted && !showTherapistTab ? 57 : 105}
+                    topOffset={restricted && !showTherapistTab && !showBillingTab ? 57 : 105}
                     sections={
                       restrictedSections
                         ? VENUE_CONFIG_SECTIONS.filter((s) =>
@@ -1043,7 +1058,16 @@ export default function VenueDetail({
                 </TabsContent>
 
                 <TabsContent value="billing" className="mt-0">
-                  <VenueBillingTab hotelId={effectiveHotelId!} />
+                  {/* Un gestionnaire de lieu ne facture que ses thérapeutes : le
+                      profil de facturation du lieu et les factures plateforme →
+                      lieu restent réservés à l'admin. */}
+                  {restricted ? (
+                    showBillingTab && (
+                      <VenueTherapistInvoicesSection hotelId={effectiveHotelId!} />
+                    )
+                  ) : (
+                    <VenueBillingTab hotelId={effectiveHotelId!} />
+                  )}
                 </TabsContent>
 
                 <TabsContent value="branding" className="mt-0">
