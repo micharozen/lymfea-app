@@ -13,7 +13,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities, cn } from "@/lib/utils";
 import { AvailabilityOverlay } from "./AvailabilityOverlay";
 import { CleanupBufferZone } from "./CleanupBufferZone";
-import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar, RoomBlockRow } from "@/hooks/booking";
+import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, RoomBlockRow } from "@/hooks/booking";
 import { getAmenityType } from "@/lib/amenityTypes";
 import { type CalendarLayoutSlot } from "@/hooks/booking/useCalendarLogic";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
@@ -893,7 +893,7 @@ export function BookingCard({
   const showClientRow = !!clientName && height >= 40;
   const showTherapistRow = hasTherapist && height >= 56;
   const showTreatmentRow = !!treatmentsLabel && height >= 72;
-  const showRoomRow = !!booking.room_name && height >= 88;
+  const showRoomRow = !isAmenityOnly && !!booking.room_name && height >= 88;
   const showAmenityRow = isAmenityOnly && !!amenityLine?.amenity_name && height >= 88;
   // When the client doesn't get its own row, keep it visible inline next to the time.
   const showInlineClient = !!clientName && !showClientRow;
@@ -1019,7 +1019,7 @@ export function BookingCard({
                   // bottom left a large empty gap and clipped the tag on short cards.
                   "mt-0.5 self-start px-1.5 h-4 rounded-[3px] flex items-center text-[8px] font-bold flex-shrink-0 border shadow-sm whitespace-nowrap max-w-[70%] truncate",
                   // Reserve room on the right for the absolute "À ASSIGNER" badge when present.
-                  !hasTherapist && "mr-16",
+                  !hasTherapist && !isAmenityOnly && "mr-16",
                   paymentTag.className
                 )}
                 title={paymentTag.label}
@@ -1027,8 +1027,9 @@ export function BookingCard({
                 {paymentTag.label}
               </div>
             )}
-            {/* Unassigned badge — bottom-right corner */}
-            {!hasTherapist && (
+            {/* Unassigned badge — bottom-right corner.
+                Panier 100 % commodité : aucun thérapeute n'est attendu. */}
+            {!hasTherapist && !isAmenityOnly && (
               <div
                 className="absolute bottom-1 right-1 px-1.5 h-4 rounded-[3px] flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800 shadow-sm"
                 title="Aucun thérapeute assigné"
@@ -1069,7 +1070,7 @@ export function BookingCard({
             </div>
           )}
 
-          {booking.room_name && (
+          {!isAmenityOnly && booking.room_name && (
             <div className="flex items-center gap-2 text-xs">
               <DoorOpen className="h-3 w-3" />
               <span>
