@@ -41,6 +41,7 @@ export default function MyVenue() {
       restricted
       restrictedSections={RESTRICTED_SECTIONS}
       showTherapistTab
+      showBillingTab
       backTo="/admin"
     />
   );

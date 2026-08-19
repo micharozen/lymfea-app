@@ -32,6 +32,7 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
             pmsVerified: clientInfo.pmsVerified,
             roomNumber: clientInfo.roomNumber,
             note: clientInfo.note || '',
+            isHotelGuest: clientInfo.isExternalGuest === false,
           },
           bookingData: {
             date: bookingDateTime.date,

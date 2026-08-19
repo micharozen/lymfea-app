@@ -3,6 +3,7 @@ import { computeOutOfHoursSurcharge } from "../../_shared/surcharge.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
 import type { ActionContext } from "../index.ts";
 import { tryMarkCheckoutIntentConverted } from "../../_shared/checkoutIntent.ts";
+import { normalizeClientType } from "../../_shared/client-type.ts";
 import {
   computeSlotDuration,
   fetchAddonTreatmentIds,
@@ -21,6 +22,17 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// Langue de communication client. Priorité au `language` explicite des metadata
+// de session (posé par le frontend), sinon dérivée de l'indicatif téléphonique
+// (+33 → fr, tout le reste → en — même règle que create-client-booking). Le
+// fallback 'fr' ne reste que pour un client sans langue ni téléphone.
+function resolveClientLanguage(meta: Record<string, string>): "fr" | "en" {
+  if (meta.language === "en" || meta.language === "fr") return meta.language;
+  const p = (meta.phone ?? "").replace(/\s/g, "");
+  if (!p) return "fr";
+  return p.startsWith("+33") ? "fr" : "en";
 }
 
 async function resolveCustomer(
@@ -165,7 +177,7 @@ async function atomicReserveSingle(
     _duration: totalDuration,
     _hotel_id: meta.hotelId,
     _hotel_name: hotel?.name || "Hotel",
-    _language: meta.language || "fr",
+    _language: resolveClientLanguage(meta),
     _payment_method: "card",
     _payment_status: "pending",
     _phone: meta.phone,
@@ -208,23 +220,22 @@ async function refundChargeAfterFailure(
 async function triggerBookingNotifications(
   supabase: ActionContext["supabase"],
   bookingIds: string[],
-  broadcast: boolean = true,
 ): Promise<void> {
   await Promise.all(
     bookingIds.flatMap((bookingId) => [
-      // Panier 100% amenity : aucun praticien requis, pas de diffusion — mais on
-      // envoie quand même l'email admin ci-dessous.
-      ...(broadcast
-        ? [
-            supabase.functions
-              .invoke("trigger-new-booking-notifications", {
-                body: { bookingId, notifyAll: true },
-              })
-              .catch((err: unknown) =>
-                console.error(`[CONFIRM-SETUP] Notif error for ${bookingId}:`, err),
-              ),
-          ]
-        : []),
+      // trigger-new-booking-notifications porte DEUX responsabilités : la
+      // diffusion aux praticiens ET l'email/SMS/.ics de confirmation client.
+      // Elle est donc toujours appelée, y compris pour un panier 100% amenity
+      // (privatisation piscine…) qui ne requiert aucun praticien : la fonction
+      // sait elle-même ne solliciter personne dans ce cas, et le client doit
+      // recevoir sa confirmation.
+      supabase.functions
+        .invoke("trigger-new-booking-notifications", {
+          body: { bookingId, notifyAll: true },
+        })
+        .catch((err: unknown) =>
+          console.error(`[CONFIRM-SETUP] Notif error for ${bookingId}:`, err),
+        ),
       supabase.functions
         .invoke("notify-admin-new-booking", {
           body: { bookingId },
@@ -437,7 +448,7 @@ export async function handleConfirmSetupIntent(
           _duration: slotDurations[i] || 60,
           _hotel_id: meta.hotelId,
           _hotel_name: venueData?.name || "Hotel",
-          _language: meta.language || "fr",
+          _language: resolveClientLanguage(meta),
           _payment_method: "card",
           _payment_status: "pending",
           _phone: meta.phone,
@@ -462,6 +473,7 @@ export async function handleConfirmSetupIntent(
           booking_group_id: multiGroupId,
           therapist_id: null,
           source: "client",
+          client_type: normalizeClientType(meta.clientType),
           is_out_of_hours: slotSurcharge.isOutOfHours,
           surcharge_amount: slotSurcharge.surchargeAmount,
           payment_status: bookingPaymentStatus,
@@ -514,8 +526,12 @@ export async function handleConfirmSetupIntent(
         phone: meta.phone,
         room_number: meta.roomNumber || null,
         client_note: meta.note || null,
+        // Les drafts sont créés sans données client → sans ça ils gardent le
+        // défaut DB 'fr' même pour un client anglophone (bug résa #1088).
+        language: resolveClientLanguage(meta),
         status: "pending",
         source: "client",
+        client_type: normalizeClientType(meta.clientType),
         payment_method: "card",
         payment_status: bookingPaymentStatus,
         customer_id: customerId,
@@ -580,7 +596,8 @@ export async function handleConfirmSetupIntent(
   const pricingLines: TreatmentLine[] = treatmentsPayload.length > 0
     ? treatmentsPayload
     : (treatmentIds as string[]).map((id) => ({ treatmentId: id, quantity: 1 }));
-  // Jours autorisés portés par la variante (formules Semaine / Week-end).
+  // Prix, durée et jours autorisés portés par la variante (formules Semaine /
+  // Week-end).
   const selectedVariantIds = pricingLines
     .map((l) => l.variantId)
     .filter((v): v is string => !!v);
@@ -602,9 +619,30 @@ export async function handleConfirmSetupIntent(
     (treatments || []).map((t: { id: string; duration: number }) => [t.id, t.duration || 0]),
   );
 
+  // La variante prime sur le soin pour le prix ET la durée : create-setup-intent
+  // facture déjà le tarif de la variante, la résa doit être enregistrée au même
+  // montant (sinon un booking week-end est stocké au tarif semaine alors que
+  // Stripe a bien encaissé le tarif week-end).
+  type VariantRow = { id: string; price: number | null; duration: number | null };
+  const { data: variantRows } = selectedVariantIds.length > 0
+    ? await supabase
+      .from("treatment_variants")
+      .select("id, price, duration")
+      .in("id", selectedVariantIds)
+    : { data: [] as VariantRow[] };
+  const variantById = new Map<string, VariantRow>(
+    (variantRows || []).map((v: VariantRow) => [v.id, v]),
+  );
+
+  const unitPriceOfLine = (line: TreatmentLine) =>
+    (line.variantId ? variantById.get(line.variantId)?.price : null) ??
+      priceById.get(line.treatmentId) ?? 0;
+
   const addonTreatmentIds = await fetchAddonTreatmentIds(supabase, meta.hotelId, treatments || []);
   const isAddonLine = (treatmentId: string) => addonTreatmentIds.has(treatmentId);
-  const durationOfLine = (line: TreatmentLine) => durationById.get(line.treatmentId) || 0;
+  const durationOfLine = (line: TreatmentLine) =>
+    ((line.variantId ? variantById.get(line.variantId)?.duration : null) ??
+      durationById.get(line.treatmentId)) || 0;
 
   // Amenity lines (pool/sauna access) occupy their own block — exclude them from
   // the soin slot duration. And an amenity-only cart (every line is an amenity)
@@ -623,7 +661,7 @@ export async function handleConfirmSetupIntent(
   let basePrice = 0;
   for (const line of pricingLines) {
     const qty = Math.max(1, Number(line.quantity) || 1);
-    basePrice += (priceById.get(line.treatmentId) || 0) * qty;
+    basePrice += unitPriceOfLine(line) * qty;
   }
   const totalDuration = computeSlotDuration(pricingLines, isDuo, durationOfLine, isAddonLine, isAmenityLine) || 30;
 
@@ -679,6 +717,7 @@ export async function handleConfirmSetupIntent(
       await supabase.from("bookings").update({
         therapist_id: null,
         source: "client",
+        client_type: normalizeClientType(meta.clientType),
         is_out_of_hours: surcharge.isOutOfHours,
         surcharge_amount: surcharge.surchargeAmount,
         payment_status: bookingPaymentStatus,
@@ -695,6 +734,7 @@ export async function handleConfirmSetupIntent(
           client_note: meta.note || null,
           status: bookingStatus,
           source: "client",
+          client_type: normalizeClientType(meta.clientType),
           payment_method: "card",
           payment_status: bookingPaymentStatus,
           total_price: verifiedPrice,
@@ -735,6 +775,7 @@ export async function handleConfirmSetupIntent(
     await supabase.from("bookings").update({
       therapist_id: null,
       source: "client",
+      client_type: normalizeClientType(meta.clientType),
       is_out_of_hours: surcharge.isOutOfHours,
       surcharge_amount: surcharge.surchargeAmount,
       payment_status: bookingPaymentStatus,
@@ -808,9 +849,7 @@ export async function handleConfirmSetupIntent(
     });
   }
 
-  // Panier 100% amenity : diffusion aux thérapeutes désactivée (broadcast=false),
-  // l'email admin reste envoyé.
-  await triggerBookingNotifications(supabase, [bookingId], !isAmenityOnly);
+  await triggerBookingNotifications(supabase, [bookingId]);
 
   await tryMarkCheckoutIntentConverted(supabase, meta.checkoutIntentId, bookingId, "[CONFIRM-SETUP]");
 

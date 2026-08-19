@@ -127,6 +127,11 @@ export default defineConfig(({ mode }) => ({
     })
   ].filter((p): p is Plugin => p !== false), // Typage explicite pour éviter l'erreur d'overload
   resolve: {
+    // Radix installe plusieurs copies de react-focus-scope (dialog en épingle une, popover
+    // une autre). Chaque copie tient sa propre pile de scopes : le focus-trap d'une modale
+    // ne se met alors jamais en pause quand un popover s'ouvre par-dessus, et il rapatrie
+    // le focus à chaque frappe — les champs de recherche des popovers deviennent inutilisables.
+    dedupe: ["@radix-ui/react-focus-scope"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@shared": path.resolve(__dirname, "./supabase/functions/_shared"),

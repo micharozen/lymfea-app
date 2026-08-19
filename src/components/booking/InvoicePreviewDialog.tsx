@@ -20,6 +20,7 @@ import {
 import { Download, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { downloadInvoicePdf, renderInvoicePdfBase64 } from "@/lib/invoicePdf";
 
 /** Optional "send this invoice to the therapist" action. */
 interface SendToTherapistConfig {
@@ -38,29 +39,6 @@ interface InvoicePreviewDialogProps {
   filename?: string;
   /** When provided, shows an "Envoyer au thérapeute" action. */
   sendToTherapist?: SendToTherapistConfig;
-}
-
-/** Render `invoiceHTML` to a PDF and return its base64 (without data-URI prefix). */
-async function renderInvoicePdfBase64(invoiceHTML: string, filename: string): Promise<string> {
-  const html2pdf = (await import("html2pdf.js")).default;
-  const element = document.createElement("div");
-  element.innerHTML = invoiceHTML;
-  document.body.appendChild(element);
-  try {
-    const dataUri: string = await html2pdf()
-      .set({
-        margin: 0,
-        filename,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, letterRendering: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      })
-      .from(element)
-      .outputPdf("datauristring");
-    return dataUri.split(",")[1] ?? "";
-  } finally {
-    document.body.removeChild(element);
-  }
 }
 
 export function InvoicePreviewDialog({
@@ -88,26 +66,8 @@ export function InvoicePreviewDialog({
 
   const handleDownload = async () => {
     try {
-      const html2pdf = (await import('html2pdf.js')).default;
-
-      const element = document.createElement('div');
-      element.innerHTML = invoiceHTML;
-      document.body.appendChild(element);
-
-      html2pdf()
-        .set({
-          margin: 0,
-          filename: computedFilename,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, letterRendering: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        })
-        .from(element)
-        .save()
-        .then(() => {
-          document.body.removeChild(element);
-          onOpenChange(false);
-        });
+      await downloadInvoicePdf(invoiceHTML, computedFilename);
+      onOpenChange(false);
     } catch (error) {
       console.error('Error downloading invoice:', error);
     }

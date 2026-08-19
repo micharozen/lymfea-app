@@ -35,6 +35,14 @@ verify_jwt = true
 [functions.stripe-connect-webhook]
 verify_jwt = false
 
+# OAuth flow for connecting a venue's own Stripe account. Both are called by the
+# admin UI with the admin's JWT — Stripe never calls them directly.
+[functions.stripe-oauth-start]
+verify_jwt = true
+
+[functions.stripe-oauth-callback]
+verify_jwt = true
+
 [functions.create-client-booking]
 verify_jwt = false
 
@@ -229,6 +237,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.complete-past-paid-bookings]
+verify_jwt = false
+
+[functions.escalate-booking-broadcast]
 verify_jwt = false
 
 [functions.finalize-payment]

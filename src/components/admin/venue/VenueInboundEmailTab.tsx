@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { VenueInboxToneSection } from "./VenueInboxToneSection";
 
 interface Props {
   hotelId?: string;
@@ -181,6 +182,8 @@ export function VenueInboundEmailTab({ hotelId }: Props) {
           )}
         </CardContent>
       </Card>
+
+      {hotelId && <VenueInboxToneSection hotelId={hotelId} />}
 
       {/* Flow schema */}
       <div className="rounded-xl border border-border bg-card p-5 md:p-6">

@@ -1,12 +1,29 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addDays, subDays, startOfMonth, endOfMonth, format, parseISO, isValid } from "date-fns";
-import { RefreshCw, Waves } from "lucide-react";
+import { Ban, ChevronDown, LayoutGrid, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppLoader } from "@/components/AppLoader";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
+import { RoomBlockDialog } from "@/components/admin/venue/RoomBlockDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
@@ -19,17 +36,24 @@ import {
   useBookingFilters,
   useCalendarLogic,
   useBookingSelection,
-  useAmenityBookingData,
+  useTherapistDayPlanning,
+  useRoomBlocks,
+  useDeleteRoomBlockRow,
+  type RoomBlockRow,
   type BookingWithTreatments,
-  type AmenityBookingForCalendar,
 } from "@/hooks/booking";
 
 import {
   BookingFilters,
   BookingCalendarView,
   BookingListView,
+  TherapistDayView,
   SendPaymentLinkDialog,
 } from "@/components/booking";
+import { ALL_TREATMENTS } from "@/components/booking/TherapistDayView";
+import { TreatmentCoverageDialog } from "@/components/booking/TreatmentCoverageDialog";
+import type { PlanningMode } from "@/components/booking/BookingFilters";
+import { useVenueTreatmentMenus } from "@/hooks/useVenueTreatmentMenus";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import {
   CalendarSidebarDesktop,
@@ -37,15 +61,13 @@ import {
   buildCalendarEntries,
 } from "@/components/booking/CalendarSidebar";
 import { useVenueAmenities } from "@/hooks/useVenueAmenities";
-import { CreateAmenityBookingDialog } from "@/components/booking/CreateAmenityBookingDialog";
-import { AmenityBookingDetailDialog } from "@/components/booking/AmenityBookingDetailDialog";
 
 export default function Booking() {
   const navigate = useNavigate();
   const { isAdmin } = useUserContext();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const { activeTimezone } = useTimezone();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("admin");
   
   // AJOUT : Récupération des paramètres de recherche de l'URL
   const [searchParams] = useSearchParams();
@@ -60,6 +82,30 @@ export default function Booking() {
   useEffect(() => {
     localStorage.setItem('planning-day-count', String(dayCount));
   }, [dayCount]);
+
+  // Layout of the planning: days side by side, or one column per therapist.
+  const [planningMode, setPlanningMode] = useState<PlanningMode>(() =>
+    localStorage.getItem('planning-mode') === 'therapists' ? 'therapists' : 'day',
+  );
+
+  useEffect(() => {
+    localStorage.setItem('planning-mode', planningMode);
+  }, [planningMode]);
+
+  // Therapist mode: hide people who aren't working that day (Fresha's "scheduled team").
+  const [showOnlyScheduled, setShowOnlyScheduled] = useState<boolean>(
+    () => localStorage.getItem('planning-scheduled-team') !== 'false',
+  );
+
+  useEffect(() => {
+    localStorage.setItem('planning-scheduled-team', String(showOnlyScheduled));
+  }, [showOnlyScheduled]);
+
+  // "Who can take this treatment?" — drives qualification + required duration.
+  const [searchedTreatmentId, setSearchedTreatmentId] = useState<string>(ALL_TREATMENTS);
+
+  // Lecture inverse du planning : prestations × jours. Indépendante du filtre de lieu.
+  const [isCoverageOpen, setIsCoverageOpen] = useState(false);
 
   // Sliding date window: only load bookings around the period the calendar shows
   // (same `?date=` source as useCalendarLogic), instead of the whole org history.
@@ -87,13 +133,29 @@ export default function Booking() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
+  const [selectedTherapistId, setSelectedTherapistId] = useState<string>();
+  const [selectedHotelId, setSelectedHotelId] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
 
-  // Amenity dialog state
-  const [isAmenityCreateOpen, setIsAmenityCreateOpen] = useState(false);
-  const [isAmenityDetailOpen, setIsAmenityDetailOpen] = useState(false);
-  const [viewedAmenityBooking, setViewedAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
-  const [editingAmenityBooking, setEditingAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
+  // Blocage ponctuel de créneaux (shooting, maintenance), depuis le menu
+  // accolé au bouton "Nouvelle réservation".
+  const [isRoomBlockOpen, setIsRoomBlockOpen] = useState(false);
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+  // Le menu s'ouvre au survol : on retarde la fermeture pour laisser le curseur
+  // traverser le vide entre le bouton et le panneau (rendu dans un portail,
+  // donc hors du conteneur qui porte les handlers de survol).
+  const createMenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openCreateMenu = useCallback(() => {
+    if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
+    setIsCreateMenuOpen(true);
+  }, []);
+  const scheduleCloseCreateMenu = useCallback(() => {
+    if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
+    createMenuCloseTimer.current = setTimeout(() => setIsCreateMenuOpen(false), 150);
+  }, []);
+  useEffect(() => () => {
+    if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
+  }, []);
 
   // --- LOGIQUE DE REDIRECTION (ADAPTÉE À LA NOUVELLE PAGE) ---
 useEffect(() => {
@@ -145,6 +207,11 @@ useEffect(() => {
   const singleVenueId = hotelFilter.length === 1 ? hotelFilter[0] : null;
   const hasVenueFilter = !!singleVenueId;
 
+  // Les colonnes thérapeutes n'ont de sens que sur une seule journée : un même
+  // thérapeute peut travailler sur plusieurs lieux le même jour, et c'est
+  // justement ce que la vue multi-lieux rend visible.
+  const effectiveDayCount = planningMode === "therapists" ? 1 : dayCount;
+
   // Calendar-only visibility of cancelled bookings (toggled via the legend).
   // Reset to hidden whenever we leave a single-venue view.
   const [showCancelled, setShowCancelled] = useState(false);
@@ -165,10 +232,6 @@ useEffect(() => {
   }, [filteredBookings, hasVenueFilter, showCancelled]);
 
   const { amenities: venueAmenities } = useVenueAmenities(singleVenueId ?? "");
-  const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({
-    hotelFilter: singleVenueId ?? undefined,
-  });
-
   // Calendar sidebar state
   const [visibleCalendars, setVisibleCalendars] = useState<Record<string, boolean>>({ treatments: true });
 
@@ -205,8 +268,54 @@ useEffect(() => {
   const calendar = useCalendarLogic({
     filteredBookings: calendarBookings,
     activeTimezone,
-    dayCount,
+    dayCount: effectiveDayCount,
     persistDateInUrl: true,
+  });
+
+  // Lieux affichés : la sélection, ou tous les lieux quand aucun filtre n'est posé.
+  const visibleVenueIds = useMemo(
+    () => (hotelFilter.length > 0 ? hotelFilter : (hotels ?? []).map((h) => h.id)),
+    [hotelFilter, hotels],
+  );
+
+  // Treatments of the venue, for the therapist-view search. Les menus étant par
+  // lieu, la recherche par soin reste réservée au mono-lieu.
+  const { data: venueTreatments } = useVenueTreatmentMenus(
+    planningMode === "therapists" ? singleVenueId : null,
+  );
+
+  // Memoized: the hook recomputes everything whenever this object identity changes.
+  const searchedTreatment = useMemo(() => {
+    if (searchedTreatmentId === ALL_TREATMENTS) return null;
+    const found = (venueTreatments ?? []).find((tm) => tm.id === searchedTreatmentId);
+    return found ? { id: found.id, duration: found.duration } : null;
+  }, [searchedTreatmentId, venueTreatments]);
+
+  // Therapist-day planning. Fed with the *unfiltered* bookings on purpose: a
+  // booking hidden by the toolbar filters still occupies its therapist.
+  const therapistPlanning = useTherapistDayPlanning({
+    venueIds: planningMode === "therapists" ? visibleVenueIds : [],
+    date: calendar.currentWeekStart,
+    bookings,
+    startHour: calendar.startHour,
+    endHour: calendar.endHour,
+    showOnlyScheduled,
+    treatment: searchedTreatment,
+  });
+
+  // Blocages ponctuels datés de la plage affichée, pour la vue calendrier.
+  // Sans filtre de lieu on interroge tous les lieux visibles : la vue les
+  // mélange dans une même colonne, chaque bande porte donc le nom du lieu.
+  const [editingRoomBlock, setEditingRoomBlock] = useState<RoomBlockRow | null>(null);
+  const [deletingRoomBlock, setDeletingRoomBlock] = useState<RoomBlockRow | null>(null);
+  const deleteRoomBlockRow = useDeleteRoomBlockRow();
+
+  const rangeStart = calendar.weekDays[0] ?? calendar.currentWeekStart;
+  const rangeEnd = calendar.weekDays[calendar.weekDays.length - 1] ?? rangeStart;
+  const { data: roomBlocks } = useRoomBlocks({
+    venueId: visibleVenueIds,
+    from: format(rangeStart, "yyyy-MM-dd"),
+    to: format(rangeEnd, "yyyy-MM-dd"),
   });
 
   // Overflow control
@@ -248,6 +357,29 @@ useEffect(() => {
   const handleCalendarClick = (date: Date, time: string) => {
     setSelectedDate(date);
     setSelectedTime(time);
+    setSelectedTherapistId(undefined);
+    setSelectedHotelId(undefined);
+    setIsCreateDialogOpen(true);
+  };
+
+  // `hotelId` est absent quand le thérapeute tourne sur plusieurs lieux affichés :
+  // le dialog laisse alors le choix du lieu.
+  const handleTherapistSlotClick = (
+    date: Date,
+    time: string,
+    therapistId: string,
+    hotelId?: string,
+  ) => {
+    setSelectedDate(date);
+    setSelectedTime(time);
+    setSelectedTherapistId(therapistId);
+    setSelectedHotelId(hotelId);
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleOpenCreateDialog = () => {
+    setSelectedTherapistId(undefined);
+    setSelectedHotelId(undefined);
     setIsCreateDialogOpen(true);
   };
 
@@ -286,11 +418,6 @@ useEffect(() => {
     setIsRefreshing(false);
   };
 
-  const handleAmenityBookingClick = (booking: AmenityBookingForCalendar) => {
-    setViewedAmenityBooking(booking);
-    setIsAmenityDetailOpen(true);
-  };
-
   return (
     <div className="h-full min-h-0 bg-background flex flex-col overflow-hidden">
       {/* Header & Filters — single toolbar row to maximize planning space */}
@@ -308,6 +435,8 @@ useEffect(() => {
           onViewChange={setView}
           dayCount={dayCount}
           onDayCountChange={setDayCount}
+          planningMode={planningMode}
+          onPlanningModeChange={setPlanningMode}
           isAdmin={isAdmin}
           hotels={hotels}
           therapists={therapists}
@@ -336,27 +465,67 @@ useEffect(() => {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
+                onClick={() => setIsCoverageOpen(true)}
+                title={t("planning.coverage.title")}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
                 title="Refresh"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
-              <Button
-                size="sm"
-                className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700 text-white transition-transform duration-100 active:scale-90"
-                onClick={() => setIsAmenityCreateOpen(true)}
-              >
-                Commodité
-                <Waves className="h-3.5 w-3.5 ml-1" />
-              </Button>
-              <Button
-                onClick={() => setIsCreateDialogOpen(true)}
-                size="sm"
-                className="h-8 text-xs transition-transform duration-100 active:scale-90"
-              >
-                {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
-              </Button>
+              {/* Bouton « Commodité » retiré : une réservation de commodité se crée
+                  désormais via « Nouvelle réservation », en choisissant le soin lié à
+                  l'équipement — seul chemin qui décompte la capacité et alimente le
+                  planning. Le dialog reste monté plus bas pour l'édition. */}
+              {/* Split button : action principale + menu (ouvert au survol) */}
+              <div className="flex">
+                <Button
+                  onClick={handleOpenCreateDialog}
+                  size="sm"
+                  className="h-8 text-xs transition-transform duration-100 active:scale-90 rounded-r-none"
+                >
+                  {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
+                </Button>
+                {/* modal={false} : en mode modal Radix pose pointer-events:none
+                    sur le body, le conteneur perdait le survol et le menu
+                    s'ouvrait/fermait en boucle. */}
+                <DropdownMenu modal={false} open={isCreateMenuOpen} onOpenChange={setIsCreateMenuOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      aria-label={t("planning.moreCreateActions")}
+                      className="h-8 w-7 rounded-l-none border-l border-background/30 px-0"
+                      onMouseEnter={openCreateMenu}
+                      onMouseLeave={scheduleCloseCreateMenu}
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-56"
+                    onMouseEnter={openCreateMenu}
+                    onMouseLeave={scheduleCloseCreateMenu}
+                  >
+                    <DropdownMenuItem
+                      disabled={!singleVenueId}
+                      onSelect={() => setIsRoomBlockOpen(true)}
+                    >
+                      <Ban className="mr-2 h-3.5 w-3.5" />
+                      {singleVenueId
+                        ? t("roomBlocks.dialogTitle")
+                        : t("roomBlocks.selectVenueFirst")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </>
           }
         />
@@ -381,6 +550,33 @@ useEffect(() => {
           <div className="flex-1 flex flex-col overflow-hidden">
           {isLoading && !bookings ? (
             <AppLoader fullScreen={false} className="flex-1" />
+          ) : view === "calendar" && planningMode === "therapists" ? (
+            <TherapistDayView
+              date={calendar.currentWeekStart}
+              planning={therapistPlanning}
+              hours={calendar.hours}
+              hourHeight={calendar.hourHeight}
+              startHour={calendar.startHour}
+              endHour={calendar.endHour}
+              onPreviousDay={calendar.handlePreviousWeek}
+              onNextDay={calendar.handleNextWeek}
+              onGoToToday={calendar.goToToday}
+              onSetDate={calendar.setViewDate}
+              getBookingPosition={calendar.getBookingPosition}
+              getBookingsLayoutForDay={calendar.getBookingsLayoutForDay}
+              getCurrentTimePosition={calendar.getCurrentTimePosition}
+              getCalendarCardColor={calendar.getCalendarCardColor}
+              getStatusColor={calendar.getStatusColor}
+              getTranslatedStatus={calendar.getTranslatedStatus}
+              getHotelInfo={getHotelInfo}
+              onBookingClick={handleBookingClick}
+              onSlotClick={handleTherapistSlotClick}
+              showOnlyScheduled={showOnlyScheduled}
+              onShowOnlyScheduledChange={setShowOnlyScheduled}
+              treatments={venueTreatments ?? []}
+              selectedTreatmentId={searchedTreatmentId}
+              onSelectedTreatmentChange={setSearchedTreatmentId}
+            />
           ) : view === "calendar" ? (
             <BookingCalendarView
               weekDays={calendar.weekDays}
@@ -406,9 +602,10 @@ useEffect(() => {
               hotels={hotels}
               hotelFilter={hotelFilter}
               showCleanupBuffer={!!hasVenueFilter}
-              amenityBookings={amenityBookings}
               visibleCalendars={hasVenueFilter ? visibleCalendars : undefined}
-              onAmenityBookingClick={handleAmenityBookingClick}
+              roomBlocks={roomBlocks}
+              onEditRoomBlock={setEditingRoomBlock}
+              onDeleteRoomBlock={setDeletingRoomBlock}
             />
           ) : (
             <BookingListView
@@ -437,6 +634,8 @@ useEffect(() => {
         onOpenChange={setIsCreateDialogOpen}
         selectedDate={selectedDate}
         selectedTime={selectedTime}
+        presetTherapistId={selectedTherapistId}
+        presetHotelId={selectedHotelId}
       />
 
       <BookingDetailDialog
@@ -452,37 +651,6 @@ useEffect(() => {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         booking={selectedBooking}
-      />
-
-      {/* Amenity dialogs */}
-      <CreateAmenityBookingDialog
-        open={isAmenityCreateOpen}
-        onOpenChange={setIsAmenityCreateOpen}
-        hotelId={singleVenueId ?? undefined}
-        venueAmenities={hasVenueFilter ? venueAmenities : undefined}
-        hotels={hotels}
-        preselectedDate={selectedDate}
-        preselectedTime={selectedTime}
-      />
-
-      {/* Edit an existing amenity booking (reuses the create dialog in edit mode) */}
-      <CreateAmenityBookingDialog
-        open={!!editingAmenityBooking}
-        onOpenChange={(o) => {
-          if (!o) setEditingAmenityBooking(null);
-        }}
-        hotelId={editingAmenityBooking?.hotel_id}
-        editBooking={editingAmenityBooking}
-      />
-
-      <AmenityBookingDetailDialog
-        open={isAmenityDetailOpen}
-        onOpenChange={setIsAmenityDetailOpen}
-        booking={viewedAmenityBooking}
-        onEdit={(booking) => {
-          setIsAmenityDetailOpen(false);
-          setEditingAmenityBooking(booking);
-        }}
       />
 
       {cancelBooking && (
@@ -510,6 +678,59 @@ useEffect(() => {
         />
       )}
 
+      {singleVenueId && (
+        <RoomBlockDialog
+          open={isRoomBlockOpen}
+          onOpenChange={setIsRoomBlockOpen}
+          hotelId={singleVenueId}
+          defaultDate={format(calendar.currentWeekStart, "yyyy-MM-dd")}
+        />
+      )}
+
+      {/* Édition d'un blocage depuis le planning : le lieu vient de la ligne,
+          pas du filtre — une bande peut appartenir à un autre lieu affiché.
+          La `key` force la ré-initialisation du formulaire à chaque blocage. */}
+      {editingRoomBlock && (
+        <RoomBlockDialog
+          key={editingRoomBlock.id}
+          open
+          onOpenChange={(next) => !next && setEditingRoomBlock(null)}
+          hotelId={editingRoomBlock.hotel_id}
+          block={editingRoomBlock}
+        />
+      )}
+
+      <AlertDialog
+        open={!!deletingRoomBlock}
+        onOpenChange={(next) => !next && setDeletingRoomBlock(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("roomBlocks.confirmDelete", { label: deletingRoomBlock?.label ?? "" })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("roomBlocks.confirmDeleteOccurrence", {
+                date: deletingRoomBlock?.block_date ?? "",
+                start: deletingRoomBlock?.start_time.substring(0, 5) ?? "",
+                end: deletingRoomBlock?.end_time.substring(0, 5) ?? "",
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("roomBlocks.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletingRoomBlock) deleteRoomBlockRow.mutate(deletingRoomBlock.id);
+                setDeletingRoomBlock(null);
+              }}
+            >
+              {t("roomBlocks.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {paymentLinkBooking && (
         <SendPaymentLinkDialog
           open={isPaymentLinkDialogOpen}
@@ -531,6 +752,12 @@ useEffect(() => {
           }}
         />
       )}
+
+      <TreatmentCoverageDialog
+        open={isCoverageOpen}
+        onOpenChange={setIsCoverageOpen}
+        hotels={hotels ?? []}
+      />
     </div>
   );
 }

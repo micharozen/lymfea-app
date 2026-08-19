@@ -9,8 +9,6 @@ import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDia
 import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
-import { CreateAmenityBookingDialog } from "@/components/booking/CreateAmenityBookingDialog";
-import { AmenityBookingDetailDialog } from "@/components/booking/AmenityBookingDetailDialog";
 
 import {
   useBookingData,
@@ -18,9 +16,7 @@ import {
   useCalendarLogic,
   useBookingSelection,
   useVenueAvailability,
-  useAmenityBookingData,
   type BookingWithTreatments,
-  type AmenityBookingForCalendar,
 } from "@/hooks/booking";
 
 import {
@@ -50,7 +46,6 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
   // Data
   const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();
   const { amenities: venueAmenities } = useVenueAmenities(hotelId);
-  const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({ hotelFilter: hotelId });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Calendar sidebar state
@@ -89,11 +84,6 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
-
-  // Amenity booking dialogs
-  const [isAmenityCreateOpen, setIsAmenityCreateOpen] = useState(false);
-  const [isAmenityDetailOpen, setIsAmenityDetailOpen] = useState(false);
-  const [viewedAmenityBooking, setViewedAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
 
   // Day count with localStorage persistence (venue-specific key)
   const [dayCount, setDayCount] = useState<number>(() => {
@@ -205,11 +195,6 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
     }
   };
 
-  const handleAmenityBookingClick = (booking: AmenityBookingForCalendar) => {
-    setViewedAmenityBooking(booking);
-    setIsAmenityDetailOpen(true);
-  };
-
   const handleEditFromDetail = () => {
     if (viewedBooking) {
       setSelectedBooking(viewedBooking);
@@ -265,17 +250,11 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
             </Button>
           </div>
           <div className="flex items-center gap-2">
-            {venueAmenities.some((a) => a.is_enabled) && (
-              <Button
-                onClick={() => setIsAmenityCreateOpen(true)}
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Commodité
-              </Button>
-            )}
+            {/* Bouton « Commodité » retiré : une réservation de commodité se crée
+                désormais via « Nouvelle réservation », en choisissant le soin lié à
+                l'équipement — seul chemin qui décompte la capacité et alimente le
+                planning. Le dialog reste monté plus bas pour l'édition des lignes
+                existantes. */}
             <Button
               onClick={() => setIsCreateDialogOpen(true)}
               size="sm"
@@ -376,9 +355,7 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
                 daySummaries: availability.daySummaries,
                 hourAvailability: availability.hourAvailability,
               } : undefined}
-              amenityBookings={amenityBookings}
               visibleCalendars={visibleCalendars}
-              onAmenityBookingClick={handleAmenityBookingClick}
             />
           ) : (
             <BookingListView
@@ -445,21 +422,6 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
         />
       )}
 
-      {/* Amenity dialogs */}
-      <CreateAmenityBookingDialog
-        open={isAmenityCreateOpen}
-        onOpenChange={setIsAmenityCreateOpen}
-        hotelId={hotelId}
-        venueAmenities={venueAmenities}
-        preselectedDate={selectedDate}
-        preselectedTime={selectedTime}
-      />
-
-      <AmenityBookingDetailDialog
-        open={isAmenityDetailOpen}
-        onOpenChange={setIsAmenityDetailOpen}
-        booking={viewedAmenityBooking}
-      />
     </div>
   );
 }

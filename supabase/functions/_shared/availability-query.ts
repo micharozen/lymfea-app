@@ -15,6 +15,7 @@ import {
   ACTIVE_BOOKING_STATUS_FILTER,
   computeSlotCapacity,
   filterQualifiedTherapists,
+  type RoomBlock,
   timeToMinutes,
   type TherapistShift,
 } from "./availability.ts";
@@ -310,17 +311,43 @@ export async function getVenueAvailability(
     });
   }
 
-  // 9. Blocked slots (lunch breaks, maintenance…). Fetched once.
-  const { data: blockedSlots } = await supabase
+  // 9. Blocked slots. Deux natures dans la même table :
+  //   - block_date NULL      → récurrent hebdomadaire au niveau du lieu
+  //                            (pause déjeuner…), ferme le créneau pour tous.
+  //   - block_date renseigné → blocage ponctuel daté (shooting, maintenance),
+  //                            ciblé sur une salle (room_id) ou sur tout le
+  //                            lieu (room_id NULL). Réduit la capacité salles.
+  const { data: blockedSlotRows } = await supabase
     .from("venue_blocked_slots")
-    .select("start_time, end_time, days_of_week")
+    .select("start_time, end_time, days_of_week, block_date, room_id")
     .eq("hotel_id", hotelId)
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .or(`block_date.is.null,and(block_date.gte.${rangeStart},block_date.lte.${rangeEnd})`);
+
+  const recurringBlocks = (blockedSlotRows || []).filter((b: any) => b.block_date === null);
+
+  // Blocage daté visant une salle → réduit la capacité salles (computeSlotCapacity).
+  // Blocage daté visant tout le lieu → ferme le créneau, y compris pour un panier
+  // 100 % amenity qui ne consomme aucune salle.
+  const datedRoomBlocksByDate = new Map<string, RoomBlock[]>();
+  const datedVenueBlocksByDate = new Map<string, Array<{ startMin: number; endMin: number }>>();
+  for (const b of blockedSlotRows || []) {
+    if (b.block_date === null) continue;
+    const range = { startMin: timeToMinutes(b.start_time), endMin: timeToMinutes(b.end_time) };
+    if (b.room_id === null) {
+      if (!datedVenueBlocksByDate.has(b.block_date)) datedVenueBlocksByDate.set(b.block_date, []);
+      datedVenueBlocksByDate.get(b.block_date)!.push(range);
+    } else {
+      if (!datedRoomBlocksByDate.has(b.block_date)) datedRoomBlocksByDate.set(b.block_date, []);
+      datedRoomBlocksByDate.get(b.block_date)!.push({ room_id: b.room_id, ...range });
+    }
+  }
+
   const isSlotInBlockedRange = (slot: string, dow: number): boolean => {
-    if (!blockedSlots || blockedSlots.length === 0) return false;
+    if (recurringBlocks.length === 0) return false;
     const s = timeToMinutes(slot);
     const e = s + slotInterval;
-    return blockedSlots.some((b: any) => {
+    return recurringBlocks.some((b: any) => {
       if (b.days_of_week !== null && !b.days_of_week.includes(dow)) return false;
       return s < timeToMinutes(b.end_time) && e > timeToMinutes(b.start_time);
     });
@@ -377,6 +404,8 @@ export async function getVenueAvailability(
     const crossBookings = crossVenueByDate.get(date) || [];
     const scheduleMap = scheduleByDate.get(date);
     const dateHolds = holdsByDate.get(date) || [];
+    const dateRoomBlocks = datedRoomBlocksByDate.get(date) || [];
+    const dateVenueBlocks = datedVenueBlocksByDate.get(date) || [];
 
     // Therapists scheduled for this date (no row = available, transition period).
     const scheduledTherapistIds = therapistIds.filter((id) => {
@@ -400,6 +429,13 @@ export async function getVenueAvailability(
     for (const slot of timeSlots) {
       if (isSlotInBlockedRange(slot, dow)) continue;
       const slotMinutes = timeToMinutes(slot);
+      // Blocage daté couvrant tout le lieu : fermeture stricte (pas de buffer),
+      // même règle que reserve_trunk_atomically.
+      if (
+        dateVenueBlocks.some((b) =>
+          slotMinutes < b.endMin && slotMinutes + requestedDuration > b.startMin
+        )
+      ) continue;
       // Never offer a slot in the past for today (venue-local).
       if (date === todayStr && slotMinutes <= nowMinutes) continue;
       if (earliestSlotMinutes >= 0 && slotMinutes < earliestSlotMinutes) continue;
@@ -423,6 +459,7 @@ export async function getVenueAvailability(
             crossVenueBookings: crossBookings,
             travelBuffer,
             requiredGuestCount,
+            roomBlocks: dateRoomBlocks,
           }).capacity
         : Infinity;
       // Final capacity = min(soin capacity, amenity capacity).

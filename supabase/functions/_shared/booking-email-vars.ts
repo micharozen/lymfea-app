@@ -331,9 +331,10 @@ export function buildConfirmedVars(ctx: BookingEmailContext): Record<string, str
   const bookingUrl = ctx.bookingUrl ?? '';
   const policy = venueCancellationPolicy(ctx.venue, ctx.lang);
   const roomNumber = ctx.booking.room_number ? String(ctx.booking.room_number) : '';
-  const therapistName = ctx.booking.therapist_name ?? '';
-  const totalDuration = formatTotalDuration(agg.duration);
   const isAdmin = ctx.variant === 'admin';
+  // Le nom du praticien n'est jamais exposé au client : seule la copie interne l'affiche.
+  const therapistName = isAdmin ? (ctx.booking.therapist_name ?? '') : '';
+  const totalDuration = formatTotalDuration(agg.duration);
   const count = ctx.treatments.length;
   const sectionTitle = isAdmin
     ? (count > 1 ? 'Prestations' : 'Prestation')

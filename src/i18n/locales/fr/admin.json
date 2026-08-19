@@ -13,7 +13,13 @@
       "declined": "a refusé",
       "not_qualified": "ne réalise pas ce soin",
       "unavailable": "indisponible ce jour",
+      "gender_mismatch": "genre non prioritaire",
+      "wave_pending": "groupe pas encore sollicité",
       "unknown": "raison inconnue"
+    },
+    "genderPreference": {
+      "female": "une femme",
+      "male": "un homme"
     },
     "reasonsLong": {
       "no_pwa_account": "Ce thérapeute n'a pas de compte PWA : il ne peut recevoir aucune notification push.",
@@ -21,6 +27,8 @@
       "declined": "Il a refusé cette réservation, il n'est donc plus resollicité.",
       "not_qualified": "Ne réalise pas : {{treatments}}.",
       "unavailable": "Il s'est déclaré indisponible pour cette date.",
+      "gender_mismatch": "La réservation demandait {{preference}}. Des praticiens correspondant à cette préférence étaient disponibles : la diffusion s'est limitée à eux. Un genre non renseigné sur la fiche exclut aussi du groupe prioritaire.",
+      "wave_pending": "Il appartient à un groupe de priorité au-delà du groupe {{wave}}, seul sollicité pour l'instant. Il sera notifié à la vague suivante, ou immédiatement si tout le groupe courant refuse.",
       "unknown": "Aucun motif d'exclusion ne s'applique aujourd'hui. La diffusion n'a probablement jamais été déclenchée, ou ce thérapeute a été rattaché au lieu après l'envoi."
     }
   },
@@ -125,7 +133,56 @@
     "coverageGaps": "Trous de couverture",
     "fullAvailability": "Bonne dispo",
     "lowAvailability": "Limitée",
-    "noAvailability": "Aucune couverture"
+    "noAvailability": "Aucune couverture",
+    "hourColumn": "Heure",
+    "dayViewMode": "Vue par jour",
+    "therapistViewMode": "Vue par thérapeute",
+    "scheduledTeam": "Équipe programmée",
+    "allTeam": "Toute l'équipe",
+    "unassigned": "Non assigné",
+    "absent": "Absent",
+    "noSchedule": "Planning non renseigné",
+    "blockedSlot": "Créneau bloqué",
+    "noTherapistsForDay": "Aucun thérapeute rattaché à ce lieu",
+    "noTherapistsForVenues": "Aucun thérapeute rattaché aux lieux sélectionnés",
+    "allTreatments": "Toutes les prestations",
+    "searchTreatment": "Chercher une prestation...",
+    "treatmentSearchNeedsVenue": "Sélectionnez un seul lieu pour chercher par prestation",
+    "qualifiedTherapists": "{{n}} thérapeute(s) qualifié(s)",
+    "availableSlots": "Créneaux possibles",
+    "noSlotForTreatment": "Aucun créneau possible ce jour",
+    "notQualified": "Ne réalise pas ce soin",
+    "freeAtHour": "Libres à {{hour}}h",
+    "canTakeAtHour": "Peuvent prendre ce soin à {{hour}}h",
+    "noneAvailable": "Personne",
+    "overflowsShift": "dépasse son shift",
+    "slotOverflowsShift": "Attention, le soin sélectionné dépasse le shift du thérapeute",
+    "roomBlock": "Blocage",
+    "editRoomBlock": "Modifier ce blocage",
+    "deleteRoomBlock": "Supprimer ce blocage",
+    "moreCreateActions": "Plus d'actions de création",
+    "coverage": {
+      "title": "Couverture des prestations",
+      "description": "Pour chaque prestation et chaque jour, nombre de thérapeutes disponibles sur le nombre de thérapeutes qualifiés.",
+      "searchPlaceholder": "Rechercher une prestation...",
+      "venue": "Lieu",
+      "allVenues": "Tous les lieux",
+      "treatment": "Prestation",
+      "thisWeek": "Cette semaine",
+      "previousWeek": "Semaine précédente",
+      "nextWeek": "Semaine suivante",
+      "onlyGaps": "Masquer les prestations sans problème",
+      "gapSummary_one": "{{count}} prestation sans thérapeute disponible sur la période",
+      "gapSummary_other": "{{count}} prestations sans thérapeute disponible sur la période",
+      "noGap": "Toutes les prestations sont couvertes sur la période",
+      "empty": "Aucune prestation ne correspond.",
+      "notOffered": "Prestation non proposée ce jour",
+      "noneAvailable": "Aucun thérapeute disponible ce jour",
+      "noTherapistLinked": "Aucun thérapeute rattaché à cette prestation",
+      "allDay": "Journée",
+      "absent": "Absent",
+      "notScheduled": "Non planifié"
+    }
   },
   "bookings": {
     "title": "Réservations",
@@ -352,6 +409,8 @@
       "siret": "SIRET",
       "siretHint": "Laisser vide si auto-entrepreneur sans SIRET",
       "siren": "SIREN",
+      "vatStatus": "Régime de TVA",
+      "vatSubject": "Assujetti à la TVA",
       "vatExempt": "Non assujetti à la TVA",
       "vatExemptHint": "Article 293 B du CGI (auto-entrepreneurs)",
       "tvaNumber": "N° TVA intracommunautaire",
@@ -368,7 +427,9 @@
       "iban": "IBAN",
       "bic": "BIC",
       "saveSuccess": "Informations de facturation enregistrées",
-      "saveError": "Erreur lors de l'enregistrement"
+      "saveError": "Erreur lors de l'enregistrement",
+      "missingTitle": "Aucun profil de facturation défini",
+      "missingDescription": "Les factures mensuelles seront générées sans adresse, sans SIRET, sans coordonnées bancaires et avec une TVA à 20 %, ce qui les rend non conformes."
     }
   },
   "treatments": {
@@ -517,6 +578,8 @@
     "interVenueBufferDesc": "Buffer ajouté avant et après chaque prestation quand le thérapeute vient d'un autre lieu. 0 = pas de buffer.",
     "roomTurnoverBuffer": "Temps de remise en état",
     "roomTurnoverBufferDesc": "Temps ajouté après chaque soin pour la remise en état de la salle. Bloque la salle et le thérapeute. 0 = pas de buffer.",
+    "therapistEscalationDelay": "Délai avant sollicitation du groupe suivant",
+    "therapistEscalationDelayDesc": "Temps laissé au groupe de thérapeutes prioritaire avant que le suivant soit notifié. Sans effet tant que tous les thérapeutes du lieu sont dans le même groupe (onglet Thérapeutes). Vide = 10 min.",
     "minBookingNotice": "Délai minimum avant réservation",
     "minBookingNoticeDesc": "Délai minimum entre maintenant et l'heure d'un créneau réservable (ex. 2h, 4h, 24h). Les créneaux trop proches sont masqués côté client. 0 = pas de délai.",
     "bookingRules": {
@@ -586,7 +649,131 @@
       "surchargeDescription": "Pourcentage ajouté au total des soins pour les réservations hors horaires.",
       "indicator": "Hors horaires d'ouverture — Majoration de {{percent}}% appliquée",
       "surchargeBreakdown": "Majoration hors horaires ({{percent}}%)"
+    },
+    "billingProfile": {
+      "recipientTitle": "Destinataire des factures thérapeutes",
+      "recipientDescription": "Le thérapeute reste l'émetteur de sa facture. Ce réglage définit à qui elle est adressée.",
+      "billedByVenue": "Le lieu facture en direct",
+      "billedByVenueOn": "Les factures sont adressées à ce lieu, avec les informations ci-dessous.",
+      "billedByVenueOff": "Les factures sont adressées à l'organisation propriétaire du lieu.",
+      "recipientSaved": "Destinataire mis à jour",
+      "recipientError": "Erreur lors de l'enregistrement",
+      "missingDescription": "Les factures des thérapeutes seront adressées à ce lieu avec les coordonnées de sa fiche, sans SIRET ni numéro de TVA."
+    },
+    "billingTab": {
+      "title": "Factures",
+      "description": "Historique des factures générées pour ce lieu",
+      "generateInvoice": "Générer une facture",
+      "generateDesc": "Une facture regroupera toutes les prestations du lieu sur la période sélectionnée.",
+      "generate": "Générer",
+      "generated": "{{count}} facture(s) générée(s)",
+      "generateError": "Erreur lors de la génération",
+      "noBookings": "Aucune prestation à facturer sur cette période",
+      "noInvoices": "Aucune facture générée",
+      "noInvoicesHint": "Cliquez sur Générer une facture pour créer la facturation sur une période",
+      "currentMonth": "Mois en cours",
+      "previousMonth": "Mois précédent",
+      "periodStart": "Du",
+      "periodEnd": "Au",
+      "missingPeriod": "Veuillez sélectionner une période",
+      "invalidPeriod": "La date de fin doit être postérieure à la date de début",
+      "columns": {
+        "number": "Numéro",
+        "generatedAt": "Date de génération",
+        "period": "Période",
+        "totalHt": "Total HT",
+        "vat": "TVA",
+        "totalTtc": "Total TTC",
+        "status": "Statut"
+      },
+      "status": {
+        "draft": "Brouillon",
+        "issued": "Émise",
+        "paid": "Payée",
+        "cancelled": "Annulée"
+      }
+    },
+    "therapistInvoices": {
+      "title": "Factures thérapeutes",
+      "description": "Générez en une fois les factures des thérapeutes ayant travaillé dans ce lieu sur la période.",
+      "periodStart": "Du",
+      "periodEnd": "Au",
+      "currentMonth": "Mois en cours",
+      "previousMonth": "Mois précédent",
+      "nextMonth": "Mois prochain",
+      "preview": "Prévisualiser",
+      "previewing": "Calcul en cours…",
+      "previewError": "Erreur lors de la prévisualisation",
+      "emptyPreview": "Aucun thérapeute à facturer sur cette période",
+      "notPreviewedYet": "Choisissez une période puis cliquez sur Prévisualiser",
+      "missingPeriod": "Veuillez sélectionner une période",
+      "invalidPeriod": "La date de fin doit être postérieure à la date de début",
+      "selectAll": "Tout sélectionner",
+      "generateSelected": "Générer les factures sélectionnées ({{count}})",
+      "generating": "Génération {{done}}/{{total}}…",
+      "generated": "{{count}} facture(s) générée(s)",
+      "generateFailures": "{{count}} échec(s) — voir le détail dans le tableau",
+      "generateError": "Erreur lors de la génération",
+      "downloadAll": "Télécharger les PDF ({{count}})",
+      "downloading": "Téléchargement {{done}}/{{total}}…",
+      "downloadDone": "{{count}} PDF téléchargé(s)",
+      "summary": {
+        "billable": "{{count}} thérapeute(s) à facturer",
+        "skipped": "{{count}} ignoré(s)",
+        "totalHt": "Total HT sélectionné",
+        "totalTtc": "Total TTC sélectionné"
+      },
+      "columns": {
+        "therapist": "Thérapeute",
+        "bookings": "Résas",
+        "totalHt": "Total HT",
+        "vat": "TVA",
+        "totalTtc": "Total TTC",
+        "status": "Statut"
+      },
+      "status": {
+        "toGenerate": "À générer",
+        "alreadyInvoiced": "Déjà facturé · {{number}}",
+        "willReplace": "Remplacera {{number}} ({{period}})",
+        "missingRates": "Tarifs manquants",
+        "missingRatesAction": "Configurer les tarifs",
+        "noBookings": "Aucune prestation",
+        "zeroAmount": "Montant nul",
+        "error": "Erreur",
+        "generated": "Générée"
+      },
+      "overwrite": {
+        "title": "Remplacer des factures existantes ?",
+        "description": "{{count}} facture(s) existent déjà pour cette date de début et seront remplacées (le numéro est conservé) :",
+        "confirm": "Remplacer et générer"
+      },
+      "unfinalized": {
+        "warning": "{{count}} réservation(s) payée(s) sur cette période ne sont pas finalisées et seront exclues des factures.",
+        "finalizeAll": "Les finaliser",
+        "finalized": "{{count}} réservation(s) finalisée(s)",
+        "finalizeError": "Erreur lors de la finalisation"
+      },
+      "downloadError": "Aucun PDF disponible",
+      "issued": {
+        "title": "Factures thérapeutes émises",
+        "columns": {
+          "number": "Numéro",
+          "period": "Période",
+          "generatedAt": "Générée le"
+        },
+        "invoiceCount": "{{count}} facture(s)",
+        "searchPlaceholder": "Thérapeute ou numéro de facture",
+        "noSearchResult": "Aucune facture ne correspond à cette recherche"
+      }
     }
+  },
+  "venueTherapists": {
+    "groupLabel": "Groupe de priorité",
+    "groupOption": "Groupe {{group}}",
+    "groupHint": "Le groupe 1 est sollicité en premier lors d'une nouvelle réservation. Le groupe 2 ne l'est qu'après le délai réglé dans l'onglet Configuration, ou dès que tout le groupe 1 a refusé. Tant que tout le monde est en groupe 1, tous sont notifiés en même temps.",
+    "priorityUpdated": "Groupe mis à jour",
+    "priorityError": "Erreur lors du changement de groupe",
+    "groupOnVenueHint": "Se règle depuis la fiche du lieu, onglet Thérapeutes."
   },
   "customers": {
     "title": "Clients",
@@ -863,6 +1050,25 @@
     "saveFailed": "Erreur lors de la sauvegarde",
     "saveBeforeTest": "Renseigner les identifiants et sauvegarder avant de tester.",
     "secretUnchanged": "Laisser vide pour conserver le secret actuel",
+    "oauthCtaTitle": "Connecter le compte Stripe de l'établissement",
+    "oauthCtaDesc": "L'établissement autorise Saoma depuis son propre tableau de bord Stripe. Aucune clé secrète à échanger, et l'accès reste révocable à tout moment.",
+    "oauthConnect": "Connecter Stripe",
+    "oauthConnectedTitle": "Compte Stripe connecté",
+    "oauthConnectedSince": "Connecté le {{date}}",
+    "oauthLive": "Production",
+    "oauthTest": "Test",
+    "oauthDisconnect": "Déconnecter",
+    "oauthDisconnected": "Compte Stripe déconnecté",
+    "oauthDisconnectFailed": "Impossible de déconnecter le compte Stripe",
+    "oauthStartFailed": "Impossible de démarrer la connexion Stripe",
+    "oauthConnecting": "Connexion du compte de paiement en cours…",
+    "oauthConnected": "Compte de paiement connecté avec succès",
+    "oauthFailed": "La connexion a échoué",
+    "oauthUnknownProvider": "Fournisseur de paiement inconnu : {{provider}}",
+    "oauthMissingParams": "Lien de retour Stripe incomplet",
+    "backToPlaces": "Retour aux lieux",
+    "manualConfig": "Configuration manuelle (avancé)",
+    "manualConfigDesc": "Méthode historique : l'établissement fournit sa clé secrète. À réserver aux lieux déjà configurés ainsi.",
     "close": "Fermer",
     "save": "Sauvegarder"
   },
@@ -1468,8 +1674,26 @@
       "errorTitle": "Erreur de traitement",
       "dismissAction": "Ignorer",
       "dismissed": "Email ignoré.",
-      "convertAction": "Convertir en réservation",
       "close": "Fermer",
+      "aiTitle": "Analyse IA",
+      "date": "Date",
+      "time": "Heure",
+      "variant": "Variante",
+      "reviewAction": "Réviser et convertir",
+      "autoConvertAction": "Convertir automatiquement",
+      "autoDisabledReason": "Soin, variante, date, heure et confiance ≥ 80 % requis",
+      "autoConverted": "Réservation créée",
+      "autoMissingFields": "Informations insuffisantes",
+      "autoLookupFailed": "Lieu ou soin introuvable",
+      "autoPriceOnRequest": "Prix sur demande — utilisez « Réviser et convertir »",
+      "convertedTitle": "Convertie en réservation",
+      "convertedOn": "le",
+      "viewBooking": "Voir la réservation",
+      "viewCustomer": "Voir le client",
+      "unknownClient": "Client",
+      "bookingNotFound": "Réservation introuvable",
+      "loading": "Chargement…",
+      "missingLine": "Il manque : {{fields}}",
       "reply": {
         "replyAction": "Répondre",
         "composerTitle": "Brouillon de réponse",
@@ -1487,7 +1711,8 @@
         "sent": "Réponse envoyée",
         "sentWithWarning": "Envoyé mais une étape a échoué : {{warning}}",
         "missingFields": "Sujet et corps requis",
-        "referencedSlots": "Disponibilités prises en compte : {{slots}}"
+        "referencedSlots": "Disponibilités prises en compte : {{slots}}",
+        "collapsedTo": "à : {{email}}"
       }
     },
     "convert": {
@@ -1587,7 +1812,35 @@
         "step2": "L'email arrive sur notre webhook sécurisé. Notre IA extrait les champs : nom, contact, date, heure, soin, nombre de personnes, notes.",
         "step3": "Une nouvelle entrée apparaît dans /admin/inbox avec un score de confiance. Les demandes ambiguës restent à valider à la main.",
         "step4": "L'admin clique sur \"Convertir en réservation\" : une réservation est créée en statut 'pending', prête à être assignée à un thérapeute."
+      },
+      "tone": {
+        "title": "Ton des réponses IA",
+        "description": "Les formules saisies ici sont reprises telles quelles par l'agent. Laissez vide pour utiliser les formules par défaut.",
+        "greetingFr": "Salutation (FR)",
+        "greetingEn": "Salutation (EN)",
+        "signoffFr": "Formule de fin (FR)",
+        "signoffEn": "Formule de fin (EN)",
+        "signature": "Signature",
+        "signatureHelp": "Bloc placé après la formule de fin. C'est la seule signature ajoutée à l'email.",
+        "notes": "Consignes de rédaction",
+        "notesPlaceholder": "Vouvoiement systématique, ne jamais proposer de remise, mentionner le vestiaire…",
+        "save": "Enregistrer",
+        "saved": "Ton des réponses enregistré"
+      },
+      "knowledge": {
+        "title": "Base de connaissance",
+        "description": "Tout ce que le catalogue de soins ne contient pas : offres packagées, accès plage, horaires, coffrets cadeaux. L'agent n'a pas le droit d'affirmer quoi que ce soit au-delà.",
+        "fr": "Informations (FR)",
+        "en": "Informations (EN)",
+        "placeholder": "Offre Beach & Self Care : 180 €/personne, comprend l'accès plage, le déjeuner et un massage 60 min.\nAccès spa : réservé aux clients de l'hôtel.\nCoffret Relais & Châteaux Rose : donne droit à un soin de 75 min."
       }
+    },
+    "view": {
+      "table": "Tableau",
+      "kanban": "Kanban"
+    },
+    "kanban": {
+      "emptyColumn": "Aucune demande"
     }
   },
   "checkoutIntents": {
@@ -1660,5 +1913,52 @@
     "count_other": "{{count}} prestations",
     "none": "Aucune prestation",
     "thisVenue": "ce lieu"
+  },
+  "roomBlocks": {
+    "sectionTitle": "Blocages ponctuels",
+    "sectionDescription": "Neutraliser une plage horaire à une date donnée (shooting, maintenance) sans créer de réservation.",
+    "add": "Ajouter un blocage",
+    "loading": "Chargement…",
+    "empty": "Aucun blocage à venir.",
+    "dialogTitle": "Bloquer une plage horaire",
+    "dialogDescription": "Le créneau devient indisponible à la réservation. Les réservations déjà enregistrées ne sont pas annulées.",
+    "labelField": "Motif",
+    "labelPlaceholder": "ex : Shooting photo",
+    "startDate": "Du",
+    "endDate": "Au",
+    "startTime": "De",
+    "endTime": "À",
+    "scope": "Portée",
+    "wholeVenue": "Tout le lieu",
+    "noRooms": "Aucune salle active sur ce lieu.",
+    "invalidTimeRange": "L'heure de début doit être avant l'heure de fin",
+    "invalidForm": "Veuillez compléter le motif, les dates, les horaires et la portée",
+    "existingBookingsWarning_one": "{{count}} réservation existante tombe dans cette plage. Elle ne sera pas annulée.",
+    "existingBookingsWarning_other": "{{count}} réservations existantes tombent dans cette plage. Elles ne seront pas annulées.",
+    "confirmDelete": "Supprimer le blocage « {{label}} » ?",
+    "created_one": "Blocage créé ({{count}} créneau)",
+    "created_other": "Blocage créé ({{count}} créneaux)",
+    "createError": "Impossible de créer le blocage : {{message}}",
+    "deleted": "Blocage supprimé",
+    "deleteError": "Impossible de supprimer le blocage : {{message}}",
+    "editTitle": "Modifier le blocage",
+    "editDescription": "La modification ne porte que sur cette journée. Les autres jours du même blocage ne changent pas.",
+    "save": "Enregistrer",
+    "updated": "Blocage modifié",
+    "updateError": "Impossible de modifier le blocage : {{message}}",
+    "confirmDeleteOccurrence": "Seul le créneau du {{date}}, de {{start}} à {{end}}, sera supprimé. Les autres jours du même blocage sont conservés.",
+    "delete": "Supprimer",
+    "cancel": "Annuler",
+    "submit": "Bloquer",
+    "selectVenueFirst": "Sélectionnez un lieu pour bloquer"
+  },
+  "organization": {
+    "billingProfile": {
+      "commercialName": "Nom commercial",
+      "commercialNameHint": "Affiché en tête de facture. À défaut, la raison sociale est utilisée.",
+      "legalCapital": "Capital social",
+      "legalCapitalHint": "Repris dans les mentions légales en pied de facture.",
+      "missingDescription": "Les factures émises ou reçues par cette organisation sortiront sans raison sociale, sans SIREN et sans numéro de TVA."
+    }
   }
 }

@@ -35,6 +35,7 @@ interface RawBooking {
   duration: number | null;
   total_price: number | null;
   payment_method: string | null;
+  payment_status: string | null;
   status: string;
   booking_treatments?: Array<{
     treatment_menus: { name: string; category: string | null; duration: number | null } | null;
@@ -46,7 +47,7 @@ const STATUS_LABELS: Record<string, string> = {
   confirmed: "Confirmée",
   pending: "En attente",
   cancelled: "Annulée",
-  no_show: "No-show",
+  no_show: "No show",
   declined: "Refusée",
   expired: "Expirée",
 };
@@ -60,7 +61,37 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   gift_amount: "Carte cadeau",
   voucher: "Payé par voucher",
   partner_billed: "Facturé au partenaire",
+  cure_fresha: "Cure Fresha",
 };
+
+// Repli quand payment_method n'est pas renseigné : c'est le cas des règlements
+// sur place (seuls les paiements en ligne écrivent un payment_method).
+const PAYMENT_STATUS_FALLBACK_LABELS: Record<string, string> = {
+  paid: "Payé",
+  pending: "À régler sur place",
+  charged_to_room: "Note de chambre",
+  pending_partner_billing: "Facturé au partenaire",
+  offert: "Offert",
+  refunded: "Remboursé",
+  failed: "Paiement échoué",
+};
+
+function paymentLabel(method: string | null, status: string | null): string {
+  if (method) return PAYMENT_METHOD_LABELS[method] ?? method;
+  if (status) return PAYMENT_STATUS_FALLBACK_LABELS[status] ?? status;
+  return "—";
+}
+
+/** Numéro de chambre — seuls les résidents de l'hôtel en ont un. */
+function roomNumberLabel(b: RawBooking): string {
+  if (normalizeClientType(b.client_type) !== "hotel") return "—";
+  return b.room_number?.trim() || "—";
+}
+
+function fmtPercent(value: number): string {
+  return `${Math.round(value)} %`;
+}
+
 
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -141,7 +172,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const { data: venue, error: venueError } = await supabase
       .from("hotels")
-      .select("id, name, currency, hotel_commission, venue_type")
+      .select("id, name, currency, venue_type, organizations ( name, commercial_name )")
       .eq("id", hotel_id)
       .single();
 
@@ -159,7 +190,7 @@ serve(async (req: Request): Promise<Response> => {
         .select(
           `id, booking_id, booking_date, booking_time, client_first_name, client_last_name,
            client_type, room_number, therapist_id, therapist_name, duration,
-           total_price, payment_method, status,
+           total_price, payment_method, payment_status, status,
            booking_treatments ( treatment_menus ( name, category, duration ) )`,
         )
         .eq("hotel_id", hotel_id)
@@ -208,38 +239,39 @@ serve(async (req: Request): Promise<Response> => {
       ratesMap[t.id] = empty ? null : rates;
     }
 
+    // Émetteur affiché : l'organisation du lieu, repli sur la marque plateforme
+    // quand le lieu n'est rattaché à aucune organisation.
+    const org = (venue as { organizations: { name: string | null; commercial_name: string | null } | null })
+      .organizations;
+    const issuer = org?.commercial_name?.trim() || org?.name?.trim() || brand.name;
+
     const bookings = (bookingsRes.data ?? []) as RawBooking[];
     const currency = (venue.currency as string) || "EUR";
     const money = (v: number) => fmtMoney(v, currency);
-    const venueRate = Number(venue.hotel_commission ?? 0) / 100;
-
     let completed = 0;
-    let confirmed = 0;
     let cancelled = 0;
     let noShow = 0;
-    let pending = 0;
     let totalRevenue = 0;
-    let totalVenueShare = 0;
-    let totalTherapistShare = 0;
     let bookingsWithoutTherapistRate = 0;
 
     const categoryMap = new Map<string, { count: number; revenue: number }>();
     const therapistMap = new Map<string, { name: string; count: number; revenue: number; earnings: number; hasRates: boolean }>();
-    const paymentMap = new Map<string, { count: number; revenue: number }>();
+    const paymentMap = new Map<string, { count: number; revenue: number; label: string }>();
     const clientTypeMap = new Map<ClientTypeValue, { count: number; revenue: number }>();
+    const crossMap = new Map<
+      string,
+      { clientTypeLabel: string; paymentLabel: string; count: number; revenue: number }
+    >();
 
     for (const b of bookings) {
       if (b.status === "completed") completed += 1;
-      else if (b.status === "confirmed") confirmed += 1;
       else if (b.status === "cancelled") cancelled += 1;
       else if (b.status === "no_show") noShow += 1;
-      else if (b.status === "pending") pending += 1;
 
       if (b.status !== "completed") continue;
 
       const price = b.total_price ?? 0;
       totalRevenue += price;
-      totalVenueShare += price * venueRate;
 
       const rates = b.therapist_id ? ratesMap[b.therapist_id] ?? null : null;
       const duration = bookingDuration(b);
@@ -247,7 +279,6 @@ serve(async (req: Request): Promise<Response> => {
       const therapistEarnings = earnings ?? 0;
       const hasRates = earnings !== null;
       if (b.therapist_id && !hasRates) bookingsWithoutTherapistRate += 1;
-      totalTherapistShare += therapistEarnings;
 
       const categoryName = b.booking_treatments?.[0]?.treatment_menus?.category ?? "Autres";
       const cat = categoryMap.get(categoryName) ?? { count: 0, revenue: 0 };
@@ -273,34 +304,37 @@ serve(async (req: Request): Promise<Response> => {
         therapistMap.set(tKey, { name: tName, count: 1, revenue: price, earnings: therapistEarnings, hasRates });
       }
 
-      const method = b.payment_method ?? "unknown";
-      const mStat = paymentMap.get(method) ?? { count: 0, revenue: 0 };
+      // Les règlements sur place n'ont pas de payment_method : on retombe sur le
+      // statut pour qu'ils apparaissent aussi dans la répartition.
+      const methodKey = b.payment_method ?? `status:${b.payment_status ?? "unknown"}`;
+      const methodLabel = paymentLabel(b.payment_method, b.payment_status);
+      const mStat = paymentMap.get(methodKey) ?? { count: 0, revenue: 0, label: methodLabel };
       mStat.count += 1;
       mStat.revenue += price;
-      paymentMap.set(method, mStat);
+      paymentMap.set(methodKey, mStat);
+
+      const crossKey = `${ctKey}|${methodKey}`;
+      const cStat = crossMap.get(crossKey) ?? {
+        clientTypeLabel: clientTypeLabel(ctKey, "fr"),
+        paymentLabel: methodLabel,
+        count: 0,
+        revenue: 0,
+      };
+      cStat.count += 1;
+      cStat.revenue += price;
+      crossMap.set(crossKey, cStat);
     }
 
-    const totalPlatformShare = totalRevenue - totalVenueShare - totalTherapistShare;
     const headline = `${completed} prestation${completed > 1 ? "s" : ""} · ${money(totalRevenue)}`;
 
     const revenueCards = [
       ["Prestations complétées", String(completed)],
       ["Chiffre d'affaires", money(totalRevenue)],
-      ["Confirmées (à venir)", String(confirmed)],
-      ["En attente", String(pending)],
     ];
-
-    const commissionCards = hide_commissions
-      ? []
-      : [
-          ["Part lieu", money(totalVenueShare)],
-          ["Part thérapeute", money(totalTherapistShare)],
-          ["Part plateforme", money(totalPlatformShare)],
-        ];
 
     const lossCards = [
       ["Annulées", String(cancelled)],
-      ["No-show", String(noShow)],
+      ["No show", String(noShow)],
       ["Total bookings", String(bookings.length)],
     ];
 
@@ -351,7 +385,10 @@ serve(async (req: Request): Promise<Response> => {
               .join("")}</tr>`,
         )
         .join("");
-      return `<h3 style="margin:20px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">${escapeHtml(title)}</h3>
+      const heading = title
+        ? `<h3 style="margin:20px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">${escapeHtml(title)}</h3>`
+        : "";
+      return `${heading}
         <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
           <thead><tr style="background:#f9fafb;">${head}</tr></thead>
           <tbody>${body}</tbody>
@@ -362,25 +399,38 @@ serve(async (req: Request): Promise<Response> => {
       .sort((a, b) => b[1].revenue - a[1].revenue)
       .map(([name, v]) => [escapeHtml(name), String(v.count), money(v.revenue)]);
 
-    const clientTypeRows = Array.from(clientTypeMap.entries())
+    const clientTypeTotal = Array.from(clientTypeMap.values()).reduce((sum, v) => sum + v.count, 0);
+    const clientTypeBuckets = Array.from(clientTypeMap.entries())
       .sort((a, b) => b[1].revenue - a[1].revenue)
-      .map(([k, v]) => [escapeHtml(clientTypeLabel(k, "fr")), String(v.count), money(v.revenue)]);
+      .map(([key, v]) => ({
+        key,
+        count: v.count,
+        revenue: v.revenue,
+        sharePercent: clientTypeTotal ? (v.count / clientTypeTotal) * 100 : 0,
+      }));
+    const clientTypeRows = clientTypeBuckets.map((b) => [
+      escapeHtml(clientTypeLabel(b.key, "fr")),
+      String(b.count),
+      fmtPercent(b.sharePercent),
+      money(b.revenue),
+    ]);
 
-    const therapistHeaders = hide_commissions
-      ? ["Thérapeute", "Prestations", "CA"]
-      : ["Thérapeute", "Prestations", "CA", "Part thér."];
     const therapistRows = Array.from(therapistMap.values())
       .sort((a, b) => b.revenue - a.revenue)
-      .map((t) => {
-        const base = [escapeHtml(t.name), String(t.count), money(t.revenue)];
-        if (hide_commissions) return base;
-        return [...base, t.hasRates ? money(t.earnings) : `<span style="color:#dc2626">—</span>`];
-      });
+      .map((t) => [escapeHtml(t.name), String(t.count), money(t.revenue)]);
 
-    const paymentRows = Array.from(paymentMap.entries())
-      .sort((a, b) => b[1].revenue - a[1].revenue)
-      .map(([method, v]) => [
-        escapeHtml(PAYMENT_METHOD_LABELS[method] ?? method),
+    const paymentRows = Array.from(paymentMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .map((v) => [escapeHtml(v.label), String(v.count), money(v.revenue)]);
+
+    const crossRows = Array.from(crossMap.values())
+      .sort(
+        (a, b) =>
+          a.clientTypeLabel.localeCompare(b.clientTypeLabel, "fr") || b.revenue - a.revenue,
+      )
+      .map((v) => [
+        escapeHtml(v.clientTypeLabel),
+        escapeHtml(v.paymentLabel),
         String(v.count),
         money(v.revenue),
       ]);
@@ -388,9 +438,10 @@ serve(async (req: Request): Promise<Response> => {
     const sectionsHtml = `
       <tr><td style="padding:20px 30px 0;">
         ${buildTable("Par type de prestation", ["Catégorie", "Prestations", "CA"], categoryRows)}
-        ${buildTable("Par type de client", ["Type", "Prestations", "CA"], clientTypeRows)}
-        ${buildTable("Par thérapeute", therapistHeaders, therapistRows)}
+        ${buildTable("Par type de client", ["Type", "Prestations", "Part", "CA"], clientTypeRows)}
+        ${buildTable("Par thérapeute", ["Thérapeute", "Prestations", "CA"], therapistRows)}
         ${buildTable("Par moyen de paiement", ["Moyen", "Nombre", "Montant"], paymentRows)}
+        ${buildTable("Type de client × moyen de paiement", ["Type de client", "Moyen de paiement", "Prestations", "CA"], crossRows)}
       </td></tr>
     `;
 
@@ -403,13 +454,13 @@ serve(async (req: Request): Promise<Response> => {
             b.booking_treatments?.map((bt) => bt.treatment_menus?.name).filter(Boolean).join(", ") || "—";
           return `
             <tr>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(b.booking_time.slice(0, 5))}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">#${b.booking_id}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(`${b.client_first_name} ${b.client_last_name}`)}${b.room_number ? ` <span style="color:#6b7280">· ch. ${escapeHtml(b.room_number)}</span>` : ""}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(`${b.client_first_name} ${b.client_last_name}`)}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(roomNumberLabel(b))}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(treatments)}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(b.therapist_name ?? "—")}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;text-align:right;">${b.total_price != null ? money(b.total_price) : "—"}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(b.payment_method ? (PAYMENT_METHOD_LABELS[b.payment_method] ?? b.payment_method) : "—")}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(paymentLabel(b.payment_method, b.payment_status))}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(STATUS_LABELS[b.status] ?? b.status)}</td>
             </tr>`;
         })
@@ -420,9 +471,9 @@ serve(async (req: Request): Promise<Response> => {
           <h3 style="margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">Détail des prestations</h3>
           <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
             <thead><tr style="background:#f9fafb;">
-              <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Heure</th>
               <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">N°</th>
               <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Client</th>
+              <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Chambre</th>
               <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Prestation</th>
               <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Thérapeute</th>
               <th style="padding:6px 8px;text-align:right;font-size:10px;color:#6b7280;text-transform:uppercase;">Prix</th>
@@ -439,11 +490,10 @@ serve(async (req: Request): Promise<Response> => {
       ${getEmailHeader(`Clôture quotidienne`, headline, "#111827")}
       <tr><td style="padding:0 30px;text-align:center;">
         <p style="margin:0;font-size:16px;font-weight:600;color:#111827;">${escapeHtml(venue.name as string)}</p>
-        <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(fmtDateLong(report_date))}</p>
+        <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(issuer)} · ${escapeHtml(fmtDateLong(report_date))}</p>
       </td></tr>
       ${warningBanner}
       ${renderCardsRow(revenueCards)}
-      ${renderCardsRow(commissionCards, "#f9fafb")}
       ${renderCardsRow(lossCards)}
       ${sectionsHtml}
       ${detailsHtml}
@@ -451,7 +501,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const html = getBaseEmailTemplate(headerContent);
 
-    const subject = `[${brand.name}] Clôture ${venue.name} — ${fmtDateLong(report_date)}`;
+    const subject = `[${issuer}] Clôture ${venue.name} — ${fmtDateLong(report_date)}`;
 
     const result = await sendEmail({
       to: cleanRecipients,

@@ -58,7 +58,15 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { bookingId, notifyAll, sendPaymentLink, notifyClient } = await req.json();
+    // wave : rang de priorité minimum à solliciter. Passé par le cron d'escalade
+    // (escalate-booking-broadcast) pour interdire de redescendre sur un groupe
+    // déjà notifié. Absent à la création → on part du groupe le plus prioritaire.
+    //
+    // therapistsOnly : re-sollicitation interne au lieu. Seul le push praticien part ;
+    // ni email/SMS client, ni Slack. Une escalade de vague n'est pas une nouvelle
+    // réservation — sans ce drapeau, chaque vague renverrait un « new_booking » Slack.
+    const { bookingId, notifyAll, sendPaymentLink, notifyClient, wave, therapistsOnly } =
+      await req.json();
 
     if (!bookingId) {
       throw new Error("Booking ID is required");
@@ -100,7 +108,7 @@ serve(async (req) => {
         status,
         payment_status,
         short_token,
-        hotels(name, currency, image, contact_email, address, postal_code, city, country, timezone, website_url, cancellation_policy_text_en, cancellation_policy_text_fr, organizations(name))
+        hotels(name, currency, image, contact_email, address, postal_code, city, country, timezone, website_url, cancellation_policy_text_en, cancellation_policy_text_fr, therapist_escalation_delay_minutes, organizations(name))
       `)
       .eq("id", bookingId)
       .single();
@@ -175,6 +183,7 @@ serve(async (req) => {
       .from("therapist_venues")
       .select(`
         therapist_id,
+        priority,
         therapists!inner(
           id,
           user_id,
@@ -318,6 +327,35 @@ serve(async (req) => {
       }
     }
 
+    // Vagues de sollicitation par groupe de priorité (therapist_venues.priority).
+    // Appliqué APRÈS le filtre genre : la demande du client prime sur
+    // l'organisation interne du lieu.
+    //
+    // Ce sont les rangs DISTINCTS qui activent la mécanique, pas un flag : un lieu
+    // dont tous les praticiens sont au rang 1 garde le broadcast à plat, sans
+    // qu'aucun champ n'ait à être réglé. Remettre tout le monde au rang 1 désactive.
+    let chosenWave: number | null = null;
+    // L'activation se lit sur la CONFIGURATION du lieu (tous les praticiens rattachés),
+    // pas sur le vivier restant : quand tout le groupe 1 a décliné, il ne reste que des
+    // rangs 2 et un test sur le vivier conclurait à tort « pas de groupes », laissant
+    // broadcast_wave à 1 alors que le groupe 2 vient d'être notifié.
+    const venueRanks = new Set((therapists ?? []).map(th => Number(th.priority) || 1));
+    if (notifyAll && venueRanks.size > 1 && eligibleTherapists.length > 0) {
+      const ranks = [...new Set(eligibleTherapists.map(th => Number(th.priority) || 1))]
+        .sort((a, b) => a - b);
+
+      // eligibleTherapists a DÉJÀ exclu declined_by : quand tout le groupe courant
+      // a refusé, son rang disparaît de `ranks` et l'on bascule mécaniquement au
+      // suivant. C'est le volet « escalade sur refus », sans code dédié — le
+      // re-broadcast après refus existe déjà (src/pages/pwa/BookingDetail.tsx).
+      const floor = Number(wave) || ranks[0];
+      chosenWave = ranks.find(r => r >= floor) ?? ranks[ranks.length - 1];
+      eligibleTherapists = eligibleTherapists.filter(
+        th => (Number(th.priority) || 1) === chosenWave
+      );
+      console.log(`[WAVE] Groupes du lieu [${[...venueRanks].sort().join(", ")}], encore mobilisables [${ranks.join(", ")}], plancher ${floor} → groupe ${chosenWave} (${eligibleTherapists.length} praticien(s))`);
+    }
+
     // Build notification body with proposed slots if available
     const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('fr-FR');
     const formatTime = (timeStr: string) => (timeStr ?? '').slice(0, 5);
@@ -411,6 +449,39 @@ serve(async (req) => {
 
     console.log(`Push notifications sent: ${notificationsSent}, skipped duplicates: ${skippedDuplicates}`);
 
+    // Horodater la vague pour le cron d'escalade. La condition porte sur les
+    // praticiens CIBLÉS, pas sur les push effectivement partis : leurs lignes de
+    // dédup sont déjà écrites, donc une panne OneSignal ne doit pas figer la
+    // réservation sur un groupe qui ne sera jamais resollicité.
+    // Une fois le dernier groupe atteint, la dédup vide toNotify : plus d'écriture,
+    // et le cron cesse de reprendre la réservation à chaque minute.
+    if (chosenWave !== null && toNotify.length > 0) {
+      const { error: waveError } = await supabaseClient
+        .from("bookings")
+        .update({ broadcast_wave: chosenWave, broadcast_wave_sent_at: new Date().toISOString() })
+        .eq("id", bookingId);
+      if (waveError) {
+        console.error("[WAVE] Échec de l'horodatage de la vague:", waveError);
+      }
+    }
+
+    // Re-sollicitation interne : on s'arrête au push praticien. Tout ce qui suit
+    // (email/SMS client, Slack) annonce une NOUVELLE réservation et n'a aucun sens
+    // sur une vague d'escalade ou un re-broadcast après refus.
+    if (therapistsOnly) {
+      console.log(`[THERAPISTS-ONLY] Push praticien seul : ni email/SMS client, ni Slack`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          notificationsSent,
+          skippedDuplicates,
+          totalEligible: eligibleTherapists.length,
+          therapistsOnly: true,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Send confirmation email to the client (Resend template)
     try {
       // Prefer customer record (created upstream by find_or_create_customer) over booking columns
@@ -503,10 +574,12 @@ serve(async (req) => {
 
         const isExternal = (booking as any).client_type === 'external';
         const isPending = booking.status === 'pending';
-        // 'offert' = nothing to collect: never route to the payment-link branch,
-        // let it fall through to the standard branch so the confirmation email
-        // (or pending template) is sent like an already-paid booking.
-        const isOffert = (booking as any).payment_status === 'offert';
+        // Rien à encaisser en ligne (offert, déjà payé sur place, facturé
+        // chambre ou partenaire) : ne jamais router vers la branche lien de
+        // paiement, laisser tomber dans la branche standard pour que l'email
+        // de confirmation (ou le template pending) parte normalement.
+        const SETTLED_STATUSES = ['offert', 'paid', 'charged', 'charged_to_room', 'pending_partner_billing'];
+        const isSettled = SETTLED_STATUSES.includes((booking as any).payment_status);
 
         // If a payment method has already been registered for this booking
         // (e.g. client paid via SetupIntent in the client flow), skip the
@@ -544,12 +617,12 @@ serve(async (req) => {
           hasPaymentMethod = !!existingPaymentInfo;
         }
 
-        if (isExternal && !hasPaymentMethod && !isOffert && sendPaymentLink === false) {
+        if (isExternal && !hasPaymentMethod && !isSettled && sendPaymentLink === false) {
           // Admin-created bookings (sendPaymentLink === false): do NOT auto-send
           // the Stripe payment link. The operator sends it manually from the
           // payment tab (FAB → SendPaymentLinkDialog). No client email here.
           console.log('[trigger-new-booking-notifications] sendPaymentLink=false → skipping auto payment-link for external booking:', bookingId);
-        } else if (isExternal && !hasPaymentMethod && !isOffert) {
+        } else if (isExternal && !hasPaymentMethod && !isSettled) {
           // External clients: create a Stripe payment link and send the
           // payment-required email template instead of the standard confirmation.
           const language: 'fr' | 'en' = resolvedLanguage;
@@ -700,8 +773,29 @@ serve(async (req) => {
           const PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing', 'offert'];
           const isPaidEnough = PAID_STATUSES.includes((booking as any).payment_status);
 
+          // Idempotence : l'email client peut être déclenché par plusieurs
+          // chemins (création, acceptation thérapeute, passage à payé côté
+          // admin, re-broadcast après refus d'un thérapeute — notifyAll). On
+          // relit l'historique d'envoi (audit_log, écrit par sendEmail) pour
+          // ne jamais renvoyer le même template : le pending comme le
+          // confirmed ne doivent partir qu'une seule fois.
+          const dedupEmailTypes = isPending
+            ? ['booking_pending']
+            : ['booking_confirmed', 'booking_confirmation'];
+          const { data: sentRows } = await supabaseClient
+            .from('audit_log')
+            .select('id')
+            .eq('record_id', bookingId)
+            .eq('change_type', 'action')
+            .eq('new_values->>action', 'email_sent')
+            .in('new_values->>email_type', dedupEmailTypes)
+            .limit(1);
+          const alreadySentByEmail = !!(sentRows && sentRows.length > 0);
+
           if (!isPending && !isPaidEnough) {
             console.log('[trigger-new-booking-notifications] Confirmed booking not paid yet → skipping client email:', bookingId);
+          } else if (alreadySentByEmail) {
+            console.log('[trigger-new-booking-notifications] Client email already sent → skipping client email:', bookingId);
           } else {
             const confirmedSubject = clientLanguage === 'en'
               ? `✅ Your treatment is confirmed · ${booking.hotel_name ?? ''}`
@@ -735,7 +829,9 @@ serve(async (req) => {
                 ? getBookingPendingHtml(clientLanguage, templateVariables)
                 : getBookingConfirmedHtml(clientLanguage, templateVariables),
               attachments: clientAttachments,
-              audit: { bookingId, emailType: 'new_booking_notifications', metadata: { booking_number: booking.booking_id } },
+              // email_type distinct pending/confirmed : c'est ce qui rend le
+              // verrou d'idempotence ci-dessus possible.
+              audit: { bookingId, emailType: isPending ? 'booking_pending' : 'booking_confirmed', metadata: { booking_number: booking.booking_id } },
             });
 
             if (clientEmailResult.error) {

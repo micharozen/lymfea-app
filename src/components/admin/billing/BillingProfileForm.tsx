@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { SelectField } from "@/components/ui/select-field";
 import {
   Select,
   SelectContent,
@@ -31,11 +31,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Landmark, Loader2, Save } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle, FileText, Landmark, Loader2, Save } from "lucide-react";
 
 const billingSchema = z.object({
+  commercial_name: z.string().optional().default(""),
   company_name: z.string().optional().default(""),
   legal_form: z.string().optional().default(""),
+  legal_capital: z.string().optional().default(""),
   siret: z.string().optional().default(""),
   siren: z.string().optional().default(""),
   tva_number: z.string().optional().default(""),
@@ -54,8 +57,10 @@ const billingSchema = z.object({
 export type BillingProfileFormValues = z.infer<typeof billingSchema>;
 
 const defaultValues: BillingProfileFormValues = {
+  commercial_name: "",
   company_name: "",
   legal_form: "",
+  legal_capital: "",
   siret: "",
   siren: "",
   tva_number: "",
@@ -72,19 +77,27 @@ const defaultValues: BillingProfileFormValues = {
 };
 
 interface BillingProfileFormProps {
-  ownerType: "therapist" | "hotel";
+  ownerType: "therapist" | "hotel" | "organization";
   ownerId: string;
   disabled?: boolean;
+  /**
+   * When provided, the parent page owns the save action: the ref receives a
+   * function that persists the profile (silently on success) so the page's own
+   * "Enregistrer" button saves this card too, and the local button is hidden.
+   */
+  submitRef?: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
 export function BillingProfileForm({
   ownerType,
   ownerId,
   disabled = false,
+  submitRef,
 }: BillingProfileFormProps) {
   const { t } = useTranslation("common");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasProfile, setHasProfile] = useState(true);
 
   const form = useForm<BillingProfileFormValues>({
     resolver: zodResolver(billingSchema),
@@ -108,8 +121,10 @@ export function BillingProfileForm({
       }
       if (data) {
         form.reset({
+          commercial_name: data.commercial_name ?? "",
           company_name: data.company_name ?? "",
           legal_form: data.legal_form ?? "",
+          legal_capital: data.legal_capital ?? "",
           siret: data.siret ?? "",
           siren: data.siren ?? "",
           tva_number: data.tva_number ?? "",
@@ -127,6 +142,7 @@ export function BillingProfileForm({
       } else {
         form.reset(defaultValues);
       }
+      setHasProfile(!!data);
       setLoading(false);
     };
     if (ownerId) load();
@@ -137,14 +153,16 @@ export function BillingProfileForm({
 
   const vatExempt = form.watch("vat_exempt");
 
-  const onSubmit = async (values: BillingProfileFormValues) => {
+  const persist = async (values: BillingProfileFormValues, silent = false) => {
     setSaving(true);
     try {
       const payload = {
         owner_type: ownerType,
         owner_id: ownerId,
+        commercial_name: values.commercial_name || null,
         company_name: values.company_name || null,
         legal_form: values.legal_form || null,
+        legal_capital: values.legal_capital || null,
         siret: values.siret || null,
         siren: values.siren || null,
         tva_number: values.vat_exempt ? null : values.tva_number || null,
@@ -165,18 +183,32 @@ export function BillingProfileForm({
       });
 
       if (error) throw error;
-      toast.success(
-        t("admin:therapists.billingInfo.saveSuccess", "Informations de facturation enregistrées"),
-      );
+      setHasProfile(true);
+      if (!silent) {
+        toast.success(
+          t("admin:therapists.billingInfo.saveSuccess", "Informations de facturation enregistrées"),
+        );
+      }
     } catch (err) {
       console.error("Error saving billing profile:", err);
       toast.error(
         t("admin:therapists.billingInfo.saveError", "Erreur lors de l'enregistrement"),
       );
+      throw err;
     } finally {
       setSaving(false);
     }
   };
+
+  const onSubmit = (values: BillingProfileFormValues) => persist(values);
+
+  useEffect(() => {
+    if (!submitRef) return;
+    submitRef.current = () => form.handleSubmit((values) => persist(values, true))();
+    return () => {
+      submitRef.current = null;
+    };
+  });
 
   if (loading) {
     return (
@@ -205,6 +237,58 @@ export function BillingProfileForm({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {!hasProfile && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle className="font-normal">
+                  {t(
+                    "admin:therapists.billingInfo.missingTitle",
+                    "Aucun profil de facturation défini",
+                  )}
+                </AlertTitle>
+                <AlertDescription>
+                  {ownerType === "organization"
+                    ? t(
+                        "admin:organization.billingProfile.missingDescription",
+                        "Les factures émises ou reçues par cette organisation sortiront sans raison sociale, sans SIREN et sans numéro de TVA.",
+                      )
+                    : ownerType === "hotel"
+                    ? t(
+                        "admin:venue.billingProfile.missingDescription",
+                        "Les factures des thérapeutes seront adressées à ce lieu avec les coordonnées de sa fiche, sans SIRET ni numéro de TVA.",
+                      )
+                    : t(
+                        "admin:therapists.billingInfo.missingDescription",
+                        "Les factures mensuelles seront générées sans adresse, sans SIRET, sans coordonnées bancaires et avec une TVA à 20 %, ce qui les rend non conformes.",
+                      )}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {ownerType === "organization" && (
+              <FormField
+                control={form.control}
+                name="commercial_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("admin:organization.billingProfile.commercialName", "Nom commercial")}
+                    </FormLabel>
+                    <FormControl>
+                      <Input {...field} disabled={disabled} />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        "admin:organization.billingProfile.commercialNameHint",
+                        "Affiché en tête de facture. À défaut, la raison sociale est utilisée.",
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -256,6 +340,30 @@ export function BillingProfileForm({
               />
             </div>
 
+            {ownerType === "organization" && (
+              <FormField
+                control={form.control}
+                name="legal_capital"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("admin:organization.billingProfile.legalCapital", "Capital social")}
+                    </FormLabel>
+                    <FormControl>
+                      <Input {...field} disabled={disabled} placeholder="10 000 €" />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      {t(
+                        "admin:organization.billingProfile.legalCapitalHint",
+                        "Repris dans les mentions légales en pied de facture.",
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -295,32 +403,52 @@ export function BillingProfileForm({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="vat_exempt"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
+            {/* Franchise en base (293 B) : cas des thérapeutes indépendants.
+                Un lieu ou une organisation est une société assujettie. */}
+            {ownerType === "therapist" && (
+              <FormField
+                control={form.control}
+                name="vat_exempt"
+                render={({ field }) => (
+                  <FormItem>
                     <FormLabel>
-                      {t("admin:therapists.billingInfo.vatExempt", "Non assujetti à la TVA")}
+                      {t("admin:therapists.billingInfo.vatStatus", "Régime de TVA")}
                     </FormLabel>
+                    <FormControl>
+                      <SelectField
+                        options={[
+                          {
+                            value: "subject",
+                            label: t(
+                              "admin:therapists.billingInfo.vatSubject",
+                              "Assujetti à la TVA",
+                            ),
+                          },
+                          {
+                            value: "exempt",
+                            label: t(
+                              "admin:therapists.billingInfo.vatExempt",
+                              "Non assujetti à la TVA",
+                            ),
+                          },
+                        ]}
+                        value={field.value ? "exempt" : "subject"}
+                        onChange={(v) => field.onChange(v === "exempt")}
+                        searchable={false}
+                        disabled={disabled}
+                      />
+                    </FormControl>
                     <FormDescription className="text-xs">
                       {t(
                         "admin:therapists.billingInfo.vatExemptHint",
                         "Article 293 B du CGI (auto-entrepreneurs)",
                       )}
                     </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={disabled}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
@@ -506,7 +634,7 @@ export function BillingProfileForm({
           </CardContent>
         </Card>
 
-        {!disabled && (
+        {!disabled && !submitRef && (
           <div className="flex justify-end">
             <Button type="submit" disabled={saving}>
               {saving ? (

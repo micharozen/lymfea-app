@@ -67,7 +67,7 @@ import {
 } from "@/features/admin-combo-duo";
 import type { ComboLegPayload } from "@/hooks/booking/useCreateBookingMutation";
 
-export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
+export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId, presetTherapistId }: CreateBookingDialogProps) {
   const { hotelIds, isAdmin } = useUserContext();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const canAssignTherapist = isAdmin || isConcierge;
@@ -80,7 +80,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     resolver: zodResolver(formSchema),
     defaultValues: {
       hotelId: presetHotelId || (isConcierge && hotelIds.length > 0 ? hotelIds[0] : ""),
-      therapistId: "",
+      therapistId: presetTherapistId || "",
       date: selectedDate,
       time: selectedTime || "",
       slot2Date: undefined,
@@ -154,7 +154,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   useEffect(() => {
     if (selectedDate) form.setValue("date", selectedDate);
     if (selectedTime) form.setValue("time", selectedTime);
-  }, [selectedDate, selectedTime]);
+    if (presetTherapistId) form.setValue("therapistId", presetTherapistId);
+    if (presetHotelId) form.setValue("hotelId", presetHotelId);
+  }, [selectedDate, selectedTime, presetTherapistId, presetHotelId]);
 
 
   const scope = useOrgScope();
@@ -703,7 +705,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setSecondaryRoomEnabled(false);
     form.reset({
       hotelId: presetHotelId || "",
-      therapistId: "",
+      therapistId: presetTherapistId || "",
       date: selectedDate,
       time: selectedTime || "",
       slot2Date: undefined,
@@ -736,7 +738,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setDuoMode("assign");
     setComboDuoEnabled(false);
     setCreatedBooking(null);
-    onOpenChange(false);
+    // Fermeture différée d'une frame : quand on arrive ici depuis l'AlertDialog
+    // « Abandonner », les deux couches Radix se démonteraient dans le même tick
+    // et le `pointer-events: none` posé sur <body> ne serait pas restauré
+    // (page visible mais entièrement non cliquable).
+    requestAnimationFrame(() => onOpenChange(false));
   };
 
   return (

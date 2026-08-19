@@ -19,7 +19,13 @@ import { useClientVenue } from '@/pages/client/context/ClientVenueContext';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
 import { useCart, type BasketItem } from '@/pages/client/context/CartContext';
 import { resolveAvailableDays } from '@/lib/availableDays';
+import { totalTreatmentCount } from '@/lib/multiTimeBooking';
+import { splitPhoneNumber } from '@/lib/phone';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { useLocalizedField } from '@/hooks/useLocalizedField';
+
+/** Slack absorbing the gap between the browser's timezone and the venue's. */
+const TZ_TOLERANCE_MS = 3 * 60 * 60 * 1000;
 
 interface SnapshotItem {
   treatmentId?: string;
@@ -46,7 +52,16 @@ export default function Resume() {
   const navigate = useNavigate();
   const { slug, hotelId } = useClientVenue();
   const { replaceBasket } = useCart();
-  const { setBookingDateTime, setClientInfo } = useClientFlow();
+  const {
+    setBookingDateTime,
+    setClientInfo,
+    setTherapistGenderPreference,
+    setDraftBookingId,
+    setBookingIds,
+    setGroupId,
+    setHoldExpiresAt,
+  } = useClientFlow();
+  const isDesktop = useIsDesktop();
   const { t } = useTranslation('client');
   const localize = useLocalizedField();
 
@@ -119,29 +134,116 @@ export default function Resume() {
         return;
       }
 
+      const { countryCode, phone } = splitPhoneNumber(intent.client_phone ?? '');
+
       replaceBasket(items);
       setClientInfo({
         firstName: intent.client_first_name,
         lastName: intent.client_last_name ?? '',
         email: intent.client_email,
         roomNumber: intent.room_number ?? '',
-        phone: '',
-        countryCode: '+33',
+        phone,
+        countryCode,
       });
 
-      // The intent holds no stock — the 5-minute slot hold expired long before the
-      // reminder went out. The stored slot is a preference: restore it and land on
-      // guest-info (phone is the only missing field), where a fresh hold is placed.
-      // Skipping straight to payment would sell a slot nothing is reserving.
-      if (!forceSchedule && intent.booking_date && intent.booking_time) {
-        setBookingDateTime({
-          date: intent.booking_date,
-          time: intent.booking_time.slice(0, 5),
-        });
+      const rawGender = (intent.cart_snapshot as { therapistGenderPreference?: unknown } | null)
+        ?.therapistGenderPreference;
+      const therapistGender = rawGender === 'male' || rawGender === 'female' ? rawGender : null;
+      if (therapistGender) setTherapistGenderPreference(therapistGender);
+
+      const slot =
+        !forceSchedule && intent.booking_date && intent.booking_time
+          ? { date: intent.booking_date, time: intent.booking_time.slice(0, 5) }
+          : null;
+
+      if (!slot) {
+        navigate(`/client/${slug}/schedule`, { replace: true });
+        return;
+      }
+
+      // An intent created before the phone was carried over, or a customer row
+      // without one: guest-info is the only place that can collect it.
+      if (!phone) {
+        setBookingDateTime(slot);
         navigate(`/client/${slug}/guest-info`, { replace: true });
         return;
       }
-      navigate(`/client/${slug}/schedule`, { replace: true });
+
+      // The stored slot is only a preference — the hold that reserved it expired
+      // long before the reminder went out. Take a fresh one before showing a
+      // payment screen, otherwise we would charge a slot nothing is holding.
+      if (isSlotPast(slot) || !(await placeHold(slot, items, therapistGender))) {
+        navigate(`/client/${slug}/schedule`, { replace: true });
+        toast.info(t('resume.slotGone', "Ce créneau n'est plus disponible. Choisissez-en un autre."));
+        return;
+      }
+
+      setBookingDateTime(slot);
+      // Desktop pays in a panel opened from guest-info; mobile has its own page.
+      navigate(
+        isDesktop ? `/client/${slug}/guest-info` : `/client/${slug}/payment`,
+        { replace: true, state: isDesktop ? { openCheckout: true } : undefined },
+      );
+    };
+
+    /**
+     * Coarse guard for a reminder opened after the slot has come and gone: the
+     * venue timezone is unknown here, so only a slot hours in the past is rejected
+     * outright. Anything closer is left to `create-draft-booking`, which checks
+     * availability for real.
+     */
+    const isSlotPast = ({ date, time }: { date: string; time: string }) =>
+      new Date(`${date}T${time}`).getTime() + TZ_TOLERANCE_MS < Date.now();
+
+    /** Returns false when the slot is gone: the caller sends the guest back to schedule. */
+    const placeHold = async (
+      { date, time }: { date: string; time: string },
+      basket: BasketItem[],
+      therapistGender: 'male' | 'female' | null,
+    ) => {
+      // Same rule as the schedule step: amenities need no bed, and 2+ treatments
+      // booked at the same time are a duo — one bed and one therapist each.
+      const treatmentCount = totalTreatmentCount(basket.filter((i) => !i.isBundle && !i.isAmenity));
+      const guestCount = Math.max(
+        1,
+        ...basket.filter((i) => !i.isAmenity).map((i) => i.guestCount ?? 1),
+        treatmentCount > 1 ? treatmentCount : 1,
+      );
+
+      try {
+        const { data, error } = await supabase.functions.invoke('create-draft-booking', {
+          body: {
+            hotelId,
+            bookingData: { date, time },
+            treatments: basket.map((item) => ({
+              id: item.id,
+              variantId: item.variantId,
+              quantity: item.quantity,
+            })),
+            therapistGender,
+            ...(guestCount > 1 ? { guestCount } : {}),
+          },
+        });
+        if (error) throw error;
+
+        // Venue runs without holds: the slot is locked at confirm-setup-intent
+        // instead, exactly as for a guest coming through the normal flow.
+        if (data?.holdSkipped || data?.reason === 'hold_disabled') return true;
+        if (!data?.bookingId) return false;
+
+        setDraftBookingId(data.bookingId);
+        setBookingIds([data.bookingId]);
+        setGroupId(null);
+        setHoldExpiresAt(
+          data.holdExpiresAt
+            ? new Date(data.holdExpiresAt).getTime()
+            : Date.now() + (data.holdDurationMinutes ?? 5) * 60 * 1000,
+        );
+        return true;
+      } catch (error) {
+        console.error('Resume hold error:', error);
+        return false;
+      }
     };
 
     void restore();
@@ -154,6 +256,12 @@ export default function Resume() {
     replaceBasket,
     setBookingDateTime,
     setClientInfo,
+    setTherapistGenderPreference,
+    setDraftBookingId,
+    setBookingIds,
+    setGroupId,
+    setHoldExpiresAt,
+    isDesktop,
     localize,
     t,
   ]);

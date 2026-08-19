@@ -1,4 +1,4 @@
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { TFunction } from 'i18next';
 import { HoldBanner } from '@/components/client/HoldBanner';
@@ -45,10 +45,12 @@ import { ProgressBar } from '@/components/client/ProgressBar';
 import { phoneCountries as countries, toFlagEmoji } from '@/lib/phoneCountries';
 import { languageFromCountryCode } from '@/lib/phone';
 
-const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean, isHotelGuest: boolean, isGiftCard: boolean) => {
+const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean, isHotelGuest: boolean, isGiftCard: boolean, roomNumberUnknown: boolean) => {
   // PMS-verified hotel guest: we collect room + name only and resolve email/phone
   // server-side from the PMS, so those fields are optional here and the room is required.
-  const isPmsVerifiedGuest = pmsGuestLookup && isHotelGuest && !isGiftCard && !isCoworking;
+  // Un résident qui ne connaît pas encore sa chambre ne peut pas être vérifié
+  // contre le PMS : on retombe sur le parcours standard (email + téléphone).
+  const isPmsVerifiedGuest = pmsGuestLookup && isHotelGuest && !isGiftCard && !isCoworking && !roomNumberUnknown;
   return z.object({
   firstName: z.string().min(1, t('info.errors.firstNameRequired')),
   lastName: z.string().min(1, t('info.errors.lastNameRequired')),
@@ -61,7 +63,7 @@ const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLook
   countryCode: z.string(),
   roomNumber: isPmsVerifiedGuest
     ? z.string().min(1, t('info.errors.roomRequired'))
-    : ((isGiftCard || isCoworking || !isHotelGuest) ? z.string().optional() : (pmsGuestLookup ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired')))),
+    : ((isGiftCard || isCoworking || !isHotelGuest || roomNumberUnknown) ? z.string().optional() : (pmsGuestLookup ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired')))),
   note: z.string().optional(),
 }).superRefine((data, ctx) => {
   const country = countries.find(c => c.code === data.countryCode);
@@ -85,6 +87,26 @@ type ClientInfoFormData = z.infer<ReturnType<typeof createClientInfoSchema>>;
 const inputStyles = "h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-500 focus:ring-gold-500/20";
 const labelStyles = "text-gray-500 text-xs uppercase tracking-wider font-medium";
 
+/** « Je ne connais pas encore mon numéro de chambre » — rendue sous le champ
+ *  chambre dans les deux parcours (avec et sans PMS). */
+function RoomNumberUnknownCheckbox({ checked, onChange, label }: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="flex items-center gap-2 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
+      />
+      <span className="text-sm text-gray-500">{label}</span>
+    </label>
+  );
+}
+
 export default function GuestInfo() {
   const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
@@ -100,10 +122,17 @@ export default function GuestInfo() {
   const isDesktop = useIsDesktop();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  // Reprise d'un panier abandonné (Resume.tsx) : tout est déjà rempli et le
+  // créneau vient d'être re-bloqué, on ouvre directement le panneau de paiement.
+  const openCheckoutOnMount = (useLocation().state as { openCheckout?: boolean } | null)?.openCheckout;
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(!!openCheckoutOnMount && isDesktop);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
   const [isHotelGuest, setIsHotelGuest] = useState(clientInfo?.isExternalGuest === false);
+  // Résident qui n'a pas encore son numéro de chambre (arrivée plus tard dans la
+  // journée) : il reste un client de l'hôtel, mais ne peut pas mettre le soin
+  // sur sa note — le paiement chambre lui est retiré à l'étape suivante.
+  const [roomNumberUnknown, setRoomNumberUnknown] = useState(clientInfo?.roomNumberUnknown === true);
   const [pmsVerifyError, setPmsVerifyError] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(!!authBundles);
@@ -164,8 +193,8 @@ export default function GuestInfo() {
   // Secure PMS path: when the venue uses PMS guest lookup and the visitor declares
   // they are a hotel guest, we collect room + name only and verify against the PMS.
   // Email/phone are hidden and resolved server-side.
-  const isPmsVerifiedFlow = pmsGuestLookupEnabled && isHotelGuest && !isCoworking && !isGiftCardBundle;
-  const schema = useMemo(() => createClientInfoSchema(t, isCoworking, pmsGuestLookupEnabled, isHotelGuest, isGiftCardBundle), [t, isCoworking, pmsGuestLookupEnabled, isHotelGuest, isGiftCardBundle]);
+  const isPmsVerifiedFlow = pmsGuestLookupEnabled && isHotelGuest && !isCoworking && !isGiftCardBundle && !roomNumberUnknown;
+  const schema = useMemo(() => createClientInfoSchema(t, isCoworking, pmsGuestLookupEnabled, isHotelGuest, isGiftCardBundle, roomNumberUnknown), [t, isCoworking, pmsGuestLookupEnabled, isHotelGuest, isGiftCardBundle, roomNumberUnknown]);
 
   const form = useForm<ClientInfoFormData>({
     resolver: zodResolver(schema),
@@ -295,6 +324,7 @@ export default function GuestInfo() {
         roomNumber: data.roomNumber ?? '',
         note: data.note,
         isExternalGuest: !isHotelGuest,
+        roomNumberUnknown: isHotelGuest && roomNumberUnknown,
         pmsVerified,
       };
       setClientInfo(savedClientInfo);
@@ -782,27 +812,44 @@ export default function GuestInfo() {
                           </button>
                         </div>
                         {isHotelGuest && (
-                          <FormField
-                            control={form.control}
-                            name="roomNumber"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <Input
-                                      {...field}
-                                      onChange={(e) => { field.onChange(e); if (pmsVerifyError) setPmsVerifyError(false); }}
-                                      placeholder="102"
-                                      className={inputStyles}
-                                    />
-                                  </div>
-                                </FormControl>
-                                <p className="text-xs text-gray-400 mt-1">{t('info.hotelGuestHint')}</p>
-                                <FormMessage className="text-red-400 text-xs" />
-                              </FormItem>
+                          <>
+                            <FormField
+                              control={form.control}
+                              name="roomNumber"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <Input
+                                        {...field}
+                                        onChange={(e) => { field.onChange(e); if (pmsVerifyError) setPmsVerifyError(false); }}
+                                        placeholder={roomNumberUnknown ? t('info.roomNumberLater') : "102"}
+                                        disabled={roomNumberUnknown}
+                                        className={inputStyles}
+                                      />
+                                    </div>
+                                  </FormControl>
+                                  {!roomNumberUnknown && (
+                                    <p className="text-xs text-gray-400 mt-1">{t('info.hotelGuestHint')}</p>
+                                  )}
+                                  <FormMessage className="text-red-400 text-xs" />
+                                </FormItem>
+                              )}
+                            />
+                            <RoomNumberUnknownCheckbox
+                              checked={roomNumberUnknown}
+                              onChange={(checked) => {
+                                setRoomNumberUnknown(checked);
+                                setPmsVerifyError(false);
+                                if (checked) form.setValue('roomNumber', '');
+                              }}
+                              label={t('info.roomNumberUnknown')}
+                            />
+                            {roomNumberUnknown && (
+                              <p className="text-xs text-gray-400">{t('info.roomNumberUnknownHint')}</p>
                             )}
-                          />
+                          </>
                         )}
                         {pmsVerifyError && (
                           <p className="text-sm text-red-500">{t('info.errors.pmsVerificationFailed')}</p>
@@ -989,6 +1036,7 @@ export default function GuestInfo() {
                               setIsHotelGuest(e.target.checked);
                               if (!e.target.checked) {
                                 form.setValue('roomNumber', '');
+                                setRoomNumberUnknown(false);
                               }
                             }}
                             className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
@@ -996,25 +1044,39 @@ export default function GuestInfo() {
                           <span className="text-sm text-gray-500">{t('info.isHotelGuest')}</span>
                         </label>
                         {isHotelGuest && (
-                          <FormField
-                            control={form.control}
-                            name="roomNumber"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <Input
-                                      {...field}
-                                      placeholder="102"
-                                      className={inputStyles}
-                                    />
-                                  </div>
-                                </FormControl>
-                                <FormMessage className="text-red-400 text-xs" />
-                              </FormItem>
+                          <>
+                            <FormField
+                              control={form.control}
+                              name="roomNumber"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <Input
+                                        {...field}
+                                        placeholder={roomNumberUnknown ? t('info.roomNumberLater') : "102"}
+                                        disabled={roomNumberUnknown}
+                                        className={inputStyles}
+                                      />
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage className="text-red-400 text-xs" />
+                                </FormItem>
+                              )}
+                            />
+                            <RoomNumberUnknownCheckbox
+                              checked={roomNumberUnknown}
+                              onChange={(checked) => {
+                                setRoomNumberUnknown(checked);
+                                if (checked) form.setValue('roomNumber', '');
+                              }}
+                              label={t('info.roomNumberUnknown')}
+                            />
+                            {roomNumberUnknown && (
+                              <p className="text-xs text-gray-400">{t('info.roomNumberUnknownHint')}</p>
                             )}
-                          />
+                          </>
                         )}
                       </div>
                     )}

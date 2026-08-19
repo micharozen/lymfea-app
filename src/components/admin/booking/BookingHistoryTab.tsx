@@ -48,6 +48,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   offert: "Offert",
   voucher: "Payé par voucher",
   partner_billed: "Facturé au partenaire",
+  cure_fresha: "Cure Fresha",
 };
 
 const PAYMENT_STATUS_LABELS: Record<string, string> = {
@@ -129,6 +130,7 @@ function hasEmailPreview(entry: BookingAuditEntry): boolean {
 const EMAIL_TYPE_LABELS: Record<string, string> = {
   booking_confirmation: "Email de confirmation envoyé au client",
   booking_confirmed: "Email de confirmation de réservation envoyé",
+  booking_pending: "Email de demande de réservation envoyé",
   booking_notification: "Email de notification envoyé",
   new_booking_notifications: "Email de nouvelle réservation envoyé",
   payment_reminder: "Email de rappel de paiement envoyé",

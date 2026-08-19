@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
+import { redirectToCheckout } from '@/lib/stripeCheckoutUrl';
 import { buildMultiBookingItems, totalTreatmentCount } from '@/lib/multiTimeBooking';
 import { checkoutIntentFields } from '@/lib/client/checkoutIntentFields';
 import { parseCancellationTiers } from '@/lib/cancellationTiers';
@@ -116,6 +117,15 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
     }
   }, [venueType]);
 
+  // Sur desktop le formulaire client reste éditable à côté du panneau : cocher
+  // « je ne connais pas ma chambre » après avoir choisi le paiement chambre
+  // masquerait le bouton sans annuler la sélection.
+  useEffect(() => {
+    if (selectedMethod === 'room' && (clientInfo?.isExternalGuest || clientInfo?.roomNumberUnknown)) {
+      setSelectedMethod('card');
+    }
+  }, [selectedMethod, clientInfo?.isExternalGuest, clientInfo?.roomNumberUnknown]);
+
   // Separate fixed and variable items
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
@@ -170,6 +180,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
               email: clientInfo.email,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
+              isHotelGuest: clientInfo.isExternalGuest === false,
             },
             bundleItems: items.map(item => ({
               treatmentId: item.id,
@@ -194,13 +205,8 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
         if (error) throw error;
 
         if (data?.url) {
-          const url = new URL(data.url);
-          const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
-            throw new Error('Invalid redirect URL');
-          }
           setPendingCheckoutSession(data.sessionId);
-          window.location.href = data.url;
+          redirectToCheckout(data.url);
         }
       } catch (error: unknown) {
         console.error('Bundle payment error:', error);
@@ -233,6 +239,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
                 email: clientInfo.email,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
+                isHotelGuest: clientInfo.isExternalGuest === false,
                 pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
                 pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
               },
@@ -273,6 +280,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
                 email: clientInfo.email,
                 roomNumber: clientInfo.roomNumber,
                 note: clientInfo.note || '',
+                isHotelGuest: clientInfo.isExternalGuest === false,
               },
               bookingData: {
                 date: bookingDateTime.date,
@@ -294,13 +302,8 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
           if (error) throw error;
 
           if (data?.url) {
-            const url = new URL(data.url);
-            const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-            if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
-              throw new Error('Invalid redirect URL');
-            }
             setPendingCheckoutSession(data.sessionId);
-            window.location.href = data.url;
+            redirectToCheckout(data.url);
           }
           return;
         }
@@ -318,6 +321,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
               email: clientInfo.email,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
+              isHotelGuest: clientInfo.isExternalGuest === false,
               pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
               pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
             },
@@ -370,6 +374,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
             email: clientInfo.email,
             roomNumber: clientInfo.roomNumber,
             note: clientInfo.note || '',
+            isHotelGuest: clientInfo.isExternalGuest === false,
             pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
             pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
           },
@@ -377,6 +382,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
           treatmentIds: items.map(item => item.id),
           treatments: buildTreatmentsPayload(items),
           totalPrice: total,
+          language: languageFromCountryCode(clientInfo.countryCode),
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
           ...(checkoutIntentFields(checkoutIntentId)),
@@ -391,13 +397,8 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
         if (error) throw error;
 
         if (data?.url) {
-          const url = new URL(data.url);
-          const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
-            throw new Error('Invalid redirect URL');
-          }
           setPendingCheckoutSession(data.sessionId);
-          window.location.href = data.url;
+          redirectToCheckout(data.url);
         }
       } else {
         // --- FLUX CHAMBRE / SUR PLACE (multi & solo) ---
@@ -416,6 +417,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
           email: clientInfo.email,
           roomNumber: clientInfo.roomNumber,
           note: clientInfo.note || '',
+          isHotelGuest: clientInfo.isExternalGuest === false,
           pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
           pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
         };
@@ -871,7 +873,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
           </button>
 
           {/* Room Payment */}
-          {supportsRoomPayment && !isBundleOnlyPurchase && !clientInfo?.isExternalGuest && (
+          {supportsRoomPayment && !isBundleOnlyPurchase && !clientInfo?.isExternalGuest && !clientInfo?.roomNumberUnknown && (
             <button
               type="button"
               onClick={() => setSelectedMethod('room')}

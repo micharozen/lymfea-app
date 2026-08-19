@@ -13,6 +13,11 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, FileText } from "lucide-react";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import {
+  currentMonthRange,
+  previousMonthRange,
+  type DateRange,
+} from "@/lib/billingPeriod";
 
 interface VenueInvoiceGenerateDialogProps {
   open: boolean;
@@ -20,24 +25,6 @@ interface VenueInvoiceGenerateDialogProps {
   hotelId: string;
   onGenerated?: () => void;
 }
-
-const pad2 = (n: number) => String(n).padStart(2, "0");
-const toIso = (d: Date) =>
-  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-
-const currentMonthRange = (): { start: string; end: string } => {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { start: toIso(start), end: toIso(end) };
-};
-
-const previousMonthRange = (): { start: string; end: string } => {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const end = new Date(now.getFullYear(), now.getMonth(), 0);
-  return { start: toIso(start), end: toIso(end) };
-};
 
 export function VenueInvoiceGenerateDialog({
   open,
@@ -52,7 +39,7 @@ export function VenueInvoiceGenerateDialog({
   const [periodStart, setPeriodStart] = useState(defaults.start);
   const [periodEnd, setPeriodEnd] = useState(defaults.end);
 
-  const applyShortcut = (range: { start: string; end: string }) => {
+  const applyShortcut = (range: DateRange) => {
     setPeriodStart(range.start);
     setPeriodEnd(range.end);
   };

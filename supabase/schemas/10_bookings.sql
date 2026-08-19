@@ -54,12 +54,14 @@ CREATE TABLE IF NOT EXISTS "public"."bookings" (
     "client_type" "text" DEFAULT 'external'::"text" NOT NULL,
     "payment_reference" "text",
     "therapist_gender_preference" "text",
+    "broadcast_wave" integer,
+    "broadcast_wave_sent_at" timestamp with time zone,
     "external_reference" "text",
     "external_id" "text",
     CONSTRAINT "bookings_client_type_check" CHECK (("client_type" = ANY (ARRAY['hotel'::"text", 'staycation'::"text", 'classpass'::"text", 'sezame'::"text", 'external'::"text"]))),
     CONSTRAINT "bookings_gift_amount_applied_cents_check" CHECK (("gift_amount_applied_cents" >= 0)),
     CONSTRAINT "bookings_payment_link_language_check" CHECK (("payment_link_language" = ANY (ARRAY['fr'::"text", 'en'::"text"]))),
-    CONSTRAINT "bookings_payment_method_check" CHECK (("payment_method" = ANY (ARRAY['room'::"text", 'card'::"text", 'card_on_site'::"text", 'offert'::"text", 'gift_amount'::"text", 'voucher'::"text", 'partner_billed'::"text", 'cash'::"text"]))),
+    CONSTRAINT "bookings_payment_method_check" CHECK (("payment_method" = ANY (ARRAY['room'::"text", 'card'::"text", 'card_on_site'::"text", 'offert'::"text", 'gift_amount'::"text", 'voucher'::"text", 'partner_billed'::"text", 'cash'::"text", 'cure_fresha'::"text"]))),
     CONSTRAINT "bookings_payment_status_check" CHECK (("payment_status" = ANY (ARRAY['pending'::"text", 'awaiting_payment'::"text", 'paid'::"text", 'failed'::"text", 'refunded'::"text", 'charged'::"text", 'charged_to_room'::"text", 'card_saved'::"text", 'expired'::"text", 'pending_partner_billing'::"text", 'pending_room_charge'::"text"]))),
     CONSTRAINT "bookings_therapist_gender_preference_check" CHECK (("therapist_gender_preference" = ANY (ARRAY['female'::"text", 'male'::"text"])))
 );
@@ -99,6 +101,8 @@ ALTER TABLE ONLY "public"."bookings"
 CREATE UNIQUE INDEX "bookings_booking_id_idx" ON "public"."bookings" USING "btree" ("booking_id");
 
 CREATE INDEX "idx_bookings_awaiting_payment" ON "public"."bookings" USING "btree" ("payment_status", "created_at") WHERE ("payment_status" = 'awaiting_payment'::"text");
+
+CREATE INDEX "idx_bookings_broadcast_wave_pending" ON "public"."bookings" USING "btree" ("broadcast_wave_sent_at") WHERE (("status" = 'pending'::"text") AND ("broadcast_wave" IS NOT NULL));
 
 CREATE INDEX "idx_bookings_bundle_usage" ON "public"."bookings" USING "btree" ("bundle_usage_id") WHERE ("bundle_usage_id" IS NOT NULL);
 

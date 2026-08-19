@@ -30,6 +30,43 @@ const sumDurations = (treatments: LegTreatment[]): number =>
   treatments.reduce((sum, t) => sum + (t.duration || 0), 0);
 
 /**
+ * The treatments the given therapist is paid for on this booking — their base
+ * soin(s) plus the add-ons they carry. Same attribution ladder as
+ * `myLegDuration` (which is its sum), so any surface listing a therapist's
+ * prestations (auto-facture, recap) shows exactly what they are paid for.
+ * `orderedTherapistIds` must be the accepted `booking_therapists` sorted by
+ * `assigned_at` (stable positional order) for the fallback branch.
+ */
+export function myLegTreatments<T extends LegTreatment>(
+  myTherapistId: string,
+  treatments: T[],
+  orderedTherapistIds: string[],
+  guestCount: number,
+): T[] {
+  if (guestCount <= 1) return treatments;
+
+  const bases = treatments.filter((t) => !t.is_addon);
+  const myAddons = treatments.filter((t) => t.is_addon && t.therapist_id === myTherapistId);
+
+  // Combo-duo with the stable link set: one base soin per guest.
+  if (bases.length === guestCount && bases.some((t) => t.therapist_id != null)) {
+    return [...bases.filter((t) => t.therapist_id === myTherapistId), ...myAddons];
+  }
+
+  // Shared-duo: fewer base soins than guests → the lone soin is worked in
+  // parallel by everyone, whether or not it already names one of them.
+  if (bases.length < guestCount) {
+    return [...(bases[0] ? [bases[0]] : []), ...myAddons];
+  }
+
+  // Positional fallback (older bookings, no line carries a therapist_id).
+  const legs = computeDuoLegs(orderedTherapistIds, bases, guestCount);
+  const index = legs.findIndex((l) => l.therapistId === myTherapistId);
+  const mine = index >= 0 && bases.length === guestCount ? bases[index] : bases[0];
+  return [...(mine ? [mine] : []), ...myAddons];
+}
+
+/**
  * Minutes the given therapist is paid for on this booking.
  * `orderedTherapistIds` must be the accepted `booking_therapists` sorted by
  * `assigned_at` (stable positional order) for the fallback branch.
@@ -40,28 +77,7 @@ export function myLegDuration(
   orderedTherapistIds: string[],
   guestCount: number,
 ): number {
-  if (guestCount <= 1) return sumDurations(treatments);
-
-  const bases = treatments.filter((t) => !t.is_addon);
-  const myAddons = sumDurations(
-    treatments.filter((t) => t.is_addon && t.therapist_id === myTherapistId),
-  );
-
-  // Combo-duo with the stable link set: one base soin per guest.
-  if (bases.length === guestCount && bases.some((t) => t.therapist_id != null)) {
-    return sumDurations(bases.filter((t) => t.therapist_id === myTherapistId)) + myAddons;
-  }
-
-  // Shared-duo: fewer base soins than guests → the lone soin is worked in
-  // parallel by everyone, whether or not it already names one of them.
-  if (bases.length < guestCount) {
-    return (bases[0]?.duration ?? 0) + myAddons;
-  }
-
-  // Positional fallback (older bookings, no line carries a therapist_id).
-  const legs = computeDuoLegs(orderedTherapistIds, bases, guestCount);
-  const mine = legs.find((l) => l.therapistId === myTherapistId);
-  return (mine ? mine.duration : bases[0]?.duration ?? 0) + myAddons;
+  return sumDurations(myLegTreatments(myTherapistId, treatments, orderedTherapistIds, guestCount));
 }
 
 /**

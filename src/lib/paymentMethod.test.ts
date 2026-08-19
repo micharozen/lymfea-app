@@ -1,22 +1,23 @@
 import { describe, it, expect } from "vitest";
 import {
+  EIA_VENUE_ID,
   MANUAL_PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHOD_FILTER_OPTIONS,
   PAYMENT_METHOD_UNSET,
+  manualPaymentMethodsForVenue,
   paymentMethodLabel,
 } from "./paymentMethod";
 
 describe("MANUAL_PAYMENT_METHODS", () => {
-  // Invariant central du pointage Stripe : `card` ne doit jamais pouvoir être
-  // saisi à la main, sinon une CB encaissée au comptoir devient indiscernable
-  // d'un encaissement Stripe.
+  // `bundle` est posé par la consommation d'un forfait : une saisie manuelle
+  // décorrélerait la réservation de la séance décomptée.
   it("excludes system-written methods", () => {
-    expect(MANUAL_PAYMENT_METHODS).not.toContain("card");
     expect(MANUAL_PAYMENT_METHODS).not.toContain("bundle");
   });
 
-  it("offers card_on_site for a card cashed in on the premises", () => {
+  it("offers the online payment and the on-site card separately", () => {
+    expect(MANUAL_PAYMENT_METHODS).toContain("card");
     expect(MANUAL_PAYMENT_METHODS).toContain("card_on_site");
   });
 
@@ -24,6 +25,25 @@ describe("MANUAL_PAYMENT_METHODS", () => {
     for (const method of MANUAL_PAYMENT_METHODS) {
       expect(PAYMENT_METHOD_LABELS[method]).toBeDefined();
     }
+  });
+});
+
+describe("manualPaymentMethodsForVenue", () => {
+  it("reserves cure_fresha for the EÏA venue", () => {
+    expect(manualPaymentMethodsForVenue(EIA_VENUE_ID)).toContain("cure_fresha");
+  });
+
+  it("omits cure_fresha for any other venue", () => {
+    expect(manualPaymentMethodsForVenue("7a33f87a-5751-41ac-998d-0596d9eeda08")).not.toContain(
+      "cure_fresha",
+    );
+    expect(manualPaymentMethodsForVenue(null)).not.toContain("cure_fresha");
+  });
+
+  it("keeps the shared methods first", () => {
+    expect(manualPaymentMethodsForVenue(EIA_VENUE_ID).slice(0, MANUAL_PAYMENT_METHODS.length)).toEqual([
+      ...MANUAL_PAYMENT_METHODS,
+    ]);
   });
 });
 
@@ -40,8 +60,8 @@ describe("paymentMethodLabel", () => {
     expect(paymentMethodLabel(undefined)).toBe("");
   });
 
-  it("distinguishes Stripe from an on-site card", () => {
-    expect(paymentMethodLabel("card")).toBe("Stripe (en ligne / lien)");
+  it("distinguishes an online payment from an on-site card", () => {
+    expect(paymentMethodLabel("card")).toBe("Paiement en ligne");
     expect(paymentMethodLabel("card_on_site")).toBe("CB sur place");
   });
 

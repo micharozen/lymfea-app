@@ -13,7 +13,13 @@
       "declined": "declined",
       "not_qualified": "does not perform this treatment",
       "unavailable": "unavailable that day",
+      "gender_mismatch": "gender not prioritised",
+      "wave_pending": "group not contacted yet",
       "unknown": "unknown reason"
+    },
+    "genderPreference": {
+      "female": "a female therapist",
+      "male": "a male therapist"
     },
     "reasonsLong": {
       "no_pwa_account": "This therapist has no PWA account and cannot receive any push notification.",
@@ -21,6 +27,8 @@
       "declined": "They declined this booking and are no longer contacted about it.",
       "not_qualified": "Does not perform: {{treatments}}.",
       "unavailable": "They marked themselves unavailable for this date.",
+      "gender_mismatch": "The booking requested {{preference}}. Matching therapists were available, so the broadcast was limited to them. A therapist with no gender set is also left out of the priority group.",
+      "wave_pending": "They belong to a priority group beyond group {{wave}}, the only one contacted so far. They will be notified on the next wave, or immediately if the whole current group declines.",
       "unknown": "No exclusion reason applies today. The broadcast most likely never ran, or this therapist was linked to the venue after it was sent."
     }
   },
@@ -125,7 +133,56 @@
     "coverageGaps": "Coverage gaps",
     "fullAvailability": "Good availability",
     "lowAvailability": "Limited",
-    "noAvailability": "No coverage"
+    "noAvailability": "No coverage",
+    "hourColumn": "Time",
+    "dayViewMode": "Day view",
+    "therapistViewMode": "Therapist view",
+    "scheduledTeam": "Scheduled team",
+    "allTeam": "Whole team",
+    "unassigned": "Unassigned",
+    "absent": "Absent",
+    "noSchedule": "No schedule set",
+    "blockedSlot": "Blocked slot",
+    "noTherapistsForDay": "No therapist attached to this venue",
+    "noTherapistsForVenues": "No therapist attached to the selected venues",
+    "allTreatments": "All treatments",
+    "searchTreatment": "Search a treatment...",
+    "treatmentSearchNeedsVenue": "Select a single venue to search by treatment",
+    "qualifiedTherapists": "{{n}} qualified therapist(s)",
+    "availableSlots": "Possible slots",
+    "noSlotForTreatment": "No possible slot that day",
+    "notQualified": "Doesn't perform this treatment",
+    "freeAtHour": "Free at {{hour}}:00",
+    "canTakeAtHour": "Can take this treatment at {{hour}}:00",
+    "noneAvailable": "Nobody",
+    "overflowsShift": "runs past their shift",
+    "slotOverflowsShift": "Careful, the selected treatment runs past the therapist's shift",
+    "roomBlock": "Block",
+    "editRoomBlock": "Edit this block",
+    "deleteRoomBlock": "Delete this block",
+    "moreCreateActions": "More create actions",
+    "coverage": {
+      "title": "Treatment coverage",
+      "description": "For each treatment and each day, the number of available therapists out of the qualified ones.",
+      "searchPlaceholder": "Search a treatment...",
+      "venue": "Venue",
+      "allVenues": "All venues",
+      "treatment": "Treatment",
+      "thisWeek": "This week",
+      "previousWeek": "Previous week",
+      "nextWeek": "Next week",
+      "onlyGaps": "Hide treatments without issues",
+      "gapSummary_one": "{{count}} treatment with no available therapist over the period",
+      "gapSummary_other": "{{count}} treatments with no available therapist over the period",
+      "noGap": "All treatments are covered over the period",
+      "empty": "No treatment matches.",
+      "notOffered": "Treatment not offered on this day",
+      "noneAvailable": "No therapist available on this day",
+      "noTherapistLinked": "No therapist linked to this treatment",
+      "allDay": "All day",
+      "absent": "Away",
+      "notScheduled": "Not scheduled"
+    }
   },
   "bookings": {
     "title": "Bookings",
@@ -352,7 +409,9 @@
       "siret": "SIRET",
       "siretHint": "Leave empty if freelancer without a SIRET",
       "siren": "SIREN",
-      "vatExempt": "VAT exempt",
+      "vatStatus": "VAT status",
+      "vatSubject": "VAT registered",
+      "vatExempt": "Not VAT registered",
       "vatExemptHint": "Article 293 B of the French Tax Code (freelancers)",
       "tvaNumber": "VAT intra-community number",
       "address": "Address",
@@ -368,7 +427,9 @@
       "iban": "IBAN",
       "bic": "BIC",
       "saveSuccess": "Billing information saved",
-      "saveError": "Error saving billing information"
+      "saveError": "Error saving billing information",
+      "missingTitle": "No billing profile set",
+      "missingDescription": "Monthly invoices will be generated without an address, without a company number, without bank details and with 20% VAT, which makes them non-compliant."
     }
   },
   "treatments": {
@@ -517,6 +578,8 @@
     "interVenueBufferDesc": "Buffer added before and after each booking when the therapist comes from another venue. 0 = no buffer.",
     "roomTurnoverBuffer": "Room turnover buffer",
     "roomTurnoverBufferDesc": "Time added after each treatment for room cleanup. Blocks the room and therapist. 0 = no buffer.",
+    "therapistEscalationDelay": "Delay before contacting the next group",
+    "therapistEscalationDelayDesc": "Time given to the priority therapist group before the next one is notified. Has no effect while every therapist at the venue sits in the same group (Therapists tab). Empty = 10 min.",
     "minBookingNotice": "Minimum booking notice",
     "minBookingNoticeDesc": "Minimum delay between now and any bookable slot (e.g. 2h, 4h, 24h). Slots that are too soon are hidden from the client. 0 = no delay.",
     "bookingRules": {
@@ -586,7 +649,131 @@
       "surchargeDescription": "Percentage added to the treatment total for bookings outside operating hours.",
       "indicator": "Outside operating hours — {{percent}}% surcharge applied",
       "surchargeBreakdown": "Out-of-hours surcharge ({{percent}}%)"
+    },
+    "billingProfile": {
+      "recipientTitle": "Therapist invoice recipient",
+      "recipientDescription": "The therapist remains the issuer of their invoice. This setting defines who it is addressed to.",
+      "billedByVenue": "This venue bills directly",
+      "billedByVenueOn": "Invoices are addressed to this venue, using the details below.",
+      "billedByVenueOff": "Invoices are addressed to the organization that owns the venue.",
+      "recipientSaved": "Recipient updated",
+      "recipientError": "Error saving",
+      "missingDescription": "Therapist invoices will be addressed to this venue using the details from its profile, without a company number or VAT number."
+    },
+    "billingTab": {
+      "title": "Invoices",
+      "description": "History of invoices generated for this venue",
+      "generateInvoice": "Generate an invoice",
+      "generateDesc": "One invoice will cover every treatment delivered at this venue over the selected period.",
+      "generate": "Generate",
+      "generated": "{{count}} invoice(s) generated",
+      "generateError": "Generation failed",
+      "noBookings": "No treatment to invoice for this period",
+      "noInvoices": "No invoice generated yet",
+      "noInvoicesHint": "Click Generate an invoice to bill a period",
+      "currentMonth": "Current month",
+      "previousMonth": "Previous month",
+      "periodStart": "From",
+      "periodEnd": "To",
+      "missingPeriod": "Please select a period",
+      "invalidPeriod": "The end date must be after the start date",
+      "columns": {
+        "number": "Number",
+        "generatedAt": "Generated on",
+        "period": "Period",
+        "totalHt": "Total excl. VAT",
+        "vat": "VAT",
+        "totalTtc": "Total incl. VAT",
+        "status": "Status"
+      },
+      "status": {
+        "draft": "Draft",
+        "issued": "Issued",
+        "paid": "Paid",
+        "cancelled": "Cancelled"
+      }
+    },
+    "therapistInvoices": {
+      "title": "Therapist invoices",
+      "description": "Generate in one go the invoices of therapists who worked at this venue over the period.",
+      "periodStart": "From",
+      "periodEnd": "To",
+      "currentMonth": "Current month",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "preview": "Preview",
+      "previewing": "Calculating…",
+      "previewError": "Preview failed",
+      "emptyPreview": "No therapist to invoice for this period",
+      "notPreviewedYet": "Pick a period then click Preview",
+      "missingPeriod": "Please select a period",
+      "invalidPeriod": "The end date must be after the start date",
+      "selectAll": "Select all",
+      "generateSelected": "Generate selected invoices ({{count}})",
+      "generating": "Generating {{done}}/{{total}}…",
+      "generated": "{{count}} invoice(s) generated",
+      "generateFailures": "{{count}} failure(s) — see details in the table",
+      "generateError": "Generation failed",
+      "downloadAll": "Download PDFs ({{count}})",
+      "downloading": "Downloading {{done}}/{{total}}…",
+      "downloadDone": "{{count}} PDF(s) downloaded",
+      "summary": {
+        "billable": "{{count}} therapist(s) to invoice",
+        "skipped": "{{count}} skipped",
+        "totalHt": "Selected total excl. VAT",
+        "totalTtc": "Selected total incl. VAT"
+      },
+      "columns": {
+        "therapist": "Therapist",
+        "bookings": "Bookings",
+        "totalHt": "Total excl. VAT",
+        "vat": "VAT",
+        "totalTtc": "Total incl. VAT",
+        "status": "Status"
+      },
+      "status": {
+        "toGenerate": "To generate",
+        "alreadyInvoiced": "Already invoiced · {{number}}",
+        "willReplace": "Will replace {{number}} ({{period}})",
+        "missingRates": "Missing rates",
+        "missingRatesAction": "Configure rates",
+        "noBookings": "No treatments",
+        "zeroAmount": "Zero amount",
+        "error": "Error",
+        "generated": "Generated"
+      },
+      "overwrite": {
+        "title": "Replace existing invoices?",
+        "description": "{{count}} invoice(s) already exist for this start date and will be replaced (the number is kept):",
+        "confirm": "Replace and generate"
+      },
+      "unfinalized": {
+        "warning": "{{count}} paid booking(s) in this period are not finalized and will be excluded from the invoices.",
+        "finalizeAll": "Finalize them",
+        "finalized": "{{count}} booking(s) finalized",
+        "finalizeError": "Finalization failed"
+      },
+      "downloadError": "No PDF available",
+      "issued": {
+        "title": "Issued therapist invoices",
+        "columns": {
+          "number": "Number",
+          "period": "Period",
+          "generatedAt": "Generated on"
+        },
+        "invoiceCount": "{{count}} invoice(s)",
+        "searchPlaceholder": "Therapist or invoice number",
+        "noSearchResult": "No invoice matches this search"
+      }
     }
+  },
+  "venueTherapists": {
+    "groupLabel": "Priority group",
+    "groupOption": "Group {{group}}",
+    "groupHint": "Group 1 is contacted first when a booking comes in. Group 2 only follows after the delay set in the Configuration tab, or as soon as every therapist in group 1 has declined. While everyone sits in group 1, all therapists are notified at once.",
+    "priorityUpdated": "Group updated",
+    "priorityError": "Could not change the group",
+    "groupOnVenueHint": "Set from the venue page, Therapists tab."
   },
   "customers": {
     "title": "Customers",
@@ -863,6 +1050,25 @@
     "saveFailed": "Error saving",
     "saveBeforeTest": "Fill in credentials and save before testing.",
     "secretUnchanged": "Leave empty to keep current secret",
+    "oauthCtaTitle": "Connect the venue's Stripe account",
+    "oauthCtaDesc": "The venue authorizes Saoma from its own Stripe dashboard. No secret key to share, and access stays revocable at any time.",
+    "oauthConnect": "Connect Stripe",
+    "oauthConnectedTitle": "Stripe account connected",
+    "oauthConnectedSince": "Connected on {{date}}",
+    "oauthLive": "Live",
+    "oauthTest": "Test",
+    "oauthDisconnect": "Disconnect",
+    "oauthDisconnected": "Stripe account disconnected",
+    "oauthDisconnectFailed": "Could not disconnect the Stripe account",
+    "oauthStartFailed": "Could not start the Stripe connection",
+    "oauthConnecting": "Connecting the payment account…",
+    "oauthConnected": "Payment account connected successfully",
+    "oauthFailed": "The connection failed",
+    "oauthUnknownProvider": "Unknown payment provider: {{provider}}",
+    "oauthMissingParams": "Incomplete Stripe callback link",
+    "backToPlaces": "Back to places",
+    "manualConfig": "Manual configuration (advanced)",
+    "manualConfigDesc": "Legacy method: the venue provides its secret key. Only for venues already set up this way.",
     "close": "Close",
     "save": "Save"
   },
@@ -1468,8 +1674,26 @@
       "errorTitle": "Processing error",
       "dismissAction": "Dismiss",
       "dismissed": "Email dismissed.",
-      "convertAction": "Convert to booking",
       "close": "Close",
+      "aiTitle": "AI analysis",
+      "date": "Date",
+      "time": "Time",
+      "variant": "Variant",
+      "reviewAction": "Review and convert",
+      "autoConvertAction": "Convert automatically",
+      "autoDisabledReason": "Treatment, variant, date, time and confidence ≥ 80% required",
+      "autoConverted": "Booking created",
+      "autoMissingFields": "Not enough information",
+      "autoLookupFailed": "Venue or treatment not found",
+      "autoPriceOnRequest": "Price on request — use “Review and convert”",
+      "convertedTitle": "Converted to booking",
+      "convertedOn": "on",
+      "viewBooking": "View booking",
+      "viewCustomer": "View customer",
+      "unknownClient": "Customer",
+      "bookingNotFound": "Booking not found",
+      "loading": "Loading…",
+      "missingLine": "Missing: {{fields}}",
       "reply": {
         "replyAction": "Reply",
         "composerTitle": "Reply draft",
@@ -1487,7 +1711,8 @@
         "sent": "Reply sent",
         "sentWithWarning": "Sent, but one step failed: {{warning}}",
         "missingFields": "Subject and body required",
-        "referencedSlots": "Availability used: {{slots}}"
+        "referencedSlots": "Availability used: {{slots}}",
+        "collapsedTo": "to: {{email}}"
       }
     },
     "convert": {
@@ -1587,7 +1812,35 @@
         "step2": "The email reaches our secure webhook. Our AI extracts: name, contact, date, time, treatment, party size, notes.",
         "step3": "A new entry shows up in /admin/inbox with a confidence score. Ambiguous requests stay manual.",
         "step4": "The admin clicks \"Convert to booking\": a booking is created with status 'pending', ready to be assigned to a therapist."
+      },
+      "tone": {
+        "title": "AI reply tone",
+        "description": "The wording entered here is reproduced verbatim by the agent. Leave empty to use the built-in wording.",
+        "greetingFr": "Opening line (FR)",
+        "greetingEn": "Opening line (EN)",
+        "signoffFr": "Sign-off (FR)",
+        "signoffEn": "Sign-off (EN)",
+        "signature": "Signature",
+        "signatureHelp": "Block placed after the sign-off. It is the only signature added to the email.",
+        "notes": "Writing instructions",
+        "notesPlaceholder": "Always use the formal register, never offer a discount, mention the changing room…",
+        "save": "Save",
+        "saved": "Reply tone saved"
+      },
+      "knowledge": {
+        "title": "Knowledge base",
+        "description": "Everything the treatment menu does not carry: packages, beach access, opening hours, gift boxes. The agent may not state anything beyond it.",
+        "fr": "Information (FR)",
+        "en": "Information (EN)",
+        "placeholder": "Beach & Self Care offer: €180 per person, includes beach access, lunch and a 60-min massage.\nSpa access: reserved for hotel guests.\nRelais & Châteaux Rose gift box: covers one 75-min treatment."
       }
+    },
+    "view": {
+      "table": "Table",
+      "kanban": "Kanban"
+    },
+    "kanban": {
+      "emptyColumn": "No inquiry"
     }
   },
   "checkoutIntents": {
@@ -1660,5 +1913,52 @@
     "count_other": "{{count}} treatments",
     "none": "No treatment",
     "thisVenue": "this venue"
+  },
+  "roomBlocks": {
+    "sectionTitle": "One-off blocks",
+    "sectionDescription": "Close a time range on a given date (photo shoot, maintenance) without creating a booking.",
+    "add": "Add a block",
+    "loading": "Loading…",
+    "empty": "No upcoming blocks.",
+    "dialogTitle": "Block a time range",
+    "dialogDescription": "The slot becomes unavailable for booking. Existing bookings are not cancelled.",
+    "labelField": "Reason",
+    "labelPlaceholder": "e.g. Photo shoot",
+    "startDate": "From",
+    "endDate": "To",
+    "startTime": "Start",
+    "endTime": "End",
+    "scope": "Scope",
+    "wholeVenue": "Whole venue",
+    "noRooms": "No active treatment room in this venue.",
+    "invalidTimeRange": "Start time must be before end time",
+    "invalidForm": "Please fill in the reason, dates, times and scope",
+    "existingBookingsWarning_one": "{{count}} existing booking falls within this range. It will not be cancelled.",
+    "existingBookingsWarning_other": "{{count}} existing bookings fall within this range. They will not be cancelled.",
+    "confirmDelete": "Delete the block “{{label}}”?",
+    "created_one": "Block created ({{count}} slot)",
+    "created_other": "Block created ({{count}} slots)",
+    "createError": "Could not create the block: {{message}}",
+    "deleted": "Block deleted",
+    "deleteError": "Could not delete the block: {{message}}",
+    "editTitle": "Edit block",
+    "editDescription": "Changes apply to this day only. The other days of the same block are left untouched.",
+    "save": "Save",
+    "updated": "Block updated",
+    "updateError": "Could not update the block: {{message}}",
+    "confirmDeleteOccurrence": "Only the slot on {{date}}, from {{start}} to {{end}}, will be deleted. The other days of the same block are kept.",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "submit": "Block",
+    "selectVenueFirst": "Select a venue to block"
+  },
+  "organization": {
+    "billingProfile": {
+      "commercialName": "Trading name",
+      "commercialNameHint": "Shown at the top of the invoice. Falls back to the registered name.",
+      "legalCapital": "Share capital",
+      "legalCapitalHint": "Included in the legal mentions at the bottom of invoices.",
+      "missingDescription": "Invoices issued or received by this organization will come out without a registered name, company number or VAT number."
+    }
   }
 }

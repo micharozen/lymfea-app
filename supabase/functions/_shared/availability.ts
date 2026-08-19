@@ -34,6 +34,17 @@ export interface TherapistShift {
   end: string;   // "HH:MM"
 }
 
+/**
+ * Blocage ponctuel daté (shooting, maintenance, fermeture exceptionnelle),
+ * déjà filtré sur la date courante par l'appelant.
+ * `room_id: null` = tout le lieu ; sinon la salle visée.
+ */
+export interface RoomBlock {
+  room_id: string | null;
+  startMin: number;
+  endMin: number;
+}
+
 export interface SlotAvailabilityInput {
   slot: string; // "HH:MM:SS" venue-local
   requestedDuration: number; // minutes
@@ -46,6 +57,8 @@ export interface SlotAvailabilityInput {
   crossVenueBookings?: CrossVenueBooking[];
   travelBuffer?: number;
   requiredGuestCount: number;
+  /** Blocages datés du jour. Optionnel : absent = aucun blocage. */
+  roomBlocks?: RoomBlock[];
 }
 
 export const timeToMinutes = (time: string): number => {
@@ -100,6 +113,7 @@ export function computeSlotCapacity(input: SlotAvailabilityInput): SlotCapacity 
     scheduleByTherapist,
     crossVenueBookings = [],
     travelBuffer = 0,
+    roomBlocks = [],
   } = input;
 
   const slotStart = timeToMinutes(slot);
@@ -138,6 +152,20 @@ export function computeSlotCapacity(input: SlotAvailabilityInput): SlotCapacity 
       }
     }
   }
+  // Blocages datés (shooting, maintenance) : la salle est fermée, exactement
+  // comme si elle était occupée. Fermeture STRICTE — pas de roomTurnoverBuffer
+  // de part et d'autre, contrairement aux bookings ci-dessus. Cet invariant doit
+  // rester identique au bloc venue_blocked_slots de reserve_trunk_atomically,
+  // sinon la dispo affichée diverge de ce que le RPC accepte réellement.
+  for (const rb of roomBlocks) {
+    if (slotStart >= rb.endMin || slotEnd <= rb.startMin) continue;
+    if (rb.room_id === null) {
+      for (const r of rooms) occupiedRoomIds.add(r.id);
+    } else {
+      occupiedRoomIds.add(rb.room_id);
+    }
+  }
+
   const freeRoomCapacity = rooms.reduce(
     (sum, r) => sum + (occupiedRoomIds.has(r.id) ? 0 : (r.capacity || 1)),
     0,

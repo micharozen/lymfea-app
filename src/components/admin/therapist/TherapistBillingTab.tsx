@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Download, Eye, FileText, Loader2, Plus } from "lucide-react";
 import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
 import { TherapistInvoiceGenerateDialog } from "./TherapistInvoiceGenerateDialog";
+import { downloadInvoicePdf } from "@/lib/invoicePdf";
 
 interface InvoiceRow {
   id: string;
@@ -126,23 +127,7 @@ export function TherapistBillingTab({ therapistId }: TherapistBillingTabProps) {
   const handleDownload = async (invoice: InvoiceRow) => {
     if (!invoice.html_snapshot) return;
     try {
-      const html2pdf = (await import("html2pdf.js")).default;
-      const element = document.createElement("div");
-      element.innerHTML = invoice.html_snapshot;
-      document.body.appendChild(element);
-      html2pdf()
-        .set({
-          margin: 0,
-          filename: `${invoice.invoice_number}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, letterRendering: true },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        })
-        .from(element)
-        .save()
-        .then(() => {
-          document.body.removeChild(element);
-        });
+      await downloadInvoicePdf(invoice.html_snapshot, `${invoice.invoice_number}.pdf`);
     } catch (err) {
       console.error("Error downloading invoice:", err);
     }

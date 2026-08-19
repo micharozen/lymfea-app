@@ -35,8 +35,12 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import type { TherapistRates } from "@/lib/therapistEarnings";
 
 import {
-  closurePaymentMethodLabel,
+  CLIENT_TYPE_COLORS,
+  CLIENT_TYPE_LABELS,
+  closurePaymentLabel,
+  closureRoomNumber,
   computeClosureStats,
+  fmtPercent,
   renderClosureReportHtml,
   type ClosureBooking,
   type ClosureReport,
@@ -56,6 +60,7 @@ interface VenueOption {
   hotel_commission: number | null;
   venue_type: string | null;
   out_of_hours_surcharge_percent: number | null;
+  organizations: { name: string | null; commercial_name: string | null } | null;
 }
 
 interface RawBookingRow {
@@ -105,7 +110,7 @@ export function DailyClosureTab() {
   useEffect(() => {
     supabase
       .from("hotels")
-      .select("id, name, currency, hotel_commission, venue_type, out_of_hours_surcharge_percent")
+      .select("id, name, currency, hotel_commission, venue_type, out_of_hours_surcharge_percent, organizations ( name, commercial_name )")
       .eq("status", "active")
       .order("name")
       .then(({ data, error }) => {
@@ -206,6 +211,10 @@ export function DailyClosureTab() {
       hotel_commission: Number(selectedVenue.hotel_commission ?? 0),
       venue_type: selectedVenue.venue_type,
       out_of_hours_surcharge_percent: selectedVenue.out_of_hours_surcharge_percent,
+      organization_name:
+        selectedVenue.organizations?.commercial_name?.trim() ||
+        selectedVenue.organizations?.name?.trim() ||
+        null,
     };
   }, [selectedVenue]);
 
@@ -340,7 +349,7 @@ export function DailyClosureTab() {
               <p className="text-xs uppercase tracking-wider text-muted-foreground">
                 {selectedVenue?.name}
               </p>
-              <p className="text-2xl font-semibold mt-1">
+              <p className="text-2xl mt-1">
                 {report.stats.completedBookings} prestation
                 {report.stats.completedBookings > 1 ? "s" : ""} · {fmtMoney(report.stats.totalRevenue, currency)}
               </p>
@@ -395,7 +404,7 @@ export function DailyClosureTab() {
             <StatTile label="Total bookings" value={String(report.stats.totalBookings)} />
             <div className="rounded-lg border bg-card p-3 md:col-span-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Statuts</p>
-              <p className="text-lg font-semibold mt-1 tabular-nums">
+              <p className="text-lg mt-1 tabular-nums">
                 {report.stats.completedBookings + report.stats.confirmedBookings} actives
               </p>
             </div>
@@ -432,15 +441,7 @@ export function DailyClosureTab() {
               value: fmtMoney(b.revenue, currency),
             }))}
           />
-          <BreakdownCard
-            title="Par type de client"
-            empty="Aucune prestation complétée"
-            rows={report.stats.byClientType.map((b) => ({
-              label: b.label,
-              count: b.count,
-              value: fmtMoney(b.revenue, currency),
-            }))}
-          />
+          <ClientTypeChart buckets={report.stats.byClientType} currency={currency} />
           {report.stats.byTherapist.length > 0 && (
             <BreakdownCard
               title="Par thérapeute"
@@ -497,9 +498,9 @@ export function DailyClosureTab() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-xs uppercase text-muted-foreground tracking-wide">
-                      <th className="text-left font-medium py-2 pr-3">Heure</th>
                       <th className="text-left font-medium py-2 pr-3">N°</th>
                       <th className="text-left font-medium py-2 pr-3">Client</th>
+                      <th className="text-left font-medium py-2 pr-3">Chambre</th>
                       <th className="text-left font-medium py-2 pr-3">Type</th>
                       <th className="text-left font-medium py-2 pr-3">Prestation</th>
                       <th className="text-left font-medium py-2 pr-3">Thérapeute</th>
@@ -518,22 +519,21 @@ export function DailyClosureTab() {
                           onClick={() => window.open(`/admin/bookings/${b.id}`, "_blank", "noopener,noreferrer")}
                           title="Ouvrir la réservation dans un nouvel onglet"
                         >
-                          <td className="py-2 pr-3 tabular-nums">{b.booking_time.slice(0, 5)}</td>
                           <td className="py-2 pr-3 tabular-nums text-muted-foreground">#{b.booking_id}</td>
                           <td className="py-2 pr-3">
                             {b.client_first_name} {b.client_last_name}
-                            {b.room_number && (
-                              <span className="text-xs text-muted-foreground ml-1">· ch. {b.room_number}</span>
-                            )}
                           </td>
-                          <td className="py-2 pr-3 text-xs text-muted-foreground">{b.client_type}</td>
+                          <td className="py-2 pr-3 tabular-nums">{closureRoomNumber(b)}</td>
+                          <td className="py-2 pr-3 text-xs text-muted-foreground">
+                            {CLIENT_TYPE_LABELS[b.client_type]}
+                          </td>
                           <td className="py-2 pr-3">{b.treatments.map((t) => t.name).join(", ") || "—"}</td>
                           <td className="py-2 pr-3">{b.therapist_name ?? "—"}</td>
                           <td className="py-2 pr-3 text-right tabular-nums">
                             {b.total_price != null ? fmtMoney(b.total_price, currency) : "—"}
                           </td>
                           <td className="py-2 pr-3 text-xs text-muted-foreground">
-                            {closurePaymentMethodLabel(b.payment_method)}
+                            {closurePaymentLabel(b.payment_method, b.payment_status)}
                           </td>
                           <td className="py-2">
                             <StatusBadge status={b.status} type="booking" />
@@ -610,7 +610,7 @@ function StatTile({
   return (
     <div className="rounded-lg border bg-card p-3">
       <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
-      <p className={cn("text-lg font-semibold mt-1 tabular-nums", toneClass)}>{value}</p>
+      <p className={cn("text-lg mt-1 tabular-nums", toneClass)}>{value}</p>
     </div>
   );
 }
@@ -635,7 +635,7 @@ function BookingStatusChart({
     { key: "confirmed", label: "Confirmées", count: confirmed, color: "bg-blue-500", dot: "bg-blue-500" },
     { key: "pending", label: "En attente", count: pending, color: "bg-yellow-500", dot: "bg-yellow-500" },
     { key: "cancelled", label: "Annulées", count: cancelled, color: "bg-red-500", dot: "bg-red-500" },
-    { key: "noshow", label: "No-show", count: noShow, color: "bg-zinc-400", dot: "bg-zinc-400" },
+    { key: "noshow", label: "No show", count: noShow, color: "bg-zinc-400", dot: "bg-zinc-400" },
   ];
   const denom = total > 0 ? total : 1;
 
@@ -682,6 +682,70 @@ function BookingStatusChart({
   );
 }
 
+function ClientTypeChart({
+  buckets,
+  currency,
+}: {
+  buckets: ClosureStats["byClientType"];
+  currency: string;
+}) {
+  const totalCount = buckets.reduce((sum, b) => sum + b.count, 0);
+  const totalRevenue = buckets.reduce((sum, b) => sum + b.revenue, 0);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+          Par type de client
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {totalCount === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucune prestation complétée</p>
+        ) : (
+          <>
+            <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
+              {buckets.map((b) => (
+                <div
+                  key={b.key}
+                  className="h-full"
+                  style={{ width: `${b.sharePercent}%`, backgroundColor: CLIENT_TYPE_COLORS[b.key] }}
+                  title={`${b.label} : ${b.count} (${fmtPercent(b.sharePercent)})`}
+                />
+              ))}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {buckets.map((b) => (
+                <div key={b.key} className="rounded-lg border bg-card p-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: CLIENT_TYPE_COLORS[b.key] }}
+                    />
+                    <span className="text-xs text-muted-foreground truncate">{b.label}</span>
+                  </div>
+                  <p className="mt-1 text-lg tabular-nums">
+                    {fmtPercent(b.sharePercent)}
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      {b.count} presta.
+                    </span>
+                  </p>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {fmtMoney(b.revenue, currency)}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              Total : {totalCount} prestation{totalCount > 1 ? "s" : ""} · {fmtMoney(totalRevenue, currency)}
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function BreakdownCard({
   title,
   rows,
@@ -717,7 +781,7 @@ function BreakdownCard({
                 <span className="truncate">{r.label}</span>
                 <div className="flex items-baseline gap-3 shrink-0 tabular-nums">
                   <span className="text-xs text-muted-foreground">{r.count}</span>
-                  <span className="font-medium">{r.value}</span>
+                  <span>{r.value}</span>
                   {r.secondary !== undefined && (
                     <span
                       className={cn(

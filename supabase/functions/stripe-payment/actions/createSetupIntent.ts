@@ -2,6 +2,7 @@ import { isInBlockedSlot } from "../../_shared/blocked-slots.ts";
 import { computeOutOfHoursSurcharge } from "../../_shared/surcharge.ts";
 import { resolveVerifiedPmsGuest } from "../../_shared/pms-verify.ts";
 import { computeSlotDuration, fetchAddonTreatmentIds } from "../../_shared/bookingTreatmentLines.ts";
+import { deriveClientFlowClientType } from "../../_shared/client-type.ts";
 import type { ActionContext } from "../index.ts";
 
 const corsHeaders = {
@@ -306,9 +307,15 @@ export async function handleCreateSetupIntent(
       phone: clientData.phone,
       roomNumber: clientData.roomNumber || "",
       note: clientData.note || "",
+      // Le visiteur a déclaré être client de l'hôtel à l'étape GuestInfo :
+      // sans ce relais, un résident payant par carte retombait sur le défaut
+      // DB 'external' et faussait les KPI (mix clients, récap quotidien).
+      clientType: deriveClientFlowClientType(clientData.isHotelGuest, "card"),
       treatmentIds: JSON.stringify(effectiveTreatmentIds),
       treatmentsPayload: JSON.stringify(safeTreatmentsPayload),
-      language: language || "fr",
+      // Vide si le frontend n'a rien envoyé : confirm-setup-intent dérive alors
+      // la langue de l'indicatif téléphonique au lieu de forcer 'fr'.
+      language: language || "",
       therapistGender: therapistGender || "",
       draftBookingId: draftBookingId || "",
       checkoutIntentId: checkoutIntentId || "",

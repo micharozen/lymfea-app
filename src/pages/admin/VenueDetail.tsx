@@ -39,6 +39,7 @@ import { VenueResourcesTab } from "@/components/admin/venue/VenueResourcesTab";
 import { VenueTherapistsTab } from "@/components/admin/venue/VenueTherapistsTab";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
 import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
+import { VenueTherapistInvoicesSection } from "@/components/admin/venue/VenueTherapistInvoicesSection";
 import { VenueHistoryTab } from "@/components/admin/venue/VenueHistoryTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { VenueCompletenessPanel } from "@/components/admin/venue/VenueCompletenessPanel";
@@ -87,6 +88,8 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   client_payment_mode: z.enum(['pre_authorization', 'pay_at_booking']).default('pre_authorization'),
   inter_venue_buffer_minutes: z.number().min(0).max(120).default(0),
   room_turnover_buffer_minutes: z.number().min(0).max(120).default(0),
+  // null = pas de réglage → le broadcast retombe sur 10 min côté serveur.
+  therapist_escalation_delay_minutes: z.number().int().min(1).max(240).nullable().default(null),
   min_booking_notice_minutes: z.number().min(0).max(10080).default(0),
   booking_hold_enabled: z.boolean().default(true),
   booking_hold_duration_minutes: z.coerce.number().int().min(1).max(15).default(5),
@@ -151,6 +154,12 @@ interface VenueDetailProps {
    * so venue managers can manage their venue's therapists.
    */
   showTherapistTab?: boolean;
+  /**
+   * In restricted mode, expose a "Facturation" tab limited to the therapist
+   * auto-invoices — the venue's own billing profile and the platform → venue
+   * invoices stay admin-only.
+   */
+  showBillingTab?: boolean;
   /** Where the back button should navigate. Defaults to /admin/places. */
   backTo?: string;
 }
@@ -160,6 +169,7 @@ export default function VenueDetail({
   restricted = false,
   restrictedSections,
   showTherapistTab = false,
+  showBillingTab = false,
   backTo = "/admin/places",
 }: VenueDetailProps = {}) {
   const params = useParams<{ id: string }>();
@@ -281,6 +291,7 @@ export default function VenueDetail({
       client_payment_mode: "pre_authorization",
       inter_venue_buffer_minutes: 0,
       room_turnover_buffer_minutes: 0,
+      therapist_escalation_delay_minutes: null,
       min_booking_notice_minutes: 0,
       booking_hold_enabled: true,
       booking_hold_duration_minutes: 5,
@@ -366,6 +377,7 @@ export default function VenueDetail({
           client_payment_mode: (hotel as any).client_payment_mode || "pre_authorization",
           inter_venue_buffer_minutes: (hotel as any).inter_venue_buffer_minutes ?? 0,
           room_turnover_buffer_minutes: (hotel as any).room_turnover_buffer_minutes ?? 0,
+          therapist_escalation_delay_minutes: hotel.therapist_escalation_delay_minutes ?? null,
           min_booking_notice_minutes: (hotel as any).min_booking_notice_minutes ?? 0,
           booking_hold_enabled: (hotel as any).booking_hold_enabled ?? true,
           booking_hold_duration_minutes: (hotel as any).booking_hold_duration_minutes ?? 5,
@@ -421,11 +433,13 @@ export default function VenueDetail({
         });
       }
 
-      // Load blocked slots
+      // Load blocked slots (recurring weekly only — dated blocks are managed
+      // separately in the treatment rooms tab)
       const { data: blockedSlotsData } = await supabase
         .from("venue_blocked_slots")
         .select("*")
         .eq("hotel_id", hotelId)
+        .is("block_date", null)
         .order("start_time");
 
       if (blockedSlotsData) {
@@ -502,7 +516,8 @@ export default function VenueDetail({
     const { data: existingSlots } = await supabase
       .from("venue_blocked_slots")
       .select("id")
-      .eq("hotel_id", targetHotelId);
+      .eq("hotel_id", targetHotelId)
+      .is("block_date", null);
 
     const existingIds = new Set((existingSlots || []).map((s: any) => s.id));
     const currentIds = new Set(blockedSlots.filter(s => s.id).map(s => s.id!));
@@ -638,6 +653,7 @@ export default function VenueDetail({
         client_payment_mode: values.client_payment_mode,
         inter_venue_buffer_minutes: values.inter_venue_buffer_minutes ?? 0,
         room_turnover_buffer_minutes: values.room_turnover_buffer_minutes ?? 0,
+        therapist_escalation_delay_minutes: values.therapist_escalation_delay_minutes ?? null,
         min_booking_notice_minutes: values.min_booking_notice_minutes ?? 0,
         booking_hold_enabled: values.booking_hold_enabled,
         booking_hold_duration_minutes: values.booking_hold_duration_minutes,
@@ -915,16 +931,23 @@ export default function VenueDetail({
         </div>
       ) : (
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          {/* Restricted tab bar (venue manager) — Configuration + Thérapeutes only */}
-          {restricted && showTherapistTab && (
+          {/* Restricted tab bar (venue manager) — Configuration + Thérapeutes + Facturation */}
+          {restricted && (showTherapistTab || showBillingTab) && (
           <div className="px-4 md:px-6 pt-4 bg-background sticky top-[57px] z-[9]">
             <TabsList className="w-full justify-start overflow-x-auto bg-transparent rounded-none border-b p-0 h-auto">
               <TabsTrigger value="configuration" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Configuration
               </TabsTrigger>
-              <TabsTrigger value="therapists" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Thérapeutes
-              </TabsTrigger>
+              {showTherapistTab && (
+                <TabsTrigger value="therapists" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                  Thérapeutes
+                </TabsTrigger>
+              )}
+              {showBillingTab && (
+                <TabsTrigger value="billing" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                  Facturation
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
           )}
@@ -974,7 +997,7 @@ export default function VenueDetail({
                   )}
                   {/* Option 2: Horizontal sticky sub-nav */}
                   <VenueSectionNavBar
-                    topOffset={restricted && !showTherapistTab ? 57 : 105}
+                    topOffset={restricted && !showTherapistTab && !showBillingTab ? 57 : 105}
                     sections={
                       restrictedSections
                         ? VENUE_CONFIG_SECTIONS.filter((s) =>
@@ -1035,7 +1058,16 @@ export default function VenueDetail({
                 </TabsContent>
 
                 <TabsContent value="billing" className="mt-0">
-                  <VenueBillingTab hotelId={effectiveHotelId!} />
+                  {/* Un gestionnaire de lieu ne facture que ses thérapeutes : le
+                      profil de facturation du lieu et les factures plateforme →
+                      lieu restent réservés à l'admin. */}
+                  {restricted ? (
+                    showBillingTab && (
+                      <VenueTherapistInvoicesSection hotelId={effectiveHotelId!} />
+                    )
+                  ) : (
+                    <VenueBillingTab hotelId={effectiveHotelId!} />
+                  )}
                 </TabsContent>
 
                 <TabsContent value="branding" className="mt-0">

@@ -140,6 +140,9 @@
     "hotelGuestYes": "Yes, I'm staying here",
     "hotelGuestNo": "No",
     "hotelGuestHint": "Enter your room number and we'll confirm your reservation — no need to fill in your email or phone.",
+    "roomNumberUnknown": "I don't know my room number yet",
+    "roomNumberUnknownHint": "You'll be able to pay by card: charging to your room requires a room number.",
+    "roomNumberLater": "To be provided later",
     "note": "Note (optional)",
     "notePlaceholder": "Any special requests or information...",
     "continue": "CONTINUE",
@@ -579,6 +582,7 @@
     "cancelSuccessDescription": "A confirmation email has been sent to you."
   },
   "resume": {
-    "expired": "This link has expired. Pick your treatments again below."
+    "expired": "This link has expired. Pick your treatments again below.",
+    "slotGone": "That time slot is no longer available. Please pick another one."
   }
 }

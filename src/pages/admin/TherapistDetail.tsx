@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -84,6 +84,9 @@ export default function TherapistDetail() {
   const [minimumGuarantee, setMinimumGuarantee] = useState<Record<string, number>>({});
   const [minimumGuaranteeActive, setMinimumGuaranteeActive] = useState(false);
   const [resending, setResending] = useState(false);
+
+  // Filled by the billing card so the page's "Enregistrer" saves it too.
+  const billingSubmitRef = useRef<(() => Promise<void>) | null>(null);
 
   const {
     url: profileImage,
@@ -283,17 +286,32 @@ export default function TherapistDetail() {
 
         setTherapistName(`${values.first_name} ${values.last_name}`);
 
-        // Delete and re-insert venue relationships
-        await supabase
+        // Différentiel plutôt que delete + re-insert : la ligne therapist_venues porte
+        // le groupe de priorité du praticien SUR CE LIEU, qu'un cycle complet remettrait
+        // silencieusement à 1 à chaque sauvegarde de la fiche.
+        const { data: existingVenues } = await supabase
           .from("therapist_venues")
-          .delete()
+          .select("hotel_id")
           .eq("therapist_id", targetId);
 
-        if (selectedHotels.length > 0) {
+        const currentHotelIds = new Set((existingVenues ?? []).map((v) => v.hotel_id));
+        const removed = [...currentHotelIds].filter((id) => !selectedHotels.includes(id));
+        const added = selectedHotels.filter((id) => !currentHotelIds.has(id));
+
+        if (removed.length > 0) {
+          const { error: delError } = await supabase
+            .from("therapist_venues")
+            .delete()
+            .eq("therapist_id", targetId)
+            .in("hotel_id", removed);
+          if (delError) throw delError;
+        }
+
+        if (added.length > 0) {
           const { error: relError } = await supabase
             .from("therapist_venues")
             .insert(
-              selectedHotels.map((hotelId) => ({
+              added.map((hotelId) => ({
                 therapist_id: targetId,
                 hotel_id: hotelId,
               }))
@@ -305,6 +323,8 @@ export default function TherapistDetail() {
           therapistId: targetId,
           treatmentMenuIds: selectedTreatmentIds,
         });
+
+        await billingSubmitRef.current?.();
 
         toast.success(
           t("admin:therapists.saveSuccess", "Thérapeute enregistré avec succès")
@@ -536,6 +556,7 @@ export default function TherapistDetail() {
                   handleImageUpload={handleImageUpload}
                   triggerFileSelect={triggerFileSelect}
                   therapistId={effectiveTherapistId}
+                  billingSubmitRef={billingSubmitRef}
                 />
               </TabsContent>
             </Form>
@@ -545,6 +566,7 @@ export default function TherapistDetail() {
                 <TabsContent value="assignments" className="mt-0">
                   <TherapistAssignmentsTab
                     disabled={!isEditing}
+                    therapistId={id}
                     selectedHotels={selectedHotels}
                     onHotelsChange={setSelectedHotels}
                     selectedTreatmentIds={selectedTreatmentIds}

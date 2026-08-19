@@ -13,6 +13,7 @@ import {
   insertBookingTreatmentLines,
 } from '../_shared/bookingTreatmentLines.ts';
 import { runInBackground } from '../_shared/backgroundTask.ts';
+import { deriveClientFlowClientType } from '../_shared/client-type.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,6 +54,9 @@ const clientDataSchema = z.object({
   // Set by the client flow when the visitor declared they are a hotel guest and
   // passed the PMS verify step. The server RE-verifies before trusting it.
   pmsVerified: z.boolean().optional(),
+  // Déclaré par le visiteur à l'étape GuestInfo (« je suis client de l'hôtel »).
+  // Sert à typer la réservation même quand le paiement n'est pas sur la chambre.
+  isHotelGuest: z.boolean().optional(),
   pmsGuestCheckIn: z.string().max(40).optional().or(z.literal('')).nullable(),
   pmsGuestCheckOut: z.string().max(40).optional().or(z.literal('')).nullable(),
 });
@@ -266,10 +270,7 @@ async function handleMultiBookingConfirm(
   const bookingStatus = 'pending';
   const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
   const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : 'pending');
-  // Paiement chambre = résident hôtel. Règle à sens unique : un paiement carte
-  // n'implique pas 'external' (un résident peut payer par carte), mais dans le
-  // flow client public il n'y a pas d'autre signal — on garde le défaut.
-  const effectiveClientType = paymentMethod === 'room' ? 'hotel' : 'external';
+  const effectiveClientType = deriveClientFlowClientType(clientData.isHotelGuest, paymentMethod);
 
   // Update each draft with real client data + per-item recomputed totals.
   for (let i = 0; i < items.length; i++) {
@@ -555,7 +556,7 @@ try {
       .filter((v): v is string => !!v);
     const { data: validTreatments, error: treatmentValidationError } = await supabase
       .from('treatment_menus')
-      .select('id, price_on_request, duration, lead_time, is_bundle, bundle_id, is_addon, category, amenity_id')
+      .select('id, price_on_request, duration, lead_time, is_bundle, bundle_id, is_addon, category, amenity_id, treatment_variants(id, duration)')
       .in('id', treatmentIds);
 
     if (treatmentValidationError) {
@@ -591,8 +592,18 @@ try {
       (validTreatments || []).filter(t => t.amenity_id != null).map(t => t.id),
     );
     const isAmenityLine = (treatmentId: string) => amenityLineIds.has(treatmentId);
-    const durationOfLine = (line: { treatmentId: string }) =>
-      validTreatments?.find(t => t.id === line.treatmentId)?.duration || 0;
+    // La variante prime sur le soin pour la durée : une variante 90 min doit
+    // bloquer 90 min de salle, pas la durée de base du menu (60 min).
+    const selectedVariantIdSet = new Set(selectedVariantIds);
+    const variantDurationById = new Map(
+      (validTreatments || [])
+        .flatMap((t: any) => (t.treatment_variants ?? []) as Array<{ id: string; duration: number | null }>)
+        .filter(v => selectedVariantIdSet.has(v.id))
+        .map(v => [v.id, v.duration]),
+    );
+    const durationOfLine = (line: { treatmentId: string; variantId?: string | null }) =>
+      ((line.variantId ? variantDurationById.get(line.variantId) : null) ??
+        validTreatments?.find(t => t.id === line.treatmentId)?.duration) || 0;
 
     const totalDuration = computeSlotDuration(treatments, isDuoBooking, durationOfLine, isAddonLine, isAmenityLine);
     console.log('Total booking duration:', totalDuration, 'minutes');
@@ -689,8 +700,7 @@ try {
         : paymentMethod === 'gift_amount'
           ? 'paid'
           : 'pending';
-    // Paiement chambre = résident hôtel (règle à sens unique, cf. mode multi).
-    const effectiveClientType = paymentMethod === 'room' ? 'hotel' : 'external';
+    const effectiveClientType = deriveClientFlowClientType(clientData.isHotelGuest, paymentMethod);
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Find or create customer by phone
@@ -1221,26 +1231,25 @@ try {
       }
     } else {
       // Broadcast to therapists with gender-preference filtering.
-      // Panier 100% amenity (privatisation espace, piscine…) : aucun praticien requis,
-      // on ne diffuse pas — mais l'email admin ci-dessous reste envoyé.
-      if (isAmenityOnly) {
-        console.log('Amenity-only booking: skipping therapist broadcast', bookingId);
-      } else {
-        try {
-          console.log('Broadcasting booking notifications (gender-aware):', bookingId);
-          const notifResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
-            body: { bookingId: bookingId, notifyAll: true },
-            headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
-          });
+      // trigger-new-booking-notifications porte DEUX responsabilités : la diffusion
+      // aux praticiens ET l'email/SMS/.ics de confirmation client. Elle est donc
+      // toujours appelée, y compris pour un panier 100% amenity (privatisation
+      // piscine…) qui ne requiert aucun praticien : la fonction sait elle-même ne
+      // solliciter personne dans ce cas, et le client doit recevoir sa confirmation.
+      try {
+        console.log('Broadcasting booking notifications (gender-aware):', bookingId);
+        const notifResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
+          body: { bookingId: bookingId, notifyAll: true },
+          headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+        });
 
-          if (notifResponse.error) {
-            console.error('Failed to broadcast notifications:', notifResponse.error);
-          } else {
-            console.log('Broadcast result:', notifResponse.data);
-          }
-        } catch (notifError) {
-          console.error('Error broadcasting notifications:', notifError);
+        if (notifResponse.error) {
+          console.error('Failed to broadcast notifications:', notifResponse.error);
+        } else {
+          console.log('Broadcast result:', notifResponse.data);
         }
+      } catch (notifError) {
+        console.error('Error broadcasting notifications:', notifError);
       }
 
       // Trigger email notification to admins

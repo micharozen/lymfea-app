@@ -38,6 +38,16 @@ export interface ClosureVenue {
   hotel_commission: number;
   venue_type: string | null;
   out_of_hours_surcharge_percent?: number | null;
+  /** Organisation propriétaire du lieu — c'est elle qui signe le rapport. */
+  organization_name?: string | null;
+}
+
+/**
+ * Émetteur affiché sur le rapport : l'organisation du lieu, avec repli sur la
+ * marque de la plateforme quand le lieu n'est rattaché à aucune organisation.
+ */
+export function closureIssuer(venue: ClosureVenue): string {
+  return venue.organization_name?.trim() || brand.name;
 }
 
 // Libellés spécifiques au rapport de clôture (formulation « rapport »),
@@ -50,6 +60,15 @@ export const CLIENT_TYPE_LABELS: Record<ClientTypeValue, string> = {
   classpass: "Classpass",
   sezame: "Sezame",
   external: "Client externe",
+};
+
+/** Couleur de série par type de client — partagée par le graphe écran et le rapport. */
+export const CLIENT_TYPE_COLORS: Record<ClientTypeValue, string> = {
+  hotel: "#2563eb",
+  staycation: "#e11d48",
+  classpass: "#4b5563",
+  sezame: "#0d9488",
+  external: "#f59e0b",
 };
 
 export type TherapistRatesMap = Record<string, TherapistRates | null>;
@@ -71,6 +90,18 @@ export interface ClosureClientTypeBucket {
   label: string;
   count: number;
   revenue: number;
+  /** Part du nombre de prestations complétées, en pourcentage (0-100). */
+  sharePercent: number;
+}
+
+/** Croisement type de client × moyen de paiement, sur les prestations complétées. */
+export interface ClosureClientPaymentBucket {
+  clientTypeKey: ClientTypeValue;
+  clientTypeLabel: string;
+  paymentKey: string;
+  paymentLabel: string;
+  count: number;
+  revenue: number;
 }
 
 export interface ClosureStats {
@@ -89,6 +120,7 @@ export interface ClosureStats {
   byClientType: ClosureClientTypeBucket[];
   byTherapist: ClosureTherapistBucket[];
   byPaymentMethod: ClosureBucket[];
+  byClientTypeAndPayment: ClosureClientPaymentBucket[];
   byStatus: ClosureBucket[];
 }
 
@@ -104,7 +136,7 @@ const STATUS_LABELS: Record<string, string> = {
   confirmed: "Confirmée",
   pending: "En attente",
   cancelled: "Annulée",
-  no_show: "No-show",
+  no_show: "No show",
   declined: "Refusée",
   expired: "Expirée",
 };
@@ -118,12 +150,36 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   gift_amount: "Carte cadeau",
   voucher: "Payé par voucher",
   partner_billed: "Facturé au partenaire",
+  cure_fresha: "Cure Fresha",
+};
+
+// Repli quand payment_method n'est pas renseigné : c'est le cas des règlements
+// sur place (seuls les paiements en ligne écrivent un payment_method). Sans ce
+// repli la clôture affichait « — » pour toutes les prestations hors ligne.
+const PAYMENT_STATUS_FALLBACK_LABELS: Record<string, string> = {
+  paid: "Payé",
+  pending: "À régler sur place",
+  charged_to_room: "Note de chambre",
+  pending_partner_billing: "Facturé au partenaire",
+  offert: "Offert",
+  refunded: "Remboursé",
+  failed: "Paiement échoué",
 };
 
 /** Libellé du mode de paiement tel qu'affiché dans la clôture. */
-export function closurePaymentMethodLabel(method: string | null | undefined): string {
-  if (!method) return "—";
-  return PAYMENT_METHOD_LABELS[method] ?? method;
+export function closurePaymentLabel(
+  method: string | null | undefined,
+  status?: string | null,
+): string {
+  if (method) return PAYMENT_METHOD_LABELS[method] ?? method;
+  if (status) return PAYMENT_STATUS_FALLBACK_LABELS[status] ?? status;
+  return "—";
+}
+
+/** Numéro de chambre — seuls les résidents de l'hôtel en ont un. */
+export function closureRoomNumber(booking: Pick<ClosureBooking, "client_type" | "room_number">): string {
+  if (booking.client_type !== "hotel") return "—";
+  return booking.room_number?.trim() || "—";
 }
 
 function bookingDuration(booking: ClosureBooking): number {
@@ -162,6 +218,7 @@ export function computeClosureStats(
     byClientType: [],
     byTherapist: [],
     byPaymentMethod: [],
+    byClientTypeAndPayment: [],
     byStatus: [],
   };
 
@@ -170,6 +227,7 @@ export function computeClosureStats(
   const paymentMap = new Map<string, ClosureBucket>();
   const statusMap = new Map<string, ClosureBucket>();
   const clientTypeMap = new Map<ClientTypeValue, ClosureClientTypeBucket>();
+  const crossMap = new Map<string, ClosureClientPaymentBucket>();
 
   const venueRate = (venue.hotel_commission ?? 0) / 100;
 
@@ -216,6 +274,7 @@ export function computeClosureStats(
       label: CLIENT_TYPE_LABELS[ctKey],
       count: 0,
       revenue: 0,
+      sharePercent: 0,
     };
     ctBucket.count += 1;
     ctBucket.revenue += price;
@@ -240,8 +299,24 @@ export function computeClosureStats(
       });
     }
 
-    const method = booking.payment_method ?? "unknown";
-    bumpBucket(paymentMap, method, PAYMENT_METHOD_LABELS[method] ?? method, price);
+    // Les règlements sur place n'ont pas de payment_method : on retombe sur le
+    // statut pour qu'ils apparaissent aussi dans la répartition.
+    const methodKey = booking.payment_method ?? `status:${booking.payment_status ?? "unknown"}`;
+    const methodLabel = closurePaymentLabel(booking.payment_method, booking.payment_status);
+    bumpBucket(paymentMap, methodKey, methodLabel, price);
+
+    const crossKey = `${ctKey}|${methodKey}`;
+    const crossBucket = crossMap.get(crossKey) ?? {
+      clientTypeKey: ctKey,
+      clientTypeLabel: CLIENT_TYPE_LABELS[ctKey],
+      paymentKey: methodKey,
+      paymentLabel: methodLabel,
+      count: 0,
+      revenue: 0,
+    };
+    crossBucket.count += 1;
+    crossBucket.revenue += price;
+    crossMap.set(crossKey, crossBucket);
   }
 
   stats.totalPlatformShare = stats.totalRevenue - stats.totalVenueShare - stats.totalTherapistShare;
@@ -249,7 +324,14 @@ export function computeClosureStats(
   stats.byTherapist = Array.from(therapistMap.values()).sort((a, b) => b.revenue - a.revenue);
   stats.byPaymentMethod = Array.from(paymentMap.values()).sort((a, b) => b.revenue - a.revenue);
   stats.byStatus = Array.from(statusMap.values()).sort((a, b) => b.count - a.count);
-  stats.byClientType = Array.from(clientTypeMap.values()).sort((a, b) => b.revenue - a.revenue);
+  stats.byClientTypeAndPayment = Array.from(crossMap.values()).sort(
+    (a, b) =>
+      a.clientTypeLabel.localeCompare(b.clientTypeLabel, "fr") || b.revenue - a.revenue,
+  );
+  const clientTypeTotal = Array.from(clientTypeMap.values()).reduce((sum, b) => sum + b.count, 0);
+  stats.byClientType = Array.from(clientTypeMap.values())
+    .map((b) => ({ ...b, sharePercent: clientTypeTotal ? (b.count / clientTypeTotal) * 100 : 0 }))
+    .sort((a, b) => b.revenue - a.revenue);
 
   return stats;
 }
@@ -260,6 +342,10 @@ function fmtMoney(amount: number, currency: string): string {
   } catch {
     return `${amount.toFixed(2)} ${currency}`;
   }
+}
+
+export function fmtPercent(value: number): string {
+  return `${Math.round(value)} %`;
 }
 
 function fmtDateLong(iso: string): string {
@@ -292,26 +378,15 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
   const headline = `${stats.completedBookings} prestation${stats.completedBookings > 1 ? "s" : ""} · ${money(stats.totalRevenue)}`;
 
   const revenueRow = `
-    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0;">
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0;">
       ${statCard("Prestations complétées", String(stats.completedBookings))}
       ${statCard("Chiffre d'affaires", money(stats.totalRevenue))}
-      ${statCard("Confirmées (à venir)", String(stats.confirmedBookings), "#0ea5e9")}
-      ${statCard("En attente", String(stats.pendingBookings), "#f59e0b")}
-    </div>
-  `;
-  const commissionsRow = hideCommissions
-    ? ""
-    : `
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 20px;">
-      ${statCard("Part lieu", money(stats.totalVenueShare))}
-      ${statCard("Part thérapeute", money(stats.totalTherapistShare))}
-      ${statCard("Part plateforme", money(stats.totalPlatformShare))}
     </div>
   `;
   const lossRow = `
     <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 24px;">
       ${statCard("Annulées", String(stats.cancelledBookings), "#dc2626")}
-      ${statCard("No-show", String(stats.noShowBookings), "#dc2626")}
+      ${statCard("No show", String(stats.noShowBookings), "#dc2626")}
       ${statCard("Total bookings", String(stats.totalBookings), "#6b7280")}
     </div>
   `;
@@ -331,26 +406,20 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
 
   const clientTypeSection = sectionTable(
     "Par type de client",
-    ["Type", "Prestations", "CA"],
-    stats.byClientType.length
-      ? stats.byClientType.map((b) => [escapeHtml(b.label), String(b.count), money(b.revenue)])
-      : [],
+    ["Type", "Prestations", "Part", "CA"],
+    stats.byClientType.map((b) => [
+      escapeHtml(b.label),
+      String(b.count),
+      escapeHtml(fmtPercent(b.sharePercent)),
+      money(b.revenue),
+    ]),
   );
 
-  const therapistHeaders = hideCommissions
-    ? ["Thérapeute", "Prestations", "CA"]
-    : ["Thérapeute", "Prestations", "CA", "Part thérapeute"];
-  const therapistSection = stats.byTherapist.length
-    ? sectionTable(
-        "Par thérapeute",
-        therapistHeaders,
-        stats.byTherapist.map((b) => {
-          const base = [escapeHtml(b.label), String(b.count), money(b.revenue)];
-          if (hideCommissions) return base;
-          return [...base, b.hasRates ? money(b.earnings) : `<span style="color:#dc2626">—</span>`];
-        }),
-      )
-    : "";
+  const therapistSection = sectionTable(
+    "Par thérapeute",
+    ["Thérapeute", "Prestations", "CA"],
+    stats.byTherapist.map((b) => [escapeHtml(b.label), String(b.count), money(b.revenue)]),
+  );
 
   const paymentSection = stats.byPaymentMethod.length
     ? sectionTable(
@@ -360,6 +429,17 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
       )
     : "";
 
+  const clientPaymentSection = sectionTable(
+    "Type de client × moyen de paiement",
+    ["Type de client", "Moyen de paiement", "Prestations", "CA"],
+    stats.byClientTypeAndPayment.map((b) => [
+      escapeHtml(b.clientTypeLabel),
+      escapeHtml(b.paymentLabel),
+      String(b.count),
+      money(b.revenue),
+    ]),
+  );
+
   const detailRows = bookings
     .slice()
     .sort((a, b) => a.booking_time.localeCompare(b.booking_time))
@@ -367,13 +447,13 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
       const treatments = b.treatments.map((t) => t.name).join(", ");
       return `
         <tr>
-          <td style="${cellBase}">${escapeHtml(b.booking_time.slice(0, 5))}</td>
           <td style="${cellBase}">#${b.booking_id}</td>
-          <td style="${cellBase}">${escapeHtml(`${b.client_first_name} ${b.client_last_name}`)}${b.room_number ? ` <span style="color:#6b7280">· ch. ${escapeHtml(b.room_number)}</span>` : ""}</td>
+          <td style="${cellBase}">${escapeHtml(`${b.client_first_name} ${b.client_last_name}`)}</td>
+          <td style="${cellBase}">${escapeHtml(closureRoomNumber(b))}</td>
           <td style="${cellBase}">${escapeHtml(treatments || "—")}</td>
           <td style="${cellBase}">${escapeHtml(b.therapist_name ?? "—")}</td>
           <td style="${cellBase};text-align:right;">${b.total_price != null ? money(b.total_price) : "—"}</td>
-          <td style="${cellBase}">${escapeHtml(closurePaymentMethodLabel(b.payment_method))}</td>
+          <td style="${cellBase}">${escapeHtml(closurePaymentLabel(b.payment_method, b.payment_status))}</td>
           <td style="${cellBase}">${escapeHtml(STATUS_LABELS[b.status] ?? b.status)}</td>
         </tr>`;
     })
@@ -385,9 +465,9 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <thead>
             <tr style="background:#f9fafb;">
-              <th style="${cellHeader}">Heure</th>
               <th style="${cellHeader}">N°</th>
               <th style="${cellHeader}">Client</th>
+              <th style="${cellHeader}">Chambre</th>
               <th style="${cellHeader}">Prestation(s)</th>
               <th style="${cellHeader}">Thérapeute</th>
               <th style="${cellHeader};text-align:right;">Prix</th>
@@ -406,7 +486,7 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
   <div style="max-width:780px;margin:0 auto;">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #111827;padding-bottom:16px;margin-bottom:8px;">
       <div>
-        <p style="margin:0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;">${escapeHtml(brand.name)} · Clôture quotidienne</p>
+        <p style="margin:0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;">${escapeHtml(closureIssuer(venue))} · Clôture quotidienne</p>
         <h1 style="margin:6px 0 0;font-size:22px;font-weight:600;">${escapeHtml(venue.name)}</h1>
         <p style="margin:4px 0 0;font-size:14px;color:#374151;">${escapeHtml(fmtDateLong(date))}</p>
       </div>
@@ -418,16 +498,16 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
 
     ${warningBanner}
     ${revenueRow}
-    ${commissionsRow}
     ${lossRow}
     ${categorySection}
     ${clientTypeSection}
     ${therapistSection}
     ${paymentSection}
+    ${clientPaymentSection}
     ${detailSection}
 
     <p style="margin-top:32px;font-size:11px;color:#9ca3af;text-align:center;">
-      Rapport généré par ${escapeHtml(brand.name)} · ${escapeHtml(new Date().toLocaleString("fr-FR"))}
+      Rapport généré par ${escapeHtml(closureIssuer(venue))} · ${escapeHtml(new Date().toLocaleString("fr-FR"))}
     </p>
   </div>
 </body></html>`;
@@ -444,6 +524,7 @@ function statCard(label: string, value: string, accent = "#111827"): string {
       <p style="margin:8px 0 0;font-size:20px;font-weight:600;color:${accent};">${escapeHtml(value)}</p>
     </div>`;
 }
+
 
 function sectionTable(title: string, headers: string[], rows: string[][]): string {
   if (!rows.length) return "";

@@ -14,7 +14,7 @@ import {
   Calendar, Clock, Building2, MoreHorizontal, ChevronDown,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
-  FileText, CreditCard, ListTodo, Undo2, Radio
+  FileText, CreditCard, ListTodo, Undo2, Radio, MailCheck, AlertTriangle
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingTasksTab } from "@/components/admin/tasks/BookingTasksTab";
@@ -39,6 +39,8 @@ import {
 import { formatPrice } from "@/lib/formatPrice";
 import { getBookingStatusConfig, getBookingPaymentDisplay } from "@/utils/statusStyles";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { SendConfirmationDialog } from "@/components/booking/SendConfirmationDialog";
+import { useConfirmationEmailSent } from "@/hooks/booking/useConfirmationEmailSent";
 import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useBooking } from "@/hooks/booking/useBooking";
@@ -54,7 +56,7 @@ import {
 } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType, isPartnerBilledBooking, isPaymentStatusLocked } from "@/lib/clientTypePayment";
 
-import { PAYMENT_METHOD_LABELS, MANUAL_PAYMENT_METHODS } from "@/lib/paymentMethod";
+import { PAYMENT_METHOD_LABELS, manualPaymentMethodsForVenue } from "@/lib/paymentMethod";
 
 // Origine de la réservation (colonne bookings.source) → tag affiché dans le header.
 // label = texte, className = couleurs du badge (bg + texte + bordure).
@@ -77,6 +79,7 @@ const PAYMENT_METHOD_ICONS: Record<string, typeof CreditCard> = {
   gift_amount: Gift,
   voucher: Ticket,
   partner_billed: Building2,
+  cure_fresha: Package,
 };
 
 // Hex → pastille : la couleur vient de statusStyles, le rendu est un point +
@@ -101,7 +104,9 @@ function useBookingDetailDialogs() {
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
   const [isConvertToDuoOpen, setIsConvertToDuoOpen] = useState(false);
+  const [isSendConfirmationOpen, setIsSendConfirmationOpen] = useState(false);
   return {
+    isSendConfirmationOpen, setIsSendConfirmationOpen,
     isEditOpen, setIsEditOpen,
     isPaymentLinkOpen, setIsPaymentLinkOpen,
     isMarkPaidOpen, setIsMarkPaidOpen,
@@ -144,19 +149,23 @@ export default function BookingDetail() {
 
   const { data: booking, isLoading, isFetched, refetch } = useBooking(id);
   const { data: therapists } = useActiveTherapists();
+  // Une confirmation déjà envoyée ? (audit_log — lecture admin uniquement)
+  const { data: confirmationStatus, refetch: refetchConfirmationStatus } =
+    useConfirmationEmailSent(id, isAdmin);
   const { data: hotels } = useCalendarHotels();
   const getHotelInfo = (hotelId: string | null) =>
     (hotelId && hotels?.find((h) => h.id === hotelId)) || null;
 
-  // Méthodes proposées à la saisie manuelle. Les modes écrits par le système
-  // (`card` = Stripe, `bundle`) ne sont ajoutés que si la réservation les porte
-  // déjà, pour que "Modifier la méthode" affiche sa valeur courante.
+  // Méthodes proposées à la saisie manuelle, enrichies des modes propres au lieu
+  // (`cure_fresha` pour EÏA). `bundle`, écrit par le système, n'est ajouté que si
+  // la réservation le porte déjà, pour que "Modifier la méthode" affiche sa
+  // valeur courante.
   const markPaidMethodOptions = useMemo(() => {
-    const options: string[] = [...MANUAL_PAYMENT_METHODS];
+    const options = manualPaymentMethodsForVenue(booking?.hotel_id);
     const current = booking?.payment_method;
     if (current && !options.includes(current)) options.unshift(current);
     return options;
-  }, [booking?.payment_method]);
+  }, [booking?.payment_method, booking?.hotel_id]);
 
   // Fetch bundle info when booking has a bundle_usage_id
   const bundleUsageId = (booking as any)?.bundle_usage_id as string | undefined;
@@ -276,6 +285,16 @@ export default function BookingDetail() {
   const isRoomPayment = booking.payment_method === 'room' || booking.payment_status === 'charged_to_room';
   const isPartnerBilled = isPartnerBilledBooking(booking.payment_method, booking.payment_status);
   const isSigned = !!booking.signed_at;
+
+  // Renvoi manuel de l'email de confirmation : miroir de la garde paiement de
+  // `notify-booking-confirmed`. Tant que le paiement n'est pas engagé, l'email
+  // partira tout seul au moment de l'encaissement → action masquée.
+  const CONFIRMATION_PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing', 'offert'];
+  const canSendConfirmation = !isConcierge
+    && booking.status === 'confirmed'
+    && CONFIRMATION_PAID_STATUSES.includes(booking.payment_status ?? '')
+    && (!!booking.client_email || !!booking.phone);
+  const confirmationAlreadySent = !!confirmationStatus?.alreadySent;
 
   const hotelInfo = getHotelInfo(booking.hotel_id);
   const currency = hotelInfo?.currency || 'EUR';
@@ -432,6 +451,26 @@ export default function BookingDetail() {
           .update({ payment_at: new Date().toISOString() })
           .eq("booking_id", booking.id);
       }
+      // Le paiement est le dernier verrou de l'email de confirmation : une résa
+      // confirmée mais impayée ne reçoit rien à la création. Encaisser sur place
+      // n'ouvre aucun webhook Stripe, donc c'est ici qu'on relance l'envoi.
+      // La fonction est idempotente (audit_log) et ne renvoie rien si le mail
+      // est déjà parti, ni si le booking n'est pas encore confirmé.
+      //
+      // Régularisation a posteriori (soin déjà passé, on saisit l'encaissement) :
+      // confirmer une séance déjà eue n'a aucun intérêt pour le client, on ne
+      // déclenche rien.
+      const isPastBooking =
+        new Date(`${booking.booking_date}T${booking.booking_time ?? "00:00"}`) < new Date();
+      if (!isMethodOnly && !isPastBooking && booking.status === "confirmed") {
+        try {
+          await invokeEdgeFunction("trigger-new-booking-notifications", {
+            body: { bookingId: booking.id, notifyClient: true, sendPaymentLink: false },
+          });
+        } catch (notifyError) {
+          console.error("Error triggering confirmation email after payment:", notifyError);
+        }
+      }
       toast.success(
         isPartner
           ? "Facturation partenaire enregistrée."
@@ -573,7 +612,7 @@ export default function BookingDetail() {
             >
               Modifier <Pencil />
             </Button>
-            {(canConvertToDuo || (showInvoice && primaryAction !== "invoice") || (!isSigned && !isConcierge)) && (
+            {(canConvertToDuo || canSendConfirmation || (showInvoice && primaryAction !== "invoice") || (!isSigned && !isConcierge)) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="px-2">
@@ -585,6 +624,19 @@ export default function BookingDetail() {
                   {canConvertToDuo && (
                     <DropdownMenuItem onClick={() => dialogs.setIsConvertToDuoOpen(true)}>
                       <Users className="h-4 w-4 mr-2" /> {t("booking.convertToDuo.button")}
+                    </DropdownMenuItem>
+                  )}
+                  {canSendConfirmation && (
+                    <DropdownMenuItem
+                      onClick={() => dialogs.setIsSendConfirmationOpen(true)}
+                      title={confirmationAlreadySent && confirmationStatus?.lastSentAt
+                        ? `Confirmation déjà envoyée le ${format(new Date(confirmationStatus.lastSentAt), "d MMM à HH:mm", { locale: fr })}`
+                        : undefined}
+                    >
+                      <MailCheck className="h-4 w-4 mr-2" /> Envoyer la confirmation
+                      {confirmationAlreadySent && (
+                        <AlertTriangle className="h-3.5 w-3.5 ml-2 text-amber-500" />
+                      )}
                     </DropdownMenuItem>
                   )}
                   {!isSigned && !isConcierge && (
@@ -655,16 +707,21 @@ export default function BookingDetail() {
               onReassigned={() => { refetch(); setTherapistRefreshKey((k) => k + 1); }}
             />
 
-            <section
-              onClick={() => (booking as any).customer_id && navigate(`/admin/customers/${(booking as any).customer_id}`)}
-              className={`bg-white rounded-2xl border border-stone-100 p-6 shadow-sm transition-all duration-200 ${(booking as any).customer_id ? 'cursor-pointer hover:border-primary/50 hover:shadow-md group' : ''}`}
-            >
+            <section className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase flex items-center gap-2">
                   <User className="h-4 w-4" /> Client
                 </h3>
                 {(booking as any).customer_id && (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 translate-x-[-10px] group-hover:translate-x-0" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => navigate(`/admin/customers/${(booking as any).customer_id}`)}
+                  >
+                    Voir le client
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
                 )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -679,7 +736,6 @@ export default function BookingDetail() {
                     {booking.client_email ? (
                       <a
                         href={`mailto:${booking.client_email}`}
-                        onClick={(e) => e.stopPropagation()}
                         className="text-primary hover:underline"
                       >
                         {booking.client_email}
@@ -951,6 +1007,15 @@ export default function BookingDetail() {
         booking={booking}
       />
 
+      <SendConfirmationDialog
+        open={dialogs.isSendConfirmationOpen}
+        onOpenChange={dialogs.setIsSendConfirmationOpen}
+        booking={booking}
+        alreadySent={confirmationAlreadySent}
+        lastSentAt={confirmationStatus?.lastSentAt}
+        onSuccess={() => { refetchConfirmationStatus(); }}
+      />
+
       <Dialog open={dialogs.isMarkPaidOpen} onOpenChange={dialogs.setIsMarkPaidOpen}>
         <DialogContent>
           <DialogHeader>
@@ -963,8 +1028,8 @@ export default function BookingDetail() {
             <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
               <SelectTrigger><SelectValue placeholder="Choisir une méthode" /></SelectTrigger>
               <SelectContent>
-                {/* `card` (Stripe) est réservé au système : on ne l'expose que
-                    s'il est déjà la valeur courante, pour ne pas vider le Select. */}
+                {/* `bundle` est réservé au système : on ne l'expose que s'il est
+                    déjà la valeur courante, pour ne pas vider le Select. */}
                 {markPaidMethodOptions.map((value) => (
                   <SelectItem key={value} value={value}>
                     {PAYMENT_METHOD_LABELS[value] ?? value}

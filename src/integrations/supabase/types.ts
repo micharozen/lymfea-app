@@ -256,12 +256,14 @@ export type Database = {
           billing_city: string | null
           billing_country: string | null
           billing_postal_code: string | null
+          commercial_name: string | null
           company_name: string | null
           contact_email: string | null
           contact_phone: string | null
           created_at: string
           iban: string | null
           id: string
+          legal_capital: string | null
           legal_form: string | null
           owner_id: string
           owner_type: string
@@ -278,12 +280,14 @@ export type Database = {
           billing_city?: string | null
           billing_country?: string | null
           billing_postal_code?: string | null
+          commercial_name?: string | null
           company_name?: string | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
           iban?: string | null
           id?: string
+          legal_capital?: string | null
           legal_form?: string | null
           owner_id: string
           owner_type: string
@@ -300,12 +304,14 @@ export type Database = {
           billing_city?: string | null
           billing_country?: string | null
           billing_postal_code?: string | null
+          commercial_name?: string | null
           company_name?: string | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
           iban?: string | null
           id?: string
+          legal_capital?: string | null
           legal_form?: string | null
           owner_id?: string
           owner_type?: string
@@ -721,6 +727,8 @@ export type Database = {
           booking_group_id: string | null
           booking_id: number
           booking_time: string
+          broadcast_wave: number | null
+          broadcast_wave_sent_at: string | null
           bundle_usage_id: string | null
           cancellation_reason: string | null
           client_email: string | null
@@ -785,6 +793,8 @@ export type Database = {
           booking_group_id?: string | null
           booking_id?: number
           booking_time: string
+          broadcast_wave?: number | null
+          broadcast_wave_sent_at?: string | null
           bundle_usage_id?: string | null
           cancellation_reason?: string | null
           client_email?: string | null
@@ -849,6 +859,8 @@ export type Database = {
           booking_group_id?: string | null
           booking_id?: number
           booking_time?: string
+          broadcast_wave?: number | null
+          broadcast_wave_sent_at?: string | null
           bundle_usage_id?: string | null
           cancellation_reason?: string | null
           client_email?: string | null
@@ -1664,12 +1676,16 @@ export type Database = {
           adyen_environment: string | null
           adyen_merchant_account: string | null
           adyen_vault_secret_id: string | null
+          auth_method: string
           connection_error: string | null
           connection_status: string | null
           connection_verified_at: string | null
           created_at: string | null
           hotel_id: string
           id: string
+          livemode: boolean | null
+          oauth_connected_at: string | null
+          oauth_expires_at: string | null
           provider: string
           stripe_account_id: string | null
           stripe_publishable_key: string | null
@@ -1681,12 +1697,16 @@ export type Database = {
           adyen_environment?: string | null
           adyen_merchant_account?: string | null
           adyen_vault_secret_id?: string | null
+          auth_method?: string
           connection_error?: string | null
           connection_status?: string | null
           connection_verified_at?: string | null
           created_at?: string | null
           hotel_id: string
           id?: string
+          livemode?: boolean | null
+          oauth_connected_at?: string | null
+          oauth_expires_at?: string | null
           provider?: string
           stripe_account_id?: string | null
           stripe_publishable_key?: string | null
@@ -1698,12 +1718,16 @@ export type Database = {
           adyen_environment?: string | null
           adyen_merchant_account?: string | null
           adyen_vault_secret_id?: string | null
+          auth_method?: string
           connection_error?: string | null
           connection_status?: string | null
           connection_verified_at?: string | null
           created_at?: string | null
           hotel_id?: string
           id?: string
+          livemode?: boolean | null
+          oauth_connected_at?: string | null
+          oauth_expires_at?: string | null
           provider?: string
           stripe_account_id?: string | null
           stripe_publishable_key?: string | null
@@ -1828,6 +1852,7 @@ export type Database = {
           inbound_email_alias: string
           inbound_email_domain: string
           inter_venue_buffer_minutes: number | null
+          invoice_client: string
           landing_subtitle: string | null
           landing_subtitle_en: string | null
           min_booking_notice_minutes: number | null
@@ -1847,6 +1872,7 @@ export type Database = {
           slug: string
           status: string | null
           therapist_commission: number | null
+          therapist_escalation_delay_minutes: number | null
           timezone: string | null
           updated_at: string
           vat: number | null
@@ -1883,6 +1909,7 @@ export type Database = {
           inbound_email_alias: string
           inbound_email_domain: string
           inter_venue_buffer_minutes?: number | null
+          invoice_client?: string
           landing_subtitle?: string | null
           landing_subtitle_en?: string | null
           min_booking_notice_minutes?: number | null
@@ -1902,6 +1929,7 @@ export type Database = {
           slug: string
           status?: string | null
           therapist_commission?: number | null
+          therapist_escalation_delay_minutes?: number | null
           timezone?: string | null
           updated_at?: string
           vat?: number | null
@@ -1938,6 +1966,7 @@ export type Database = {
           inbound_email_alias?: string
           inbound_email_domain?: string
           inter_venue_buffer_minutes?: number | null
+          invoice_client?: string
           landing_subtitle?: string | null
           landing_subtitle_en?: string | null
           min_booking_notice_minutes?: number | null
@@ -1957,6 +1986,7 @@ export type Database = {
           slug?: string
           status?: string | null
           therapist_commission?: number | null
+          therapist_escalation_delay_minutes?: number | null
           timezone?: string | null
           updated_at?: string
           vat?: number | null
@@ -2227,6 +2257,38 @@ export type Database = {
           request_type?: string
         }
         Relationships: []
+      }
+      payment_oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          hotel_id: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          hotel_id: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          hotel_id?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_oauth_states_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       plans: {
         Row: {
@@ -2850,18 +2912,21 @@ export type Database = {
           created_at: string | null
           hotel_id: string
           id: string
+          priority: number
           therapist_id: string
         }
         Insert: {
           created_at?: string | null
           hotel_id: string
           id?: string
+          priority?: number
           therapist_id: string
         }
         Update: {
           created_at?: string | null
           hotel_id?: string
           id?: string
+          priority?: number
           therapist_id?: string
         }
         Relationships: [
@@ -2896,13 +2961,13 @@ export type Database = {
           password_set: boolean | null
           phone: string
           profile_image: string | null
+          rate_105: number | null
+          rate_120: number | null
+          rate_150: number | null
           rate_45: number | null
           rate_60: number | null
           rate_75: number | null
           rate_90: number | null
-          rate_105: number | null
-          rate_120: number | null
-          rate_150: number | null
           skills: string[] | null
           status: string
           stripe_account_id: string | null
@@ -2924,13 +2989,13 @@ export type Database = {
           password_set?: boolean | null
           phone: string
           profile_image?: string | null
+          rate_105?: number | null
+          rate_120?: number | null
+          rate_150?: number | null
           rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
           rate_90?: number | null
-          rate_105?: number | null
-          rate_120?: number | null
-          rate_150?: number | null
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
@@ -2952,13 +3017,13 @@ export type Database = {
           password_set?: boolean | null
           phone?: string
           profile_image?: string | null
+          rate_105?: number | null
+          rate_120?: number | null
+          rate_150?: number | null
           rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
           rate_90?: number | null
-          rate_105?: number | null
-          rate_120?: number | null
-          rate_150?: number | null
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
@@ -3459,6 +3524,7 @@ export type Database = {
       }
       venue_amenities: {
         Row: {
+          allowed_durations: number[]
           capacity_per_slot: number
           closing_time: string | null
           color: string
@@ -3479,6 +3545,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allowed_durations?: number[]
           capacity_per_slot?: number
           closing_time?: string | null
           color?: string
@@ -3499,6 +3566,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allowed_durations?: number[]
           capacity_per_slot?: number
           closing_time?: string | null
           color?: string
@@ -3530,33 +3598,42 @@ export type Database = {
       }
       venue_blocked_slots: {
         Row: {
+          block_date: string | null
           created_at: string
           days_of_week: number[] | null
           end_time: string
+          group_id: string | null
           hotel_id: string
           id: string
           is_active: boolean
           label: string
+          room_id: string | null
           start_time: string
         }
         Insert: {
+          block_date?: string | null
           created_at?: string
           days_of_week?: number[] | null
           end_time: string
+          group_id?: string | null
           hotel_id: string
           id?: string
           is_active?: boolean
           label: string
+          room_id?: string | null
           start_time: string
         }
         Update: {
+          block_date?: string | null
           created_at?: string
           days_of_week?: number[] | null
           end_time?: string
+          group_id?: string | null
           hotel_id?: string
           id?: string
           is_active?: boolean
           label?: string
+          room_id?: string | null
           start_time?: string
         }
         Relationships: [
@@ -3565,6 +3642,13 @@ export type Database = {
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_blocked_slots_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_rooms"
             referencedColumns: ["id"]
           },
         ]
@@ -3659,6 +3743,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "venue_deployment_schedules_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: true
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_inbox_settings: {
+        Row: {
+          created_at: string
+          hotel_id: string
+          knowledge_base_en: string | null
+          knowledge_base_fr: string | null
+          reply_greeting_en: string | null
+          reply_greeting_fr: string | null
+          reply_signature: string | null
+          reply_signoff_en: string | null
+          reply_signoff_fr: string | null
+          reply_tone_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hotel_id: string
+          knowledge_base_en?: string | null
+          knowledge_base_fr?: string | null
+          reply_greeting_en?: string | null
+          reply_greeting_fr?: string | null
+          reply_signature?: string | null
+          reply_signoff_en?: string | null
+          reply_signoff_fr?: string | null
+          reply_tone_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hotel_id?: string
+          knowledge_base_en?: string | null
+          knowledge_base_fr?: string | null
+          reply_greeting_en?: string | null
+          reply_greeting_fr?: string | null
+          reply_signature?: string | null
+          reply_signoff_en?: string | null
+          reply_signoff_fr?: string | null
+          reply_tone_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_inbox_settings_hotel_id_fkey"
             columns: ["hotel_id"]
             isOneToOne: true
             referencedRelation: "hotels"
@@ -3883,6 +4017,13 @@ export type Database = {
           bundle_id: string
           hotel_id: string
           status: string
+        }[]
+      }
+      claim_payment_oauth_state: {
+        Args: { p_state: string }
+        Returns: {
+          hotel_id: string
+          user_id: string
         }[]
       }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
@@ -4119,6 +4260,7 @@ export type Database = {
         Args: { p_token: string }
         Returns: {
           client_first_name: string
+          client_language: string
           client_last_name: string
           hotel_name: string
           total_price: number
@@ -4529,6 +4671,7 @@ export type Database = {
           client_email: string
           client_first_name: string
           client_last_name: string
+          client_phone: string
           hotel_id: string
           hotel_slug: string
           language: string

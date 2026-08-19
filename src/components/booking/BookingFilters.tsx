@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Ban, Calendar as CalendarIcon, Check, CheckCheck, CheckCircle2, Clock, FilterX, List, Search, SlidersHorizontal, Users } from "lucide-react";
+import { Ban, Calendar as CalendarIcon, CalendarDays, Check, CheckCheck, CheckCircle2, Clock, FilterX, List, Search, SlidersHorizontal, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { Hotel, Therapist } from "@/hooks/booking";
@@ -26,6 +26,9 @@ import {
 } from "@/lib/paymentMethod";
 
 const CUSTOM_PERIOD = "custom";
+
+/** Planning layout: days side by side, or one column per therapist for one day. */
+export type PlanningMode = "day" | "therapists";
 
 /**
  * Filtres que l'utilisateur peut afficher ou masquer via le bouton "Filtres".
@@ -102,6 +105,12 @@ interface BookingFiltersProps {
   groupFiltersRight?: boolean;
   showAvailability?: boolean;
   onShowAvailabilityChange?: (show: boolean) => void;
+  /**
+   * Planning layout: days side by side, or one column per therapist for a single
+   * day. Provide the handler to expose the switch (calendar view only).
+   */
+  planningMode?: PlanningMode;
+  onPlanningModeChange?: (mode: PlanningMode) => void;
   /** Period filter in days (window: [today - N days, future]). Omit to hide the selector. */
   periodDays?: number;
   onPeriodDaysChange?: (days: number) => void;
@@ -153,6 +162,8 @@ export function BookingFilters({
   groupFiltersRight = false,
   showAvailability,
   onShowAvailabilityChange,
+  planningMode = "day",
+  onPlanningModeChange,
   periodDays,
   onPeriodDaysChange,
   customRange = null,
@@ -164,6 +175,7 @@ export function BookingFilters({
 }: BookingFiltersProps) {
   const { t } = useTranslation("admin");
   const [customPeriodOpen, setCustomPeriodOpen] = useState(false);
+  const customPeriodRequested = useRef(false);
   const [draftRange, setDraftRange] = useState<DateRange | undefined>(() =>
     customRange
       ? { from: parseISO(customRange.from), to: parseISO(customRange.to) }
@@ -329,11 +341,26 @@ export function BookingFilters({
           value={customRange ? CUSTOM_PERIOD : String(periodDays)}
           onValueChange={(v) => {
             if (v === CUSTOM_PERIOD) {
-              setCustomPeriodOpen(true);
+              customPeriodRequested.current = true;
               return;
             }
             onCustomRangeChange?.(null);
             onPeriodDaysChange(Number(v));
+          }}
+          onOpenChange={(open) => {
+            if (open || !customPeriodRequested.current) return;
+            customPeriodRequested.current = false;
+            // Le Select rend le focus à son trigger pendant sa fermeture : ouvrir
+            // le popover tout de suite le ferait aussitôt (focus/clic extérieur).
+            // On attend donc la fin de cette séquence.
+            requestAnimationFrame(() => {
+              setDraftRange(
+                customRange
+                  ? { from: parseISO(customRange.from), to: parseISO(customRange.to) }
+                  : undefined
+              );
+              setCustomPeriodOpen(true);
+            });
           }}
         >
           <SelectTrigger className="w-[170px] h-8 text-xs">
@@ -345,7 +372,15 @@ export function BookingFilters({
             <SelectItem value="60">60 derniers jours</SelectItem>
             <SelectItem value="90">90 derniers jours</SelectItem>
             {onCustomRangeChange && (
-              <SelectItem value={CUSTOM_PERIOD}>
+              <SelectItem
+                value={CUSTOM_PERIOD}
+                // Re-choisir la période déjà active ne déclenche pas
+                // onValueChange : on marque l'intention depuis l'item lui-même
+                // pour pouvoir rouvrir le calendrier et modifier les dates.
+                onPointerUp={() => {
+                  customPeriodRequested.current = true;
+                }}
+              >
                 {customRange
                   ? `${formatIsoShort(customRange.from)} → ${formatIsoShort(customRange.to)}`
                   : "Période personnalisée"}
@@ -362,7 +397,15 @@ export function BookingFilters({
           <PopoverTrigger asChild>
             <span className="block h-8 w-0" aria-hidden />
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-3 space-y-3" align="start">
+          <PopoverContent
+            className="w-auto p-3 space-y-3"
+            align="start"
+            // Le Select rend le focus à son trigger une fraction de seconde après
+            // sa fermeture, donc alors que ce popover vient de s'ouvrir : sans
+            // ça, ce focus extérieur le refermerait aussitôt. Le clic extérieur
+            // et Échap continuent de fermer normalement.
+            onFocusOutside={(e) => e.preventDefault()}
+          >
             <p className="text-xs font-medium text-muted-foreground">
               Sélectionnez une période
             </p>
@@ -440,7 +483,48 @@ export function BookingFilters({
       )}
 
       <div className="flex items-center gap-1.5 ml-auto">
-        {view === "calendar" && (
+        {onPlanningModeChange && view === "calendar" && (
+          <ButtonGroup>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => onPlanningModeChange("day")}
+                  className={cn(
+                    "h-8 w-8",
+                    planningMode === "day"
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{t("planning.dayViewMode")}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => onPlanningModeChange("therapists")}
+                  className={cn(
+                    "h-8 w-8",
+                    planningMode === "therapists"
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  <Users className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{t("planning.therapistViewMode")}</TooltipContent>
+            </Tooltip>
+          </ButtonGroup>
+        )}
+
+        {view === "calendar" && planningMode === "day" && (
           <ButtonGroup>
             {[
               { count: 1, label: "1J" },

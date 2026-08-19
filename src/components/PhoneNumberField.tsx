@@ -48,7 +48,10 @@ export function PhoneNumberField({
         disabled && "opacity-50 cursor-not-allowed",
       )}
     >
-      <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
+      {/* `modal` est indispensable : le panneau est portalisé hors d'une éventuelle modale
+          parente, dont le focus-trap rapatrierait sinon le focus à chaque frappe et rendrait
+          la barre de recherche inutilisable. */}
+      <Popover open={open} onOpenChange={disabled ? undefined : setOpen} modal>
         <PopoverTrigger asChild>
           <Button
             type="button"

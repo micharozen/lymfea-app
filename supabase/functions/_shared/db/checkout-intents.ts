@@ -78,6 +78,22 @@ export async function listCheckoutIntentsForOrg(
   return (data ?? []) as unknown as CheckoutIntentRow[];
 }
 
+/**
+ * A guest who paid within the hour never abandoned anything: the reminder cron
+ * (`send-checkout-intent-reminder`, R1_AFTER_HOURS) would never have chased that
+ * intent. Those rows are the nominal flow, not the recovery funnel — counting
+ * them inflates both the volume and the conversion rate of the admin page.
+ */
+const IMMEDIATE_CONVERSION_MS = 60 * 60 * 1000;
+
+export function isImmediateConversion(
+  intent: Pick<CheckoutIntentRow, "created_at" | "converted_at">,
+): boolean {
+  if (!intent.converted_at) return false;
+  const elapsed = new Date(intent.converted_at).getTime() - new Date(intent.created_at).getTime();
+  return elapsed < IMMEDIATE_CONVERSION_MS;
+}
+
 /** Never throws: a malformed snapshot must not take the admin page down. */
 export function parseCartSnapshot(raw: unknown): CartSnapshot {
   const empty: CartSnapshot = { items: [], total: null, currency: "EUR", itemCount: 0, scheduleMode: null };
