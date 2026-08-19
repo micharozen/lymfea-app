@@ -11,6 +11,7 @@ import {
   checkoutIntentKeys,
   fetchReminderAuditIds,
   hotelKeys,
+  isImmediateConversion,
   listCheckoutIntentsForOrg,
   listHotelsForOrgDropdown,
   parseCartSnapshot,
@@ -93,6 +94,9 @@ export default function CheckoutIntents() {
     const query = searchQuery.trim().toLowerCase();
 
     return intents.filter((intent) => {
+      // Paid straight through: never an abandoned cart, would only skew the KPIs.
+      if (isImmediateConversion(intent)) return false;
+
       if (venueFilter !== "all" && intent.hotel_id !== venueFilter) return false;
 
       if (statusFilter === "converted" && !intent.converted_at) return false;
