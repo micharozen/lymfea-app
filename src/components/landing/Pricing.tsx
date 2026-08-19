@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,7 +57,6 @@ function formatPrice(cents: number | null | undefined, currency: string): string
 
 export const Pricing = () => {
   const { t } = useTranslation("landing");
-  const navigate = useNavigate();
   const { userId, organizationId, isAdmin, loading: userLoading } = useUser();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [busyPlan, setBusyPlan] = useState<PlanCode | null>(null);
@@ -90,7 +88,9 @@ export const Pricing = () => {
     }
 
     if (!userId) {
-      navigate(`/signup?plan=${code}&cycle=${cycle}`);
+      // Document navigation, not client-side: the landing bundle (landing-main.tsx)
+      // has no /signup route and would fall back to its catch-all Landing route.
+      window.location.assign(`/signup?plan=${code}&cycle=${cycle}`);
       return;
     }
 
