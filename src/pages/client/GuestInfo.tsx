@@ -1,4 +1,4 @@
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { TFunction } from 'i18next';
 import { HoldBanner } from '@/components/client/HoldBanner';
@@ -122,7 +122,10 @@ export default function GuestInfo() {
   const isDesktop = useIsDesktop();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  // Reprise d'un panier abandonné (Resume.tsx) : tout est déjà rempli et le
+  // créneau vient d'être re-bloqué, on ouvre directement le panneau de paiement.
+  const openCheckoutOnMount = (useLocation().state as { openCheckout?: boolean } | null)?.openCheckout;
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(!!openCheckoutOnMount && isDesktop);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
   const [isHotelGuest, setIsHotelGuest] = useState(clientInfo?.isExternalGuest === false);
