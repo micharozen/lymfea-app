@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { brand } from "../_shared/brand.ts";
 import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
+import { myLegTreatments } from "../_shared/therapistLegDuration.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 import { getBaseEmailTemplate, getEmailHeader } from "../_shared/email-template.ts";
 import {
@@ -589,7 +590,7 @@ const generateForTherapistHotel = async (
   const endStr = periodEnd.toISOString().slice(0, 10);
 
   const bookingSelect =
-    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, client_first_name, client_last_name, customers(first_name, last_name), booking_treatments(therapist_id, is_addon, treatment_menus(name, duration), treatment_variants(label, duration))";
+    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, guest_count, therapist_id, client_first_name, client_last_name, customers(first_name, last_name), booking_treatments(therapist_id, is_addon, treatment_menus(name, duration), treatment_variants(label, duration))";
   // Un no-show est facturé 100 % au client : le thérapeute s'est déplacé, il est
   // rémunéré comme pour un soin réalisé. Les deux orthographes du statut
   // coexistent en base (legacy `no_show`).
@@ -648,6 +649,23 @@ const generateForTherapistHotel = async (
 
   const payoutMap = new Map<string, number>();
   (payouts ?? []).forEach((p) => payoutMap.set(p.booking_id, Number(p.amount)));
+
+  // Accepted therapists per booking, in acceptance order: needed to attribute
+  // each therapist their own leg on a duo (see myLegTreatments) instead of
+  // billing them the whole booking.
+  const { data: acceptedRows } = await supabaseAdmin
+    .from("booking_therapists")
+    .select("booking_id, therapist_id, assigned_at")
+    .in("booking_id", bookingIds)
+    .eq("status", "accepted")
+    .order("assigned_at", { ascending: true });
+
+  const therapistIdsByBooking = new Map<string, string[]>();
+  for (const r of (acceptedRows ?? []) as Array<{ booking_id: string; therapist_id: string }>) {
+    const ids = therapistIdsByBooking.get(r.booking_id) ?? [];
+    ids.push(r.therapist_id);
+    therapistIdsByBooking.set(r.booking_id, ids);
+  }
 
   // Load therapist rates for fallback computation when no payout exists
   const { data: therapistRow } = await supabaseAdmin
@@ -709,14 +727,35 @@ const generateForTherapistHotel = async (
       .filter((bt) => !bt.is_addon)
       .reduce((max, bt) => Math.max(max, lineDuration(bt)), 0);
     const bookingDuration = Math.max(Number((b as any).duration) || 0, longestBaseTreatment);
-    const dur = linkedDuration > 0
+
+    // Sur un duo, le thérapeute n'est facturé QUE sur son leg (son soin de base +
+    // les add-ons qu'il porte), jamais sur l'intégralité des prestations du
+    // booking — même échelle d'attribution que les payouts (myLegTreatments).
+    // Un thérapeute seul est payé sur tout, quoi qu'annonce guest_count.
+    const orderedTherapistIds = therapistIdsByBooking.get(b.id) ??
+      ((b as any).therapist_id ? [(b as any).therapist_id as string] : []);
+    const effectiveGuestCount = orderedTherapistIds.length > 1
+      ? Number((b as any).guest_count) || 1
+      : 1;
+    const legTreatments = myLegTreatments(
+      therapist.id,
+      treatments.map((bt) => ({ ...bt, duration: lineDuration(bt) })),
+      orderedTherapistIds,
+      effectiveGuestCount,
+    );
+    const legDuration = legTreatments.reduce((sum, bt) => sum + bt.duration, 0);
+
+    const isDuo = effectiveGuestCount > 1;
+    const dur = isDuo && legDuration > 0
+      ? legDuration
+      : !isDuo && linkedDuration > 0
       ? linkedDuration
       : bookingDuration > 0
       ? bookingDuration
       : treatmentsDuration;
     const isNoShow = ["noshow", "no_show"].includes(String((b as any).status));
     const treatmentsLabel =
-      treatments
+      legTreatments
         .map((bt) => {
           const name = bt.treatment_menus?.name;
           if (!name) return null;
