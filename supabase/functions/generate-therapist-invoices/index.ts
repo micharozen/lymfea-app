@@ -10,6 +10,12 @@ import {
   type BillingProfileLegal,
   type ResolvedIssuer,
 } from "../_shared/issuer-legal.ts";
+import {
+  AccessError,
+  assertVenueAllowed,
+  resolveCallerAccess,
+  type CallerAccess,
+} from "./permissions.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1000,7 +1006,10 @@ const jsonResponse = (payload: Record<string, unknown>, status = 200): Response 
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-const handleSendInvoice = async (body: RequestBody): Promise<Response> => {
+const handleSendInvoice = async (
+  body: RequestBody,
+  access: CallerAccess,
+): Promise<Response> => {
   const { invoice_id, pdf_base64 } = body;
 
   if (!invoice_id || !pdf_base64) {
@@ -1010,7 +1019,7 @@ const handleSendInvoice = async (body: RequestBody): Promise<Response> => {
   const { data: invoice, error: invoiceError } = await supabaseAdmin
     .from("invoices")
     .select(
-      "id, invoice_number, therapist_id, period_start, period_end, therapists(first_name, last_name, email)",
+      "id, invoice_number, therapist_id, hotel_id, period_start, period_end, therapists(first_name, last_name, email)",
     )
     .eq("id", invoice_id)
     .eq("invoice_kind", "therapist_commission")
@@ -1020,6 +1029,9 @@ const handleSendInvoice = async (body: RequestBody): Promise<Response> => {
   if (!invoice) {
     return jsonResponse({ error: "Invoice not found" }, 404);
   }
+
+  // Le lieu autorisé est celui de la facture, jamais celui annoncé par l'appelant.
+  assertVenueAllowed(access, invoice.hotel_id as string | null);
 
   const therapist = invoice.therapists as
     | { first_name: string; last_name: string; email: string | null }
@@ -1085,10 +1097,16 @@ serve(async (req: Request) => {
     const body: RequestBody = await req.json().catch(() => ({}));
     const { mode = "manual", therapist_id, hotel_id } = body;
 
+    const access = await resolveCallerAccess(req);
+
     // Send an already-generated invoice to its therapist (PDF attachment).
     if (mode === "send") {
-      return await handleSendInvoice(body);
+      return await handleSendInvoice(body, access);
     }
+
+    // Un concierge ne facture que son lieu ; l'admin plateforme peut balayer
+    // tous les lieux (mode `auto`).
+    assertVenueAllowed(access, hotel_id);
 
     // La période demandée est respectée telle quelle : la normaliser au mois
     // entier ferait facturer des prestations hors de la plage choisie.
@@ -1199,6 +1217,13 @@ serve(async (req: Request) => {
     );
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    if (error instanceof AccessError) {
+      console.warn("[GENERATE-THERAPIST-INVOICES] denied", msg);
+      return new Response(JSON.stringify({ error: msg }), {
+        status: error.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("[GENERATE-THERAPIST-INVOICES] fatal", msg);
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
