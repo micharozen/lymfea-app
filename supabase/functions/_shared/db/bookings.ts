@@ -16,6 +16,8 @@ export type BookingTreatment = {
   parent_booking_treatment_id?: string | null;
   /** true = accès à une commodité (amenity_id non null) : ni salle ni thérapeute. */
   is_amenity?: boolean;
+  /** Id du venue_amenity consommé — sert de calendrier au planning. NULL si ce n'est pas un accès. */
+  amenity_id?: string | null;
   /** Type de la commodité liée (piscine, sauna…) — null si ce n'est pas un accès. */
   amenity_type?: string | null;
   /** Nom de la commodité liée — null si ce n'est pas un accès. */
@@ -136,6 +138,7 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
         is_addon: t.is_addon ?? false,
         parent_booking_treatment_id: t.parent_booking_treatment_id ?? null,
         is_amenity: t.treatment_menus!.amenity_id != null,
+        amenity_id: t.treatment_menus!.amenity_id,
         amenity_type: t.treatment_menus!.venue_amenities?.type ?? null,
         amenity_name: t.treatment_menus!.venue_amenities?.name ?? null,
         name: (t.treatment_menus!.name ?? "") + variantSuffix,

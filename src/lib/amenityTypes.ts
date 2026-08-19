@@ -37,6 +37,17 @@ export function getAmenityDefaultColor(key: string): string {
 export const CLIENT_TYPES = ["external", "internal", "lymfea", "sezame"] as const;
 export type AmenityClientType = (typeof CLIENT_TYPES)[number];
 
+/**
+ * `bookings.client_type` et `amenity_bookings.client_type` ont deux domaines
+ * distincts (hotel/staycation/classpass d'un côté, internal/lymfea de l'autre).
+ * Traduction du premier vers le second pour une ligne amenity issue d'un booking.
+ */
+export function amenityClientTypeFromBooking(clientType: string | undefined): AmenityClientType {
+  if (clientType === "hotel") return "internal";
+  if (clientType === "sezame") return "sezame";
+  return "external";
+}
+
 const CLIENT_TYPE_LABELS: Record<string, { fr: string; en: string; icon: LucideIcon }> = {
   external: { fr: "Externe", en: "External", icon: Globe },
   internal: { fr: "Interne (hôtel)", en: "Internal (hotel)", icon: Hotel },
