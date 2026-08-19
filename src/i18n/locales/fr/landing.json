@@ -158,6 +158,14 @@
     "eyebrow": "Tarifs",
     "title": "Une tarification simple, alignée sur votre activité",
     "subtitle": "Pas de frais cachés, pas d'engagement long terme. Deux offres, tout compris.",
+    "cycle": {
+      "monthly": "Mensuel",
+      "yearly": "Annuel",
+      "yearlyHint": "−2 mois"
+    },
+    "unit": {
+      "year": "HT / an"
+    },
     "starter": {
       "name": "Starter",
       "tagline": "Pour un spa indépendant ou un day spa qui démarre.",
