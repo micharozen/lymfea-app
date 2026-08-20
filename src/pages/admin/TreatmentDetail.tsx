@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,7 +82,7 @@ const createFormSchema = (t: TFunction) =>
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["amenity_id"],
-            message: "Sélectionnez la commodité associée",
+            message: i18n.t('admin:treatmentDetail.amenityRequired'),
           });
         }
       } else {
@@ -89,7 +90,7 @@ const createFormSchema = (t: TFunction) =>
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["specialty"],
-            message: "La spécialité est obligatoire",
+            message: i18n.t('admin:treatmentDetail.specialtyRequired'),
           });
         }
         if (!val.service_for) {
@@ -107,7 +108,7 @@ export type TreatmentFormValues = z.infer<ReturnType<typeof createFormSchema>>;
 export default function TreatmentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(['admin', 'common']);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const isNewMode = !id;
@@ -254,7 +255,7 @@ export default function TreatmentDetail() {
         }
       } catch (error) {
         console.error("Error loading treatment data:", error);
-        toast.error("Erreur lors du chargement du soin");
+        toast.error(t('treatmentDetail.loadError'));
       } finally {
         setLoading(false);
       }
@@ -367,7 +368,7 @@ export default function TreatmentDetail() {
 
         setSavedTreatmentId(newTreatment.id);
         setTreatmentName(values.name);
-        toast.success("Soin créé avec succès");
+        toast.success(t('treatmentDetail.created'));
         navigate(`/admin/treatments/${newTreatment.id}`, { replace: true });
       } else {
         // UPDATE
@@ -475,12 +476,12 @@ export default function TreatmentDetail() {
         }
 
         setTreatmentName(values.name);
-        toast.success("Soin mis à jour avec succès");
+        toast.success(t('treatmentDetail.updated'));
         setIsEditingState(false);
       }
     } catch (error: any) {
       console.error("Error saving treatment:", error);
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error(t('treatmentDetail.saveError'));
     } finally {
       setSaving(false);
     }
@@ -511,7 +512,7 @@ export default function TreatmentDetail() {
               className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Retour</span>
+              <span className="hidden sm:inline">{t('common:buttons.back')}</span>
             </Button>
             <div className="h-5 w-px bg-border flex-shrink-0" />
             <h1 className="text-lg font-medium truncate">
@@ -533,13 +534,13 @@ export default function TreatmentDetail() {
                       "specialty",
                     ]);
                     if (!ok) {
-                      toast.error("Veuillez remplir les champs requis");
+                      toast.error(t('treatmentDetail.requiredFields'));
                       return;
                     }
                     setWizardStep(2);
                   }}
                 >
-                  Suivant
+                  {t('treatmentDetail.next')}
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
@@ -550,7 +551,7 @@ export default function TreatmentDetail() {
                     disabled={saving}
                   >
                     <ChevronLeft className="mr-2 h-4 w-4" />
-                    Précédent
+                    {t('treatmentDetail.previous')}
                   </Button>
                   <Button onClick={handleSave} disabled={saving}>
                     {saving ? (
@@ -581,7 +582,7 @@ export default function TreatmentDetail() {
                   onClick={handleCancelEdit}
                   disabled={saving}
                 >
-                  Annuler
+                  {t('common:buttons.cancel')}
                 </Button>
                 <Button
                   onClick={handleSave}
@@ -601,7 +602,7 @@ export default function TreatmentDetail() {
                 onClick={() => setIsEditingState(true)}
               >
                 <Pencil className="mr-2 h-4 w-4" />
-                Modifier
+                {t('common:buttons.edit')}
               </Button>
             )}
           </div>
@@ -617,8 +618,8 @@ export default function TreatmentDetail() {
         <div className="px-4 md:px-6 py-4">
           <div className="flex items-center justify-center gap-2 pb-6">
             {[
-              { id: 1 as const, label: "Général" },
-              { id: 2 as const, label: "Variantes" },
+              { id: 1 as const, label: t('treatmentDetail.stepGeneral') },
+              { id: 2 as const, label: t('treatmentDetail.stepVariants') },
             ].map((step, index, arr) => {
               const isCompleted = wizardStep > step.id;
               const isCurrent = wizardStep === step.id;
@@ -682,19 +683,19 @@ export default function TreatmentDetail() {
                 value="general"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
               >
-                Général
+                {t('treatmentDetail.stepGeneral')}
               </TabsTrigger>
               <TabsTrigger
                 value="variants"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
               >
-                Variantes
+                {t('treatmentDetail.stepVariants')}
               </TabsTrigger>
               <TabsTrigger
                 value="addons"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
               >
-                Add-ons
+                {t('treatmentDetail.tabAddons')}
               </TabsTrigger>
             </TabsList>
           </div>

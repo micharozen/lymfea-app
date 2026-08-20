@@ -2637,5 +2637,44 @@
     "confirmDeleteAdmin": "Delete this administrator?",
     "noVenue": "No venue linked.",
     "attachFrom": "Link one from"
+  },
+  "cureTemplate": {
+    "loadError": "Loading failed",
+    "created": "Programme template created",
+    "updated": "Programme template updated",
+    "saveError": "Could not save",
+    "namePlaceholder": "e.g. 5-massage programme",
+    "namePlaceholderEn": "e.g. 5 Massage Package",
+    "descriptionFr": "Description (FR)",
+    "descriptionEn": "Description (EN)",
+    "venue": "Venue *",
+    "selectVenue": "Select a venue",
+    "category": "Display category *",
+    "selectCategory": "Select a category",
+    "selectVenueFirst": "Select a venue first",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "noTreatment": "No treatment available for this venue"
+  },
+  "deploymentForm": {
+    "loadError": "Could not load the schedule",
+    "saved": "Rollout schedule saved",
+    "saveError": "Could not save",
+    "desc": "Define when this venue is available for bookings"
+  },
+  "treatmentDetail": {
+    "loadError": "Could not load the treatment",
+    "created": "Treatment created successfully",
+    "updated": "Treatment updated successfully",
+    "saveError": "Could not save",
+    "requiredFields": "Please fill in the required fields",
+    "next": "Next",
+    "previous": "Previous",
+    "stepGeneral": "General",
+    "stepVariants": "Variants",
+    "tabAddons": "Add-ons",
+    "amenityRequired": "Select the linked amenity",
+    "specialtyRequired": "The specialty is required"
   }
 }

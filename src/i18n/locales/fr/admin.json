@@ -2637,5 +2637,44 @@
     "confirmDeleteAdmin": "Supprimer cet administrateur ?",
     "noVenue": "Aucun hôtel rattaché.",
     "attachFrom": "Rattachez-en un depuis"
+  },
+  "cureTemplate": {
+    "loadError": "Erreur lors du chargement",
+    "created": "Modèle de cure créé",
+    "updated": "Modèle de cure mis à jour",
+    "saveError": "Erreur lors de l'enregistrement",
+    "namePlaceholder": "ex : Cure 5 massages",
+    "namePlaceholderEn": "e.g. 5 Massage Package",
+    "descriptionFr": "Description (FR)",
+    "descriptionEn": "Description (EN)",
+    "venue": "Lieu *",
+    "selectVenue": "Sélectionner un lieu",
+    "category": "Catégorie d'affichage *",
+    "selectCategory": "Sélectionner une catégorie",
+    "selectVenueFirst": "Sélectionnez d'abord un lieu",
+    "status": "Statut",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "noTreatment": "Aucun soin disponible pour ce lieu"
+  },
+  "deploymentForm": {
+    "loadError": "Erreur lors du chargement du planning",
+    "saved": "Planning de déploiement enregistré",
+    "saveError": "Erreur lors de l'enregistrement",
+    "desc": "Définissez quand ce lieu est disponible pour les réservations"
+  },
+  "treatmentDetail": {
+    "loadError": "Erreur lors du chargement du soin",
+    "created": "Soin créé avec succès",
+    "updated": "Soin mis à jour avec succès",
+    "saveError": "Erreur lors de l'enregistrement",
+    "requiredFields": "Veuillez remplir les champs requis",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "stepGeneral": "Général",
+    "stepVariants": "Variantes",
+    "tabAddons": "Add-ons",
+    "amenityRequired": "Sélectionnez la commodité associée",
+    "specialtyRequired": "La spécialité est obligatoire"
   }
 }
