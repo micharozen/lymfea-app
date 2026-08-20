@@ -33,7 +33,7 @@ const CATEGORY_LABELS: Record<(typeof CATEGORIES)[number], string> = {
 const SupportRequestSchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email().max(255),
-  company: z.string().trim().max(160).optional().default(""),
+  company: z.string().trim().min(1).max(160),
   category: z.enum(CATEGORIES),
   subject: z.string().trim().min(1).max(200),
   message: z.string().trim().min(10).max(5000),
@@ -54,7 +54,7 @@ function buildEmailHtml(input: z.infer<typeof SupportRequestSchema>): string {
   const rows = [
     ["Nom", input.name],
     ["Email", input.email],
-    ["Établissement", input.company || "—"],
+    ["Établissement", input.company],
     ["Catégorie", CATEGORY_LABELS[input.category]],
     ["Sujet", input.subject],
   ]

@@ -33,7 +33,7 @@
     "namePlaceholder": "Marie Dupont",
     "email": "Email professionnel",
     "emailPlaceholder": "marie@votrehotel.com",
-    "company": "Établissement (facultatif)",
+    "company": "Établissement ou organisation",
     "companyPlaceholder": "Hôtel Le Grand Spa",
     "category": "Type de demande",
     "categoryPlaceholder": "Sélectionner un type",
@@ -55,6 +55,7 @@
   "errors": {
     "name": "Merci d'indiquer votre nom.",
     "email": "Merci d'indiquer une adresse email valide.",
+    "company": "Merci d'indiquer votre établissement ou organisation.",
     "category": "Merci de sélectionner un type de demande.",
     "subject": "Merci d'indiquer un sujet.",
     "message": "Merci de détailler votre demande (10 caractères minimum).",
