@@ -1293,7 +1293,8 @@
     "cleanupBuffer": "Cleanup",
     "statuses": "Statuses",
     "venues": "Venues",
-    "verticalBarHint": "Vertical bar on card"
+    "verticalBarHint": "Vertical bar on card",
+    "toggleCancelled": "Click to show/hide cancelled bookings"
   },
   "cures": {
     "title": "Treatment Packages",
@@ -1589,7 +1590,10 @@
       "loading": "Looking for available therapists...",
       "empty": "No therapist available for this slot",
       "broadcastTitle": "Don't select (broadcast)",
-      "broadcastDesc": "Offer the slot to all available therapists"
+      "broadcastDesc": "Offer the slot to all available therapists",
+      "multiStaffHint": "Multi-guest treatment — {{count}} practitioners required. You can broadcast the request to the whole team, or assign manually.",
+      "broadcastAllTitle": "Broadcast to every practitioner",
+      "broadcastAllDesc": "Let the team organise itself and accept"
     },
     "client": {
       "firstName": "First name",
@@ -1604,7 +1608,9 @@
       "emailHint": "needed for the payment link",
       "room": "Room number",
       "clientType": "Client type",
-      "language": "Client message language (SMS / email)"
+      "language": "Client message language (SMS / email)",
+      "roomLaterPlaceholder": "To be filled in later",
+      "roomLaterCheckbox": "Room number to be filled in later (guest has not checked in yet)"
     },
     "confirm": {
       "venue": "Venue",
@@ -1629,7 +1635,8 @@
       "selectAllTherapists": "Select all therapists or broadcast to the team",
       "fillClient": "Fill in client information",
       "roomRequired": "Room number required for hotel clients"
-    }
+    },
+    "dialogDescription": "Manual treatment booking"
   },
   "onboarding": {
     "title": "Create your Saoma account",
@@ -4003,5 +4010,331 @@
     "variantAddError": "Could not add a variant",
     "variantDeleteError": "Could not delete a variant",
     "variantInUse": "A deleted variant is used by existing bookings. Edit it instead of deleting it."
+  },
+  "timeSelect": {
+    "hour": "Hour",
+    "minutes": "Minutes"
+  },
+  "columnSelector": {
+    "trigger": "Columns",
+    "reset": "Reset",
+    "move": "Move {{label}}"
+  },
+  "paymentLink": {
+    "title": "Send the payment link",
+    "bookingNumber": "Booking #{{number}}",
+    "customAmount": "Custom amount (booking total: {{total}})",
+    "linkLabel": "Payment link",
+    "linkLabelColon": "Payment link:",
+    "copy": "Copy",
+    "copyLink": "Copy link",
+    "generating": "Generating link…",
+    "messageLanguage": "Message language",
+    "sendVia": "Send via",
+    "smsBodyLabel": "SMS content",
+    "smsCounter": "{{chars}} chars · {{segments}} SMS",
+    "smsLinkAppended": "The Stripe link is appended automatically at the end of the message.",
+    "skip": "Skip",
+    "sending": "Sending…",
+    "send": "Send",
+    "retry": "Try again",
+    "success": {
+      "title": "Link sent successfully",
+      "emailSentTo": "Email sent to {{target}}",
+      "smsSentTo": "SMS sent to {{target}}"
+    },
+    "toasts": {
+      "copiedTitle": "Link copied",
+      "copiedDescription": "The payment link has been copied to the clipboard.",
+      "sentTitle": "Link sent",
+      "sentDescription": "The payment link was sent successfully"
+    },
+    "errors": {
+      "generateFailed": "Could not generate the link",
+      "copyFailed": "Could not copy the link",
+      "sendFailed": "Sending failed",
+      "sendLinkFailed": "Could not send the payment link",
+      "unknown": "Unknown error"
+    }
+  },
+  "bookingNotification": {
+    "title": "Send confirmation",
+    "partnerBilledNote": "Partner billing — no payment link will be sent to the client.",
+    "bookingNumber": "Booking #{{number}}",
+    "messageLanguage": "Message language",
+    "sendVia": "Send via",
+    "preview": "Message preview",
+    "skip": "Skip",
+    "sending": "Sending…",
+    "send": "Send",
+    "retry": "Try again",
+    "success": {
+      "title": "Notification sent",
+      "emailSentTo": "Email sent to {{target}}",
+      "smsSentTo": "SMS sent to {{target}}"
+    },
+    "toasts": {
+      "sentTitle": "Confirmation sent",
+      "sentDescription": "The booking notification has been sent"
+    },
+    "errors": {
+      "sendFailed": "Sending failed",
+      "sendNotificationFailed": "Could not send the notification",
+      "unknown": "Unknown error"
+    }
+  },
+  "sendConfirmation": {
+    "title": "Send confirmation",
+    "bookingNumber": "Booking #{{number}}",
+    "sentTitle": "Confirmation sent",
+    "failedTitle": "Sending failed",
+    "emailSentTo": "Email sent to {{target}}",
+    "smsSentTo": "SMS sent to {{target}}",
+    "alreadySent": "A confirmation has already been sent. The client will receive a second message.",
+    "alreadySentAt": "A confirmation was already sent on {{date}}. The client will receive a second message.",
+    "messageLanguage": "Message language",
+    "sendVia": "Send via",
+    "sending": "Sending…",
+    "send": "Send",
+    "retry": "Try again",
+    "toasts": {
+      "sentTitle": "Confirmation sent",
+      "sentDescription": "The client has been notified."
+    },
+    "errors": {
+      "sendFailed": "Sending failed",
+      "sendConfirmationFailed": "Could not send the confirmation",
+      "paymentNotEngaged": "Payment is not committed yet: the confirmation will go out automatically once the payment is captured.",
+      "checkContact": "Sending failed. Check the email address and phone number.",
+      "unknown": "Unknown error"
+    }
+  },
+  "bookingFilters": {
+    "filters": "Filters",
+    "allVenues": "All venues",
+    "searchVenue": "Search a venue...",
+    "noVenueFound": "No venue found.",
+    "allStatuses": "All statuses",
+    "allPaymentMethods": "All payment methods",
+    "allPaymentStatuses": "All payment statuses",
+    "allTherapists": "All therapists",
+    "searchTherapist": "Search a therapist...",
+    "noTherapistFound": "No therapist found.",
+    "lastDays": "Last {{count}} days",
+    "customPeriod": "Custom period",
+    "selectPeriod": "Select a period",
+    "apply": "Apply",
+    "reset": "Reset",
+    "resetTooltip": "Clear every filter and the search",
+    "dayCount": "{{count}}D",
+    "calendarView": "Calendar",
+    "listView": "List",
+    "toggles": {
+      "hotel": "Venue",
+      "status": "Status",
+      "therapist": "Therapist",
+      "period": "Period",
+      "payment": "Payment method",
+      "paymentStatus": "Payment status"
+    }
+  },
+  "bookingColumns": {
+    "labels": {
+      "reservation": "#Booking",
+      "reservationLong": "Booking",
+      "time": "Time",
+      "duration": "Duration",
+      "status": "Status",
+      "payment": "Payment",
+      "treatments": "Treatments",
+      "location": "Venue",
+      "therapist": "Therapist",
+      "phone": "Phone",
+      "roomNumber": "Room no.",
+      "clientType": "Client type",
+      "createdAt": "Created on",
+      "clientNote": "Client note",
+      "room": "Treatment room",
+      "guestCount": "Guests",
+      "paymentMethod": "Payment method",
+      "externalReference": "External reference"
+    },
+    "badges": {
+      "bundleSession": "Programme session",
+      "duo": "Duo",
+      "duoTooltip": "Duo treatment — {{count}} therapists required",
+      "grouped": "Grouped",
+      "outOfHours": "Out of hours"
+    },
+    "paymentText": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "failed": "Failed",
+      "refunded": "Refunded",
+      "chargedToRoom": "Room",
+      "partnerBilling": "Partner payment",
+      "cardSaved": "Card on file",
+      "undefined": "Not set"
+    }
+  },
+  "bookingListView": {
+    "resizeColumn": "Resize {{label}}",
+    "sortBy": "Sort by",
+    "ascending": "Ascending",
+    "descending": "Descending",
+    "empty": "No bookings found",
+    "itemName": "bookings"
+  },
+  "amenityBookingDetail": {
+    "room": "Room: {{number}}",
+    "guests": "{{count}} / {{total}} guests",
+    "free": "Free",
+    "complete": "Complete",
+    "status": {
+      "noshow": "No-show"
+    },
+    "toasts": {
+      "cancelled": "Booking cancelled",
+      "completed": "Booking completed"
+    },
+    "errors": {
+      "cancelFailed": "Could not cancel the booking",
+      "updateFailed": "Could not update the booking"
+    }
+  },
+  "invoicePreview": {
+    "serviceVoucherTitle": "Service voucher #{{number}}",
+    "invoiceTitle": "Invoice preview #{{number}}",
+    "sendToTherapist": "Send to therapist",
+    "downloadPdf": "Download PDF",
+    "send": "Send",
+    "confirmSendTitle": "Send the invoice to the therapist?",
+    "confirmSendDescription": "The invoice will be sent as a PDF attachment to {{email}}.",
+    "noRecipientEmail": "No email address is set for this therapist.",
+    "toasts": {
+      "sent": "Invoice sent to the therapist"
+    },
+    "errors": {
+      "sendFailed": "Could not send the invoice"
+    }
+  },
+  "calendarSidebar": {
+    "calendars": "Calendars",
+    "showAll": "All",
+    "hideAll": "None",
+    "openPanel": "Open the panel",
+    "closePanel": "Close the panel",
+    "showLegend": "Show the legend",
+    "hideLegend": "Hide the legend",
+    "treatments": "Treatments"
+  },
+  "amenityBookingForm": {
+    "createTitle": "Amenity booking",
+    "editTitle": "Edit booking",
+    "venue": "Venue",
+    "venuePlaceholder": "Select a venue",
+    "amenity": "Amenity",
+    "selectPlaceholder": "Select",
+    "noAmenityEnabled": "No amenity is enabled for this venue.",
+    "clientType": "Client type",
+    "searchCustomer": "Search an existing client",
+    "searchCustomerPlaceholder": "Name, first name or phone…",
+    "searching": "Searching…",
+    "noCustomerFound": "No client found",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "phone": "Phone",
+    "roomNumber": "Room no.",
+    "date": "Date",
+    "time": "Time",
+    "guestCount": "Number of guests",
+    "capacityBadge": "{{remaining}} / {{total}} free",
+    "duration": "Duration",
+    "durationValue": "Duration: {{value}}",
+    "prepTime": "+{{minutes}} min preparation",
+    "prepTimeInline": "(+{{minutes}} min preparation)",
+    "price": "Price:",
+    "free": "Free",
+    "notes": "Notes",
+    "book": "Book",
+    "clientTypes": {
+      "external": "External",
+      "internal": "In-house (hotel)",
+      "lymfea": "Eïa (treatment client)"
+    },
+    "validation": {
+      "amenityRequired": "Select an amenity",
+      "firstNameRequired": "First name required",
+      "phoneRequired": "Phone required",
+      "dateRequired": "Date required",
+      "timeRequired": "Time required"
+    },
+    "toasts": {
+      "created": "Booking created",
+      "updated": "Booking updated"
+    },
+    "errors": {
+      "createFailed": "Could not create the booking",
+      "updateFailed": "Could not update the booking",
+      "venueRequired": "Select a venue",
+      "notEnoughCapacity": "Not enough capacity ({{count}} places left)"
+    }
+  },
+  "createBooking": {
+    "title": "New booking",
+    "titleRequest": "New request",
+    "create": "Create",
+    "defaultTreatmentName": "Treatment",
+    "discardTitle": "Discard this booking?",
+    "discardDescription": "Everything you have entered will be lost. Are you sure you want to leave?",
+    "keepEditing": "Keep editing",
+    "discard": "Discard",
+    "toasts": {
+      "emailAdjustedTitle": "Email adjusted",
+      "emailAdjustedDescription": "The address was normalised to {{email}} (accents and capitals removed)."
+    },
+    "errors": {
+      "duplicateSlot": "This slot is identical to slot {{slot}}",
+      "selectTreatment": "Select a treatment",
+      "invalidEmailTitle": "Invalid email address",
+      "invalidEmailDescription": "Please correct the client's email before creating the booking.",
+      "legNeedsTherapistOrBroadcast": "Each practitioner must be picked or broadcast",
+      "selectTherapistOrBroadcast": "Please select a therapist or broadcast the request",
+      "everyPractitionerNeedsTreatment": "Each practitioner must have at least one treatment"
+    }
+  },
+  "bookingCalendar": {
+    "hourColumn": "Time",
+    "therapistsAvailable": "{{count}}/{{total}} therapists available",
+    "coverageGaps": "Gaps: {{gaps}}",
+    "bookingNumber": "Booking #{{number}}",
+    "duoBadge": "Duo {{accepted}}/{{total}}",
+    "duoTooltip": "Duo treatment — {{accepted}}/{{total}} therapists",
+    "openTherapist": "Open therapist profile",
+    "unassignedTooltip": "No therapist assigned",
+    "unassignedBadge": "UNASSIGNED",
+    "roomNumber": "Room: {{number}}",
+    "treatmentRoom": "Treatment room: {{name}}",
+    "therapistsLabel": "Therapists:",
+    "therapistLabel": "Therapist: {{name}}",
+    "assignedCount": "{{accepted}}/{{total}} assigned",
+    "durationLabel": "Duration: {{value}}",
+    "onQuote": "On quote",
+    "treatmentsLabel": "Treatments:",
+    "totalLabel": "Total: {{value}}",
+    "paymentLabel": "Payment: {{value}}",
+    "paymentStatus": {
+      "pending": "Pending",
+      "awaitingPayment": "Awaiting payment",
+      "paid": "Paid",
+      "failed": "Failed",
+      "refunded": "Refunded",
+      "charged": "Charged",
+      "chargedToRoom": "Charged to room",
+      "cardSaved": "Card on file",
+      "expired": "Expired",
+      "partnerBilling": "Partner payment",
+      "pendingRoomCharge": "Room charge pending"
+    }
   }
 }
