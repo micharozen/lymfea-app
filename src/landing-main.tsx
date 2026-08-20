@@ -13,6 +13,7 @@ const CompareDetail = lazy(() => import("./pages/CompareDetail"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Changelog = lazy(() => import("./pages/Changelog"));
+const Support = lazy(() => import("./pages/Support"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +38,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/changelog" element={<Changelog />} />
+            <Route path="/support" element={<Support />} />
             <Route path="*" element={<Landing />} />
           </Routes>
         </Suspense>

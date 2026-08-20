@@ -42,6 +42,7 @@ const ROUTES = [
   { path: "/changelog", out: "changelog.html" },
   { path: "/terms", out: "terms.html" },
   { path: "/privacy", out: "privacy.html" },
+  { path: "/support", out: "support.html" },
 ];
 
 const MIME = {
