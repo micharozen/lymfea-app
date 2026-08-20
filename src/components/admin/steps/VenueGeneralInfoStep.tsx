@@ -192,7 +192,7 @@ export function VenueGeneralInfoStep({
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-1.5">
               <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
-              Photo du lieu
+              {t('venue.general.photo')}
             </label>
             <div className="flex flex-col items-center gap-3 p-4 border rounded-md bg-muted/20">
               <Avatar className="h-16 w-16 rounded-md">
@@ -215,7 +215,7 @@ export function VenueGeneralInfoStep({
                 onClick={triggerHotelImageSelect}
                 disabled={uploading}
               >
-                {uploadingHotel ? "Upload..." : "Choisir"}
+                {uploadingHotel ? t('venue.general.uploading') : t('venue.general.choose')}
                 {uploadingHotel && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
             </div>
@@ -224,7 +224,7 @@ export function VenueGeneralInfoStep({
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-1.5">
               <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
-              Couverture
+              {t('venue.general.cover')}
             </label>
             <div className="flex flex-col items-center gap-3 p-4 border rounded-md bg-muted/20">
               <Avatar className="h-16 w-16 rounded-md">
@@ -247,7 +247,7 @@ export function VenueGeneralInfoStep({
                 onClick={triggerCoverImageSelect}
                 disabled={uploading}
               >
-                {uploadingCover ? "Upload..." : "Choisir"}
+                {uploadingCover ? t('venue.general.uploading') : t('venue.general.choose')}
                 {uploadingCover && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
             </div>
@@ -264,7 +264,7 @@ export function VenueGeneralInfoStep({
                 <FormItem>
                   <FormLabel className="flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    Type de lieu
+                    {t('venue.general.venueType')}
                   </FormLabel>
                   <Select value={field.value} onValueChange={field.onChange} disabled={mode === 'edit'}>
                     <SelectTrigger>
@@ -273,7 +273,7 @@ export function VenueGeneralInfoStep({
                     <SelectContent>
                       <SelectItem value="hotel">Hotel</SelectItem>
                       <SelectItem value="coworking">Coworking</SelectItem>
-                      <SelectItem value="enterprise">Entreprise</SelectItem>
+                      <SelectItem value="enterprise">{t('venue.general.typeEnterprise')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -286,7 +286,7 @@ export function VenueGeneralInfoStep({
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Statut</FormLabel>
+                  <FormLabel>{t('venue.general.status')}</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger>
                       <SelectValue />
@@ -336,11 +336,11 @@ export function VenueGeneralInfoStep({
               <FormItem>
                 <FormLabel className="flex items-center gap-1.5">
                   <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                  Lien public
+                  {t('venue.general.publicLink')}
                 </FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="ex: le-ritz-paris"
+                    placeholder={t('venue.general.publicLinkPlaceholder')}
                     {...field}
                     onChange={(e) => {
                       slugTouchedRef.current = true;
@@ -368,13 +368,13 @@ export function VenueGeneralInfoStep({
                 <FormItem>
                   <FormLabel className="flex items-center gap-1.5">
                     <Type className="h-3.5 w-3.5 text-muted-foreground" />
-                    Sous-titre landing page
+                    {t('venue.general.landingSubtitle')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent side="top" className="max-w-[260px]">
-                        <p className="text-xs">Texte affiche sous le nom du lieu sur la page d'accueil client. Par defaut : "Beauty Services".</p>
+                        <p className="text-xs">{t('venue.general.landingSubtitleHelp')}</p>
                       </TooltipContent>
                     </Tooltip>
                   </FormLabel>
@@ -391,7 +391,7 @@ export function VenueGeneralInfoStep({
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <Package className="h-3.5 w-3.5 text-muted-foreground" />
-              Salles de soin
+              {t('venue.general.treatmentRooms')}
             </Label>
             <Popover>
               <PopoverTrigger asChild>
@@ -456,7 +456,7 @@ export function VenueGeneralInfoStep({
 
       {/* Section: Localisation */}
       <div>
-        <SectionHeader icon={MapPin} title="Localisation" />
+        <SectionHeader icon={MapPin} title={t('venue.general.locationTitle')} />
 
         <FormField
           control={form.control}
@@ -465,7 +465,7 @@ export function VenueGeneralInfoStep({
             <FormItem className="mb-4">
               <FormLabel className="flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                Adresse
+                {t('venue.general.address')}
               </FormLabel>
               <FormControl>
                 <Input {...field} />
@@ -481,7 +481,7 @@ export function VenueGeneralInfoStep({
             name="postal_code"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Code postal</FormLabel>
+                <FormLabel>{t('venue.general.postalCode')}</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
@@ -495,7 +495,7 @@ export function VenueGeneralInfoStep({
             name="city"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Ville</FormLabel>
+                <FormLabel>{t('venue.general.city')}</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
@@ -530,7 +530,7 @@ export function VenueGeneralInfoStep({
               <TimezoneSelectField
                 value={field.value}
                 onChange={field.onChange}
-                label="Fuseau horaire"
+                label={t('venue.general.timezone')}
               />
               <FormMessage />
             </FormItem>
@@ -540,7 +540,7 @@ export function VenueGeneralInfoStep({
 
       {/* Section: Finance */}
       <div>
-        <SectionHeader icon={Wallet} title="Finance" />
+        <SectionHeader icon={Wallet} title={t('venue.general.financeTitle')} />
 
         <div className="grid grid-cols-2 gap-4 mb-4">
           <FormField
@@ -550,7 +550,7 @@ export function VenueGeneralInfoStep({
               <FormItem>
                 <FormLabel className="flex items-center gap-1.5">
                   <Banknote className="h-3.5 w-3.5 text-muted-foreground" />
-                  Devise
+                  {t('venue.general.currency')}
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger>
@@ -597,7 +597,7 @@ export function VenueGeneralInfoStep({
             <FormItem className="mb-4">
               <FormLabel className="flex items-center gap-1.5">
                 <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                Commission lieu
+                {t('venue.general.venueCommission')}
               </FormLabel>
               <FormControl>
                 <div className="relative w-40">
@@ -617,10 +617,10 @@ export function VenueGeneralInfoStep({
             <FormItem className="flex items-center justify-between rounded-lg border p-3 mb-4">
               <div className="space-y-0.5 pr-4">
                 <FormLabel className="text-sm font-medium">
-                  Commission thérapeute globale
+                  {t('venue.general.globalTherapistCommission')}
                 </FormLabel>
                 <p className="text-xs text-muted-foreground">
-                  Appliquer le même pourcentage de commission à tous les thérapeutes
+                  {t('venue.general.globalTherapistCommissionDesc')}
                 </p>
               </div>
               <FormControl>
@@ -642,7 +642,7 @@ export function VenueGeneralInfoStep({
                 <FormItem>
                   <FormLabel className="flex items-center gap-1.5">
                     <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                    Commission thérapeute
+                    {t('venue.general.therapistCommission')}
                   </FormLabel>
                   <FormControl>
                     <div className="relative">
@@ -668,7 +668,7 @@ export function VenueGeneralInfoStep({
 
       {/* Section: Paramètres */}
       <div>
-        <SectionHeader icon={Settings} title="Paramètres de réservation" />
+        <SectionHeader icon={Settings} title={t('venue.general.bookingSettingsTitle')} />
 
         <FormField
           control={form.control}
@@ -676,9 +676,9 @@ export function VenueGeneralInfoStep({
           render={({ field }) => (
             <FormItem className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <FormLabel className="text-base">Auto-validation des réservations</FormLabel>
+                <FormLabel className="text-base">{t('venue.general.autoValidate')}</FormLabel>
                 <p className="text-sm text-muted-foreground">
-                  Si activé et qu'un seul thérapeute est assigné au lieu, les réservations seront automatiquement confirmées sans validation manuelle.
+                  {t('venue.general.autoValidateDesc')}
                 </p>
               </div>
               <FormControl>

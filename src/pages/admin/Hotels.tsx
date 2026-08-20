@@ -101,6 +101,7 @@ interface Hotel {
 }
 
 export default function Hotels() {
+  const { t } = useTranslation(['admin', 'common']);
   const navigate = useNavigate();
   const scope = useOrgScope();
   const { i18n } = useTranslation();
@@ -328,7 +329,7 @@ export default function Hotels() {
 
       setHotels(hotelsWithData);
     } catch (error: any) {
-      toast.error("Erreur lors du chargement des lieux");
+      toast.error(t('hotelsPage.loadError'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -366,11 +367,11 @@ export default function Hotels() {
 
       if (error) throw error;
 
-      toast.success("Lieu supprimé avec succès");
+      toast.success(t('hotelsPage.deleted'));
       closeDelete();
       fetchHotels();
     } catch (error: any) {
-      toast.error("Erreur lors de la suppression du lieu");
+      toast.error(t('hotelsPage.deleteError'));
       console.error(error);
     }
   };
@@ -382,7 +383,7 @@ export default function Hotels() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4">
           <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
-            Lieux
+            {t('hotelsPage.title')}
           </h1>
         </div>
       </div>
@@ -393,7 +394,7 @@ export default function Hotels() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher"
+                placeholder={t('hotelsPage.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -402,12 +403,12 @@ export default function Hotels() {
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrer par statut" />
+                <SelectValue placeholder={t('hotelsPage.filterStatus')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="pending">En attente</SelectItem>
+                <SelectItem value="all">{t('hotelsPage.allStatuses')}</SelectItem>
+                <SelectItem value="active">{t('hotelsPage.active')}</SelectItem>
+                <SelectItem value="pending">{t('hotelsPage.pending')}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -416,7 +417,7 @@ export default function Hotels() {
               onClick={handleNewVenue}
               style={{ display: isAdmin ? 'flex' : 'none' }}
             >
-              Nouveau lieu
+              {t('hotelsPage.new')}
             </Button>
           </div>
 
@@ -447,13 +448,13 @@ export default function Hotels() {
                 ) : paginatedHotels.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">Aucun lieu trouve</p>
+                    <p className="text-muted-foreground">{t('hotelsPage.empty')}</p>
                     {(searchQuery || statusFilter !== "all") && (
-                      <p className="text-sm text-muted-foreground mt-1">Essayez de modifier vos filtres</p>
+                      <p className="text-sm text-muted-foreground mt-1">{t('hotelsPage.emptyHint')}</p>
                     )}
                     {isAdmin && (
                       <Button onClick={handleNewVenue} className="mt-4">
-                        Nouveau lieu
+                        {t('hotelsPage.new')}
                       </Button>
                     )}
                   </div>
@@ -492,17 +493,17 @@ export default function Hotels() {
                       </SortableTableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Type</TableHead>
                       <SortableTableHead column="rooms" sortDirection={getSortDirection("rooms")} onSort={toggleSort} align="right">
-                        Salles
+                        {t('hotelsPage.colRooms')}
                       </SortableTableHead>
                       <SortableTableHead column="therapists" sortDirection={getSortDirection("therapists")} onSort={toggleSort} align="right">
-                        Thérapeutes
+                        {t('hotelsPage.colTherapists')}
                       </SortableTableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Commodités</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">{t('hotelsPage.colAmenities')}</TableHead>
                       <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
-                        Statut
+                        {t('hotelsPage.colStatus')}
                       </SortableTableHead>
                       <SortableTableHead column="sales" sortDirection={getSortDirection("sales")} onSort={toggleSort} align="right">
-                        Ventes (mois)
+                        {t('hotelsPage.colSales')}
                       </SortableTableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">QR</TableHead>
                       {isAdmin && (
@@ -609,7 +610,7 @@ export default function Hotels() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-6 w-6"
-                                  title="Copier lien dashboard entreprise"
+                                  title={t('hotelsPage.copyEnterpriseLink')}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     let url = `${window.location.origin}/enterprise/${hotel.id}`;
@@ -621,7 +622,7 @@ export default function Hotels() {
                                       if (nextDate) url += `?date=${nextDate}`;
                                     }
                                     navigator.clipboard.writeText(url);
-                                    toast.success("Lien dashboard copié !");
+                                    toast.success(t('hotelsPage.linkCopied'));
                                   }}
                                 >
                                   <LayoutDashboard className="h-3 w-3" />
@@ -682,17 +683,17 @@ export default function Hotels() {
       <AlertDialog open={!!deleteHotelId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogTitle>{t('hotelsPage.confirmDeleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce lieu ? Cette action est irréversible.
+              {t('hotelsPage.confirmDeleteDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteHotel}
             >
-              Supprimer
+              {t('common:buttons.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -43,7 +43,7 @@ interface VenueTherapistsTabProps {
 }
 
 export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation(['admin', 'common']);
   // Concierges (venue managers) can assign/unassign existing therapists but not
   // create new therapist accounts — creation stays admin-only.
   const { isConcierge } = useUser();
@@ -141,10 +141,10 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     onSuccess: () => {
       invalidateQueries();
       setSelectedAssignIds([]);
-      toast.success("Thérapeute(s) assigné(s)");
+      toast.success(t('venueTherapistsTab.assigned'));
     },
     onError: () => {
-      toast.error("Erreur lors de l'assignation");
+      toast.error(t('venueTherapistsTab.assignError'));
     },
   });
 
@@ -181,10 +181,10 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     },
     onSuccess: () => {
       invalidateQueries();
-      toast.success("Thérapeute désassigné");
+      toast.success(t('venueTherapistsTab.unassigned'));
     },
     onError: () => {
-      toast.error("Erreur lors de la désassignation");
+      toast.error(t('venueTherapistsTab.unassignError'));
     },
   });
 
@@ -249,11 +249,11 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
             }),
           });
           if (!response.ok) {
-            toast.warning("Thérapeute créé mais l'invitation email a échoué");
+            toast.warning(t('venueTherapistsTab.createdInviteFailed'));
           }
         }
       } catch {
-        toast.warning("Thérapeute créé mais l'invitation email a échoué");
+        toast.warning(t('venueTherapistsTab.createdInviteFailed'));
       }
 
       return therapist;
@@ -261,10 +261,10 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     onSuccess: () => {
       invalidateQueries();
       resetCreateForm();
-      toast.success("Thérapeute créé et assigné");
+      toast.success(t('venueTherapistsTab.createdAssigned'));
     },
     onError: () => {
-      toast.error("Erreur lors de la création");
+      toast.error(t('venueTherapistsTab.createError'));
     },
   });
 
@@ -282,7 +282,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
 
   const handleCreate = () => {
     if (!formData.first_name.trim() || !formData.last_name.trim() || !formData.email.trim()) {
-      toast.error("Veuillez remplir les champs obligatoires");
+      toast.error(t('venueTherapistsTab.requiredFields'));
       return;
     }
     createMutation.mutate();
@@ -306,7 +306,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : assignedTherapists.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">Aucun thérapeute assigné</p>
+          <p className="text-sm text-muted-foreground py-4">{t('venueTherapistsTab.empty')}</p>
         ) : (
           <div className="space-y-2">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -385,7 +385,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                     e.stopPropagation();
                     unassignMutation.mutate(therapist.id);
                   }}
-                  title="Désassigner"
+                  title={t('venueTherapistsTab.unassign')}
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
@@ -399,12 +399,12 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
       {unassignedTherapists.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-foreground mb-3">
-            Assigner des thérapeutes existants
+            {t('venueTherapistsTab.assignExisting')}
           </h3>
           <div className="flex items-end gap-3">
             <div className="flex-1">
               <MultiSelectPopover
-                placeholder="Sélectionner des thérapeutes"
+                placeholder={t('venueTherapistsTab.selectTherapists')}
                 selected={selectedAssignIds}
                 onChange={setSelectedAssignIds}
                 options={unassignedTherapists.map((t) => ({
@@ -438,13 +438,13 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
             onClick={() => setShowCreateForm(true)}
           >
             <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Créer un nouveau thérapeute
+            {t('venueTherapistsTab.createNew')}
           </Button>
         ) : (
           <div className="border rounded-lg p-4 space-y-4">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
-              Nouveau thérapeute
+              {t('venueTherapistsTab.newTherapist')}
             </h3>
 
             <div className="flex items-center gap-3">
@@ -470,14 +470,14 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                 onClick={triggerFileSelect}
                 disabled={uploading}
               >
-                {uploading ? "Téléchargement..." : "Photo"}
+                {uploading ? t('venueTherapistsTab.uploading') : t('venueTherapistsTab.photo')}
                 {uploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Prénom *</Label>
+                <Label className="text-xs">{t('venueTherapistsTab.firstName')}</Label>
                 <Input
                   value={formData.first_name}
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
@@ -485,7 +485,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Nom *</Label>
+                <Label className="text-xs">{t('venueTherapistsTab.lastName')}</Label>
                 <Input
                   value={formData.last_name}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
@@ -495,7 +495,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Email *</Label>
+              <Label className="text-xs">{t('venueTherapistsTab.email')}</Label>
               <Input
                 type="email"
                 value={formData.email}
@@ -505,7 +505,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Téléphone</Label>
+              <Label className="text-xs">{t('venueTherapistsTab.phone')}</Label>
               <PhoneNumberField
                 value={formData.phone}
                 onChange={(value) => setFormData({ ...formData, phone: value })}
@@ -528,7 +528,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={resetCreateForm}>
-                Annuler
+                {t('common:buttons.cancel')}
               </Button>
               <Button
                 size="sm"

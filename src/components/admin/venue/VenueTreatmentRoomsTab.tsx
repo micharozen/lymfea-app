@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -34,6 +35,7 @@ function RoomCapacityInput({
   disabled?: boolean;
   onSave: (roomId: string, capacity: number) => void;
 }) {
+  const { t } = useTranslation('admin');
   const [value, setValue] = useState(String(capacity));
 
   useEffect(() => {
@@ -60,7 +62,7 @@ function RoomCapacityInput({
         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
       }}
       onClick={(e) => e.stopPropagation()}
-      title="Lits (occupations simultanées)"
+      title={t('venueRoomsTab.beds')}
     />
   );
 }
@@ -71,6 +73,7 @@ interface VenueTreatmentRoomsTabProps {
 }
 
 export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoomsTabProps) {
+  const { t } = useTranslation(['admin', 'common']);
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
@@ -132,10 +135,10 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
     onSuccess: () => {
       invalidateQueries();
       setSelectedAssignIds([]);
-      toast.success("Salle(s) assignée(s)");
+      toast.success(t('venueRoomsTab.assigned'));
     },
     onError: () => {
-      toast.error("Erreur lors de l'assignation");
+      toast.error(t('venueRoomsTab.assignError'));
     },
   });
 
@@ -150,10 +153,10 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
     },
     onSuccess: () => {
       invalidateQueries();
-      toast.success("Salle désassignée");
+      toast.success(t('venueRoomsTab.unassigned'));
     },
     onError: () => {
-      toast.error("Erreur lors de la désassignation");
+      toast.error(t('venueRoomsTab.unassignError'));
     },
   });
 
@@ -167,10 +170,10 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
     },
     onSuccess: () => {
       invalidateQueries();
-      toast.success("Nombre de lits mis à jour");
+      toast.success(t('venueRoomsTab.bedsUpdated'));
     },
     onError: () => {
-      toast.error("Erreur lors de la mise à jour");
+      toast.error(t('venueRoomsTab.updateError'));
     },
   });
 
@@ -185,10 +188,10 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
     },
     onSuccess: () => {
       invalidateQueries();
-      toast.success("Salle supprimée");
+      toast.success(t('venueRoomsTab.deleted'));
     },
     onError: () => {
-      toast.error("Erreur lors de la suppression");
+      toast.error(t('venueRoomsTab.deleteError'));
     },
   });
 
@@ -215,16 +218,16 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
       setNewRoomCapabilities([]);
       setNewRoomImage("");
       setShowCreateForm(false);
-      toast.success("Salle créée et assignée");
+      toast.success(t('venueRoomsTab.created'));
     },
     onError: () => {
-      toast.error("Erreur lors de la création");
+      toast.error(t('venueRoomsTab.createError'));
     },
   });
 
   const handleCreate = () => {
     if (!newRoomName.trim() || newRoomCapabilities.length === 0) {
-      toast.error("Veuillez remplir le nom et sélectionner au moins un type de soin");
+      toast.error(t('venueRoomsTab.requiredFields'));
       return;
     }
     createMutation.mutate();
@@ -242,7 +245,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : assignedRooms.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">Aucune salle assignée</p>
+          <p className="text-sm text-muted-foreground py-4">{t('venueRoomsTab.empty')}</p>
         ) : (
           <div className="space-y-2">
             {assignedRooms.map((room) => (
@@ -290,7 +293,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                     size="icon"
                     className="h-7 w-7"
                     onClick={() => unassignMutation.mutate(room.id)}
-                    title="Désassigner"
+                    title={t('venueRoomsTab.unassign')}
                   >
                     <X className="h-3.5 w-3.5" />
                   </Button>
@@ -299,7 +302,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                     size="icon"
                     className="h-7 w-7 text-destructive hover:text-destructive"
                     onClick={() => deleteMutation.mutate(room.id)}
-                    title="Supprimer"
+                    title={t('common:buttons.delete')}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -314,12 +317,12 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
       {unassignedRooms.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-foreground mb-3">
-            Assigner des salles existantes
+            {t('venueRoomsTab.assignExisting')}
           </h3>
           <div className="flex items-end gap-3">
             <div className="flex-1">
               <MultiSelectPopover
-                placeholder="Sélectionner des salles"
+                placeholder={t('venueRoomsTab.selectRooms')}
                 selected={selectedAssignIds}
                 onChange={setSelectedAssignIds}
                 options={unassignedRooms.map((r) => ({ value: r.id, label: r.name }))}
@@ -349,11 +352,11 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
             onClick={() => setShowCreateForm(true)}
           >
             <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Créer une nouvelle salle
+            {t('venueRoomsTab.createNew')}
           </Button>
         ) : (
           <div className="border rounded-lg p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Nouvelle salle</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('venueRoomsTab.newRoom')}</h3>
 
             <div className="flex items-center gap-3">
               <div className="relative h-12 w-12 rounded-md border border-border flex items-center justify-center overflow-hidden bg-muted flex-shrink-0">
@@ -370,7 +373,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                 disabled={isUploading}
                 onClick={triggerFileSelect}
               >
-                {isUploading ? "Téléchargement..." : "Image"}
+                {isUploading ? t('venueRoomsTab.uploading') : t('venueRoomsTab.image')}
                 {isUploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
               <input
@@ -385,9 +388,9 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
             <div className="space-y-3">
               <div className="grid grid-cols-[1fr_80px] gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Nom *</Label>
+                  <Label className="text-xs">{t('venueRoomsTab.name')}</Label>
                   <Input
-                    placeholder="Salle Zen"
+                    placeholder={t('venueRoomsTab.namePlaceholder')}
                     value={newRoomName}
                     onChange={(e) => setNewRoomName(e.target.value)}
                     className="h-9"
@@ -406,7 +409,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Soins compatibles *</Label>
+                <Label className="text-xs">{t('venueRoomsTab.compatibleTreatments')}</Label>
                 <div className="flex flex-wrap gap-1.5">
                   {ROOM_TYPES.map((type) => {
                     const isSelected = newRoomCapabilities.includes(type.value);
@@ -449,7 +452,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                   setNewRoomImage("");
                 }}
               >
-                Annuler
+                {t('common:buttons.cancel')}
               </Button>
               <Button
                 size="sm"

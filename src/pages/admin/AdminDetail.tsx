@@ -1,5 +1,7 @@
 import { ArrowLeft, User, Check, ChevronsUpDown, Loader2, Mail, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -47,18 +49,19 @@ import {
 import { cn } from "@/lib/utils";
 import { countries, formatPhoneNumber } from "@/lib/adminPhone";
 
-const adminFormSchema = z.object({
-  firstName: z.string().min(1, "Le prénom est requis"),
-  lastName: z.string().min(1, "Le nom est requis"),
-  email: z.string().min(1, "L'email est requis").email("Format d'email invalide"),
-  phone: z.string().min(1, "Le téléphone est requis"),
+const makeAdminFormSchema = (t: TFunction) => z.object({
+  firstName: z.string().min(1, t('validation.firstNameRequired')),
+  lastName: z.string().min(1, t('validation.lastNameRequired')),
+  email: z.string().min(1, t('validation.emailRequired')).email(t('validation.emailInvalid')),
+  phone: z.string().min(1, t('validation.phoneRequired')),
   countryCode: z.string(),
   profileImage: z.string().nullable(),
 });
 
-type AdminFormValues = z.infer<typeof adminFormSchema>;
+type AdminFormValues = z.infer<ReturnType<typeof makeAdminFormSchema>>;
 
 export default function AdminDetail() {
+  const { t } = useTranslation(['admin', 'common']);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -66,6 +69,7 @@ export default function AdminDetail() {
   const [confirmResend, setConfirmResend] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const adminFormSchema = useMemo(() => makeAdminFormSchema(t), [t]);
   const form = useForm<AdminFormValues>({
     resolver: zodResolver(adminFormSchema),
     defaultValues: {
@@ -125,12 +129,12 @@ export default function AdminDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", id] });
       queryClient.invalidateQueries({ queryKey: ["admins"] });
-      toast({ title: "Succès", description: "Administrateur modifié" });
+      toast({ title: t('common:toasts.success'), description: t('admins.detail.updated') });
     },
     onError: (error: Error) => {
       toast({
-        title: "Erreur",
-        description: error.message || "Erreur lors de la modification",
+        title: t('common:toasts.error'),
+        description: error.message || t('admins.detail.updateError'),
         variant: "destructive",
       });
     },
@@ -150,16 +154,15 @@ export default function AdminDetail() {
     },
     onSuccess: () => {
       toast({
-        title: "Invitation renvoyée",
-        description:
-          "Un nouvel email avec un mot de passe temporaire a été envoyé.",
+        title: t('admins.detail.resentTitle'),
+        description: t('admins.detail.resentDesc'),
       });
       setConfirmResend(false);
     },
     onError: (error: Error) => {
       toast({
-        title: "Erreur",
-        description: error.message || "Le renvoi a échoué",
+        title: t('common:toasts.error'),
+        description: error.message || t('admins.detail.resendError'),
         variant: "destructive",
       });
       setConfirmResend(false);
@@ -176,13 +179,13 @@ export default function AdminDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admins"] });
-      toast({ title: "Succès", description: "Administrateur supprimé" });
+      toast({ title: t('common:toasts.success'), description: t('admins.detail.deleted') });
       navigate("/admin/admins");
     },
     onError: (error: Error) => {
       toast({
-        title: "Erreur",
-        description: error.message || "Erreur lors de la suppression",
+        title: t('common:toasts.error'),
+        description: error.message || t('admins.detail.deleteError'),
         variant: "destructive",
       });
       setConfirmDelete(false);
@@ -206,8 +209,8 @@ export default function AdminDetail() {
     } catch (error) {
       console.error("Error uploading image:", error);
       toast({
-        title: "Erreur",
-        description: "Erreur lors de l'upload",
+        title: t('common:toasts.error'),
+        description: t('admins.uploadError'),
         variant: "destructive",
       });
     }
@@ -228,9 +231,9 @@ export default function AdminDetail() {
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-3xl mx-auto">
           <Button variant="ghost" onClick={() => navigate("/admin/admins")}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Retour
+            <ArrowLeft className="h-4 w-4 mr-2" /> {t('common:buttons.back')}
           </Button>
-          <p className="mt-6 text-muted-foreground">Administrateur introuvable.</p>
+          <p className="mt-6 text-muted-foreground">{t('admins.detail.notFound')}</p>
         </div>
       </div>
     );
@@ -246,7 +249,7 @@ export default function AdminDetail() {
             onClick={() => navigate("/admin/admins")}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Admins
+            {t('admins.title')}
           </Button>
         </div>
 
@@ -279,9 +282,9 @@ export default function AdminDetail() {
                 )}
               >
                 {admin.status === "active"
-                  ? "Actif"
+                  ? t('admins.statusActive')
                   : admin.status === "pending"
-                    ? "En attente"
+                    ? t('admins.statusPending')
                     : admin.status}
               </Badge>
             </div>
@@ -290,14 +293,14 @@ export default function AdminDetail() {
 
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-base">Informations</CardTitle>
-            <CardDescription>Modifier les informations du compte administrateur</CardDescription>
+            <CardTitle className="text-base">{t('admins.detail.infoTitle')}</CardTitle>
+            <CardDescription>{t('admins.detail.infoDesc')}</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div>
-                  <Label className="text-sm font-normal mb-2 block">Photo de profil</Label>
+                  <Label className="text-sm font-normal mb-2 block">{t('admins.profilePhoto')}</Label>
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                       {form.watch("profileImage") ? (
@@ -323,7 +326,7 @@ export default function AdminDetail() {
                       onClick={() => document.getElementById("profile-image-detail")?.click()}
                       type="button"
                     >
-                      Télécharger l'image
+                      {t('admins.uploadImage')}
                     </Button>
                   </div>
                 </div>
@@ -334,7 +337,7 @@ export default function AdminDetail() {
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-normal">Prénom</FormLabel>
+                        <FormLabel className="text-sm font-normal">{t('admins.firstName')}</FormLabel>
                         <FormControl>
                           <Input {...field} className="h-10" />
                         </FormControl>
@@ -347,7 +350,7 @@ export default function AdminDetail() {
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-normal">Nom</FormLabel>
+                        <FormLabel className="text-sm font-normal">{t('admins.lastName')}</FormLabel>
                         <FormControl>
                           <Input {...field} className="h-10" />
                         </FormControl>
@@ -362,7 +365,7 @@ export default function AdminDetail() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-normal">Email</FormLabel>
+                      <FormLabel className="text-sm font-normal">{t('admins.email')}</FormLabel>
                       <FormControl>
                         <Input type="email" {...field} className="h-10" />
                       </FormControl>
@@ -376,7 +379,7 @@ export default function AdminDetail() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-normal">Téléphone</FormLabel>
+                      <FormLabel className="text-sm font-normal">{t('admins.phone')}</FormLabel>
                       <div className="flex gap-2">
                         <Popover open={openCountrySelect} onOpenChange={setOpenCountrySelect}>
                           <PopoverTrigger asChild>
@@ -394,9 +397,9 @@ export default function AdminDetail() {
                           </PopoverTrigger>
                           <PopoverContent className="w-[200px] p-0">
                             <Command>
-                              <CommandInput placeholder="Rechercher pays..." />
+                              <CommandInput placeholder={t('admins.countrySearch')} />
                               <CommandList>
-                                <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                                <CommandEmpty>{t('admins.countryEmpty')}</CommandEmpty>
                                 <CommandGroup>
                                   {countries.map((country) => (
                                     <CommandItem
@@ -451,7 +454,7 @@ export default function AdminDetail() {
                     type="submit"
                     disabled={!form.formState.isDirty || updateMutation.isPending}
                   >
-                    {updateMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+                    {updateMutation.isPending ? t('admins.saving') : t('common:buttons.save')}
                     {updateMutation.isPending && (
                       <Loader2 className="ml-2 h-4 w-4 animate-spin" />
                     )}
@@ -464,15 +467,14 @@ export default function AdminDetail() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Actions</CardTitle>
+            <CardTitle className="text-base">{t('admins.detail.actionsTitle')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <p className="text-sm font-medium">Renvoyer l'invitation</p>
+                <p className="text-sm font-medium">{t('admins.detail.resendTitle')}</p>
                 <p className="text-sm text-muted-foreground">
-                  Génère un nouveau mot de passe temporaire et renvoie l'email de
-                  connexion.
+                  {t('admins.detail.resendDesc')}
                 </p>
               </div>
               <Button
@@ -481,7 +483,7 @@ export default function AdminDetail() {
                 disabled={resendInviteMutation.isPending}
               >
                 <Mail className="h-4 w-4 mr-2" />
-                Renvoyer
+                {t('admins.detail.resend')}
               </Button>
             </div>
 
@@ -490,10 +492,10 @@ export default function AdminDetail() {
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <p className="text-sm font-medium text-destructive">
-                  Supprimer l'administrateur
+                  {t('admins.detail.deleteTitle')}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Cette action est irréversible.
+                  {t('admins.detail.deleteDesc')}
                 </p>
               </div>
               <Button
@@ -503,7 +505,7 @@ export default function AdminDetail() {
                 disabled={deleteMutation.isPending}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Supprimer
+                {t('common:buttons.delete')}
               </Button>
             </div>
           </CardContent>
@@ -513,16 +515,15 @@ export default function AdminDetail() {
       <AlertDialog open={confirmResend} onOpenChange={setConfirmResend}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Renvoyer l'invitation ?</AlertDialogTitle>
+            <AlertDialogTitle>{t('admins.detail.confirmResendTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Un nouveau mot de passe temporaire sera généré et envoyé à{" "}
-              <strong>{admin.email}</strong>. L'ancien mot de passe ne fonctionnera
-              plus.
+              {t('admins.detail.confirmResendDescBefore')}{" "}
+              <strong>{admin.email}</strong>{t('admins.detail.confirmResendDescAfter')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={resendInviteMutation.isPending}>
-              Annuler
+              {t('common:buttons.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
@@ -531,7 +532,7 @@ export default function AdminDetail() {
               }}
               disabled={resendInviteMutation.isPending}
             >
-              {resendInviteMutation.isPending ? "Envoi..." : "Renvoyer"}
+              {resendInviteMutation.isPending ? t('admins.detail.sending') : t('admins.detail.resend')}
               {resendInviteMutation.isPending && (
                 <Loader2 className="ml-2 h-4 w-4 animate-spin" />
               )}
@@ -543,15 +544,14 @@ export default function AdminDetail() {
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+            <AlertDialogTitle>{t('admins.detail.confirmDeleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irréversible. Cet administrateur sera définitivement
-              supprimé.
+              {t('admins.detail.confirmDeleteDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Annuler
+              {t('common:buttons.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
@@ -561,7 +561,7 @@ export default function AdminDetail() {
               disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
+              {deleteMutation.isPending ? t('admins.detail.deleting') : t('common:buttons.delete')}
               {deleteMutation.isPending && (
                 <Loader2 className="ml-2 h-4 w-4 animate-spin" />
               )}

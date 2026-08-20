@@ -1,5 +1,7 @@
 import { Search, User, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,23 +53,27 @@ import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { countries, formatPhoneNumber } from "@/lib/adminPhone";
 
-const adminFormSchema = z.object({
-  firstName: z.string().min(1, "Le prénom est requis"),
-  lastName: z.string().min(1, "Le nom est requis"),
-  email: z.string().min(1, "L'email est requis").email("Format d'email invalide"),
-  phone: z.string().min(1, "Le téléphone est requis"),
+const makeAdminFormSchema = (t: TFunction) => z.object({
+  firstName: z.string().min(1, t('validation.firstNameRequired')),
+  lastName: z.string().min(1, t('validation.lastNameRequired')),
+  email: z.string().min(1, t('validation.emailRequired')).email(t('validation.emailInvalid')),
+  phone: z.string().min(1, t('validation.phoneRequired')),
   countryCode: z.string(),
   profileImage: z.string().nullable(),
 });
 
+type AdminFormValues = z.infer<ReturnType<typeof makeAdminFormSchema>>;
+
 export default function Admins() {
+  const { t } = useTranslation(['admin', 'common']);
   const navigate = useNavigate();
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
   const [openCountrySelect, setOpenCountrySelect] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
 
-  const form = useForm<z.infer<typeof adminFormSchema>>({
+  const adminFormSchema = useMemo(() => makeAdminFormSchema(t), [t]);
+  const form = useForm<AdminFormValues>({
     resolver: zodResolver(adminFormSchema),
     defaultValues: {
       firstName: "",
@@ -120,7 +126,7 @@ export default function Admins() {
   });
 
   const createAdminMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof adminFormSchema>) => {
+    mutationFn: async (data: AdminFormValues) => {
       const { data: existingAdmins, error: checkError } = await supabase
         .from("admins")
         .select("email, phone")
@@ -130,10 +136,10 @@ export default function Admins() {
       if (existingAdmins && existingAdmins.length > 0) {
         const existing = existingAdmins[0];
         if (existing.email === data.email) {
-          throw new Error("Un administrateur avec cet email existe déjà");
+          throw new Error(t('admins.duplicateEmail'));
         }
         if (existing.phone === data.phone) {
-          throw new Error("Un administrateur avec ce numéro de téléphone existe déjà");
+          throw new Error(t('admins.duplicatePhone'));
         }
       }
 
@@ -172,15 +178,15 @@ export default function Admins() {
 
       if (result?.invited) {
         toast({
-          title: "Succès",
-          description: "Administrateur ajouté. Un email d'invitation a été envoyé.",
+          title: t('common:toasts.success'),
+          description: t('admins.created'),
         });
       } else {
         toast({
-          title: "Admin créé",
+          title: t('admins.createdNoEmailTitle'),
           description:
             result?.inviteErrorMessage ||
-            "Admin créé mais l'email d'invitation n'a pas pu être envoyé.",
+            t('admins.createdNoEmail'),
           variant: "destructive",
         });
       }
@@ -191,8 +197,8 @@ export default function Admins() {
     },
     onError: (error: Error) => {
       toast({
-        title: "Erreur",
-        description: error.message || "Erreur lors de l'ajout",
+        title: t('common:toasts.error'),
+        description: error.message || t('admins.addError'),
         variant: "destructive",
       });
     },
@@ -212,18 +218,18 @@ export default function Admins() {
         .from("avatars")
         .getPublicUrl(fileName);
       form.setValue("profileImage", publicUrl);
-      toast({ title: "Succès", description: "Image uploadée" });
+      toast({ title: t('common:toasts.success'), description: t('admins.imageUploaded') });
     } catch (error) {
       console.error("Error uploading image:", error);
       toast({
-        title: "Erreur",
-        description: "Erreur lors de l'upload",
+        title: t('common:toasts.error'),
+        description: t('admins.uploadError'),
         variant: "destructive",
       });
     }
   };
 
-  const onSubmit = (data: z.infer<typeof adminFormSchema>) => {
+  const onSubmit = (data: AdminFormValues) => {
     createAdminMutation.mutate(data);
   };
 
@@ -249,7 +255,7 @@ export default function Admins() {
       <div className="max-w-6xl mx-auto">
         <div className="mb-4 md:mb-6">
           <h1 className="text-lg font-medium text-foreground mb-4 md:mb-8">
-            Admins
+            {t('admins.title')}
           </h1>
         </div>
 
@@ -257,7 +263,7 @@ export default function Admins() {
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Rechercher"
+              placeholder={t('admins.search')}
               className="pl-10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -265,7 +271,7 @@ export default function Admins() {
           </div>
           {isAdmin && (
             <Button className="md:ml-auto" onClick={handleOpenAddDialog}>
-              Nouvel administrateur
+              {t('admins.new')}
             </Button>
           )}
         </div>
@@ -274,10 +280,10 @@ export default function Admins() {
           <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Nom</TableHead>
-                <TableHead className="font-semibold">Email</TableHead>
-                <TableHead className="font-semibold">Numéro de téléphone</TableHead>
-                <TableHead className="font-semibold">Statut</TableHead>
+                <TableHead className="font-semibold">{t('admins.colName')}</TableHead>
+                <TableHead className="font-semibold">{t('admins.colEmail')}</TableHead>
+                <TableHead className="font-semibold">{t('admins.colPhone')}</TableHead>
+                <TableHead className="font-semibold">{t('admins.colStatus')}</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
@@ -285,13 +291,13 @@ export default function Admins() {
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Chargement...
+                    {t('common:loading')}
                   </TableCell>
                 </TableRow>
               ) : filteredAdmins.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Aucun administrateur trouvé
+                    {t('admins.empty')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -335,9 +341,9 @@ export default function Admins() {
                         )}
                       >
                         {admin.status === "active"
-                          ? "Actif"
+                          ? t('admins.statusActive')
                           : admin.status === "pending"
-                            ? "En attente"
+                            ? t('admins.statusPending')
                             : admin.status}
                       </Badge>
                     </TableCell>
@@ -356,14 +362,14 @@ export default function Admins() {
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">
-              Ajouter un admin
+              {t('admins.addTitle')}
             </DialogTitle>
           </DialogHeader>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
               <div>
-                <Label className="text-sm font-normal mb-2 block">Photo de profil</Label>
+                <Label className="text-sm font-normal mb-2 block">{t('admins.profilePhoto')}</Label>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                     {form.watch("profileImage") ? (
@@ -390,7 +396,7 @@ export default function Admins() {
                     onClick={() => document.getElementById("profile-image")?.click()}
                     type="button"
                   >
-                    Télécharger l'image
+                    {t('admins.uploadImage')}
                   </Button>
                 </div>
               </div>
@@ -400,9 +406,9 @@ export default function Admins() {
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-normal">Prénom</FormLabel>
+                    <FormLabel className="text-sm font-normal">{t('admins.firstName')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Prénom" {...field} className="h-10" />
+                      <Input placeholder={t('admins.firstName')} {...field} className="h-10" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -414,9 +420,9 @@ export default function Admins() {
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-normal">Nom</FormLabel>
+                    <FormLabel className="text-sm font-normal">{t('admins.lastName')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nom" {...field} className="h-10" />
+                      <Input placeholder={t('admins.lastName')} {...field} className="h-10" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -428,11 +434,11 @@ export default function Admins() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-normal">Email</FormLabel>
+                    <FormLabel className="text-sm font-normal">{t('admins.email')}</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder="Saisir l'adresse e-mail"
+                        placeholder={t('admins.emailPlaceholder')}
                         {...field}
                         className="h-10"
                       />
@@ -447,7 +453,7 @@ export default function Admins() {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-normal">Téléphone</FormLabel>
+                    <FormLabel className="text-sm font-normal">{t('admins.phone')}</FormLabel>
                     <div className="flex gap-2">
                       <Popover open={openCountrySelect} onOpenChange={setOpenCountrySelect}>
                         <PopoverTrigger asChild>
@@ -459,15 +465,15 @@ export default function Admins() {
                           >
                             {form.watch("countryCode")
                               ? `${countries.find((c) => c.code === form.watch("countryCode"))?.flag} ${countries.find((c) => c.code === form.watch("countryCode"))?.label} (${form.watch("countryCode")})`
-                              : "Sélectionner..."}
+                              : t('admins.selectPlaceholder')}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-[200px] p-0">
                           <Command>
-                            <CommandInput placeholder="Rechercher pays..." />
+                            <CommandInput placeholder={t('admins.countrySearch')} />
                             <CommandList>
-                              <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                              <CommandEmpty>{t('admins.countryEmpty')}</CommandEmpty>
                               <CommandGroup>
                                 {countries.map((country) => (
                                   <CommandItem
@@ -523,14 +529,14 @@ export default function Admins() {
                   type="button"
                   disabled={createAdminMutation.isPending}
                 >
-                  Annuler
+                  {t('common:buttons.cancel')}
                 </Button>
                 <Button
                   type="submit"
                   className="px-5"
                   disabled={createAdminMutation.isPending}
                 >
-                  {createAdminMutation.isPending ? "Enregistrement..." : "Créer"}
+                  {createAdminMutation.isPending ? t('admins.saving') : t('admins.create')}
                   {createAdminMutation.isPending && (
                     <Loader2 className="ml-2 h-4 w-4 animate-spin" />
                   )}
