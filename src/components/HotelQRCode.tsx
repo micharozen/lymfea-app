@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import QRCode from 'qrcode';
 import { brand } from '@/config/brand';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ interface HotelQRCodeProps {
 }
 
 export function HotelQRCode({ slug, hotelName }: HotelQRCodeProps) {
+  const { t } = useTranslation(['admin', 'common']);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState<Lang | null>(null);
@@ -68,13 +70,13 @@ export function HotelQRCode({ slug, hotelName }: HotelQRCodeProps) {
       });
       setQrCodeUrl(dataUrl);
     } catch (error) {
-      toast.error('Erreur lors de la génération du QR code');
+      toast.error(t('admin:editBooking.qrCode.generateError'));
     }
   };
 
   const handleDownload = () => {
     if (!qrCodeUrl) {
-      toast.error('QR code non disponible');
+      toast.error(t('admin:editBooking.qrCode.unavailable'));
       return;
     }
     const link = document.createElement('a');
@@ -83,13 +85,13 @@ export function HotelQRCode({ slug, hotelName }: HotelQRCodeProps) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('QR code téléchargé');
+    toast.success(t('admin:editBooking.qrCode.downloaded'));
   };
 
   const handleCopyLink = async (lang: Lang) => {
     await navigator.clipboard.writeText(getBookingUrl(lang));
     setCopied(lang);
-    toast.success('Lien copié');
+    toast.success(t('admin:editBooking.qrCode.linkCopied'));
     setTimeout(() => setCopied(null), 2000);
   };
 
@@ -104,7 +106,7 @@ export function HotelQRCode({ slug, hotelName }: HotelQRCodeProps) {
           variant="ghost"
           size="icon"
           className="h-7 w-7 hover:bg-muted"
-          title="Voir le QR code"
+          title={t('admin:editBooking.qrCode.view')}
           onClick={(e) => e.stopPropagation()}
         >
           <QrCodeIcon className="h-4 w-4 text-muted-foreground" />
@@ -153,7 +155,7 @@ export function HotelQRCode({ slug, hotelName }: HotelQRCodeProps) {
               className="gap-1.5"
             >
               {copied === selectedLang ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              <span className="text-xs">{copied === selectedLang ? 'Copié' : 'Copier'}</span>
+              <span className="text-xs">{copied === selectedLang ? t('admin:editBooking.qrCode.copied') : t('admin:editBooking.qrCode.copy')}</span>
             </Button>
             <Button
               onClick={handleOpenLink}
@@ -162,7 +164,7 @@ export function HotelQRCode({ slug, hotelName }: HotelQRCodeProps) {
               className="gap-1.5"
             >
               <ExternalLink className="h-3.5 w-3.5" />
-              <span className="text-xs">Ouvrir</span>
+              <span className="text-xs">{t('admin:editBooking.qrCode.open')}</span>
             </Button>
             <Button
               onClick={handleDownload}

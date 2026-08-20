@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   EIA_VENUE_ID,
   MANUAL_PAYMENT_METHODS,
-  PAYMENT_METHOD_LABELS,
-  PAYMENT_METHOD_FILTER_OPTIONS,
+  PAYMENT_METHOD_LABEL_KEYS,
+  paymentMethodFilterOptions,
   PAYMENT_METHOD_UNSET,
   manualPaymentMethodsForVenue,
   paymentMethodLabel,
@@ -23,7 +23,7 @@ describe("MANUAL_PAYMENT_METHODS", () => {
 
   it("only lists known methods", () => {
     for (const method of MANUAL_PAYMENT_METHODS) {
-      expect(PAYMENT_METHOD_LABELS[method]).toBeDefined();
+      expect(PAYMENT_METHOD_LABEL_KEYS[method]).toBeDefined();
     }
   });
 });
@@ -47,10 +47,10 @@ describe("manualPaymentMethodsForVenue", () => {
   });
 });
 
-describe("PAYMENT_METHOD_FILTER_OPTIONS", () => {
+describe("paymentMethodFilterOptions", () => {
   it("covers every known method plus the unset bucket", () => {
-    const values = PAYMENT_METHOD_FILTER_OPTIONS.map((o) => o.value);
-    expect(values).toEqual([...Object.keys(PAYMENT_METHOD_LABELS), PAYMENT_METHOD_UNSET]);
+    const values = paymentMethodFilterOptions().map((o) => o.value);
+    expect(values).toEqual([...Object.keys(PAYMENT_METHOD_LABEL_KEYS), PAYMENT_METHOD_UNSET]);
   });
 });
 
@@ -61,8 +61,8 @@ describe("paymentMethodLabel", () => {
   });
 
   it("distinguishes an online payment from an on-site card", () => {
-    expect(paymentMethodLabel("card")).toBe("Paiement en ligne");
-    expect(paymentMethodLabel("card_on_site")).toBe("CB sur place");
+    expect(PAYMENT_METHOD_LABEL_KEYS.card).not.toBe(PAYMENT_METHOD_LABEL_KEYS.card_on_site);
+    expect(paymentMethodLabel("card")).not.toBe(paymentMethodLabel("card_on_site"));
   });
 
   it("falls back to the raw value for an unknown method", () => {

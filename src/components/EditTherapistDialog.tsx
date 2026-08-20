@@ -79,7 +79,7 @@ export default function EditTherapistDialog({
   therapist,
   onSuccess,
 }: EditTherapistDialogProps) {
-  const { t, i18n } = useTranslation('common');
+  const { t } = useTranslation(['admin', 'common']);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>(
     therapist.therapist_venues?.map((hh) => hh.hotel_id) || []
@@ -147,7 +147,7 @@ export default function EditTherapistDialog({
       const data = await listHotelsForOrg(supabase, scope);
       setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
     } catch {
-      toast.error("Erreur lors du chargement des hôtels");
+      toast.error(t('admin:therapistsPage.loadVenuesError'));
     }
   };
 
@@ -170,7 +170,7 @@ export default function EditTherapistDialog({
       .eq("id", therapist.id);
 
     if (error) {
-      toast.error("Erreur lors de la modification du thérapeute");
+      toast.error(t('admin:therapistDialog.updateError'));
       return;
     }
 
@@ -192,7 +192,7 @@ export default function EditTherapistDialog({
         .insert(hotelRelations);
 
       if (relationError) {
-        toast.error("Erreur lors de l'association des hôtels");
+        toast.error(t('admin:therapistDialog.venuesLinkError'));
         return;
       }
     }
@@ -203,11 +203,11 @@ export default function EditTherapistDialog({
         treatmentMenuIds: selectedTreatmentIds,
       });
     } catch {
-      toast.error("Erreur lors de l'association des prestations");
+      toast.error(t('admin:therapistDialog.treatmentsLinkError'));
       return;
     }
 
-    toast.success("Thérapeute modifié avec succès");
+    toast.success(t('admin:therapistDialog.updated'));
     onOpenChange(false);
     onSuccess();
   };
@@ -216,11 +216,11 @@ export default function EditTherapistDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Modifier le thérapeute</DialogTitle>
+          <DialogTitle>{t('admin:therapistDialog.editTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Photo de profil</Label>
+            <Label>{t('admin:admins.profilePhoto')}</Label>
             <div className="flex items-center gap-3">
               <Avatar className="h-16 w-16">
                 <AvatarImage src={profileImage || ""} />
@@ -244,7 +244,7 @@ export default function EditTherapistDialog({
                 onClick={triggerFileSelect}
                 disabled={uploading}
               >
-                {uploading ? "Téléchargement..." : "Télécharger une image"}
+                {uploading ? t('admin:therapistDialog.uploading') : t('admin:therapistDialog.uploadImage')}
                 {uploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
             </div>
@@ -252,7 +252,7 @@ export default function EditTherapistDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="first_name">Prénom *</Label>
+              <Label htmlFor="first_name">{t('admin:therapistDialog.firstName')}</Label>
               <Input
                 id="first_name"
                 value={formData.first_name}
@@ -263,7 +263,7 @@ export default function EditTherapistDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="last_name">Nom *</Label>
+              <Label htmlFor="last_name">{t('admin:therapistDialog.lastName')}</Label>
               <Input
                 id="last_name"
                 value={formData.last_name}
@@ -276,7 +276,7 @@ export default function EditTherapistDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email *</Label>
+            <Label htmlFor="email">{t('admin:therapistDialog.email')}</Label>
             <Input
               id="email"
               type="email"
@@ -289,7 +289,7 @@ export default function EditTherapistDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Téléphone *</Label>
+            <Label htmlFor="phone">{t('admin:therapistDialog.phone')}</Label>
             <PhoneNumberField
               id="phone"
               value={formData.phone}
@@ -301,7 +301,7 @@ export default function EditTherapistDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Hôtels</Label>
+            <Label>{t('admin:therapistDialog.venues')}</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -310,7 +310,7 @@ export default function EditTherapistDialog({
                 >
                   <span className="truncate">
                     {selectedHotels.length === 0
-                      ? "Sélectionner des hôtels"
+                      ? t('admin:therapistDialog.selectVenues')
                       : hotels
                           .filter((h) => selectedHotels.includes(h.id))
                           .map((h) => h.name)
@@ -363,7 +363,7 @@ export default function EditTherapistDialog({
 
           <div className="space-y-2">
             <Label>
-              {t("admin:therapistTreatments.title", "Prestations réalisables")}
+              {t("admin:therapistTreatments.title")}
             </Label>
             <div className="max-h-64 overflow-y-auto rounded-lg border p-3">
               <TherapistTreatmentsSelector
@@ -375,8 +375,8 @@ export default function EditTherapistDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>{t('admin:therapists.minimumGuarantee', 'Minimum garanti')}</Label>
-            <p className="text-xs text-muted-foreground">{t('admin:therapists.minimumGuaranteeDesc', 'Nombre minimum de soins quotidiens garantis par jour')}</p>
+            <Label>{t('admin:therapists.minimumGuarantee')}</Label>
+            <p className="text-xs text-muted-foreground">{t('admin:therapists.minimumGuaranteeDesc')}</p>
             <MinimumGuaranteeEditor
               value={minimumGuarantee}
               onChange={setMinimumGuarantee}
@@ -384,7 +384,7 @@ export default function EditTherapistDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="status">Statut *</Label>
+            <Label htmlFor="status">{t('admin:therapistDialog.status')}</Label>
             <Select
               value={formData.status}
               onValueChange={(value) =>
@@ -395,17 +395,17 @@ export default function EditTherapistDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">{t('status.active')}</SelectItem>
-                <SelectItem value="inactive">{t('status.inactive')}</SelectItem>
+                <SelectItem value="active">{t('common:status.active')}</SelectItem>
+                <SelectItem value="inactive">{t('common:status.inactive')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="flex justify-end gap-4 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Annuler
+              {t('common:buttons.cancel')}
             </Button>
-            <Button type="submit">Modifier</Button>
+            <Button type="submit">{t('common:buttons.edit')}</Button>
           </div>
         </form>
       </DialogContent>

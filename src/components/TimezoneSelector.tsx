@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Globe, RotateCcw, Search } from 'lucide-react';
 import {
   Popover,
@@ -38,6 +39,7 @@ export function TimezoneSelector({
   showReset = true,
   className 
 }: TimezoneSelectorProps) {
+  const { t } = useTranslation('common');
   const { 
     activeTimezone, 
     setActiveTimezone, 
@@ -63,9 +65,9 @@ export function TimezoneSelector({
             </div>
           </TooltipTrigger>
           <TooltipContent>
-            {isTemporaryTimezone 
-              ? `Vue temporaire (votre fuseau: ${getTimezoneLabel(userTimezone)})`
-              : 'Fuseau horaire'}
+            {isTemporaryTimezone
+              ? t('timezone.temporaryView', { timezone: getTimezoneLabel(userTimezone) })
+              : t('timezone.label')}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -87,9 +89,9 @@ export function TimezoneSelector({
         </PopoverTrigger>
         <PopoverContent className="w-[300px] p-0" align="start">
           <Command>
-            <CommandInput placeholder="Rechercher un fuseau horaire..." />
+            <CommandInput placeholder={t('timezone.searchPlaceholder')} />
             <CommandList className="max-h-[300px]">
-              <CommandEmpty>Aucun fuseau horaire trouvé.</CommandEmpty>
+              <CommandEmpty>{t('timezone.empty')}</CommandEmpty>
               {Object.entries(getGroupedTimezones()).map(([region, timezones]) => (
                 timezones.length > 0 && (
                   <CommandGroup key={region} heading={region}>
@@ -129,7 +131,7 @@ export function TimezoneSelector({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              Revenir à votre fuseau ({getTimezoneLabel(userTimezone)})
+              {t('timezone.backToYours', { timezone: getTimezoneLabel(userTimezone) })}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -152,17 +154,19 @@ interface TimezoneSelectFieldProps {
 export function TimezoneSelectField({
   value,
   onChange,
-  label = "Fuseau horaire",
+  label,
   className,
   disabled
 }: TimezoneSelectFieldProps) {
+  const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
   const currentLabel = getTimezoneLabel(value);
+  const fieldLabel = label ?? t('timezone.label');
 
   return (
     <div className={cn("space-y-2", className)}>
-      {label && (
-        <label className="text-sm font-medium">{label}</label>
+      {fieldLabel && (
+        <label className="text-sm font-medium">{fieldLabel}</label>
       )}
       <Popover open={disabled ? false : open} onOpenChange={disabled ? undefined : setOpen}>
         <PopoverTrigger asChild>
@@ -175,15 +179,15 @@ export function TimezoneSelectField({
           >
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-muted-foreground" />
-              <span>{currentLabel || "Sélectionner un fuseau horaire"}</span>
+              <span>{currentLabel || t('timezone.select')}</span>
             </div>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[300px] p-0" align="start">
           <Command>
-            <CommandInput placeholder="Rechercher un fuseau horaire..." />
+            <CommandInput placeholder={t('timezone.searchPlaceholder')} />
             <CommandList className="max-h-[300px]">
-              <CommandEmpty>Aucun fuseau horaire trouvé.</CommandEmpty>
+              <CommandEmpty>{t('timezone.empty')}</CommandEmpty>
               {Object.entries(getGroupedTimezones()).map(([region, timezones]) => (
                 timezones.length > 0 && (
                   <CommandGroup key={region} heading={region}>

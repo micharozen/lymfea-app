@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useExchangeRates } from "@/hooks/useExchangeRates";
 import { convertToEUR } from "@/lib/currencyConversion";
 import { formatPrice } from "@/lib/formatPrice";
-import { bookingStatusConfig, type BookingStatus } from "@/utils/statusStyles";
+import { getBookingStatusConfig } from "@/utils/statusStyles";
 import { normalizeBookingClientType } from "@/lib/clientTypeMeta";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { getDashboardDataForOrg, type DashboardBooking } from "@shared/db";
@@ -673,12 +673,10 @@ export function useDashboardData(
       counts[b.status] = (counts[b.status] || 0) + 1;
     });
     return Object.entries(counts)
-      .map(([status, value]) => ({
-        name: bookingStatusConfig[status as BookingStatus]?.label || status,
-        value,
-        color: bookingStatusConfig[status as BookingStatus]?.hexColor || "#6b7280",
-        status,
-      }))
+      .map(([status, value]) => {
+        const config = getBookingStatusConfig(status);
+        return { name: config.label || status, value, color: config.hexColor, status };
+      })
       .sort((a, b) => b.value - a.value);
   }, [filteredBookings]);
 

@@ -4,6 +4,7 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BookingNotificationForm } from "./BookingNotificationForm";
@@ -22,6 +23,7 @@ export function SendBookingNotificationDialog({
   booking,
   onSuccess,
 }: SendBookingNotificationDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const handleClose = () => {
     onOpenChange(false);
   };
@@ -36,7 +38,7 @@ export function SendBookingNotificationDialog({
       <DialogContent className="sm:max-w-md p-0 gap-0 flex flex-col max-h-[90vh]">
         {/* Header fixe — le X reste toujours visible même si le contenu défile */}
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
-          <DialogTitle className="text-base font-semibold">Envoyer la confirmation</DialogTitle>
+          <DialogTitle className="text-base font-semibold">{t("admin:bookingNotification.title")}</DialogTitle>
           <DialogClose asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8 -mr-1 shrink-0">
               <X className="h-4 w-4" />

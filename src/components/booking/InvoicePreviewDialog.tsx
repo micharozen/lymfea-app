@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -51,14 +52,15 @@ export function InvoicePreviewDialog({
   filename,
   sendToTherapist,
 }: InvoicePreviewDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const [confirmSendOpen, setConfirmSendOpen] = useState(false);
   const [sending, setSending] = useState(false);
 
   const computedTitle =
     title ??
     (isRoomPayment
-      ? `Bon de Prestation #${bookingId}`
-      : `Aperçu de la facture #${bookingId}`);
+      ? t("admin:invoicePreview.serviceVoucherTitle", { number: bookingId })
+      : t("admin:invoicePreview.invoiceTitle", { number: bookingId }));
 
   const computedFilename =
     filename ??
@@ -87,13 +89,13 @@ export function InvoicePreviewDialog({
         logContext: { flow: "send-therapist-invoice", invoiceId: sendToTherapist.invoiceId },
       });
       if (error) throw error;
-      toast.success("Facture envoyée au thérapeute");
+      toast.success(t("admin:invoicePreview.toasts.sent"));
       sendToTherapist.onSent?.();
       setConfirmSendOpen(false);
       onOpenChange(false);
     } catch (err) {
       console.error("Error sending invoice:", err);
-      toast.error("Échec de l'envoi de la facture");
+      toast.error(t("admin:invoicePreview.errors.sendFailed"));
     } finally {
       setSending(false);
     }
@@ -118,7 +120,7 @@ export function InvoicePreviewDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
           >
-            Annuler
+            {t("common:buttons.cancel")}
           </Button>
           {sendToTherapist && (
             <Button
@@ -127,12 +129,12 @@ export function InvoicePreviewDialog({
               disabled={sending}
             >
               <Send className="h-4 w-4 mr-2" />
-              Envoyer au thérapeute
+              {t("admin:invoicePreview.sendToTherapist")}
             </Button>
           )}
           <Button onClick={handleDownload}>
             <Download className="h-4 w-4 mr-2" />
-            Télécharger PDF
+            {t("admin:invoicePreview.downloadPdf")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -141,15 +143,15 @@ export function InvoicePreviewDialog({
         <AlertDialog open={confirmSendOpen} onOpenChange={setConfirmSendOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Envoyer la facture au thérapeute ?</AlertDialogTitle>
+              <AlertDialogTitle>{t("admin:invoicePreview.confirmSendTitle")}</AlertDialogTitle>
               <AlertDialogDescription>
                 {sendToTherapist.recipientEmail
-                  ? `La facture sera envoyée en pièce jointe (PDF) à ${sendToTherapist.recipientEmail}.`
-                  : "Aucune adresse email n'est renseignée pour ce thérapeute."}
+                  ? t("admin:invoicePreview.confirmSendDescription", { email: sendToTherapist.recipientEmail })
+                  : t("admin:invoicePreview.noRecipientEmail")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={sending}>Annuler</AlertDialogCancel>
+              <AlertDialogCancel disabled={sending}>{t("common:buttons.cancel")}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={(e) => {
                   e.preventDefault();
@@ -158,7 +160,7 @@ export function InvoicePreviewDialog({
                 disabled={sending || !sendToTherapist.recipientEmail}
               >
                 {sending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Envoyer
+                {t("admin:invoicePreview.send")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

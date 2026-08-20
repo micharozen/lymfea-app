@@ -56,7 +56,7 @@ import {
 } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType, isPartnerBilledBooking, isPaymentStatusLocked } from "@/lib/clientTypePayment";
 
-import { PAYMENT_METHOD_LABELS, manualPaymentMethodsForVenue } from "@/lib/paymentMethod";
+import { paymentMethodLabel, manualPaymentMethodsForVenue } from "@/lib/paymentMethod";
 
 // Origine de la réservation (colonne bookings.source) → tag affiché dans le header.
 // label = texte, className = couleurs du badge (bg + texte + bordure).
@@ -363,7 +363,7 @@ export default function BookingDetail() {
   const remainingDue = Math.max(displayPrice - paidAmount, 0);
   const paidRatio = displayPrice > 0 ? Math.min(paidAmount / displayPrice, 1) : (isSettled || isOffert ? 1 : 0);
   const methodLabel = booking.payment_method
-    ? (PAYMENT_METHOD_LABELS[booking.payment_method] || booking.payment_method)
+    ? paymentMethodLabel(booking.payment_method)
     : t('bookingDetail.methodTbd');
   const MethodIcon = booking.payment_method ? (PAYMENT_METHOD_ICONS[booking.payment_method] ?? CreditCard) : CreditCard;
 
@@ -1033,7 +1033,7 @@ export default function BookingDetail() {
                     déjà la valeur courante, pour ne pas vider le Select. */}
                 {markPaidMethodOptions.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {PAYMENT_METHOD_LABELS[value] ?? value}
+                    {paymentMethodLabel(value)}
                   </SelectItem>
                 ))}
               </SelectContent>

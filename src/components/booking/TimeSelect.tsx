@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { SelectField } from "@/components/ui/select-field";
 
 const HOURS = Array.from({ length: 17 }, (_, i) => String(i + 7).padStart(2, '0'));
@@ -25,6 +26,7 @@ export function TimeSelect({
   isHourUnavailable,
   isMinuteUnavailable,
 }: TimeSelectProps) {
+  const { t } = useTranslation(['admin', 'common']);
   const [hour, minute] = (value ?? '').split(':');
 
   return (
@@ -41,7 +43,7 @@ export function TimeSelect({
         searchable={false}
         className="w-[92px]"
         contentClassName="w-[86px]"
-        aria-label="Heure"
+        aria-label={t('admin:timeSelect.hour')}
       />
       <span className="flex items-center text-muted-foreground">:</span>
       <SelectField
@@ -56,7 +58,7 @@ export function TimeSelect({
         searchable={false}
         className="w-[92px]"
         contentClassName="w-[86px]"
-        aria-label="Minutes"
+        aria-label={t('admin:timeSelect.minutes')}
       />
     </>
   );

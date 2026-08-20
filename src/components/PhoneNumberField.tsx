@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export type CountryOption = { code: string; label: string; flag: string };
 
@@ -31,6 +32,7 @@ export function PhoneNumberField({
   disabled,
   inputClassName,
 }: PhoneNumberFieldProps) {
+  const { t } = useTranslation("common");
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -77,7 +79,7 @@ export function PhoneNumberField({
         >
           <div className="p-2 border-b">
             <Input
-              placeholder="Rechercher"
+              placeholder={t("buttons.search")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-8 text-sm"
@@ -120,11 +122,11 @@ export function PhoneNumberField({
                     className="flex w-full items-center px-3 py-1.5 text-sm hover:bg-muted"
                   >
                     <span className="w-6 shrink-0 text-xs text-muted-foreground">🌍</span>
-                    <span className="flex-1 text-left">Utiliser {search.trim()}</span>
+                    <span className="flex-1 text-left">{t("phoneField.use", { code: search.trim() })}</span>
                   </button>
                 ) : (
                   <div className="px-3 py-2 text-sm text-muted-foreground">
-                    Aucun résultat — tapez un indicatif (ex: +355)
+                    {t("phoneField.noResult")}
                   </div>
                 )
               )}

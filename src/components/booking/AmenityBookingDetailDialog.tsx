@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -28,6 +29,7 @@ export function AmenityBookingDetailDialog({
   booking,
   onEdit,
 }: AmenityBookingDetailDialogProps) {
+  const { t, i18n } = useTranslation(["admin", "common"]);
   const queryClient = useQueryClient();
 
   const cancelMutation = useMutation({
@@ -40,10 +42,10 @@ export function AmenityBookingDetailDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["amenity-bookings"] });
-      toast.success("Réservation annulée");
+      toast.success(t("admin:amenityBookingDetail.toasts.cancelled"));
       onOpenChange(false);
     },
-    onError: () => toast.error("Erreur lors de l'annulation"),
+    onError: () => toast.error(t("admin:amenityBookingDetail.errors.cancelFailed")),
   });
 
   const completeMutation = useMutation({
@@ -56,10 +58,10 @@ export function AmenityBookingDetailDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["amenity-bookings"] });
-      toast.success("Réservation terminée");
+      toast.success(t("admin:amenityBookingDetail.toasts.completed"));
       onOpenChange(false);
     },
-    onError: () => toast.error("Erreur lors de la mise à jour"),
+    onError: () => toast.error(t("admin:amenityBookingDetail.errors.updateFailed")),
   });
 
   if (!booking) return null;
@@ -101,12 +103,12 @@ export function AmenityBookingDetailDialog({
                   : "destructive"
               }
             >
-              {booking.status === "confirmed" && "Confirmé"}
-              {booking.status === "completed" && "Terminé"}
-              {booking.status === "cancelled" && "Annulé"}
-              {booking.status === "noshow" && "No-show"}
+              {booking.status === "confirmed" && t("common:status.confirmed")}
+              {booking.status === "completed" && t("common:status.completed")}
+              {booking.status === "cancelled" && t("common:status.cancelled")}
+              {booking.status === "noshow" && t("admin:amenityBookingDetail.status.noshow")}
             </Badge>
-            <Badge variant="outline">{getClientTypeLabel(booking.client_type, "fr")}</Badge>
+            <Badge variant="outline">{getClientTypeLabel(booking.client_type, i18n.language)}</Badge>
           </div>
 
           {/* Client */}
@@ -122,7 +124,7 @@ export function AmenityBookingDetailDialog({
             )}
             {booking.room_number && (
               <div className="text-sm text-muted-foreground pl-6">
-                Chambre: {booking.room_number}
+                {t("admin:amenityBookingDetail.room", { number: booking.room_number })}
               </div>
             )}
           </div>
@@ -139,7 +141,7 @@ export function AmenityBookingDetailDialog({
           <div className="flex items-center gap-2 text-sm">
             <Users className="h-4 w-4 text-muted-foreground" />
             <span>
-              {booking.num_guests} / {booking.capacity_total} personnes
+              {t("admin:amenityBookingDetail.guests", { count: booking.num_guests, total: booking.capacity_total })}
             </span>
           </div>
 
@@ -153,7 +155,7 @@ export function AmenityBookingDetailDialog({
           {booking.price === 0 && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Euro className="h-4 w-4" />
-              <span>Gratuit</span>
+              <span>{t("admin:amenityBookingDetail.free")}</span>
             </div>
           )}
 
@@ -174,7 +176,7 @@ export function AmenityBookingDetailDialog({
                   onClick={() => onEdit(booking)}
                 >
                   <Pencil className="h-3.5 w-3.5 mr-1" />
-                  Modifier
+                  {t("common:buttons.edit")}
                 </Button>
               )}
               <div className="ml-auto flex gap-2">
@@ -186,7 +188,7 @@ export function AmenityBookingDetailDialog({
                   className="text-destructive hover:text-destructive"
                 >
                   <X className="h-3.5 w-3.5 mr-1" />
-                  Annuler
+                  {t("common:buttons.cancel")}
                 </Button>
                 <Button
                   size="sm"
@@ -194,7 +196,7 @@ export function AmenityBookingDetailDialog({
                   disabled={completeMutation.isPending}
                   className="bg-foreground text-background hover:bg-foreground/90"
                 >
-                  Terminer
+                  {t("admin:amenityBookingDetail.complete")}
                 </Button>
               </div>
             </div>

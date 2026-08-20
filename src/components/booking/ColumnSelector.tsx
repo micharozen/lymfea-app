@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   DndContext,
   KeyboardSensor,
@@ -31,6 +32,7 @@ export function ColumnSelector<T extends ColumnLike & { label: string }>({
   preferences,
   hiddenKeys = [],
 }: ColumnSelectorProps<T>) {
+  const { t } = useTranslation(["admin", "common"]);
   const [open, setOpen] = useState(false);
   const { orderedColumns, visibleKeys, toggle, reorder, reset, isDefault } = preferences;
 
@@ -54,7 +56,7 @@ export function ColumnSelector<T extends ColumnLike & { label: string }>({
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-normal">
           <Columns3 className="h-3.5 w-3.5" />
-          Colonnes
+          {t("admin:columnSelector.trigger")}
           <span className="ml-0.5 rounded-full bg-secondary px-1.5 text-[10px] leading-4 text-secondary-foreground">
             {visibleCount}/{listed.length}
           </span>
@@ -91,7 +93,7 @@ export function ColumnSelector<T extends ColumnLike & { label: string }>({
             onClick={reset}
             className="mt-1 w-full rounded-sm border-t border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
           >
-            Réinitialiser
+            {t("admin:columnSelector.reset")}
           </button>
         )}
       </PopoverContent>
@@ -108,6 +110,7 @@ interface SortableColumnRowProps {
 }
 
 function SortableColumnRow({ id, label, isVisible, canToggle, onToggle }: SortableColumnRowProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
   });
@@ -124,7 +127,7 @@ function SortableColumnRow({ id, label, isVisible, canToggle, onToggle }: Sortab
       <button
         type="button"
         className="cursor-grab px-1 py-1.5 text-muted-foreground hover:text-foreground active:cursor-grabbing"
-        aria-label={`Déplacer ${label}`}
+        aria-label={t("admin:columnSelector.move", { label })}
         {...attributes}
         {...listeners}
       >

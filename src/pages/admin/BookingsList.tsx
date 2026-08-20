@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { buildCsv, downloadCsv, formatCsvAmount, type CsvColumn } from "@/lib/csvExport";
 import { paymentMethodLabel } from "@/lib/paymentMethod";
-import { bookingStatusConfig, type BookingStatus } from "@/utils/statusStyles";
+import { getBookingStatusConfig } from "@/utils/statusStyles";
 import { QuickActionsDialog } from "@/components/admin/quick-actions/QuickActionsDialog";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -301,7 +301,7 @@ export default function BookingsList() {
       },
       {
         header: t("bookings.export.columns.status"),
-        value: (b) => bookingStatusConfig[b.status as BookingStatus]?.label ?? b.status ?? "",
+        value: (b) => getBookingStatusConfig(b.status).label || b.status || "",
       },
       {
         header: t("bookings.export.columns.paymentMethod"),

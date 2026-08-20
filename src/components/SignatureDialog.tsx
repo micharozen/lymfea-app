@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import SignatureCanvas from "react-signature-canvas";
 import {
   Dialog,
@@ -23,6 +24,7 @@ export const SignatureDialog = ({
   onConfirm,
   loading = false,
 }: SignatureDialogProps) => {
+  const { t } = useTranslation(['admin', 'common']);
   const signatureRef = useRef<SignatureCanvas>(null);
   const [isEmpty, setIsEmpty] = useState(true);
 
@@ -46,12 +48,12 @@ export const SignatureDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Signature du client</DialogTitle>
+          <DialogTitle>{t('admin:editBooking.signatureDialog.title')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Demandez au client de signer ci-dessous pour valider les prestations
+            {t('admin:editBooking.signatureDialog.prompt')}
           </p>
 
           <div 
@@ -76,13 +78,13 @@ export const SignatureDialog = ({
             onClick={handleClear}
             disabled={isEmpty || loading}
           >
-            Effacer
+            {t('common:buttons.clear')}
           </Button>
           <Button
             onClick={handleConfirm}
             disabled={isEmpty || loading}
           >
-            {loading ? "Validation..." : "Valider"}
+            {loading ? t('admin:editBooking.signatureDialog.validating') : t('common:buttons.validate')}
             {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
           </Button>
         </DialogFooter>

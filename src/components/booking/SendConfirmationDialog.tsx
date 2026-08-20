@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/dateLocale";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,8 @@ export function SendConfirmationDialog({
   lastSentAt,
   onSuccess,
 }: SendConfirmationDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const defaultLanguage: Language = booking.language === "en" ? "en" : "fr";
   const [language, setLanguage] = useState<Language>(defaultLanguage);
   const [sendEmail, setSendEmail] = useState(Boolean(booking.client_email));
@@ -105,29 +108,31 @@ export function SendConfirmationDialog({
       });
 
       if (error) {
-        setResult({ success: false, error: error.message || "Erreur lors de l'envoi" });
+        setResult({ success: false, error: error.message || t("admin:sendConfirmation.errors.sendFailed") });
         toast({
-          title: "Erreur",
-          description: error.message || "Erreur lors de l'envoi de la confirmation",
+          title: t("common:toasts.error"),
+          description: error.message || t("admin:sendConfirmation.errors.sendConfirmationFailed"),
           variant: "destructive",
         });
       } else if (data?.skipped === "payment_not_engaged") {
         setResult({
           success: false,
-          error:
-            "Le paiement n'est pas engagé : la confirmation partira automatiquement une fois le paiement encaissé.",
+          error: t("admin:sendConfirmation.errors.paymentNotEngaged"),
         });
       } else if (data?.success) {
         setResult({ success: true, emailSent: data.emailSent, smsSent: data.smsSent });
-        toast({ title: "Confirmation envoyée", description: "Le client a été notifié." });
+        toast({
+          title: t("admin:sendConfirmation.toasts.sentTitle"),
+          description: t("admin:sendConfirmation.toasts.sentDescription"),
+        });
         onSuccess?.();
       } else {
-        setResult({ success: false, error: "L'envoi a échoué. Vérifiez l'email et le téléphone." });
+        setResult({ success: false, error: t("admin:sendConfirmation.errors.checkContact") });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      const message = err instanceof Error ? err.message : t("admin:sendConfirmation.errors.unknown");
       setResult({ success: false, error: message });
-      toast({ title: "Erreur", description: message, variant: "destructive" });
+      toast({ title: t("common:toasts.error"), description: message, variant: "destructive" });
     } finally {
       setIsSending(false);
     }
@@ -141,15 +146,15 @@ export function SendConfirmationDialog({
             <DialogTitle asChild>
               <div className="ico"><CheckCircle2 className="h-6 w-6" /></div>
             </DialogTitle>
-            <p className="ttl">Confirmation envoyée</p>
+            <p className="ttl">{t("admin:sendConfirmation.sentTitle")}</p>
             <DialogDescription asChild>
               <div className="sub">
-                {result.emailSent && <p>Email envoyé à {clientEmail}</p>}
-                {result.smsSent && <p>SMS envoyé à {clientPhone}</p>}
+                {result.emailSent && <p>{t("admin:sendConfirmation.emailSentTo", { target: clientEmail })}</p>}
+                {result.smsSent && <p>{t("admin:sendConfirmation.smsSentTo", { target: clientPhone })}</p>}
               </div>
             </DialogDescription>
             <div className="acts">
-              <button type="button" className="bo-btn primary" onClick={close}>Fermer</button>
+              <button type="button" className="bo-btn primary" onClick={close}>{t("common:buttons.close")}</button>
             </div>
           </div>
         ) : result?.error ? (
@@ -157,23 +162,23 @@ export function SendConfirmationDialog({
             <DialogTitle asChild>
               <div className="ico"><AlertCircle className="h-6 w-6" /></div>
             </DialogTitle>
-            <p className="ttl">Envoi impossible</p>
+            <p className="ttl">{t("admin:sendConfirmation.failedTitle")}</p>
             <DialogDescription asChild>
               <p className="sub">{result.error}</p>
             </DialogDescription>
             <div className="acts">
-              <button type="button" className="bo-btn ghost" onClick={close}>Fermer</button>
-              <button type="button" className="bo-btn primary" onClick={() => setResult(null)}>Réessayer</button>
+              <button type="button" className="bo-btn ghost" onClick={close}>{t("common:buttons.close")}</button>
+              <button type="button" className="bo-btn primary" onClick={() => setResult(null)}>{t("admin:sendConfirmation.retry")}</button>
             </div>
           </div>
         ) : (
           <>
             <div className="sendconf-head">
               <div className="min-w-0 flex-1">
-                <DialogTitle className="subj">Envoyer la confirmation</DialogTitle>
+                <DialogTitle className="subj">{t("admin:sendConfirmation.title")}</DialogTitle>
                 <DialogDescription asChild>
                   <div className="meta">
-                    <span className="num">Réservation #{booking.booking_id}</span>
+                    <span className="num">{t("admin:sendConfirmation.bookingNumber", { number: booking.booking_id })}</span>
                     <span>·</span>
                     <span className="truncate">
                       {booking.client_first_name} {booking.client_last_name}
@@ -181,7 +186,7 @@ export function SendConfirmationDialog({
                   </div>
                 </DialogDescription>
               </div>
-              <button type="button" className="x" onClick={close} aria-label="Fermer">
+              <button type="button" className="x" onClick={close} aria-label={t("common:buttons.close")}>
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -191,17 +196,17 @@ export function SendConfirmationDialog({
                 <div className="sendconf-warn">
                   <AlertTriangle className="h-4 w-4" />
                   <p>
-                    Une confirmation a déjà été envoyée
                     {lastSentAt
-                      ? ` le ${format(new Date(lastSentAt), "d MMM à HH:mm", { locale: fr })}`
-                      : ""}
-                    . Le client recevra un second message.
+                      ? t("admin:sendConfirmation.alreadySentAt", {
+                          date: format(new Date(lastSentAt), "d MMM · HH:mm", { locale: dateLocale }),
+                        })
+                      : t("admin:sendConfirmation.alreadySent")}
                   </p>
                 </div>
               )}
 
               <div>
-                <p className="bo-sec-title">Langue du message</p>
+                <p className="bo-sec-title">{t("admin:sendConfirmation.messageLanguage")}</p>
                 <div className="bo-seg mt-2">
                   <button
                     type="button"
@@ -221,7 +226,7 @@ export function SendConfirmationDialog({
               </div>
 
               <div>
-                <p className="bo-sec-title">Envoyer par</p>
+                <p className="bo-sec-title">{t("admin:sendConfirmation.sendVia")}</p>
 
                 <div className={`sendconf-ch mt-2 ${sendEmail ? "on" : ""}`}>
                   <div className="row">
@@ -265,7 +270,7 @@ export function SendConfirmationDialog({
 
             <div className="sendconf-actions">
               <button type="button" className="bo-btn ghost" onClick={close} disabled={isSending}>
-                Annuler
+                {t("common:buttons.cancel")}
               </button>
               <button
                 type="button"
@@ -276,12 +281,12 @@ export function SendConfirmationDialog({
                 {isSending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Envoi en cours…
+                    {t("admin:sendConfirmation.sending")}
                   </>
                 ) : (
                   <>
                     <Send className="h-4 w-4" />
-                    Envoyer
+                    {t("admin:sendConfirmation.send")}
                   </>
                 )}
               </button>

@@ -12,7 +12,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useDateLocale } from "@/lib/dateLocale";
 import type { DateRange } from "react-day-picker";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Ban, Calendar as CalendarIcon, CalendarDays, Check, CheckCheck, CheckCircle2, Clock, FilterX, List, Search, SlidersHorizontal, Users } from "lucide-react";
@@ -21,8 +21,8 @@ import { cn } from "@/lib/utils";
 import type { Hotel, Therapist } from "@/hooks/booking";
 import { MultiSelectFilter } from "./MultiSelectFilter";
 import {
-  PAYMENT_METHOD_FILTER_OPTIONS,
-  PAYMENT_STATUS_FILTER_OPTIONS,
+  paymentMethodFilterOptions,
+  paymentStatusFilterOptions,
 } from "@/lib/paymentMethod";
 
 const CUSTOM_PERIOD = "custom";
@@ -37,13 +37,13 @@ export type PlanningMode = "day" | "therapists";
  */
 type FilterKey = "hotel" | "status" | "payment" | "paymentStatus" | "period" | "therapist";
 
-const TOGGLEABLE_FILTERS: { key: FilterKey; label: string }[] = [
-  { key: "hotel", label: "Lieu" },
-  { key: "status", label: "Statut" },
-  { key: "therapist", label: "Thérapeute" },
-  { key: "period", label: "Période" },
-  { key: "payment", label: "Mode de paiement" },
-  { key: "paymentStatus", label: "Statut du paiement" },
+const TOGGLEABLE_FILTERS: { key: FilterKey; labelKey: string }[] = [
+  { key: "hotel", labelKey: "bookingFilters.toggles.hotel" },
+  { key: "status", labelKey: "bookingFilters.toggles.status" },
+  { key: "therapist", labelKey: "bookingFilters.toggles.therapist" },
+  { key: "period", labelKey: "bookingFilters.toggles.period" },
+  { key: "payment", labelKey: "bookingFilters.toggles.payment" },
+  { key: "paymentStatus", labelKey: "bookingFilters.toggles.paymentStatus" },
 ];
 
 // Configuration par défaut = la barre telle qu'elle existait avant le sélecteur.
@@ -70,10 +70,10 @@ const EMPTY_SELECTION: string[] = [];
 
 // Status filter options with a pastel background + icon per value.
 const STATUS_FILTER_OPTIONS = [
-  { value: "pending", label: "En attente", Icon: Clock, className: "bg-orange-50 text-orange-900 focus:bg-orange-100 focus:text-orange-900" },
-  { value: "confirmed", label: "Confirmé", Icon: CheckCircle2, className: "bg-emerald-50 text-emerald-900 focus:bg-emerald-100 focus:text-emerald-900" },
-  { value: "completed", label: "Terminé", Icon: CheckCheck, className: "bg-emerald-50/60 text-emerald-800 focus:bg-emerald-100 focus:text-emerald-900" },
-  { value: "cancelled", label: "Annulé", Icon: Ban, className: "bg-gray-100 text-red-600 focus:bg-gray-200 focus:text-red-700" },
+  { value: "pending", labelKey: "status.pending", Icon: Clock, className: "bg-orange-50 text-orange-900 focus:bg-orange-100 focus:text-orange-900" },
+  { value: "confirmed", labelKey: "status.confirmed", Icon: CheckCircle2, className: "bg-emerald-50 text-emerald-900 focus:bg-emerald-100 focus:text-emerald-900" },
+  { value: "completed", labelKey: "status.completed", Icon: CheckCheck, className: "bg-emerald-50/60 text-emerald-800 focus:bg-emerald-100 focus:text-emerald-900" },
+  { value: "cancelled", labelKey: "status.cancelled", Icon: Ban, className: "bg-gray-100 text-red-600 focus:bg-gray-200 focus:text-red-700" },
 ] as const;
 
 interface BookingFiltersProps {
@@ -173,7 +173,8 @@ export function BookingFilters({
   leading,
   trailing,
 }: BookingFiltersProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const [customPeriodOpen, setCustomPeriodOpen] = useState(false);
   const customPeriodRequested = useRef(false);
   const [draftRange, setDraftRange] = useState<DateRange | undefined>(() =>
@@ -237,7 +238,7 @@ export function BookingFilters({
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Rechercher..."
+            placeholder={t("common:buttons.search") + "..."}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-8 h-8 w-[160px] text-xs"
@@ -250,7 +251,7 @@ export function BookingFilters({
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-normal">
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              Filtres
+              {t("bookingFilters.filters")}
               {activeFilterCount > 0 && (
                 <span className="ml-0.5 rounded-full bg-primary px-1.5 text-[10px] leading-4 text-primary-foreground">
                   {activeFilterCount}
@@ -259,13 +260,13 @@ export function BookingFilters({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[220px] p-1" align="start">
-            {TOGGLEABLE_FILTERS.map(({ key, label }) => (
+            {TOGGLEABLE_FILTERS.map(({ key, labelKey }) => (
               <button
                 key={key}
                 onClick={() => toggleFilter(key)}
                 className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-xs hover:bg-secondary/50"
               >
-                <span>{label}</span>
+                <span>{t(labelKey)}</span>
                 <Check
                   className={cn(
                     "h-3.5 w-3.5",
@@ -282,9 +283,9 @@ export function BookingFilters({
         <MultiSelectFilter
           value={hotelFilter}
           onChange={onHotelChange}
-          allLabel="Tous les lieux"
-          searchPlaceholder="Rechercher un lieu..."
-          emptyLabel="Aucun lieu trouvé."
+          allLabel={t("bookingFilters.allVenues")}
+          searchPlaceholder={t("bookingFilters.searchVenue")}
+          emptyLabel={t("bookingFilters.noVenueFound")}
           triggerClassName={cn(groupFiltersRight && "ml-auto")}
           options={(hotels ?? []).map((hotel) => ({
             value: hotel.id,
@@ -303,13 +304,13 @@ export function BookingFilters({
         <MultiSelectFilter
           value={statusFilter}
           onChange={onStatusChange}
-          allLabel="Tous les statuts"
+          allLabel={t("bookingFilters.allStatuses")}
           triggerClassName={cn(
             groupFiltersRight && (!isAdmin || hideHotelFilter) && "ml-auto"
           )}
-          options={STATUS_FILTER_OPTIONS.map(({ value, label, Icon, className }) => ({
+          options={STATUS_FILTER_OPTIONS.map(({ value, labelKey, Icon, className }) => ({
             value,
-            label,
+            label: t(`common:${labelKey}`),
             className,
             adornment: <Icon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />,
           }))}
@@ -320,8 +321,8 @@ export function BookingFilters({
         <MultiSelectFilter
           value={paymentMethodFilter}
           onChange={onPaymentMethodChange}
-          allLabel="Tous les paiements"
-          options={PAYMENT_METHOD_FILTER_OPTIONS}
+          allLabel={t("bookingFilters.allPaymentMethods")}
+          options={paymentMethodFilterOptions()}
           triggerClassName="w-[170px]"
         />
       )}
@@ -330,8 +331,8 @@ export function BookingFilters({
         <MultiSelectFilter
           value={paymentStatusFilter}
           onChange={onPaymentStatusChange}
-          allLabel="Tous les états"
-          options={PAYMENT_STATUS_FILTER_OPTIONS}
+          allLabel={t("bookingFilters.allPaymentStatuses")}
+          options={paymentStatusFilterOptions()}
           triggerClassName="w-[150px]"
         />
       )}
@@ -367,10 +368,10 @@ export function BookingFilters({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="10">10 derniers jours</SelectItem>
-            <SelectItem value="30">30 derniers jours</SelectItem>
-            <SelectItem value="60">60 derniers jours</SelectItem>
-            <SelectItem value="90">90 derniers jours</SelectItem>
+            <SelectItem value="10">{t("bookingFilters.lastDays", { count: 10 })}</SelectItem>
+            <SelectItem value="30">{t("bookingFilters.lastDays", { count: 30 })}</SelectItem>
+            <SelectItem value="60">{t("bookingFilters.lastDays", { count: 60 })}</SelectItem>
+            <SelectItem value="90">{t("bookingFilters.lastDays", { count: 90 })}</SelectItem>
             {onCustomRangeChange && (
               <SelectItem
                 value={CUSTOM_PERIOD}
@@ -383,7 +384,7 @@ export function BookingFilters({
               >
                 {customRange
                   ? `${formatIsoShort(customRange.from)} → ${formatIsoShort(customRange.to)}`
-                  : "Période personnalisée"}
+                  : t("bookingFilters.customPeriod")}
               </SelectItem>
             )}
           </SelectContent>
@@ -407,7 +408,7 @@ export function BookingFilters({
             onFocusOutside={(e) => e.preventDefault()}
           >
             <p className="text-xs font-medium text-muted-foreground">
-              Sélectionnez une période
+              {t("bookingFilters.selectPeriod")}
             </p>
             <Calendar
               mode="range"
@@ -415,7 +416,7 @@ export function BookingFilters({
               onSelect={setDraftRange}
               numberOfMonths={1}
               initialFocus
-              locale={fr}
+              locale={dateLocale}
               className="p-0 pointer-events-auto"
             />
             <div className="flex gap-2">
@@ -429,7 +430,7 @@ export function BookingFilters({
                   setCustomPeriodOpen(false);
                 }}
               >
-                Effacer
+                {t("common:buttons.clear")}
               </Button>
               <Button
                 size="sm"
@@ -444,7 +445,7 @@ export function BookingFilters({
                   setCustomPeriodOpen(false);
                 }}
               >
-                Appliquer
+                {t("bookingFilters.apply")}
               </Button>
             </div>
           </PopoverContent>
@@ -455,9 +456,9 @@ export function BookingFilters({
         <MultiSelectFilter
           value={therapistFilter}
           onChange={onTherapistChange}
-          allLabel="Tous les thérapeutes"
-          searchPlaceholder="Rechercher un thérapeute..."
-          emptyLabel="Aucun thérapeute trouvé."
+          allLabel={t("bookingFilters.allTherapists")}
+          searchPlaceholder={t("bookingFilters.searchTherapist")}
+          emptyLabel={t("bookingFilters.noTherapistFound")}
           options={(therapists ?? []).map((therapist) => ({
             value: therapist.id,
             label: `${therapist.first_name} ${therapist.last_name}`,
@@ -475,10 +476,10 @@ export function BookingFilters({
               onClick={onResetFilters}
             >
               <FilterX className="h-3.5 w-3.5" />
-              Réinitialiser
+              {t("bookingFilters.reset")}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Effacer tous les filtres et la recherche</TooltipContent>
+          <TooltipContent>{t("bookingFilters.resetTooltip")}</TooltipContent>
         </Tooltip>
       )}
 
@@ -527,9 +528,9 @@ export function BookingFilters({
         {view === "calendar" && planningMode === "day" && (
           <ButtonGroup>
             {[
-              { count: 1, label: "1J" },
-              { count: 3, label: "3J" },
-              { count: 7, label: "7J" },
+              { count: 1, label: t("bookingFilters.dayCount", { count: 1 }) },
+              { count: 3, label: t("bookingFilters.dayCount", { count: 3 }) },
+              { count: 7, label: t("bookingFilters.dayCount", { count: 7 }) },
             ].map((opt) => (
               <Button
                 key={opt.count}
@@ -585,7 +586,7 @@ export function BookingFilters({
                   <CalendarIcon className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Calendrier</TooltipContent>
+              <TooltipContent side="bottom">{t("bookingFilters.calendarView")}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -598,7 +599,7 @@ export function BookingFilters({
                   <List className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Liste</TooltipContent>
+              <TooltipContent side="bottom">{t("bookingFilters.listView")}</TooltipContent>
             </Tooltip>
           </ButtonGroup>
         )}

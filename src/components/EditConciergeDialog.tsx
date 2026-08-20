@@ -39,12 +39,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { VENUE_ROLES } from "@/lib/venueRoles";
 
 const createFormSchema = (t: TFunction) => z.object({
-  first_name: z.string().min(1, t('errors.validation.firstNameRequired')),
-  last_name: z.string().min(1, t('errors.validation.lastNameRequired')),
-  email: z.string().email(t('errors.validation.emailInvalid')),
-  phone: z.string().min(1, t('errors.validation.phoneRequired')),
+  first_name: z.string().min(1, t('common:errors.validation.firstNameRequired')),
+  last_name: z.string().min(1, t('common:errors.validation.lastNameRequired')),
+  email: z.string().email(t('common:errors.validation.emailInvalid')),
+  phone: z.string().min(1, t('common:errors.validation.phoneRequired')),
   country_code: z.string().default("+33"),
-  hotel_ids: z.array(z.string()).min(1, t('errors.validation.hotelRequired')),
+  hotel_ids: z.array(z.string()).min(1, t('common:errors.validation.hotelRequired')),
   profile_image: z.string().optional(),
   venue_role: z.string().optional(),
 });
@@ -78,7 +78,7 @@ const countryCodes = [
 ];
 
 export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId }: EditConciergeDialogProps) {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['admin', 'common']);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const [loading, setLoading] = useState(true);
@@ -123,7 +123,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
       const data = await listHotelsForOrg(supabase, scope);
       setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
     } catch (error) {
-      toast.error("Erreur lors du chargement des hôtels");
+      toast.error(t('admin:therapistsPage.loadVenuesError'));
       console.error(error);
     }
   };
@@ -157,7 +157,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
       
       setProfileImage(concierge.profile_image || "");
     } catch (error) {
-      toast.error("Erreur lors du chargement du membre");
+      toast.error(t('admin:conciergeDialog.loadError'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -202,11 +202,11 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
 
       if (hotelsError) throw hotelsError;
 
-      toast.success("Membre modifié avec succès");
+      toast.success(t('admin:conciergeDialog.updated'));
       onSuccess();
       onOpenChange(false);
     } catch (error) {
-      toast.error("Erreur lors de la modification du membre");
+      toast.error(t('admin:conciergeDialog.updateError'));
       console.error(error);
     }
   };
@@ -219,19 +219,19 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
   };
 
   const getSelectedHotelsLabel = (selectedIds: string[]) => {
-    if (selectedIds.length === 0) return "Sélectionner des lieux";
+    if (selectedIds.length === 0) return t('admin:conciergeDialog.selectVenues');
     if (selectedIds.length === 1) {
       const hotel = hotels.find((h) => h.id === selectedIds[0]);
-      return hotel?.name || "1 lieu sélectionné";
+      return hotel?.name || t('admin:conciergeDialog.venuesSelected', { count: 1 });
     }
-    return `${selectedIds.length} lieux sélectionnés`;
+    return t('admin:conciergeDialog.venuesSelected', { count: selectedIds.length });
   };
 
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
-          <p className="text-center py-8">Chargement...</p>
+          <p className="text-center py-8">{t('common:loading')}</p>
         </DialogContent>
       </Dialog>
     );
@@ -241,13 +241,13 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Modifier le membre</DialogTitle>
+          <DialogTitle className="text-xl font-semibold">{t('admin:concierges.edit')}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Photo de profil</label>
+              <label className="text-sm font-medium">{t('admin:admins.profilePhoto')}</label>
               <div className="flex items-center gap-3">
                 <Avatar className="h-16 w-16">
                   <AvatarImage src={profileImage} />
@@ -271,7 +271,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
                   onClick={triggerFileSelect}
                   disabled={uploading}
                 >
-                  {uploading ? "Téléchargement..." : "Télécharger une image"}
+                  {uploading ? t('admin:conciergeDialog.uploading') : t('admin:conciergeDialog.uploadImage')}
                   {uploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               </div>
@@ -282,7 +282,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
               name="first_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Prénom</FormLabel>
+                  <FormLabel>{t('admin:admins.firstName')}</FormLabel>
                   <FormControl>
                     <Input placeholder="John" {...field} />
                   </FormControl>
@@ -296,7 +296,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
               name="last_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom</FormLabel>
+                  <FormLabel>{t('admin:admins.lastName')}</FormLabel>
                   <FormControl>
                     <Input placeholder="Doe" {...field} />
                   </FormControl>
@@ -312,7 +312,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="Entrer l'adresse email" {...field} />
+                    <Input type="email" placeholder={t('admin:conciergeDialog.emailPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -324,7 +324,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Numéro de téléphone</FormLabel>
+                  <FormLabel>{t('admin:conciergeDialog.phone')}</FormLabel>
                   <FormControl>
                     <PhoneNumberField
                       value={field.value}
@@ -344,7 +344,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
               name="hotel_ids"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Lieu(x)</FormLabel>
+                  <FormLabel>{t('admin:concierges.hotel')}</FormLabel>
                   <Popover open={hotelPopoverOpen} onOpenChange={setHotelPopoverOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -355,7 +355,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
                         >
                           <span className="truncate">
                             {field.value.length === 0
-                              ? "Sélectionner des hôtels"
+                              ? t('admin:conciergeDialog.selectVenues')
                               : hotels
                                   .filter((h) => field.value.includes(h.id))
                                   .map((h) => h.name)
@@ -409,17 +409,17 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
               name="venue_role"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Rôle</FormLabel>
+                  <FormLabel>{t('admin:concierges.venueRole')}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value || ""}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner un rôle" />
+                        <SelectValue placeholder={t('admin:conciergeDialog.selectRole')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {VENUE_ROLES.map((role) => (
                         <SelectItem key={role.value} value={role.value}>
-                          {role.labelFr}
+                          {t(`admin:concierges.roles.${role.value}`)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -435,10 +435,10 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Annuler
+                {t('common:buttons.cancel')}
               </Button>
               <Button type="submit" className="bg-foreground text-background hover:bg-foreground/90">
-                Enregistrer
+                {t('common:buttons.save')}
               </Button>
             </div>
           </form>
