@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useInvalidateOrganizationsList } from "@/hooks/useOrganizationsList";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
@@ -109,6 +110,7 @@ export function EditOrganizationDialog({
   onClose,
   onSuccess,
 }: EditOrganizationDialogProps) {
+  const { t } = useTranslation(['admin', 'common']);
   const invalidateOrganizationsList = useInvalidateOrganizationsList();
   const [lookingUp, setLookingUp] = useState(false);
   // Set to the current time when a SIREN lookup succeeds, so we persist when the
@@ -179,7 +181,7 @@ export function EditOrganizationDialog({
   const handleLookup = async () => {
     const siren = (form.getValues("siren") ?? "").replace(/\s/g, "");
     if (!sirenPattern.test(siren)) {
-      form.setError("siren", { message: "SIREN: 9 chiffres" });
+      form.setError("siren", { message: t('organizationDialog.sirenFormat') });
       return;
     }
     setLookingUp(true);
@@ -190,7 +192,7 @@ export function EditOrganizationDialog({
     setLookingUp(false);
 
     if (error || !data?.company) {
-      toast.error("Entreprise introuvable pour ce SIREN");
+      toast.error(t('organizationDialog.companyNotFound'));
       return;
     }
 
@@ -209,7 +211,7 @@ export function EditOrganizationDialog({
     form.setValue("legal_city", c.legal_city ?? "");
     form.setValue("legal_country", c.legal_country ?? "France");
     setSyncedAt(new Date().toISOString());
-    toast.success("Infos légales récupérées — vérifiez avant d'enregistrer");
+    toast.success(t('organizationDialog.legalFetched'));
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -223,7 +225,7 @@ export function EditOrganizationDialog({
         .neq("id", organization.id)
         .maybeSingle();
       if (existing) {
-        form.setError("slug", { message: "Ce slug est déjà utilisé" });
+        form.setError("slug", { message: t('organizationDialog.slugTaken') });
         return;
       }
     }
@@ -252,12 +254,12 @@ export function EditOrganizationDialog({
       .eq("id", organization.id);
 
     if (error) {
-      toast.error("Enregistrement impossible");
+      toast.error(t('organizationDialog.saveError'));
       console.error(error);
       return;
     }
 
-    toast.success("Organisation mise à jour");
+    toast.success(t('organizationDialog.updated'));
     await invalidateOrganizationsList();
     handleClose();
     onSuccess();
@@ -269,7 +271,7 @@ export function EditOrganizationDialog({
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Modifier l'organisation</DialogTitle>
+          <DialogTitle>{t('organizationDialog.title')}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -320,7 +322,7 @@ export function EditOrganizationDialog({
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
-                  <FormDescription>Identifiant unique URL-friendly</FormDescription>
+                  <FormDescription>{t('organizationDialog.slugHelp')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -331,7 +333,7 @@ export function EditOrganizationDialog({
               name="contact_email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email de contact</FormLabel>
+                  <FormLabel>{t('organizationDialog.contactEmail')}</FormLabel>
                   <FormControl>
                     <Input {...field} type="email" />
                   </FormControl>
@@ -343,7 +345,7 @@ export function EditOrganizationDialog({
             <Separator />
 
             <div>
-              <h3 className="text-sm font-medium text-foreground">Identité légale (facturation)</h3>
+              <h3 className="text-sm font-medium text-foreground">{t('organizationDialog.legalIdentity')}</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Émetteur affiché sur les factures. Saisissez le SIREN et récupérez
                 les informations officielles.
@@ -355,11 +357,11 @@ export function EditOrganizationDialog({
               name="commercial_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom commercial</FormLabel>
+                  <FormLabel>{t('organizationDialog.tradeName')}</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Ex : Eïa" />
+                    <Input {...field} placeholder={t('organizationDialog.tradeNamePlaceholder')} />
                   </FormControl>
-                  <FormDescription>Nom affiché en tête de facture</FormDescription>
+                  <FormDescription>{t('organizationDialog.tradeNameHelp')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -386,7 +388,7 @@ export function EditOrganizationDialog({
                       ) : (
                         <Search className="h-4 w-4" />
                       )}
-                      <span className="ml-2">Récupérer</span>
+                      <span className="ml-2">{t('organizationDialog.fetch')}</span>
                     </Button>
                   </div>
                   <FormMessage />
@@ -399,7 +401,7 @@ export function EditOrganizationDialog({
               name="legal_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Raison sociale (INSEE)</FormLabel>
+                  <FormLabel>{t('organizationDialog.legalName')}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -414,7 +416,7 @@ export function EditOrganizationDialog({
                 name="legal_form"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Forme juridique</FormLabel>
+                    <FormLabel>{t('organizationDialog.legalForm')}</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="SAS" />
                     </FormControl>
@@ -427,7 +429,7 @@ export function EditOrganizationDialog({
                 name="legal_capital"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Capital social</FormLabel>
+                    <FormLabel>{t('organizationDialog.capital')}</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="1 258,57 €" />
                     </FormControl>
@@ -443,7 +445,7 @@ export function EditOrganizationDialog({
                 name="siret"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>SIRET (siège)</FormLabel>
+                    <FormLabel>{t('organizationDialog.siret')}</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -456,7 +458,7 @@ export function EditOrganizationDialog({
                 name="vat_number"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>N° TVA</FormLabel>
+                    <FormLabel>{t('organizationDialog.vatNumber')}</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -485,7 +487,7 @@ export function EditOrganizationDialog({
               name="legal_address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Adresse</FormLabel>
+                  <FormLabel>{t('organizationDialog.address')}</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="38 rue de Grenelle" />
                   </FormControl>
@@ -500,7 +502,7 @@ export function EditOrganizationDialog({
                 name="legal_postal_code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Code postal</FormLabel>
+                    <FormLabel>{t('organizationDialog.postalCode')}</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -513,7 +515,7 @@ export function EditOrganizationDialog({
                 name="legal_city"
                 render={({ field }) => (
                   <FormItem className="col-span-2">
-                    <FormLabel>Ville</FormLabel>
+                    <FormLabel>{t('organizationDialog.city')}</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -539,7 +541,7 @@ export function EditOrganizationDialog({
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={handleClose}>
-                Annuler
+                {t('common:buttons.cancel')}
               </Button>
               <Button type="submit" disabled={submitting || uploading}>
                 {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
