@@ -16,7 +16,7 @@ const CATEGORIES = ["integration", "technical", "billing", "account", "other"] a
 const supportSchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email().max(255),
-  company: z.string().trim().max(160),
+  company: z.string().trim().min(1).max(160),
   category: z.enum(CATEGORIES),
   subject: z.string().trim().min(1).max(200),
   message: z.string().trim().min(10).max(5000),
@@ -123,6 +123,7 @@ export const SupportForm = () => {
             placeholder={t("form.companyPlaceholder")}
             {...register("company")}
           />
+          {errors.company && <p className="text-sm text-destructive">{t("errors.company")}</p>}
         </div>
 
         <div className="space-y-2">
