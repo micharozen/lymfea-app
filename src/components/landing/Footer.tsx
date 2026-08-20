@@ -34,6 +34,7 @@ export const Footer = () => {
     {
       title: t("footer.company"),
       links: [
+        { label: t("footer.links.support"), href: "/support" },
         { label: t("footer.links.email"), href: `mailto:${BRAND_EMAIL}` },
         { label: t("footer.links.contact"), href: BRAND_DEMO_CTA },
         { label: "LinkedIn", href: "https://www.linkedin.com/company/saoma" },

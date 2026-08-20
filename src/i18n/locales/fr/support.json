@@ -1,0 +1,69 @@
+{
+  "meta": {
+    "title": "Support — Saoma",
+    "description": "Support Saoma : contactez notre équipe pour toute question technique, intégration PMS (Opera Cloud, Mews), facturation ou accès à votre compte."
+  },
+  "header": {
+    "eyebrow": "Support",
+    "title": "Nous sommes là pour vous aider",
+    "subtitle": "Une question sur la plateforme, une intégration PMS ou votre abonnement ? Écrivez-nous, notre équipe vous répond sous un jour ouvré.",
+    "back": "Retour à l'accueil"
+  },
+  "channels": {
+    "email": {
+      "label": "Email",
+      "value": "contact@saoma.io",
+      "description": "Pour toute demande générale ou commerciale."
+    },
+    "hours": {
+      "label": "Horaires",
+      "value": "Lundi – vendredi, 9h – 18h (CET)",
+      "description": "Réponse sous un jour ouvré."
+    },
+    "status": {
+      "label": "État des services",
+      "value": "status.saoma.io",
+      "description": "Incidents et maintenances en cours."
+    }
+  },
+  "form": {
+    "title": "Envoyer une demande",
+    "description": "Décrivez votre demande, nous revenons vers vous par email.",
+    "name": "Nom complet",
+    "namePlaceholder": "Marie Dupont",
+    "email": "Email professionnel",
+    "emailPlaceholder": "marie@votrehotel.com",
+    "company": "Établissement ou organisation",
+    "companyPlaceholder": "Hôtel Le Grand Spa",
+    "category": "Type de demande",
+    "categoryPlaceholder": "Sélectionner un type",
+    "categories": {
+      "integration": "Intégration PMS (Opera Cloud / Mews)",
+      "technical": "Problème technique",
+      "billing": "Facturation & abonnement",
+      "account": "Compte & accès",
+      "other": "Autre"
+    },
+    "subject": "Sujet",
+    "subjectPlaceholder": "Résumé en une phrase",
+    "message": "Message",
+    "messagePlaceholder": "Décrivez votre demande le plus précisément possible : établissement concerné, étapes suivies, message d'erreur éventuel.",
+    "submit": "Envoyer la demande",
+    "submitting": "Envoi en cours…",
+    "privacy": "Vos données sont utilisées uniquement pour traiter votre demande. Voir notre <0>politique de confidentialité</0>."
+  },
+  "errors": {
+    "name": "Merci d'indiquer votre nom.",
+    "email": "Merci d'indiquer une adresse email valide.",
+    "company": "Merci d'indiquer votre établissement ou organisation.",
+    "category": "Merci de sélectionner un type de demande.",
+    "subject": "Merci d'indiquer un sujet.",
+    "message": "Merci de détailler votre demande (10 caractères minimum).",
+    "submit": "L'envoi a échoué. Réessayez ou écrivez-nous à contact@saoma.io."
+  },
+  "success": {
+    "title": "Demande envoyée",
+    "description": "Merci, nous avons bien reçu votre message. Notre équipe vous répond par email sous un jour ouvré.",
+    "again": "Envoyer une autre demande"
+  }
+}
