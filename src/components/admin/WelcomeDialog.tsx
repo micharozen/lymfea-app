@@ -26,7 +26,7 @@ const TALLY_URL = (import.meta.env.VITE_TALLY_URL as string | undefined) || "";
 const CALENDLY_URL = (import.meta.env.VITE_CALENDLY_URL as string | undefined) || "";
 
 export function WelcomeDialog({ open, onClose }: WelcomeDialogProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const [step, setStep] = useState(0);
   const { canSwitch, switchToVenue } = useViewMode();
   const { isAdmin } = useUser();

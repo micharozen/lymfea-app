@@ -19,7 +19,7 @@ interface VenueBookingRulesTabProps {
 }
 
 export function VenueBookingRulesTab({ form, disabled }: VenueBookingRulesTabProps) {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['admin', 'common']);
   const holdEnabled = useWatch({ control: form.control, name: "booking_hold_enabled" });
 
   return (

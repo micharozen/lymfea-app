@@ -65,7 +65,7 @@ interface Hotel {
 }
 
 export default function Concierges() {
-  const { t } = useTranslation(['admin', 'common']);
+  const { t, i18n } = useTranslation(['admin', 'common']);
   const [concierges, setConcierges] = useState<Concierge[]>([]);
   const [filteredConcierges, setFilteredConcierges] = useState<Concierge[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -305,7 +305,7 @@ export default function Concierges() {
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
                   <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
-                    Nom
+                    {t('conciergesPage.colName')}
                   </SortableTableHead>
                   <SortableTableHead column="email" sortDirection={getSortDirection("email")} onSort={toggleSort}>
                     Email
@@ -324,7 +324,7 @@ export default function Concierges() {
                   </SortableTableHead>
                   {userRole === "admin" && (
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">
-                      Actions
+                      {t('common:actions')}
                     </TableHead>
                   )}
                 </TableRow>
@@ -335,9 +335,9 @@ export default function Concierges() {
                 <TableEmptyState
                   colSpan={columnCount}
                   icon={Users}
-                  message="Aucun membre trouvé"
-                  description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                  actionLabel={userRole === "admin" ? "Ajouter un membre" : undefined}
+                  message={t('conciergesPage.empty')}
+                  description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? t('conciergesPage.emptyHint') : undefined}
+                  actionLabel={userRole === "admin" ? t('conciergesPage.addMember') : undefined}
                   onAction={userRole === "admin" ? openAdd : undefined}
                 />
               ) : (
@@ -365,7 +365,11 @@ export default function Concierges() {
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <span className="truncate block text-foreground">
                           {concierge.venue_role
-                            ? VENUE_ROLES.find(r => r.value === concierge.venue_role)?.labelFr ?? concierge.venue_role
+                            ? (() => {
+                                const role = VENUE_ROLES.find(r => r.value === concierge.venue_role);
+                                if (!role) return concierge.venue_role;
+                                return i18n.language.startsWith('en') ? role.labelEn : role.labelFr;
+                              })()
                             : '-'}
                         </span>
                       </TableCell>
@@ -415,7 +419,7 @@ export default function Concierges() {
               totalItems={filteredConcierges.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              itemName="membres"
+              itemName={t('conciergesPage.itemName')}
             />
           )}
         </div>

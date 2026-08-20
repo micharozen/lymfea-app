@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
@@ -44,6 +45,7 @@ interface OrganizationRow {
 }
 
 export default function Organizations() {
+  const { t } = useTranslation(["admin", "common"]);
   const { isSuperAdmin, loading: userLoading } = useUser();
   const invalidateOrganizationsList = useInvalidateOrganizationsList();
   const navigate = useNavigate();
@@ -70,7 +72,7 @@ export default function Organizations() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      toast.error("Erreur lors du chargement des organisations");
+      toast.error(t("organizationsPage.loadError"));
       console.error(error);
       setLoading(false);
       return;
@@ -126,17 +128,17 @@ export default function Organizations() {
   const handleDelete = async () => {
     if (!deleting) return;
     if (deleting.hotel_count > 0) {
-      toast.error(`Impossible : ${deleting.hotel_count} hôtel(s) rattaché(s) à cette organisation`);
+      toast.error(t("organizationsPage.deleteBlocked", { count: deleting.hotel_count }));
       closeDelete();
       return;
     }
     const { error } = await supabase.from("organizations").delete().eq("id", deleting.id);
     if (error) {
-      toast.error("Suppression impossible");
+      toast.error(t("organizationsPage.deleteError"));
       console.error(error);
       return;
     }
-    toast.success("Organisation supprimée");
+    toast.success(t("organizationsPage.deleted"));
     await invalidateOrganizationsList();
     closeDelete();
     fetchOrgs();
@@ -147,10 +149,10 @@ export default function Organizations() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6">
         <div className="mb-4">
           <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
-            Organisations
+            {t("organizationsPage.title")}
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Gérez les groupes hôteliers clients de Lymfea.
+            {t("organizationsPage.subtitle")}
           </p>
         </div>
       </div>
@@ -161,14 +163,14 @@ export default function Organizations() {
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher"
+                placeholder={t("common:buttons.search")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
               />
             </div>
             <Button className="ml-auto" onClick={openAdd}>
-              Nouvelle organisation
+              {t("organizationsPage.new")}
             </Button>
           </div>
 
@@ -177,19 +179,19 @@ export default function Organizations() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-16">Logo</TableHead>
-                  <TableHead>Nom</TableHead>
+                  <TableHead>{t("organizationsPage.colName")}</TableHead>
                   <TableHead>Slug</TableHead>
                   <TableHead>Contact</TableHead>
-                  <TableHead className="text-right">Hôtels</TableHead>
+                  <TableHead className="text-right">{t("organizationsPage.colVenues")}</TableHead>
                   <TableHead className="text-right">Admins</TableHead>
-                  <TableHead className="w-32 text-right">Actions</TableHead>
+                  <TableHead className="w-32 text-right">{t("common:actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               {loading && <TableSkeleton columns={7} rows={5} />}
               {!loading && filtered.length === 0 && (
                 <TableEmptyState
                   colSpan={7}
-                  message={searchQuery ? "Aucun résultat" : "Aucune organisation. Créez-en une pour démarrer."}
+                  message={searchQuery ? t("organizationsPage.noResults") : t("organizationsPage.empty")}
                 />
               )}
               {!loading && filtered.length > 0 && (
@@ -249,16 +251,15 @@ export default function Organizations() {
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cette organisation ?</AlertDialogTitle>
+            <AlertDialogTitle>{t("organizationsPage.confirmDeleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irréversible. L'organisation « {deleting?.name} » sera définitivement
-              supprimée. Les hôtels rattachés doivent être retirés au préalable.
+              {t("organizationsPage.confirmDeleteDesc", { name: deleting?.name ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t("common:buttons.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Supprimer
+              {t("common:buttons.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

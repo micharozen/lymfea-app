@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -131,12 +132,12 @@ interface VenueGiftCardsTabProps {
 const formSchema = z
   .object({
     bundle_type: z.enum(["gift_treatments", "gift_amount"]),
-    title: z.string().min(1, "Le titre est requis"),
+    title: z.string().min(1, i18n.t("admin:giftCards.validation.titleRequired")),
     title_en: z.string().optional(),
     description: z.string().optional(),
     cover_image_url: z.string().optional(),
-    category: z.string().min(1, "La catégorie est requise"),
-    price_eur: z.coerce.number().min(0, "Le prix doit être positif"),
+    category: z.string().min(1, i18n.t("admin:giftCards.validation.categoryRequired")),
+    price_eur: z.coerce.number().min(0, i18n.t("admin:giftCards.validation.pricePositive")),
     total_sessions: z.coerce.number().int().min(1).optional(),
     amount_eur: z.coerce.number().min(1).optional(),
     validity_days: z.coerce.number().int().min(1).default(365),
@@ -150,14 +151,14 @@ const formSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["total_sessions"],
-          message: "Nombre de séances requis",
+          message: i18n.t("admin:giftCards.validation.sessionsRequired"),
         });
       }
       if (values.eligible_treatment_ids.length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["eligible_treatment_ids"],
-          message: "Sélectionnez au moins un soin éligible",
+          message: i18n.t("admin:giftCards.validation.eligibleTreatmentsRequired"),
         });
       }
     }
@@ -166,7 +167,7 @@ const formSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["amount_eur"],
-          message: "Montant requis",
+          message: i18n.t("admin:giftCards.validation.amountRequired"),
         });
       }
     }
@@ -191,7 +192,7 @@ const defaultFormValues: FormValues = {
 };
 
 export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const queryClient = useQueryClient();
 
   const isStandalone = !hotelId;
@@ -540,10 +541,10 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
         <div className="flex flex-wrap items-center gap-3">
           <Select value={hotelFilter} onValueChange={setHotelFilter}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Tous les lieux" />
+              <SelectValue placeholder={t("giftCards.allVenues", "Tous les lieux")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les lieux</SelectItem>
+              <SelectItem value="all">{t("giftCards.allVenues", "Tous les lieux")}</SelectItem>
               {hotels?.map((hotel) => (
                 <SelectItem key={hotel.id} value={hotel.id}>
                   {hotel.name}
@@ -592,7 +593,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                   <TableRow>
                     <TableHead className="w-[56px]" />
                     <TableHead>{t("giftCards.columns.title", "Titre")}</TableHead>
-                    {isStandalone && <TableHead>Lieu</TableHead>}
+                    {isStandalone && <TableHead>{t("giftCards.columns.venue", "Lieu")}</TableHead>}
                     <TableHead>{t("giftCards.columns.type", "Type")}</TableHead>
                     <TableHead className="text-right">
                       {t("giftCards.columns.value", "Valeur")}
@@ -606,7 +607,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                     <TableHead className="text-center">
                       {t("giftCards.columns.status", "Statut")}
                     </TableHead>
-                    <TableHead className="w-[100px] text-right">Actions</TableHead>
+                    <TableHead className="w-[100px] text-right">{t("common:actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -709,7 +710,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("giftCards.columns.template", "Carte")}</TableHead>
-                    {isStandalone && <TableHead>Lieu</TableHead>}
+                    {isStandalone && <TableHead>{t("giftCards.columns.venue", "Lieu")}</TableHead>}
                     <TableHead>{t("giftCards.columns.buyer", "Acheteur")}</TableHead>
                     <TableHead>{t("giftCards.columns.recipient", "Destinataire")}</TableHead>
                     <TableHead>{t("giftCards.columns.code", "Code")}</TableHead>
@@ -787,7 +788,9 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
             <form onSubmit={handleSubmit} className="space-y-4">
               {isStandalone && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Lieu</label>
+                  <label className="text-sm font-medium">
+                    {t("giftCards.columns.venue", "Lieu")}
+                  </label>
                   <Select
                     value={dialogHotelId ?? ""}
                     onValueChange={(v) => {
@@ -798,7 +801,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                     disabled={!!editingTemplate}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un lieu" />
+                      <SelectValue placeholder={t("giftCards.selectVenue", "Sélectionner un lieu")} />
                     </SelectTrigger>
                     <SelectContent>
                       {hotels?.map((hotel) => (
@@ -856,7 +859,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                     <FormItem>
                       <FormLabel>{t("giftCards.form.title", "Titre")}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Escapade Bien-être" />
+                        <Input {...field} placeholder={t("giftCards.form.titlePlaceholder", "Escapade Bien-être")} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

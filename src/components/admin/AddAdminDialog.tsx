@@ -1,4 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,16 +29,17 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 
-const formSchema = z.object({
-  first_name: z.string().min(1, "Prénom requis"),
-  last_name: z.string().min(1, "Nom requis"),
-  email: z.string().email("Email invalide"),
-  phone: z.string().default(""),
-  country_code: z.string().default("+33"),
-  is_super_admin: z.boolean().default(false),
-});
+const makeFormSchema = (t: TFunction) =>
+  z.object({
+    first_name: z.string().min(1, t("common:errors.validation.firstNameRequired")),
+    last_name: z.string().min(1, t("common:errors.validation.lastNameRequired")),
+    email: z.string().email(t("common:errors.validation.emailInvalid")),
+    phone: z.string().default(""),
+    country_code: z.string().default("+33"),
+    is_super_admin: z.boolean().default(false),
+  });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<ReturnType<typeof makeFormSchema>>;
 
 interface AddAdminDialogProps {
   open: boolean;
@@ -46,7 +49,9 @@ interface AddAdminDialogProps {
 }
 
 export function AddAdminDialog({ open, organizationId, onClose, onSuccess }: AddAdminDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const { isSuperAdmin } = useUser();
+  const formSchema = useMemo(() => makeFormSchema(t), [t]);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -92,8 +97,8 @@ export function AddAdminDialog({ open, organizationId, onClose, onSuccess }: Add
     if (insertError) {
       toast.error(
         insertError.message.includes("row-level security")
-          ? "Action non autorisée"
-          : "Création impossible",
+          ? t("addAdminDialog.notAllowed")
+          : t("addAdminDialog.createFailed"),
       );
       console.error(insertError);
       return;
@@ -108,10 +113,10 @@ export function AddAdminDialog({ open, organizationId, onClose, onSuccess }: Add
     });
 
     if (inviteError) {
-      toast.error("Admin créé mais l'email d'invitation a échoué");
+      toast.error(t("addAdminDialog.inviteEmailFailed"));
       console.error(inviteError);
     } else {
-      toast.success("Administrateur invité");
+      toast.success(t("addAdminDialog.inviteSuccess"));
     }
 
     handleClose();
@@ -124,7 +129,7 @@ export function AddAdminDialog({ open, organizationId, onClose, onSuccess }: Add
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Ajouter un administrateur</DialogTitle>
+          <DialogTitle>{t("addAdminDialog.title")}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -135,7 +140,7 @@ export function AddAdminDialog({ open, organizationId, onClose, onSuccess }: Add
                 name="first_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Prénom</FormLabel>
+                    <FormLabel>{t("addAdminDialog.firstName")}</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -148,7 +153,7 @@ export function AddAdminDialog({ open, organizationId, onClose, onSuccess }: Add
                 name="last_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nom</FormLabel>
+                    <FormLabel>{t("addAdminDialog.lastName")}</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -178,7 +183,7 @@ export function AddAdminDialog({ open, organizationId, onClose, onSuccess }: Add
                 name="country_code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Code</FormLabel>
+                    <FormLabel>{t("addAdminDialog.countryCode")}</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -191,7 +196,7 @@ export function AddAdminDialog({ open, organizationId, onClose, onSuccess }: Add
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Téléphone</FormLabel>
+                    <FormLabel>{t("addAdminDialog.phone")}</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -208,9 +213,9 @@ export function AddAdminDialog({ open, organizationId, onClose, onSuccess }: Add
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                     <div className="space-y-0.5">
-                      <FormLabel>Super-admin</FormLabel>
+                      <FormLabel>{t("addAdminDialog.superAdmin")}</FormLabel>
                       <FormDescription className="text-xs">
-                        Staff Lymfea — accès global à toutes les organisations
+                        {t("addAdminDialog.superAdminDesc")}
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -223,11 +228,11 @@ export function AddAdminDialog({ open, organizationId, onClose, onSuccess }: Add
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={handleClose}>
-                Annuler
+                {t("common:buttons.cancel")}
               </Button>
               <Button type="submit" disabled={submitting}>
                 {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Inviter
+                {t("addAdminDialog.invite")}
               </Button>
             </DialogFooter>
           </form>

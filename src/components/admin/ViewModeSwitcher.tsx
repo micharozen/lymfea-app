@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRightLeft, Building2, Check, Loader2 } from "lucide-react";
@@ -23,6 +24,7 @@ async function fetchVenueOptions(): Promise<VenueOption[]> {
 }
 
 export function ViewModeSwitcher() {
+  const { t } = useTranslation(["admin", "common"]);
   const { canSwitch, mode, switchToVenue } = useViewMode();
   const { state } = useSidebar();
   const navigate = useNavigate();
@@ -51,12 +53,12 @@ export function ViewModeSwitcher() {
         <button
           type="button"
           className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
-          aria-label="Switcher vers l'espace Gestion du lieu"
-          title="Switcher vers l'espace Gestion du lieu"
+          aria-label={t("viewModeSwitcher.switchAria")}
+          title={t("viewModeSwitcher.switchAria")}
         >
           <ArrowRightLeft className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={1.75} />
           <span className="text-sm group-data-[collapsible=icon]:hidden">
-            Espace Gestion du lieu
+            {t("viewModeSwitcher.label")}
           </span>
         </button>
       </PopoverTrigger>
@@ -67,22 +69,22 @@ export function ViewModeSwitcher() {
       >
         <div className="px-3 py-2 border-b border-border">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Choisir un lieu
+            {t("viewModeSwitcher.chooseVenue")}
           </p>
           <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-            Vous basculerez en mode Gestion du lieu pour ce lieu.
+            {t("viewModeSwitcher.hint")}
           </p>
         </div>
         <div className="max-h-72 overflow-y-auto py-1">
           {isLoading && (
             <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Chargement…
+              {t("common:loading")}
             </div>
           )}
           {!isLoading && venues && venues.length === 0 && (
             <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-              Aucun lieu disponible.
+              {t("viewModeSwitcher.noVenue")}
             </div>
           )}
           {!isLoading &&

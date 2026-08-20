@@ -304,7 +304,7 @@ export function EditOrganizationDialog({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom</FormLabel>
+                  <FormLabel>{t('organizationDialog.name')}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -318,7 +318,7 @@ export function EditOrganizationDialog({
               name="slug"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Slug</FormLabel>
+                  <FormLabel>{t('organizationDialog.slug')}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -347,8 +347,7 @@ export function EditOrganizationDialog({
             <div>
               <h3 className="text-sm font-medium text-foreground">{t('organizationDialog.legalIdentity')}</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Émetteur affiché sur les factures. Saisissez le SIREN et récupérez
-                les informations officielles.
+                {t('organizationDialog.legalIdentityHelp')}
               </p>
             </div>
 
@@ -372,7 +371,7 @@ export function EditOrganizationDialog({
               name="siren"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>SIREN</FormLabel>
+                  <FormLabel>{t('organizationDialog.siren')}</FormLabel>
                   <div className="flex gap-2">
                     <FormControl>
                       <Input {...field} placeholder="900979592" inputMode="numeric" />
@@ -473,7 +472,7 @@ export function EditOrganizationDialog({
               name="rcs"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>RCS</FormLabel>
+                  <FormLabel>{t('organizationDialog.rcs')}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -530,7 +529,7 @@ export function EditOrganizationDialog({
               name="legal_country"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Pays</FormLabel>
+                  <FormLabel>{t('organizationDialog.country')}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>

@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AreaChart,
   Area,
@@ -55,6 +56,7 @@ function SalesTooltip({
   payload?: Array<{ payload: ChartPoint }>;
   label?: string;
 }) {
+  const { t } = useTranslation(["admin", "common"]);
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return (
@@ -62,21 +64,22 @@ function SalesTooltip({
       <p className="font-semibold mb-1">{label}</p>
       <p>{point.sales.toFixed(2)} €</p>
       <p style={{ color: "var(--ink-mute)", fontSize: "11.5px" }}>
-        {point.prestations} prestation{point.prestations > 1 ? "s" : ""}
+        {t("dashboardCharts.sales.treatmentCount", { count: point.prestations })}
       </p>
     </div>
   );
 }
 
 export function SalesChart({ data }: SalesChartProps) {
+  const { t } = useTranslation(["admin", "common"]);
   return (
     <div className="card">
       <div className="hd">
-        <h2 className="bo-sec-title">Ventes</h2>
-        <span className="seg-note">CA / jour</span>
+        <h2 className="bo-sec-title">{t("dashboardCharts.sales.title")}</h2>
+        <span className="seg-note">{t("dashboardCharts.sales.perDay")}</span>
       </div>
       {data.length === 0 ? (
-        <p className="card-empty">Aucune donnée de vente pour cette période</p>
+        <p className="card-empty">{t("dashboardCharts.sales.empty")}</p>
       ) : (
         <div className="chart-wrap">
           <ResponsiveContainer width="100%" height={260}>
@@ -122,6 +125,7 @@ function cellBackground(cell: RoomHeatmapCell): string {
 }
 
 export function RoomOccupancyHeatmap({ data }: RoomOccupancyHeatmapProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const { rooms, hours } = data;
 
   // Afficher un intitulé de lieu seulement quand la vue couvre plusieurs lieux.
@@ -133,7 +137,7 @@ export function RoomOccupancyHeatmap({ data }: RoomOccupancyHeatmapProps) {
   return (
     <div className="card full">
       <div className="hd">
-        <h2 className="bo-sec-title">Occupation salles — aujourd&apos;hui</h2>
+        <h2 className="bo-sec-title">{t("dashboardCharts.heatmap.title")}</h2>
         <span className="heat-scale">
           0%
           <span className="g" />
@@ -141,7 +145,7 @@ export function RoomOccupancyHeatmap({ data }: RoomOccupancyHeatmapProps) {
         </span>
       </div>
       {rooms.length === 0 ? (
-        <p className="card-empty">Aucune salle active</p>
+        <p className="card-empty">{t("dashboardCharts.heatmap.empty")}</p>
       ) : (
         <div className="overflow-x-auto">
           <div className="heat min-w-max" style={{ gridTemplateColumns }}>
@@ -153,7 +157,7 @@ export function RoomOccupancyHeatmap({ data }: RoomOccupancyHeatmapProps) {
               </div>
             ))}
             <div className="hh" style={{ textAlign: "right" }}>
-              Jour
+              {t("dashboardCharts.heatmap.day")}
             </div>
 
             {/* Lignes : une par salle, regroupées par lieu si vue multi-lieux */}
@@ -171,7 +175,7 @@ export function RoomOccupancyHeatmap({ data }: RoomOccupancyHeatmapProps) {
                       key={cell.hourIndex}
                       className="c"
                       style={{ background: cellBackground(cell) }}
-                      title={`${room.roomName} · ${String(cell.hourIndex).padStart(2, "0")}h — ${cell.seats}/${cell.capacity} (${cell.rate}%)${cell.outOfHours ? " · hors horaires" : ""}`}
+                      title={`${room.roomName} · ${String(cell.hourIndex).padStart(2, "0")}h — ${cell.seats}/${cell.capacity} (${cell.rate}%)${cell.outOfHours ? ` · ${t("dashboardCharts.heatmap.outOfHours")}` : ""}`}
                     />
                   ))}
                   <div className="pct">{room.dayRate}%</div>
@@ -192,15 +196,16 @@ interface StatusDonutProps {
 }
 
 export function StatusDonut({ data }: StatusDonutProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
     <div className="card">
       <div className="hd">
-        <h2 className="bo-sec-title">Statuts</h2>
+        <h2 className="bo-sec-title">{t("dashboardCharts.status.title")}</h2>
       </div>
       {total === 0 ? (
-        <p className="card-empty">Aucune donnée</p>
+        <p className="card-empty">{t("common:noData")}</p>
       ) : (
         <>
           <ResponsiveContainer width="100%" height={190}>
@@ -227,7 +232,7 @@ export function StatusDonut({ data }: StatusDonutProps) {
                 dominantBaseline="central"
                 style={{ fontSize: "10px", fill: "var(--ink-mute)" }}
               >
-                réservations
+                {t("dashboardCharts.status.bookings")}
               </text>
             </PieChart>
           </ResponsiveContainer>
@@ -253,16 +258,17 @@ interface WeekForecastProps {
 }
 
 export function WeekForecast({ data }: WeekForecastProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const hasData = data.some((d) => d.confirmed > 0 || d.pending > 0);
 
   return (
     <div className="card">
       <div className="hd">
-        <h2 className="bo-sec-title">Prévisionnel 7 jours</h2>
-        <span className="seg-note">résas / jour</span>
+        <h2 className="bo-sec-title">{t("dashboardCharts.forecast.title")}</h2>
+        <span className="seg-note">{t("dashboardCharts.forecast.perDay")}</span>
       </div>
       {!hasData ? (
-        <p className="card-empty">Aucune réservation prévue cette semaine</p>
+        <p className="card-empty">{t("dashboardCharts.forecast.empty")}</p>
       ) : (
         <div className="chart-wrap">
           <ResponsiveContainer width="100%" height={190}>
@@ -272,8 +278,8 @@ export function WeekForecast({ data }: WeekForecastProps) {
               <YAxis tick={axisTick} stroke={GRID} tickLine={false} allowDecimals={false} />
               <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--line-soft)" }} />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "11.5px" }} />
-              <Bar dataKey="confirmed" name="Confirmé" stackId="a" fill={CLAY} />
-              <Bar dataKey="pending" name="En attente" stackId="a" fill={WAIT} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="confirmed" name={t("dashboardCharts.forecast.confirmed")} stackId="a" fill={CLAY} />
+              <Bar dataKey="pending" name={t("common:status.pending")} stackId="a" fill={WAIT} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

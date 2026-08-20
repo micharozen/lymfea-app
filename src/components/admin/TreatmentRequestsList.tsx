@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useDateLocale } from "@/lib/dateLocale";
 import { Phone, MessageSquare, ArrowRight, Calendar, Clock, Building2, User } from "lucide-react";
 import TreatmentRequestDetailDialog from "./TreatmentRequestDetailDialog";
 
@@ -45,6 +46,8 @@ interface TreatmentRequest {
 }
 
 export default function TreatmentRequestsList() {
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   const [selectedRequest, setSelectedRequest] = useState<TreatmentRequest | null>(null);
@@ -97,20 +100,20 @@ export default function TreatmentRequestsList() {
   };
 
   const getTreatmentName = (treatmentId: string | null) => {
-    if (!treatmentId) return "Non spécifié";
-    return treatments.find((t) => t.id === treatmentId)?.name || "Inconnu";
+    if (!treatmentId) return t("treatmentRequests.notSpecified");
+    return treatments.find((tr) => tr.id === treatmentId)?.name || t("treatmentRequests.unknown");
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return <Badge className="bg-warning/10 text-warning border-warning/30">En attente</Badge>;
+        return <Badge className="bg-warning/10 text-warning border-warning/30">{t("treatmentRequests.status.pending")}</Badge>;
       case "quoted":
-        return <Badge className="bg-info/10 text-info border-info/30">Devis envoyé</Badge>;
+        return <Badge className="bg-info/10 text-info border-info/30">{t("treatmentRequests.status.quoted")}</Badge>;
       case "converted":
-        return <Badge className="bg-success/10 text-success border-success/30">Converti</Badge>;
+        return <Badge className="bg-success/10 text-success border-success/30">{t("treatmentRequests.status.converted")}</Badge>;
       case "rejected":
-        return <Badge className="bg-destructive/10 text-destructive border-destructive/30">Rejeté</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive border-destructive/30">{t("treatmentRequests.status.rejected")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -136,23 +139,23 @@ export default function TreatmentRequestsList() {
       {/* Header with filters */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Demandes On Request</h2>
+          <h2 className="text-lg font-semibold">{t("treatmentRequests.title")}</h2>
           {pendingCount > 0 && (
             <Badge className="bg-warning text-warning-foreground">
-              {pendingCount} en attente
+              {t("treatmentRequests.pendingCount", { count: pendingCount })}
             </Badge>
           )}
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Statut" />
+            <SelectValue placeholder={t("treatmentRequests.statusPlaceholder")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous</SelectItem>
-            <SelectItem value="pending">En attente</SelectItem>
-            <SelectItem value="quoted">Devis envoyé</SelectItem>
-            <SelectItem value="converted">Convertis</SelectItem>
-            <SelectItem value="rejected">Rejetés</SelectItem>
+            <SelectItem value="all">{t("treatmentRequests.filter.all")}</SelectItem>
+            <SelectItem value="pending">{t("treatmentRequests.filter.pending")}</SelectItem>
+            <SelectItem value="quoted">{t("treatmentRequests.filter.quoted")}</SelectItem>
+            <SelectItem value="converted">{t("treatmentRequests.filter.converted")}</SelectItem>
+            <SelectItem value="rejected">{t("treatmentRequests.filter.rejected")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -161,20 +164,20 @@ export default function TreatmentRequestsList() {
       {requests.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>Aucune demande {statusFilter !== "all" ? `"${statusFilter}"` : ""}</p>
+          <p>{t("treatmentRequests.empty")}</p>
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Hôtel</TableHead>
-                <TableHead>Soin demandé</TableHead>
-                <TableHead>Date souhaitée</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Créé le</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("treatmentRequests.colClient")}</TableHead>
+                <TableHead>{t("treatmentRequests.colVenue")}</TableHead>
+                <TableHead>{t("treatmentRequests.colTreatment")}</TableHead>
+                <TableHead>{t("treatmentRequests.colPreferredDate")}</TableHead>
+                <TableHead>{t("treatmentRequests.colStatus")}</TableHead>
+                <TableHead>{t("treatmentRequests.colCreatedAt")}</TableHead>
+                <TableHead className="text-right">{t("common:actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -207,7 +210,7 @@ export default function TreatmentRequestsList() {
                     {request.preferred_date ? (
                       <div className="flex items-center gap-1 text-sm">
                         <Calendar className="h-3 w-3 text-muted-foreground" />
-                        {format(new Date(request.preferred_date), "dd/MM/yyyy", { locale: fr })}
+                        {format(new Date(request.preferred_date), "dd/MM/yyyy", { locale: dateLocale })}
                         {request.preferred_time && (
                           <>
                             <Clock className="h-3 w-3 text-muted-foreground ml-2" />
@@ -216,13 +219,13 @@ export default function TreatmentRequestsList() {
                         )}
                       </div>
                     ) : (
-                      <span className="text-muted-foreground text-sm">Non spécifié</span>
+                      <span className="text-muted-foreground text-sm">{t("treatmentRequests.notSpecified")}</span>
                     )}
                   </TableCell>
                   <TableCell className="py-2 whitespace-nowrap">{getStatusBadge(request.status)}</TableCell>
                   <TableCell className="py-2 whitespace-nowrap">
                     <span className="text-sm text-muted-foreground">
-                      {format(new Date(request.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}
+                      {format(new Date(request.created_at), "dd/MM/yyyy HH:mm", { locale: dateLocale })}
                     </span>
                   </TableCell>
                   <TableCell className="py-2 text-right">

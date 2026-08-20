@@ -54,7 +54,7 @@ import { useDialogState } from "@/hooks/useDialogState";
 import { useTableSort } from "@/hooks/useTableSort";
 
 export default function TreatmentRooms() {
-  const { t } = useTranslation(['admin', 'common']);
+  const { t, i18n } = useTranslation(['admin', 'common']);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -278,9 +278,9 @@ export default function TreatmentRooms() {
                 <TableEmptyState
                   colSpan={columnCount}
                   icon={DoorOpen}
-                  message="Aucune salle de soin trouvee"
-                  description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                  actionLabel={isAdmin ? "Ajouter une salle" : undefined}
+                  message={t('treatmentRoomsPage.empty')}
+                  description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? t('treatmentRoomsPage.emptyHint') : undefined}
+                  actionLabel={isAdmin ? t('treatmentRoomsPage.addRoom') : undefined}
                   onAction={isAdmin ? () => navigate("/admin/treatment-rooms/new") : undefined}
                 />
               ) : (
@@ -321,7 +321,7 @@ export default function TreatmentRooms() {
                           {(() => {
                             const nextBooking = getNextBooking(room.id);
                             if (!nextBooking) return "-";
-                            return new Date(nextBooking).toLocaleString("fr-FR", {
+                            return new Date(nextBooking).toLocaleString(i18n.language, {
                               day: "2-digit",
                               month: "2-digit",
                               year: "numeric",

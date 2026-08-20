@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2, Plus } from "lucide-react";
 import {
   Select,
@@ -31,13 +32,17 @@ export function CategorySelectField({
   value,
   onChange,
   disabled = false,
-  placeholder = "Sélectionner une catégorie",
-  emptyHint = "Aucune catégorie. Créez-en une ci-dessous.",
-  noHotelHint = "Sélectionnez d'abord un lieu",
+  placeholder,
+  emptyHint,
+  noHotelHint,
   filter = "all",
   defaultIsAddon = false,
   hideIsAddonInDialog = false,
 }: CategorySelectFieldProps) {
+  const { t } = useTranslation(["admin", "common"]);
+  const resolvedPlaceholder = placeholder ?? t("categorySelect.placeholder");
+  const resolvedEmptyHint = emptyHint ?? t("categorySelect.emptyHint");
+  const resolvedNoHotelHint = noHotelHint ?? t("categorySelect.noVenueHint");
   const { categories, isLoading } = useTreatmentCategories(hotelId);
   const [selectOpen, setSelectOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -82,7 +87,7 @@ export function CategorySelectField({
         disabled={disabled}
       >
         <SelectTrigger>
-          <SelectValue placeholder={placeholder} />
+          <SelectValue placeholder={resolvedPlaceholder} />
         </SelectTrigger>
         <SelectContent onCloseAutoFocus={handleSelectCloseAutoFocus}>
           {isLoading ? (
@@ -91,7 +96,7 @@ export function CategorySelectField({
             </div>
           ) : visibleCategories.length === 0 ? (
             <div className="px-2 py-2 text-sm text-muted-foreground">
-              {hotelId ? emptyHint : noHotelHint}
+              {hotelId ? resolvedEmptyHint : resolvedNoHotelHint}
             </div>
           ) : (
             visibleCategories.map((category) => (
@@ -110,7 +115,7 @@ export function CategorySelectField({
                 className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary hover:bg-accent focus:bg-accent focus:outline-none"
               >
                 <Plus className="h-4 w-4" />
-                Créer une catégorie
+                {t("categorySelect.createCategory")}
               </button>
             </>
           )}

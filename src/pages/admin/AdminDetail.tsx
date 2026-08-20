@@ -112,7 +112,7 @@ export default function AdminDetail() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: AdminFormValues) => {
-      if (!id) throw new Error("ID manquant");
+      if (!id) throw new Error(t('admins.detail.missingId'));
       const { error } = await supabase
         .from("admins")
         .update({
@@ -142,7 +142,7 @@ export default function AdminDetail() {
 
   const resendInviteMutation = useMutation({
     mutationFn: async () => {
-      if (!admin) throw new Error("Admin introuvable");
+      if (!admin) throw new Error(t('admins.detail.notFound'));
       const { error } = await invokeEdgeFunction("invite-admin", {
         body: {
           email: admin.email,
@@ -171,7 +171,7 @@ export default function AdminDetail() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      if (!id) throw new Error("ID manquant");
+      if (!id) throw new Error(t('admins.detail.missingId'));
       const { error } = await invokeEdgeFunction("delete-admin", {
         body: { adminId: id },
       });
@@ -306,7 +306,7 @@ export default function AdminDetail() {
                       {form.watch("profileImage") ? (
                         <img
                           src={form.watch("profileImage")!}
-                          alt="Profile"
+                          alt={t('admins.profilePhoto')}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -391,7 +391,7 @@ export default function AdminDetail() {
                             >
                               {form.watch("countryCode")
                                 ? `${countries.find((c) => c.code === form.watch("countryCode"))?.flag} ${form.watch("countryCode")}`
-                                : "Sélectionner..."}
+                                : t('admins.selectPlaceholder')}
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>

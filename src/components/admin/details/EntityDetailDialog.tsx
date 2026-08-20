@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Pencil, Copy, Send, Loader2 } from "lucide-react";
 import { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 export type EntityStatus = "active" | "inactive" | "pending" | "maintenance" | string;
 
@@ -39,11 +40,11 @@ const statusStyles: Record<string, string> = {
   maintenance: "bg-blue-500/10 text-blue-700",
 };
 
-const statusLabels: Record<string, string> = {
-  active: "Actif",
-  inactive: "Inactif",
-  pending: "En attente",
-  maintenance: "Maintenance",
+const statusLabelKeys: Record<string, string> = {
+  active: "common:status.active",
+  inactive: "common:status.inactive",
+  pending: "common:status.pending",
+  maintenance: "entityDetailDialog.statusMaintenance",
 };
 
 export function EntityDetailDialog({
@@ -61,8 +62,11 @@ export function EntityDetailDialog({
   statusLabel,
   children,
 }: EntityDetailDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const initials = title.substring(0, 2).toUpperCase();
-  const displayStatus = statusLabel || (status ? statusLabels[status] || status : undefined);
+  const displayStatus =
+    statusLabel ||
+    (status ? (statusLabelKeys[status] ? t(statusLabelKeys[status]) : status) : undefined);
   const statusStyle = status ? statusStyles[status] || "bg-muted text-muted-foreground" : "";
 
   return (
@@ -105,7 +109,7 @@ export function EntityDetailDialog({
 
         <DialogFooter className="mt-4 gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Fermer
+            {t("common:buttons.close")}
           </Button>
           {onResendInvite && (
             <Button
@@ -118,7 +122,7 @@ export function EntityDetailDialog({
               ) : (
                 <Send className="h-4 w-4 mr-2" />
               )}
-              Renvoyer l'invitation
+              {t("entityDetailDialog.resendInvite")}
             </Button>
           )}
           {onDuplicate && (
@@ -130,7 +134,7 @@ export function EntityDetailDialog({
               }}
             >
               <Copy className="h-4 w-4 mr-2" />
-              Dupliquer
+              {t("entityDetailDialog.duplicate")}
             </Button>
           )}
           {onEdit && (
@@ -142,7 +146,7 @@ export function EntityDetailDialog({
               className="bg-foreground text-background hover:bg-foreground/90"
             >
               <Pencil className="h-4 w-4 mr-2" />
-              Modifier
+              {t("common:buttons.edit")}
             </Button>
           )}
         </DialogFooter>

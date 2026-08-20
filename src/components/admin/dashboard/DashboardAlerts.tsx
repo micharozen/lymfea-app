@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { BedDouble, CreditCard, ExternalLink, UserX } from "lucide-react";
 import {
   Dialog,
@@ -17,8 +19,10 @@ interface DashboardAlertsProps {
 }
 
 const getDaysUntilLabel = (daysUntil: number) => {
-  if (daysUntil < 0) return `J+${Math.abs(daysUntil)}`;
-  return `J-${daysUntil}`;
+  if (daysUntil < 0) {
+    return i18n.t("admin:dashboardAlerts.daysAfter", { days: Math.abs(daysUntil) });
+  }
+  return i18n.t("admin:dashboardAlerts.daysBefore", { days: daysUntil });
 };
 
 const getDaysUntilClassName = (daysUntil: number) => {
@@ -35,6 +39,7 @@ const getDaysUntilClassName = (daysUntil: number) => {
 };
 
 export function DashboardAlerts({ alerts, missingRoomNumber }: DashboardAlertsProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const { unassigned, pendingPayments, failedPayments } = alerts;
   const [isUnassignedOpen, setIsUnassignedOpen] = useState(false);
   const [isPendingPaymentsOpen, setIsPendingPaymentsOpen] = useState(false);
@@ -52,26 +57,29 @@ export function DashboardAlerts({ alerts, missingRoomNumber }: DashboardAlertsPr
         {unassigned > 0 && (
           <button type="button" onClick={() => setIsUnassignedOpen(true)} className="alert info">
             <UserX className="h-3.5 w-3.5" />
-            <span className="n">{unassigned}</span> sans thérapeute
+            <span className="n">{unassigned}</span>{" "}
+            {t("dashboardAlerts.withoutTherapist")}
           </button>
         )}
         {pendingPayments > 0 && (
           <button type="button" onClick={() => setIsPendingPaymentsOpen(true)} className="alert wait">
             <CreditCard className="h-3.5 w-3.5" />
-            <span className="n">{pendingPayments}</span> paiement{pendingPayments > 1 ? "s" : ""} en attente
+            <span className="n">{pendingPayments}</span>{" "}
+            {t("dashboardAlerts.pendingPayments", { count: pendingPayments })}
           </button>
         )}
         {failedPayments > 0 && (
           <Link to="/admin/bookings?payment_status=failed" className="alert bad">
             <CreditCard className="h-3.5 w-3.5" />
-            <span className="n">{failedPayments}</span> paiement{failedPayments > 1 ? "s" : ""} échoué
-            {failedPayments > 1 ? "s" : ""}
+            <span className="n">{failedPayments}</span>{" "}
+            {t("dashboardAlerts.failedPayments", { count: failedPayments })}
           </Link>
         )}
         {missingRoomNumber > 0 && (
           <Link to="/admin/bookings" className="alert run">
             <BedDouble className="h-3.5 w-3.5" />
-            <span className="n">{missingRoomNumber}</span> chambre{missingRoomNumber > 1 ? "s" : ""} à renseigner
+            <span className="n">{missingRoomNumber}</span>{" "}
+            {t("dashboardAlerts.missingRoomNumber", { count: missingRoomNumber })}
           </Link>
         )}
       </div>
@@ -79,7 +87,7 @@ export function DashboardAlerts({ alerts, missingRoomNumber }: DashboardAlertsPr
       <AlertBookingsDialog
         open={isUnassignedOpen}
         onOpenChange={setIsUnassignedOpen}
-        title="Réservations sans thérapeute"
+        title={t("dashboardAlerts.unassignedTitle")}
         bookings={alerts.unassignedBookings}
         onSelect={openBookingInNewTab}
       />
@@ -87,7 +95,7 @@ export function DashboardAlerts({ alerts, missingRoomNumber }: DashboardAlertsPr
       <AlertBookingsDialog
         open={isPendingPaymentsOpen}
         onOpenChange={setIsPendingPaymentsOpen}
-        title="Paiements en attente"
+        title={t("dashboardAlerts.pendingPaymentsTitle")}
         bookings={alerts.pendingPaymentBookings}
         onSelect={openBookingInNewTab}
       />
@@ -104,6 +112,7 @@ interface AlertBookingsDialogProps {
 }
 
 function AlertBookingsDialog({ open, onOpenChange, title, bookings, onSelect }: AlertBookingsDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -113,7 +122,7 @@ function AlertBookingsDialog({ open, onOpenChange, title, bookings, onSelect }: 
         <DialogHeader className="px-5 py-4 border-b">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Cliquez sur une réservation pour l&apos;ouvrir dans un nouvel onglet.
+            {t("dashboardAlerts.dialogHint")}
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto p-3">
@@ -128,10 +137,12 @@ function AlertBookingsDialog({ open, onOpenChange, title, bookings, onSelect }: 
                 <div className="flex min-h-20 items-stretch justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-foreground">
-                      Réservation #{booking.bookingNumber ?? booking.id.slice(0, 8)}
+                      {t("dashboardAlerts.bookingRef", {
+                        id: booking.bookingNumber ?? booking.id.slice(0, 8),
+                      })}
                     </p>
                     <p className="font-medium text-foreground">
-                      {booking.hotelName || "Lieu non renseigné"}
+                      {booking.hotelName || t("dashboardAlerts.noVenue")}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {booking.date}

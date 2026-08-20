@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 import { Send, Loader2, Trash2 } from "lucide-react";
+import { useDateLocale } from "@/lib/dateLocale";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,8 @@ interface BookingNotesSectionProps {
 }
 
 export function BookingNotesSection({ bookingId }: BookingNotesSectionProps) {
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const [content, setContent] = useState("");
   const { userId } = useUser();
   const queryClient = useQueryClient();
@@ -49,7 +52,7 @@ export function BookingNotesSection({ bookingId }: BookingNotesSectionProps) {
       queryClient.invalidateQueries({ queryKey: ["booking-notes", bookingId] });
     },
     onError: () => {
-      toast({ title: "Erreur", description: "Impossible d'ajouter la note", variant: "destructive" });
+      toast({ title: t("common:toasts.error"), description: t("bookingNotes.addError"), variant: "destructive" });
     },
   });
 
@@ -62,7 +65,7 @@ export function BookingNotesSection({ bookingId }: BookingNotesSectionProps) {
       queryClient.invalidateQueries({ queryKey: ["booking-notes", bookingId] });
     },
     onError: () => {
-      toast({ title: "Erreur", description: "Impossible de supprimer la note", variant: "destructive" });
+      toast({ title: t("common:toasts.error"), description: t("bookingNotes.deleteError"), variant: "destructive" });
     },
   });
 
@@ -83,7 +86,7 @@ export function BookingNotesSection({ bookingId }: BookingNotesSectionProps) {
     <div className="flex flex-col h-full gap-3">
       {notes.length === 0 ? (
         <p className="text-sm text-muted-foreground flex-1 flex items-center justify-center">
-          Aucune note interne
+          {t("bookingNotes.empty")}
         </p>
       ) : (
         <div className="flex-1 space-y-2 overflow-y-auto">
@@ -93,7 +96,7 @@ export function BookingNotesSection({ bookingId }: BookingNotesSectionProps) {
                 <span className="text-xs font-medium">{note.author_name}</span>
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(note.created_at), { locale: fr, addSuffix: true })}
+                    {formatDistanceToNow(new Date(note.created_at), { locale: dateLocale, addSuffix: true })}
                   </span>
                   {note.user_id === userId && (
                     <button
@@ -118,7 +121,7 @@ export function BookingNotesSection({ bookingId }: BookingNotesSectionProps) {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ajouter une note…"
+              placeholder={t("bookingNotes.placeholder")}
               rows={2}
               className="resize-none border-muted-foreground/30 focus-visible:ring-1 focus-visible:ring-ring"
             />
@@ -135,7 +138,7 @@ export function BookingNotesSection({ bookingId }: BookingNotesSectionProps) {
               )}
             </Button>
           </div>
-          <p className="text-[10px] text-muted-foreground">Entrée pour envoyer · Shift+Entrée pour un retour à la ligne</p>
+          <p className="text-[10px] text-muted-foreground">{t("bookingNotes.hint")}</p>
         </div>
       )}
     </div>

@@ -384,9 +384,13 @@ export default function Therapists() {
                 <TableEmptyState
                   colSpan={columnCount}
                   icon={Users}
-                  message="Aucun thérapeute trouve"
-                  description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                  actionLabel={isAdmin ? "Ajouter un thérapeute" : undefined}
+                  message={t("therapistsPage.emptyMessage")}
+                  description={
+                    searchQuery || hotelFilter !== "all" || statusFilter !== "all"
+                      ? t("therapistsPage.emptyHint")
+                      : undefined
+                  }
+                  actionLabel={isAdmin ? t("therapistsPage.addTherapist") : undefined}
                   onAction={isAdmin ? openAdd : undefined}
                 />
               ) : (
@@ -470,7 +474,7 @@ export default function Therapists() {
               totalItems={filteredTherapists.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              itemName="thérapeutes"
+              itemName={t("therapistsPage.itemName")}
             />
           )}
         </div>

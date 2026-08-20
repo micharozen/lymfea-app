@@ -32,11 +32,15 @@ const generateRoomNumber = () => {
 
 const createFormSchema = (t: TFunction) =>
   z.object({
-    name: z.string().min(1, t("errors.validation.nameRequired")),
+    name: z.string().min(1, t("common:errors.validation.nameRequired")),
     capabilities: z
       .array(z.string())
-      .min(1, "Sélectionnez au moins un type de soin"),
-    capacity: z.coerce.number().int().min(1, "Minimum 1 lit").default(1),
+      .min(1, t("admin:treatmentRoomDetail.capabilitiesRequired")),
+    capacity: z.coerce
+      .number()
+      .int()
+      .min(1, t("admin:treatmentRoomDetail.capacityMin"))
+      .default(1),
     hotel_id: z.string().optional(),
     status: z.string().default("active"),
   });
@@ -48,7 +52,7 @@ export type TreatmentRoomFormValues = z.infer<
 export default function TreatmentRoomDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(["admin", "common"]);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const isNewMode = !id;
@@ -125,7 +129,7 @@ export default function TreatmentRoomDetail() {
         }
       } catch (error) {
         console.error("Error loading room data:", error);
-        toast.error("Erreur lors du chargement de la salle");
+        toast.error(t("treatmentRoomDetail.loadError"));
       } finally {
         setLoading(false);
       }
@@ -177,7 +181,7 @@ export default function TreatmentRoomDetail() {
 
         setSavedRoomId(newRoom.id);
         setRoomName(values.name);
-        toast.success("Salle créée avec succès");
+        toast.success(t("treatmentRoomDetail.created"));
         navigate(`/admin/treatment-rooms/${newRoom.id}`, { replace: true });
       } else {
         // UPDATE
@@ -191,12 +195,12 @@ export default function TreatmentRoomDetail() {
         if (error) throw error;
 
         setRoomName(values.name);
-        toast.success("Salle mise à jour avec succès");
+        toast.success(t("treatmentRoomDetail.updated"));
         setIsEditingState(false);
       }
     } catch (error: any) {
       console.error("Error saving room:", error);
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error(t("treatmentRoomDetail.saveError"));
     } finally {
       setSaving(false);
     }
@@ -227,13 +231,13 @@ export default function TreatmentRoomDetail() {
               className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Retour</span>
+              <span className="hidden sm:inline">{t("common:buttons.back")}</span>
             </Button>
             <div className="h-5 w-px bg-border flex-shrink-0" />
             <h1 className="text-lg font-medium truncate">
               {isNewMode && !savedRoomId
-                ? "Nouvelle salle"
-                : watchedName || roomName || "Salle"}
+                ? t("treatmentRoomsPage.new")
+                : watchedName || roomName || t("treatmentRoomDetail.roomFallback")}
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -247,7 +251,7 @@ export default function TreatmentRoomDetail() {
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}
-                Enregistrer
+                {t("common:buttons.save")}
               </Button>
             ) : isEditing ? (
               <>
@@ -256,7 +260,7 @@ export default function TreatmentRoomDetail() {
                   onClick={handleCancelEdit}
                   disabled={saving}
                 >
-                  Annuler
+                  {t("common:buttons.cancel")}
                 </Button>
                 <Button
                   onClick={handleSave}
@@ -267,7 +271,7 @@ export default function TreatmentRoomDetail() {
                   ) : (
                     <Save className="mr-2 h-4 w-4" />
                   )}
-                  Enregistrer
+                  {t("common:buttons.save")}
                 </Button>
               </>
             ) : (
@@ -276,7 +280,7 @@ export default function TreatmentRoomDetail() {
                 onClick={() => setIsEditingState(true)}
               >
                 <Pencil className="mr-2 h-4 w-4" />
-                Modifier
+                {t("common:buttons.edit")}
               </Button>
             )}
           </div>
@@ -296,14 +300,14 @@ export default function TreatmentRoomDetail() {
                 value="general"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
               >
-                Général
+                {t("treatmentRoomDetail.tabGeneral")}
               </TabsTrigger>
               <TabsTrigger
                 value="planning"
                 disabled={!canAccessTabs}
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
               >
-                Planning
+                {t("treatmentRoomDetail.tabPlanning")}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -330,7 +334,7 @@ export default function TreatmentRoomDetail() {
                 <TreatmentRoomPlanningTab roomId={effectiveRoomId!} />
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
-                  Enregistrez la salle pour accéder au planning
+                  {t("treatmentRoomDetail.savePrompt")}
                 </div>
               )}
             </TabsContent>

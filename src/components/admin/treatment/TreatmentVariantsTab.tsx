@@ -1,4 +1,5 @@
 import { UseFormReturn, useFieldArray, useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrencySymbol } from "@/lib/formatPrice";
@@ -25,6 +26,7 @@ export function TreatmentVariantsTab({
   form,
   disabled,
 }: TreatmentVariantsTabProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "variants",
@@ -78,7 +80,7 @@ export function TreatmentVariantsTab({
   return (
     <div className="space-y-3 max-w-2xl">
       <div className="flex items-center justify-between">
-        <FormLabel className="text-base font-semibold">Variantes</FormLabel>
+        <FormLabel className="text-base font-semibold">{t("treatmentVariantsTab.title")}</FormLabel>
         {!disabled && (
           <Button
             type="button"
@@ -87,7 +89,7 @@ export function TreatmentVariantsTab({
             onClick={handleAddVariant}
           >
             <Plus className="h-4 w-4 mr-1" />
-            Ajouter une variante
+            {t("treatmentVariantsTab.addVariant")}
           </Button>
         )}
       </div>
@@ -104,11 +106,11 @@ export function TreatmentVariantsTab({
                 render={({ field }) => (
                   <FormItem>
                     {index === 0 && (
-                      <FormLabel className="text-xs">Label</FormLabel>
+                      <FormLabel className="text-xs">{t("treatmentVariantsTab.label")}</FormLabel>
                     )}
                     <FormControl>
                       <Input
-                        placeholder="ex: 60 minutes"
+                        placeholder={t("treatmentVariantsTab.labelPlaceholder")}
                         {...field}
                         disabled={disabled}
                       />
@@ -124,7 +126,7 @@ export function TreatmentVariantsTab({
                 render={({ field }) => (
                   <FormItem>
                     {index === 0 && (
-                      <FormLabel className="text-xs">Durée (min) *</FormLabel>
+                      <FormLabel className="text-xs">{t("treatmentVariantsTab.duration")}</FormLabel>
                     )}
                     <FormControl>
                       <Input
@@ -145,7 +147,7 @@ export function TreatmentVariantsTab({
                 render={({ field }) => (
                   <FormItem>
                     {index === 0 && (
-                      <FormLabel className="text-xs">Pers.</FormLabel>
+                      <FormLabel className="text-xs">{t("treatmentVariantsTab.guests")}</FormLabel>
                     )}
                     <FormControl>
                       <Input
@@ -168,7 +170,7 @@ export function TreatmentVariantsTab({
                   <FormItem>
                     {index === 0 && (
                       <FormLabel className="text-xs">
-                        Prix ({currencySymbol})
+                        {t("treatmentVariantsTab.price", { symbol: currencySymbol })}
                       </FormLabel>
                     )}
                     <FormControl>
@@ -195,7 +197,7 @@ export function TreatmentVariantsTab({
             {/* Options + trash — regroupés pour éviter tout chevauchement */}
             <div className="flex flex-col gap-1 shrink-0">
               {index === 0 && (
-                <FormLabel className="text-xs block">Options</FormLabel>
+                <FormLabel className="text-xs block">{t("treatmentVariantsTab.options")}</FormLabel>
               )}
               <div className="flex items-center gap-3 h-10">
                 <FormField
@@ -210,7 +212,7 @@ export function TreatmentVariantsTab({
                         disabled={disabled}
                       />
                       <label className="text-xs cursor-pointer whitespace-nowrap">
-                        Sur demande
+                        {t("treatmentVariantsTab.onRequest")}
                       </label>
                     </div>
                   )}
@@ -226,7 +228,7 @@ export function TreatmentVariantsTab({
                     disabled={disabled}
                   />
                   <label className="text-xs cursor-pointer whitespace-nowrap">
-                    Défaut
+                    {t("treatmentVariantsTab.default")}
                   </label>
                 </div>
 
@@ -256,13 +258,13 @@ export function TreatmentVariantsTab({
                 const selected: number[] = field.value ?? [];
                 return (
                   <FormItem>
-                    <FormLabel className="text-xs">Jours de disponibilité</FormLabel>
+                    <FormLabel className="text-xs">{t("treatmentVariantsTab.availableDays")}</FormLabel>
                     <FormControl>
                       <AvailableDaysPicker
                         value={selected}
                         onChange={field.onChange}
                         disabled={disabled}
-                        everyDayLabel="Comme le soin"
+                        everyDayLabel={t("treatmentVariantsTab.sameAsTreatment")}
                       />
                     </FormControl>
                     <FormMessage />

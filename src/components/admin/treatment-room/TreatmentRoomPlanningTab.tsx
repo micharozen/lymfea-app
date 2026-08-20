@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Calendar } from "lucide-react";
 
@@ -9,6 +11,7 @@ interface TreatmentRoomPlanningTabProps {
 export function TreatmentRoomPlanningTab({
   roomId,
 }: TreatmentRoomPlanningTabProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const { data: bookings, isLoading } = useQuery({
     queryKey: ["treatment-room-bookings", roomId],
     queryFn: async () => {
@@ -43,7 +46,7 @@ export function TreatmentRoomPlanningTab({
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Calendar className="h-10 w-10 text-muted-foreground mb-3" />
         <p className="text-sm text-muted-foreground">
-          Aucune réservation à venir pour cette salle
+          {t("treatmentRoomPlanning.empty")}
         </p>
       </div>
     );
@@ -52,7 +55,7 @@ export function TreatmentRoomPlanningTab({
   return (
     <div className="space-y-3 max-w-2xl">
       <h3 className="text-sm font-semibold text-foreground">
-        Prochaines réservations ({bookings.length})
+        {t("treatmentRoomPlanning.title", { count: bookings.length })}
       </h3>
       <div className="space-y-2">
         {bookings.map((booking) => (
@@ -62,15 +65,15 @@ export function TreatmentRoomPlanningTab({
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">
-                {booking.guest_name || "Client"}
+                {booking.guest_name || t("treatmentRoomPlanning.client")}
               </p>
               <p className="text-xs text-muted-foreground">
-                {(booking.treatment_menus as any)?.name || "Soin"}
+                {(booking.treatment_menus as any)?.name || t("treatmentRoomPlanning.treatment")}
               </p>
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-sm font-medium">
-                {new Date(booking.booking_date).toLocaleDateString("fr-FR", {
+                {new Date(booking.booking_date).toLocaleDateString(i18n.language, {
                   day: "2-digit",
                   month: "short",
                 })}

@@ -369,7 +369,7 @@ export default function BookingDetail() {
 
   const cancellationDetail =
     booking.status === "cancelled" && paymentMeta?.cancelled_at
-      ? `${format(new Date(paymentMeta.cancelled_at), "d MMM à HH:mm", { locale: dateLocale })} · ${paymentMeta.cancelled_by ? t('bookingDetail.cancelledByVenue') : t('bookingDetail.cancelledByClient')}`
+      ? `${format(new Date(paymentMeta.cancelled_at), t('bookingDetail.dateTimeFormat'), { locale: dateLocale })} · ${paymentMeta.cancelled_by ? t('bookingDetail.cancelledByVenue') : t('bookingDetail.cancelledByClient')}`
       : undefined;
 
   // Success banner is only meaningful for a real collected payment — not a room
@@ -378,7 +378,7 @@ export default function BookingDetail() {
   // confondre avec un encaissement direct.
   const showPaymentSuccess = isPaid && !isRoomPayment && !isPartnerBilled;
   const paidAtDetail = paymentMeta?.payment_at
-    ? format(new Date(paymentMeta.payment_at), "d MMM à HH:mm", { locale: dateLocale })
+    ? format(new Date(paymentMeta.payment_at), t('bookingDetail.dateTimeFormat'), { locale: dateLocale })
     : undefined;
 
   // Remboursement (source de vérité = booking_payment_infos.refund_amount, en €).
@@ -474,10 +474,10 @@ export default function BookingDetail() {
       }
       toast.success(
         isPartner
-          ? "Facturation partenaire enregistrée."
+          ? t('bookingDetail.partnerBillingSaved')
           : isMethodOnly
-            ? "Méthode de paiement mise à jour."
-            : "Paiement enregistré.",
+            ? t('bookingDetail.paymentMethodUpdated')
+            : t('bookingDetail.paymentSaved'),
       );
       dialogs.setIsMarkPaidOpen(false);
       refetch();
@@ -631,7 +631,7 @@ export default function BookingDetail() {
                     <DropdownMenuItem
                       onClick={() => dialogs.setIsSendConfirmationOpen(true)}
                       title={confirmationAlreadySent && confirmationStatus?.lastSentAt
-                        ? t('bookingDetail.confirmationAlreadySent', { date: format(new Date(confirmationStatus.lastSentAt), "d MMM à HH:mm", { locale: dateLocale }) })
+                        ? t('bookingDetail.confirmationAlreadySent', { date: format(new Date(confirmationStatus.lastSentAt), t('bookingDetail.dateTimeFormat'), { locale: dateLocale }) })
                         : undefined}
                     >
                       <MailCheck className="h-4 w-4 mr-2" /> {t('bookingDetail.sendConfirmation')}
@@ -686,7 +686,7 @@ export default function BookingDetail() {
                   <span className="font-medium text-sm truncate">{t('bookingDetail.waiverSigned')}</span>
                 </div>
                 <span className="text-xs opacity-70">
-                  {t('bookingDetail.signedOn', { date: format(new Date(booking.signed_at), "d MMM à HH:mm", { locale: dateLocale }) })}
+                  {t('bookingDetail.signedOn', { date: format(new Date(booking.signed_at), t('bookingDetail.dateTimeFormat'), { locale: dateLocale }) })}
                 </span>
               </div>
             )}
@@ -846,7 +846,7 @@ export default function BookingDetail() {
               {hasRefund && (
                 <div className="mt-2 flex justify-between text-sm">
                   <span className="flex items-center gap-1.5 text-rose-600">
-                    <Undo2 className="h-3.5 w-3.5 shrink-0" /> Remboursé
+                    <Undo2 className="h-3.5 w-3.5 shrink-0" /> {t('bookingDetail.refunded')}
                   </span>
                   <span className="font-medium tabular-nums text-rose-600">
                     −{formatPrice(refundedAmount, currency)}
@@ -859,7 +859,7 @@ export default function BookingDetail() {
                   <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 flex items-center gap-2 text-green-800">
                     <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
                     <span className="font-medium text-xs">
-                      Paiement réalisé avec succès{paidAtDetail && <span className="font-normal opacity-70"> — le {paidAtDetail}</span>}
+                      {t('bookingDetail.paymentSuccessful')}{paidAtDetail && <span className="font-normal opacity-70">{t('bookingDetail.paymentSuccessfulOn', { date: paidAtDetail })}</span>}
                     </span>
                   </div>
                 ) : isRoomPayment ? (
@@ -876,8 +876,8 @@ export default function BookingDetail() {
                     )}
                     <span className="font-medium text-xs">
                       {partnerName
-                        ? `Facturé au partenaire ${partnerName} (facturation mensuelle).`
-                        : "Paiement géré par le partenaire (facturation mensuelle)."}
+                        ? t('bookingDetail.billedToPartner', { partner: partnerName })
+                        : t('bookingDetail.billedToPartnerGeneric')}
                     </span>
                   </div>
                 ) : (
@@ -896,7 +896,7 @@ export default function BookingDetail() {
                 <CollapsibleContent className="pt-3 space-y-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-500 flex items-center gap-2">
-                      <MethodIcon className="h-4 w-4 shrink-0" /> Méthode
+                      <MethodIcon className="h-4 w-4 shrink-0" /> {t('bookingDetail.method')}
                     </span>
                     <button
                       type="button"
@@ -942,7 +942,7 @@ export default function BookingDetail() {
                   className="w-full mt-4"
                   onClick={() => openPaymentMethodDialog("pay")}
                 >
-                  <CheckCircle2 className="h-4 w-4 mr-2" /> Marquer comme payé
+                  <CheckCircle2 className="h-4 w-4 mr-2" /> {t('bookingDetail.markAsPaid')}
                 </Button>
               )}
             </section>

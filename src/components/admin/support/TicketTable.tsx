@@ -96,7 +96,7 @@ export function TicketTable({
   emptyActionLabel,
   itemsPerPage,
 }: TicketTableProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");

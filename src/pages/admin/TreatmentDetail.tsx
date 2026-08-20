@@ -31,11 +31,11 @@ const createFormSchema = (t: TFunction) =>
     name: z.string().min(1, t("errors.validation.nameRequired")),
     slug: z
       .string()
-      .min(2, "Au moins 2 caractères")
-      .max(60, "60 caractères max")
+      .min(2, t("admin:treatmentDetail.slugMin"))
+      .max(60, t("admin:treatmentDetail.slugMax"))
       .regex(
         /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-        "Lettres minuscules, chiffres et tirets uniquement"
+        t("admin:treatmentDetail.slugFormat")
       )
       .optional()
       .or(z.literal("")),
@@ -63,7 +63,7 @@ const createFormSchema = (t: TFunction) =>
           id: z.string().uuid().optional(),
           label: z.string().optional(),
           label_en: z.string().optional(),
-          duration: z.string().min(1, "Durée requise"),
+          duration: z.string().min(1, t("admin:treatmentDetail.durationRequired")),
           guest_count: z.string().default("1"),
           price: z.string().default("0"),
           price_on_request: z.boolean().default(false),
@@ -72,7 +72,7 @@ const createFormSchema = (t: TFunction) =>
           available_days: z.array(z.number().int().min(0).max(6)).default([]),
         })
       )
-      .min(1, "Au moins une variante requise"),
+      .min(1, t("admin:treatmentDetail.variantRequired")),
   })
     .superRefine((val, ctx) => {
       // Specialty and service_for are mandatory for real soins, but irrelevant
@@ -274,16 +274,16 @@ export default function TreatmentDetail() {
     if (!isValid) {
       const errors = form.formState.errors;
       const missingFields: string[] = [];
-      if (errors.name) missingFields.push("Nom du soin");
-      if (errors.hotel_id) missingFields.push("Hôtel");
-      if (errors.category) missingFields.push("Catégorie");
-      if (errors.service_for) missingFields.push("Service pour");
-      if (errors.amenity_id) missingFields.push("Commodité associée");
-      if (errors.variants) missingFields.push("Variantes");
+      if (errors.name) missingFields.push(t("treatmentDetail.fieldName"));
+      if (errors.hotel_id) missingFields.push(t("treatmentDetail.fieldVenue"));
+      if (errors.category) missingFields.push(t("treatmentDetail.fieldCategory"));
+      if (errors.service_for) missingFields.push(t("treatmentDetail.fieldServiceFor"));
+      if (errors.amenity_id) missingFields.push(t("treatmentDetail.fieldAmenity"));
+      if (errors.variants) missingFields.push(t("treatmentDetail.fieldVariants"));
       toast.error(
         missingFields.length > 0
-          ? `Champs requis manquants : ${missingFields.join(", ")}`
-          : "Veuillez corriger les erreurs du formulaire"
+          ? t("treatmentDetail.missingFields", { fields: missingFields.join(", ") })
+          : t("treatmentDetail.formErrors")
       );
       setActiveTab("general");
       return;
@@ -406,9 +406,7 @@ export default function TreatmentDetail() {
             .in("id", idsToDelete);
 
           if (delErr?.code === "23503") {
-            toast.error(
-              "Une variante supprimée est utilisée dans des réservations existantes. Modifiez-la au lieu de la supprimer."
-            );
+            toast.error(t("treatmentDetail.variantInUse"));
             return;
           }
           if (delErr) throw delErr;
@@ -517,8 +515,8 @@ export default function TreatmentDetail() {
             <div className="h-5 w-px bg-border flex-shrink-0" />
             <h1 className="text-lg font-medium truncate">
               {isNewMode && !savedTreatmentId
-                ? "Nouveau soin"
-                : watchedName || treatmentName || "Soin"}
+                ? t('treatmentDetail.newTreatment')
+                : watchedName || treatmentName || t('treatmentDetail.treatmentFallback')}
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -559,7 +557,7 @@ export default function TreatmentDetail() {
                     ) : (
                       <Save className="mr-2 h-4 w-4" />
                     )}
-                    Créer le soin
+                    {t('treatmentDetail.createTreatment')}
                   </Button>
                 </>
               )
@@ -573,7 +571,7 @@ export default function TreatmentDetail() {
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}
-                Enregistrer
+                {t('common:buttons.save')}
               </Button>
             ) : isEditing ? (
               <>
@@ -593,7 +591,7 @@ export default function TreatmentDetail() {
                   ) : (
                     <Save className="mr-2 h-4 w-4" />
                   )}
-                  Enregistrer
+                  {t('common:buttons.save')}
                 </Button>
               </>
             ) : (

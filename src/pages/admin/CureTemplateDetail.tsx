@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -22,21 +23,22 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Loader2, Save, Pencil } from "lucide-react";
 import { CategorySelectField } from "@/components/admin/category/CategorySelectField";
 
-const formSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  name_en: z.string().optional(),
-  description: z.string().optional(),
-  description_en: z.string().optional(),
-  hotel_id: z.string().min(1, "Le lieu est requis"),
-  total_sessions: z.coerce.number().int().min(1, "Minimum 1 seance"),
-  price: z.coerce.number().min(0, "Le prix doit etre positif"),
-  validity_days: z.coerce.number().int().min(1).default(365),
-  status: z.enum(["active", "inactive"]).default("active"),
-  category: z.string().min(1, "La catégorie est requise"),
-  eligible_treatment_ids: z.array(z.string()).default([]),
-});
+const makeFormSchema = (t: TFunction) =>
+  z.object({
+    name: z.string().min(1, t("cureTemplate.validation.nameRequired")),
+    name_en: z.string().optional(),
+    description: z.string().optional(),
+    description_en: z.string().optional(),
+    hotel_id: z.string().min(1, t("cureTemplate.validation.venueRequired")),
+    total_sessions: z.coerce.number().int().min(1, t("cureTemplate.validation.minSessions")),
+    price: z.coerce.number().min(0, t("cureTemplate.validation.pricePositive")),
+    validity_days: z.coerce.number().int().min(1).default(365),
+    status: z.enum(["active", "inactive"]).default("active"),
+    category: z.string().min(1, t("cureTemplate.validation.categoryRequired")),
+    eligible_treatment_ids: z.array(z.string()).default([]),
+  });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<ReturnType<typeof makeFormSchema>>;
 
 export default function CureTemplateDetail() {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +50,8 @@ export default function CureTemplateDetail() {
   const [loading, setLoading] = useState(false);
   const [isEditingState, setIsEditingState] = useState(false);
   const isEditing = isNewMode || isEditingState;
+
+  const formSchema = useMemo(() => makeFormSchema(t), [t]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),

@@ -2,7 +2,8 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import i18n from "@/i18n";
+import { getDateLocale, useDateLocale } from "@/lib/dateLocale";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowRight, Mail, Sparkles, X } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -99,7 +100,7 @@ function formatWhen(date: string | null | undefined, time: string | null | undef
   const parts: string[] = [];
   if (date) {
     const d = new Date(date);
-    parts.push(Number.isNaN(d.getTime()) ? date : format(d, "EEE d MMM", { locale: fr }));
+    parts.push(Number.isNaN(d.getTime()) ? date : format(d, "EEE d MMM", { locale: getDateLocale(i18n.language) }));
   }
   if (time) parts.push(time);
   return parts.length > 0 ? parts.join(" · ") : null;
@@ -143,6 +144,7 @@ function ConvertedSection({
   t: (k: string, opts?: Record<string, unknown>) => string;
   onNavigate: () => void;
 }) {
+  const dateLocale = useDateLocale();
   const { data: booking, isLoading } = useConvertedBooking(bookingId);
   const clientName = booking
     ? [booking.client_first_name, booking.client_last_name].filter(Boolean).join(" ") || t("inbox.detail.unknownClient", { defaultValue: "Client" })
@@ -152,7 +154,9 @@ function ConvertedSection({
     ? `${booking.booking_date}${booking.booking_time ? ` · ${booking.booking_time}` : ""}`
     : null;
   const convertedAt = booking?.created_at
-    ? format(new Date(booking.created_at), "d MMM yyyy 'à' HH:mm", { locale: fr })
+    ? format(new Date(booking.created_at), t("inbox.detail.convertedAtFormat"), {
+        locale: dateLocale,
+      })
     : null;
 
   return (
@@ -280,7 +284,7 @@ function InquiryFacts({ parsed, t }: { parsed: EmailInquiryParsedData; t: (k: st
 }
 
 export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: Props) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const [busy, setBusy] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);

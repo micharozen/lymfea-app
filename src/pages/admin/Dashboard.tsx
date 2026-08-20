@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/dateLocale";
 import { PeriodSelector } from "@/components/PeriodSelector";
 import {
   Select,
@@ -27,6 +28,8 @@ import { DashboardTodayStats } from "@/components/admin/dashboard/DashboardToday
 import { MonthlyOutlookChart } from "@/components/admin/dashboard/MonthlyOutlookChart";
 
 export default function Dashboard() {
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const { hotelIds } = useUser();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const currentVenueId = useCurrentVenueId();
@@ -67,7 +70,7 @@ export default function Dashboard() {
   if (data.loading) {
     return (
       <div className="bo-refonte min-h-screen md:-mr-6 flex items-center justify-center">
-        <p style={{ color: "var(--ink-mute)" }}>Chargement...</p>
+        <p style={{ color: "var(--ink-mute)" }}>{t("common:loading")}</p>
       </div>
     );
   }
@@ -85,20 +88,29 @@ export default function Dashboard() {
         {/* Header + Filters */}
         <div className="pg-head">
           <div>
-            <h1 className="bo-page-title">Accueil</h1>
+            <h1 className="bo-page-title">{t("dashboardPage.title")}</h1>
             <div className="period">
-              Période : {format(startDate, "dd MMM yyyy", { locale: fr })} —{" "}
-              {format(endDate, "dd MMM yyyy", { locale: fr })}
+              {t("dashboardPage.period")} :{" "}
+              {format(startDate, "dd MMM yyyy", { locale: dateLocale })} —{" "}
+              {format(endDate, "dd MMM yyyy", { locale: dateLocale })}
             </div>
           </div>
           <div className="bo-toolbar">
             <PeriodSelector onPeriodChange={handlePeriodChange} />
             <Select value={selectedHotel} onValueChange={setSelectedHotel}>
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder={isConcierge ? "Sélectionner un lieu" : "Tous les lieux"} />
+                <SelectValue
+                  placeholder={
+                    isConcierge
+                      ? t("dashboardPage.selectVenue")
+                      : t("dashboardPage.allVenues")
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
-                {!isConcierge && <SelectItem value="all">Tous les lieux</SelectItem>}
+                {!isConcierge && (
+                  <SelectItem value="all">{t("dashboardPage.allVenues")}</SelectItem>
+                )}
                 {visibleHotels.map((hotel) => (
                   <SelectItem key={hotel.id} value={hotel.id}>
                     {hotel.name}
@@ -112,8 +124,8 @@ export default function Dashboard() {
         <Tabs defaultValue="dashboard">
           {!isConcierge && (
             <TabsList className="mt-4">
-              <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
-              <TabsTrigger value="overview">Vue d&apos;ensemble</TabsTrigger>
+              <TabsTrigger value="dashboard">{t("dashboardPage.tabs.dashboard")}</TabsTrigger>
+              <TabsTrigger value="overview">{t("dashboardPage.tabs.overview")}</TabsTrigger>
             </TabsList>
           )}
 

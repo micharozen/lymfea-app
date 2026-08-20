@@ -54,22 +54,22 @@ import { requireHotelOrganizationIdForInsert } from "@/lib/resolveHotelOrganizat
 // Same form schema as VenueWizardDialog
 const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.object({
   organization_id: z.string().uuid().optional().or(z.literal("")),
-  name: z.string().min(1, t('errors.validation.nameRequired')),
+  name: z.string().min(1, t('common:errors.validation.nameRequired')),
   slug: z
     .string()
-    .min(2, "Au moins 2 caractères")
-    .max(60, "60 caractères max")
+    .min(2, t('venueDetail.validation.slugTooShort'))
+    .max(60, t('venueDetail.validation.slugTooLong'))
     .regex(
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      "Lettres minuscules, chiffres et tirets uniquement"
+      t('venueDetail.validation.slugPattern')
     )
     .optional()
     .or(z.literal("")),
   venue_type: z.enum(['hotel', 'coworking', 'enterprise']).default('hotel'),
-  address: z.string().min(1, t('errors.validation.addressRequired')),
+  address: z.string().min(1, t('common:errors.validation.addressRequired')),
   postal_code: z.string().optional(),
-  city: z.string().min(1, t('errors.validation.cityRequired')),
-  country: z.string().min(1, t('errors.validation.countryRequired')),
+  city: z.string().min(1, t('common:errors.validation.cityRequired')),
+  country: z.string().min(1, t('common:errors.validation.countryRequired')),
   website_url: z.string().optional(),
   contact_email: z.string().email("Adresse email invalide").optional().or(z.literal("")),
   currency: z.string().default("EUR"),
@@ -122,12 +122,12 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   const therapistComm = parseFloat(data.therapist_commission) || 0;
   return hotelComm + therapistComm <= 100;
 }, {
-  message: t('errors.validation.commissionExceeds100'),
+  message: t('common:errors.validation.commissionExceeds100'),
   path: ["hotel_commission"],
 }).refine((data) => {
   return data.opening_time < data.closing_time;
 }, {
-  message: "L'heure d'ouverture doit être avant l'heure de fermeture",
+  message: t('venueDetail.validation.openingBeforeClosing'),
   path: ["closing_time"],
 }).superRefine((data, ctx) => {
   const err = validateCancellationTiers(data.cancellation_tiers);
@@ -137,7 +137,7 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   if (options?.requireOrganizationId && !data.organization_id?.trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: options.organizationRequiredMessage ?? "Organisation requise",
+      message: options.organizationRequiredMessage ?? t('venueDetail.validation.organizationRequired'),
       path: ["organization_id"],
     });
   }

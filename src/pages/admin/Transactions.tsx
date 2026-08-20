@@ -13,7 +13,8 @@ import {
   Building2
 } from "lucide-react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/dateLocale";
 import { toast } from "sonner";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/formatPrice";
@@ -44,6 +45,8 @@ interface HotelBalance {
 }
 
 const ConciergeTransactions = () => {
+  const { t } = useTranslation(['admin', 'common']);
+  const dateLocale = useDateLocale();
   const { hotelIds, loading: contextLoading } = useUserContext();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -107,7 +110,7 @@ const ConciergeTransactions = () => {
       const totalPending = (ledger || []).reduce((sum, entry) => sum + entry.amount, 0);
       
       // Get hotel name from first entry or from hotels table
-      let hotelName = "Mon Hôtel";
+      let hotelName = t('transactionsPage.myVenue');
       if (ledger && ledger.length > 0 && ledger[0].hotels) {
         hotelName = (ledger[0].hotels as any).name;
       } else if (hotelIds.length > 0) {
@@ -127,7 +130,7 @@ const ConciergeTransactions = () => {
 
     } catch (error) {
       console.error('Error fetching transactions:', error);
-      toast.error("Erreur lors du chargement des données");
+      toast.error(t('transactionsPage.loadError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -147,16 +150,25 @@ const ConciergeTransactions = () => {
 
   const handleDownloadStatement = () => {
     // Generate CSV of transactions
-    const headers = ["Date", "Heure", "N° Chambre", "Client", "Prestation", "Thérapeute", "Montant", "Statut Paiement"];
-    const rows = filteredTransactions.map(t => [
-      format(new Date(t.booking_date), "dd/MM/yyyy"),
-      t.booking_time.slice(0, 5),
-      t.room_number || "-",
-      `${t.client_first_name} ${t.client_last_name}`,
-      `Réservation #${t.booking_id}`,
-      t.therapist_name || "-",
-      t.total_price ? formatPrice(t.total_price, t.hotels?.currency || 'EUR') : "-",
-      t.payment_status || "-"
+    const headers = [
+      t('transactionsPage.csv.date'),
+      t('transactionsPage.csv.time'),
+      t('transactionsPage.csv.roomNumber'),
+      t('transactionsPage.csv.client'),
+      t('transactionsPage.csv.service'),
+      t('transactionsPage.csv.therapist'),
+      t('transactionsPage.csv.amount'),
+      t('transactionsPage.csv.paymentStatus'),
+    ];
+    const rows = filteredTransactions.map(tx => [
+      format(new Date(tx.booking_date), "dd/MM/yyyy"),
+      tx.booking_time.slice(0, 5),
+      tx.room_number || "-",
+      `${tx.client_first_name} ${tx.client_last_name}`,
+      t('transactionsPage.csv.bookingRef', { id: tx.booking_id }),
+      tx.therapist_name || "-",
+      tx.total_price ? formatPrice(tx.total_price, tx.hotels?.currency || 'EUR') : "-",
+      tx.payment_status || "-"
     ]);
 
     const csvContent = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
@@ -166,13 +178,13 @@ const ConciergeTransactions = () => {
     link.download = `releve_${format(new Date(), "yyyy-MM-dd")}.csv`;
     link.click();
     
-    toast.success("Relevé téléchargé");
+    toast.success(t('transactionsPage.statementDownloaded'));
   };
 
   // Apply filters
-  const filteredTransactions = transactions.filter(t => {
-    if (dateFilter && !t.booking_date.includes(dateFilter)) return false;
-    if (roomFilter && (!t.room_number || !t.room_number.toLowerCase().includes(roomFilter.toLowerCase()))) return false;
+  const filteredTransactions = transactions.filter(tx => {
+    if (dateFilter && !tx.booking_date.includes(dateFilter)) return false;
+    if (roomFilter && (!tx.room_number || !tx.room_number.toLowerCase().includes(roomFilter.toLowerCase()))) return false;
     return true;
   });
 
@@ -189,7 +201,7 @@ const ConciergeTransactions = () => {
       <div className="p-6 md:p-8">
         <div className="text-center py-12">
           <Building2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <p className="text-muted-foreground">Aucun hôtel assigné à votre compte</p>
+          <p className="text-muted-foreground">{t('transactionsPage.noVenueAssigned')}</p>
         </div>
       </div>
     );
@@ -200,8 +212,8 @@ const ConciergeTransactions = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-lg font-medium text-foreground">Transactions & Solde</h1>
-          <p className="text-muted-foreground">Historique des prestations et solde comptable</p>
+          <h1 className="text-lg font-medium text-foreground">{t('transactionsPage.title')}</h1>
+          <p className="text-muted-foreground">{t('transactionsPage.subtitle')}</p>
         </div>
         <Button 
           variant="outline" 
@@ -209,7 +221,7 @@ const ConciergeTransactions = () => {
           disabled={refreshing}
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-          Actualiser
+          {t('transactionsPage.refresh')}
         </Button>
       </div>
 
@@ -218,9 +230,9 @@ const ConciergeTransactions = () => {
         <CardHeader className="pb-2">
           <CardDescription className="flex items-center gap-2">
             <Building2 className="w-4 h-4" />
-            {hotelBalance?.hotel_name || "Hôtel"}
+            {hotelBalance?.hotel_name || t('transactionsPage.venueFallback')}
           </CardDescription>
-          <CardTitle className="text-lg">{`Solde à régler à ${brand.name}`}</CardTitle>
+          <CardTitle className="text-lg">{t('transactionsPage.balanceTitle', { brand: brand.name })}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
@@ -230,8 +242,8 @@ const ConciergeTransactions = () => {
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {(hotelBalance?.total_pending || 0) >= 0 
-                  ? `Montant dû à ${brand.name}`
-                  : "Crédit en votre faveur"
+                  ? t('transactionsPage.amountDue', { brand: brand.name })
+                  : t('transactionsPage.creditInYourFavour')
                 }
               </p>
             </div>
@@ -249,7 +261,7 @@ const ConciergeTransactions = () => {
           <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="date"
-            placeholder="Filtrer par date"
+            placeholder={t('transactionsPage.filterByDate')}
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
             className="pl-10"
@@ -259,7 +271,7 @@ const ConciergeTransactions = () => {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="N° de chambre"
+            placeholder={t('transactionsPage.roomNumberFilter')}
             value={roomFilter}
             onChange={(e) => setRoomFilter(e.target.value)}
             className="pl-10"
@@ -271,7 +283,7 @@ const ConciergeTransactions = () => {
             onClick={() => { setDateFilter(""); setRoomFilter(""); }}
             className="text-muted-foreground"
           >
-            Effacer filtres
+            {t('transactionsPage.clearFilters')}
           </Button>
         )}
       </div>
@@ -279,29 +291,29 @@ const ConciergeTransactions = () => {
       {/* Transactions Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Journal des prestations</CardTitle>
+          <CardTitle>{t('transactionsPage.journalTitle')}</CardTitle>
           <CardDescription>
-            Historique de toutes les prestations de votre hôtel
+            {t('transactionsPage.journalSubtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {filteredTransactions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Euro className="w-12 h-12 mx-auto mb-2 opacity-20" />
-              <p>Aucune prestation trouvée</p>
+              <p>{t('transactionsPage.noService')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Date</th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Heure</th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Chambre</th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Client</th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Thérapeute</th>
-                    <th className="text-right py-3 px-2 text-xs font-medium text-muted-foreground">Montant</th>
-                    <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">Statut</th>
+                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">{t('transactionsPage.table.date')}</th>
+                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">{t('transactionsPage.table.time')}</th>
+                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">{t('transactionsPage.table.room')}</th>
+                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">{t('transactionsPage.table.client')}</th>
+                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">{t('transactionsPage.table.therapist')}</th>
+                    <th className="text-right py-3 px-2 text-xs font-medium text-muted-foreground">{t('transactionsPage.table.amount')}</th>
+                    <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">{t('transactionsPage.table.status')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -309,7 +321,7 @@ const ConciergeTransactions = () => {
                     <tr key={transaction.id} className="border-b border-border/50 hover:bg-muted/30">
                       <td className="py-3 px-2">
                         <span className="text-sm">
-                          {format(new Date(transaction.booking_date), "dd MMM yyyy", { locale: fr })}
+                          {format(new Date(transaction.booking_date), "dd MMM yyyy", { locale: dateLocale })}
                         </span>
                       </td>
                       <td className="py-3 px-2">

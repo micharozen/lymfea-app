@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useDateLocale } from "@/lib/dateLocale";
 import {
   Card,
   CardContent,
@@ -58,7 +58,8 @@ function StatusBadge({ status }: { status: SubscriptionStatus }) {
 }
 
 export default function Billing() {
-  const { t, i18n } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
+  const locale = useDateLocale();
   const queryClient = useQueryClient();
   const { data: subData, isLoading: subLoading } = useOrganizationSubscription();
   const capacity = useSeatCapacity();
@@ -93,7 +94,7 @@ export default function Billing() {
     });
     setPortalLoading(false);
     if (error || !data?.url) {
-      toast.error(error?.message ?? "Could not open billing portal");
+      toast.error(error?.message ?? t("billing.portalError"));
       return;
     }
     window.location.href = data.url;
@@ -109,7 +110,6 @@ export default function Billing() {
   }
 
   const sub = subData?.subscription;
-  const locale = i18n.language?.startsWith("fr") ? fr : undefined;
 
   if (!sub) {
     return (
@@ -174,7 +174,11 @@ export default function Billing() {
                   {formatMoney(cycleAmount * (sub.seats ?? 1), plan?.currency ?? "eur")}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  /{sub.billing_cycle === "yearly" ? "an" : "mois"} · {sub.seats}{" "}
+                  /
+                  {sub.billing_cycle === "yearly"
+                    ? t("billing.perYear")
+                    : t("billing.perMonth")}{" "}
+                  · {sub.seats}{" "}
                   {t("billing.seats", "seat(s)")}
                 </span>
               </div>

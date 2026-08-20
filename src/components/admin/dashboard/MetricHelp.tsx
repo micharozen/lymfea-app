@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -16,10 +17,12 @@ interface MetricHelpProps {
  * ce qui rend l'explication atteignable au clavier.
  */
 export function MetricHelp({ children }: MetricHelpProps) {
+  const { t } = useTranslation(['admin', 'common']);
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button type="button" className="metric-help" aria-label="Comment cette métrique est calculée">
+        <button type="button" className="metric-help" aria-label={t('metricHelp.ariaLabel')}>
           <Info className="h-3.5 w-3.5" strokeWidth={1.75} />
         </button>
       </TooltipTrigger>

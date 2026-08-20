@@ -531,8 +531,8 @@ export function TreatmentGeneralTab({
                 </FormControl>
                 <FormDescription className="text-[11px] leading-snug">
                   {selected.length === 0
-                    ? "Ce soin est réservable tous les jours d'ouverture du lieu."
-                    : "Ce soin n'est réservable que les jours sélectionnés."}
+                    ? t('treatmentTab.availableDaysAllHint')
+                    : t('treatmentTab.availableDaysSelectedHint')}
                 </FormDescription>
                 <FormMessage />
               </FormItem>

@@ -71,7 +71,7 @@ interface TherapistActivityTabProps {
 const ITEMS_PER_PAGE = 15;
 
 export function TherapistActivityTab({ therapistId }: TherapistActivityTabProps) {
-  const { t, i18n } = useTranslation("admin");
+  const { t, i18n } = useTranslation(["admin", "common"]);
   const isFr = i18n.language === "fr";
   const locale = isFr ? fr : enUS;
 

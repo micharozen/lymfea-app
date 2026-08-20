@@ -372,12 +372,12 @@ export function VenueOverviewTab({ hotelId }: VenueOverviewTabProps) {
       <div className="space-y-2">
         <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
           <Briefcase className="h-4 w-4" />
-          Salles de soin ({roomCount})
+          {t("venueOverview.treatmentRoomsHeading", { count: roomCount })}
         </h3>
         <p className="text-sm text-muted-foreground">
           {roomCount > 0
-            ? `${roomCount} salle${roomCount > 1 ? "s" : ""} assignée${roomCount > 1 ? "s" : ""}`
-            : "Aucune salle de soin assignée"}
+            ? t("venueOverview.roomsAssigned", { count: roomCount })
+            : t("venueOverview.noRoomsAssigned")}
         </p>
       </div>
 

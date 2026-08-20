@@ -489,9 +489,9 @@ export default function Hotels() {
                   <TableHeader>
                     <TableRow className="bg-muted/20 h-8">
                       <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
-                        Lieu
+                        {t('hotelsPage.colVenue')}
                       </SortableTableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Type</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">{t('hotelsPage.colType')}</TableHead>
                       <SortableTableHead column="rooms" sortDirection={getSortDirection("rooms")} onSort={toggleSort} align="right">
                         {t('hotelsPage.colRooms')}
                       </SortableTableHead>
@@ -507,7 +507,7 @@ export default function Hotels() {
                       </SortableTableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">QR</TableHead>
                       {isAdmin && (
-                        <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
+                        <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">{t('common:actions')}</TableHead>
                       )}
                     </TableRow>
                   </TableHeader>
@@ -517,9 +517,13 @@ export default function Hotels() {
                     <TableEmptyState
                       colSpan={columnCount}
                       icon={Building2}
-                      message="Aucun lieu trouve"
-                      description={searchQuery || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                      actionLabel={isAdmin ? "Ajouter un lieu" : undefined}
+                      message={t('hotelsPage.empty')}
+                      description={
+                        searchQuery || statusFilter !== "all"
+                          ? t('hotelsPage.emptyHint')
+                          : undefined
+                      }
+                      actionLabel={isAdmin ? t('hotelsPage.new') : undefined}
                       onAction={isAdmin ? handleNewVenue : undefined}
                     />
                   ) : (
@@ -674,7 +678,7 @@ export default function Hotels() {
               totalItems={filteredHotels.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              itemName="lieux"
+              itemName={t('hotelsPage.itemName')}
             />
           )}
         </div>

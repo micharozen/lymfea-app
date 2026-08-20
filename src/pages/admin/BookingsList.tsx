@@ -41,7 +41,7 @@ import { AppLoader } from "@/components/AppLoader";
 
 export default function BookingsList() {
   const navigate = useNavigate();
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const { isAdmin } = useUserContext();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const [searchParams] = useSearchParams();
@@ -328,7 +328,7 @@ export default function BookingsList() {
       <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-3 md:pt-4">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
-            Réservations
+            {t("bookingsList.title")}
           </h1>
           <div className="flex items-center gap-2">
             <ColumnSelector
@@ -352,7 +352,7 @@ export default function BookingsList() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-                  Actions
+                  {t("common:actions")}
                   <ChevronDown className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -367,7 +367,7 @@ export default function BookingsList() {
                       }}
                     >
                       <CreditCard className="mr-2 h-4 w-4" />
-                      Créer un lien de paiement
+                      {t("bookingsList.createPaymentLink")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="cursor-pointer"
@@ -377,19 +377,19 @@ export default function BookingsList() {
                       }}
                     >
                       <RotateCcw className="mr-2 h-4 w-4" />
-                      Rembourser une réservation
+                      {t("bookingsList.refundBooking")}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>
                 )}
                 <DropdownMenuItem className="cursor-pointer" onClick={handleExportCsv}>
                   <Download className="mr-2 h-4 w-4" />
-                  Exporter en CSV
+                  {t("bookingsList.exportCsv")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="h-8 text-xs">
-              {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
+              {isConcierge ? t("bookingsList.newRequest") : t("bookingsList.newBooking")}
             </Button>
           </div>
         </div>

@@ -108,7 +108,7 @@ const Finance = () => {
           } else {
             nettingMap.set(entry.hotel_id, {
               hotel_id: entry.hotel_id,
-              hotel_name: entry.hotels?.name || 'Hôtel inconnu',
+              hotel_name: entry.hotels?.name || t('finance.page.unknownVenue'),
               hotel_image: entry.hotels?.image || null,
               total_pending: entry.amount,
               entries_count: 1,

@@ -319,7 +319,12 @@
     "agendaView": {
       "unassigned": "Unassigned",
       "today": "Today",
-      "hour": "Hour"
+      "hour": "Hour",
+      "appointmentsShort_one": "{{count}} appt",
+      "appointmentsShort_other": "{{count}} appts",
+      "roomLabel": "Room",
+      "durationLabel": "Duration",
+      "treatmentsLabel": "Treatments"
     },
     "bookings": "Bookings",
     "bookingsTab": {
@@ -399,7 +404,14 @@
         "issued": "Issued",
         "paid": "Paid",
         "cancelled": "Cancelled"
-      }
+      },
+      "finalized_one": "{{count}} booking finalised",
+      "finalized_other": "{{count}} bookings finalised",
+      "finalizeError": "Error while finalising",
+      "finalizeAll": "Finalise them",
+      "missingRates": "Rates missing for this therapist: earnings cannot be calculated. Set their rates before invoicing.",
+      "pendingWarning_one": "{{count}} paid booking in this period is not finalised and will be excluded from the invoice.",
+      "pendingWarning_other": "{{count}} paid bookings in this period are not finalised and will be excluded from the invoice."
     },
     "billingInfo": {
       "title": "Billing information",
@@ -429,8 +441,22 @@
       "saveSuccess": "Billing information saved",
       "saveError": "Error saving billing information",
       "missingTitle": "No billing profile set",
-      "missingDescription": "Monthly invoices will be generated without an address, without a company number, without bank details and with 20% VAT, which makes them non-compliant."
-    }
+      "missingDescription": "Monthly invoices will be generated without an address, without a company number, without bank details and with 20% VAT, which makes them non-compliant.",
+      "legalFormNone": "None",
+      "legalFormEi": "Sole trader (EI)",
+      "legalFormOther": "Other"
+    },
+    "loadError": "Error loading data",
+    "createdButEmailFailed": "Therapist created but the welcome email could not be sent",
+    "emailAlreadyExists": "A therapist with this email already exists",
+    "saveError": "Error while saving",
+    "sessionExpired": "Session expired, please sign in again",
+    "sendError": "Error while sending",
+    "resendError": "Error while resending the invitation",
+    "therapist": "Therapist",
+    "rateRequired": "Rate required",
+    "rateMustBePositive": "The rate must be greater than 0",
+    "inviteResent": "Invitation resent successfully"
   },
   "treatments": {
     "title": "Treatment Menus",
@@ -549,7 +575,16 @@
       "fontFamily": "CSS font-family name",
       "reset": "Reset",
       "previewLabel": "Live preview",
-      "enableEdit": "Enable editing"
+      "enableEdit": "Enable editing",
+      "editPhoto": "Change photo",
+      "editCover": "Change cover image",
+      "coverLabel": "Cover",
+      "uploadFailed": "Upload failed",
+      "fontTitle": "Heading font",
+      "fontBody": "Body font",
+      "welcomeBgOpacity": "Background opacity (welcome page)",
+      "refreshPreview": "Refresh preview (after saving)",
+      "previewUnavailable": "Save the venue to see the live client preview."
     },
     "organization": {
       "label": "Organization",
@@ -845,7 +880,8 @@
       "choose": "Choose",
       "venueType": "Venue type",
       "status": "Status",
-      "treatmentRooms": "Treatment rooms"
+      "treatmentRooms": "Treatment rooms",
+      "selectRooms": "Select treatment rooms"
     },
     "deployment": {
       "days": {
@@ -961,7 +997,10 @@
       "therapist": "Therapist",
       "status": "Status",
       "total": "Total"
-    }
+    },
+    "loadError": "Could not load the data",
+    "saveError": "Could not save changes",
+    "itemName": "customers"
   },
   "tasks": {
     "title": "Tasks",
@@ -1199,7 +1238,13 @@
     "manualConfig": "Manual configuration (advanced)",
     "manualConfigDesc": "Legacy method: the venue provides its secret key. Only for venues already set up this way.",
     "close": "Close",
-    "save": "Save"
+    "save": "Save",
+    "webhookUrl": {
+      "label": "Stripe webhook URL",
+      "copyAria": "Copy the URL",
+      "copyFailed": "Could not copy",
+      "help": "Paste this URL into Stripe Dashboard → Developers → Webhooks → Add endpoint, then copy the generated <code>whsec_…</code> into the Webhook secret field above."
+    }
   },
   "amenities": {
     "title": "Amenities",
@@ -1372,7 +1417,8 @@
       "recipient": "Recipient",
       "code": "Code",
       "balance": "Balance",
-      "expiresAt": "Expires on"
+      "expiresAt": "Expires on",
+      "venue": "Venue"
     },
     "empty": {
       "templates": "No gift card configured",
@@ -1409,7 +1455,8 @@
       "displayHint": "Makes the card visible in the public booking flow.",
       "status": "Status",
       "save": "Save",
-      "create": "Create"
+      "create": "Create",
+      "titlePlaceholder": "Wellness Escape"
     },
     "delete": {
       "title": "Delete this gift card?",
@@ -1421,6 +1468,16 @@
       "deleted": "Gift card deleted",
       "saveError": "Failed to save",
       "deleteError": "Failed to delete"
+    },
+    "allVenues": "All venues",
+    "selectVenue": "Select a venue",
+    "validation": {
+      "titleRequired": "Title is required",
+      "categoryRequired": "Category is required",
+      "pricePositive": "Price must be positive",
+      "sessionsRequired": "Number of sessions is required",
+      "eligibleTreatmentsRequired": "Select at least one eligible treatment",
+      "amountRequired": "Amount is required"
     }
   },
   "booking": {
@@ -1475,7 +1532,8 @@
       "successAssign": "Booking converted to duo.",
       "successBroadcast": "Duo broadcast to practitioners.",
       "error": "Failed to convert to duo.",
-      "notificationWarning": "Conversion done, but sending notifications failed."
+      "notificationWarning": "Conversion done, but sending notifications failed.",
+      "turnover": "Turnaround"
     }
   },
   "phoneBooking": {
@@ -1841,8 +1899,10 @@
         "sentWithWarning": "Sent, but one step failed: {{warning}}",
         "missingFields": "Subject and body required",
         "referencedSlots": "Availability used: {{slots}}",
-        "collapsedTo": "to: {{email}}"
-      }
+        "collapsedTo": "to: {{email}}",
+        "sendFailed": "Sending failed"
+      },
+      "convertedAtFormat": "d MMM yyyy 'at' HH:mm"
     },
     "convert": {
       "title": "Convert to booking",
@@ -1885,7 +1945,8 @@
         "bodyLocked": "Email Inbox is a paid option included in select Saoma plans. It is disabled by default.",
         "contactCopy": "To enable this feature for your venue, please reach out to the Saoma team.",
         "contactCta": "Contact Saoma",
-        "mailtoSubject": "Email Inbox activation request"
+        "mailtoSubject": "Email Inbox activation request",
+        "toggleAria": "Enable the email inbox"
       },
       "address": {
         "label": "Your dedicated email address (preview)",
@@ -1970,6 +2031,12 @@
     },
     "kanban": {
       "emptyColumn": "No inquiry"
+    },
+    "venueFilter": "All venues",
+    "allVenues": "All venues",
+    "tabs": {
+      "active": "Active",
+      "archived": "Archived"
     }
   },
   "checkoutIntents": {
@@ -2152,7 +2219,8 @@
       "resentDesc": "A new email with a temporary password has been sent.",
       "resendError": "Resending failed",
       "deleted": "Administrator deleted",
-      "deleteError": "Could not delete the administrator"
+      "deleteError": "Could not delete the administrator",
+      "missingId": "Missing identifier"
     }
   },
   "bookingDetail": {
@@ -2210,7 +2278,17 @@
     "venue": "Venue",
     "room_one": "Room",
     "room_other": "Rooms",
-    "date": "Date"
+    "date": "Date",
+    "dateTimeFormat": "d MMM 'at' HH:mm",
+    "partnerBillingSaved": "Partner billing saved.",
+    "paymentMethodUpdated": "Payment method updated.",
+    "paymentSaved": "Payment saved.",
+    "refunded": "Refunded",
+    "paymentSuccessful": "Payment completed successfully",
+    "paymentSuccessfulOn": " — on {{date}}",
+    "billedToPartner": "Billed to partner {{partner}} (monthly billing).",
+    "billedToPartnerGeneric": "Payment handled by the partner (monthly billing).",
+    "method": "Method"
   },
   "finance": {
     "closure": {
@@ -2263,7 +2341,9 @@
         "pending": "Pending",
         "cancelled": "Cancelled",
         "noshow": "No show"
-      }
+      },
+      "pdfError": "Unable to generate the PDF",
+      "downloadPdf": "Download PDF"
     },
     "page": {
       "loadError": "Could not load the financial data",
@@ -2292,7 +2372,27 @@
       "payoutsEmpty": "No payout recorded",
       "colTherapist": "Therapist",
       "colBooking": "Booking",
-      "nettingDesc": "Amounts pending settlement with each venue (positive = the venue owes {{brand}})"
+      "nettingDesc": "Amounts pending settlement with each venue (positive = the venue owes {{brand}})",
+      "unknownVenue": "Unknown venue"
+    },
+    "closureEmail": {
+      "title": "Email the closure report",
+      "loadRecipientsError": "Could not load the recipient list",
+      "emailAlreadySelected": "Email already selected",
+      "selectRecipient": "Select at least one recipient",
+      "sentToast_one": "Report sent to {{count}} recipient",
+      "sentToast_other": "Report sent to {{count}} recipients",
+      "sendError": "Sending failed",
+      "removeRecipient": "Remove {{email}}",
+      "searchPlaceholder": "Search for an admin or venue manager…",
+      "venueGroup": "Venue management — {{venue}}",
+      "otherContacts": "Other contacts",
+      "noContact": "No contact",
+      "addManualEmail": "Add an email manually",
+      "includeDetails": "Include the treatment breakdown",
+      "send_one": "Send ({{count}})",
+      "send_other": "Send ({{count}})",
+      "roleVenueManager": "Venue manager"
     }
   },
   "treatmentsPage": {
@@ -2325,7 +2425,8 @@
     "colVenue": "Venue",
     "colStatus": "Status",
     "confirmDeleteTitle": "Confirm deletion",
-    "confirmDeleteDesc": "Are you sure you want to delete this treatment menu? This action cannot be undone."
+    "confirmDeleteDesc": "Are you sure you want to delete this treatment menu? This action cannot be undone.",
+    "addTreatment": "Add a treatment"
   },
   "venueTherapistsTab": {
     "assigned": "Therapist(s) assigned",
@@ -2347,7 +2448,22 @@
     "firstName": "First name *",
     "lastName": "Last name *",
     "email": "Email *",
-    "phone": "Phone"
+    "phone": "Phone",
+    "assignedTitle": "Assigned therapists ({{count}})",
+    "assign": "Assign",
+    "createAndAssign": "Create and assign",
+    "countries": {
+      "france": "France",
+      "uae": "UAE",
+      "unitedStates": "United States",
+      "unitedKingdom": "United Kingdom",
+      "germany": "Germany",
+      "italy": "Italy",
+      "spain": "Spain",
+      "switzerland": "Switzerland",
+      "belgium": "Belgium",
+      "monaco": "Monaco"
+    }
   },
   "hotelsPage": {
     "loadError": "Could not load the venues",
@@ -2370,7 +2486,10 @@
     "copyEnterpriseLink": "Copy company dashboard link",
     "linkCopied": "Dashboard link copied.",
     "confirmDeleteTitle": "Confirm deletion",
-    "confirmDeleteDesc": "Are you sure you want to delete this venue? This action cannot be undone."
+    "confirmDeleteDesc": "Are you sure you want to delete this venue? This action cannot be undone.",
+    "colVenue": "Venue",
+    "colType": "Type",
+    "itemName": "venues"
   },
   "therapistsPage": {
     "loadVenuesError": "Could not load the venues",
@@ -2393,7 +2512,11 @@
     "colGuaranteed": "Guaranteed min.",
     "colStatus": "Status",
     "confirmDeleteTitle": "Are you sure?",
-    "confirmDeleteDesc": "This action cannot be undone. The therapist will be permanently deleted."
+    "confirmDeleteDesc": "This action cannot be undone. The therapist will be permanently deleted.",
+    "emptyMessage": "No therapist found",
+    "emptyHint": "Try adjusting your filters",
+    "addTherapist": "Add a therapist",
+    "itemName": "therapists"
   },
   "venueRoomsTab": {
     "beds": "Beds (simultaneous occupancy)",
@@ -2418,7 +2541,12 @@
     "image": "Image",
     "name": "Name *",
     "namePlaceholder": "Zen room",
-    "compatibleTreatments": "Compatible treatments *"
+    "compatibleTreatments": "Compatible treatments *",
+    "assignedTitle": "Assigned treatment rooms ({{count}})",
+    "bedsShort": "Beds",
+    "assign": "Assign",
+    "create": "Create",
+    "preview": "Preview"
   },
   "organizationDialog": {
     "sirenFormat": "SIREN: 9 digits",
@@ -2444,7 +2572,11 @@
     "postalCode": "Postal code",
     "city": "City",
     "siren": "SIREN",
-    "rcs": "Trade register"
+    "rcs": "Trade register",
+    "name": "Name",
+    "slug": "Slug",
+    "country": "Country",
+    "legalIdentityHelp": "Issuer shown on invoices. Enter the SIREN and fetch the official details."
   },
   "hotelDialog": {
     "active": "Active",
@@ -2500,7 +2632,12 @@
     "colRole": "Role",
     "colStatus": "Status",
     "confirmDeleteTitle": "Confirm deletion",
-    "confirmDeleteDesc": "Are you sure you want to delete this member? This action cannot be undone."
+    "confirmDeleteDesc": "Are you sure you want to delete this member? This action cannot be undone.",
+    "colName": "Name",
+    "empty": "No team member found",
+    "emptyHint": "Try adjusting your filters",
+    "addMember": "Add a member",
+    "itemName": "members"
   },
   "curesPage": {
     "deleted": "Template deleted successfully",
@@ -2539,7 +2676,9 @@
     "select": "Select",
     "minNotice": "Min. booking notice (min)",
     "displayOrder": "Display order",
-    "availableDays": "Available days"
+    "availableDays": "Available days",
+    "availableDaysAllHint": "This treatment can be booked on every day the venue is open.",
+    "availableDaysSelectedHint": "This treatment can only be booked on the selected days."
   },
   "amenitiesTab": {
     "empty": "No amenity configured",
@@ -2580,7 +2719,8 @@
     "role": "Role",
     "phone": "Phone",
     "edit": "Edit profile",
-    "saveChanges": "Save changes"
+    "saveChanges": "Save changes",
+    "lastName": "Last name"
   },
   "venueDetail": {
     "loadError": "Could not load the data",
@@ -2600,7 +2740,14 @@
     "tabPlanning": "Schedule",
     "tabCatalog": "Catalogue",
     "tabResources": "Resources",
-    "savePrompt": "Save the venue to access the schedule"
+    "savePrompt": "Save the venue to access the schedule",
+    "validation": {
+      "slugTooShort": "At least 2 characters",
+      "slugTooLong": "60 characters max",
+      "slugPattern": "Lowercase letters, digits and hyphens only",
+      "openingBeforeClosing": "Opening time must be before closing time",
+      "organizationRequired": "Organisation required"
+    }
   },
   "treatmentRoomsPage": {
     "deleted": "Treatment room deleted successfully",
@@ -2617,7 +2764,10 @@
     "colNextBooking": "Next booking",
     "colStatus": "Status",
     "confirmDeleteTitle": "Confirm deletion",
-    "confirmDeleteDesc": "Are you sure you want to delete this treatment room? This action cannot be undone."
+    "confirmDeleteDesc": "Are you sure you want to delete this treatment room? This action cannot be undone.",
+    "empty": "No treatment room found",
+    "emptyHint": "Try adjusting your filters",
+    "addRoom": "Add a room"
   },
   "organizationDetail": {
     "notFound": "Organisation not found",
@@ -2655,7 +2805,14 @@
     "status": "Status",
     "active": "Active",
     "inactive": "Inactive",
-    "noTreatment": "No treatment available for this venue"
+    "noTreatment": "No treatment available for this venue",
+    "validation": {
+      "nameRequired": "Name is required",
+      "venueRequired": "Venue is required",
+      "minSessions": "Minimum 1 session",
+      "pricePositive": "Price must be positive",
+      "categoryRequired": "Category is required"
+    }
   },
   "deploymentForm": {
     "loadError": "Could not load the schedule",
@@ -2675,6 +2832,935 @@
     "stepVariants": "Variants",
     "tabAddons": "Add-ons",
     "amenityRequired": "Select the linked amenity",
-    "specialtyRequired": "The specialty is required"
+    "specialtyRequired": "The specialty is required",
+    "dialog": {
+      "pricing": "Pricing",
+      "onRequest": "On request",
+      "leadTime": "Notice",
+      "details": "Details",
+      "audience": "Audience",
+      "assignment": "Assignment",
+      "globalTreatment": "Global treatment (all venues)",
+      "serviceForMale": "Men",
+      "serviceForFemale": "Women",
+      "serviceForAll": "Everyone"
+    },
+    "slugMin": "At least 2 characters",
+    "slugMax": "60 characters max",
+    "slugFormat": "Lowercase letters, digits and hyphens only",
+    "durationRequired": "Duration required",
+    "variantRequired": "At least one variant is required",
+    "fieldName": "Treatment name",
+    "fieldVenue": "Venue",
+    "fieldCategory": "Category",
+    "fieldServiceFor": "Service for",
+    "fieldAmenity": "Linked amenity",
+    "fieldVariants": "Variants",
+    "missingFields": "Missing required fields: {{fields}}",
+    "formErrors": "Please correct the errors in the form",
+    "variantInUse": "A deleted variant is used by existing bookings. Edit it instead of deleting it.",
+    "newTreatment": "New treatment",
+    "treatmentFallback": "Treatment",
+    "createTreatment": "Create treatment"
+  },
+  "productsPage": {
+    "title": "{{brand}} products",
+    "underDevelopment": "Module under development..."
+  },
+  "metricHelp": {
+    "ariaLabel": "How this metric is calculated"
+  },
+  "categoryQuickCreate": {
+    "title": "Create a category",
+    "description": "Add a new category for this venue. It will be available for treatments, programmes and gift cards.",
+    "nameFr": "Name (FR) *",
+    "namePlaceholder": "e.g. Massages, Facials…",
+    "nameEn": "🇬🇧 Name (EN)",
+    "nameEnPlaceholder": "English name (optional)",
+    "addonLabel": "Add-on category",
+    "addonHelp": "Treatments in this category will be sold alongside a main treatment.",
+    "submit": "Create"
+  },
+  "bookingHistory": {
+    "empty": "No changes recorded for this booking.",
+    "at": "On {{date}} at {{time}}",
+    "by": "by {{name}}",
+    "created": "Booking created",
+    "preview": "Preview",
+    "minutes": "{{count}} min",
+    "fields": {
+      "status": "Status",
+      "payment_status": "Payment",
+      "therapist_id": "Therapist",
+      "therapist_name": "Therapist",
+      "booking_date": "Date",
+      "booking_time": "Time",
+      "duration": "Duration",
+      "total_price": "Total price",
+      "payment_method": "Payment method",
+      "room_id": "Treatment room"
+    },
+    "statusLabels": {
+      "pending": "Pending",
+      "awaiting_payment": "Awaiting payment",
+      "awaiting_hairdresser_selection": "Awaiting therapist",
+      "waiting_approval": "Awaiting approval",
+      "quote_pending": "Quote pending",
+      "alternative_proposed": "Alternative proposed",
+      "accepted": "Accepted",
+      "rejected": "Declined",
+      "confirmed": "Confirmed",
+      "ongoing": "In progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "no_show": "No-show",
+      "expired": "Expired"
+    },
+    "paymentMethodLabels": {
+      "card": "Card — online payment",
+      "card_on_site": "Card — on site",
+      "cash": "Cash",
+      "room": "Charged to room",
+      "bundle": "Package",
+      "gift_amount": "Gift card",
+      "offert": "Complimentary",
+      "voucher": "Paid by voucher",
+      "partner_billed": "Billed to partner",
+      "cure_fresha": "Fresha programme"
+    },
+    "paymentStatusLabels": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "failed": "Failed",
+      "refunded": "Refunded",
+      "charged_to_room": "Charged to room",
+      "pending_partner_billing": "Partner payment",
+      "card_saved": "Card saved"
+    },
+    "emailTypes": {
+      "booking_confirmation": "Confirmation email sent to the client",
+      "booking_confirmed": "Booking confirmation email sent",
+      "booking_pending": "Booking request email sent",
+      "booking_notification": "Notification email sent",
+      "new_booking_notifications": "New booking email sent",
+      "payment_reminder": "Payment reminder email sent",
+      "booking_cancelled": "Cancellation email sent",
+      "payment_link_expired": "Payment link expiry email sent"
+    },
+    "actions": {
+      "fallback": "Action",
+      "generic": "Action: {{action}}",
+      "emailSent": "Email sent",
+      "withRecipients": "{{label}} ({{recipients}})",
+      "refund": "Refund",
+      "refundWithAmount": "Refund of {{amount}}",
+      "partialSuffix": "{{label}} (partial)",
+      "paymentLinkSent": "Payment link sent",
+      "paymentLinkSentVia": "Payment link sent by {{channels}}"
+    },
+    "channels": {
+      "email": "email",
+      "emailTo": "email to {{email}}",
+      "sms": "SMS",
+      "smsTo": "SMS to {{phone}}",
+      "joiner": " and "
+    }
+  },
+  "venueBookingCalendar": {
+    "refresh": "Refresh",
+    "newRequest": "Request",
+    "newBooking": "Booking"
+  },
+  "organizationsPage": {
+    "loadError": "Could not load organisations",
+    "deleteBlocked_one": "Not possible: {{count}} venue is linked to this organisation",
+    "deleteBlocked_other": "Not possible: {{count}} venues are linked to this organisation",
+    "deleteError": "Deletion failed",
+    "deleted": "Organisation deleted",
+    "title": "Organisations",
+    "subtitle": "Manage the hotel groups using Lymfea.",
+    "new": "New organisation",
+    "colName": "Name",
+    "colVenues": "Venues",
+    "noResults": "No results",
+    "empty": "No organisation yet. Create one to get started.",
+    "confirmDeleteTitle": "Delete this organisation?",
+    "confirmDeleteDesc": "This action cannot be undone. The organisation “{{name}}” will be permanently deleted. Linked venues must be detached first."
+  },
+  "venueCategoriesStep": {
+    "saveVenueFirst": "Please save the venue first to manage its categories.",
+    "title": "Treatment categories",
+    "description": "Manage the treatment categories for this venue. Categories organise your treatments in the menu.",
+    "addLabel": "Add a category",
+    "namePlaceholder": "Category name",
+    "nameEnPlaceholder": "🇬🇧 English name",
+    "existingLabel": "Existing categories",
+    "empty": "No category yet. Add one above.",
+    "treatmentCount_one": "({{count}} treatment)",
+    "treatmentCount_other": "({{count}} treatments)",
+    "nameEnShortPlaceholder": "English name",
+    "addEnglishName": "Add English name",
+    "addon": "Add-on",
+    "renameHint": "Click the pencil to rename a category. The new name applies automatically to every linked treatment."
+  },
+  "treatmentAddonsTab": {
+    "isAddon": "This treatment is an add-on",
+    "isAddonHelp": "An add-on cannot be booked on its own. It is offered to the client once a slot has been chosen for a main treatment.",
+    "linkedTitle": "Add-ons linked to this treatment",
+    "linkedHelp": "Select the add-ons that can be offered after this treatment.",
+    "selectVenueFirst": "Select a venue in the General tab to see the available add-ons.",
+    "empty": "No add-on available for this venue.",
+    "emptyHint": "Create a treatment first and mark it as an add-on to link it here.",
+    "onRequest": "On request",
+    "linked": "Linked",
+    "createHint": "Create a new treatment, then switch on “This treatment is an add-on”."
+  },
+  "treatmentsByTherapist": {
+    "therapistFallback": "Therapist",
+    "unassigned": "Unassigned",
+    "assignedConfirmed": "Therapist assigned — booking confirmed.",
+    "reassigned": "Therapist reassigned.",
+    "reassignError": "Reassignment failed.",
+    "header_one": "Treatments & therapist",
+    "header_other": "Treatments & therapists",
+    "services": "Treatments",
+    "earnings": "Earnings",
+    "setRatesTitle": "Set the therapist's rates",
+    "completeRates": "Complete the rates",
+    "incompleteRates": "Incomplete rates",
+    "reassignTitle": "Reassign this treatment",
+    "chooseTherapist": "Choose a therapist",
+    "amenityAccess": "Access / amenities"
+  },
+  "createBookingFromRequest": {
+    "missingFields": "Missing required fields",
+    "createdTitle": "Booking created",
+    "createdDesc": "The request has been converted into a booking.",
+    "createError": "Could not create the booking.",
+    "requiredTitle": "Required fields",
+    "requiredDesc": "Please select a date and a time.",
+    "title": "Convert into a booking",
+    "room": "Room {{number}}",
+    "date": "Date *",
+    "selectDate": "Select",
+    "time": "Time *",
+    "totalPrice": "Total price (€)",
+    "pricePlaceholder": "e.g. 150",
+    "duration": "Duration (min)",
+    "durationPlaceholder": "e.g. 90",
+    "therapist": "Therapist (optional)",
+    "selectTherapist": "Select a therapist",
+    "searchTherapist": "Search for a therapist...",
+    "noTherapist": "No therapist found.",
+    "creating": "Creating...",
+    "submit": "Create the booking"
+  },
+  "venueWizardStepper": {
+    "steps": {
+      "general": "General information",
+      "deployment": "Deployment schedule",
+      "categories": "Treatment categories"
+    }
+  },
+  "bookingStatusStepper": {
+    "confirmed": "Confirmed",
+    "partnerPayment": "Partner payment",
+    "paid": "Paid",
+    "cardSaved": "Card saved",
+    "paymentPending": "Payment pending",
+    "noshow": "No-show"
+  },
+  "dashboardKpi": {
+    "revenue": "Revenue",
+    "bookings": "Bookings",
+    "averageBasket": "Average basket",
+    "cancellationRate": "Cancellation rate",
+    "vsPreviousPeriod": "vs previous period",
+    "cancellations_one": "{{count}} cancellation",
+    "cancellations_other": "{{count}} cancellations",
+    "revenueHelp": "Total gross amount of bookings whose <b>treatment date</b> falls within the selected period and venue. Cancelled bookings and no-shows are excluded. Amounts in another currency are converted to euros at the day's rate.<br />The trend compares with the immediately preceding period of the same length.",
+    "bookingsHelp": "Number of bookings whose <b>treatment date</b> falls within the selected period and venue, <b>across all statuses</b> — cancellations are therefore included here.<br />The trend compares with the immediately preceding period of the same length.",
+    "averageBasketHelp": "Revenue divided by the number of revenue-generating bookings (excluding cancellations and no-shows). It is an average per booking, not per treatment: a booking with several treatments counts as one.",
+    "cancellationRateHelp": "Share of bookings with the <b>cancelled</b> status among all bookings for the period and venue. No-shows are not counted as cancellations."
+  },
+  "dashboardToday": {
+    "days_one": "{{value}} day",
+    "days_other": "{{value}} days",
+    "todayHelp": "Bookings whose treatment takes place <b>today</b>, for the selected venue. This counter deliberately ignores the period filter. The second figure isolates those with a confirmed status.",
+    "bookingsLabel_one": "booking",
+    "bookingsLabel_other": "bookings",
+    "confirmedLabel_one": "{{count}} confirmed",
+    "confirmedLabel_other": "{{count}} confirmed",
+    "leadTimeTitle": "Booking lead time",
+    "byTreatment": "By treatment",
+    "leadTimeHelp": "Average number of days between the moment a booking is <b>created</b> and the treatment date. The scope covers bookings <b>created</b> during the period — otherwise bookings made far in advance, precisely the ones that carry the lead time, would be excluded. Negative lead times (same-day treatment entered after the fact) count as zero.",
+    "noDataForPeriod": "No data for this period",
+    "onAverageInAdvance": "in advance on average",
+    "bookingsCount_one": "{{count}} booking",
+    "bookingsCount_other": "{{count}} bookings",
+    "activeTherapists": "Active therapists",
+    "activeTherapistsHelp": "Therapists who have declared <b>availability for today</b>, out of all those attached to the selected venue. This is a declaration of availability, not an actual workload: an available therapist may have no treatment scheduled.",
+    "availableToday": "available today"
+  },
+  "bookingNotes": {
+    "addError": "Could not add the note",
+    "deleteError": "Could not delete the note",
+    "empty": "No internal notes",
+    "placeholder": "Add a note…",
+    "hint": "Enter to send · Shift+Enter for a new line"
+  },
+  "therapistDetailDialog": {
+    "treatments": "Treatments performed",
+    "venues": "Venues"
+  },
+  "venueHistory": {
+    "empty": "No changes recorded for this venue.",
+    "venueCreated": "Venue created",
+    "changedOn": "{{date}}",
+    "changedBy": "by {{name}}",
+    "dateFormat": "dd/MM/yyyy 'at' HH:mm:ss",
+    "dateTitleFormat": "d MMMM yyyy 'at' HH:mm:ss",
+    "fields": {
+      "name": "Name",
+      "status": "Status",
+      "venue_type": "Type",
+      "address": "Address",
+      "city": "City",
+      "country": "Country",
+      "country_code": "Country code",
+      "postal_code": "Postcode",
+      "timezone": "Time zone",
+      "opening_time": "Opening",
+      "closing_time": "Closing",
+      "currency": "Currency",
+      "vat": "VAT",
+      "therapist_commission": "Therapist commission",
+      "venue_commission": "Venue commission",
+      "auto_validate_bookings": "Auto-validation",
+      "slot_interval": "Slot interval",
+      "client_payment_mode": "Client payment mode",
+      "description": "Description",
+      "description_en": "Description (EN)"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "draft": "Draft"
+    },
+    "venueType": {
+      "hotel": "Hotel",
+      "spa": "Spa"
+    },
+    "clientPaymentMode": {
+      "pre_authorization": "Pre-authorisation",
+      "pay_at_booking": "Payment at booking"
+    }
+  },
+  "treatmentRequest": {
+    "title": "On Request enquiry",
+    "updated": "Enquiry updated",
+    "updatedDescription": "Your changes have been saved.",
+    "updateError": "Could not update the enquiry.",
+    "statusQuoted": "Quote sent",
+    "statusConverted": "Converted",
+    "statusRejected": "Rejected",
+    "clientInfo": "Client information",
+    "room": "Room {{number}}",
+    "requestDetails": "Enquiry details",
+    "requestedTreatment": "Requested treatment:",
+    "needDescription": "Description of the request:",
+    "quote": "Quote",
+    "quotedPrice": "Quoted price (€)",
+    "quotedPricePlaceholder": "e.g. 150",
+    "quotedDuration": "Estimated duration (min)",
+    "quotedDurationPlaceholder": "e.g. 90",
+    "internalNotes": "Internal notes",
+    "internalNotesPlaceholder": "Notes for the team...",
+    "dateTimeFormat": "dd/MM/yyyy 'at' HH:mm",
+    "createdAt": "Created on {{date}}",
+    "updatedAt": "Updated on {{date}}",
+    "reject": "Reject",
+    "saveQuote": "Save quote",
+    "convertToBooking": "Convert to booking"
+  },
+  "treatmentRoomDetail": {
+    "capabilitiesRequired": "Select at least one treatment type",
+    "capacityMin": "Minimum 1 bed",
+    "loadError": "Could not load the treatment room",
+    "created": "Treatment room created successfully",
+    "updated": "Treatment room updated successfully",
+    "saveError": "Could not save changes",
+    "roomFallback": "Room",
+    "tabGeneral": "General",
+    "tabPlanning": "Schedule",
+    "savePrompt": "Save the treatment room to access its schedule"
+  },
+  "billing": {
+    "title": "Billing & subscription",
+    "subtitle": "Manage your plan, seats, payment method and invoices.",
+    "portalError": "Could not open the billing portal",
+    "seats": "seat(s)",
+    "perYear": "year",
+    "perMonth": "month",
+    "trialEnds": "Trial ends on {{date}}",
+    "endsOn": "Ends on {{date}}",
+    "renewsOn": "Renews on {{date}}",
+    "empty": {
+      "title": "No subscription",
+      "description": "Your organisation does not have a subscription yet. Choose a plan to get started.",
+      "cta": "View plans"
+    },
+    "cycle": {
+      "yearly": "Yearly billing",
+      "monthly": "Monthly billing"
+    },
+    "actions": {
+      "manage": "Manage subscription",
+      "addSeat": "Add a seat"
+    },
+    "usage": {
+      "title": "Seats & venues",
+      "description": "1 venue = 1 seat.",
+      "seatsUsed": "seats used"
+    },
+    "paymentMethod": {
+      "none": "No payment method on file"
+    },
+    "invoices": {
+      "title": "Invoices",
+      "empty": "No invoices yet.",
+      "view": "View",
+      "col": {
+        "date": "Date",
+        "number": "Number",
+        "status": "Status",
+        "amount": "Amount"
+      }
+    }
+  },
+  "ordersPage": {
+    "title": "Orders",
+    "wip": "Module under development..."
+  },
+  "availableDays": {
+    "everyDay": "Every day",
+    "specificDays": "Specific days",
+    "days": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
+    },
+    "short": {
+      "monday": "M",
+      "tuesday": "T",
+      "wednesday": "W",
+      "thursday": "T",
+      "friday": "F",
+      "saturday": "S",
+      "sunday": "S"
+    }
+  },
+  "venueResourcesTab": {
+    "therapists": "Therapists",
+    "rooms": "Rooms"
+  },
+  "viewModeSwitcher": {
+    "switchAria": "Switch to the venue management area",
+    "label": "Venue management",
+    "chooseVenue": "Choose a venue",
+    "hint": "You will switch to venue management mode for this venue.",
+    "noVenue": "No venue available."
+  },
+  "dashboardRankings": {
+    "bookingCount_one": "{{count}} booking",
+    "bookingCount_other": "{{count}} bookings",
+    "selectAllVenues": "Select “All venues”",
+    "tabs": {
+      "venues": "Venues",
+      "therapists": "Therapists",
+      "treatments": "Treatments"
+    }
+  },
+  "conciergeDetailDialog": {
+    "contact": "Contact",
+    "phone": "Phone",
+    "role": "Role",
+    "venues_one": "Venue ({{count}})",
+    "venues_other": "Venues ({{count}})",
+    "noVenue": "No venue assigned"
+  },
+  "duoRecap": {
+    "title": "Duo summary",
+    "treatment": "Treatment",
+    "therapist": "Therapist",
+    "room": "Room",
+    "amount": "Amount",
+    "earnings": "Therapist earnings",
+    "schedule": "Time",
+    "incompleteRates": "Incomplete rates",
+    "pendingTherapist": "Pending"
+  },
+  "bookingDetailDialog": {
+    "title": "Booking #{{id}}",
+    "noShowSuccess": "Booking marked as a no-show.",
+    "noShowError": "Could not mark the booking as a no-show.",
+    "noShowTooltip": "Client did not turn up (no-show)",
+    "client": "Client",
+    "room": "Room {{number}}",
+    "waiverTitle": "Liability waiver",
+    "waiverSignedOn": "Signed on {{date}}",
+    "signedAtFormat": "dd/MM/yyyy 'at' HH:mm",
+    "waiverPending": "Awaiting signature",
+    "waiverHint": "The client must sign on the tablet before the treatment.",
+    "openForm": "Open the form",
+    "booking": "Booking",
+    "date": "Date",
+    "time": "Time",
+    "treatments_one": "Treatment ({{count}})",
+    "treatments_other": "Treatments ({{count}})",
+    "noTreatment": "No treatment",
+    "noShowConfirmTitle": "Mark as a no-show?",
+    "noShowConfirmDesc": "The client did not turn up. No-show fees may apply under the venue's policy. This action is final.",
+    "noShowConfirmAction": "Confirm the no-show"
+  },
+  "venueWizard": {
+    "titleAdd": "Add a venue",
+    "titleEdit": "Edit the venue",
+    "validation": {
+      "slugMin": "At least 2 characters",
+      "slugMax": "60 characters max",
+      "slugFormat": "Lowercase letters, digits and hyphens only",
+      "openBeforeClose": "The opening time must be before the closing time",
+      "organizationRequired": "Organisation required"
+    },
+    "toasts": {
+      "loadRoomsError": "Could not load the treatment rooms",
+      "loadDataError": "Could not load the data",
+      "selectOneDay": "Please select at least one day",
+      "selectOneDate": "Please select at least one date",
+      "createdWithCategories": "Venue created. You can now manage the categories.",
+      "duplicateSlug": "A venue with this identifier already exists",
+      "saveError": "Could not save the changes",
+      "created": "Venue created successfully",
+      "updated": "Venue updated successfully"
+    }
+  },
+  "transactionsPage": {
+    "title": "Transactions & balance",
+    "subtitle": "Treatment history and accounting balance",
+    "refresh": "Refresh",
+    "loadError": "Could not load the data",
+    "statementDownloaded": "Statement downloaded",
+    "noVenueAssigned": "No venue assigned to your account",
+    "myVenue": "My venue",
+    "venueFallback": "Venue",
+    "balanceTitle": "Balance payable to {{brand}}",
+    "amountDue": "Amount due to {{brand}}",
+    "creditInYourFavour": "Credit in your favour",
+    "filterByDate": "Filter by date",
+    "roomNumberFilter": "Room number",
+    "clearFilters": "Clear filters",
+    "journalTitle": "Treatment log",
+    "journalSubtitle": "History of every treatment at your venue",
+    "noService": "No treatment found",
+    "table": {
+      "date": "Date",
+      "time": "Time",
+      "room": "Room",
+      "client": "Client",
+      "therapist": "Therapist",
+      "amount": "Amount",
+      "status": "Status"
+    },
+    "csv": {
+      "date": "Date",
+      "time": "Time",
+      "roomNumber": "Room number",
+      "client": "Client",
+      "service": "Treatment",
+      "therapist": "Therapist",
+      "amount": "Amount",
+      "paymentStatus": "Payment status",
+      "bookingRef": "Booking #{{id}}"
+    }
+  },
+  "dashboardCharts": {
+    "sales": {
+      "title": "Sales",
+      "perDay": "Revenue / day",
+      "empty": "No sales data for this period",
+      "treatmentCount_one": "{{count}} treatment",
+      "treatmentCount_other": "{{count}} treatments"
+    },
+    "heatmap": {
+      "title": "Room occupancy — today",
+      "empty": "No active room",
+      "day": "Day",
+      "outOfHours": "out of hours"
+    },
+    "status": {
+      "title": "Statuses",
+      "bookings": "bookings"
+    },
+    "forecast": {
+      "title": "7-day forecast",
+      "perDay": "bookings / day",
+      "empty": "No booking scheduled this week",
+      "confirmed": "Confirmed"
+    }
+  },
+  "customerBookingsTab": {
+    "payment": {
+      "chargedToRoom": "Charged to room",
+      "paid": "Paid",
+      "refunded": "Refunded",
+      "failed": "Failed",
+      "cardSaved": "Card on file"
+    },
+    "table": {
+      "bookingNumber": "Booking no.",
+      "dateTime": "Date & time",
+      "venue": "Venue",
+      "treatments": "Treatments",
+      "bookingStatus": "Booking status",
+      "payment": "Payment",
+      "waiver": "Waiver",
+      "total": "Total"
+    }
+  },
+  "treatmentVariantsTab": {
+    "title": "Variants",
+    "addVariant": "Add a variant",
+    "label": "Label",
+    "labelPlaceholder": "e.g. 60 minutes",
+    "duration": "Duration (min) *",
+    "guests": "Guests",
+    "price": "Price ({{symbol}})",
+    "options": "Options",
+    "onRequest": "On request",
+    "default": "Default",
+    "availableDays": "Available days",
+    "sameAsTreatment": "Same as treatment"
+  },
+  "addAdminDialog": {
+    "title": "Add an administrator",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "countryCode": "Code",
+    "phone": "Phone",
+    "superAdmin": "Super admin",
+    "superAdminDesc": "Lymfea staff — global access to every organisation",
+    "invite": "Invite",
+    "inviteSuccess": "Administrator invited",
+    "inviteEmailFailed": "Admin created but the invitation email failed",
+    "notAllowed": "Action not allowed",
+    "createFailed": "Could not create"
+  },
+  "bookingsPage": {
+    "planningTitle": "Planning",
+    "refresh": "Refresh",
+    "newRequest": "New request",
+    "newBooking": "New booking"
+  },
+  "organizationPicker": {
+    "title": "Choose an organisation",
+    "description": "You are a Lymfea super admin. Choose the organisation you want to work on. You can switch at any time from the sidebar.",
+    "viewAll": "View all",
+    "viewAllDesc": "Lymfea staff — global access",
+    "empty": "No organisation yet. Create one from the \"Organisations\" page.",
+    "skip": "Skip — view all"
+  },
+  "cancellationTiers": {
+    "hint": "E.g. between 24 h and 12 h before the appointment: 50% refunded if the tier covers 24 h–12 h.",
+    "from": "From (h)",
+    "to": "To (h)",
+    "refundPercent": "Refund %",
+    "addTier": "Add a tier"
+  },
+  "entityDetailDialog": {
+    "statusMaintenance": "Maintenance",
+    "resendInvite": "Resend invitation",
+    "duplicate": "Duplicate"
+  },
+  "categorySelect": {
+    "placeholder": "Select a category",
+    "emptyHint": "No category yet. Create one below.",
+    "noVenueHint": "Select a venue first",
+    "createCategory": "Create a category"
+  },
+  "customerCures": {
+    "empty": "No programme for this client",
+    "sessions": "{{used}}/{{total}} sessions",
+    "expires": "Exp. {{date}}"
+  },
+  "analyticsPage": {
+    "title": "Client analytics",
+    "subtitle": "Booking journey tracking",
+    "allVenues": "All venues",
+    "loadError": "Unable to load analytics data",
+    "sessions": "Sessions",
+    "pageViews": "Page views",
+    "conversions": "Conversions",
+    "conversionRate": "Conversion rate",
+    "good": "Good",
+    "conversionFunnel": "Conversion funnel",
+    "noDataAvailable": "No data available",
+    "uniqueVisitors": "Unique visitors",
+    "deviceBreakdown": "Breakdown by device",
+    "sessionsByVenue": "Sessions by venue",
+    "uniqueSessions": "Unique sessions",
+    "dailyVisitors": "Daily visitors",
+    "visitors": "Visitors",
+    "visitorsUnit": "visitors",
+    "steps": {
+      "welcome": "Home",
+      "treatments": "Menu",
+      "schedule": "Date & time",
+      "guest_info": "Client details",
+      "payment": "Payment",
+      "booking_completed": "Conversion"
+    }
+  },
+  "globalSearch": {
+    "triggerTitle": "Search (⌘K)",
+    "title": "Global search",
+    "placeholder": "Name, phone, booking no.…",
+    "hint": "Type at least 2 letters to start searching",
+    "searching": "Searching…",
+    "noResults": "No results",
+    "noMatch": "Nothing matches “{{query}}”",
+    "openBookingInNewTab": "Open booking #{{id}} in a new tab",
+    "openCustomerInNewTab": "Open the customer record in a new tab",
+    "openTherapistInNewTab": "Open the therapist record in a new tab",
+    "groups": {
+      "bookings": "Bookings",
+      "customers": "Customers",
+      "therapists": "Therapists"
+    },
+    "fields": {
+      "venue": "Venue:",
+      "treatment": "Treatment:",
+      "room": "Room:",
+      "phone": "Tel:"
+    },
+    "actions": {
+      "view": "View",
+      "paymentLink": "Payment link",
+      "refund": "Refund"
+    }
+  },
+  "quickActions": {
+    "title": "Payment actions",
+    "bookingLabel": "Booking",
+    "bookingPlaceholder": "Choose a booking",
+    "bookingSearchPlaceholder": "Search by number or name…",
+    "bookingEmpty": "No booking found",
+    "loadError": "Unable to load the booking",
+    "loadingBooking": "Loading booking…",
+    "bookingRef": "Booking #{{id}}",
+    "paymentLink": "Payment link",
+    "paymentLinkHint": "Custom amount, sent by email/SMS",
+    "refund": "Refund",
+    "refundHint": "Partial or full, via Stripe",
+    "linkAmount": "Link amount",
+    "linkAmountHint": "Pre-filled with the booking total, editable."
+  },
+  "refundDialog": {
+    "title": "Refund booking",
+    "error": "Refund failed",
+    "unknownError": "Unknown error",
+    "partialDone": "Partial refund completed",
+    "fullDone": "Full refund completed",
+    "refunded": "{{amount}} refunded.",
+    "refundedCumulative": "{{amount}} refunded (cumulative).",
+    "retry": "Try again",
+    "bookingRef": "Booking #{{id}}",
+    "paidLabel": "Paid",
+    "amountLabel": "Amount to refund",
+    "amountHint": "Partial refunds are allowed. The status only changes to “Refunded” once the full amount has been refunded.",
+    "submitting": "Refunding…",
+    "submit": "Refund"
+  },
+  "venueSectionNav": {
+    "identity": "Identity",
+    "location": "Location",
+    "finance": "Finance",
+    "bookingSettings": "Booking",
+    "bookingRules": "Pre-booking",
+    "schedule": "Opening hours",
+    "team": "Team",
+    "amenities": "Amenities",
+    "payment": "Payment"
+  },
+  "dashboardPage": {
+    "title": "Home",
+    "period": "Period",
+    "selectVenue": "Select a venue",
+    "allVenues": "All venues",
+    "tabs": {
+      "dashboard": "Dashboard",
+      "overview": "Overview"
+    }
+  },
+  "dashboardAlerts": {
+    "withoutTherapist": "without a therapist",
+    "pendingPayments_one": "pending payment",
+    "pendingPayments_other": "pending payments",
+    "failedPayments_one": "failed payment",
+    "failedPayments_other": "failed payments",
+    "missingRoomNumber_one": "room number to add",
+    "missingRoomNumber_other": "room numbers to add",
+    "unassignedTitle": "Bookings without a therapist",
+    "pendingPaymentsTitle": "Pending payments",
+    "dialogHint": "Click a booking to open it in a new tab.",
+    "bookingRef": "Booking #{{id}}",
+    "noVenue": "Venue not specified",
+    "daysBefore": "D-{{days}}",
+    "daysAfter": "D+{{days}}"
+  },
+  "bookingsList": {
+    "title": "Bookings",
+    "createPaymentLink": "Create a payment link",
+    "refundBooking": "Refund a booking",
+    "exportCsv": "Export to CSV",
+    "newRequest": "New request",
+    "newBooking": "New booking"
+  },
+  "treatmentRoomDialog": {
+    "details": "Details",
+    "beds": "Beds",
+    "assignment": "Assignment",
+    "venue": "Venue",
+    "unassigned": "Unassigned",
+    "planning": "Schedule",
+    "nextBooking": "Next booking",
+    "noBooking": "No booking"
+  },
+  "treatmentRoomPlanning": {
+    "empty": "No upcoming bookings for this room",
+    "title_one": "Upcoming booking ({{count}})",
+    "title_other": "Upcoming bookings ({{count}})",
+    "client": "Client",
+    "treatment": "Treatment"
+  },
+  "venueOverview": {
+    "treatmentRoomsHeading_one": "Treatment room ({{count}})",
+    "treatmentRoomsHeading_other": "Treatment rooms ({{count}})",
+    "roomsAssigned_one": "{{count}} room assigned",
+    "roomsAssigned_other": "{{count}} rooms assigned",
+    "noRoomsAssigned": "No treatment room assigned"
+  },
+  "treatmentRoomGeneral": {
+    "upload": "Upload",
+    "uploading": "Uploading...",
+    "nameLabel": "Room name *",
+    "namePlaceholder": "Zen Room",
+    "bedsLabel": "Beds",
+    "bedsHelp": "Number of simultaneous occupancies (1 = a single booking per slot)",
+    "capabilitiesLabel": "Compatible treatments *",
+    "capabilitiesHelp": "Select the treatment types that can be performed in this room",
+    "capabilities": {
+      "massage": "Massage",
+      "facial": "Facial",
+      "hammam": "Hammam",
+      "jacuzzi": "Jacuzzi",
+      "sauna": "Sauna",
+      "bodyWrap": "Body wrap",
+      "multiPurpose": "Multi-purpose"
+    },
+    "venueLabel": "Venue",
+    "venuePlaceholder": "Select a venue",
+    "statusLabel": "Status",
+    "maintenance": "Maintenance"
+  },
+  "treatmentRequests": {
+    "title": "On Request enquiries",
+    "pendingCount_one": "{{count}} pending",
+    "pendingCount_other": "{{count}} pending",
+    "statusPlaceholder": "Status",
+    "empty": "No enquiries",
+    "notSpecified": "Not specified",
+    "unknown": "Unknown",
+    "status": {
+      "pending": "Pending",
+      "quoted": "Quote sent",
+      "converted": "Converted",
+      "rejected": "Rejected"
+    },
+    "filter": {
+      "all": "All",
+      "pending": "Pending",
+      "quoted": "Quote sent",
+      "converted": "Converted",
+      "rejected": "Rejected"
+    },
+    "colClient": "Client",
+    "colVenue": "Venue",
+    "colTreatment": "Requested treatment",
+    "colPreferredDate": "Preferred date",
+    "colStatus": "Status",
+    "colCreatedAt": "Created on"
+  },
+  "dashboardClientMix": {
+    "title": "Client mix",
+    "bookingCount_one": "{{count}} booking",
+    "bookingCount_other": "{{count}} bookings",
+    "vsPreviousPeriod": "vs previous period",
+    "help": "Breakdown of the period's bookings by <b>client type</b>. \"Hotel clients\" = guests staying at the property; \"External clients\" covers everything else, including partners (Staycation, ClassPass, Sezame). All statuses combined, cancellations included.",
+    "hotelClients": "Hotel clients",
+    "externalClients": "External clients",
+    "onlineBookings": "Online bookings",
+    "onlineHelp": "Bookings created <b>without any team member involvement</b>: the client booking journey and the partner API. The bar and percentage show the share of the period's total; the change is expressed in percentage points against the previous period.",
+    "shareOfTotal": "{{value}}% of total",
+    "manualPhone": "Manual / phone",
+    "manualHelp": "Bookings entered by the team: back office, phone bookings, venue management, therapist app and bookings taken from an email. This is the counterpart to online bookings — together they cover the period's total."
+  },
+  "addOrganizationDialog": {
+    "title": "New organisation",
+    "name": "Name",
+    "namePlaceholder": "Marriott Group",
+    "create": "Create",
+    "created": "Organisation created",
+    "createError": "Unable to create",
+    "errors": {
+      "nameRequired": "Name required",
+      "slugTooShort": "Slug too short",
+      "slugTooLong": "Slug too long",
+      "slugPattern": "Slug: lowercase letters, digits and hyphens only"
+    }
+  },
+  "sellBundleDialog": {
+    "sessionsCount_one": "{{count}} session",
+    "sessionsCount_other": "{{count}} sessions",
+    "firstName": "First name *",
+    "lastName": "Last name",
+    "phone": "Phone *",
+    "searchPlaceholder": "Name or phone...",
+    "errors": {
+      "firstNameAndPhoneRequired": "First name and phone required",
+      "selectTemplateAndClient": "Select a template and a client",
+      "sellFailed": "Error during the sale"
+    }
+  },
+  "dashboardOverview": {
+    "title": "Overview",
+    "colVenue": "Venue",
+    "colSales": "Sales",
+    "colBookings": "Bookings",
+    "colSessions": "Sessions",
+    "colCancellations": "Cancellations",
+    "empty": "No venue found"
+  },
+  "emailPreview": {
+    "title": "Email preview",
+    "unavailable": "Preview unavailable."
+  },
+  "venueModeBanner": {
+    "label": "Venue management mode",
+    "backToAdmin": "Back to admin mode"
   }
 }

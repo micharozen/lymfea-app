@@ -71,6 +71,7 @@ function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: 
 
 // Component to display calculated Eïa commission
 function LymfeaCommissionDisplay({ control }: { control: Control<VenueWizardFormValues> }) {
+  const { t } = useTranslation(['admin', 'common']);
   const hotelCommission = useWatch({ control, name: "hotel_commission" });
   const therapistCommission = useWatch({ control, name: "therapist_commission" });
 
@@ -83,11 +84,11 @@ function LymfeaCommissionDisplay({ control }: { control: Control<VenueWizardForm
     <div className="space-y-2">
       <label className="text-sm font-medium flex items-center gap-1.5">
         <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-        {`Commission ${brand.name}`}
+        {t('venue.general.brandCommission', { brand: brand.name })}
       </label>
       <div className={`relative flex items-center h-10 px-3 border rounded-md bg-muted/50 ${isInvalid ? 'border-destructive' : ''}`}>
         <span className={`text-sm font-medium ${isInvalid ? 'text-destructive' : 'text-foreground'}`}>
-          {isInvalid ? 'Erreur' : `${lymfeaCommission.toFixed(2)}%`}
+          {isInvalid ? t('venue.general.error') : `${lymfeaCommission.toFixed(2)}%`}
         </span>
       </div>
       {isInvalid && (
@@ -132,7 +133,7 @@ export function VenueGeneralInfoStep({
   triggerHotelImageSelect,
   triggerCoverImageSelect,
 }: VenueGeneralInfoStepProps) {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['admin', 'common']);
   const { isSuperAdmin } = useUser();
   const uploading = uploadingHotel || uploadingCover;
 
@@ -319,7 +320,11 @@ export function VenueGeneralInfoStep({
               <FormItem>
                 <FormLabel className="flex items-center gap-1.5">
                   <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  {venueTypeValue === 'coworking' ? 'Nom du coworking' : venueTypeValue === 'enterprise' ? "Nom de l'entreprise" : "Nom de l'hôtel"}
+                  {venueTypeValue === 'coworking'
+                    ? t('venue.general.nameCoworking')
+                    : venueTypeValue === 'enterprise'
+                    ? t('venue.general.nameEnterprise')
+                    : t('venue.general.nameHotel')}
                 </FormLabel>
                 <FormControl>
                   <Input {...field} />
@@ -349,10 +354,9 @@ export function VenueGeneralInfoStep({
                   />
                 </FormControl>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Identifiant utilisé dans l'URL publique de votre espace de réservation
-                  (ex. <code className="text-[10px]">{`${brand.appDomain}/client/${slugify(slugValue || nameValue) || 'le-ritz-paris'}`}</code>).
-                  Lettres minuscules, chiffres et tirets uniquement. Évitez de le changer
-                  une fois partagé — les anciens liens ne fonctionneront plus.
+                  {t('venue.general.publicLinkHelpBefore')}{' '}
+                  <code className="text-[10px]">{`${brand.appDomain}/client/${slugify(slugValue || nameValue) || 'le-ritz-paris'}`}</code>
+                  {t('venue.general.publicLinkHelpAfter')}
                 </p>
                 <FormMessage />
               </FormItem>
@@ -401,7 +405,7 @@ export function VenueGeneralInfoStep({
                 >
                   <span className="truncate">
                     {selectedRoomIds.length === 0
-                      ? "Sélectionner des salles"
+                      ? t('venue.general.selectRooms')
                       : rooms
                           .filter((r) => selectedRoomIds.includes(r.id))
                           .map((r) => r.name)
@@ -660,7 +664,7 @@ export function VenueGeneralInfoStep({
         ) : (
           <div className="rounded-lg bg-muted/50 p-3">
             <p className="text-sm text-muted-foreground">
-              La commission thérapeute est définie individuellement sur chaque fiche thérapeute (taux par durée de soin). Le reste revient à {brand.name}.
+              {t('venue.general.perTherapistCommissionNote', { brand: brand.name })}
             </p>
           </div>
         )}

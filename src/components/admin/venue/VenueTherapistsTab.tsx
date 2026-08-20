@@ -24,17 +24,17 @@ import { SelectField } from "@/components/ui/select-field";
 /** Groupes de priorité proposés à l'écran. La colonne accepte N rangs, l'UI en expose deux. */
 const PRIORITY_OPTIONS = [1, 2];
 
-const countries = [
-  { code: "+33", label: "France", flag: "🇫🇷" },
-  { code: "+971", label: "EAU", flag: "🇦🇪" },
-  { code: "+1", label: "États-Unis", flag: "🇺🇸" },
-  { code: "+44", label: "Royaume-Uni", flag: "🇬🇧" },
-  { code: "+49", label: "Allemagne", flag: "🇩🇪" },
-  { code: "+39", label: "Italie", flag: "🇮🇹" },
-  { code: "+34", label: "Espagne", flag: "🇪🇸" },
-  { code: "+41", label: "Suisse", flag: "🇨🇭" },
-  { code: "+32", label: "Belgique", flag: "🇧🇪" },
-  { code: "+377", label: "Monaco", flag: "🇲🇨" },
+const COUNTRY_OPTIONS = [
+  { key: "france", code: "+33", flag: "🇫🇷" },
+  { key: "uae", code: "+971", flag: "🇦🇪" },
+  { key: "unitedStates", code: "+1", flag: "🇺🇸" },
+  { key: "unitedKingdom", code: "+44", flag: "🇬🇧" },
+  { key: "germany", code: "+49", flag: "🇩🇪" },
+  { key: "italy", code: "+39", flag: "🇮🇹" },
+  { key: "spain", code: "+34", flag: "🇪🇸" },
+  { key: "switzerland", code: "+41", flag: "🇨🇭" },
+  { key: "belgium", code: "+32", flag: "🇧🇪" },
+  { key: "monaco", code: "+377", flag: "🇲🇨" },
 ];
 
 
@@ -63,6 +63,16 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     phone: "",
   });
   const [selectedTreatmentIds, setSelectedTreatmentIds] = useState<string[]>([]);
+
+  const countries = useMemo(
+    () =>
+      COUNTRY_OPTIONS.map(({ key, code, flag }) => ({
+        code,
+        flag,
+        label: t(`venueTherapistsTab.countries.${key}`),
+      })),
+    [t],
+  );
 
   const {
     url: profileImage,
@@ -293,7 +303,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
       {/* Assigned therapists list */}
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-1">
-          Thérapeutes assignés ({assignedTherapists.length})
+          {t('venueTherapistsTab.assignedTitle', { count: assignedTherapists.length })}
         </h3>
         <p className="text-xs text-muted-foreground mb-3">
           {t(
@@ -422,7 +432,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
               className="bg-foreground text-background hover:bg-foreground/90"
             >
               {assignMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-              Assigner
+              {t('venueTherapistsTab.assign')}
             </Button>
           </div>
         </div>
@@ -537,7 +547,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                 className="bg-foreground text-background hover:bg-foreground/90"
               >
                 {createMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-                Créer et assigner
+                {t('venueTherapistsTab.createAndAssign')}
               </Button>
             </div>
           </div>

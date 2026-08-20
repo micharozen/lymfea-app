@@ -211,7 +211,7 @@ export default function Profile() {
             <div className="flex items-center gap-4 md:gap-6 mb-6 md:mb-8">
               <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                 {profileImage ? (
-                  <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={profileImage} alt={t('profilePage.title')} className="w-full h-full object-cover" />
                 ) : (
                   <User className="w-12 h-12 text-muted-foreground" />
                 )}
@@ -251,7 +251,7 @@ export default function Profile() {
 
               <div>
                 <Label htmlFor="lastName" className="text-sm text-muted-foreground mb-1.5 block">
-                  Nom
+                  {t('profilePage.lastName')}
                 </Label>
                 <Input
                   id="lastName"
@@ -306,7 +306,7 @@ export default function Profile() {
             <div className="pt-4 border-t mb-6">
               <Label className="text-sm text-muted-foreground mb-3 flex items-center gap-2">
                 <Globe className="h-4 w-4" />
-                {t('profile.language')}
+                {t('pwa:profile.language')}
               </Label>
               <LanguageSwitcher variant="list" persistToProfile />
             </div>

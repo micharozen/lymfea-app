@@ -25,7 +25,7 @@ interface CustomerGeneralTabProps {
 }
 
 export function CustomerGeneralTab({ form, disabled }: CustomerGeneralTabProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
 
   return (
     <div className="space-y-6">
@@ -141,8 +141,8 @@ export function CustomerGeneralTab({ form, disabled }: CustomerGeneralTabProps) 
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="fr">Français</SelectItem>
-                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="fr">{t("common:language.fr")}</SelectItem>
+                      <SelectItem value="en">{t("common:language.en")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

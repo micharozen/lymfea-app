@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useUser } from "@/contexts/UserContext";
 import {
   useInvalidateOrganizationsList,
@@ -10,6 +11,7 @@ import { Building2, Globe, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function OrganizationPickerDialog() {
+  const { t } = useTranslation(["admin", "common"]);
   const { isSuperAdmin, hasChosenActiveOrganization, setActiveOrganization, loading } = useUser();
   const open = !loading && isSuperAdmin && !hasChosenActiveOrganization;
   const invalidateOrganizationsList = useInvalidateOrganizationsList();
@@ -39,11 +41,8 @@ export function OrganizationPickerDialog() {
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Choisir une organisation</DialogTitle>
-          <DialogDescription>
-            Vous êtes super-admin Lymfea. Choisissez l'organisation sur laquelle vous souhaitez opérer.
-            Vous pourrez changer à tout moment depuis la barre latérale.
-          </DialogDescription>
+          <DialogTitle>{t("organizationPicker.title")}</DialogTitle>
+          <DialogDescription>{t("organizationPicker.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto">
@@ -58,21 +57,21 @@ export function OrganizationPickerDialog() {
               <Globe className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <div className="text-sm font-medium">Voir tout</div>
-              <div className="text-xs text-muted-foreground">Lymfea Staff — accès global</div>
+              <div className="text-sm font-medium">{t("organizationPicker.viewAll")}</div>
+              <div className="text-xs text-muted-foreground">{t("organizationPicker.viewAllDesc")}</div>
             </div>
           </button>
 
           {showLoading && (
             <div className="py-4 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Chargement…
+              {t("common:loading")}
             </div>
           )}
 
           {!showLoading && orgs.length === 0 && (
             <div className="py-4 text-center text-sm text-muted-foreground">
-              Aucune organisation. Créez-en une depuis la page « Organisations ».
+              {t("organizationPicker.empty")}
             </div>
           )}
 
@@ -97,7 +96,7 @@ export function OrganizationPickerDialog() {
 
         <div className="flex justify-end">
           <Button variant="ghost" size="sm" onClick={() => handleSelect(null)}>
-            Passer — voir tout
+            {t("organizationPicker.skip")}
           </Button>
         </div>
       </DialogContent>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ export function CategoryQuickCreateDialog({
   hideIsAddon = false,
   onCreated,
 }: CategoryQuickCreateDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const { addCategory, updateNameEn, toggleAddon, isAdding } =
     useTreatmentCategories(hotelId);
 
@@ -76,43 +78,41 @@ export function CategoryQuickCreateDialog({
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Créer une catégorie</DialogTitle>
+            <DialogTitle>{t('categoryQuickCreate.title')}</DialogTitle>
             <DialogDescription>
-              Ajoutez une nouvelle catégorie pour ce lieu. Elle sera disponible
-              pour les soins, cures et cartes cadeaux.
+              {t('categoryQuickCreate.description')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="quick-cat-name">Nom (FR) *</Label>
+              <Label htmlFor="quick-cat-name">{t('categoryQuickCreate.nameFr')}</Label>
               <Input
                 id="quick-cat-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex. Massages, Soins visage…"
+                placeholder={t('categoryQuickCreate.namePlaceholder')}
                 autoFocus
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="quick-cat-name-en">🇬🇧 Name (EN)</Label>
+              <Label htmlFor="quick-cat-name-en">{t('categoryQuickCreate.nameEn')}</Label>
               <Input
                 id="quick-cat-name-en"
                 value={nameEn}
                 onChange={(e) => setNameEn(e.target.value)}
-                placeholder="English name (optional)"
+                placeholder={t('categoryQuickCreate.nameEnPlaceholder')}
               />
             </div>
 
             {!hideIsAddon && (
               <div className="flex items-center justify-between rounded-md border p-3">
                 <div className="space-y-0.5">
-                  <Label htmlFor="quick-cat-addon">Catégorie add-on</Label>
+                  <Label htmlFor="quick-cat-addon">{t('categoryQuickCreate.addonLabel')}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Les soins de cette catégorie seront vendus en complément
-                    d'un soin principal.
+                    {t('categoryQuickCreate.addonHelp')}
                   </p>
                 </div>
                 <Switch
@@ -131,11 +131,11 @@ export function CategoryQuickCreateDialog({
               onClick={() => handleOpenChange(false)}
               disabled={isAdding}
             >
-              Annuler
+              {t('common:buttons.cancel')}
             </Button>
             <Button type="submit" disabled={isAdding || !name.trim() || !hotelId}>
               {isAdding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Créer
+              {t('categoryQuickCreate.submit')}
             </Button>
           </DialogFooter>
         </form>

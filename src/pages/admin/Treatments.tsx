@@ -413,9 +413,9 @@ export default function TreatmentMenus() {
                     <TableEmptyState
                       colSpan={columnCount}
                       icon={HandHeart}
-                      message="Aucune prestation trouvee"
-                      description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                      actionLabel={isAdmin ? "Ajouter une prestation" : undefined}
+                      message={t('treatmentsPage.empty')}
+                      description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all" ? t('treatmentsPage.emptyHint') : undefined}
+                      actionLabel={isAdmin ? t('treatmentsPage.addTreatment') : undefined}
                       onAction={isAdmin ? () => navigate("/admin/treatments/new") : undefined}
                     />
                   ) : (

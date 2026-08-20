@@ -35,7 +35,7 @@ function RoomCapacityInput({
   disabled?: boolean;
   onSave: (roomId: string, capacity: number) => void;
 }) {
-  const { t } = useTranslation('admin');
+  const { t } = useTranslation(['admin', 'common']);
   const [value, setValue] = useState(String(capacity));
 
   useEffect(() => {
@@ -238,7 +238,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
       {/* Assigned rooms list */}
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-3">
-          Salles assignées ({assignedRooms.length})
+          {t('venueRoomsTab.assignedTitle', { count: assignedRooms.length })}
         </h3>
         {loadingAssigned ? (
           <div className="flex items-center justify-center py-8">
@@ -277,7 +277,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                   className="flex flex-col items-center gap-0.5 flex-shrink-0"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <span className="text-[10px] text-muted-foreground">Lits</span>
+                  <span className="text-[10px] text-muted-foreground">{t('venueRoomsTab.bedsShort')}</span>
                   <RoomCapacityInput
                     roomId={room.id}
                     capacity={room.capacity ?? 1}
@@ -337,7 +337,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
               className="bg-foreground text-background hover:bg-foreground/90"
             >
               {assignMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-              Assigner
+              {t('venueRoomsTab.assign')}
             </Button>
           </div>
         </div>
@@ -361,7 +361,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
             <div className="flex items-center gap-3">
               <div className="relative h-12 w-12 rounded-md border border-border flex items-center justify-center overflow-hidden bg-muted flex-shrink-0">
                 {newRoomImage ? (
-                  <img src={newRoomImage} alt="Preview" className="w-full h-full object-cover" />
+                  <img src={newRoomImage} alt={t('venueRoomsTab.preview')} className="w-full h-full object-cover" />
                 ) : (
                   <Upload className="h-5 w-5 text-muted-foreground" />
                 )}
@@ -397,7 +397,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Lits</Label>
+                  <Label className="text-xs">{t('venueRoomsTab.bedsShort')}</Label>
                   <Input
                     type="number"
                     min="1"
@@ -461,7 +461,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                 className="bg-foreground text-background hover:bg-foreground/90"
               >
                 {createMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-                Créer
+                {t('venueRoomsTab.create')}
               </Button>
             </div>
           </div>

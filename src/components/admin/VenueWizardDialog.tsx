@@ -53,24 +53,24 @@ export interface VenueFormSchemaOptions {
 // Form schema for step 1
 const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.object({
   organization_id: z.string().uuid().optional().or(z.literal("")),
-  name: z.string().min(1, t('errors.validation.nameRequired')),
+  name: z.string().min(1, t('common:errors.validation.nameRequired')),
   slug: z
     .string()
-    .min(2, "Au moins 2 caractères")
-    .max(60, "60 caractères max")
+    .min(2, t('admin:venueWizard.validation.slugMin'))
+    .max(60, t('admin:venueWizard.validation.slugMax'))
     .regex(
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      "Lettres minuscules, chiffres et tirets uniquement"
+      t('admin:venueWizard.validation.slugFormat')
     )
     .optional()
     .or(z.literal("")),
   venue_type: z.enum(['hotel', 'coworking', 'enterprise']).default('hotel'),
-  address: z.string().min(1, t('errors.validation.addressRequired')),
+  address: z.string().min(1, t('common:errors.validation.addressRequired')),
   postal_code: z.string().optional(),
-  city: z.string().min(1, t('errors.validation.cityRequired')),
-  country: z.string().min(1, t('errors.validation.countryRequired')),
+  city: z.string().min(1, t('common:errors.validation.cityRequired')),
+  country: z.string().min(1, t('common:errors.validation.countryRequired')),
   website_url: z.string().optional(),
-  contact_email: z.string().email("Adresse email invalide").optional().or(z.literal("")),
+  contact_email: z.string().email(t('common:errors.invalidEmail')).optional().or(z.literal("")),
   currency: z.string().default("EUR"),
   vat: z.string().default("20"),
   hotel_commission: z.string().default("0"),
@@ -108,18 +108,19 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   const therapistComm = parseFloat(data.therapist_commission) || 0;
   return hotelComm + therapistComm <= 100;
 }, {
-  message: t('errors.validation.commissionExceeds100'),
+  message: t('common:errors.validation.commissionExceeds100'),
   path: ["hotel_commission"],
 }).refine((data) => {
   return data.opening_time < data.closing_time;
 }, {
-  message: "L'heure d'ouverture doit être avant l'heure de fermeture",
+  message: t('admin:venueWizard.validation.openBeforeClose'),
   path: ["closing_time"],
 }).superRefine((data, ctx) => {
   if (options?.requireOrganizationId && !data.organization_id?.trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: options.organizationRequiredMessage ?? "Organisation requise",
+      message:
+        options.organizationRequiredMessage ?? t('admin:venueWizard.validation.organizationRequired'),
       path: ["organization_id"],
     });
   }
@@ -142,17 +143,16 @@ export function VenueWizardDialog({
   mode,
   hotelId,
 }: VenueWizardDialogProps) {
-  const { t } = useTranslation('common');
-  const { t: tAdmin } = useTranslation('admin');
+  const { t } = useTranslation(['admin', 'common']);
   const { isSuperAdmin, organizationId, activeOrganizationId } = useUser();
   const requireOrganizationId = isSuperAdmin && mode === 'add';
   const formSchema = useMemo(
     () =>
       createFormSchema(t, {
         requireOrganizationId,
-        organizationRequiredMessage: tAdmin('venue.organization.required'),
+        organizationRequiredMessage: t('venue.organization.required'),
       }),
-    [t, tAdmin, requireOrganizationId],
+    [t, requireOrganizationId],
   );
   const queryClient = useQueryClient();
 
@@ -294,7 +294,7 @@ export function VenueWizardDialog({
       .order("name");
 
     if (error) {
-      toast.error("Erreur lors du chargement des salles de soin");
+      toast.error(t("venueWizard.toasts.loadRoomsError"));
       return;
     }
 
@@ -395,7 +395,7 @@ export function VenueWizardDialog({
       }
     } catch (error) {
       console.error("Error loading hotel data:", error);
-      toast.error("Erreur lors du chargement des données");
+      toast.error(t("venueWizard.toasts.loadDataError"));
     } finally {
       setLoading(false);
     }
@@ -435,7 +435,7 @@ export function VenueWizardDialog({
       if (!isHotelOrganizationIdRequiredError(error)) {
         throw error;
       }
-      const message = tAdmin("venue.organization.required");
+      const message = t("venue.organization.required");
       form.setError("organization_id", { type: "manual", message });
       toast.error(message);
       setCurrentStep(1);
@@ -452,12 +452,12 @@ export function VenueWizardDialog({
 
     if (deploymentState.scheduleType === "specific_days") {
       if (deploymentState.selectedDays.length === 0) {
-        toast.error("Veuillez sélectionner au moins un jour");
+        toast.error(t("venueWizard.toasts.selectOneDay"));
         return false;
       }
     } else if (deploymentState.scheduleType === "one_time") {
       if (deploymentState.specificDates.length === 0) {
-        toast.error("Veuillez sélectionner au moins une date");
+        toast.error(t("venueWizard.toasts.selectOneDate"));
         return false;
       }
     }
@@ -553,12 +553,12 @@ export function VenueWizardDialog({
       await saveBlockedSlots(newHotelId);
 
       queryClient.invalidateQueries({ queryKey: ["hotels"] });
-      toast.success("Lieu créé. Vous pouvez maintenant gérer les catégories.");
+      toast.success(t("venueWizard.toasts.createdWithCategories"));
       setCurrentStep(3);
     } catch (error: unknown) {
       console.error("Error saving venue:", error);
       if (isHotelOrganizationIdRequiredError(error)) {
-        const message = tAdmin("venue.organization.required");
+        const message = t("venue.organization.required");
         form.setError("organization_id", { type: "manual", message });
         toast.error(message);
         setCurrentStep(1);
@@ -568,9 +568,9 @@ export function VenueWizardDialog({
         "code" in error &&
         error.code === "23505"
       ) {
-        toast.error("Un lieu avec cet identifiant existe déjà");
+        toast.error(t("venueWizard.toasts.duplicateSlug"));
       } else {
-        toast.error("Erreur lors de l'enregistrement");
+        toast.error(t("venueWizard.toasts.saveError"));
       }
     } finally {
       setSaving(false);
@@ -581,7 +581,7 @@ export function VenueWizardDialog({
     // If we're in add mode and already saved the hotel (in step 3), just close
     if (mode === 'add' && savedHotelId) {
       queryClient.invalidateQueries({ queryKey: ["hotels"] });
-      toast.success("Lieu créé avec succès");
+      toast.success(t("venueWizard.toasts.created"));
       onSuccess();
       onOpenChange(false);
       return;
@@ -658,7 +658,7 @@ export function VenueWizardDialog({
         await saveBlockedSlots(newHotelId);
 
         queryClient.invalidateQueries({ queryKey: ["hotels"] });
-        toast.success("Lieu créé avec succès");
+        toast.success(t("venueWizard.toasts.created"));
       } else {
         // Update existing hotel
         const { error: hotelError } = await supabase
@@ -713,7 +713,7 @@ export function VenueWizardDialog({
         await saveBlockedSlots(hotelId!);
 
         queryClient.invalidateQueries({ queryKey: ["hotels"] });
-        toast.success("Lieu mis à jour avec succès");
+        toast.success(t("venueWizard.toasts.updated"));
       }
 
       onSuccess();
@@ -721,7 +721,7 @@ export function VenueWizardDialog({
     } catch (error: unknown) {
       console.error("Error saving venue:", error);
       if (isHotelOrganizationIdRequiredError(error)) {
-        const message = tAdmin("venue.organization.required");
+        const message = t("venue.organization.required");
         form.setError("organization_id", { type: "manual", message });
         toast.error(message);
         setCurrentStep(1);
@@ -731,9 +731,9 @@ export function VenueWizardDialog({
         "code" in error &&
         error.code === "23505"
       ) {
-        toast.error("Un lieu avec cet identifiant existe déjà");
+        toast.error(t("venueWizard.toasts.duplicateSlug"));
       } else {
-        toast.error("Erreur lors de l'enregistrement");
+        toast.error(t("venueWizard.toasts.saveError"));
       }
     } finally {
       setSaving(false);
@@ -834,7 +834,8 @@ export function VenueWizardDialog({
     }
   };
 
-  const dialogTitle = mode === 'add' ? 'Ajouter un lieu' : 'Modifier le lieu';
+  const dialogTitle =
+    mode === 'add' ? t('venueWizard.titleAdd') : t('venueWizard.titleEdit');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -904,14 +905,14 @@ export function VenueWizardDialog({
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                 >
-                  Annuler
+                  {t('common:buttons.cancel')}
                 </Button>
                 <Button
                   type="button"
                   onClick={handleNextStep}
                   className="bg-foreground text-background hover:bg-foreground/90"
                 >
-                  Suivant
+                  {t('common:buttons.next')}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </>
@@ -924,7 +925,7 @@ export function VenueWizardDialog({
                   onClick={handlePreviousStep}
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Retour
+                  {t('common:buttons.back')}
                 </Button>
                 <Button
                   type="button"
@@ -933,7 +934,7 @@ export function VenueWizardDialog({
                   className="bg-foreground text-background hover:bg-foreground/90"
                 >
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Suivant
+                  {t('common:buttons.next')}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </>
@@ -946,7 +947,7 @@ export function VenueWizardDialog({
                   onClick={handlePreviousStep}
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Retour
+                  {t('common:buttons.back')}
                 </Button>
                 <div className="flex gap-2">
                   <Button
@@ -954,7 +955,7 @@ export function VenueWizardDialog({
                     variant="outline"
                     onClick={() => onOpenChange(false)}
                   >
-                    Annuler
+                    {t('common:buttons.cancel')}
                   </Button>
                   <Button
                     type="button"
@@ -963,7 +964,7 @@ export function VenueWizardDialog({
                     className="bg-foreground text-background hover:bg-foreground/90"
                   >
                     {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Enregistrer
+                    {t('common:buttons.save')}
                   </Button>
                 </div>
               </>

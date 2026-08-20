@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -20,6 +21,7 @@ const headClassName =
   "text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3";
 
 export function DashboardOverview({ hotelData }: DashboardOverviewProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const { getSortDirection, toggleSort, sortItems } = useTableSort<OverviewColumn>();
 
   const sortedData = sortItems(hotelData, (row, column) =>
@@ -29,7 +31,7 @@ export function DashboardOverview({ hotelData }: DashboardOverviewProps) {
   return (
     <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium text-foreground">Vue d&apos;ensemble</CardTitle>
+        <CardTitle className="text-base font-medium text-foreground">{t("dashboardOverview.title")}</CardTitle>
       </CardHeader>
       <CardContent className="px-0">
         {hotelData.length > 0 ? (
@@ -43,7 +45,7 @@ export function DashboardOverview({ hotelData }: DashboardOverviewProps) {
                     onSort={(c) => toggleSort(c as OverviewColumn)}
                     className={headClassName}
                   >
-                    Lieu
+                    {t("dashboardOverview.colVenue")}
                   </SortableTableHead>
                   <SortableTableHead
                     column="totalSales"
@@ -52,7 +54,7 @@ export function DashboardOverview({ hotelData }: DashboardOverviewProps) {
                     align="right"
                     className={headClassName}
                   >
-                    Ventes
+                    {t("dashboardOverview.colSales")}
                   </SortableTableHead>
                   <SortableTableHead
                     column="totalBookings"
@@ -61,7 +63,7 @@ export function DashboardOverview({ hotelData }: DashboardOverviewProps) {
                     align="right"
                     className={headClassName}
                   >
-                    Réservations
+                    {t("dashboardOverview.colBookings")}
                   </SortableTableHead>
                   <SortableTableHead
                     column="totalSessions"
@@ -70,7 +72,7 @@ export function DashboardOverview({ hotelData }: DashboardOverviewProps) {
                     align="right"
                     className={headClassName}
                   >
-                    Sessions
+                    {t("dashboardOverview.colSessions")}
                   </SortableTableHead>
                   <SortableTableHead
                     column="totalCancelled"
@@ -79,7 +81,7 @@ export function DashboardOverview({ hotelData }: DashboardOverviewProps) {
                     align="right"
                     className={headClassName}
                   >
-                    Annulations
+                    {t("dashboardOverview.colCancellations")}
                   </SortableTableHead>
                 </TableRow>
               </TableHeader>
@@ -108,7 +110,7 @@ export function DashboardOverview({ hotelData }: DashboardOverviewProps) {
           </div>
         ) : (
           <div className="py-12 text-center px-6">
-            <p className="text-muted-foreground">Aucun lieu trouvé</p>
+            <p className="text-muted-foreground">{t("dashboardOverview.empty")}</p>
           </div>
         )}
       </CardContent>

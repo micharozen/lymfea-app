@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import {
   Building2,
@@ -15,22 +16,25 @@ import {
 
 export interface SectionDef {
   id: string;
-  label: string;
+  /** Static label. Prefer `labelKey` for translated sections. */
+  label?: string;
+  /** i18n key in the `admin` namespace, resolved at render time. */
+  labelKey?: string;
   icon: React.ElementType;
   activeClass?: string;
 }
 
 export const VENUE_CONFIG_SECTIONS: SectionDef[] = [
-  { id: "identity", label: "Identité", icon: Building2 },
-  { id: "location", label: "Localisation", icon: MapPin },
-  { id: "finance", label: "Finance", icon: Wallet },
-  { id: "booking-settings", label: "Réservation", icon: Settings },
-  { id: "booking-rules", label: "Pré-réservation", icon: Timer },
-  { id: "schedule", label: "Horaires", icon: Clock },
-  { id: "team", label: "Équipe", icon: Users },
-  { id: "amenities", label: "Commodités", icon: Sparkles },
+  { id: "identity", labelKey: "venueSectionNav.identity", icon: Building2 },
+  { id: "location", labelKey: "venueSectionNav.location", icon: MapPin },
+  { id: "finance", labelKey: "venueSectionNav.finance", icon: Wallet },
+  { id: "booking-settings", labelKey: "venueSectionNav.bookingSettings", icon: Settings },
+  { id: "booking-rules", labelKey: "venueSectionNav.bookingRules", icon: Timer },
+  { id: "schedule", labelKey: "venueSectionNav.schedule", icon: Clock },
+  { id: "team", labelKey: "venueSectionNav.team", icon: Users },
+  { id: "amenities", labelKey: "venueSectionNav.amenities", icon: Sparkles },
   { id: "pms", label: "PMS", icon: Plug },
-  { id: "payment", label: "Paiement", icon: CreditCard },
+  { id: "payment", labelKey: "venueSectionNav.payment", icon: CreditCard },
 ];
 
 /**
@@ -98,6 +102,7 @@ function useActiveSection(sectionIds: string[]) {
 
 /** Option 1: Floating sidebar TOC on the right */
 export function VenueSectionNavSidebar({ sections }: { sections: SectionDef[] }) {
+  const { t } = useTranslation(["admin", "common"]);
   const visibleIds = sections.map((s) => s.id);
   const { active, handleClick } = useActiveSection(visibleIds);
 
@@ -132,7 +137,7 @@ export function VenueSectionNavSidebar({ sections }: { sections: SectionDef[] })
                 )}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" />
-                {s.label}
+                {s.labelKey ? t(s.labelKey) : s.label}
               </button>
             </li>
           );
@@ -198,6 +203,7 @@ export function VenueSectionNavBar({
   sections: SectionDef[];
   topOffset?: number;
 }) {
+  const { t } = useTranslation(["admin", "common"]);
   const visibleIds = sections.map((s) => s.id);
   const { active, handleClick } = useActiveSection(visibleIds);
 
@@ -234,7 +240,7 @@ export function VenueSectionNavBar({
               )}
             >
               <Icon className="h-3 w-3 shrink-0" />
-              {s.label}
+              {s.labelKey ? t(s.labelKey) : s.label}
             </button>
           );
         })}
