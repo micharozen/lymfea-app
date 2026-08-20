@@ -41,6 +41,9 @@ verify_jwt = false
 [functions.contact-admin]
 verify_jwt = false
 
+[functions.support-request]
+verify_jwt = false
+
 [functions.check-admin-exists]
 verify_jwt = false
 

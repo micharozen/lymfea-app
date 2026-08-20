@@ -13,6 +13,7 @@ import compareFR from './locales/fr/compare.json';
 import termsFR from './locales/fr/terms.json';
 import privacyFR from './locales/fr/privacy.json';
 import changelogFR from './locales/fr/changelog.json';
+import supportFR from './locales/fr/support.json';
 
 import commonEN from './locales/en/common.json';
 import clientEN from './locales/en/client.json';
@@ -23,6 +24,7 @@ import compareEN from './locales/en/compare.json';
 import termsEN from './locales/en/terms.json';
 import privacyEN from './locales/en/privacy.json';
 import changelogEN from './locales/en/changelog.json';
+import supportEN from './locales/en/support.json';
 
 const resources = {
   fr: {
@@ -35,6 +37,7 @@ const resources = {
     terms: termsFR,
     privacy: privacyFR,
     changelog: changelogFR,
+    support: supportFR,
   },
   en: {
     common: commonEN,
@@ -46,6 +49,7 @@ const resources = {
     terms: termsEN,
     privacy: privacyEN,
     changelog: changelogEN,
+    support: supportEN,
   },
 };
 
@@ -56,8 +60,8 @@ i18n
     resources,
     fallbackLng: 'en',
     defaultNS: 'common',
-    ns: ['common', 'client', 'pwa', 'admin', 'landing', 'compare', 'terms', 'privacy', 'changelog'],
-    
+    ns: ['common', 'client', 'pwa', 'admin', 'landing', 'compare', 'terms', 'privacy', 'changelog', 'support'],
+
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],
       caches: ['localStorage'],

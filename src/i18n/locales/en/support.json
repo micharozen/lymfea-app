@@ -1,0 +1,69 @@
+{
+  "meta": {
+    "title": "Support — Saoma",
+    "description": "Saoma support: contact our team for technical questions, PMS integrations (Opera Cloud, Mews), billing or account access."
+  },
+  "header": {
+    "eyebrow": "Support",
+    "title": "We're here to help",
+    "subtitle": "A question about the platform, a PMS integration or your subscription? Write to us — our team replies within one business day.",
+    "back": "Back to home"
+  },
+  "channels": {
+    "email": {
+      "label": "Email",
+      "value": "contact@saoma.io",
+      "description": "For any general or sales enquiry."
+    },
+    "hours": {
+      "label": "Hours",
+      "value": "Monday – Friday, 9am – 6pm (CET)",
+      "description": "Reply within one business day."
+    },
+    "status": {
+      "label": "Service status",
+      "value": "status.saoma.io",
+      "description": "Ongoing incidents and maintenance."
+    }
+  },
+  "form": {
+    "title": "Submit a request",
+    "description": "Describe your request and we'll get back to you by email.",
+    "name": "Full name",
+    "namePlaceholder": "Mary Smith",
+    "email": "Work email",
+    "emailPlaceholder": "mary@yourhotel.com",
+    "company": "Property or organisation",
+    "companyPlaceholder": "The Grand Spa Hotel",
+    "category": "Request type",
+    "categoryPlaceholder": "Select a type",
+    "categories": {
+      "integration": "PMS integration (Opera Cloud / Mews)",
+      "technical": "Technical issue",
+      "billing": "Billing & subscription",
+      "account": "Account & access",
+      "other": "Other"
+    },
+    "subject": "Subject",
+    "subjectPlaceholder": "One-line summary",
+    "message": "Message",
+    "messagePlaceholder": "Describe your request as precisely as possible: property involved, steps taken, any error message.",
+    "submit": "Send request",
+    "submitting": "Sending…",
+    "privacy": "Your data is used solely to handle your request. See our <0>privacy policy</0>."
+  },
+  "errors": {
+    "name": "Please enter your name.",
+    "email": "Please enter a valid email address.",
+    "company": "Please enter your property or organisation.",
+    "category": "Please select a request type.",
+    "subject": "Please enter a subject.",
+    "message": "Please describe your request (10 characters minimum).",
+    "submit": "Sending failed. Please try again or email us at contact@saoma.io."
+  },
+  "success": {
+    "title": "Request sent",
+    "description": "Thank you, we've received your message. Our team will reply by email within one business day.",
+    "again": "Send another request"
+  }
+}
