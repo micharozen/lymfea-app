@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Search, Pencil, Trash2, DoorOpen } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
@@ -53,6 +54,7 @@ import { useDialogState } from "@/hooks/useDialogState";
 import { useTableSort } from "@/hooks/useTableSort";
 
 export default function TreatmentRooms() {
+  const { t } = useTranslation(['admin', 'common']);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -144,11 +146,11 @@ export default function TreatmentRooms() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["treatment-rooms"] });
-      toast.success("Salle de soin supprimee avec succes");
+      toast.success(t('treatmentRoomsPage.deleted'));
       closeDelete();
     },
     onError: () => {
-      toast.error("Erreur lors de la suppression de la salle de soin");
+      toast.error(t('treatmentRoomsPage.deleteError'));
     },
   });
 
@@ -198,11 +200,11 @@ export default function TreatmentRooms() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
-            Salles de soin
+            {t('treatmentRoomsPage.title')}
           </h1>
           {isAdmin && (
             <Button onClick={() => navigate("/admin/treatment-rooms/new")}>
-              Nouvelle salle
+              {t('treatmentRoomsPage.new')}
             </Button>
           )}
         </div>
@@ -214,7 +216,7 @@ export default function TreatmentRooms() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher..."
+                placeholder={t('treatmentRoomsPage.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -223,23 +225,23 @@ export default function TreatmentRooms() {
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tous les statuts" />
+                <SelectValue placeholder={t('treatmentRoomsPage.allStatuses')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="inactive">Inactif</SelectItem>
-                <SelectItem value="maintenance">Maintenance</SelectItem>
+                <SelectItem value="all">{t('treatmentRoomsPage.allStatuses')}</SelectItem>
+                <SelectItem value="active">{t('treatmentRoomsPage.active')}</SelectItem>
+                <SelectItem value="inactive">{t('treatmentRoomsPage.inactive')}</SelectItem>
+                <SelectItem value="maintenance">{t('treatmentRoomsPage.maintenance')}</SelectItem>
               </SelectContent>
             </Select>
 
             {isAdmin && (
               <Select value={hotelFilter} onValueChange={setHotelFilter}>
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Tous les hotels" />
+                  <SelectValue placeholder={t('treatmentRoomsPage.allVenues')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les hotels</SelectItem>
+                  <SelectItem value="all">{t('treatmentRoomsPage.allVenues')}</SelectItem>
                   {hotels?.map((hotel) => (
                     <SelectItem key={hotel.id} value={hotel.id}>
                       {hotel.name}
@@ -262,10 +264,10 @@ export default function TreatmentRooms() {
                     Type
                   </SortableTableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Lits</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prochaine res.</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">{t('treatmentRoomsPage.colVenue')}</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">{t('treatmentRoomsPage.colNextBooking')}</TableHead>
                   <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
-                    Statut
+                    {t('treatmentRoomsPage.colStatus')}
                   </SortableTableHead>
                   {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>}
                 </TableRow>
@@ -384,19 +386,18 @@ export default function TreatmentRooms() {
       <AlertDialog open={!!deleteRoomId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogTitle>{t('treatmentRoomsPage.confirmDeleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Etes-vous sur de vouloir supprimer cette salle de soin ? Cette action est
-              irreversible.
+              {t('treatmentRoomsPage.confirmDeleteDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Supprimer
+              {t('common:buttons.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

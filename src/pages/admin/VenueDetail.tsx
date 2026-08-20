@@ -177,7 +177,7 @@ export default function VenueDetail({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['admin', 'common']);
   const { t: tAdmin } = useTranslation('admin');
   const { isSuperAdmin, organizationId, activeOrganizationId } = useUser();
 
@@ -454,7 +454,7 @@ export default function VenueDetail({
       }
     } catch (error) {
       console.error("Error loading hotel data:", error);
-      toast.error("Erreur lors du chargement des données");
+      toast.error(t('venueDetail.loadError'));
     } finally {
       setLoading(false);
     }
@@ -581,12 +581,12 @@ export default function VenueDetail({
 
     if (deploymentState.scheduleType === "specific_days") {
       if (deploymentState.selectedDays.length === 0) {
-        toast.error("Veuillez sélectionner au moins un jour");
+        toast.error(t('venueDetail.selectDay'));
         return false;
       }
     } else if (deploymentState.scheduleType === "one_time") {
       if (deploymentState.specificDates.length === 0) {
-        toast.error("Veuillez sélectionner au moins une date");
+        toast.error(t('venueDetail.selectDate'));
         return false;
       }
     }
@@ -699,7 +699,7 @@ export default function VenueDetail({
         await saveVenueBranding(newId, values);
 
         queryClient.invalidateQueries({ queryKey: ["hotels"] });
-        toast.success("Lieu créé avec succès");
+        toast.success(t('venueDetail.created'));
 
         // Redirect to edit mode
         navigate(`/admin/places/${newId}`, { replace: true });
@@ -727,16 +727,16 @@ export default function VenueDetail({
         await saveVenueBranding(targetId, values);
 
         queryClient.invalidateQueries({ queryKey: ["hotels"] });
-        toast.success("Lieu mis à jour avec succès");
+        toast.success(t('venueDetail.updated'));
         setIsEditingState(false);
         if (activeTab === "branding") setBrandingPreviewKey((k) => k + 1);
       }
     } catch (error: any) {
       console.error("Error saving venue:", error);
       if (error.code === '23505') {
-        toast.error("Un lieu avec cet identifiant existe déjà");
+        toast.error(t('venueDetail.slugTaken'));
       } else {
-        toast.error("Erreur lors de l'enregistrement");
+        toast.error(t('venueDetail.saveError'));
       }
     } finally {
       setSaving(false);
@@ -822,7 +822,7 @@ export default function VenueDetail({
               className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Retour</span>
+              <span className="hidden sm:inline">{t('common:buttons.back')}</span>
             </Button>
             <div className="h-5 w-px bg-border flex-shrink-0" />
             <h1 className="text-lg font-medium truncate">
@@ -865,10 +865,10 @@ export default function VenueDetail({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="month">Ce mois</SelectItem>
-                    <SelectItem value="30d">30 jours</SelectItem>
-                    <SelectItem value="year">Cette année</SelectItem>
-                    <SelectItem value="all">Tout</SelectItem>
+                    <SelectItem value="month">{t('venueDetail.periodMonth')}</SelectItem>
+                    <SelectItem value="30d">{t('venueDetail.period30d')}</SelectItem>
+                    <SelectItem value="year">{t('venueDetail.periodYear')}</SelectItem>
+                    <SelectItem value="all">{t('venueDetail.periodAll')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -883,7 +883,7 @@ export default function VenueDetail({
                 className="flex-shrink-0"
               >
                 <Eye className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Aperçu client</span>
+                <span className="hidden sm:inline">{t('venueDetail.clientPreview')}</span>
               </Button>
             )}
             {isNewMode ? (
@@ -901,7 +901,7 @@ export default function VenueDetail({
                   onClick={handleCancelEdit}
                   disabled={saving}
                 >
-                  Annuler
+                  {t('common:buttons.cancel')}
                 </Button>
                 <Button
                   onClick={handleSave}
@@ -917,7 +917,7 @@ export default function VenueDetail({
                 onClick={() => setIsEditingState(true)}
               >
                 <Pencil className="mr-2 h-4 w-4" />
-                Modifier
+                {t('common:buttons.edit')}
               </Button>
             )}
           </div>
@@ -940,12 +940,12 @@ export default function VenueDetail({
               </TabsTrigger>
               {showTherapistTab && (
                 <TabsTrigger value="therapists" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                  Thérapeutes
+                  {t('venueDetail.tabTherapists')}
                 </TabsTrigger>
               )}
               {showBillingTab && (
                 <TabsTrigger value="billing" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                  Facturation
+                  {t('venueDetail.tabBilling')}
                 </TabsTrigger>
               )}
             </TabsList>
@@ -960,16 +960,16 @@ export default function VenueDetail({
                 Configuration
               </TabsTrigger>
               <TabsTrigger value="planning" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Planning
+                {t('venueDetail.tabPlanning')}
               </TabsTrigger>
               <TabsTrigger value="catalog" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Catalogue
+                {t('venueDetail.tabCatalog')}
               </TabsTrigger>
               <TabsTrigger value="resources" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Ressources
+                {t('venueDetail.tabResources')}
               </TabsTrigger>
               <TabsTrigger value="billing" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Facturation
+                {t('venueDetail.tabBilling')}
               </TabsTrigger>
               <TabsTrigger value="branding" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 {tAdmin('venue.branding.tab', 'Branding')}
@@ -1036,7 +1036,7 @@ export default function VenueDetail({
                 />
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
-                  Enregistrez le lieu pour accéder au planning
+                  {t('venueDetail.savePrompt')}
                 </div>
               )}
             </TabsContent>
@@ -1111,7 +1111,7 @@ export default function VenueDetail({
         <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
           <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
             <SheetHeader>
-              <SheetTitle>Aperçu client</SheetTitle>
+              <SheetTitle>{t('venueDetail.clientPreview')}</SheetTitle>
             </SheetHeader>
             <div className="mt-4">
               <VenueClientPreviewTab hotelId={effectiveHotelId!} slug={hotelSlug} />

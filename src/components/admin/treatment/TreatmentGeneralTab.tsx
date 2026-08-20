@@ -53,7 +53,7 @@ export function TreatmentGeneralTab({
   handleImageUpload,
   triggerFileSelect,
 }: TreatmentGeneralTabProps) {
-  const { t, i18n } = useTranslation("common");
+  const { t, i18n } = useTranslation(['admin', 'common']);
 
   const selectedHotelId = useWatch({ control: form.control, name: "hotel_id" });
   const { enabledAmenities } = useVenueAmenities(selectedHotelId || "");
@@ -102,7 +102,7 @@ export function TreatmentGeneralTab({
             {menuImage ? (
               <img
                 src={menuImage}
-                alt="Photo du soin"
+                alt={t('treatmentTab.photo')}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -126,10 +126,10 @@ export function TreatmentGeneralTab({
             name="name"
             render={({ field }) => (
               <FormItem className="flex-1">
-                <FormLabel>Nom du soin *</FormLabel>
+                <FormLabel>{t('treatmentTab.name')}</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="Nom du soin"
+                    placeholder={t('treatmentTab.namePlaceholder')}
                     {...field}
                     disabled={disabled}
                   />
@@ -164,10 +164,10 @@ export function TreatmentGeneralTab({
           name="slug"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Lien public</FormLabel>
+              <FormLabel>{t('treatmentTab.publicLink')}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="ex: massage-suedois-60"
+                  placeholder={t('treatmentTab.publicLinkPlaceholder')}
                   {...field}
                   disabled={disabled}
                   onChange={(e) => {
@@ -194,7 +194,7 @@ export function TreatmentGeneralTab({
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Description du soin"
+                  placeholder={t('treatmentTab.descriptionPlaceholder')}
                   className="min-h-[80px]"
                   {...field}
                   disabled={disabled}
@@ -239,7 +239,7 @@ export function TreatmentGeneralTab({
                   />
                 </FormControl>
                 <FormLabel className="text-sm cursor-pointer font-normal m-0">
-                  Bestseller (mis en avant sur la page de réservation)
+                  {t('treatmentTab.bestseller')}
                 </FormLabel>
               </div>
             </FormItem>
@@ -254,7 +254,7 @@ export function TreatmentGeneralTab({
           name="hotel_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Hôtel *</FormLabel>
+              <FormLabel>{t('treatmentTab.venue')}</FormLabel>
               <Select
                 onValueChange={(value) => {
                   field.onChange(value);
@@ -265,7 +265,7 @@ export function TreatmentGeneralTab({
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un hôtel" />
+                    <SelectValue placeholder={t('treatmentTab.selectVenue')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -286,7 +286,7 @@ export function TreatmentGeneralTab({
           name="status"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Statut</FormLabel>
+              <FormLabel>{t('treatmentTab.status')}</FormLabel>
               <Select
                 onValueChange={field.onChange}
                 value={field.value}
@@ -322,7 +322,7 @@ export function TreatmentGeneralTab({
           name="category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Catégorie *</FormLabel>
+              <FormLabel>{t('treatmentTab.category')}</FormLabel>
               <FormControl>
                 <CategorySelectField
                   hotelId={selectedHotelId}
@@ -367,7 +367,7 @@ export function TreatmentGeneralTab({
               </FormControl>
               <div className="space-y-1">
                 <FormLabel className="font-normal">
-                  Ce soin est associé à une commodité
+                  {t('treatmentTab.linkedAmenity')}
                 </FormLabel>
                 <FormDescription className="text-[11px] leading-snug">
                   Sa disponibilité suit la capacité de la commodité (pas les
@@ -385,7 +385,7 @@ export function TreatmentGeneralTab({
             name="amenity_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Commodité associée *</FormLabel>
+                <FormLabel>{t('treatmentTab.amenity')}</FormLabel>
                 <Select
                   onValueChange={(value) =>
                     field.onChange(value === NO_AMENITY ? null : value)
@@ -395,7 +395,7 @@ export function TreatmentGeneralTab({
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner une commodité" />
+                      <SelectValue placeholder={t('treatmentTab.selectAmenity')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -407,7 +407,7 @@ export function TreatmentGeneralTab({
                   </SelectContent>
                 </Select>
                 <FormDescription>
-                  La disponibilité suit la capacité de la commodité.
+                  {t('treatmentTab.amenityCapacityNote')}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -451,7 +451,7 @@ export function TreatmentGeneralTab({
               name="service_for"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Service pour *</FormLabel>
+                  <FormLabel>{t('treatmentTab.serviceFor')}</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
@@ -459,7 +459,7 @@ export function TreatmentGeneralTab({
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner" />
+                        <SelectValue placeholder={t('treatmentTab.select')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -481,7 +481,7 @@ export function TreatmentGeneralTab({
             name="lead_time"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Délai min. réservation (min)</FormLabel>
+                <FormLabel>{t('treatmentTab.minNotice')}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -499,7 +499,7 @@ export function TreatmentGeneralTab({
             name="sort_order"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Ordre d'affichage</FormLabel>
+                <FormLabel>{t('treatmentTab.displayOrder')}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -521,7 +521,7 @@ export function TreatmentGeneralTab({
             const selected: number[] = field.value ?? [];
             return (
               <FormItem>
-                <FormLabel>Jours de disponibilité</FormLabel>
+                <FormLabel>{t('treatmentTab.availableDays')}</FormLabel>
                 <FormControl>
                   <AvailableDaysPicker
                     value={selected}
