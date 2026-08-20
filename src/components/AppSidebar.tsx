@@ -124,6 +124,7 @@ export function AppSidebar() {
     isAdmin,
     organizationId,
     organizationName,
+    organizationLogoUrl,
     activeOrganizationId,
     setActiveOrganization,
   } = useUser();
@@ -335,11 +336,26 @@ export function AppSidebar() {
       <SidebarContent className="flex flex-col h-full overflow-hidden">
         {/* Logo (fixed) */}
         <div className="flex-shrink-0 px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
-          <img
-            src={brandLogos.primary}
-            alt={brand.name}
-            className="h-7 w-auto group-data-[collapsible=icon]:hidden"
-          />
+          {organizationName ? (
+            <div className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden">
+              {organizationLogoUrl && (
+                <img
+                  src={organizationLogoUrl}
+                  alt={organizationName}
+                  className="h-7 w-7 rounded-md object-cover flex-shrink-0"
+                />
+              )}
+              <span className="text-sm font-medium text-sidebar-foreground truncate">
+                {organizationName}
+              </span>
+            </div>
+          ) : (
+            <img
+              src={brandLogos.primary}
+              alt={brand.name}
+              className="h-7 w-auto group-data-[collapsible=icon]:hidden"
+            />
+          )}
           <img
             src={brandLogos.monogram}
             alt={brand.name}

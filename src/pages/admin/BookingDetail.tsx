@@ -602,7 +602,7 @@ export default function BookingDetail() {
             )}
             {primaryAction === "payment" && (
               <Button variant="default" size="sm" onClick={() => dialogs.setIsPaymentLinkOpen(true)}>
-                Envoyer le paiement <Send className="h-4 w-4 ml-2" />
+                {t('bookingDetail.sendPayment')} <Send className="h-4 w-4 ml-2" />
               </Button>
             )}
             <Button
@@ -611,7 +611,7 @@ export default function BookingDetail() {
               className="rounded-md border-stone-200 px-2.5 text-xs text-stone-700 hover:bg-stone-50 hover:text-stone-900 [&_svg]:size-3.5"
               onClick={() => dialogs.setIsEditOpen(true)}
             >
-              Modifier <Pencil />
+              {t('common:buttons.edit')} <Pencil />
             </Button>
             {(canConvertToDuo || canSendConfirmation || (showInvoice && primaryAction !== "invoice") || (!isSigned && !isConcierge)) && (
               <DropdownMenu>
@@ -642,7 +642,7 @@ export default function BookingDetail() {
                   )}
                   {!isSigned && !isConcierge && (
                     <DropdownMenuItem onClick={() => dialogs.setIsSignatureOpen(true)}>
-                      <PenTool className="h-4 w-4 mr-2" /> Demander la signature
+                      <PenTool className="h-4 w-4 mr-2" /> {t('bookingDetail.requestSignature')}
                     </DropdownMenuItem>
                   )}
                   {showInvoice && primaryAction !== "invoice" && (

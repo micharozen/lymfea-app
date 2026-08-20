@@ -2310,7 +2310,9 @@
     "paymentSuccessfulOn": " — le {{date}}",
     "billedToPartner": "Facturé au partenaire {{partner}} (facturation mensuelle).",
     "billedToPartnerGeneric": "Paiement géré par le partenaire (facturation mensuelle).",
-    "method": "Méthode"
+    "method": "Méthode",
+    "sendPayment": "Envoyer le paiement",
+    "requestSignature": "Demander la signature"
   },
   "finance": {
     "closure": {
