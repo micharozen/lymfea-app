@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { motion, useMotionValueEvent, useReducedMotion, useScroll } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Calendar, CheckCircle2, Clock, Mail, Sparkles, User } from "lucide-react";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -31,6 +31,45 @@ const useIsDesktop = () => {
   return isDesktop;
 };
 
+// Progression du scroll dans la section épinglée (0 → 1).
+// Mesuré via getBoundingClientRect + écoute en capture : le scroll de la page
+// se produit sur <body> (html/body ont une hauteur fixée dans index.css),
+// donc window.scrollY reste à 0 et useScroll() de framer-motion ne voit rien.
+const useSectionProgress = (ref: React.RefObject<HTMLElement>, enabled: boolean) => {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (!enabled) {
+      setProgress(0);
+      return;
+    }
+
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const el = ref.current;
+      if (!el) return;
+      const { top, height } = el.getBoundingClientRect();
+      const distance = height - window.innerHeight;
+      setProgress(distance <= 0 ? 0 : Math.min(1, Math.max(0, -top / distance)));
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+
+    measure();
+    document.addEventListener("scroll", schedule, true);
+    window.addEventListener("resize", schedule);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      document.removeEventListener("scroll", schedule, true);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [enabled, ref]);
+
+  return progress;
+};
+
 export const AiSpotlight = () => {
   const { t } = useTranslation("landing");
   const reduce = useReducedMotion();
@@ -38,20 +77,8 @@ export const AiSpotlight = () => {
   const scrub = isDesktop && !reduce;
 
   const wrapRef = useRef<HTMLElement>(null);
-  const [stage, setStage] = useState(0);
-
-  const { scrollYProgress } = useScroll({
-    target: wrapRef,
-    offset: ["start start", "end end"],
-  });
-  useMotionValueEvent(scrollYProgress, "change", (v) => {
-    if (!scrub) return;
-    let next = 0;
-    for (const [i, threshold] of THRESHOLDS.entries()) {
-      if (v >= threshold) next = i + 1;
-    }
-    setStage((s) => (s === next ? s : next));
-  });
+  const progress = useSectionProgress(wrapRef, scrub);
+  const stage = THRESHOLDS.filter((threshold) => progress >= threshold).length;
 
   const reached = (s: number) => !scrub || stage >= s;
 
