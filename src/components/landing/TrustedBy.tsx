@@ -1,26 +1,14 @@
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 
-type VenueStyle = "serif" | "serifItalic" | "sansTracked" | "sansBold";
-
-const VENUES: { key: string; style: VenueStyle }[] = [
-  { key: "eia", style: "sansBold" },
-  { key: "hanna", style: "serifItalic" },
-  { key: "george", style: "serif" },
-  { key: "soho", style: "sansTracked" },
-  { key: "buci", style: "serifItalic" },
-  { key: "holy", style: "sansBold" },
-  { key: "capAntibes", style: "serif" },
+const VENUES: { key: string; stars?: number }[] = [
+  { key: "eia" },
+  { key: "hana", stars: 5 },
+  { key: "george", stars: 5 },
+  { key: "buci", stars: 4 },
+  { key: "barbizon", stars: 4 },
+  { key: "capAntibes", stars: 5 },
 ];
-
-const STYLE_CLASSES: Record<VenueStyle, string> = {
-  serif: "font-serif text-base md:text-lg tracking-tight",
-  serifItalic: "font-serif italic text-base md:text-lg tracking-tight",
-  sansTracked:
-    "font-grotesk text-xs md:text-sm font-medium tracking-[0.18em] uppercase",
-  sansBold:
-    "font-grotesk text-xs md:text-sm font-semibold tracking-[0.12em] uppercase",
-};
 
 export const TrustedBy = () => {
   const { t } = useTranslation("landing");
@@ -46,20 +34,32 @@ export const TrustedBy = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="mt-10 grid grid-cols-2 items-center gap-x-4 gap-y-8 sm:grid-cols-3 md:mt-12 md:grid-cols-4 lg:grid-cols-7 lg:gap-x-3"
+          className="mt-10 grid grid-cols-2 items-start gap-x-4 gap-y-8 sm:grid-cols-3 md:mt-12 lg:grid-cols-6 lg:gap-x-3"
         >
           {VENUES.map((venue) => (
             <li
               key={venue.key}
-              className="flex min-h-[68px] flex-col items-center justify-center text-center"
+              className="flex min-h-[68px] flex-col items-center justify-start gap-2 text-center"
             >
-              <span
-                className={`${STYLE_CLASSES[venue.style]} leading-tight text-foreground`}
-              >
+              <span className="font-serif text-base leading-tight tracking-tight text-foreground md:text-lg">
                 {t(`trustedBy.venues.${venue.key}.name`)}
               </span>
-              <span className="mt-2 whitespace-nowrap text-[10px] uppercase tracking-wider text-muted-foreground md:text-[11px]">
-                {t(`trustedBy.venues.${venue.key}.address`)}
+              <span className="flex flex-wrap items-baseline justify-center gap-x-1.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground md:text-[10px]">
+                <span>{t(`trustedBy.venues.${venue.key}.kind`)}</span>
+                {venue.stars ? (
+                  <span
+                    aria-label={t("trustedBy.starsLabel", {
+                      count: venue.stars,
+                    })}
+                    className="text-[9px] tracking-tight md:text-[10px]"
+                  >
+                    {"★".repeat(venue.stars)}
+                  </span>
+                ) : null}
+                <span className="whitespace-nowrap">
+                  <span aria-hidden="true">· </span>
+                  {t(`trustedBy.venues.${venue.key}.area`)}
+                </span>
               </span>
             </li>
           ))}
