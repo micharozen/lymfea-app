@@ -11,6 +11,7 @@ interface UserContextType {
   hotelIds: string[];
   organizationId: string | null;
   organizationName: string | null;
+  organizationLogoUrl: string | null;
   isSuperAdmin: boolean;
   activeOrganizationId: string | null;
   hasChosenActiveOrganization: boolean;
@@ -48,6 +49,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [hotelIds, setHotelIds] = useState<string[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
+  const [organizationLogoUrl, setOrganizationLogoUrl] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [activeOrganizationId, setActiveOrganizationIdState] = useState<string | null>(null);
   const [hasChosenActiveOrganization, setHasChosenActiveOrganization] = useState(false);
@@ -64,6 +66,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setHotelIds([]);
         setOrganizationId(null);
         setOrganizationName(null);
+        setOrganizationLogoUrl(null);
         setIsSuperAdmin(false);
         setActiveOrganizationIdState(null);
         setHasChosenActiveOrganization(false);
@@ -89,7 +92,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (userRole === "concierge") {
         const { data: concierge } = await supabase
           .from("concierges")
-          .select("id, organization_id, organizations(name)")
+          .select("id, organization_id, organizations(name, logo_url)")
           .eq("user_id", user.id)
           .maybeSingle();
 
@@ -101,13 +104,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
           setHotelIds(conciergeHotels?.map((h) => h.hotel_id) || []);
           setOrganizationId(concierge.organization_id ?? null);
-          setOrganizationName(
-            (concierge.organizations as { name: string } | null)?.name ?? null,
-          );
+          const conciergeOrg = concierge.organizations as {
+            name: string;
+            logo_url: string | null;
+          } | null;
+          setOrganizationName(conciergeOrg?.name ?? null);
+          setOrganizationLogoUrl(conciergeOrg?.logo_url ?? null);
         } else {
           setHotelIds([]);
           setOrganizationId(null);
           setOrganizationName(null);
+          setOrganizationLogoUrl(null);
         }
         setIsSuperAdmin(false);
         setActiveOrganizationIdState(null);
@@ -143,10 +150,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (effectiveOrgId) {
           const { data: org } = await supabase
             .from("organizations")
-            .select("id, name")
+            .select("id, name, logo_url")
             .eq("id", effectiveOrgId)
             .maybeSingle();
           setOrganizationName(org?.name ?? null);
+          setOrganizationLogoUrl(org?.logo_url ?? null);
 
           const { data: orgHotels } = await supabase
             .from("hotels")
@@ -155,12 +163,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           setHotelIds(orgHotels?.map((h) => h.id) ?? []);
         } else {
           setOrganizationName(null);
+          setOrganizationLogoUrl(null);
           setHotelIds([]);
         }
       } else {
         setHotelIds([]);
         setOrganizationId(null);
         setOrganizationName(null);
+        setOrganizationLogoUrl(null);
         setIsSuperAdmin(false);
         setActiveOrganizationIdState(null);
         setHasChosenActiveOrganization(false);
@@ -199,6 +209,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       hotelIds,
       organizationId,
       organizationName,
+      organizationLogoUrl,
       isSuperAdmin,
       activeOrganizationId,
       hasChosenActiveOrganization,
@@ -214,6 +225,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       hotelIds,
       organizationId,
       organizationName,
+      organizationLogoUrl,
       isSuperAdmin,
       activeOrganizationId,
       hasChosenActiveOrganization,
