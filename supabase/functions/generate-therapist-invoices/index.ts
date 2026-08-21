@@ -370,7 +370,6 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     white-space: nowrap;
   }
   table.items thead th:first-child { text-align: left; }
-  table.items thead th:nth-child(2),
   table.items thead th:nth-child(3) { text-align: left; }
   table.items td.client {
     text-align: left;
@@ -393,6 +392,13 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     white-space: nowrap;
   }
   table.items tbody td:first-child { text-align: left; white-space: normal; word-break: break-word; }
+  table.items thead th:nth-child(2) { text-align: left; }
+  table.items tbody td.desc {
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 
   .summary { display: flex; gap: 40px; margin-top: 24px; }
   .tva-details { flex: 1; }
@@ -520,7 +526,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
       <tr class="items-total">
         <td></td>
         <td></td>
-        <td>Total prestations (${data.bookingsCount})</td>
+        <td class="desc">Total prestations (${data.bookingsCount})</td>
         <td></td>
         <td>${formatAmount(amountHt)}</td>
       </tr>

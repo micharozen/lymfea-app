@@ -423,8 +423,8 @@ $$;
 -- ─── Cron : escalade vers le groupe de thérapeutes suivant ───────────────────
 -- Passage toutes les minutes : le délai est propre à chaque lieu, seule cette
 -- granularité permet de le respecter (latence réelle D à D+1 min).
--- ⚠️ URL staging, à repointer sur l'hôte prod (wvderlgzetpptehxndqf) avant apply
--- en production — même contrainte que les autres crons du repo.
+-- URL de PRODUCTION (wvderlgzetpptehxndqf). Cette migration est destinée à main ;
+-- la variante staging du même cron pointe xfkujlgettlxdgrnqluw.
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron')
@@ -448,7 +448,7 @@ BEGIN
             body    := '{}'::jsonb
           );
         $sql$,
-        'https://xfkujlgettlxdgrnqluw.supabase.co/functions/v1/escalate-booking-broadcast'
+        'https://wvderlgzetpptehxndqf.supabase.co/functions/v1/escalate-booking-broadcast'
       )
     );
 

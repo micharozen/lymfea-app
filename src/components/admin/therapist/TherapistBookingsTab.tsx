@@ -30,8 +30,15 @@ import { usePagination } from "@/hooks/usePagination";
 import { useTableSort } from "@/hooks/useTableSort";
 import { getBookingStatusConfig } from "@/utils/statusStyles";
 import { formatPrice } from "@/lib/formatPrice";
+import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
+
+interface BookingTreatmentRow {
+  therapist_id: string | null;
+  treatment_menus: { duration: number | null } | null;
+  treatment_variants: { duration: number | null } | null;
+}
 
 interface Booking {
   id: string;
@@ -40,9 +47,15 @@ interface Booking {
   booking_time: string;
   client_first_name: string;
   client_last_name: string;
+  hotel_id: string | null;
   hotel_name: string | null;
   status: string;
   total_price: number | null;
+  duration: number | null;
+  is_out_of_hours: boolean | null;
+  booking_treatments: BookingTreatmentRow[] | null;
+  /** Rémunération du thérapeute : payout si présent, sinon calcul par durée. */
+  earnings: number | null;
 }
 
 interface TherapistBookingsTabProps {
@@ -50,6 +63,86 @@ interface TherapistBookingsTabProps {
 }
 
 const ITEMS_PER_PAGE = 15;
+
+/** Une réservation annulée ne rémunère pas le thérapeute (contrairement au no-show). */
+const UNPAID_STATUSES = ["cancelled", "canceled"];
+
+// La durée réellement réservée est celle de la variante quand il y en a une,
+// sinon celle du soin au menu.
+const treatmentDuration = (bt: BookingTreatmentRow): number =>
+  bt.treatment_variants?.duration ?? bt.treatment_menus?.duration ?? 0;
+
+/**
+ * Rémunération du thérapeute par réservation. Le payout fait foi quand il existe
+ * (une ligne par thérapeute sur les duos) ; sinon on retombe sur les tarifs à la
+ * durée avec la majoration hors horaires du lieu — même logique que
+ * `generate-therapist-invoices`.
+ */
+async function withEarnings(rows: Booking[], therapistId: string): Promise<Booking[]> {
+  if (rows.length === 0) return rows;
+
+  const bookingIds = rows.map((b) => b.id);
+  const hotelIds = [...new Set(rows.map((b) => b.hotel_id).filter((id): id is string => !!id))];
+
+  const [payoutsRes, therapistRes, hotelsRes] = await Promise.all([
+    supabase
+      .from("therapist_payouts")
+      .select("booking_id, amount")
+      .eq("therapist_id", therapistId)
+      .in("booking_id", bookingIds),
+    supabase
+      .from("therapists")
+      .select("rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
+      .eq("id", therapistId)
+      .maybeSingle(),
+    supabase
+      .from("hotels")
+      .select("id, out_of_hours_surcharge_percent")
+      .in("id", hotelIds.length > 0 ? hotelIds : ["__none__"]),
+  ]);
+
+  const payoutByBooking = new Map<string, number>(
+    (payoutsRes.data ?? []).map((p) => [p.booking_id, Number(p.amount)]),
+  );
+  const surchargeByHotel = new Map<string, number>(
+    (hotelsRes.data ?? []).map((h) => [h.id, Number(h.out_of_hours_surcharge_percent) || 0]),
+  );
+  const rates = (therapistRes.data ?? null) as TherapistRates | null;
+
+  return rows.map((booking) => {
+    if (UNPAID_STATUSES.includes(booking.status)) return { ...booking, earnings: null };
+
+    const payout = payoutByBooking.get(booking.id);
+    if (payout !== undefined) return { ...booking, earnings: payout };
+
+    const treatments = booking.booking_treatments ?? [];
+    // Quand le lien stable soin↔thérapeute existe, le thérapeute est payé sur la
+    // somme de SES soins ; sinon on retombe sur la durée de la réservation.
+    const linkedDuration = treatments.some((bt) => bt.therapist_id != null)
+      ? treatments
+          .filter((bt) => bt.therapist_id === therapistId)
+          .reduce((sum, bt) => sum + treatmentDuration(bt), 0)
+      : 0;
+    const duration = linkedDuration > 0
+      ? linkedDuration
+      : booking.duration && booking.duration > 0
+      ? booking.duration
+      : treatments.reduce((sum, bt) => sum + treatmentDuration(bt), 0);
+
+    const surchargePercent = booking.hotel_id
+      ? surchargeByHotel.get(booking.hotel_id) ?? 0
+      : 0;
+
+    return {
+      ...booking,
+      earnings: computeTherapistEarnings(
+        rates,
+        duration,
+        booking.is_out_of_hours ? { surchargePercent } : undefined,
+      ),
+    };
+  });
+}
 
 export function TherapistBookingsTab({ therapistId }: TherapistBookingsTabProps) {
   const { t, i18n } = useTranslation(["admin", "common"]);
@@ -77,7 +170,9 @@ export function TherapistBookingsTab({ therapistId }: TherapistBookingsTabProps)
       // 2. Préparer la requête principale
       let query = supabase
         .from("bookings")
-        .select("id, booking_id, booking_date, booking_time, client_first_name, client_last_name, hotel_name, status, total_price")
+        .select(
+          "id, booking_id, booking_date, booking_time, client_first_name, client_last_name, hotel_id, hotel_name, status, total_price, duration, is_out_of_hours, booking_treatments(therapist_id, treatment_menus(duration), treatment_variants(duration))",
+        )
         .order("booking_date", { ascending: false })
         .order("booking_time", { ascending: false });
 
@@ -94,7 +189,9 @@ export function TherapistBookingsTab({ therapistId }: TherapistBookingsTabProps)
 
       const { data, error } = await query;
       if (error) throw error;
-      setBookings((data || []) as Booking[]);
+
+      const rows = (data || []) as unknown as Booking[];
+      setBookings(await withEarnings(rows, therapistId));
     } catch (error) {
       console.error("Error fetching therapist bookings:", error);
       toast.error(isFr ? "Erreur de chargement" : "Loading error");
@@ -117,6 +214,7 @@ export function TherapistBookingsTab({ therapistId }: TherapistBookingsTabProps)
         case "venue": return booking.hotel_name || "";
         case "status": return booking.status;
         case "amount": return booking.total_price?.toString() || "0";
+        case "earnings": return booking.earnings ?? 0;
         default: return null;
       }
     });
@@ -150,7 +248,7 @@ export function TherapistBookingsTab({ therapistId }: TherapistBookingsTabProps)
       </div>
 
       <div className="overflow-x-auto">
-        <Table className="text-xs w-full min-w-[700px]">
+        <Table className="text-xs w-full min-w-[780px]">
           <TableHeader>
             <TableRow className="bg-muted/20 h-8">
               <SortableTableHead
@@ -195,13 +293,20 @@ export function TherapistBookingsTab({ therapistId }: TherapistBookingsTabProps)
               >
                 {t("therapists.bookingsTab.amount")}
               </SortableTableHead>
+              <SortableTableHead
+                column="earnings"
+                sortDirection={getSortDirection("earnings")}
+                onSort={toggleSort}
+              >
+                {t("therapists.bookingsTab.earnings")}
+              </SortableTableHead>
             </TableRow>
           </TableHeader>
           {loading ? (
-            <TableSkeleton rows={ITEMS_PER_PAGE} columns={6} />
+            <TableSkeleton rows={ITEMS_PER_PAGE} columns={7} />
           ) : paginatedBookings.length === 0 ? (
             <TableEmptyState
-              colSpan={6}
+              colSpan={7}
               icon={Calendar}
               message={t("therapists.bookingsTab.noBookings")}
               description={t("therapists.bookingsTab.noBookingsDesc")}
@@ -249,6 +354,13 @@ export function TherapistBookingsTab({ therapistId }: TherapistBookingsTabProps)
                       <span className="text-foreground font-medium">
                         {booking.total_price != null
                           ? formatPrice(booking.total_price, "EUR")
+                          : "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-1.5 px-2 text-right">
+                      <span className="text-foreground font-medium">
+                        {booking.earnings != null
+                          ? formatPrice(booking.earnings, "EUR")
                           : "—"}
                       </span>
                     </TableCell>

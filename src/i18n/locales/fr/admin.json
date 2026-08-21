@@ -351,6 +351,7 @@
       "venue": "Lieu",
       "status": "Statut",
       "amount": "Montant",
+      "earnings": "Gain",
       "allStatuses": "Tous les statuts",
       "pending": "En attente",
       "confirmed": "Confirmé",
