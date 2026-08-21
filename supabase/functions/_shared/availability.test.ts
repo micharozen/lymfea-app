@@ -340,6 +340,67 @@ Deno.test("therapist inside one of multiple shifts → available", () => {
   assertStrictEquals(result, true);
 });
 
+// The shift must cover the FULL treatment, not just its start (rotation buffer
+// excluded — it concerns the room, not the therapist's presence). Regression
+// #1420: a 15:30-17:00 soin was offered to a therapist whose shift ends 16:00.
+Deno.test("REGRESSION #1420: treatment ending after shift end → unavailable", () => {
+  const result = isSlotAvailable(input({
+    slot: "15:30:00",
+    requestedDuration: 90,
+    scheduledTherapistIds: [THERAPIST_1],
+    scheduleByTherapist: new Map([
+      [THERAPIST_1, { shifts: [{ start: "09:00", end: "16:00" }] }],
+    ]),
+  }));
+  assertStrictEquals(result, false);
+});
+
+Deno.test("treatment fully contained in shift → available", () => {
+  const result = isSlotAvailable(input({
+    slot: "15:30:00",
+    requestedDuration: 90,
+    scheduledTherapistIds: [THERAPIST_1],
+    scheduleByTherapist: new Map([
+      [THERAPIST_1, { shifts: [{ start: "09:00", end: "17:00" }] }],
+    ]),
+  }));
+  assertStrictEquals(result, true);
+});
+
+Deno.test("treatment fitting inside the first of two shifts → available", () => {
+  const result = isSlotAvailable(input({
+    slot: "11:00:00",
+    requestedDuration: 60,
+    scheduledTherapistIds: [THERAPIST_1],
+    scheduleByTherapist: new Map([
+      [THERAPIST_1, {
+        shifts: [
+          { start: "09:00", end: "12:00" },
+          { start: "13:00", end: "17:00" },
+        ],
+      }],
+    ]),
+  }));
+  assertStrictEquals(result, true);
+});
+
+Deno.test("treatment spanning the break between two shifts → unavailable", () => {
+  const result = isSlotAvailable(input({
+    slot: "11:00:00",
+    requestedDuration: 120,
+    scheduledTherapistIds: [THERAPIST_1],
+    scheduleByTherapist: new Map([
+      [THERAPIST_1, {
+        shifts: [
+          { start: "09:00", end: "12:00" },
+          { start: "13:00", end: "17:00" },
+        ],
+      }],
+    ]),
+  }));
+  assertStrictEquals(result, false);
+});
+
 Deno.test("empty shifts list = no schedule data = available all day", () => {
   const result = isSlotAvailable(input({
     slot: "23:30:00",

@@ -198,12 +198,16 @@ export function computeSlotCapacity(input: SlotAvailabilityInput): SlotCapacity 
       if (blockedCross) return false;
     }
 
+    // Le shift doit contenir le début ET couvrir la fin du soin, buffer de
+    // rotation exclu (il concerne la salle, pas la présence du praticien).
+    // Même prédicat que reserve_trunk_atomically — un slot montré ici que le
+    // RPC refuse ensuite = client débité puis NO_ROOM_AVAILABLE.
     const schedule = scheduleByTherapist?.get(id);
     if (!schedule || schedule.shifts.length === 0) return true;
     return schedule.shifts.some((shift) => {
       const ss = timeToMinutes(shift.start + ":00");
       const se = timeToMinutes(shift.end + ":00");
-      return slotStart >= ss && slotStart < se;
+      return slotStart >= ss && slotEnd <= se;
     });
   }).length;
 

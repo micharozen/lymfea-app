@@ -79,17 +79,22 @@ availability.post("/check", async (c) => {
 
   const requestedDayOfWeek = new Date(date + "T00:00:00").getDay();
 
-  // Get max lead_time and categories from selected treatments
+  // Get max lead_time, categories and total duration from selected treatments
   let maxLeadTime = 0;
+  let requestedDuration = 30;
   const requiredCategories = new Set<string>();
   if (treatmentIds && treatmentIds.length > 0) {
     const { data: treatments } = await supabaseAdmin
       .from("treatment_menus")
-      .select("lead_time, category")
+      .select("lead_time, category, duration")
       .in("id", treatmentIds);
 
     if (treatments && treatments.length > 0) {
       maxLeadTime = Math.max(...treatments.map((t) => t.lead_time || 0));
+      requestedDuration = treatments.reduce(
+        (sum, t) => sum + (t.duration || 0),
+        0
+      ) || 30;
       treatments.forEach((t: { category?: string | null }) => {
         if (t.category) requiredCategories.add(t.category);
       });
@@ -295,15 +300,18 @@ availability.post("/check", async (c) => {
     );
 
     const slotMinutes = timeToMinutes(slot);
+    const slotEndMinutes = slotMinutes + requestedDuration;
     const availableTherapistCount = scheduledTherapistIds.filter(
       (id: string) => {
         if (busyTherapists.has(id)) return false;
+        // Le shift doit contenir le début ET couvrir la fin du soin — aligné
+        // sur _shared/availability.ts et reserve_trunk_atomically.
         const schedule = scheduleMap.get(id);
         if (!schedule || schedule.shifts.length === 0) return true;
         return schedule.shifts.some((shift: any) => {
           const shiftStart = timeToMinutes(shift.start + ":00");
           const shiftEnd = timeToMinutes(shift.end + ":00");
-          return slotMinutes >= shiftStart && slotMinutes < shiftEnd;
+          return slotMinutes >= shiftStart && slotEndMinutes <= shiftEnd;
         });
       }
     ).length;

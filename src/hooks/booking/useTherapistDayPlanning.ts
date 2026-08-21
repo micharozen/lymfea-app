@@ -185,11 +185,13 @@ export function therapistIdsForBooking(booking: BookingWithTreatments): string[]
  *   - a treatment searched  → "who could start it at this hour", i.e. qualified
  *     for it (therapist_treatments) and with nothing overlapping its duration
  *
- * A shift only has to cover the *start* of the treatment, exactly like
- * `computeSlotCapacity` and the admin picker: a soin running past the end of a
- * shift is allowed there, merely flagged. Requiring full containment would show
- * 0 where the booking flow happily accepts the slot. Overlaps with another
- * booking or with a venue-wide blocked slot are real blockers and do count.
+ * A shift only has to cover the *start* of the treatment here, like the admin
+ * picker: a soin running past the end of a shift stays visible, merely flagged
+ * (`overflowsShift`). This is deliberately MORE permissive than the booking
+ * engines (`computeSlotCapacity` and `reserve_trunk_atomically` require the
+ * shift to cover the full duration) — the admin must be able to force such an
+ * assignment. Overlaps with another booking or with a venue-wide blocked slot
+ * are real blockers and do count.
  *
  * All of this ignores rooms and turnover buffers, so it describes therapist
  * headcount, not bookability — the create-booking therapist picker stays the
