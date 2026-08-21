@@ -2711,7 +2711,6 @@ DECLARE
   _required_treatments   UUID[];
   _required_count        INTEGER := 0;
   _therapist_id          UUID := NULL;
-  _solo_therapist_id     UUID := NULL;
   _covered_count         INTEGER;
   _travel_buffer         INTEGER;
   _turnover_buffer       INTEGER;
@@ -2846,11 +2845,10 @@ BEGIN
 
     -- Le filtre individuel ci-dessous et le comptage _qualified_available
     -- partagent la même boucle, donc le même prédicat par construction.
+    -- Le comptage ne pré-assigne PERSONNE : la résa naît sans thérapeute et
+    -- part en broadcast, accept_booking fixe le praticien (premier arrivé).
+    -- ORDER BY conservé pour le seul déterminisme de la boucle.
     _qualified_available := 0;
-    -- ORDER BY tv.priority : la pré-assignation solo retient le PREMIER praticien
-    -- qualifié rencontré. Sans tri, elle tirait au hasard et court-circuitait la
-    -- priorisation par groupes du lieu. t.id départage à rang égal — l'ordre
-    -- n'était pas déterministe non plus.
     FOR _therapist_id IN
       SELECT t.id
       FROM therapist_venues tv
@@ -2886,6 +2884,9 @@ BEGIN
         CONTINUE;
       END IF;
 
+      -- Le shift doit contenir le début ET couvrir la fin du soin (buffer de
+      -- rotation exclu : il concerne la salle, pas la présence du praticien).
+      -- Un soin à cheval sur deux shifts séparés par une pause est refusé.
       IF EXISTS (
         SELECT 1 FROM therapist_availability ta
         WHERE ta.therapist_id = _therapist_id
@@ -2899,7 +2900,7 @@ BEGIN
               (split_part(shift->>'start', ':', 1)::int * 60)
               + COALESCE(NULLIF(split_part(shift->>'start', ':', 2), '')::int, 0)
             )
-            AND _new_start < (
+            AND _new_end <= (
               (split_part(shift->>'end', ':', 1)::int * 60)
               + COALESCE(NULLIF(split_part(shift->>'end', ':', 2), '')::int, 0)
             )
@@ -2931,9 +2932,6 @@ BEGIN
 
       IF NOT _has_conflict THEN
         _qualified_available := _qualified_available + 1;
-        IF _solo_therapist_id IS NULL THEN
-          _solo_therapist_id := _therapist_id;
-        END IF;
       END IF;
     END LOOP;
 
@@ -2989,7 +2987,7 @@ BEGIN
   ) VALUES (
     _hotel_id::uuid, _hotel_name, _client_first_name, _client_last_name, _client_email, _phone,
     _booking_date, _booking_time, _status, _primary_room_id, _secondary_room_id,
-    CASE WHEN _is_duo THEN NULL ELSE _solo_therapist_id END,
+    NULL,  -- broadcast pur : le thérapeute est fixé par accept_booking
     _total_price, _duration,
     COALESCE(_room_number, 'TBD'),
     CASE WHEN _customer_id IS NOT NULL THEN _customer_id::uuid ELSE NULL END,
