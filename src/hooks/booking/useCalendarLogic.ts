@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { format, addDays, startOfWeek, startOfDay, parseISO, isValid } from "date-fns";
-import { getBookingStatusConfig, getPaymentStatusConfig, getCalendarFlowStage } from "@/utils/statusStyles";
+import { getBookingStatusConfig, getPaymentStatusConfig, getCalendarFlowStage, translateStatusLabel } from "@/utils/statusStyles";
 import type { BookingWithTreatments } from "./useBookingData";
 
 const DATE_PARAM = "date";
@@ -263,7 +263,7 @@ export function useCalendarLogic({
   }, []);
 
   const getCombinedStatusLabel = useCallback((status: string, paymentStatus?: string | null) => {
-    return getCalendarFlowStage(status, paymentStatus).label;
+    return translateStatusLabel(getCalendarFlowStage(status, paymentStatus).labelKey);
   }, []);
 
   const getPaymentStatusBadge = useCallback((paymentStatus?: string | null) => {

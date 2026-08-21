@@ -17,6 +17,8 @@ import { getBookingStatusConfig, getEntityStatusConfig, getBookingPaymentDisplay
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { RefundBookingDialog } from "@/components/admin/quick-actions/RefundBookingDialog";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 // Date "2026-06-30" → { day: "30", month: "juin" } pour la colonne gauche façon PWA
 function splitBookingDate(date: string | null): { day: string; month: string } {
@@ -24,8 +26,8 @@ function splitBookingDate(date: string | null): { day: string; month: string } {
   const parsed = new Date(date);
   if (Number.isNaN(parsed.getTime())) return { day: date, month: "" };
   return {
-    day: parsed.toLocaleDateString("fr-FR", { day: "numeric" }),
-    month: parsed.toLocaleDateString("fr-FR", { month: "short" }).replace(".", ""),
+    day: parsed.toLocaleDateString(i18n.language, { day: "numeric" }),
+    month: parsed.toLocaleDateString(i18n.language, { month: "short" }).replace(".", ""),
   };
 }
 
@@ -138,6 +140,7 @@ export function GlobalSearch() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAdmin, userVenueIds } = useUserContext() as any;
+  const { t } = useTranslation(["admin", "common"]);
 
   // Raccourci clavier Cmd+K ou Ctrl+K
   useEffect(() => {
@@ -290,10 +293,12 @@ export function GlobalSearch() {
         <button
           onClick={() => setOpen(true)}
           className="flex items-center gap-2 px-3.5 py-2 text-sm text-muted-foreground bg-muted/60 rounded-full border border-border/70 hover:border-border hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 w-full transition-colors group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:justify-center"
-          title="Rechercher (⌘K)"
+          title={t("globalSearch.triggerTitle")}
         >
           <Search className="w-4 h-4 flex-shrink-0" />
-          <span className="group-data-[collapsible=icon]:hidden">Rechercher</span>
+          <span className="group-data-[collapsible=icon]:hidden">
+            {t("common:buttons.search")}
+          </span>
           <kbd className="hidden lg:inline-flex h-5 select-none items-center rounded-full bg-background/70 px-2 font-mono text-[10px] font-medium ml-auto group-data-[collapsible=icon]:hidden">
             ⌘K
           </kbd>
@@ -303,14 +308,14 @@ export function GlobalSearch() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="app-refonte gs-dialog max-w-xl">
           {/* FIX 1: Titre invisible pour stopper l'erreur d'accessibilité dans la console */}
-          <DialogTitle className="sr-only">Recherche globale</DialogTitle>
+          <DialogTitle className="sr-only">{t("globalSearch.title")}</DialogTitle>
 
           <Command shouldFilter={false} className="bg-transparent">
             <div className="gs-search">
               <Search className="w-[18px] h-[18px]" />
               <CommandPrimitive.Input
                 autoFocus
-                placeholder="Nom, téléphone, n° réservation..."
+                placeholder={t("globalSearch.placeholder")}
                 value={search}
                 onValueChange={setSearch}
               />
@@ -320,26 +325,26 @@ export function GlobalSearch() {
             <CommandList className={`gs-list${isTyping && searchResults ? " is-stale" : ""}`}>
               {search.length < 2 ? (
                 <div className="gs-state">
-                  <div className="t">Recherche globale</div>
-                  <div className="s">Tapez au moins 2 lettres pour lancer la recherche</div>
+                  <div className="t">{t("globalSearch.title")}</div>
+                  <div className="s">{t("globalSearch.hint")}</div>
                 </div>
               ) : !searchResults ? (
                 <div className="gs-state">
                   <Loader2 className="w-5 h-5 mx-auto mb-3 animate-spin" />
-                  <div className="s">Recherche en cours...</div>
+                  <div className="s">{t("globalSearch.searching")}</div>
                 </div>
               ) : (
                 <>
                   {/* FIX 2: CommandEmpty doit toujours être là pour que l'affichage ne buggue pas */}
                   <CommandEmpty>
                     <div className="gs-state">
-                      <div className="t">Aucun résultat</div>
-                      <div className="s">Rien ne correspond à « {search} »</div>
+                      <div className="t">{t("globalSearch.noResults")}</div>
+                      <div className="s">{t("globalSearch.noMatch", { query: search })}</div>
                     </div>
                   </CommandEmpty>
 
                   {filteredBookings.length > 0 && (
-                    <CommandGroup heading="Réservations">
+                    <CommandGroup heading={t("globalSearch.groups.bookings")}>
                       {filteredBookings.map((booking: any) => {
                         const statusConfig = getBookingStatusConfig(booking.status);
                         const payment = getBookingPaymentDisplay(booking);
@@ -365,16 +370,16 @@ export function GlobalSearch() {
                               <span className="ref">#{booking.booking_id}</span>
                             </div>
                             {venueName && (
-                              <span className="gs-sub"><i>Lieu :</i> {venueName}</span>
+                              <span className="gs-sub"><i>{t("globalSearch.fields.venue")}</i> {venueName}</span>
                             )}
                             {treatmentsSummary && (
-                              <span className="gs-sub" title={treatmentsSummary}><i>Prestation :</i> {treatmentsSummary}</span>
+                              <span className="gs-sub" title={treatmentsSummary}><i>{t("globalSearch.fields.treatment")}</i> {treatmentsSummary}</span>
                             )}
                             {roomName && (
-                              <span className="gs-sub"><i>Salle :</i> {roomName}</span>
+                              <span className="gs-sub"><i>{t("globalSearch.fields.room")}</i> {roomName}</span>
                             )}
                             {booking.phone && (
-                              <span className="gs-sub"><i>Tél. :</i> {booking.phone}</span>
+                              <span className="gs-sub"><i>{t("globalSearch.fields.phone")}</i> {booking.phone}</span>
                             )}
                             <div className="gs-meta">
                               <Chip hex={statusConfig.hexColor}>{statusConfig.label}</Chip>
@@ -382,10 +387,10 @@ export function GlobalSearch() {
                             </div>
                             <div className="gs-actions">
                               {([
-                                { kind: "view", icon: Eye, label: "Voir", run: () => openBooking(booking.id) },
-                                { kind: "edit", icon: Pencil, label: "Modifier", run: () => startAction("edit", booking) },
-                                { kind: "payment", icon: CreditCard, label: "Lien de paiement", run: () => startAction("payment", booking) },
-                                { kind: "refund", icon: Undo2, label: "Rembourser", run: () => startAction("refund", booking) },
+                                { kind: "view", icon: Eye, label: t("globalSearch.actions.view"), run: () => openBooking(booking.id) },
+                                { kind: "edit", icon: Pencil, label: t("common:buttons.edit"), run: () => startAction("edit", booking) },
+                                { kind: "payment", icon: CreditCard, label: t("globalSearch.actions.paymentLink"), run: () => startAction("payment", booking) },
+                                { kind: "refund", icon: Undo2, label: t("globalSearch.actions.refund"), run: () => startAction("refund", booking) },
                               ] as const).map((a) => (
                                 <ActionButton
                                   key={a.kind}
@@ -400,7 +405,7 @@ export function GlobalSearch() {
                           </div>
                           <OpenInNewTab
                             path={`/admin/bookings/${booking.id}`}
-                            label={`Ouvrir la réservation #${booking.booking_id} dans un nouvel onglet`}
+                            label={t("globalSearch.openBookingInNewTab", { id: booking.booking_id })}
                           />
                         </CommandItem>
                         );
@@ -409,7 +414,7 @@ export function GlobalSearch() {
                   )}
 
                   {(searchResults?.customers?.length ?? 0) > 0 && (
-                    <CommandGroup heading="Clients">
+                    <CommandGroup heading={t("globalSearch.groups.customers")}>
                       {searchResults!.customers.map((c: any) => (
                         <CommandItem
                           key={c.id}
@@ -429,7 +434,7 @@ export function GlobalSearch() {
                           </div>
                           <OpenInNewTab
                             path={`/admin/customers/${c.id}`}
-                            label="Ouvrir la fiche client dans un nouvel onglet"
+                            label={t("globalSearch.openCustomerInNewTab")}
                           />
                         </CommandItem>
                       ))}
@@ -437,13 +442,13 @@ export function GlobalSearch() {
                   )}
 
                   {(searchResults?.therapists?.length ?? 0) > 0 && (
-                    <CommandGroup heading="Praticiens">
-                      {searchResults!.therapists.map((t: any) => (
+                    <CommandGroup heading={t("globalSearch.groups.therapists")}>
+                      {searchResults!.therapists.map((th: any) => (
                         <CommandItem
-                          key={t.id}
+                          key={th.id}
                           // FIX 3
-                          value={`${t.first_name} ${t.last_name} ${t.status || ''}`}
-                          onSelect={() => onSelect(`/admin/therapists/${t.id}`)}
+                          value={`${th.first_name} ${th.last_name} ${th.status || ''}`}
+                          onSelect={() => onSelect(`/admin/therapists/${th.id}`)}
                           className="gs-item"
                         >
                           <div className="gs-ic ther">
@@ -451,13 +456,13 @@ export function GlobalSearch() {
                           </div>
                           <div className="gs-body">
                             <div className="gs-title">
-                              <span className="nm">{t.first_name} {t.last_name}</span>
+                              <span className="nm">{th.first_name} {th.last_name}</span>
                             </div>
-                            <span className="gs-sub">{getEntityStatusConfig(t.status).label}</span>
+                            <span className="gs-sub">{getEntityStatusConfig(th.status).label}</span>
                           </div>
                           <OpenInNewTab
-                            path={`/admin/therapists/${t.id}`}
-                            label="Ouvrir la fiche praticien dans un nouvel onglet"
+                            path={`/admin/therapists/${th.id}`}
+                            label={t("globalSearch.openTherapistInNewTab")}
                           />
                         </CommandItem>
                       ))}

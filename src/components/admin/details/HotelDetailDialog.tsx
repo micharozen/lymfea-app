@@ -11,7 +11,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import i18n from "@/i18n";
+import { useTranslation } from "react-i18next";
+import { getDateLocale } from "@/lib/dateLocale";
 import {
   MapPin,
   Building2,
@@ -41,15 +43,15 @@ const DAYS_OF_WEEK: Record<number, string> = {
 };
 
 function getDayLabel(day: number): string {
-  return DAYS_OF_WEEK[day] || `Jour ${day}`;
+  return DAYS_OF_WEEK[day] || i18n.t('admin:hotelDialog.dayFallback', { day });
 }
 
 function getScheduleTypeLabel(type?: string | null): string {
   switch (type) {
-    case "always_open": return "Toujours disponible";
-    case "specific_days": return "Jours recurrents";
-    case "one_time": return "Dates specifiques";
-    default: return "Non defini";
+    case "always_open": return i18n.t('admin:hotelDialog.scheduleAlwaysOpen');
+    case "specific_days": return i18n.t('admin:hotelDialog.scheduleRecurring');
+    case "one_time": return i18n.t('admin:hotelDialog.scheduleSpecific');
+    default: return i18n.t('admin:hotelDialog.scheduleUndefined');
   }
 }
 
@@ -59,13 +61,13 @@ function formatTime(time: string | null): string {
 }
 
 function formatDateStr(dateStr: string): string {
-  return format(new Date(dateStr), "d MMM yyyy", { locale: fr });
+  return format(new Date(dateStr), "d MMM yyyy", { locale: getDateLocale(i18n.language) });
 }
 
 function formatDateRange(start: string | null, end: string | null): string {
-  if (!start && !end) return "Indefiniment";
-  if (start && !end) return `A partir du ${formatDateStr(start)}`;
-  if (!start && end) return `Jusqu'au ${formatDateStr(end)}`;
+  if (!start && !end) return i18n.t('admin:hotelDialog.indefinitely');
+  if (start && !end) return i18n.t('admin:hotelDialog.fromDate', { date: formatDateStr(start) });
+  if (!start && end) return i18n.t('admin:hotelDialog.untilDate', { date: formatDateStr(end) });
   return `${formatDateStr(start!)} - ${formatDateStr(end!)}`;
 }
 
@@ -139,6 +141,7 @@ export function HotelDetailDialog({
   hotel,
   onEdit,
 }: HotelDetailDialogProps) {
+  const { t } = useTranslation(['admin', 'common']);
   const [pmsDialogOpen, setPmsDialogOpen] = useState(false);
 
   if (!hotel) return null;
@@ -173,7 +176,7 @@ export function HotelDetailDialog({
                     hotel.status === "pending" && "bg-orange-500/10 text-orange-700"
                   )}
                 >
-                  {hotel.status === "active" ? "Actif" : "En attente"}
+                  {hotel.status === "active" ? t('hotelDialog.active') : t('hotelDialog.pending')}
                 </Badge>
                 {hotel.venue_type && (
                   <Badge
@@ -185,7 +188,7 @@ export function HotelDetailDialog({
                       hotel.venue_type === "enterprise" && "bg-amber-500/10 text-amber-700 border-amber-200"
                     )}
                   >
-                    {hotel.venue_type === "hotel" ? "Hôtel" : hotel.venue_type === "coworking" ? "Coworking" : "Entreprise"}
+                    {hotel.venue_type === "hotel" ? t('hotelDialog.typeHotel') : hotel.venue_type === "coworking" ? t('hotelDialog.typeCoworking') : t('hotelDialog.typeEnterprise')}
                   </Badge>
                 )}
                 {hotel.auto_validate_bookings && (
@@ -193,7 +196,7 @@ export function HotelDetailDialog({
                     variant="outline"
                     className="text-xs bg-emerald-500/10 text-emerald-700 border-emerald-200"
                   >
-                    Auto-validation
+                    {t('hotelDialog.autoValidate')}
                   </Badge>
                 )}
                 {hotel.offert && (
@@ -201,14 +204,14 @@ export function HotelDetailDialog({
                     variant="outline"
                     className="text-xs bg-pink-500/10 text-pink-700 border-pink-200"
                   >
-                    Offert (Démo)
+                    {t('hotelDialog.complimentaryDemo')}
                   </Badge>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 mt-1">
               <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-                Fermer
+                {t('common:buttons.close')}
               </Button>
               {onEdit && (
                 <Button
@@ -220,7 +223,7 @@ export function HotelDetailDialog({
                   className="bg-foreground text-background hover:bg-foreground/90"
                 >
                   <Pencil className="h-4 w-4 mr-2" />
-                  Modifier
+                  {t('common:buttons.edit')}
                 </Button>
               )}
             </div>
@@ -234,7 +237,7 @@ export function HotelDetailDialog({
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
               <MapPin className="h-4 w-4" />
-              Localisation
+              {t('hotelDialog.location')}
             </h3>
             <div className="bg-muted/50 rounded-lg p-3 space-y-1">
               <p className="text-sm font-medium">{hotel.address}</p>
@@ -252,7 +255,7 @@ export function HotelDetailDialog({
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
               <CalendarDays className="h-4 w-4" />
-              Planning de Deploiement
+              {t('hotelDialog.deploymentSchedule')}
             </h3>
             <div className="bg-muted/50 rounded-lg p-3 space-y-3">
               {/* Schedule Type Badge */}
@@ -277,7 +280,7 @@ export function HotelDetailDialog({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5" />
-                    Horaires
+                    {t('hotelDialog.hours')}
                   </span>
                   <span className="text-sm font-medium">
                     {formatTime(hotel.opening_time)} - {formatTime(hotel.closing_time)}
@@ -290,7 +293,7 @@ export function HotelDetailDialog({
                hotel.deployment_schedule.days_of_week &&
                hotel.deployment_schedule.days_of_week.length > 0 && (
                 <div className="space-y-1.5">
-                  <span className="text-sm text-muted-foreground">Jours</span>
+                  <span className="text-sm text-muted-foreground">{t('hotelDialog.days')}</span>
                   <div className="flex flex-wrap gap-1">
                     {hotel.deployment_schedule.days_of_week
                       .sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
@@ -306,7 +309,7 @@ export function HotelDetailDialog({
               {/* Date Range (for recurring) */}
               {hotel.deployment_schedule?.schedule_type === "specific_days" && (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Periode</span>
+                  <span className="text-muted-foreground">{t('hotelDialog.period')}</span>
                   <span className="font-medium">
                     {formatDateRange(
                       hotel.deployment_schedule.recurring_start_date,
@@ -335,7 +338,7 @@ export function HotelDetailDialog({
               {/* Fallback if no schedule */}
               {!hotel.deployment_schedule && (
                 <p className="text-sm text-muted-foreground italic">
-                  Aucun planning configure
+                  {t('hotelDialog.noSchedule')}
                 </p>
               )}
             </div>
@@ -347,17 +350,17 @@ export function HotelDetailDialog({
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
               <Percent className="h-4 w-4" />
-              Commissions
+              {t('hotelDialog.commissions')}
             </h3>
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-muted/50 rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground mb-1">
-                  {hotel.venue_type === "hotel" ? "Hôtel" : hotel.venue_type === "coworking" ? "Coworking" : hotel.venue_type === "enterprise" ? "Entreprise" : "Lieu"}
+                  {hotel.venue_type === "hotel" ? t('hotelDialog.typeHotel') : hotel.venue_type === "coworking" ? t('hotelDialog.typeCoworking') : hotel.venue_type === "enterprise" ? t('hotelDialog.typeEnterprise') : t('hotelDialog.typeVenue')}
                 </p>
                 <p className="text-lg font-semibold">{hotel.hotel_commission}%</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Thérapeute</p>
+                <p className="text-xs text-muted-foreground mb-1">{t('hotelDialog.therapist')}</p>
                 <p className="text-lg font-semibold">{hotel.therapist_commission}%</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3 text-center">
@@ -401,7 +404,7 @@ export function HotelDetailDialog({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Aucun concierge assigne</p>
+                  <p className="text-sm text-muted-foreground">{t('hotelDialog.noConcierge')}</p>
                 )}
               </div>
             </>
@@ -436,7 +439,7 @@ export function HotelDetailDialog({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Aucune salle de soin assignée</p>
+              <p className="text-sm text-muted-foreground">{t('hotelDialog.noRoom')}</p>
             )}
           </div>
 
@@ -447,24 +450,24 @@ export function HotelDetailDialog({
               <div className="space-y-2">
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                   <Plug className="h-4 w-4" />
-                  Integration PMS
+                  {t('hotelDialog.pmsTitle')}
                 </h3>
                 <div className="bg-muted/50 rounded-lg p-3 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="text-sm font-medium">
-                        {hotel.pms_type === 'opera_cloud' ? 'Oracle Opera Cloud' : 'Non configure'}
+                        {hotel.pms_type === 'opera_cloud' ? 'Oracle Opera Cloud' : t('hotelDialog.pmsNotConfigured')}
                       </p>
                       {hotel.pms_type && (
                         <div className="flex gap-2">
                           {hotel.pms_auto_charge_room && (
                             <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200">
-                              Auto-charge
+                              {t('hotelDialog.autoCharge')}
                             </Badge>
                           )}
                           {hotel.pms_guest_lookup_enabled && (
                             <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-700 border-blue-200">
-                              Guest lookup
+                              {t('hotelDialog.guestLookup')}
                             </Badge>
                           )}
                         </div>
@@ -476,7 +479,7 @@ export function HotelDetailDialog({
                       onClick={() => setPmsDialogOpen(true)}
                     >
                       <Plug className="h-4 w-4 mr-2" />
-                      Configurer
+                      {t('hotelDialog.configure')}
                     </Button>
                   </div>
                 </div>
@@ -490,17 +493,17 @@ export function HotelDetailDialog({
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
               <Euro className="h-4 w-4" />
-              Statistiques
+              {t('hotelDialog.statistics')}
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">Ventes totales</p>
+                <p className="text-xs text-muted-foreground mb-1">{t('hotelDialog.totalSales')}</p>
                 <p className="text-xl font-semibold">
                   {formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}
                 </p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">Réservations</p>
+                <p className="text-xs text-muted-foreground mb-1">{t('hotelDialog.bookings')}</p>
                 <p className="text-xl font-semibold">{hotel.stats?.bookingsCount || 0}</p>
               </div>
             </div>

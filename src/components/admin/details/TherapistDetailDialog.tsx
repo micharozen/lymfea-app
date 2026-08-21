@@ -42,6 +42,7 @@ export function TherapistDetailDialog({
   hotels,
   onEdit,
 }: TherapistDetailDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
 
   const { data: treatmentNames = [] } = useQuery({
     queryKey: ["therapist-treatment-names", therapist?.id],
@@ -82,7 +83,7 @@ export function TherapistDetailDialog({
           <div className="space-y-2">
             <DetailField label="Email" value={therapist.email} />
             <DetailField
-              label="Telephone"
+              label={t("therapists.phone")}
               value={`${therapist.country_code} ${therapist.phone}`}
             />
           </div>
@@ -90,7 +91,7 @@ export function TherapistDetailDialog({
       </DetailSection>
 
       {treatmentNames.length > 0 && (
-        <DetailSection icon={Sparkles} title="Prestations réalisables">
+        <DetailSection icon={Sparkles} title={t("therapistDetailDialog.treatments")}>
           <div className="flex flex-wrap gap-2">
             {treatmentNames.map((name) => (
               <div
@@ -106,7 +107,7 @@ export function TherapistDetailDialog({
 
       {/* Minimum Guarantee */}
       {therapist.minimum_guarantee && Object.values(therapist.minimum_guarantee as Record<string, number>).some((v) => v > 0) && (
-        <DetailSection icon={Target} title="Minimum garanti">
+        <DetailSection icon={Target} title={t("therapists.minimumGuarantee")}>
           <MinimumGuaranteeEditor
             value={therapist.minimum_guarantee as Record<string, number>}
             readOnly
@@ -115,7 +116,7 @@ export function TherapistDetailDialog({
       )}
 
       {/* Hotels */}
-      <DetailSection icon={Building2} title={`Hotels (${assignedHotels.length})`}>
+      <DetailSection icon={Building2} title={`${t("therapistDetailDialog.venues")} (${assignedHotels.length})`}>
         {assignedHotels.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {assignedHotels.map((hotel) => (
@@ -134,12 +135,12 @@ export function TherapistDetailDialog({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Aucun hotel assigne</p>
+          <p className="text-sm text-muted-foreground">{t("therapists.noVenues")}</p>
         )}
       </DetailSection>
 
       {/* Schedule */}
-      <DetailSection icon={CalendarDays} title="Planning" showSeparator={false}>
+      <DetailSection icon={CalendarDays} title={t("therapists.planning")} showSeparator={false}>
         <TherapistScheduleSection therapistId={therapist.id} />
       </DetailSection>
     </EntityDetailDialog>

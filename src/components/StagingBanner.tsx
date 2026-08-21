@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const STAGING_HOSTNAMES = ["apptest.eiaspa.fr"];
 
@@ -10,6 +11,7 @@ function isStagingEnvironment(): boolean {
 }
 
 export function StagingBanner() {
+  const { t } = useTranslation("common");
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
@@ -27,7 +29,7 @@ export function StagingBanner() {
     >
       <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium tracking-wide">
         <AlertTriangle className="h-3.5 w-3.5" strokeWidth={2.25} />
-        <span>Environnement de test</span>
+        <span>{t("stagingBanner.label")}</span>
       </div>
     </div>
   );

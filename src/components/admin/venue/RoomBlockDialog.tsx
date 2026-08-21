@@ -52,7 +52,7 @@ export function RoomBlockDialog({
   defaultDate,
   block,
 }: RoomBlockDialogProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const createBlock = useCreateRoomBlock();
   const updateBlock = useUpdateRoomBlock();
   const isEdit = !!block;

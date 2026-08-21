@@ -66,7 +66,7 @@ export default function TherapistDetail() {
   const { mutateAsync: setTherapistTreatments } = useSetTherapistTreatments();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(["admin", "common"]);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const isNewMode = !id;
@@ -175,7 +175,7 @@ export default function TherapistDetail() {
       setSelectedHotels(venues?.map((v) => v.hotel_id) || []);
     } catch (error) {
       console.error("Error loading therapist data:", error);
-      toast.error("Erreur lors du chargement des données");
+      toast.error(t("admin:therapists.loadError"));
     } finally {
       setLoading(false);
     }
@@ -265,7 +265,7 @@ export default function TherapistDetail() {
         } catch (emailErr) {
           console.error("Error invoking invite-therapist:", emailErr);
           toast.warning(
-            "Thérapeute créé mais l'email de bienvenue n'a pas pu être envoyé"
+            t("admin:therapists.createdButEmailFailed")
           );
         }
 
@@ -334,9 +334,9 @@ export default function TherapistDetail() {
     } catch (error: any) {
       console.error("Error saving therapist:", error);
       if (error.code === "23505") {
-        toast.error("Un thérapeute avec cet email existe déjà");
+        toast.error(t("admin:therapists.emailAlreadyExists"));
       } else {
-        toast.error("Erreur lors de l'enregistrement");
+        toast.error(t("admin:therapists.saveError"));
       }
     } finally {
       setSaving(false);
@@ -359,7 +359,7 @@ export default function TherapistDetail() {
       const values = form.getValues();
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
-        toast.error("Session expirée, veuillez vous reconnecter");
+        toast.error(t("admin:therapists.sessionExpired"));
         return;
       }
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -381,12 +381,12 @@ export default function TherapistDetail() {
       });
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || "Erreur lors de l'envoi");
+        throw new Error(result.error || t("admin:therapists.sendError"));
       }
       toast.success(t("admin:therapists.inviteResent", "Invitation renvoyée avec succès"));
     } catch (error: unknown) {
       console.error("Error resending invite:", error);
-      toast.error("Erreur lors du renvoi de l'invitation");
+      toast.error(t("admin:therapists.resendError"));
     } finally {
       setResending(false);
     }
@@ -425,7 +425,7 @@ export default function TherapistDetail() {
             <h1 className="text-lg font-medium truncate">
               {isNewMode && !savedTherapistId
                 ? t("admin:therapists.newTherapist", "Nouveau thérapeute")
-                : watchedName || therapistName || "Thérapeute"}
+                : watchedName || therapistName || t("admin:therapists.therapist")}
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -439,7 +439,7 @@ export default function TherapistDetail() {
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}
-                {t("common:save", "Enregistrer")}
+                {t("common:buttons.save")}
               </Button>
             ) : isEditing ? (
               <>
@@ -448,7 +448,7 @@ export default function TherapistDetail() {
                   onClick={handleCancelEdit}
                   disabled={saving}
                 >
-                  {t("common:cancel", "Annuler")}
+                  {t("common:buttons.cancel")}
                 </Button>
                 <Button
                   onClick={handleSave}
@@ -459,7 +459,7 @@ export default function TherapistDetail() {
                   ) : (
                     <Save className="mr-2 h-4 w-4" />
                   )}
-                  {t("common:save", "Enregistrer")}
+                  {t("common:buttons.save")}
                 </Button>
               </>
             ) : (
@@ -483,7 +483,7 @@ export default function TherapistDetail() {
                   onClick={() => setIsEditingState(true)}
                 >
                   <Pencil className="mr-2 h-4 w-4" />
-                  {t("common:edit", "Modifier")}
+                  {t("common:buttons.edit")}
                 </Button>
               </>
             )}

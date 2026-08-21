@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useVersionCheck } from '@/hooks/useVersionCheck';
 import { reloadWithCacheBust } from '@/lib/reload';
 
@@ -11,6 +12,7 @@ import { reloadWithCacheBust } from '@/lib/reload';
  * users to refresh before they encounter missing chunks.
  */
 export function UpdateAvailableBanner() {
+  const { t } = useTranslation('common');
   const { updateAvailable } = useVersionCheck();
   const [dismissed, setDismissed] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
@@ -51,12 +53,8 @@ export function UpdateAvailableBanner() {
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <RefreshCw className="h-5 w-5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">
-                Une nouvelle version est disponible
-              </p>
-              <p className="text-xs opacity-90 hidden sm:block">
-                Rechargez la page pour profiter des dernières améliorations
-              </p>
+              <p className="text-sm font-medium">{t('update.title')}</p>
+              <p className="text-xs opacity-90 hidden sm:block">{t('update.description')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -65,13 +63,13 @@ export function UpdateAvailableBanner() {
               disabled={isReloading}
               className="bg-white text-primary px-4 py-1.5 rounded-md text-sm font-medium hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isReloading ? 'Rechargement...' : 'Recharger'}
+              {isReloading ? t('update.reloading') : t('update.reload')}
             </button>
             <button
               onClick={handleDismiss}
               disabled={isReloading}
               className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-50"
-              aria-label="Fermer"
+              aria-label={t('buttons.close')}
             >
               <X className="h-4 w-4" />
             </button>

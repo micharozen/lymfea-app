@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { brand } from "@/config/brand";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,7 +64,7 @@ function formatDurationList(allowed: number[], fallback: number): string {
 }
 
 export function VenueAmenitiesTab({ hotelId, venueType }: VenueAmenitiesTabProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation(['admin', 'common']);
   const locale = i18n.language;
   const {
     amenities,
@@ -123,12 +124,12 @@ export function VenueAmenitiesTab({ hotelId, venueType }: VenueAmenitiesTabProps
       {/* Amenities list */}
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-3">
-          Commodités ({amenities.length})
+          {t('amenitiesTab.title', { count: amenities.length })}
         </h3>
 
         {amenities.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">
-            Aucune commodité configurée
+            {t('amenitiesTab.empty')}
           </p>
         ) : (
           <div className="space-y-2">
@@ -164,13 +165,13 @@ export function VenueAmenitiesTab({ hotelId, venueType }: VenueAmenitiesTabProps
                       </p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Users className="h-3 w-3" />
-                        <span>{amenity.capacity_per_slot} pers.</span>
+                        <span>{t('amenitiesTab.persons', { count: amenity.capacity_per_slot })}</span>
                         <span>·</span>
                         <span>{formatDurationList(amenity.allowed_durations, amenity.slot_duration)}</span>
                         {amenity.prep_time > 0 && (
                           <>
                             <span>·</span>
-                            <span>+{amenity.prep_time} min prep</span>
+                            <span>{t('amenitiesTab.prep', { count: amenity.prep_time })}</span>
                           </>
                         )}
                       </div>
@@ -232,7 +233,7 @@ export function VenueAmenitiesTab({ hotelId, venueType }: VenueAmenitiesTabProps
             <Button variant="outline" size="sm" disabled={isCreating}>
               {isCreating && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Ajouter une commodité
+              {t('amenitiesTab.add')}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-56 p-1" align="start" sideOffset={5}>
@@ -301,6 +302,7 @@ interface AmenityConfigProps {
 }
 
 function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigProps) {
+  const { t } = useTranslation(['admin', 'common']);
   const id = amenity.id;
 
   const [name, setName] = useState(amenity.name || "");
@@ -328,7 +330,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
       ? allowedDurations.filter((d) => d !== value)
       : [...allowedDurations, value].sort((a, b) => a - b);
     if (next.length === 0) {
-      toast.error("Au moins une durée doit rester sélectionnée");
+      toast.error(t('amenitiesTab.keepOneDuration'));
       return;
     }
     setAllowedDurations(next);
@@ -386,7 +388,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
       {/* Row 1: Name + Color */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-xs">Nom personnalisé</Label>
+          <Label className="text-xs">{t('amenitiesTab.customName')}</Label>
           <Input
             placeholder={getAmenityLabel(amenity.type, locale)}
             value={name}
@@ -395,7 +397,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Couleur calendrier</Label>
+          <Label className="text-xs">{t('amenitiesTab.calendarColor')}</Label>
           <div className="flex items-center gap-2">
             <input
               type="color"
@@ -411,7 +413,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
       {/* Row 2: Capacity + Prep time */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-xs">Capacité / créneau</Label>
+          <Label className="text-xs">{t('amenitiesTab.capacityPerSlot')}</Label>
           <Input
             type="number"
             min={1}
@@ -421,7 +423,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Temps préparation</Label>
+          <Label className="text-xs">{t('amenitiesTab.prepTime')}</Label>
           <div className="flex items-center gap-1">
             <Input
               type="number"
@@ -438,7 +440,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
 
       {/* Row 2b: Durées proposées à la réservation (multi-choix + défaut) */}
       <div className="space-y-1.5">
-        <Label className="text-xs">Durée créneau</Label>
+        <Label className="text-xs">{t('amenitiesTab.slotDuration')}</Label>
         <div className="flex flex-wrap gap-2">
           {SLOT_DURATIONS.map((d) => {
             const isSelected = allowedDurations.includes(d.value);
@@ -464,7 +466,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
                   <button
                     type="button"
                     className="pr-2 h-8 flex items-center"
-                    title={isDefault ? "Durée par défaut" : "Définir comme durée par défaut"}
+                    title={isDefault ? t('amenitiesTab.defaultDuration') : t('amenitiesTab.setDefaultDuration')}
                     onClick={() => setDefaultDuration(d.value)}
                   >
                     <Star
@@ -480,14 +482,14 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
           })}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Durées sélectionnables à la réservation. L'étoile marque celle proposée par défaut.
+          {t('amenitiesTab.durationsHelp')}
         </p>
       </div>
 
       {/* Row 3: Horaires spécifiques */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-xs">Ouverture (optionnel)</Label>
+          <Label className="text-xs">{t('amenitiesTab.opening')}</Label>
           <Select
             value={openingTime || "_none"}
             onValueChange={(val) => setOpeningTime(val === "_none" ? "" : val)}
@@ -506,7 +508,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Fermeture (optionnel)</Label>
+          <Label className="text-xs">{t('amenitiesTab.closing')}</Label>
           <Select
             value={closingTime || "_none"}
             onValueChange={(val) => setClosingTime(val === "_none" ? "" : val)}
@@ -529,12 +531,12 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
       {/* Row 4: Pricing section */}
       <div className="space-y-3">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Tarification
+          {t('amenitiesTab.pricing')}
         </Label>
 
         {/* External */}
         <div className="flex items-center justify-between">
-          <span className="text-sm">Externe</span>
+          <span className="text-sm">{t('amenitiesTab.external')}</span>
           <div className="flex items-center gap-1">
             <Input
               type="number"
@@ -551,9 +553,9 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
         {/* Internal — hotel only */}
         {venueType === "hotel" && (
           <div className="flex items-center justify-between">
-            <span className="text-sm">Interne (hôtel)</span>
+            <span className="text-sm">{t('amenitiesTab.internal')}</span>
             <Badge variant="secondary" className="text-xs">
-              Gratuit
+              {t('amenitiesTab.free')}
             </Badge>
           </div>
         )}
@@ -561,9 +563,9 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
         {/* Eïa */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm">Eïa (client soin)</span>
+            <span className="text-sm">{t('amenitiesTab.brandClient', { brand: brand.name })}</span>
             <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground">Inclus</Label>
+              <Label className="text-xs text-muted-foreground">{t('amenitiesTab.included')}</Label>
               <Switch
                 checked={lymfeaAccessIncluded}
                 onCheckedChange={setLymfeaAccessIncluded}
@@ -573,7 +575,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
 
           {lymfeaAccessIncluded ? (
             <div className="flex items-center gap-3 pl-2">
-              <Label className="text-xs text-muted-foreground">Durée accès offert</Label>
+              <Label className="text-xs text-muted-foreground">{t('amenitiesTab.freeAccessDuration')}</Label>
               <Select
                 value={lymfeaAccessDuration}
                 onValueChange={setLymfeaAccessDuration}
@@ -613,7 +615,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
           disabled={!isDirty}
           onClick={handleSave}
         >
-          Enregistrer
+          {t('common:buttons.save')}
         </Button>
       </div>
     </div>

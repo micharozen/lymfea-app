@@ -31,7 +31,7 @@ export type CustomerFormValues = z.infer<ReturnType<typeof createFormSchema>>;
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(["admin", "common"]);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const isNewMode = !id;
@@ -94,7 +94,7 @@ export default function CustomerDetail() {
       }
     } catch (error) {
       console.error("Error loading customer data:", error);
-      toast.error("Erreur lors du chargement des données");
+      toast.error(t("admin:customers.loadError"));
     } finally {
       setLoading(false);
     }
@@ -157,7 +157,7 @@ export default function CustomerDetail() {
       if (error.code === "23505") {
         toast.error(t("admin:customers.duplicatePhone", "Un client avec ce numéro de téléphone existe déjà"));
       } else {
-        toast.error("Erreur lors de l'enregistrement");
+        toast.error(t("admin:customers.saveError"));
       }
     } finally {
       setSaving(false);
@@ -216,7 +216,7 @@ export default function CustomerDetail() {
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}
-                {t("common:save", "Enregistrer")}
+                {t("common:buttons.save")}
               </Button>
             ) : isEditing ? (
               <>
@@ -225,7 +225,7 @@ export default function CustomerDetail() {
                   onClick={handleCancelEdit}
                   disabled={saving}
                 >
-                  {t("common:cancel", "Annuler")}
+                  {t("common:buttons.cancel")}
                 </Button>
                 <Button
                   onClick={handleSave}
@@ -236,7 +236,7 @@ export default function CustomerDetail() {
                   ) : (
                     <Save className="mr-2 h-4 w-4" />
                   )}
-                  {t("common:save", "Enregistrer")}
+                  {t("common:buttons.save")}
                 </Button>
               </>
             ) : (
@@ -245,7 +245,7 @@ export default function CustomerDetail() {
                 onClick={() => setIsEditingState(true)}
               >
                 <Pencil className="mr-2 h-4 w-4" />
-                {t("common:edit", "Modifier")}
+                {t("common:buttons.edit")}
               </Button>
             )}
           </div>

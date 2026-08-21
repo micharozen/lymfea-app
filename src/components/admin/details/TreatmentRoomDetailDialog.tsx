@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { EntityDetailDialog } from "./EntityDetailDialog";
 import { DetailSection, DetailCard, DetailField } from "./DetailSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,11 +39,12 @@ export function TreatmentRoomDetailDialog({
   nextBooking,
   onEdit,
 }: TreatmentRoomDetailDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   if (!room) return null;
 
   const formatNextBooking = (dateTime: string | null) => {
     if (!dateTime) return null;
-    return new Date(dateTime).toLocaleString("fr-FR", {
+    return new Date(dateTime).toLocaleString(i18n.language, {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -61,12 +64,12 @@ export function TreatmentRoomDetailDialog({
       status={room.status}
     >
       {/* Details */}
-      <DetailSection icon={DoorOpen} title="Details">
+      <DetailSection icon={DoorOpen} title={t("treatmentRoomDialog.details")}>
         <DetailCard>
           <div className="space-y-2">
             <DetailField label="Type" value={room.room_type || "-"} />
             <DetailField
-              label="Lits"
+              label={t("treatmentRoomDialog.beds")}
               value={String(room.capacity ?? 1)}
             />
             <DetailField label="ID" value={room.id} muted />
@@ -75,11 +78,13 @@ export function TreatmentRoomDetailDialog({
       </DetailSection>
 
       {/* Assignment */}
-      <DetailSection icon={Building2} title="Assignation">
+      <DetailSection icon={Building2} title={t("treatmentRoomDialog.assignment")}>
         <DetailCard>
           <div className="space-y-3">
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Hotel</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                {t("treatmentRoomDialog.venue")}
+              </p>
               {hotel ? (
                 <div className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
@@ -91,7 +96,9 @@ export function TreatmentRoomDetailDialog({
                   <span className="text-sm font-medium">{hotel.name}</span>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Non assigne</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("treatmentRoomDialog.unassigned")}
+                </p>
               )}
             </div>
           </div>
@@ -99,11 +106,11 @@ export function TreatmentRoomDetailDialog({
       </DetailSection>
 
       {/* Schedule */}
-      <DetailSection icon={Calendar} title="Planning" showSeparator={false}>
+      <DetailSection icon={Calendar} title={t("treatmentRoomDialog.planning")} showSeparator={false}>
         <DetailCard>
           <DetailField
-            label="Prochaine reservation"
-            value={formatNextBooking(nextBooking) || "Aucune reservation"}
+            label={t("treatmentRoomDialog.nextBooking")}
+            value={formatNextBooking(nextBooking) || t("treatmentRoomDialog.noBooking")}
             muted={!nextBooking}
           />
         </DetailCard>

@@ -14,7 +14,7 @@ interface CustomerCuresSectionProps {
 }
 
 export function CustomerCuresSection({ customerId, customerName }: CustomerCuresSectionProps) {
-  const { t } = useTranslation("admin");
+  const { t, i18n } = useTranslation(["admin", "common"]);
   const [sellDialogOpen, setSellDialogOpen] = useState(false);
 
   const { data: bundles, refetch } = useQuery({
@@ -59,7 +59,7 @@ export function CustomerCuresSection({ customerId, customerName }: CustomerCures
       </div>
 
       {(!bundles || bundles.length === 0) ? (
-        <p className="text-sm text-muted-foreground">Aucune cure pour ce client</p>
+        <p className="text-sm text-muted-foreground">{t("customerCures.empty")}</p>
       ) : (
         <div className="space-y-2">
           {[...activeBundles, ...otherBundles].map((bundle) => {
@@ -89,11 +89,11 @@ export function CustomerCuresSection({ customerId, customerName }: CustomerCures
                         />
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {bundle.used_sessions}/{bundle.total_sessions} seances
+                        {t("customerCures.sessions", { used: bundle.used_sessions, total: bundle.total_sessions })}
                       </span>
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      Exp. {new Date(bundle.expires_at).toLocaleDateString("fr-FR")}
+                      {t("customerCures.expires", { date: new Date(bundle.expires_at).toLocaleDateString(i18n.language) })}
                     </span>
                   </div>
                 </div>

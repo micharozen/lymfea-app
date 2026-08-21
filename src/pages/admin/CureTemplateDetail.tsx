@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -22,32 +23,35 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Loader2, Save, Pencil } from "lucide-react";
 import { CategorySelectField } from "@/components/admin/category/CategorySelectField";
 
-const formSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  name_en: z.string().optional(),
-  description: z.string().optional(),
-  description_en: z.string().optional(),
-  hotel_id: z.string().min(1, "Le lieu est requis"),
-  total_sessions: z.coerce.number().int().min(1, "Minimum 1 seance"),
-  price: z.coerce.number().min(0, "Le prix doit etre positif"),
-  validity_days: z.coerce.number().int().min(1).default(365),
-  status: z.enum(["active", "inactive"]).default("active"),
-  category: z.string().min(1, "La catégorie est requise"),
-  eligible_treatment_ids: z.array(z.string()).default([]),
-});
+const makeFormSchema = (t: TFunction) =>
+  z.object({
+    name: z.string().min(1, t("cureTemplate.validation.nameRequired")),
+    name_en: z.string().optional(),
+    description: z.string().optional(),
+    description_en: z.string().optional(),
+    hotel_id: z.string().min(1, t("cureTemplate.validation.venueRequired")),
+    total_sessions: z.coerce.number().int().min(1, t("cureTemplate.validation.minSessions")),
+    price: z.coerce.number().min(0, t("cureTemplate.validation.pricePositive")),
+    validity_days: z.coerce.number().int().min(1).default(365),
+    status: z.enum(["active", "inactive"]).default("active"),
+    category: z.string().min(1, t("cureTemplate.validation.categoryRequired")),
+    eligible_treatment_ids: z.array(z.string()).default([]),
+  });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<ReturnType<typeof makeFormSchema>>;
 
 export default function CureTemplateDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(['admin', 'common']);
   const queryClient = useQueryClient();
 
   const isNewMode = !id;
   const [loading, setLoading] = useState(false);
   const [isEditingState, setIsEditingState] = useState(false);
   const isEditing = isNewMode || isEditingState;
+
+  const formSchema = useMemo(() => makeFormSchema(t), [t]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -144,7 +148,7 @@ export default function CureTemplateDetail() {
         eligible_treatment_ids: items?.map((i) => i.treatment_id) || [],
       });
     } catch {
-      toast.error("Erreur lors du chargement");
+      toast.error(t('cureTemplate.loadError'));
       navigate("/admin/cures");
     } finally {
       setLoading(false);
@@ -239,7 +243,7 @@ export default function CureTemplateDetail() {
     onSuccess: (bundleId) => {
       queryClient.invalidateQueries({ queryKey: ["treatment-bundles"] });
       queryClient.invalidateQueries({ queryKey: ["treatment-menus"] });
-      toast.success(isNewMode ? "Modele de cure cree" : "Modele de cure mis a jour");
+      toast.success(isNewMode ? t('cureTemplate.created') : t('cureTemplate.updated'));
       if (isNewMode) {
         navigate(`/admin/cures/templates/${bundleId}`, { replace: true });
       } else {
@@ -247,7 +251,7 @@ export default function CureTemplateDetail() {
       }
     },
     onError: () => {
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error(t('cureTemplate.saveError'));
     },
   });
 
@@ -297,7 +301,7 @@ export default function CureTemplateDetail() {
               className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Retour</span>
+              <span className="hidden sm:inline">{t('common:buttons.back')}</span>
             </Button>
             <div className="h-5 w-px bg-border flex-shrink-0" />
             <h1 className="text-lg font-medium truncate">
@@ -313,7 +317,7 @@ export default function CureTemplateDetail() {
             ) : isEditing ? (
               <>
                 <Button variant="outline" onClick={handleCancelEdit} disabled={saveMutation.isPending}>
-                  Annuler
+                  {t('common:buttons.cancel')}
                 </Button>
                 <Button onClick={handleSave} disabled={saveMutation.isPending}>
                   {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -323,7 +327,7 @@ export default function CureTemplateDetail() {
             ) : (
               <Button variant="outline" onClick={() => setIsEditingState(true)}>
                 <Pencil className="mr-2 h-4 w-4" />
-                Modifier
+                {t('common:buttons.edit')}
               </Button>
             )}
           </div>
@@ -346,7 +350,7 @@ export default function CureTemplateDetail() {
                     <FormItem>
                       <FormLabel>{t("cures.templateName")} (FR) *</FormLabel>
                       <FormControl>
-                        <Input {...field} disabled={!isEditing} placeholder="ex: Cure 5 massages" />
+                        <Input {...field} disabled={!isEditing} placeholder={t('cureTemplate.namePlaceholder')} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -359,7 +363,7 @@ export default function CureTemplateDetail() {
                     <FormItem>
                       <FormLabel>{t("cures.templateName")} (EN)</FormLabel>
                       <FormControl>
-                        <Input {...field} disabled={!isEditing} placeholder="e.g. 5 Massage Package" />
+                        <Input {...field} disabled={!isEditing} placeholder={t('cureTemplate.namePlaceholderEn')} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -373,7 +377,7 @@ export default function CureTemplateDetail() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description (FR)</FormLabel>
+                      <FormLabel>{t('cureTemplate.descriptionFr')}</FormLabel>
                       <FormControl>
                         <Textarea {...field} disabled={!isEditing} rows={3} />
                       </FormControl>
@@ -385,7 +389,7 @@ export default function CureTemplateDetail() {
                   name="description_en"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description (EN)</FormLabel>
+                      <FormLabel>{t('cureTemplate.descriptionEn')}</FormLabel>
                       <FormControl>
                         <Textarea {...field} disabled={!isEditing} rows={3} />
                       </FormControl>
@@ -399,7 +403,7 @@ export default function CureTemplateDetail() {
                 name="hotel_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Lieu *</FormLabel>
+                    <FormLabel>{t('cureTemplate.venue')}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
@@ -407,7 +411,7 @@ export default function CureTemplateDetail() {
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selectionner un lieu" />
+                          <SelectValue placeholder={t('cureTemplate.selectVenue')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -428,14 +432,14 @@ export default function CureTemplateDetail() {
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Catégorie d'affichage *</FormLabel>
+                    <FormLabel>{t('cureTemplate.category')}</FormLabel>
                     <FormControl>
                       <CategorySelectField
                         hotelId={watchedHotelId || null}
                         value={field.value}
                         onChange={field.onChange}
                         disabled={!isEditing || !watchedHotelId}
-                        placeholder={watchedHotelId ? "Sélectionner une catégorie" : "Sélectionnez d'abord un lieu"}
+                        placeholder={watchedHotelId ? t('cureTemplate.selectCategory') : t('cureTemplate.selectVenueFirst')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -490,7 +494,7 @@ export default function CureTemplateDetail() {
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Statut</FormLabel>
+                    <FormLabel>{t('cureTemplate.status')}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
@@ -502,8 +506,8 @@ export default function CureTemplateDetail() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="active">Actif</SelectItem>
-                        <SelectItem value="inactive">Inactif</SelectItem>
+                        <SelectItem value="active">{t('cureTemplate.active')}</SelectItem>
+                        <SelectItem value="inactive">{t('cureTemplate.inactive')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
@@ -523,9 +527,9 @@ export default function CureTemplateDetail() {
               </h2>
 
               {!watchedHotelId ? (
-                <p className="text-sm text-muted-foreground">Selectionnez d'abord un lieu</p>
+                <p className="text-sm text-muted-foreground">{t('cureTemplate.selectVenueFirst')}</p>
               ) : !treatments || treatments.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucun soin disponible pour ce lieu</p>
+                <p className="text-sm text-muted-foreground">{t('cureTemplate.noTreatment')}</p>
               ) : (
                 <div className="space-y-4">
                   {Object.entries(treatmentsByCategory).map(([category, categoryTreatments]) => (

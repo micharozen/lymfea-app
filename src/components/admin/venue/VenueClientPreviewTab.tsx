@@ -16,7 +16,7 @@ interface VenueClientPreviewTabProps {
 type LinkLanguage = 'fr' | 'en';
 
 export function VenueClientPreviewTab({ hotelId, slug }: VenueClientPreviewTabProps) {
-  const { t } = useTranslation('admin');
+  const { t } = useTranslation(['admin', 'common']);
   const [copied, setCopied] = useState(false);
   const [treatmentCopied, setTreatmentCopied] = useState(false);
   const [selectedTreatmentSlug, setSelectedTreatmentSlug] = useState<string>("");
@@ -79,7 +79,7 @@ export function VenueClientPreviewTab({ hotelId, slug }: VenueClientPreviewTabPr
             key={previewUrl}
             src={previewUrl}
             className="w-full h-full border-0"
-            title="Aperçu client"
+            title={t('venueDetail.clientPreview')}
             loading="lazy"
           />
         </div>

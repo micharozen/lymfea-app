@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -40,6 +39,8 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDateLocale } from "@/lib/dateLocale";
+import type { Locale } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import {
@@ -158,7 +159,8 @@ export default function BookingModal({
   emailInquiryId,
   onCreated,
 }: BookingModalProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const { hotelIds } = useUser();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
 
@@ -546,7 +548,7 @@ export default function BookingModal({
               {t(source === "email" ? "phoneBooking.titleEmail" : "phoneBooking.title")}
             </DialogTitle>
             <DialogDescription className="hidden">
-              Réservation manuelle d'un soin
+              {t("phoneBooking.dialogDescription")}
             </DialogDescription>
             {step !== "done" && (
               <div className="pt-2 space-y-1.5">
@@ -619,6 +621,7 @@ export default function BookingModal({
             {step === "slot" && (
               <SlotStep
                 t={t}
+                dateLocale={dateLocale}
                 date={date}
                 setDate={(d) => {
                   setDate(d);
@@ -716,6 +719,7 @@ export default function BookingModal({
             {step === "confirm" && (
               <ConfirmStep
                 t={t}
+                dateLocale={dateLocale}
                 hotelName={selectedHotel?.name || ""}
                 cartDetails={cartDetails}
                 totalPrice={totalPrice}
@@ -864,7 +868,7 @@ export default function BookingModal({
           treatments: cartDetails.map((item) => {
             const tr = item.treatment as { name?: string; price?: number | null } | undefined;
             return {
-              name: tr?.name || "Service",
+              name: tr?.name || t("createBooking.defaultTreatmentName"),
               price: (tr?.price || 0) * item.quantity,
             };
           }),
@@ -1156,6 +1160,7 @@ function VenueTreatmentStep({
 
 interface SlotStepProps {
   t: (k: string) => string;
+  dateLocale: Locale;
   date: Date | undefined;
   setDate: (d: Date | undefined) => void;
   time: string;
@@ -1168,6 +1173,7 @@ interface SlotStepProps {
 
 function SlotStep({
   t,
+  dateLocale,
   date,
   setDate,
   time,
@@ -1190,7 +1196,7 @@ function SlotStep({
             mode="single"
             selected={date}
             onSelect={setDate}
-            locale={fr}
+            locale={dateLocale}
           />
         </div>
       </div>
@@ -1414,7 +1420,7 @@ function TherapistStep({
     return (
       <div className="space-y-4">
         <div className="rounded-lg bg-violet-50 border border-violet-200 p-3 text-xs text-violet-800">
-          Soin à plusieurs — {effectiveStaffing} praticiens requis. Vous pouvez diffuser la demande à toute l'équipe, ou assigner manuellement.
+          {t("phoneBooking.therapist.multiStaffHint", { count: effectiveStaffing })}
         </div>
 
         <button
@@ -1430,10 +1436,10 @@ function TherapistStep({
            </div>
            <div className="flex-1 min-w-0">
              <p className="font-medium text-sm truncate text-violet-900">
-               Diffuser à tous les praticiens
+               {t("phoneBooking.therapist.broadcastAllTitle")}
              </p>
              <p className="text-xs text-violet-700 truncate">
-               Laisse l'équipe s'organiser et accepter
+               {t("phoneBooking.therapist.broadcastAllDesc")}
              </p>
            </div>
            {broadcast && <Check className="h-4 w-4 text-primary" />}
@@ -1835,7 +1841,7 @@ function ClientStep({
           value={roomNumber}
           onChange={(e) => setRoomNumber(e.target.value)}
           disabled={clientType === "hotel" && roomNumberLater}
-          placeholder={clientType === "hotel" && roomNumberLater ? "À renseigner plus tard" : undefined}
+          placeholder={clientType === "hotel" && roomNumberLater ? t("phoneBooking.client.roomLaterPlaceholder") : undefined}
           required={clientType === "hotel" && !roomNumberLater}
         />
         {clientType === "hotel" && (
@@ -1848,7 +1854,7 @@ function ClientStep({
                 if (checked) setRoomNumber("");
               }}
             />
-            Numéro de chambre à renseigner plus tard (client pas encore arrivé)
+            {t("phoneBooking.client.roomLaterCheckbox")}
           </label>
         )}
       </div>
@@ -1858,6 +1864,7 @@ function ClientStep({
 
 interface ConfirmStepProps {
   t: (k: string) => string;
+  dateLocale: Locale;
   hotelName: string;
   cartDetails: Array<{
     treatmentId: string;
@@ -1879,6 +1886,7 @@ interface ConfirmStepProps {
 
 function ConfirmStep({
   t,
+  dateLocale,
   hotelName,
   cartDetails,
   totalPrice,
@@ -1898,7 +1906,7 @@ function ConfirmStep({
       <Row label={t("phoneBooking.confirm.venue")} value={hotelName} />
       <Row
         label={t("phoneBooking.confirm.when")}
-        value={`${date ? format(date, "EEEE d MMMM yyyy", { locale: fr }) : ""} · ${time}`}
+        value={`${date ? format(date, "EEEE d MMMM yyyy", { locale: dateLocale }) : ""} · ${time}`}
       />
       {therapists.length <= 1 ? (
         <Row

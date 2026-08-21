@@ -35,7 +35,7 @@ export function ConvertToDuoDialog({
   therapists,
   onSuccess,
 }: ConvertToDuoDialogProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
 
   // Only base soins get a therapist here: an add-on is a supplement that follows the
   // therapist of the soin it extends, so it never adds a guest nor needs its own pick.
@@ -297,7 +297,7 @@ export function ConvertToDuoDialog({
                         <span className="flex items-center gap-1.5">
                           {r.name}
                           {turnoverConflictRoomIds.has(r.id) && (
-                            <span className="text-xs text-amber-600">— Remise en état</span>
+                            <span className="text-xs text-amber-600">— {t("booking.convertToDuo.turnover")}</span>
                           )}
                         </span>
                       </SelectItem>

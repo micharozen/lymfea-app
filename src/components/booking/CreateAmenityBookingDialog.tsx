@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -36,22 +37,25 @@ import { getAmenityLabel, getAmenityType, type AmenityClientType } from "@/lib/a
 import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities";
 import type { AmenityBookingForCalendar } from "@/hooks/booking";
 
-const formSchema = z.object({
-  venue_amenity_id: z.string().min(1, "Sélectionnez une commodité"),
-  client_type: z.enum(["external", "internal", "lymfea", "sezame"]),
-  first_name: z.string().min(1, "Prénom requis"),
-  last_name: z.string().optional(),
-  phone: z.string().min(1, "Téléphone requis"),
-  email: z.string().optional(),
-  room_number: z.string().optional(),
-  num_guests: z.number().min(1).default(1),
-  booking_date: z.string().min(1, "Date requise"),
-  booking_time: z.string().min(1, "Heure requise"),
-  duration: z.number().min(1),
-  notes: z.string().optional(),
-});
+type Translate = (key: string) => string;
 
-type FormValues = z.infer<typeof formSchema>;
+const createFormSchema = (t: Translate) =>
+  z.object({
+    venue_amenity_id: z.string().min(1, t("admin:amenityBookingForm.validation.amenityRequired")),
+    client_type: z.enum(["external", "internal", "lymfea", "sezame"]),
+    first_name: z.string().min(1, t("admin:amenityBookingForm.validation.firstNameRequired")),
+    last_name: z.string().optional(),
+    phone: z.string().min(1, t("admin:amenityBookingForm.validation.phoneRequired")),
+    email: z.string().optional(),
+    room_number: z.string().optional(),
+    num_guests: z.number().min(1).default(1),
+    booking_date: z.string().min(1, t("admin:amenityBookingForm.validation.dateRequired")),
+    booking_time: z.string().min(1, t("admin:amenityBookingForm.validation.timeRequired")),
+    duration: z.number().min(1),
+    notes: z.string().optional(),
+  });
+
+type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
 
 const TIME_OPTIONS = (() => {
   const opts: { value: string; label: string }[] = [];
@@ -99,6 +103,7 @@ export function CreateAmenityBookingDialog({
   preselectedTime,
   editBooking,
 }: CreateAmenityBookingDialogProps) {
+  const { t, i18n: i18nInstance } = useTranslation(["admin", "common"]);
   const isEditMode = !!editBooking;
   const queryClient = useQueryClient();
 
@@ -147,6 +152,7 @@ export function CreateAmenityBookingDialog({
   });
   const effectiveVenueType = venueType ?? fetchedVenueType;
 
+  const formSchema = useMemo(() => createFormSchema(t), [t]);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -387,21 +393,21 @@ export function CreateAmenityBookingDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["amenity-bookings"] });
-      toast.success(isEditMode ? "Réservation mise à jour" : "Réservation créée");
+      toast.success(isEditMode ? t("admin:amenityBookingForm.toasts.updated") : t("admin:amenityBookingForm.toasts.created"));
       onOpenChange(false);
     },
     onError: (err: any) => {
-      toast.error(err?.message || (isEditMode ? "Erreur lors de la mise à jour" : "Erreur lors de la création"));
+      toast.error(err?.message || (isEditMode ? t("admin:amenityBookingForm.errors.updateFailed") : t("admin:amenityBookingForm.errors.createFailed")));
     },
   });
 
   const onSubmit = (values: FormValues) => {
     if (!effectiveHotelId) {
-      toast.error("Sélectionnez un lieu");
+      toast.error(t("admin:amenityBookingForm.errors.venueRequired"));
       return;
     }
     if (numGuests > remainingCapacity) {
-      toast.error(`Capacité insuffisante (${remainingCapacity} places restantes)`);
+      toast.error(t("admin:amenityBookingForm.errors.notEnoughCapacity", { count: remainingCapacity }));
       return;
     }
     // `duration` is normalised against the amenity's allowed durations at render.
@@ -412,7 +418,7 @@ export function CreateAmenityBookingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? "Modifier la réservation" : "Réservation commodité"}</DialogTitle>
+          <DialogTitle>{isEditMode ? t("admin:amenityBookingForm.editTitle") : t("admin:amenityBookingForm.createTitle")}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -420,7 +426,7 @@ export function CreateAmenityBookingDialog({
             {/* Venue selection (picker mode only) */}
             {showVenuePicker && (
               <div className="space-y-2">
-                <label className="text-sm font-medium">Lieu</label>
+                <label className="text-sm font-medium">{t("admin:amenityBookingForm.venue")}</label>
                 <Select
                   value={pickedHotelId}
                   onValueChange={(v) => {
@@ -429,7 +435,7 @@ export function CreateAmenityBookingDialog({
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un lieu" />
+                    <SelectValue placeholder={t("admin:amenityBookingForm.venuePlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {amenityHotels.map((h) => (
@@ -448,11 +454,11 @@ export function CreateAmenityBookingDialog({
               name="venue_amenity_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Commodité</FormLabel>
+                  <FormLabel>{t("admin:amenityBookingForm.amenity")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner" />
+                        <SelectValue placeholder={t("admin:amenityBookingForm.selectPlaceholder")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -463,7 +469,7 @@ export function CreateAmenityBookingDialog({
                           <SelectItem key={a.id} value={a.id}>
                             <div className="flex items-center gap-2">
                               {Icon && <Icon className="h-3.5 w-3.5" style={{ color: a.color }} />}
-                              {a.name || getAmenityLabel(a.type, "fr")}
+                              {a.name || getAmenityLabel(a.type, i18nInstance.language)}
                             </div>
                           </SelectItem>
                         );
@@ -472,7 +478,7 @@ export function CreateAmenityBookingDialog({
                   </Select>
                   {effectiveHotelId && enabledAmenities.length === 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Aucune commodité activée pour ce lieu.
+                      {t("admin:amenityBookingForm.noAmenityEnabled")}
                     </p>
                   )}
                   <FormMessage />
@@ -486,7 +492,7 @@ export function CreateAmenityBookingDialog({
               name="client_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Type de client</FormLabel>
+                  <FormLabel>{t("admin:amenityBookingForm.clientType")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -497,21 +503,21 @@ export function CreateAmenityBookingDialog({
                       <SelectItem value="external">
                         <span className="flex items-center gap-2">
                           <Globe className="h-4 w-4" />
-                          Externe
+                          {t("admin:amenityBookingForm.clientTypes.external")}
                         </span>
                       </SelectItem>
                       {effectiveVenueType === "hotel" && (
                         <SelectItem value="internal">
                           <span className="flex items-center gap-2">
                             <Hotel className="h-4 w-4" />
-                            Interne (hôtel)
+                            {t("admin:amenityBookingForm.clientTypes.internal")}
                           </span>
                         </SelectItem>
                       )}
                       <SelectItem value="lymfea">
                         <span className="flex items-center gap-2">
                           <Sparkles className="h-4 w-4" />
-                          Eïa (client soin)
+                          {t("admin:amenityBookingForm.clientTypes.lymfea")}
                         </span>
                       </SelectItem>
                       <SelectItem value="sezame">
@@ -531,7 +537,7 @@ export function CreateAmenityBookingDialog({
             <div className="relative">
               <label className="flex items-center gap-1.5 mb-1 text-sm font-medium">
                 <Search className="h-3.5 w-3.5" />
-                Rechercher un client existant
+                {t("admin:amenityBookingForm.searchCustomer")}
               </label>
               <Input
                 value={customerSearch}
@@ -539,7 +545,7 @@ export function CreateAmenityBookingDialog({
                   setCustomerSearch(e.target.value);
                   setSelectedCustomerId(null);
                 }}
-                placeholder="Nom, prénom ou téléphone…"
+                placeholder={t("admin:amenityBookingForm.searchCustomerPlaceholder")}
                 className="h-9"
               />
               {trimmedCustomerSearch.length >= 3 && !selectedCustomerId && (
@@ -547,10 +553,10 @@ export function CreateAmenityBookingDialog({
                   {isSearchingCustomers ? (
                     <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Recherche…
+                      {t("admin:amenityBookingForm.searching")}
                     </div>
                   ) : customerResults.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">Aucun client trouvé</div>
+                    <div className="px-3 py-2 text-sm text-muted-foreground">{t("admin:amenityBookingForm.noCustomerFound")}</div>
                   ) : (
                     customerResults.map((c) => (
                       <button
@@ -579,7 +585,7 @@ export function CreateAmenityBookingDialog({
                 name="first_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Prénom *</FormLabel>
+                    <FormLabel>{t("admin:amenityBookingForm.firstName")} *</FormLabel>
                     <FormControl>
                       <Input {...field} className="h-9" />
                     </FormControl>
@@ -592,7 +598,7 @@ export function CreateAmenityBookingDialog({
                 name="last_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nom</FormLabel>
+                    <FormLabel>{t("admin:amenityBookingForm.lastName")}</FormLabel>
                     <FormControl>
                       <Input {...field} className="h-9" />
                     </FormControl>
@@ -607,7 +613,7 @@ export function CreateAmenityBookingDialog({
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Téléphone *</FormLabel>
+                    <FormLabel>{t("admin:amenityBookingForm.phone")} *</FormLabel>
                     <FormControl>
                       <Input {...field} className="h-9" />
                     </FormControl>
@@ -636,7 +642,7 @@ export function CreateAmenityBookingDialog({
                 name="room_number"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>N° chambre</FormLabel>
+                    <FormLabel>{t("admin:amenityBookingForm.roomNumber")}</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="ex: 302" className="h-9" />
                     </FormControl>
@@ -652,7 +658,7 @@ export function CreateAmenityBookingDialog({
                 name="booking_date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date *</FormLabel>
+                    <FormLabel>{t("admin:amenityBookingForm.date")} *</FormLabel>
                     <FormControl>
                       <Input {...field} type="date" className="h-9" />
                     </FormControl>
@@ -665,17 +671,17 @@ export function CreateAmenityBookingDialog({
                 name="booking_time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Heure *</FormLabel>
+                    <FormLabel>{t("admin:amenityBookingForm.time")} *</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Sélectionner" />
+                          <SelectValue placeholder={t("admin:amenityBookingForm.selectPlaceholder")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {TIME_OPTIONS.map((t) => (
-                          <SelectItem key={t.value} value={t.value}>
-                            {t.label}
+                        {TIME_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -693,7 +699,7 @@ export function CreateAmenityBookingDialog({
                 name="num_guests"
                 render={({ field }) => (
                   <FormItem className="flex-1">
-                    <FormLabel>Nombre de personnes</FormLabel>
+                    <FormLabel>{t("admin:amenityBookingForm.guestCount")}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -715,7 +721,7 @@ export function CreateAmenityBookingDialog({
                     variant={remainingCapacity > 0 ? "secondary" : "destructive"}
                     className="text-xs"
                   >
-                    {remainingCapacity} / {selectedAmenity.capacity_per_slot} dispo
+                    {t("admin:amenityBookingForm.capacityBadge", { remaining: remainingCapacity, total: selectedAmenity.capacity_per_slot })}
                   </Badge>
                 </div>
               )}
@@ -729,7 +735,7 @@ export function CreateAmenityBookingDialog({
                   name="duration"
                   render={() => (
                     <FormItem>
-                      <FormLabel>Durée</FormLabel>
+                      <FormLabel>{t("admin:amenityBookingForm.duration")}</FormLabel>
                       <Select
                         value={String(duration)}
                         onValueChange={(v) => form.setValue("duration", parseInt(v))}
@@ -749,7 +755,7 @@ export function CreateAmenityBookingDialog({
                       </Select>
                       {selectedAmenity.prep_time > 0 && (
                         <p className="text-xs text-muted-foreground">
-                          +{selectedAmenity.prep_time} min de préparation
+                          {t("admin:amenityBookingForm.prepTime", { minutes: selectedAmenity.prep_time })}
                         </p>
                       )}
                       <FormMessage />
@@ -758,9 +764,9 @@ export function CreateAmenityBookingDialog({
                 />
               ) : (
                 <div className="text-sm text-muted-foreground">
-                  Durée: {formatDuration(duration)}
+                  {t("admin:amenityBookingForm.durationValue", { value: formatDuration(duration) })}
                   {selectedAmenity.prep_time > 0 && (
-                    <span> (+{selectedAmenity.prep_time} min préparation)</span>
+                    <span> {t("admin:amenityBookingForm.prepTimeInline", { minutes: selectedAmenity.prep_time })}</span>
                   )}
                 </div>
               )
@@ -768,9 +774,9 @@ export function CreateAmenityBookingDialog({
 
             {/* Price */}
             <div className="flex items-center gap-2 text-sm font-medium bg-muted/50 rounded p-2">
-              Prix:&nbsp;
+              {t("admin:amenityBookingForm.price")}&nbsp;
               {computedPrice === 0 ? (
-                <Badge variant="secondary">Gratuit</Badge>
+                <Badge variant="secondary">{t("admin:amenityBookingForm.free")}</Badge>
               ) : (
                 <span>{computedPrice * numGuests} {selectedAmenity?.currency || "EUR"}</span>
               )}
@@ -782,7 +788,7 @@ export function CreateAmenityBookingDialog({
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notes</FormLabel>
+                  <FormLabel>{t("admin:amenityBookingForm.notes")}</FormLabel>
                   <FormControl>
                     <Textarea {...field} rows={2} className="resize-none" />
                   </FormControl>
@@ -797,7 +803,7 @@ export function CreateAmenityBookingDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Annuler
+                {t("common:buttons.cancel")}
               </Button>
               <Button
                 type="submit"
@@ -807,7 +813,7 @@ export function CreateAmenityBookingDialog({
                 {createMutation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                {isEditMode ? "Enregistrer" : "Réserver"}
+                {isEditMode ? t("common:buttons.save") : t("admin:amenityBookingForm.book")}
               </Button>
             </div>
           </form>

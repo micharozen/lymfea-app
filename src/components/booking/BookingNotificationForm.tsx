@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ export function BookingNotificationForm({
   onSkip,
   hideTitle = false,
 }: BookingNotificationFormProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const [language, setLanguage] = useState<"fr" | "en">("fr");
   const [sendEmail, setSendEmail] = useState(true);
   const [sendSms, setSendSms] = useState(false);
@@ -65,10 +67,10 @@ export function BookingNotificationForm({
       });
 
       if (error) {
-        setResult({ success: false, error: error.message || "Erreur lors de l'envoi" });
+        setResult({ success: false, error: error.message || t("admin:bookingNotification.errors.sendFailed") });
         toast({
-          title: "Erreur",
-          description: error.message || "Erreur lors de l'envoi de la notification",
+          title: t("common:toasts.error"),
+          description: error.message || t("admin:bookingNotification.errors.sendNotificationFailed"),
           variant: "destructive",
         });
       } else if (data) {
@@ -78,15 +80,15 @@ export function BookingNotificationForm({
           smsSent: data.smsSent,
         });
         toast({
-          title: "Confirmation envoyée",
-          description: "La notification de réservation a été envoyée",
+          title: t("admin:bookingNotification.toasts.sentTitle"),
+          description: t("admin:bookingNotification.toasts.sentDescription"),
         });
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
+      const errorMessage = err instanceof Error ? err.message : t("admin:bookingNotification.errors.unknown");
       setResult({ success: false, error: errorMessage });
       toast({
-        title: "Erreur",
+        title: t("common:toasts.error"),
         description: errorMessage,
         variant: "destructive",
       });
@@ -102,7 +104,7 @@ export function BookingNotificationForm({
 
   const getPreviewMessage = () => {
     const clientName = `${booking.client_first_name} ${booking.client_last_name}`;
-    const treatmentsList = booking.treatments?.map(t => `• ${t.name} - ${formatPrice(t.price, booking.currency || 'EUR')}`).join("\n") || "";
+    const treatmentsList = booking.treatments?.map((tr) => `• ${tr.name} - ${formatPrice(tr.price, booking.currency || 'EUR')}`).join("\n") || "";
 
     if (language === "fr") {
       return `Bonjour ${clientName},
@@ -139,13 +141,13 @@ See you soon!`;
     return (
       <div className="py-6 text-center">
         <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Notification envoyée !</h3>
+        <h3 className="text-lg font-semibold mb-2">{t("admin:bookingNotification.success.title")}</h3>
         <div className="text-sm text-muted-foreground space-y-1">
-          {result.emailSent && <p>Email envoyé à {clientEmail}</p>}
-          {result.smsSent && <p>SMS envoyé à {clientPhone}</p>}
+          {result.emailSent && <p>{t("admin:bookingNotification.success.emailSentTo", { target: clientEmail })}</p>}
+          {result.smsSent && <p>{t("admin:bookingNotification.success.smsSentTo", { target: clientPhone })}</p>}
         </div>
         <Button className="mt-6" onClick={onSuccess}>
-          Fermer
+          {t("common:buttons.close")}
         </Button>
       </div>
     );
@@ -155,14 +157,14 @@ See you soon!`;
     return (
       <div className="py-6 text-center">
         <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Erreur lors de l'envoi</h3>
+        <h3 className="text-lg font-semibold mb-2">{t("admin:bookingNotification.errors.sendFailed")}</h3>
         <p className="text-sm text-muted-foreground">{result.error}</p>
         <div className="flex gap-2 justify-center mt-6">
           <Button variant="outline" onClick={onSkip}>
-            Fermer
+            {t("common:buttons.close")}
           </Button>
           <Button onClick={() => setResult(null)}>
-            Réessayer
+            {t("admin:bookingNotification.retry")}
           </Button>
         </div>
       </div>
@@ -174,23 +176,23 @@ See you soon!`;
       {!hideTitle && (
         <div className="flex items-center gap-2">
           <Send className="h-5 w-5" />
-          <h3 className="text-lg font-semibold">Envoyer la confirmation</h3>
+          <h3 className="text-lg font-semibold">{t("admin:bookingNotification.title")}</h3>
         </div>
       )}
 
       <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800">
-        Facturation partenaire — aucun lien de paiement ne sera envoyé au client.
+        {t("admin:bookingNotification.partnerBilledNote")}
       </div>
 
       <div className="p-3 bg-muted/50 rounded-lg text-sm">
-        <p className="font-medium">Réservation #{booking.booking_id}</p>
+        <p className="font-medium">{t("admin:bookingNotification.bookingNumber", { number: booking.booking_id })}</p>
         <p className="text-muted-foreground">
           {booking.client_first_name} {booking.client_last_name} - {formatPrice(booking.total_price, booking.currency || 'EUR')}
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label>Langue du message</Label>
+        <Label>{t("admin:bookingNotification.messageLanguage")}</Label>
         <div className="flex gap-2">
           <button
             type="button"
@@ -220,7 +222,7 @@ See you soon!`;
       </div>
 
       <div className="space-y-3">
-        <Label>Envoyer par</Label>
+        <Label>{t("admin:bookingNotification.sendVia")}</Label>
 
         <div className="p-3 border rounded-lg space-y-2">
           <div className="flex items-center justify-between">
@@ -268,7 +270,7 @@ See you soon!`;
       </div>
 
       <div className="space-y-2">
-        <Label>Aperçu du message</Label>
+        <Label>{t("admin:bookingNotification.preview")}</Label>
         <ScrollArea className="h-40 border rounded-lg p-3 bg-muted/30">
           <pre className="text-xs whitespace-pre-wrap font-sans">
             {getPreviewMessage()}
@@ -278,18 +280,18 @@ See you soon!`;
 
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onSkip} disabled={isSending}>
-          Passer
+          {t("admin:bookingNotification.skip")}
         </Button>
         <Button onClick={handleSend} disabled={!canSend || isSending}>
           {isSending ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Envoi en cours...
+              {t("admin:bookingNotification.sending")}
             </>
           ) : (
             <>
               <Send className="h-4 w-4 mr-2" />
-              Envoyer
+              {t("admin:bookingNotification.send")}
             </>
           )}
         </Button>

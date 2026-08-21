@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -84,7 +84,7 @@ export function PaymentConfigDialog({
   hotelId,
   hotelName,
 }: PaymentConfigDialogProps) {
-  const { t } = useTranslation("admin");
+  const { t, i18n } = useTranslation(["admin", "common"]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -634,6 +634,7 @@ export function PaymentConfigDialog({
 }
 
 function StripeWebhookUrlField({ hotelId }: { hotelId: string }) {
+  const { t } = useTranslation(["admin", "common"]);
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
   const webhookUrl = supabaseUrl
     ? `${supabaseUrl}/functions/v1/stripe-webhook?hotel_id=${hotelId}`
@@ -643,15 +644,15 @@ function StripeWebhookUrlField({ hotelId }: { hotelId: string }) {
     if (!webhookUrl) return;
     try {
       await navigator.clipboard.writeText(webhookUrl);
-      toast.success("URL copiée");
+      toast.success(t("common:toasts.copied"));
     } catch {
-      toast.error("Impossible de copier");
+      toast.error(t("payment.webhookUrl.copyFailed"));
     }
   };
 
   return (
     <FormItem>
-      <FormLabel>Webhook URL Stripe</FormLabel>
+      <FormLabel>{t("payment.webhookUrl.label")}</FormLabel>
       <div className="flex gap-2">
         <Input value={webhookUrl} readOnly className="font-mono text-xs" />
         <Button
@@ -660,15 +661,17 @@ function StripeWebhookUrlField({ hotelId }: { hotelId: string }) {
           size="icon"
           onClick={handleCopy}
           disabled={!webhookUrl}
-          aria-label="Copier l'URL"
+          aria-label={t("payment.webhookUrl.copyAria")}
         >
           <Copy className="h-4 w-4" />
         </Button>
       </div>
       <FormDescription className="text-xs">
-        Collez cette URL dans Stripe Dashboard → Developers → Webhooks → Add endpoint,
-        puis reportez le <code className="rounded bg-muted px-1">whsec_…</code> généré
-        dans le champ Webhook secret ci-dessus.
+        <Trans
+          i18nKey="payment.webhookUrl.help"
+          ns="admin"
+          components={{ code: <code className="rounded bg-muted px-1" /> }}
+        />
       </FormDescription>
     </FormItem>
   );

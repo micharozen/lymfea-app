@@ -90,7 +90,7 @@ export function TherapistGeneralTab({
   therapistId,
   billingSubmitRef,
 }: TherapistGeneralTabProps) {
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(["admin", "common"]);
 
   // Extra (non-base) brackets the user has explicitly added this session. A row
   // is shown when it's a base bracket, when it already holds a value (existing
@@ -142,25 +142,25 @@ export function TherapistGeneralTab({
                     disabled={disabled}
                   >
                     <SelectTrigger className="h-7 text-xs gap-1 px-2 w-auto min-w-[90px]">
-                      <SelectValue placeholder="En attente" />
+                      <SelectValue placeholder={t("common:status.pending")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Actif">
                         <div className="flex items-center gap-1.5">
                           <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                          {t("status.active")}
+                          {t("common:status.active")}
                         </div>
                       </SelectItem>
                       <SelectItem value="En attente">
                         <div className="flex items-center gap-1.5">
                           <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                          {t("status.pending")}
+                          {t("common:status.pending")}
                         </div>
                       </SelectItem>
                       <SelectItem value="Inactif">
                         <div className="flex items-center gap-1.5">
                           <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                          {t("status.inactive")}
+                          {t("common:status.inactive")}
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -212,7 +212,7 @@ export function TherapistGeneralTab({
                   onClick={triggerFileSelect}
                   disabled={uploading}
                 >
-                  {uploading ? "..." : "Modifier"}
+                  {uploading ? "..." : t("common:buttons.edit")}
                 </Button>
               )}
             </div>

@@ -71,7 +71,7 @@ export default function Booking() {
   const { isAdmin } = useUserContext();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const { activeTimezone } = useTimezone();
-  const { t, i18n } = useTranslation("admin");
+  const { t, i18n } = useTranslation(["admin", "common"]);
   
   // AJOUT : Récupération des paramètres de recherche de l'URL
   const [searchParams] = useSearchParams();
@@ -463,7 +463,7 @@ useEffect(() => {
           hideViewToggle
           groupFiltersRight
           leading={
-            <h1 className="text-lg font-medium text-foreground mr-1">Planning</h1>
+            <h1 className="text-lg font-medium text-foreground mr-1">{t("bookingsPage.planningTitle")}</h1>
           }
           trailing={
             <>
@@ -495,7 +495,7 @@ useEffect(() => {
                 className="h-8 w-8"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                title="Refresh"
+                title={t("bookingsPage.refresh")}
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
@@ -514,7 +514,7 @@ useEffect(() => {
                   size="sm"
                   className="h-8 text-xs transition-transform duration-100 active:scale-90 rounded-r-none"
                 >
-                  {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
+                  {isConcierge ? t("bookingsPage.newRequest") : t("bookingsPage.newBooking")}
                 </Button>
                 {/* modal={false} : en mode modal Radix pose pointer-events:none
                     sur le body, le conteneur perdait le survol et le menu

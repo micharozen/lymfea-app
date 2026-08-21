@@ -1,4 +1,6 @@
 import { Check, X, UserX } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { cn } from "@/lib/utils";
 import { isPartnerBilledBooking } from "@/lib/clientTypePayment";
 
@@ -18,6 +20,7 @@ interface Step {
 }
 
 function buildSteps(
+  t: TFunction,
   status: string,
   paymentStatus: string,
   paymentMethod?: string | null,
@@ -29,10 +32,14 @@ function buildSteps(
   // so "Paiement partenaire en attente" is an extra step *after* "Terminé".
   if (isPartnerBilled) {
     const steps: Step[] = [
-      { key: "pending", label: "En attente", sublabel: "" },
-      { key: "confirmed", label: "Confirmé", sublabel: "" },
-      { key: "completed", label: "Terminé", sublabel: "" },
-      { key: "partner_pending", label: "Paiement partenaire", sublabel: "En attente" },
+      { key: "pending", label: t("common:status.pending"), sublabel: "" },
+      { key: "confirmed", label: t("bookingStatusStepper.confirmed"), sublabel: "" },
+      { key: "completed", label: t("common:status.completed"), sublabel: "" },
+      {
+        key: "partner_pending",
+        label: t("bookingStatusStepper.partnerPayment"),
+        sublabel: t("common:status.pending"),
+      },
     ];
     let currentKey: string;
     if (status === "completed") currentKey = "partner_pending";
@@ -44,8 +51,10 @@ function buildSteps(
   const isPaid = paymentStatus === "paid" || paymentStatus === "charged_to_room";
   const isCardSaved = paymentStatus === "card_saved";
   const isPending = status === "pending" || status === "waiting_approval";
-  const paidSublabel = "Payé";
-  const unpaidSublabel = isCardSaved ? "Carte enregistrée" : "Paiement en attente";
+  const paidSublabel = t("bookingStatusStepper.paid");
+  const unpaidSublabel = isCardSaved
+    ? t("bookingStatusStepper.cardSaved")
+    : t("bookingStatusStepper.paymentPending");
 
   // Two possible paths:
   // A) Payment first:  en attente/pending → en attente/payé → confirmé/payé → terminé
@@ -56,21 +65,29 @@ function buildSteps(
   const paymentFirst = isPending && isPaid;
 
   const steps: Step[] = [
-    { key: "pending_pending", label: "En attente", sublabel: unpaidSublabel },
+    { key: "pending_pending", label: t("common:status.pending"), sublabel: unpaidSublabel },
   ];
 
   if (!confirmFirst) {
     // Path A: payment arrived while still pending
-    steps.push({ key: "pending_paid", label: "En attente", sublabel: paidSublabel });
+    steps.push({ key: "pending_paid", label: t("common:status.pending"), sublabel: paidSublabel });
   }
 
   if (!paymentFirst) {
     // Path B: confirmed while payment still pending
-    steps.push({ key: "confirmed_pending", label: "Confirmé", sublabel: unpaidSublabel });
+    steps.push({
+      key: "confirmed_pending",
+      label: t("bookingStatusStepper.confirmed"),
+      sublabel: unpaidSublabel,
+    });
   }
 
-  steps.push({ key: "confirmed_paid", label: "Confirmé", sublabel: paidSublabel });
-  steps.push({ key: "completed", label: "Terminé", sublabel: "" });
+  steps.push({
+    key: "confirmed_paid",
+    label: t("bookingStatusStepper.confirmed"),
+    sublabel: paidSublabel,
+  });
+  steps.push({ key: "completed", label: t("common:status.completed"), sublabel: "" });
 
   // Determine current step key
   let currentKey: string;
@@ -92,12 +109,13 @@ function buildSteps(
 }
 
 export function BookingStatusStepper({ status, paymentStatus, paymentMethod, cancellationDetail }: BookingStatusStepperProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const isCancelled = status === "cancelled";
   const isNoshow = status === "noshow";
 
   if (isCancelled || isNoshow) {
     const Icon = isCancelled ? X : UserX;
-    const label = isCancelled ? "Annulé" : "No-show";
+    const label = isCancelled ? t("common:status.cancelled") : t("bookingStatusStepper.noshow");
     const colorClasses = isCancelled
       ? "bg-red-50 border-red-200 text-red-700"
       : "bg-rose-50 border-rose-200 text-rose-700";
@@ -115,7 +133,7 @@ export function BookingStatusStepper({ status, paymentStatus, paymentMethod, can
     );
   }
 
-  const { steps, currentIndex } = buildSteps(status, paymentStatus, paymentMethod);
+  const { steps, currentIndex } = buildSteps(t, status, paymentStatus, paymentMethod);
 
   return (
     <div className="bg-white rounded-xl border p-4">

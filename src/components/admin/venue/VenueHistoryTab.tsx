@@ -1,46 +1,33 @@
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Loader2, History } from "lucide-react";
+import { useDateLocale } from "@/lib/dateLocale";
 import { useVenueHistory, type VenueAuditEntry } from "@/hooks/venue/useVenueHistory";
 
-const FIELD_LABELS: Record<string, string> = {
-  name: "Nom",
-  status: "Statut",
-  venue_type: "Type",
-  address: "Adresse",
-  city: "Ville",
-  country: "Pays",
-  country_code: "Code pays",
-  postal_code: "Code postal",
-  timezone: "Fuseau horaire",
-  opening_time: "Ouverture",
-  closing_time: "Fermeture",
-  currency: "Devise",
-  vat: "TVA",
-  therapist_commission: "Commission thérapeute",
-  venue_commission: "Commission lieu",
-  auto_validate_bookings: "Validation auto",
-  slot_interval: "Intervalle créneaux",
-  client_payment_mode: "Mode de paiement client",
-  description: "Description",
-  description_en: "Description (EN)",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "Actif",
-  inactive: "Inactif",
-  draft: "Brouillon",
-};
-
-const VENUE_TYPE_LABELS: Record<string, string> = {
-  hotel: "Hôtel",
-  spa: "Spa",
-};
-
-const CLIENT_PAYMENT_MODE_LABELS: Record<string, string> = {
-  pre_authorization: "Pré-autorisation",
-  pay_at_booking: "Paiement à la réservation",
-};
+/** Columns with a curated label under `venueHistory.fields.*`. */
+const LABELLED_FIELDS = new Set([
+  "name",
+  "status",
+  "venue_type",
+  "address",
+  "city",
+  "country",
+  "country_code",
+  "postal_code",
+  "timezone",
+  "opening_time",
+  "closing_time",
+  "currency",
+  "vat",
+  "therapist_commission",
+  "venue_commission",
+  "auto_validate_bookings",
+  "slot_interval",
+  "client_payment_mode",
+  "description",
+  "description_en",
+]);
 
 /** Turn an unlabeled column key into a readable label (e.g. "cover_image" → "Cover image"). */
 function humanizeKey(key: string): string {
@@ -48,13 +35,19 @@ function humanizeKey(key: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-function formatValue(field: string, value: unknown): string {
+function formatValue(t: TFunction, field: string, value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
 
-  if (field === "status") return STATUS_LABELS[value as string] ?? String(value);
-  if (field === "venue_type") return VENUE_TYPE_LABELS[value as string] ?? String(value);
-  if (field === "client_payment_mode") return CLIENT_PAYMENT_MODE_LABELS[value as string] ?? String(value);
-  if (typeof value === "boolean") return value ? "Oui" : "Non";
+  if (field === "status") {
+    return t(`venueHistory.status.${value as string}`, { defaultValue: String(value) });
+  }
+  if (field === "venue_type") {
+    return t(`venueHistory.venueType.${value as string}`, { defaultValue: String(value) });
+  }
+  if (field === "client_payment_mode") {
+    return t(`venueHistory.clientPaymentMode.${value as string}`, { defaultValue: String(value) });
+  }
+  if (typeof value === "boolean") return value ? t("common.yes") : t("common.no");
   if (field === "vat" || field === "therapist_commission" || field === "venue_commission") {
     return `${value} %`;
   }
@@ -63,7 +56,7 @@ function formatValue(field: string, value: unknown): string {
   return String(value);
 }
 
-function getChangedFields(entry: VenueAuditEntry) {
+function getChangedFields(t: TFunction, entry: VenueAuditEntry) {
   const oldVals = entry.old_values ?? {};
   const newVals = entry.new_values ?? {};
 
@@ -71,9 +64,9 @@ function getChangedFields(entry: VenueAuditEntry) {
 
   return Array.from(allKeys).map((key) => ({
     field: key,
-    label: FIELD_LABELS[key] ?? humanizeKey(key),
-    oldValue: formatValue(key, oldVals[key]),
-    newValue: formatValue(key, newVals[key]),
+    label: LABELLED_FIELDS.has(key) ? t(`venueHistory.fields.${key}`) : humanizeKey(key),
+    oldValue: formatValue(t, key, oldVals[key]),
+    newValue: formatValue(t, key, newVals[key]),
   }));
 }
 
@@ -83,6 +76,8 @@ interface VenueHistoryTabProps {
 }
 
 export function VenueHistoryTab({ hotelId, enabled }: VenueHistoryTabProps) {
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const { data: entries, isLoading } = useVenueHistory(hotelId, enabled);
 
   if (isLoading) {
@@ -97,7 +92,7 @@ export function VenueHistoryTab({ hotelId, enabled }: VenueHistoryTabProps) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
         <History className="h-10 w-10 mb-3 opacity-40" />
-        <p className="text-sm">Aucun changement enregistré pour ce lieu.</p>
+        <p className="text-sm">{t("venueHistory.empty")}</p>
       </div>
     );
   }
@@ -106,7 +101,7 @@ export function VenueHistoryTab({ hotelId, enabled }: VenueHistoryTabProps) {
     <div className="max-w-2xl mx-auto py-6">
       <div className="relative border-l-2 border-gray-200 ml-4 space-y-6">
         {entries.map((entry) => {
-          const fields = getChangedFields(entry);
+          const fields = getChangedFields(t, entry);
           const dateObj = new Date(entry.changed_at);
           const isInsert = entry.change_type === "insert";
 
@@ -119,19 +114,21 @@ export function VenueHistoryTab({ hotelId, enabled }: VenueHistoryTabProps) {
                 <div className="flex items-center justify-between mb-3">
                   <span
                     className="text-xs text-muted-foreground"
-                    title={format(dateObj, "d MMMM yyyy à HH:mm:ss", { locale: fr })}
+                    title={format(dateObj, t("venueHistory.dateTitleFormat"), { locale: dateLocale })}
                   >
-                    Le {format(dateObj, "dd/MM/yyyy à HH:mm:ss")}
+                    {t("venueHistory.changedOn", {
+                      date: format(dateObj, t("venueHistory.dateFormat")),
+                    })}
                   </span>
                   {entry.changed_by_name && (
                     <span className="text-xs font-medium text-gray-500">
-                      par {entry.changed_by_name}
+                      {t("venueHistory.changedBy", { name: entry.changed_by_name })}
                     </span>
                   )}
                 </div>
 
                 {isInsert ? (
-                  <p className="text-sm text-green-600 font-medium">Lieu créé</p>
+                  <p className="text-sm text-green-600 font-medium">{t("venueHistory.venueCreated")}</p>
                 ) : (
                   <div className="space-y-2">
                     {fields.map(({ field, label, oldValue, newValue }) => (

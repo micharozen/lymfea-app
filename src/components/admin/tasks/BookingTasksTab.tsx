@@ -24,7 +24,7 @@ interface BookingTasksTabProps {
  * via le `TaskDialog` existant pré-rempli sur la résa courante.
  */
 export function BookingTasksTab({ booking }: BookingTasksTabProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const { data: allTasks = [], isLoading } = useTasks();
   const { data: admins = [] } = useOrgAdmins();
 

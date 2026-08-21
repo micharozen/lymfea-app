@@ -46,7 +46,7 @@ export const InvoiceSignatureDialog = ({
 }: InvoiceSignatureDialogProps) => {
   const [activeTab, setActiveTab] = useState("digital");
   const [photoData, setPhotoData] = useState<string | null>(null);
-  const { t } = useTranslation('pwa');
+  const { t } = useTranslation(['admin', 'common']);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,7 +80,7 @@ export const InvoiceSignatureDialog = ({
   };
 
   // Calculs intelligents des totaux
-  const treatmentsSum = treatments.reduce((sum, t) => sum + t.price, 0);
+  const treatmentsSum = treatments.reduce((sum, item) => sum + item.price, 0);
   const finalTotal = totalPrice !== undefined ? totalPrice : treatmentsSum + ((treatmentsSum * vatRate) / 100);
   const finalSubtotal = finalTotal / (1 + vatRate / 100);
   const finalVatAmount = finalTotal - finalSubtotal;
@@ -95,7 +95,7 @@ export const InvoiceSignatureDialog = ({
               <button onClick={() => onOpenChange(false)} className="p-1">
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
-              <DrawerTitle className="text-base font-semibold">Signature Client</DrawerTitle>
+              <DrawerTitle className="text-base font-semibold">{t('admin:editBooking.invoiceSignature.title')}</DrawerTitle>
               <div className="w-6" />
             </div>
           </DrawerHeader>
@@ -107,8 +107,8 @@ export const InvoiceSignatureDialog = ({
             {isAlreadyPaid ? (
               <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex flex-col items-center justify-center text-center">
                 <CheckCircle2 className="w-8 h-8 text-green-500 mb-2" />
-                <p className="text-sm font-bold text-green-800">Prestation réglée</p>
-                <p className="text-xs text-green-600 mt-1">Veuillez faire signer la décharge de soins au client pour clôturer.</p>
+                <p className="text-sm font-bold text-green-800">{t('admin:editBooking.invoiceSignature.paidTitle')}</p>
+                <p className="text-xs text-green-600 mt-1">{t('admin:editBooking.invoiceSignature.paidHint')}</p>
               </div>
             ) : (
               <>
@@ -130,13 +130,13 @@ export const InvoiceSignatureDialog = ({
 
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Subtotal</span>
+                    <span className="text-sm text-muted-foreground">{t('admin:editBooking.invoiceSignature.subtotal')}</span>
                     <span className="text-sm font-medium text-foreground">
                       {formatPrice(finalSubtotal, currency === '€' ? 'EUR' : currency === '$' ? 'USD' : currency === '£' ? 'GBP' : 'EUR')}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">VAT ({vatRate}%)</span>
+                    <span className="text-sm text-muted-foreground">{t('admin:editBooking.invoiceSignature.vat', { rate: vatRate })}</span>
                     <span className="text-sm font-medium text-foreground">
                       {formatPrice(finalVatAmount, currency === '€' ? 'EUR' : currency === '$' ? 'USD' : currency === '£' ? 'GBP' : 'EUR')}
                     </span>
@@ -154,16 +154,16 @@ export const InvoiceSignatureDialog = ({
             {/* Signature Section avec Onglets */}
             <Tabs defaultValue="digital" value={activeTab} onValueChange={setActiveTab} className="mb-4">
               <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="digital" className="text-xs font-medium">Sur écran</TabsTrigger>
-                <TabsTrigger value="paper" className="text-xs font-medium">Photo papier</TabsTrigger>
+                <TabsTrigger value="digital" className="text-xs font-medium">{t('admin:editBooking.invoiceSignature.tabDigital')}</TabsTrigger>
+                <TabsTrigger value="paper" className="text-xs font-medium">{t('admin:editBooking.invoiceSignature.tabPaper')}</TabsTrigger>
               </TabsList>
 
               {/* ONGLET 1 : Lien vers la vraie décharge numérique */}
               <TabsContent value="digital" className="space-y-2 mt-0">
                 <div className="flex flex-col items-center justify-center p-6 mt-4 border-2 border-dashed border-border rounded-xl bg-muted/30 text-center">
-                  <p className="text-sm font-bold text-foreground mb-2">Décharge légale complète</p>
+                  <p className="text-sm font-bold text-foreground mb-2">{t('admin:editBooking.invoiceSignature.waiverTitle')}</p>
                   <p className="text-xs text-muted-foreground mb-6">
-                    Pour que la signature soit valide, le client doit lire et accepter les conditions générales de la prestation.
+                    {t('admin:editBooking.invoiceSignature.waiverHint')}
                   </p>
                   <Button 
                     onClick={() => {
@@ -174,7 +174,7 @@ export const InvoiceSignatureDialog = ({
                     }} 
                     className="w-full rounded-full flex items-center justify-center gap-2"
                   >
-                    Ouvrir le document à signer <ExternalLink className="w-4 h-4" />
+                    {t('admin:editBooking.invoiceSignature.openDocument')} <ExternalLink className="w-4 h-4" />
                   </Button>
                 </div>
               </TabsContent>
@@ -182,15 +182,15 @@ export const InvoiceSignatureDialog = ({
               {/* ONGLET 2 : Photo papier */}
               <TabsContent value="paper" className="space-y-2 mt-0">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-foreground">Décharge signée</p>
+                  <p className="text-sm font-medium text-foreground">{t('admin:editBooking.invoiceSignature.signedWaiver')}</p>
                 </div>
                 {!photoData ? (
                   <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <Camera className="w-8 h-8 mb-2 text-muted-foreground" />
-                      <p className="text-sm font-medium text-foreground">Prendre une photo</p>
+                      <p className="text-sm font-medium text-foreground">{t('admin:editBooking.invoiceSignature.takePhoto')}</p>
                       <p className="text-[10px] text-muted-foreground mt-1 text-center px-4">
-                        Photographiez la décharge signée par le client
+                        {t('admin:editBooking.invoiceSignature.takePhotoHint')}
                       </p>
                     </div>
                     <input 
@@ -203,7 +203,7 @@ export const InvoiceSignatureDialog = ({
                   </label>
                 ) : (
                   <div className="relative w-full h-40 border-2 border-border rounded-xl overflow-hidden bg-muted/30 flex items-center justify-center">
-                    <img src={photoData} alt="Décharge papier" className="max-w-full max-h-full object-contain" />
+                    <img src={photoData} alt={t('admin:editBooking.invoiceSignature.paperWaiverAlt')} className="max-w-full max-h-full object-contain" />
                     <button
                       onClick={() => setPhotoData(null)}
                       className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm p-2 rounded-full shadow-sm border border-border"
@@ -225,7 +225,7 @@ export const InvoiceSignatureDialog = ({
                   disabled={!photoData || loading}
                   className="w-full rounded-full h-12 font-bold"
                 >
-                  {loading ? "Enregistrement..." : "Valider la photo"}
+                  {loading ? t('admin:editBooking.invoiceSignature.saving') : t('admin:editBooking.invoiceSignature.validatePhoto')}
                   {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               )}
@@ -236,7 +236,7 @@ export const InvoiceSignatureDialog = ({
                   disabled={loading}
                   className="w-full rounded-full h-12 font-medium text-muted-foreground"
                 >
-                  Passer et terminer la prestation
+                  {t('admin:editBooking.invoiceSignature.skipAndFinish')}
                 </Button>
               )}
             </div>

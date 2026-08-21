@@ -30,13 +30,13 @@ import { cn } from "@/lib/utils";
 import type { TreatmentRoomFormValues } from "@/pages/admin/TreatmentRoomDetail";
 
 export const ROOM_CAPABILITIES = [
-  { value: "Massage", label: "Massage" },
-  { value: "Facial", label: "Soin visage" },
-  { value: "Hammam", label: "Hammam" },
-  { value: "Jacuzzi", label: "Jacuzzi" },
-  { value: "Sauna", label: "Sauna" },
-  { value: "Body Wrap", label: "Enveloppement" },
-  { value: "Multi-purpose", label: "Polyvalente" },
+  { value: "Massage", key: "massage", label: "Massage" },
+  { value: "Facial", key: "facial", label: "Soin visage" },
+  { value: "Hammam", key: "hammam", label: "Hammam" },
+  { value: "Jacuzzi", key: "jacuzzi", label: "Jacuzzi" },
+  { value: "Sauna", key: "sauna", label: "Sauna" },
+  { value: "Body Wrap", key: "bodyWrap", label: "Enveloppement" },
+  { value: "Multi-purpose", key: "multiPurpose", label: "Polyvalente" },
 ] as const;
 
 interface TreatmentRoomGeneralTabProps {
@@ -58,7 +58,7 @@ export function TreatmentRoomGeneralTab({
   handleImageUpload,
   triggerFileSelect,
 }: TreatmentRoomGeneralTabProps) {
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(["admin", "common"]);
 
   const capabilities = useWatch({ control: form.control, name: "capabilities" });
 
@@ -113,7 +113,7 @@ export function TreatmentRoomGeneralTab({
               disabled={isUploading}
               onClick={triggerFileSelect}
             >
-              {isUploading ? "Téléchargement..." : "Télécharger"}
+              {isUploading ? t("treatmentRoomGeneral.uploading") : t("treatmentRoomGeneral.upload")}
               {isUploading && (
                 <Loader2 className="ml-2 h-4 w-4 animate-spin" />
               )}
@@ -128,10 +128,10 @@ export function TreatmentRoomGeneralTab({
         name="name"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Nom de la salle *</FormLabel>
+            <FormLabel>{t("treatmentRoomGeneral.nameLabel")}</FormLabel>
             <FormControl>
               <Input
-                placeholder="Salle Zen"
+                placeholder={t("treatmentRoomGeneral.namePlaceholder")}
                 {...field}
                 disabled={disabled}
               />
@@ -147,9 +147,9 @@ export function TreatmentRoomGeneralTab({
         name="capacity"
         render={({ field }) => (
           <FormItem className="max-w-[200px]">
-            <FormLabel>Lits</FormLabel>
+            <FormLabel>{t("treatmentRoomGeneral.bedsLabel")}</FormLabel>
             <p className="text-xs text-muted-foreground">
-              Nombre d&apos;occupations simultanées (1 = une seule réservation par créneau)
+              {t("treatmentRoomGeneral.bedsHelp")}
             </p>
             <FormControl>
               <Input
@@ -171,9 +171,9 @@ export function TreatmentRoomGeneralTab({
 
       {/* Capabilities (multi-select) */}
       <div className="space-y-2">
-        <FormLabel>Soins compatibles *</FormLabel>
+        <FormLabel>{t("treatmentRoomGeneral.capabilitiesLabel")}</FormLabel>
         <p className="text-xs text-muted-foreground">
-          Sélectionnez les types de soins réalisables dans cette salle
+          {t("treatmentRoomGeneral.capabilitiesHelp")}
         </p>
         <div className="flex flex-wrap gap-2 mt-2">
           {ROOM_CAPABILITIES.map((cap) => {
@@ -193,7 +193,7 @@ export function TreatmentRoomGeneralTab({
                 )}
               >
                 {isSelected && <Check className="h-3 w-3" />}
-                {cap.label}
+                {t(`treatmentRoomGeneral.capabilities.${cap.key}`)}
               </button>
             );
           })}
@@ -211,7 +211,7 @@ export function TreatmentRoomGeneralTab({
         name="hotel_id"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Lieu</FormLabel>
+            <FormLabel>{t("treatmentRoomGeneral.venueLabel")}</FormLabel>
             <Select
               onValueChange={field.onChange}
               value={field.value}
@@ -219,7 +219,7 @@ export function TreatmentRoomGeneralTab({
             >
               <FormControl>
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un lieu" />
+                  <SelectValue placeholder={t("treatmentRoomGeneral.venuePlaceholder")} />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
@@ -241,7 +241,7 @@ export function TreatmentRoomGeneralTab({
         name="status"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Statut</FormLabel>
+            <FormLabel>{t("treatmentRoomGeneral.statusLabel")}</FormLabel>
             <Select
               onValueChange={field.onChange}
               value={field.value}
@@ -256,19 +256,19 @@ export function TreatmentRoomGeneralTab({
                 <SelectItem value="active">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-green-500" />
-                    {t("status.active")}
+                    {t("common:status.active")}
                   </div>
                 </SelectItem>
                 <SelectItem value="inactive">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-red-500" />
-                    Inactif
+                    {t("common:status.inactive")}
                   </div>
                 </SelectItem>
                 <SelectItem value="maintenance">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                    Maintenance
+                    {t("treatmentRoomGeneral.maintenance")}
                   </div>
                 </SelectItem>
               </SelectContent>

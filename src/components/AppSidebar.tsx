@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -66,7 +67,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface MenuItem {
+  /** Literal used as-is when `titleKey` is absent (word identical in FR and EN). */
   title: string;
+  /** Key of the `admin` namespace, resolved at render so the label follows the language. */
+  titleKey?: string;
   url: string;
   icon: LucideIcon;
   badge?: boolean;
@@ -77,22 +81,22 @@ interface MenuItem {
 const adminPrimaryItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Planning", url: "/admin/planning", icon: CalendarDays },
-  { title: "Réservations", url: "/admin/bookings", icon: ListChecks },
-  { title: "Lieux", url: "/admin/places", icon: Building2 },
-  { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
-  { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
-  { title: "Clients", url: "/admin/customers", icon: Contact },
-  { title: "Paniers abandonnés", url: "/admin/checkout-intents", icon: ShoppingCart, isNew: true },
-  { title: "Tâches", url: "/admin/tasks", icon: ListTodo, isNew: true },
+  { title: "Réservations", titleKey: "sidebar.bookings", url: "/admin/bookings", icon: ListChecks },
+  { title: "Lieux", titleKey: "sidebar.hotels", url: "/admin/places", icon: Building2 },
+  { title: "Thérapeutes", titleKey: "sidebar.therapists", url: "/admin/therapists", icon: Users },
+  { title: "Menus de soins", titleKey: "sidebar.treatments", url: "/admin/treatments", icon: BookOpen },
+  { title: "Clients", titleKey: "sidebar.customers", url: "/admin/customers", icon: Contact },
+  { title: "Paniers abandonnés", titleKey: "sidebar.checkoutIntents", url: "/admin/checkout-intents", icon: ShoppingCart, isNew: true },
+  { title: "Tâches", titleKey: "sidebar.tasks", url: "/admin/tasks", icon: ListTodo, isNew: true },
   { title: "Inbox", url: "/admin/inbox", icon: Inbox },
-  { title: "Alertes", url: "/admin/schedule-alerts", icon: Bell, badge: true },
+  { title: "Alertes", titleKey: "sidebar.alerts", url: "/admin/schedule-alerts", icon: Bell, badge: true },
 ];
 
 const adminSecondaryItems: MenuItem[] = [
-  { title: "Salles de soin", url: "/admin/treatment-rooms", icon: DoorOpen },
-  { title: "Gestion du lieu", url: "/admin/concierges", icon: UserCog },
-  { title: `Produits`, url: "/admin/products", icon: Package, soon: true },
-  { title: "Commandes", url: "/admin/orders", icon: Truck, soon: true },
+  { title: "Salles de soin", titleKey: "sidebar.treatmentRooms", url: "/admin/treatment-rooms", icon: DoorOpen },
+  { title: "Gestion du lieu", titleKey: "sidebar.concierges", url: "/admin/concierges", icon: UserCog },
+  { title: "Produits", titleKey: "sidebar.productsPlain", url: "/admin/products", icon: Package, soon: true },
+  { title: "Commandes", titleKey: "sidebar.orders", url: "/admin/orders", icon: Truck, soon: true },
   { title: "Finance", url: "/admin/finance", icon: Wallet },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
@@ -100,16 +104,17 @@ const adminSecondaryItems: MenuItem[] = [
 const venueManagerPrimaryItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Planning", url: "/admin/planning", icon: CalendarDays },
-  { title: "Réservations", url: "/admin/bookings", icon: ListChecks },
-  { title: "Clients", url: "/admin/customers", icon: Contact },
-  { title: "Mon lieu", url: "/admin/my-venue", icon: Building2 },
-  { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
-  { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
+  { title: "Réservations", titleKey: "sidebar.bookings", url: "/admin/bookings", icon: ListChecks },
+  { title: "Clients", titleKey: "sidebar.customers", url: "/admin/customers", icon: Contact },
+  { title: "Mon lieu", titleKey: "sidebar.myVenue", url: "/admin/my-venue", icon: Building2 },
+  { title: "Thérapeutes", titleKey: "sidebar.therapists", url: "/admin/therapists", icon: Users },
+  { title: "Menus de soins", titleKey: "sidebar.treatments", url: "/admin/treatments", icon: BookOpen },
 ];
 
 const STORAGE_KEY = "lymfea-sidebar-more-open";
 
 export function AppSidebar() {
+  const { t } = useTranslation(["admin", "common"]);
   const { state, toggleSidebar } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
@@ -119,6 +124,7 @@ export function AppSidebar() {
     isAdmin,
     organizationId,
     organizationName,
+    organizationLogoUrl,
     activeOrganizationId,
     setActiveOrganization,
   } = useUser();
@@ -148,8 +154,7 @@ export function AppSidebar() {
           .maybeSingle();
         
         if (roleData) {
-          const roleLabel = roleData.role === 'admin' ? 'Admin' : roleData.role === 'concierge' ? 'Gestion du lieu' : roleData.role;
-          setUserRole(roleLabel);
+          setUserRole(roleData.role);
         }
 
         const { data: admin } = await supabase
@@ -246,15 +251,21 @@ export function AppSidebar() {
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error && !error.message?.includes("session_not_found") && error.status !== 403) {
-      toast({ title: "Erreur", description: "Impossible de se déconnecter", variant: "destructive" });
+      toast({
+        title: t("common:toasts.error"),
+        description: t("sidebar.logoutError"),
+        variant: "destructive",
+      });
       return;
     }
-    toast({ title: "Déconnexion réussie", description: "À bientôt !" });
+    toast({ title: t("sidebar.logoutSuccess"), description: t("sidebar.logoutFarewell") });
     navigate("/auth");
   };
 
   const { mode: viewMode, venueId: viewVenueId } = useViewMode();
-  const isAdminRole = userRole === 'Admin';
+  const isAdminRole = userRole === 'admin';
+  const userRoleLabel =
+    userRole === 'admin' ? 'Admin' : userRole === 'concierge' ? t('sidebar.concierges') : userRole;
   const inVenueManagerView = isAdminRole && viewMode === 'venue_manager';
 
   const venueManagerItems: MenuItem[] = venueManagerPrimaryItems;
@@ -272,7 +283,7 @@ export function AppSidebar() {
       ? isSuperAdmin
         ? { title: "Organisations", url: "/admin/organizations", icon: Network }
         : isAdmin && organizationId
-          ? { title: "Mon organisation", url: `/admin/organizations/${organizationId}`, icon: Network }
+          ? { title: "Mon organisation", titleKey: "sidebar.myOrganization", url: `/admin/organizations/${organizationId}`, icon: Network }
           : null
       : null;
 
@@ -281,7 +292,7 @@ export function AppSidebar() {
   const activeOrgLabel = isSuperAdmin
     ? activeOrganizationId
       ? organizationName ?? "Organisation"
-      : "Voir tout"
+      : t("sidebar.viewAll")
     : organizationName ?? null;
 
   const renderNavItem = (item: MenuItem) => {
@@ -298,7 +309,7 @@ export function AppSidebar() {
             }`}
           >
             <item.icon className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={isActive ? 2 : 1.5} />
-            <span className="text-sm">{item.title}</span>
+            <span className="text-sm">{item.titleKey ? t(item.titleKey) : item.title}</span>
             {item.soon && (
               <span className="ml-auto bg-muted text-muted-foreground text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5">
                 Soon
@@ -325,11 +336,26 @@ export function AppSidebar() {
       <SidebarContent className="flex flex-col h-full overflow-hidden">
         {/* Logo (fixed) */}
         <div className="flex-shrink-0 px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
-          <img
-            src={brandLogos.primary}
-            alt={brand.name}
-            className="h-7 w-auto group-data-[collapsible=icon]:hidden"
-          />
+          {organizationName ? (
+            <div className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden">
+              {organizationLogoUrl && (
+                <img
+                  src={organizationLogoUrl}
+                  alt={organizationName}
+                  className="h-7 w-7 rounded-md object-cover flex-shrink-0"
+                />
+              )}
+              <span className="text-sm font-medium text-sidebar-foreground truncate">
+                {organizationName}
+              </span>
+            </div>
+          ) : (
+            <img
+              src={brandLogos.primary}
+              alt={brand.name}
+              className="h-7 w-auto group-data-[collapsible=icon]:hidden"
+            />
+          )}
           <img
             src={brandLogos.monogram}
             alt={brand.name}
@@ -373,7 +399,7 @@ export function AppSidebar() {
               <SidebarGroup className="py-1">
                 <CollapsibleTrigger className="flex items-center gap-2 px-3 py-2 w-full text-[11px] font-medium tracking-wide uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/60 transition-colors group-data-[collapsible=icon]:hidden">
                   <ChevronRight className={`h-3 w-3 will-change-transform transition-transform duration-200 ${moreOpen ? "rotate-90" : ""}`} />
-                  Plus
+                  {t("sidebar.more")}
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <SidebarGroupContent>
@@ -420,7 +446,7 @@ export function AppSidebar() {
                       onClick={() => setActiveOrganization(null)}
                     >
                       <Globe className="mr-2 h-4 w-4" />
-                      <span className="flex-1">Voir tout</span>
+                      <span className="flex-1">{t("sidebar.viewAll")}</span>
                       {activeOrganizationId === null && <Check className="h-4 w-4" />}
                     </DropdownMenuItem>
                     {switcherOrgs.map((org) => (
@@ -470,7 +496,7 @@ export function AppSidebar() {
                       </p>
                       <ChevronDown className="h-3 w-3 text-sidebar-foreground/30 flex-shrink-0" />
                     </div>
-                    <p className="text-[11px] text-sidebar-foreground/50">{userRole}</p>
+                    <p className="text-[11px] text-sidebar-foreground/50">{userRoleLabel}</p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
@@ -478,14 +504,14 @@ export function AppSidebar() {
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <NavLink to="/profile" className="flex items-center w-full">
                     <User className="mr-2 h-4 w-4" />
-                    <span>Profil</span>
+                    <span>{t("sidebar.profile")}</span>
                   </NavLink>
                 </DropdownMenuItem>
                 {organizationMenuItem && (
                   <DropdownMenuItem asChild className="cursor-pointer">
                     <NavLink to={organizationMenuItem.url} className="flex items-center w-full">
                       <Network className="mr-2 h-4 w-4" />
-                      <span>{organizationMenuItem.title}</span>
+                      <span>{organizationMenuItem.titleKey ? t(organizationMenuItem.titleKey) : organizationMenuItem.title}</span>
                     </NavLink>
                   </DropdownMenuItem>
                 )}
@@ -493,7 +519,7 @@ export function AppSidebar() {
                   <DropdownMenuItem asChild className="cursor-pointer">
                     <NavLink to="/admin/billing" className="flex items-center w-full">
                       <CreditCard className="mr-2 h-4 w-4" />
-                      <span>Abonnement</span>
+                      <span>{t("sidebar.subscription")}</span>
                     </NavLink>
                   </DropdownMenuItem>
                 )}
@@ -501,7 +527,7 @@ export function AppSidebar() {
                   <DropdownMenuItem asChild className="cursor-pointer">
                     <NavLink to="/admin/api-keys" className="flex items-center w-full">
                       <KeyRound className="mr-2 h-4 w-4" />
-                      <span>Clé API</span>
+                      <span>{t("userMenu.apiKey")}</span>
                     </NavLink>
                   </DropdownMenuItem>
                 )}
@@ -516,7 +542,7 @@ export function AppSidebar() {
                   onClick={handleLogout}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Déconnexion</span>
+                  <span>{t("sidebar.logout")}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -58,10 +58,10 @@ interface Hotel {
 
 
 const createFormSchema = (t: TFunction) => z.object({
-  first_name: z.string().min(1, t('errors.validation.firstNameRequired')).max(100, t('errors.validation.firstNameTooLong')),
-  last_name: z.string().min(1, t('errors.validation.lastNameRequired')).max(100, t('errors.validation.lastNameTooLong')),
-  email: z.string().email(t('errors.validation.emailInvalid')).max(255, t('errors.validation.tooLong')),
-  phone: z.string().min(1, t('errors.validation.phoneRequired')).max(20, t('errors.validation.phoneTooLong')).regex(/^[0-9\s]+$/, t('errors.validation.invalidFormat')),
+  first_name: z.string().min(1, t('common:errors.validation.firstNameRequired')).max(100, t('common:errors.validation.firstNameTooLong')),
+  last_name: z.string().min(1, t('common:errors.validation.lastNameRequired')).max(100, t('common:errors.validation.lastNameTooLong')),
+  email: z.string().email(t('common:errors.validation.emailInvalid')).max(255, t('common:errors.validation.tooLong')),
+  phone: z.string().min(1, t('common:errors.validation.phoneRequired')).max(20, t('common:errors.validation.phoneTooLong')).regex(/^[0-9\s]+$/, t('common:errors.validation.invalidFormat')),
   country_code: z.string(),
   status: z.string(),
 });
@@ -72,7 +72,7 @@ export default function AddTherapistDialog({
   onSuccess,
 }: AddTherapistDialogProps) {
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation('common');
+  const { t } = useTranslation(['admin', 'common']);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -109,7 +109,7 @@ export default function AddTherapistDialog({
       const data = await listHotelsForOrg(supabase, scope);
       setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
     } catch {
-      toast.error("Erreur lors du chargement des hôtels");
+      toast.error(t('admin:therapistsPage.loadVenuesError'));
     }
   };
 
@@ -155,11 +155,13 @@ export default function AddTherapistDialog({
           ? `${existing.first_name ?? ""} ${existing.last_name ?? ""}`.trim()
           : "";
         toast.error(
-          `Un thérapeute avec ce numéro existe déjà${fullName ? ` : ${fullName}` : ""}`,
+          fullName
+            ? t('admin:therapistDialog.duplicatePhoneNamed', { name: fullName })
+            : t('admin:therapistDialog.duplicatePhone'),
           existing
             ? {
                 action: {
-                  label: "Voir la fiche",
+                  label: t('admin:therapistDialog.viewProfile'),
                   onClick: () => navigate(`/admin/therapists/${existing.id}`),
                 },
               }
@@ -167,7 +169,7 @@ export default function AddTherapistDialog({
         );
         return;
       }
-      toast.error("Erreur lors de l'ajout du thérapeute");
+      toast.error(t('admin:therapistDialog.addError'));
       return;
     }
 
@@ -183,7 +185,7 @@ export default function AddTherapistDialog({
         .insert(hotelRelations);
 
       if (relationError) {
-        toast.error("Erreur lors de l'association des hôtels");
+        toast.error(t('admin:therapistDialog.venuesLinkError'));
         return;
       }
     }
@@ -199,7 +201,7 @@ export default function AddTherapistDialog({
         );
 
       if (treatmentsError) {
-        toast.error("Erreur lors de l'association des prestations");
+        toast.error(t('admin:therapistDialog.treatmentsLinkError'));
         return;
       }
     }
@@ -211,7 +213,7 @@ export default function AddTherapistDialog({
 
       if (sessionError || !sessionData.session) {
         console.error("No valid session found:", sessionError);
-        toast.warning("Thérapeute ajouté mais l'email de bienvenue n'a pas pu être envoyé (session expirée)");
+        toast.warning(t('admin:therapistDialog.addedEmailFailedSession'));
       } else {
         const accessToken = sessionData.session.access_token;
         console.log("Session found, access token present:", !!accessToken);
@@ -239,14 +241,14 @@ export default function AddTherapistDialog({
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
           console.error("Error sending welcome email:", response.status, errorData);
-          toast.warning("Thérapeute ajouté mais l'email de bienvenue n'a pas pu être envoyé");
+          toast.warning(t('admin:therapistDialog.addedEmailFailed'));
         } else {
-          toast.success("Thérapeute ajouté et email de bienvenue envoyé");
+          toast.success(t('admin:therapistDialog.addedEmailSent'));
         }
       }
     } catch (emailErr) {
       console.error("Error invoking invite-therapist:", emailErr);
-      toast.warning("Thérapeute ajouté mais l'email de bienvenue n'a pas pu être envoyé");
+      toast.warning(t('admin:therapistDialog.addedEmailFailed'));
     }
 
     onOpenChange(false);
@@ -271,7 +273,7 @@ export default function AddTherapistDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Ajouter un thérapeute</DialogTitle>
+          <DialogTitle>{t('admin:therapistDialog.addTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="flex items-center gap-3">
@@ -297,14 +299,14 @@ export default function AddTherapistDialog({
               onClick={triggerFileSelect}
               disabled={uploading}
             >
-              {uploading ? "Téléchargement..." : "Télécharger une image"}
+              {uploading ? t('admin:therapistDialog.uploading') : t('admin:therapistDialog.uploadImage')}
               {uploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </Button>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label htmlFor="first_name" className="text-xs">Prénom *</Label>
+              <Label htmlFor="first_name" className="text-xs">{t('admin:therapistDialog.firstName')}</Label>
               <Input
                 id="first_name"
                 value={formData.first_name}
@@ -316,7 +318,7 @@ export default function AddTherapistDialog({
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="last_name" className="text-xs">Nom *</Label>
+              <Label htmlFor="last_name" className="text-xs">{t('admin:therapistDialog.lastName')}</Label>
               <Input
                 id="last_name"
                 value={formData.last_name}
@@ -330,7 +332,7 @@ export default function AddTherapistDialog({
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="email" className="text-xs">Email *</Label>
+            <Label htmlFor="email" className="text-xs">{t('admin:therapistDialog.email')}</Label>
             <Input
               id="email"
               type="email"
@@ -344,7 +346,7 @@ export default function AddTherapistDialog({
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="phone" className="text-xs">Téléphone *</Label>
+            <Label htmlFor="phone" className="text-xs">{t('admin:therapistDialog.phone')}</Label>
             <PhoneNumberField
               id="phone"
               value={formData.phone}
@@ -356,7 +358,7 @@ export default function AddTherapistDialog({
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">Hôtels</Label>
+              <Label className="text-xs">{t('admin:therapistDialog.venues')}</Label>
               <MultiSelectPopover
                 selected={selectedHotels}
                 onChange={setSelectedHotels}
@@ -370,7 +372,7 @@ export default function AddTherapistDialog({
 
           <div className="space-y-1">
             <Label className="text-xs">
-              {t("admin:therapistTreatments.title", "Prestations réalisables")}
+              {t("admin:therapistTreatments.title")}
             </Label>
             <div className="max-h-64 overflow-y-auto rounded-lg border p-3">
               <TherapistTreatmentsSelector
@@ -383,9 +385,9 @@ export default function AddTherapistDialog({
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-              Annuler
+              {t('common:buttons.cancel')}
             </Button>
-            <Button type="submit" size="sm">Ajouter</Button>
+            <Button type="submit" size="sm">{t('common:buttons.add')}</Button>
           </div>
         </form>
       </DialogContent>

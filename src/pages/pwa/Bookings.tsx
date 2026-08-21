@@ -366,7 +366,7 @@ const PwaBookings = () => {
   return (
     <div className="app-refonte flex h-full min-h-0 flex-col">
       <header className="hdr" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
-        <button className="back-btn" onClick={goBack} aria-label={t("common:back", "Retour")}>
+        <button className="back-btn" onClick={goBack} aria-label={t("common:buttons.back")}>
           <ChevronLeft size={18} />
         </button>
         <span style={{ fontSize: 18, fontWeight: 400 }}>{t("bookings.title")}</span>
@@ -408,7 +408,7 @@ const PwaBookings = () => {
                   return (
                     <span key={key} className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--ink-mute)" }}>
                       <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", stage.swatchClass)} />
-                      {stage.label}
+                      {t(stage.labelKey, { ns: "common" })}
                     </span>
                   );
                 })}

@@ -3,7 +3,7 @@ import { UseFormReturn, useWatch, Control, useFieldArray } from "react-hook-form
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useDateLocale } from "@/lib/dateLocale";
 import { supabase } from "@/integrations/supabase/client";
 import { VENUE_ROLES } from "@/lib/venueRoles";
 import {
@@ -79,6 +79,7 @@ import { useUser } from "@/contexts/UserContext";
 
 // Component to display calculated Eïa commission
 function LymfeaCommissionDisplay({ control }: { control: Control<VenueWizardFormValues> }) {
+  const { t } = useTranslation(['admin', 'common']);
   const hotelCommission = useWatch({ control, name: "hotel_commission" });
   const therapistCommission = useWatch({ control, name: "therapist_commission" });
 
@@ -91,11 +92,11 @@ function LymfeaCommissionDisplay({ control }: { control: Control<VenueWizardForm
     <div className="space-y-2">
       <label className="text-sm font-medium flex items-center gap-1.5">
         <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-        {`Commission ${brand.name}`}
+        {t('venue.general.brandCommission', { brand: brand.name })}
       </label>
       <div className={`relative flex items-center h-10 px-3 border rounded-md bg-muted/50 ${isInvalid ? 'border-destructive' : ''}`}>
         <span className={`text-sm font-medium ${isInvalid ? 'text-destructive' : 'text-foreground'}`}>
-          {isInvalid ? 'Erreur' : `${lymfeaCommission.toFixed(2)}%`}
+          {isInvalid ? t('venue.general.error') : `${lymfeaCommission.toFixed(2)}%`}
         </span>
       </div>
       {isInvalid && (
@@ -143,7 +144,8 @@ export function VenueGeneralTab({
   onBlockedSlotsChange,
   restrictedSections,
 }: VenueGeneralTabProps) {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['admin', 'common']);
+  const dateLocale = useDateLocale();
   const { isSuperAdmin } = useUser();
   const showSection = (id: VenueSectionId) =>
     !restrictedSections || restrictedSections.includes(id);
@@ -287,9 +289,9 @@ export function VenueGeneralTab({
             <div>
               <CardTitle className="text-base font-medium flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-gold-600" />
-                Identité du lieu
+                {t('venue.general.identityTitle')}
               </CardTitle>
-              <CardDescription>Nom et type de lieu</CardDescription>
+              <CardDescription>{t('venue.general.identityDesc')}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <FormField
@@ -304,7 +306,7 @@ export function VenueGeneralTab({
                       <SelectContent>
                         <SelectItem value="hotel">Hotel</SelectItem>
                         <SelectItem value="coworking">Coworking</SelectItem>
-                        <SelectItem value="enterprise">Entreprise</SelectItem>
+                        <SelectItem value="enterprise">{t('venue.general.typeEnterprise')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -355,7 +357,7 @@ export function VenueGeneralTab({
                     <FormItem>
                       <FormLabel className="flex items-center gap-1.5">
                         <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                        {venueTypeValue === 'coworking' ? 'Nom du coworking' : venueTypeValue === 'enterprise' ? "Nom de l'entreprise" : "Nom de l'hôtel"}
+                        {venueTypeValue === 'coworking' ? t('venue.general.nameCoworking') : venueTypeValue === 'enterprise' ? t('venue.general.nameEnterprise') : t('venue.general.nameHotel')}
                       </FormLabel>
                       <FormControl>
                         <Input {...field} disabled={disabled} />
@@ -389,20 +391,19 @@ export function VenueGeneralTab({
                     <FormItem>
                       <FormLabel className="flex items-center gap-1.5">
                         <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                        Lien public
+                        {t('venue.general.publicLink')}
                       </FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="ex: le-ritz-paris"
+                          placeholder={t('venue.general.publicLinkPlaceholder')}
                           {...field}
                           disabled={disabled}
                         />
                       </FormControl>
                       <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                        Identifiant utilisé dans l'URL publique de votre espace de réservation
-                        (ex. <code className="text-[10px]">{`${brand.appDomain}/client/${preview}`}</code>).
-                        Utilisez des lettres minuscules, chiffres et tirets. Évitez de le changer
-                        une fois partagé, sinon les anciens liens ne fonctionneront plus.
+                        {t('venue.general.publicLinkHelpBefore')}{' '}
+                        <code className="text-[10px]">{`${brand.appDomain}/client/${preview}`}</code>
+                        {t('venue.general.publicLinkHelpAfter')}
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -419,13 +420,13 @@ export function VenueGeneralTab({
                       <FormItem>
                         <FormLabel className="flex items-center gap-1.5">
                           <Type className="h-3.5 w-3.5 text-muted-foreground" />
-                          Sous-titre landing page
+                          {t('venue.general.landingSubtitle')}
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-[260px]">
-                              <p className="text-xs">Texte affiche sous le nom du lieu sur la page d'accueil client. Par defaut : "Beauty Services".</p>
+                              <p className="text-xs">{t('venue.general.landingSubtitleHelp')}</p>
                             </TooltipContent>
                           </Tooltip>
                         </FormLabel>
@@ -465,7 +466,7 @@ export function VenueGeneralTab({
                   <div className="flex items-center gap-2">
                     <FormLabel className="flex items-center gap-1.5 mb-0">
                       <Palette className="h-3.5 w-3.5 text-muted-foreground" />
-                      Couleur du planning
+                      {t('venue.general.calendarColor')}
                     </FormLabel>
                     <Popover open={colorOpen} onOpenChange={setColorOpen}>
                       <PopoverTrigger asChild>
@@ -518,7 +519,7 @@ export function VenueGeneralTab({
                             setColorOpen(false);
                           }}
                         >
-                          Aucune couleur
+                          {t('venue.general.noColor')}
                         </button>
                       </PopoverContent>
                     </Popover>
@@ -538,7 +539,7 @@ export function VenueGeneralTab({
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
             <MapPin className="h-4 w-4 text-blue-500" />
-            Localisation
+            {t('venue.general.locationTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -549,7 +550,7 @@ export function VenueGeneralTab({
               <FormItem>
                 <FormLabel className="flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                  Adresse
+                  {t('venue.general.address')}
                 </FormLabel>
                 <FormControl>
                   <Input {...field} disabled={disabled} />
@@ -565,7 +566,7 @@ export function VenueGeneralTab({
               name="postal_code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Code postal</FormLabel>
+                  <FormLabel>{t('venue.general.postalCode')}</FormLabel>
                   <FormControl>
                     <Input {...field} disabled={disabled} />
                   </FormControl>
@@ -579,7 +580,7 @@ export function VenueGeneralTab({
               name="city"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Ville</FormLabel>
+                  <FormLabel>{t('venue.general.city')}</FormLabel>
                   <FormControl>
                     <Input {...field} disabled={disabled} />
                   </FormControl>
@@ -599,7 +600,7 @@ export function VenueGeneralTab({
                   <FormItem>
                     <FormLabel className="flex items-center gap-1.5">
                       <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                      Pays
+                      {t('venue.general.country')}
                     </FormLabel>
                     <Popover open={disabled ? false : countryOpen} onOpenChange={disabled ? undefined : setCountryOpen}>
                       <PopoverTrigger asChild>
@@ -613,16 +614,16 @@ export function VenueGeneralTab({
                               !field.value && "text-muted-foreground"
                             )}
                           >
-                            {selectedCountry?.label || field.value || "Sélectionner un pays"}
+                            {selectedCountry?.label || field.value || t('venue.general.countryPlaceholder')}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-[220px] p-0" align="start">
                         <Command>
-                          <CommandInput placeholder="Rechercher un pays..." />
+                          <CommandInput placeholder={t('venue.general.countrySearch')} />
                           <CommandList className="max-h-[200px]">
-                            <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                            <CommandEmpty>{t('venue.general.countryEmpty')}</CommandEmpty>
                             <CommandGroup>
                               {COUNTRY_OPTIONS.map((country) => (
                                 <CommandItem
@@ -664,7 +665,7 @@ export function VenueGeneralTab({
                 <FormItem>
                   <FormLabel className="flex items-center gap-1.5">
                     <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                    Site web
+                    {t('venue.general.website')}
                   </FormLabel>
                   <FormControl>
                     <Input
@@ -711,7 +712,7 @@ export function VenueGeneralTab({
                 <TimezoneSelectField
                   value={field.value}
                   onChange={field.onChange}
-                  label="Fuseau horaire"
+                  label={t('venue.general.timezone')}
                   disabled={disabled}
                 />
                 <FormMessage />
@@ -728,13 +729,13 @@ export function VenueGeneralTab({
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
             <Wallet className="h-4 w-4 text-emerald-500" />
-            Finance
+            {t('venue.general.financeTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-              Devise & Fiscalité
+              {t('venue.general.currencyAndTax')}
             </p>
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -744,7 +745,7 @@ export function VenueGeneralTab({
                   <FormItem>
                     <FormLabel className="flex items-center gap-1.5">
                       <Banknote className="h-3.5 w-3.5 text-muted-foreground" />
-                      Devise
+                      {t('venue.general.currency')}
                     </FormLabel>
                     <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
                       <SelectTrigger>
@@ -770,7 +771,7 @@ export function VenueGeneralTab({
                   <FormItem>
                     <FormLabel className="flex items-center gap-1.5">
                       <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                      TVA
+                      {t('venue.general.vat')}
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
@@ -789,7 +790,7 @@ export function VenueGeneralTab({
 
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-              Répartition des commissions
+              {t('venue.general.commissionSplit')}
             </p>
 
             <FormField
@@ -799,7 +800,7 @@ export function VenueGeneralTab({
                 <FormItem className="mb-4">
                   <FormLabel className="flex items-center gap-1.5">
                     <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                    Commission lieu
+                    {t('venue.general.venueCommission')}
                   </FormLabel>
                   <FormControl>
                     <div className="relative w-40">
@@ -819,10 +820,10 @@ export function VenueGeneralTab({
                 <FormItem className="flex items-center justify-between rounded-lg border p-3 mb-4">
                   <div className="space-y-0.5 pr-4">
                     <FormLabel className="text-sm font-medium">
-                      Commission thérapeute globale
+                      {t('venue.general.globalTherapistCommission')}
                     </FormLabel>
                     <p className="text-xs text-muted-foreground">
-                      Appliquer le même pourcentage de commission à tous les thérapeutes
+                      {t('venue.general.globalTherapistCommissionDesc')}
                     </p>
                   </div>
                   <FormControl>
@@ -845,7 +846,7 @@ export function VenueGeneralTab({
                     <FormItem>
                       <FormLabel className="flex items-center gap-1.5">
                         <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                        Commission thérapeute
+                        {t('venue.general.therapistCommission')}
                       </FormLabel>
                       <FormControl>
                         <div className="relative">
@@ -863,7 +864,7 @@ export function VenueGeneralTab({
             ) : (
               <div className="rounded-lg bg-muted/50 p-3">
                 <p className="text-sm text-muted-foreground">
-                  La commission thérapeute est définie individuellement sur chaque fiche thérapeute (taux par durée de soin). Le reste revient à {brand.name}.
+                  {t('venue.general.perTherapistCommissionNote', { brand: brand.name })}
                 </p>
               </div>
             )}
@@ -873,17 +874,17 @@ export function VenueGeneralTab({
 
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-              Annulation client en ligne
+              {t('venue.general.onlineCancellation')}
             </p>
             <p className="text-xs text-muted-foreground mb-4">
-              Tranches de remboursement selon le délai avant le rendez-vous.
+              {t('venue.general.onlineCancellationDesc')}
             </p>
             <FormField
               control={form.control}
               name={"client_cancellation_cutoff_hours" as keyof VenueWizardFormValues}
               render={({ field }) => (
                 <FormItem className="mb-4 max-w-xs">
-                  <FormLabel>Délai minimum avant le RDV (heures)</FormLabel>
+                  <FormLabel>{t('venue.general.cancellationCutoff')}</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -906,14 +907,14 @@ export function VenueGeneralTab({
 
           <div className="mt-4 space-y-4">
             <p className="text-xs text-muted-foreground">
-              Texte affiché dans la modale d&apos;annulation (client et staff). Laissez vide pour un résumé automatique basé sur les tranches.
+              {t('venue.general.cancellationTextHelp')}
             </p>
             <FormField
               control={form.control}
               name={"cancellation_policy_text_fr" as keyof VenueWizardFormValues}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Politique d&apos;annulation (FR)</FormLabel>
+                  <FormLabel>{t('venue.general.cancellationPolicyFr')}</FormLabel>
                   <FormControl>
                     <Textarea rows={3} {...field} value={String(field.value ?? "")} disabled={disabled} />
                   </FormControl>
@@ -926,7 +927,7 @@ export function VenueGeneralTab({
               name={"cancellation_policy_text_en" as keyof VenueWizardFormValues}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Politique d&apos;annulation (EN)</FormLabel>
+                  <FormLabel>{t('venue.general.cancellationPolicyEn')}</FormLabel>
                   <FormControl>
                     <Textarea rows={3} {...field} value={String(field.value ?? "")} disabled={disabled} />
                   </FormControl>
@@ -945,7 +946,7 @@ export function VenueGeneralTab({
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
             <Settings className="h-4 w-4 text-orange-500" />
-            Paramètres de réservation
+            {t('venue.general.bookingSettingsTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent className="divide-y">
@@ -955,9 +956,9 @@ export function VenueGeneralTab({
             render={({ field }) => (
               <FormItem className="flex items-center justify-between py-4 first:pt-0">
                 <div className="space-y-0.5 pr-4">
-                  <FormLabel className="text-sm font-medium">Auto-validation des réservations</FormLabel>
+                  <FormLabel className="text-sm font-medium">{t('venue.general.autoValidate')}</FormLabel>
                   <p className="text-xs text-muted-foreground">
-                    Si activé et qu'un seul thérapeute est assigné au lieu, les réservations seront automatiquement confirmées sans validation manuelle.
+                    {t('venue.general.autoValidateDesc')}
                   </p>
                 </div>
                 <FormControl>
@@ -976,22 +977,22 @@ export function VenueGeneralTab({
             name="client_payment_mode"
             render={({ field }) => (
               <FormItem className="py-4">
-                <FormLabel className="text-sm font-medium">Mode de paiement client</FormLabel>
+                <FormLabel className="text-sm font-medium">{t('venue.general.clientPaymentMode')}</FormLabel>
                 <FormControl>
                   <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
                     <SelectTrigger className="w-full max-w-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pre_authorization">Pré-autorisation</SelectItem>
-                      <SelectItem value="pay_at_booking">Paiement à la réservation</SelectItem>
+                      <SelectItem value="pre_authorization">{t('venue.general.preAuthorization')}</SelectItem>
+                      <SelectItem value="pay_at_booking">{t('venue.general.payAtBooking')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormControl>
                 <p className="text-xs text-muted-foreground">
                   {field.value === "pay_at_booking"
-                    ? "Le client est débité immédiatement au moment de la réservation."
-                    : "La carte du client est enregistrée mais non débitée à la réservation ; le paiement est encaissé plus tard par le thérapeute."}
+                    ? t('venue.general.payAtBookingDesc')
+                    : t('venue.general.preAuthorizationDesc')}
                 </p>
                 <FormMessage />
               </FormItem>
@@ -1004,9 +1005,9 @@ export function VenueGeneralTab({
             render={({ field }) => (
               <FormItem className="flex items-center justify-between py-4">
                 <div className="space-y-0.5 pr-4">
-                  <FormLabel className="text-sm font-medium">Réservations hors horaires</FormLabel>
+                  <FormLabel className="text-sm font-medium">{t('venue.general.outOfHoursTitle')}</FormLabel>
                   <p className="text-xs text-muted-foreground">
-                    Si activé, les administrateurs pourront créer des réservations en dehors des horaires d'ouverture avec une majoration automatique.
+                    {t('venue.general.outOfHoursDesc')}
                   </p>
                 </div>
                 <FormControl>
@@ -1028,7 +1029,7 @@ export function VenueGeneralTab({
                 <FormItem className="py-4">
                   <FormLabel className="flex items-center gap-1.5">
                     <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                    Majoration hors horaires
+                    {t('venue.general.outOfHoursSurcharge')}
                   </FormLabel>
                   <FormControl>
                     <div className="relative w-40">
@@ -1037,7 +1038,7 @@ export function VenueGeneralTab({
                     </div>
                   </FormControl>
                   <p className="text-xs text-muted-foreground">
-                    Pourcentage ajouté au total des soins pour les réservations hors horaires.
+                    {t('venue.general.outOfHoursSurchargeDesc')}
                   </p>
                   <FormMessage />
                 </FormItem>
@@ -1217,9 +1218,9 @@ export function VenueGeneralTab({
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-medium flex items-center gap-2">
             <Clock className="h-4 w-4 text-indigo-500" />
-            Horaires & Disponibilité
+            {t('venue.general.scheduleTitle')}
           </CardTitle>
-          <CardDescription>Heures d'ouverture, planning de déploiement et plages bloquées</CardDescription>
+          <CardDescription>{t('venue.general.scheduleDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <VenueDeploymentStep
@@ -1241,7 +1242,7 @@ export function VenueGeneralTab({
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-medium flex items-center gap-2">
                 <Users className="h-4 w-4 text-violet-500" />
-                Équipe lieu
+                {t('venue.general.teamTitle')}
               </CardTitle>
               <Badge variant="secondary" className="text-xs">
                 {concierges.length}
@@ -1284,7 +1285,7 @@ export function VenueGeneralTab({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Aucun membre assigné</p>
+              <p className="text-sm text-muted-foreground">{t('venue.general.teamEmpty')}</p>
             )}
           </CardContent>
         </Card>
@@ -1296,9 +1297,9 @@ export function VenueGeneralTab({
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-medium flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-amber-500" />
-              Commodités
+              {t('venue.general.amenitiesTitle')}
             </CardTitle>
-            <CardDescription>Piscine, hammam, sauna et autres équipements disponibles à la réservation</CardDescription>
+            <CardDescription>{t('venue.general.amenitiesDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
             <VenueAmenitiesTab hotelId={hotelId} venueType={venueTypeValue} />
@@ -1314,7 +1315,7 @@ export function VenueGeneralTab({
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-medium flex items-center gap-2">
                   <Plug className="h-4 w-4 text-cyan-500" />
-                  Intégration PMS
+                  {t('venue.general.pmsTitle')}
                 </CardTitle>
                 <Button
                   variant="outline"
@@ -1324,12 +1325,12 @@ export function VenueGeneralTab({
                   {pmsHotelData?.pms_type ? (
                     <>
                       <Settings className="h-4 w-4 mr-2" />
-                      Modifier
+                      {t('common:buttons.edit')}
                     </>
                   ) : (
                     <>
                       <Plug className="h-4 w-4 mr-2" />
-                      Configurer
+                      {t('venue.general.configure')}
                     </>
                   )}
                 </Button>
@@ -1339,27 +1340,27 @@ export function VenueGeneralTab({
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium">
-                    {pmsHotelData?.pms_type === 'opera_cloud' ? 'Oracle Opera Cloud' : pmsHotelData?.pms_type === 'mews' ? 'Mews' : 'Non configuré'}
+                    {pmsHotelData?.pms_type === 'opera_cloud' ? 'Oracle Opera Cloud' : pmsHotelData?.pms_type === 'mews' ? 'Mews' : t('venue.general.notConfigured')}
                   </p>
                   {pmsHotelData?.pms_type && (
                     pmsStatus?.connection_status === 'connected' ? (
                       <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200">
-                        Connecté
+                        {t('venue.general.connected')}
                       </Badge>
                     ) : pmsStatus?.connection_status === 'failed' ? (
                       <Badge variant="outline" className="text-xs bg-red-500/10 text-red-700 border-red-200">
-                        Échec connexion
+                        {t('venue.general.connectionFailed')}
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700 border-yellow-200">
-                        Non testé
+                        {t('venue.general.notTested')}
                       </Badge>
                     )
                   )}
                 </div>
                 {pmsHotelData?.pms_type && pmsStatus?.connection_status === 'connected' && pmsStatus?.connection_verified_at && (
                   <p className="text-xs text-muted-foreground">
-                    Connecté depuis le {format(new Date(pmsStatus.connection_verified_at), "d MMMM yyyy", { locale: fr })}
+                    {t('venue.general.connectedSince', { date: format(new Date(pmsStatus.connection_verified_at), "d MMMM yyyy", { locale: dateLocale }) })}
                   </p>
                 )}
                 {pmsHotelData?.pms_type && (
@@ -1368,11 +1369,11 @@ export function VenueGeneralTab({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200 cursor-default">
-                            Auto-charge
+                            {t('venue.general.autoCharge')}
                           </Badge>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Les charges spa sont automatiquement postées dans le PMS lors du paiement chambre</p>
+                          <p>{t('venue.general.autoChargeTooltip')}</p>
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -1380,11 +1381,11 @@ export function VenueGeneralTab({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200 cursor-default">
-                            Guest lookup
+                            {t('venue.general.guestLookup')}
                           </Badge>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Les infos client sont remplies automatiquement depuis le PMS quand un numéro de chambre est saisi</p>
+                          <p>{t('venue.general.guestLookupTooltip')}</p>
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -1412,7 +1413,7 @@ export function VenueGeneralTab({
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-medium flex items-center gap-2">
                   <CreditCard className="h-4 w-4 text-violet-500" />
-                  Méthode de paiement
+                  {t('venue.general.paymentTitle')}
                 </CardTitle>
                 <Button
                   variant="outline"
@@ -1422,12 +1423,12 @@ export function VenueGeneralTab({
                   {paymentConfig?.provider && paymentConfig.provider !== 'none' ? (
                     <>
                       <Settings className="h-4 w-4 mr-2" />
-                      Modifier
+                      {t('common:buttons.edit')}
                     </>
                   ) : (
                     <>
                       <CreditCard className="h-4 w-4 mr-2" />
-                      Configurer
+                      {t('venue.general.configure')}
                     </>
                   )}
                 </Button>
@@ -1441,7 +1442,7 @@ export function VenueGeneralTab({
                       ? 'Stripe'
                       : paymentConfig?.provider === 'adyen'
                         ? 'Adyen'
-                        : 'Non configuré'}
+                        : t('venue.general.notConfigured')}
                   </p>
                   {paymentConfig?.provider === 'adyen' && paymentConfig?.adyen_environment && (
                     <Badge variant="outline" className="text-xs">
@@ -1451,22 +1452,22 @@ export function VenueGeneralTab({
                   {paymentConfig?.provider && paymentConfig.provider !== 'none' && (
                     paymentConfig.connection_status === 'connected' ? (
                       <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200">
-                        Connecté
+                        {t('venue.general.connected')}
                       </Badge>
                     ) : paymentConfig.connection_status === 'failed' ? (
                       <Badge variant="outline" className="text-xs bg-red-500/10 text-red-700 border-red-200">
-                        Échec connexion
+                        {t('venue.general.connectionFailed')}
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700 border-yellow-200">
-                        Non testé
+                        {t('venue.general.notTested')}
                       </Badge>
                     )
                   )}
                 </div>
                 {paymentConfig?.provider && paymentConfig.provider !== 'none' && paymentConfig.connection_status === 'connected' && paymentConfig.connection_verified_at && (
                   <p className="text-xs text-muted-foreground">
-                    Connecté depuis le {format(new Date(paymentConfig.connection_verified_at), "d MMMM yyyy", { locale: fr })}
+                    {t('venue.general.connectedSince', { date: format(new Date(paymentConfig.connection_verified_at), "d MMMM yyyy", { locale: dateLocale }) })}
                   </p>
                 )}
               </div>

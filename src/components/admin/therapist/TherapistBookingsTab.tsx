@@ -145,7 +145,7 @@ async function withEarnings(rows: Booking[], therapistId: string): Promise<Booki
 }
 
 export function TherapistBookingsTab({ therapistId }: TherapistBookingsTabProps) {
-  const { t, i18n } = useTranslation("admin");
+  const { t, i18n } = useTranslation(["admin", "common"]);
   const navigate = useNavigate();
   const isFr = i18n.language === "fr";
   const locale = isFr ? fr : enUS;

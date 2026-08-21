@@ -1,4 +1,5 @@
 import { UseFormReturn, useFieldArray } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ interface CancellationTiersEditorProps {
 }
 
 export function CancellationTiersEditor({ form, disabled }: CancellationTiersEditorProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "cancellation_tiers",
@@ -25,7 +27,7 @@ export function CancellationTiersEditor({ form, disabled }: CancellationTiersEdi
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Ex. entre 24 h et 12 h avant le RDV : 50 % remboursé si la tranche couvre 24 h–12 h.
+        {t("cancellationTiers.hint")}
       </p>
       {fields.map((field, index) => (
         <div key={field.id} className="grid grid-cols-12 gap-2 items-end border rounded-lg p-3">
@@ -34,7 +36,7 @@ export function CancellationTiersEditor({ form, disabled }: CancellationTiersEdi
             name={`cancellation_tiers.${index}.max_hours`}
             render={({ field: f }) => (
               <FormItem className="col-span-3">
-                <FormLabel className="text-xs">De (h)</FormLabel>
+                <FormLabel className="text-xs">{t("cancellationTiers.from")}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -53,7 +55,7 @@ export function CancellationTiersEditor({ form, disabled }: CancellationTiersEdi
             name={`cancellation_tiers.${index}.min_hours`}
             render={({ field: f }) => (
               <FormItem className="col-span-3">
-                <FormLabel className="text-xs">A (h)</FormLabel>
+                <FormLabel className="text-xs">{t("cancellationTiers.to")}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -72,7 +74,7 @@ export function CancellationTiersEditor({ form, disabled }: CancellationTiersEdi
             name={`cancellation_tiers.${index}.refund_percent`}
             render={({ field: f }) => (
               <FormItem className="col-span-4">
-                <FormLabel className="text-xs">Remboursement %</FormLabel>
+                <FormLabel className="text-xs">{t("cancellationTiers.refundPercent")}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -107,7 +109,7 @@ export function CancellationTiersEditor({ form, disabled }: CancellationTiersEdi
         onClick={() => append({ max_hours: 24, min_hours: 12, refund_percent: 50 })}
       >
         <Plus className="h-4 w-4 mr-1" />
-        Ajouter une tranche
+        {t("cancellationTiers.addTier")}
       </Button>
       <FormMessage>{form.formState.errors.cancellation_tiers?.message as string}</FormMessage>
     </div>

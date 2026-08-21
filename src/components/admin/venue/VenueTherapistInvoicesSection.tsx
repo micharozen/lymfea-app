@@ -109,7 +109,7 @@ const matchesIssuedSearch = (invoice: IssuedInvoice, query: string): boolean => 
 };
 
 export function VenueTherapistInvoicesSection({ hotelId }: VenueTherapistInvoicesSectionProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const queryClient = useQueryClient();
 
   const [range, setRange] = useState<DateRange>(previousMonthRange());

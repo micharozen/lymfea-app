@@ -71,11 +71,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const { hotelIds, isAdmin } = useUserContext();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const canAssignTherapist = isAdmin || isConcierge;
-  const { t } = useTranslation();
+  const { t } = useTranslation(["admin", "common"]);
+  // Le schéma Zod puise ses messages dans `common` (errors.validation.*).
+  const { t: tCommon } = useTranslation("common");
   const [activeTab, setActiveTab] = useState<"info" | "prestations" | "therapist" | "payment">("info");
   const [visibleSlots, setVisibleSlots] = useState(1);
 
-  const formSchema = useMemo(() => createFormSchema(t), [t]);
+  const formSchema = useMemo(() => createFormSchema(tCommon), [tCommon]);
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -483,15 +485,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     const slot2Key = values.slot2Date && values.slot2Time ? `${format(values.slot2Date, "yyyy-MM-dd")}-${values.slot2Time}` : null;
     const slot3Key = values.slot3Date && values.slot3Time ? `${format(values.slot3Date, "yyyy-MM-dd")}-${values.slot3Time}` : null;
     if (slot2Key && slot1Key && slot2Key === slot1Key) {
-      form.setError("slot2Time", { message: "Ce créneau est identique au créneau 1" });
+      form.setError("slot2Time", { message: t("admin:createBooking.errors.duplicateSlot", { slot: 1 }) });
       return false;
     }
     if (slot3Key && slot1Key && slot3Key === slot1Key) {
-      form.setError("slot3Time", { message: "Ce créneau est identique au créneau 1" });
+      form.setError("slot3Time", { message: t("admin:createBooking.errors.duplicateSlot", { slot: 1 }) });
       return false;
     }
     if (slot3Key && slot2Key && slot3Key === slot2Key) {
-      form.setError("slot3Time", { message: "Ce créneau est identique au créneau 2" });
+      form.setError("slot3Time", { message: t("admin:createBooking.errors.duplicateSlot", { slot: 2 }) });
       return false;
     }
     return result;
@@ -500,7 +502,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!cart.length) {
-      toast({ title: "Sélectionnez une prestation", variant: "destructive" });
+      toast({ title: t("admin:createBooking.errors.selectTreatment"), variant: "destructive" });
       return;
     }
     const values = form.getValues();
@@ -511,16 +513,16 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     const normalizedEmail = normalizeEmail(rawEmail);
     if (normalizedEmail && !isValidEmail(normalizedEmail)) {
       toast({
-        title: "Adresse email invalide",
-        description: "Merci de corriger l'email du client avant de créer la réservation.",
+        title: t("admin:createBooking.errors.invalidEmailTitle"),
+        description: t("admin:createBooking.errors.invalidEmailDescription"),
         variant: "destructive",
       });
       return;
     }
     if (normalizedEmail && normalizedEmail !== rawEmail.toLowerCase()) {
       toast({
-        title: "Email ajusté",
-        description: `L'adresse a été normalisée en ${normalizedEmail} (accents/majuscules retirés).`,
+        title: t("admin:createBooking.toasts.emailAdjustedTitle"),
+        description: t("admin:createBooking.toasts.emailAdjustedDescription", { email: normalizedEmail }),
       });
     }
     if (canAssignTherapist && !amenityOnlyCart && duoMode !== "broadcast") {
@@ -531,17 +533,17 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           (_, i) => !isLegBroadcast(i) && !slotIds[i],
         );
         if (incomplete) {
-          toast({ title: "Chaque praticien doit être choisi ou diffusé", variant: "destructive" });
+          toast({ title: t("admin:createBooking.errors.legNeedsTherapistOrBroadcast"), variant: "destructive" });
           return;
         }
       } else if (!values.therapistId) {
-        toast({ title: "Veuillez sélectionner un thérapeute ou diffuser", variant: "destructive" });
+        toast({ title: t("admin:createBooking.errors.selectTherapistOrBroadcast"), variant: "destructive" });
         return;
       }
     }
     // admin-combo-duo : chaque praticien doit avoir au moins un soin assigné.
     if (comboDuoEnabled && !isValidPartition(resolvedLegAssignments, effectivePractitionerCount)) {
-      toast({ title: "Chaque praticien doit avoir au moins un soin", variant: "destructive" });
+      toast({ title: t("admin:createBooking.errors.everyPractitionerNeedsTreatment"), variant: "destructive" });
       return;
     }
 
@@ -762,7 +764,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       >
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
-            {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
+            {isConcierge ? t("admin:createBooking.titleRequest") : t("admin:createBooking.title")}
           </DialogTitle>
           <BookingWizardStepper
             currentStep={
@@ -837,12 +839,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   onBack={() => setActiveTab("info")}
                   onNext={canAssignTherapist && !amenityOnlyCart ? () => {
                     if (!cart.length) {
-                      toast({ title: "Sélectionnez une prestation", variant: "destructive" });
+                      toast({ title: t("admin:createBooking.errors.selectTreatment"), variant: "destructive" });
                       return;
                     }
                     setActiveTab("therapist");
                   } : undefined}
-                  submitLabel={amenityOnlyCart ? (isConcierge ? "Confirmer" : "Créer") : undefined}
+                  submitLabel={amenityOnlyCart ? (isConcierge ? t("common:buttons.confirm") : t("admin:createBooking.create")) : undefined}
                   venueAmenities={offeredAmenities}
                   selectedAmenityIds={selectedAmenityIds}
                   onToggleAmenity={handleToggleAmenity}
@@ -959,7 +961,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         total_price: isOffert ? 0 : finalPriceWithSurcharge,
         hotel_name: createdBooking.hotel_name,
         treatments: cartDetails.map(item => ({
-          name: item.treatment?.name || 'Service',
+          name: item.treatment?.name || t('admin:createBooking.defaultTreatmentName'),
           price: (item.treatment?.price || 0) * item.quantity,
         })),
         currency: selectedHotel?.currency || 'EUR',
@@ -992,15 +994,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     <AlertDialog open={showConfirmClose} onOpenChange={setShowConfirmClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Abandonner la réservation ?</AlertDialogTitle>
+          <AlertDialogTitle>{t("admin:createBooking.discardTitle")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Les informations saisies seront perdues. Êtes-vous sûr de vouloir quitter ?
+            {t("admin:createBooking.discardDescription")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Continuer la saisie</AlertDialogCancel>
+          <AlertDialogCancel>{t("admin:createBooking.keepEditing")}</AlertDialogCancel>
           <AlertDialogAction onClick={handleClose} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Abandonner
+            {t("admin:createBooking.discard")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

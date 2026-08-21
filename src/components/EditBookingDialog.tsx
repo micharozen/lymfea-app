@@ -45,7 +45,7 @@ import {
 import { computeOutOfHoursSurcharge } from "@/lib/surcharge";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useDateLocale } from "@/lib/dateLocale";
 import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil, Search, DoorOpen, UserX, ShoppingBag, Trash2 } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
@@ -193,7 +193,8 @@ export default function EditBookingDialog({
   initialMode = "view",
   onSuccess,
 }: EditBookingDialogProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const queryClient = useQueryClient();
   const [hotelId, setHotelId] = useState("");
   const [clientFirstName, setClientFirstName] = useState("");
@@ -340,13 +341,13 @@ export default function EditBookingDialog({
       >("mark-booking-noshow", { body: { bookingId: booking.id } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast({ title: "Réservation marquée comme no-show." });
+      toast({ title: t("editBooking.toast.noShowMarked") });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       setShowNoShowDialog(false);
       onSuccess?.();
       onOpenChange(false);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur lors du marquage no-show.";
+      const message = err instanceof Error ? err.message : t("editBooking.toast.noShowError");
       toast({ title: message, variant: "destructive" });
     } finally {
       setNoShowLoading(false);
@@ -435,7 +436,7 @@ export default function EditBookingDialog({
 
       return btData.map((bt) => ({
         therapist_id: bt.therapist_id,
-        therapists: therapistData?.find((t) => t.id === bt.therapist_id) ?? null,
+        therapists: therapistData?.find((th) => th.id === bt.therapist_id) ?? null,
       }));
     },
   });
@@ -449,7 +450,7 @@ export default function EditBookingDialog({
       const selectedDate = format(date, "yyyy-MM-dd");
       
       const calcDuration = cart.reduce((sum, item) => {
-        const treatment = treatments?.find(t => t.id === item.treatmentId);
+        const treatment = treatments?.find(tr => tr.id === item.treatmentId);
         return sum + getCartLineUnitDuration(treatment, item.variantId) * item.quantity;
       }, 0) || 60;
       
@@ -566,22 +567,22 @@ export default function EditBookingDialog({
     },
   });
 
-  const fixedTreatments = bookingTreatments?.filter((t: any) => !t.price_on_request) || [];
-  const variableTreatments = bookingTreatments?.filter((t: any) => t.price_on_request) || [];
-  const fixedTreatmentsTotal = fixedTreatments.reduce((sum: number, t: any) => sum + (t?.price || 0), 0);
+  const fixedTreatments = bookingTreatments?.filter((tr: any) => !tr.price_on_request) || [];
+  const variableTreatments = bookingTreatments?.filter((tr: any) => tr.price_on_request) || [];
+  const fixedTreatmentsTotal = fixedTreatments.reduce((sum: number, tr: any) => sum + (tr?.price || 0), 0);
 
   useEffect(() => {
     if (existingTreatments) {
       const counts: Record<string, CartItem> = {};
-      existingTreatments.forEach(t => {
-        const variantId = t.variant_id ?? null;
-        const key = `${t.treatment_id}|${variantId ?? ""}`;
+      existingTreatments.forEach(tr => {
+        const variantId = tr.variant_id ?? null;
+        const key = `${tr.treatment_id}|${variantId ?? ""}`;
         if (!counts[key]) {
           counts[key] = {
-            treatmentId: t.treatment_id,
+            treatmentId: tr.treatment_id,
             variantId,
             quantity: 0,
-            priceOverride: (t as { price_override?: number | null }).price_override ?? null,
+            priceOverride: (tr as { price_override?: number | null }).price_override ?? null,
           };
         }
         counts[key].quantity += 1;
@@ -595,7 +596,7 @@ export default function EditBookingDialog({
       let price = 0;
       let duration = 0;
       cart.forEach(item => {
-        const treatment = treatments.find(t => t.id === item.treatmentId);
+        const treatment = treatments.find(tr => tr.id === item.treatmentId);
         if (treatment) {
           price += getCartLineUnitPrice(treatment, item.variantId, item.priceOverride) * item.quantity;
           duration += getCartLineUnitDuration(treatment, item.variantId) * item.quantity;
@@ -606,7 +607,7 @@ export default function EditBookingDialog({
       // creation flow (BookingModal → buildComboDuoBookingParams) which takes the max.
       const sessions = expandCartToSessions(
         cart
-          .map(item => ({ ...item, treatment: treatments.find(t => t.id === item.treatmentId) }))
+          .map(item => ({ ...item, treatment: treatments.find(tr => tr.id === item.treatmentId) }))
           .filter(item => item.treatment),
       );
       if (therapistCount > 1 && isComboDuoEligible(sessions)) {
@@ -634,7 +635,7 @@ export default function EditBookingDialog({
     // à une jambe). N base soins = N invités → combo-duo. `.order("id")` garantit
     // que les lignes de base sont dans l'ordre des jambes (insert base-first).
     const baseLines = existingTreatments.filter(
-      (t) => !(t as { is_addon?: boolean | null }).is_addon,
+      (tr) => !(tr as { is_addon?: boolean | null }).is_addon,
     );
     const comboDuo = baseLines.length === guestCount;
 
@@ -988,7 +989,7 @@ export default function EditBookingDialog({
       
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      let description = "La réservation a été modifiée avec succès";
+      let description = t("editBooking.toast.updated");
       if (isDuo && therapists) {
         const names = therapistIds
           .filter(Boolean)
@@ -996,22 +997,29 @@ export default function EditBookingDialog({
           .filter(Boolean)
           .map(h => `${h!.first_name} ${h!.last_name}`);
         if (names.length > 0) {
-          description = `${names.length} thérapeute(s) assigné(s) : ${names.join(", ")}`;
+          description = t("editBooking.toast.therapistsAssigned", {
+            count: names.length,
+            names: names.join(", "),
+          });
         }
       } else if (result?.therapistChanged && therapists) {
         const newTherapist = therapists.find(h => h.id === therapistId);
         if (newTherapist) {
-          description = `Réservation réassignée à ${newTherapist.first_name} ${newTherapist.last_name}`;
+          description = t("editBooking.toast.reassigned", {
+            name: `${newTherapist.first_name} ${newTherapist.last_name}`,
+          });
         }
       } else if (result?.wasAssigned && therapists) {
         const newTherapist = therapists.find(h => h.id === therapistId);
         if (newTherapist) {
-          description = `Thérapeute ${newTherapist.first_name} ${newTherapist.last_name} assigné avec succès`;
+          description = t("editBooking.toast.therapistAssigned", {
+            name: `${newTherapist.first_name} ${newTherapist.last_name}`,
+          });
         }
       }
       
       toast({
-        title: "Succès",
+        title: t("common:toasts.success"),
         description,
       });
       onOpenChange(false);
@@ -1019,8 +1027,8 @@ export default function EditBookingDialog({
     },
     onError: (error) => {
       toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de la modification de la réservation",
+        title: t("common:toasts.error"),
+        description: t("editBooking.toast.updateError"),
         variant: "destructive",
       });
       console.error("Error updating booking:", error);
@@ -1046,14 +1054,14 @@ export default function EditBookingDialog({
 
       if (error) throw error;
 
-      const fixedItemsBreakdown = fixedTreatments.map((t: any) => ({
-        name: t.name,
-        price: t.price || 0,
+      const fixedItemsBreakdown = fixedTreatments.map((tr: any) => ({
+        name: tr.name,
+        price: tr.price || 0,
         isFixed: true,
       }));
       
-      const variableItemsBreakdown = variableTreatments.map((t: any) => ({
-        name: t.name,
+      const variableItemsBreakdown = variableTreatments.map((tr: any) => ({
+        name: tr.name,
         price: quotedVariablePrice / variableTreatments.length, 
         isFixed: false,
       }));
@@ -1078,8 +1086,8 @@ export default function EditBookingDialog({
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       
       toast({
-        title: "Devis envoyé !",
-        description: "Le client va recevoir un email pour accepter ou refuser le devis.",
+        title: t("editBooking.quote.sentTitle"),
+        description: t("editBooking.quote.sentDescription"),
       });
       setQuotePrice("");
       setQuoteDuration("");
@@ -1087,8 +1095,8 @@ export default function EditBookingDialog({
     },
     onError: (error) => {
       toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de l'envoi du devis",
+        title: t("common:toasts.error"),
+        description: t("editBooking.quote.sendError"),
         variant: "destructive",
       });
     },
@@ -1118,15 +1126,15 @@ export default function EditBookingDialog({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast({
-        title: "Devis accepté",
-        description: "La réservation est maintenant en attente d'un thérapeute.",
+        title: t("editBooking.quote.approvedTitle"),
+        description: t("editBooking.quote.approvedDescription"),
       });
       onOpenChange(false);
     },
     onError: (error: any) => {
       toast({
-        title: "Erreur",
-        description: error?.message || "Impossible de valider le devis",
+        title: t("common:toasts.error"),
+        description: error?.message || t("editBooking.quote.approveError"),
         variant: "destructive",
       });
     },
@@ -1138,8 +1146,8 @@ export default function EditBookingDialog({
     
     if (isNaN(variablePrice) || variablePrice <= 0) {
       toast({
-        title: "Erreur",
-        description: "Veuillez entrer un prix valide pour les soins sur devis",
+        title: t("common:toasts.error"),
+        description: t("editBooking.quote.invalidPrice"),
         variant: "destructive",
       });
       return;
@@ -1147,8 +1155,8 @@ export default function EditBookingDialog({
     
     if (isNaN(variableDuration) || variableDuration <= 0) {
       toast({
-        title: "Erreur",
-        description: "Veuillez entrer une durée valide pour les soins sur devis",
+        title: t("common:toasts.error"),
+        description: t("editBooking.quote.invalidDuration"),
         variant: "destructive",
       });
       return;
@@ -1165,8 +1173,8 @@ export default function EditBookingDialog({
     
     if (!hotelId || !clientFirstName || !clientLastName || !date || !time) {
       toast({
-        title: "Champs requis",
-        description: "Veuillez remplir tous les champs obligatoires.",
+        title: t("editBooking.toast.requiredFieldsTitle"),
+        description: t("editBooking.toast.requiredFieldsDescription"),
         variant: "destructive",
       });
       return;
@@ -1181,8 +1189,8 @@ export default function EditBookingDialog({
       const uniqueIds = new Set(filledIds);
       if (uniqueIds.size < filledIds.length) {
         toast({
-          title: "Thérapeutes en double",
-          description: "Le même thérapeute ne peut pas être assigné à deux rôles pour ce soin.",
+          title: t("editBooking.toast.duplicateTherapistsTitle"),
+          description: t("editBooking.toast.duplicateTherapistsDescription"),
           variant: "destructive",
         });
         return;
@@ -1191,7 +1199,7 @@ export default function EditBookingDialog({
 
     if (!isDuo && therapistId && cart.length > 0 && (therapistChanged || timeChanged || dateChanged)) {
       const calcDuration = cart.reduce((sum, item) => {
-        const treatment = treatments?.find(t => t.id === item.treatmentId);
+        const treatment = treatments?.find(tr => tr.id === item.treatmentId);
         return sum + (treatment?.duration || 0) * item.quantity;
       }, 0);
 
@@ -1234,8 +1242,11 @@ export default function EditBookingDialog({
             (startTime <= existingStartTime && endTime >= existingEndTime)
           ) {
             toast({
-              title: "Chevauchement détecté",
-              description: `Ce thérapeute a déjà une réservation de ${String(Math.floor(existingStartTime / 60)).padStart(2, '0')}:${String(existingStartTime % 60).padStart(2, '0')} à ${String(Math.floor(existingEndTime / 60)).padStart(2, '0')}:${String(existingEndTime % 60).padStart(2, '0')}.`,
+              title: t("editBooking.toast.overlapTitle"),
+              description: t("editBooking.toast.overlapDescription", {
+                start: `${String(Math.floor(existingStartTime / 60)).padStart(2, '0')}:${String(existingStartTime % 60).padStart(2, '0')}`,
+                end: `${String(Math.floor(existingEndTime / 60)).padStart(2, '0')}:${String(existingEndTime % 60).padStart(2, '0')}`,
+              }),
               variant: "destructive",
             });
             return;
@@ -1251,14 +1262,14 @@ export default function EditBookingDialog({
       ? (booking?.booking_time || "")
       : time;
     const submittedTreatments = isConcierge && !conciergeCanEditTreatments
-      ? (existingTreatments?.map(t => ({
-          treatmentId: t.treatment_id,
-          variantId: t.variant_id ?? null,
-          priceOverride: (t as { price_override?: number | null }).price_override ?? null,
-          isAddon: (t as { is_addon?: boolean | null }).is_addon ?? false,
+      ? (existingTreatments?.map(tr => ({
+          treatmentId: tr.treatment_id,
+          variantId: tr.variant_id ?? null,
+          priceOverride: (tr as { price_override?: number | null }).price_override ?? null,
+          isAddon: (tr as { is_addon?: boolean | null }).is_addon ?? false,
         })) || [])
       : cart.flatMap(item => {
-          const isAddon = treatments?.find(t => t.id === item.treatmentId)?.is_addon ?? false;
+          const isAddon = treatments?.find(tr => tr.id === item.treatmentId)?.is_addon ?? false;
           return Array.from({ length: item.quantity }, () => ({
             treatmentId: item.treatmentId,
             variantId: item.variantId ?? null,
@@ -1378,7 +1389,7 @@ export default function EditBookingDialog({
 
   const cartDetails = cart.map(item => ({
     ...item,
-    treatment: treatments?.find(t => t.id === item.treatmentId)
+    treatment: treatments?.find(tr => tr.id === item.treatmentId)
   })).filter(item => item.treatment);
 
   return (
@@ -1392,7 +1403,7 @@ export default function EditBookingDialog({
             <div className="flex items-start justify-between">
               <div>
                 <DialogTitle className="text-lg font-normal">
-                  Détails de la réservation
+                  {t("editBooking.viewTitle")}
                 </DialogTitle>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge className={getBookingStatusConfig(booking?.status || 'pending').badgeClass}>
@@ -1424,7 +1435,7 @@ export default function EditBookingDialog({
                         <Send className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">Lien paiement</TooltipContent>
+                    <TooltipContent side="bottom">{t("editBooking.actions.paymentLink")}</TooltipContent>
                   </Tooltip>
                 )}
                 {showCancelBookingAction && (
@@ -1440,7 +1451,7 @@ export default function EditBookingDialog({
                         <X className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">Annuler</TooltipContent>
+                    <TooltipContent side="bottom">{t("common:buttons.cancel")}</TooltipContent>
                   </Tooltip>
                 )}
                 <Tooltip>
@@ -1455,14 +1466,14 @@ export default function EditBookingDialog({
                       <Pencil className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Modifier</TooltipContent>
+                  <TooltipContent side="bottom">{t("common:buttons.edit")}</TooltipContent>
                 </Tooltip>
               </ButtonGroup>
             </div>
           ) : (
             <div className="flex items-start justify-between gap-3 pr-10">
               <DialogTitle className="text-lg font-normal">
-                {viewMode === "quote" ? "Valider le devis" : "Modifier la réservation"}
+                {viewMode === "quote" ? t("editBooking.quote.validateTitle") : t("editBooking.editTitle")}
               </DialogTitle>
               {viewMode === "edit" && showCancelBookingAction ? (
                 <Button
@@ -1472,7 +1483,7 @@ export default function EditBookingDialog({
                   onClick={() => setShowCancelDialog(true)}
                   className="h-8 shrink-0 gap-1.5 px-2.5 text-xs"
                 >
-                  Annuler la réservation
+                  {t("editBooking.actions.cancelBooking")}
                 </Button>
               ) : null}
             </div>
@@ -1487,13 +1498,13 @@ export default function EditBookingDialog({
                   <AlertTriangle className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">Réservation #{booking?.booking_id}</p>
+                  <p className="text-sm font-semibold">{t("editBooking.quote.bookingRef", { id: booking?.booking_id })}</p>
                   <p className="text-xs text-muted-foreground">{booking?.hotel_name}</p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Prestations sur devis</p>
+                <p className="text-xs font-medium text-muted-foreground">{t("editBooking.quote.onQuoteTreatments")}</p>
                 {variableTreatments.map((treatment: any) => (
                   <div key={treatment.id} className="p-2 bg-orange-50 border border-orange-200 rounded text-sm">
                     {treatment.name}
@@ -1503,14 +1514,14 @@ export default function EditBookingDialog({
 
               {booking?.client_note && (
                 <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note du client</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">{t("editBooking.clientNoteTitle")}</p>
                   <p className="text-sm text-foreground">{decodeHtmlEntities(booking.client_note)}</p>
                 </div>
               )}
 
               <div className="space-y-3">
                 <div>
-                  <Label htmlFor="quote-price-form" className="text-sm">Prix (€)</Label>
+                  <Label htmlFor="quote-price-form" className="text-sm">{t("editBooking.quote.priceLabel")}</Label>
                   <Input
                     id="quote-price-form"
                     type="number"
@@ -1521,7 +1532,7 @@ export default function EditBookingDialog({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="quote-duration-form" className="text-sm">Durée (min)</Label>
+                  <Label htmlFor="quote-duration-form" className="text-sm">{t("editBooking.quote.durationLabel")}</Label>
                   <Input
                     id="quote-duration-form"
                     type="number"
@@ -1536,14 +1547,14 @@ export default function EditBookingDialog({
 
             <div className="shrink-0 px-4 py-3 border-t bg-background flex justify-between gap-3">
               <Button variant="outline" onClick={() => setViewMode("view")}>
-                Retour
+                {t("common:buttons.back")}
               </Button>
               <Button
                 onClick={handleValidateQuote}
                 disabled={validateQuoteMutation.isPending || !quotePrice || !quoteDuration}
                 className="bg-orange-600 hover:bg-orange-700 text-white"
               >
-                {validateQuoteMutation.isPending ? "Envoi..." : "Envoyer le devis"}
+                {validateQuoteMutation.isPending ? t("editBooking.quote.sending") : t("editBooking.quote.send")}
                 {validateQuoteMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
             </div>
@@ -1568,20 +1579,20 @@ export default function EditBookingDialog({
                     <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Heure</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">{t("editBooking.fields.time")}</p>
                     <p className="font-medium text-sm">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Chambre</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">{t("editBooking.fields.room")}</p>
                     <p className="font-medium text-sm">{decodeHtmlEntities(booking?.room_number) || "-"}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Prix</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">{t("editBooking.fields.price")}</p>
                     <p className="font-semibold text-sm">
                       {(() => {
                         const treatmentsPrice =
                           bookingTreatments && bookingTreatments.length > 0
-                            ? bookingTreatments.reduce((sum, t) => sum + (t.price || 0), 0)
+                            ? bookingTreatments.reduce((sum, tr) => sum + (tr.price || 0), 0)
                             : 0;
                         const customPrice = booking?.total_price;
                         const value = customPrice && customPrice > 0 ? customPrice : treatmentsPrice;
@@ -1590,12 +1601,12 @@ export default function EditBookingDialog({
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Durée</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">{t("editBooking.fields.duration")}</p>
                     <p className="font-semibold text-sm">
                       {(() => {
                         const treatmentsDuration =
                           bookingTreatments && bookingTreatments.length > 0
-                            ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0)
+                            ? bookingTreatments.reduce((total, tr) => total + (tr.duration || 0), 0)
                             : 0;
                         const customDuration = booking?.duration;
                         const value = customDuration && customDuration > 0 ? customDuration : treatmentsDuration || 60;
@@ -1608,20 +1619,20 @@ export default function EditBookingDialog({
 
               {bookingTreatments && bookingTreatments.length > 0 && (() => {
                 const allOnQuote = bookingTreatments.every(
-                  (t) => (!t.price || t.price === 0) && (!t.duration || t.duration === 0)
+                  (tr) => (!tr.price || tr.price === 0) && (!tr.duration || tr.duration === 0)
                 );
-                const treatmentsTotal = bookingTreatments.reduce((sum, t) => sum + (t?.price || 0), 0);
+                const treatmentsTotal = bookingTreatments.reduce((sum, tr) => sum + (tr?.price || 0), 0);
                 const displayTotal = booking?.total_price && booking.total_price > 0 ? booking.total_price : treatmentsTotal;
 
                 if (allOnQuote) {
                   return (
                     <div className="p-3 bg-muted/30 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-2">Prestations</p>
+                      <p className="text-xs text-muted-foreground mb-2">{t("editBooking.fields.treatments")}</p>
                       <div className="space-y-1.5">
                         {bookingTreatments.map((treatment) => (
                           <div key={treatment.id} className="flex items-center justify-between text-sm">
                             <span>{treatment.name}</span>
-                            <span className="font-medium text-muted-foreground italic">Sur devis</span>
+                            <span className="font-medium text-muted-foreground italic">{t("editBooking.onQuote")}</span>
                           </div>
                         ))}
                         <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
@@ -1635,7 +1646,7 @@ export default function EditBookingDialog({
 
                 return (
                   <div className="p-3 bg-muted/30 rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-2">Prestations</p>
+                    <p className="text-xs text-muted-foreground mb-2">{t("editBooking.fields.treatments")}</p>
                     <div className="space-y-1.5">
                       {bookingTreatments.map((treatment) => (
                         <div key={treatment.id} className="flex items-center justify-between text-sm">
@@ -1655,7 +1666,7 @@ export default function EditBookingDialog({
               <div className="p-3 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-muted-foreground">
-                    Thérapeute{(booking?.guest_count ?? 1) > 1 ? `s (${booking?.guest_count} requis)` : ""}
+                    {t("editBooking.therapistsLabel", { count: booking?.guest_count ?? 1 })}
                   </p>
                   {isAdmin && (
                     <Button
@@ -1664,24 +1675,27 @@ export default function EditBookingDialog({
                       onClick={() => { setViewMode("edit"); setActiveTab("info"); }}
                       className="h-6 text-[10px] px-2"
                     >
-                      Assigner
+                      {t("editBooking.actions.assign")}
                     </Button>
                   )}
                 </div>
                 {(booking?.guest_count ?? 1) > 1 && acceptedTherapists && acceptedTherapists.length > 0 ? (
                   <div className="space-y-1.5">
                     {acceptedTherapists.map((bt: any) => {
-                      const t = Array.isArray(bt.therapists) ? bt.therapists[0] : bt.therapists;
-                      return t ? (
+                      const therapist = Array.isArray(bt.therapists) ? bt.therapists[0] : bt.therapists;
+                      return therapist ? (
                         <div key={bt.therapist_id} className="flex items-center gap-2">
                           <User className="w-4 h-4 text-muted-foreground shrink-0" />
-                          <p className="font-medium text-sm">{t.first_name} {t.last_name}</p>
+                          <p className="font-medium text-sm">{therapist.first_name} {therapist.last_name}</p>
                         </div>
                       ) : null;
                     })}
                     {acceptedTherapists.length < (booking?.guest_count ?? 2) && (
                       <p className="text-xs text-violet-600 mt-1">
-                        {acceptedTherapists.length}/{booking?.guest_count} thérapeutes ont accepté — en attente…
+                        {t("editBooking.therapistsAccepted", {
+                          accepted: acceptedTherapists.length,
+                          total: booking?.guest_count,
+                        })}
                       </p>
                     )}
                   </div>
@@ -1691,7 +1705,7 @@ export default function EditBookingDialog({
                     <p className="font-medium text-sm">{booking.therapist_name}</p>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Aucun thérapeute assigné</p>
+                  <p className="text-sm text-muted-foreground">{t("editBooking.noTherapistAssigned")}</p>
                 )}
               </div>
 
@@ -1702,7 +1716,7 @@ export default function EditBookingDialog({
                     <p className="font-medium text-sm">{booking?.client_first_name} {booking?.client_last_name}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Téléphone</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">{t("editBooking.fields.phone")}</p>
                     <p className="font-medium text-sm">{booking?.phone}</p>
                   </div>
                 </div>
@@ -1710,7 +1724,7 @@ export default function EditBookingDialog({
 
               {booking?.client_note && (
                 <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">{t("editBooking.fields.note")}</p>
                   <p className="text-sm text-foreground whitespace-pre-wrap">{decodeHtmlEntities(booking.client_note)}</p>
                 </div>
               )}
@@ -1724,7 +1738,7 @@ export default function EditBookingDialog({
                   className="border-orange-400 bg-orange-500 text-white hover:bg-orange-600 hover:text-white"
                 >
                   <AlertTriangle className="w-4 h-4 mr-2" />
-                  Valider le devis
+                  {t("editBooking.quote.validate")}
                 </Button>
               ) : booking?.status === "waiting_approval" && isAdmin ? (
                 <Button
@@ -1733,17 +1747,17 @@ export default function EditBookingDialog({
                   onClick={() => approveQuoteMutation.mutate()}
                   disabled={approveQuoteMutation.isPending}
                 >
-                  {approveQuoteMutation.isPending ? "Validation..." : "Marquer accepté"}
+                  {approveQuoteMutation.isPending ? t("editBooking.quote.validating") : t("editBooking.quote.markAccepted")}
                   {approveQuoteMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               ) : (
                 <div className="flex-1 flex justify-between">
                   <Button type="button" variant="default" onClick={() => { setViewMode("edit"); setActiveTab("info"); }}>
                     <Pencil className="w-4 h-4 mr-2" />
-                    Modifier la réservation
+                    {t("editBooking.editTitle")}
                   </Button>
                   <Button type="button" variant="outline" onClick={handleClose}>
-                    Fermer
+                    {t("common:buttons.close")}
                   </Button>
                 </div>
               )}
@@ -1759,17 +1773,17 @@ export default function EditBookingDialog({
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription className="text-xs">
                     {conciergeCanEditSlot
-                      ? "En tant que membre de l'équipe lieu, vous pouvez modifier uniquement le créneau et les prestations."
-                      : "Le créneau n'est plus modifiable (réservation confirmée par le thérapeute). Seules les prestations peuvent être ajustées."}
+                      ? t("editBooking.conciergeNotice.editable")
+                      : t("editBooking.conciergeNotice.slotLocked")}
                   </AlertDescription>
                 </Alert>
               )}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label htmlFor="edit-hotel" className="text-xs">Hôtel *</Label>
+                  <Label htmlFor="edit-hotel" className="text-xs">{t("editBooking.fields.venueRequired")}</Label>
                   <Select value={hotelId} onValueChange={setHotelId} disabled={clientFieldsDisabled}>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Sélectionner un hôtel" />
+                      <SelectValue placeholder={t("editBooking.placeholders.selectVenue")} />
                     </SelectTrigger>
                     <SelectContent>
                       {hotels?.map((hotel) => (
@@ -1782,13 +1796,13 @@ export default function EditBookingDialog({
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="edit-client-type" className="text-xs">Type de client</Label>
+                  <Label htmlFor="edit-client-type" className="text-xs">{t("editBooking.fields.clientType")}</Label>
                   <Select
                     value={clientType}
                     onValueChange={(value) => setClientType(value as BookingClientType)}
                   >
                     <SelectTrigger id="edit-client-type" className="h-9">
-                      <SelectValue placeholder="Type de client" />
+                      <SelectValue placeholder={t("editBooking.fields.clientType")} />
                     </SelectTrigger>
                     <SelectContent className="bg-background border shadow-lg">
                       {BOOKING_CLIENT_TYPES.map((type) => (
@@ -1802,7 +1816,7 @@ export default function EditBookingDialog({
 
                 {!isDuo && (
                 <div className="space-y-1">
-                  <Label htmlFor="edit-therapist" className="text-xs">Thérapeute / Prestataire</Label>
+                  <Label htmlFor="edit-therapist" className="text-xs">{t("editBooking.fields.therapist")}</Label>
                   <Select
                     value={therapistId || "none"}
                     onValueChange={(value) => {
@@ -1812,14 +1826,14 @@ export default function EditBookingDialog({
                     disabled={clientFieldsDisabled}
                   >
                     <SelectTrigger id="edit-therapist" className="h-9">
-                      <SelectValue placeholder="Sélectionner un thérapeute" />
+                      <SelectValue placeholder={t("editBooking.placeholders.selectTherapist")} />
                     </SelectTrigger>
                     <SelectContent className="bg-background border shadow-lg">
-                      <SelectItem value="none">Aucun thérapeute</SelectItem>
+                      <SelectItem value="none">{t("editBooking.noTherapist")}</SelectItem>
                       {booking?.therapist_id && booking?.therapist_name &&
                        !therapists?.find(h => h.id === booking.therapist_id) && (
                         <SelectItem value={booking.therapist_id}>
-                          {booking.therapist_name} (Actuel)
+                          {booking.therapist_name}{t("editBooking.currentSuffix")}
                         </SelectItem>
                       )}
                       {therapists?.map((therapist) => {
@@ -1834,15 +1848,15 @@ export default function EditBookingDialog({
                             disabled={isUnavailable && !isCurrentTherapist}
                           >
                             {therapist.first_name} {therapist.last_name}
-                            {isCurrentTherapist && " (Actuel)"}
-                            {isUnavailable && !isCurrentTherapist && " - Occupé"}
+                            {isCurrentTherapist && t("editBooking.currentSuffix")}
+                            {isUnavailable && !isCurrentTherapist && t("editBooking.busySuffix")}
                           </SelectItem>
                         );
                       })}
                     </SelectContent>
                   </Select>
                   <p className="text-[9px] leading-tight text-muted-foreground mt-0.5">
-                    Seuls les thérapeutes disponibles pour ce créneau sont sélectionnables.
+                    {t("editBooking.therapistHelp")}
                   </p>
                 </div>
                 )}
@@ -1850,7 +1864,7 @@ export default function EditBookingDialog({
                 <div className="space-y-1">
                   <Label htmlFor="edit-room" className="text-xs flex items-center gap-1.5">
                     <DoorOpen className="h-3.5 w-3.5" />
-                    Salle de soin
+                    {t("editBooking.fields.treatmentRoom")}
                   </Label>
                   <Select
                     value={roomId || "__auto__"}
@@ -1858,13 +1872,13 @@ export default function EditBookingDialog({
                     disabled={clientFieldsDisabled}
                   >
                     <SelectTrigger id="edit-room" className="h-9">
-                      <SelectValue placeholder="Automatique" />
+                      <SelectValue placeholder={t("editBooking.auto")} />
                     </SelectTrigger>
                     <SelectContent className="bg-background border shadow-lg">
-                      <SelectItem value="__auto__">Automatique</SelectItem>
+                      <SelectItem value="__auto__">{t("editBooking.auto")}</SelectItem>
                       {roomId && !rooms.find((r) => r.id === roomId) && (
                         <SelectItem value={roomId}>
-                          {booking?.room_name || "Salle actuelle"}
+                          {booking?.room_name || t("editBooking.currentRoom")}
                         </SelectItem>
                       )}
                       {rooms.map((room) => {
@@ -1885,10 +1899,10 @@ export default function EditBookingDialog({
                                 {used}/{room.capacity}
                               </span>
                               {occupied && (
-                                <span className="text-xs text-destructive">— Complète</span>
+                                <span className="text-xs text-destructive">{t("editBooking.roomFull")}</span>
                               )}
                               {!occupied && turnover && (
-                                <span className="text-xs text-amber-600">— Remise en état</span>
+                                <span className="text-xs text-amber-600">{t("editBooking.roomTurnover")}</span>
                               )}
                             </span>
                           </SelectItem>
@@ -1909,7 +1923,7 @@ export default function EditBookingDialog({
                           }}
                         />
                         <span className="text-xs font-medium">
-                          Salle différente pour le 2e praticien
+                          {t("editBooking.secondaryRoomToggle")}
                         </span>
                       </label>
                       {secondaryRoomEnabled && (
@@ -1920,14 +1934,14 @@ export default function EditBookingDialog({
                           }
                         >
                           <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Automatique" />
+                            <SelectValue placeholder={t("editBooking.auto")} />
                           </SelectTrigger>
                           <SelectContent className="bg-background border shadow-lg">
-                            <SelectItem value="__auto__">Automatique</SelectItem>
+                            <SelectItem value="__auto__">{t("editBooking.auto")}</SelectItem>
                             {secondaryRoomId &&
                               !rooms.find((r) => r.id === secondaryRoomId) && (
                                 <SelectItem value={secondaryRoomId}>
-                                  {booking?.secondary_room_name || "Salle actuelle"}
+                                  {booking?.secondary_room_name || t("editBooking.currentRoom")}
                                 </SelectItem>
                               )}
                             {rooms
@@ -1959,12 +1973,12 @@ export default function EditBookingDialog({
                                       </span>
                                       {occupied && (
                                         <span className="text-xs text-destructive">
-                                          — Complète
+                                          {t("editBooking.roomFull")}
                                         </span>
                                       )}
                                       {!occupied && turnover && (
                                         <span className="text-xs text-amber-600">
-                                          — Remise en état
+                                          {t("editBooking.roomTurnover")}
                                         </span>
                                       )}
                                     </span>
@@ -1981,11 +1995,11 @@ export default function EditBookingDialog({
 
               {isDuo && (
                 <div className="space-y-1">
-                  <Label className="text-xs">Thérapeutes ({therapistCount} requis)</Label>
+                  <Label className="text-xs">{t("editBooking.therapistsRequired", { total: therapistCount })}</Label>
                   <div className="grid grid-cols-2 gap-2">
                     {Array.from({ length: therapistCount }, (_, i) => (
                       <div key={i} className="space-y-1">
-                        <p className="text-[10px] text-muted-foreground">Thérapeute {i + 1}</p>
+                        <p className="text-[10px] text-muted-foreground">{t("editBooking.therapistIndex", { index: i + 1 })}</p>
                         <Select
                           value={therapistIds[i] || "none"}
                           onValueChange={(val) => {
@@ -1996,10 +2010,10 @@ export default function EditBookingDialog({
                           disabled={clientFieldsDisabled}
                         >
                           <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Sélectionner" />
+                            <SelectValue placeholder={t("editBooking.placeholders.select")} />
                           </SelectTrigger>
                           <SelectContent className="bg-background border shadow-lg">
-                            <SelectItem value="none">Aucun thérapeute</SelectItem>
+                            <SelectItem value="none">{t("editBooking.noTherapist")}</SelectItem>
                             {therapists?.map((therapist) => {
                               const availability = therapistAvailability?.[therapist.id];
                               const isUnavailable = availability && !availability.available;
@@ -2014,8 +2028,8 @@ export default function EditBookingDialog({
                                   disabled={(isUnavailable || isAlreadyPicked) && !isCurrentForSlot}
                                 >
                                   {therapist.first_name} {therapist.last_name}
-                                  {isAlreadyPicked && !isCurrentForSlot && " — déjà sélectionné"}
-                                  {isUnavailable && !isAlreadyPicked && !isCurrentForSlot && " — Occupé"}
+                                  {isAlreadyPicked && !isCurrentForSlot && t("editBooking.alreadyPickedSuffix")}
+                                  {isUnavailable && !isAlreadyPicked && !isCurrentForSlot && t("editBooking.busySuffixDash")}
                                 </SelectItem>
                               );
                             })}
@@ -2025,14 +2039,14 @@ export default function EditBookingDialog({
                     ))}
                   </div>
                   <p className="text-[9px] leading-tight text-muted-foreground mt-0.5">
-                    Sélectionnez un thérapeute par créneau du soin duo.
+                    {t("editBooking.duoTherapistHelp")}
                   </p>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label htmlFor="edit-date" className="text-xs">Date *</Label>
+                  <Label htmlFor="edit-date" className="text-xs">{t("editBooking.fields.dateRequired")}</Label>
                   <Popover open={calendarOpen} onOpenChange={slotDisabled ? undefined : setCalendarOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -2044,7 +2058,7 @@ export default function EditBookingDialog({
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner</span>}
+                        {date ? format(date, "dd/MM/yyyy", { locale: dateLocale }) : <span>{t("editBooking.placeholders.select")}</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -2057,14 +2071,14 @@ export default function EditBookingDialog({
                         }}
                         initialFocus
                         className="pointer-events-auto"
-                        locale={fr}
+                        locale={dateLocale}
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs">Heure *</Label>
+                  <Label className="text-xs">{t("editBooking.fields.timeRequired")}</Label>
                   <div className="flex gap-1 items-center">
                     <Popover open={hourOpen} onOpenChange={slotDisabled ? undefined : setHourOpen}>
                       <PopoverTrigger asChild>
@@ -2139,7 +2153,7 @@ export default function EditBookingDialog({
 
               <div className="space-y-1">
                 <Label className="text-xs">
-                  Civilité <span className="text-muted-foreground font-normal">(optionnel)</span>
+                  {t("booking.civility.label")} <span className="text-muted-foreground font-normal">{t("booking.civility.optional")}</span>
                 </Label>
                 <Select
                   value={civility}
@@ -2147,18 +2161,18 @@ export default function EditBookingDialog({
                   disabled={clientFieldsDisabled}
                 >
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Civilité" />
+                    <SelectValue placeholder={t("booking.civility.label")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="madame">Madame</SelectItem>
-                    <SelectItem value="monsieur">Monsieur</SelectItem>
+                    <SelectItem value="madame">{t("booking.civility.madame")}</SelectItem>
+                    <SelectItem value="monsieur">{t("booking.civility.monsieur")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label htmlFor="edit-firstName" className="text-xs">Prénom *</Label>
+                  <Label htmlFor="edit-firstName" className="text-xs">{t("editBooking.fields.firstNameRequired")}</Label>
                   <Input
                     id="edit-firstName"
                     value={clientFirstName}
@@ -2169,7 +2183,7 @@ export default function EditBookingDialog({
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="edit-lastName" className="text-xs">Nom *</Label>
+                  <Label htmlFor="edit-lastName" className="text-xs">{t("editBooking.fields.lastNameRequired")}</Label>
                   <Input
                     id="edit-lastName"
                     value={clientLastName}
@@ -2182,7 +2196,7 @@ export default function EditBookingDialog({
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Phone number *</Label>
+                  <Label className="text-xs">{t("editBooking.fields.phoneRequired")}</Label>
                   <PhoneNumberField
                     value={phone}
                     onChange={(val) => {
@@ -2197,7 +2211,7 @@ export default function EditBookingDialog({
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs">Room number</Label>
+                  <Label className="text-xs">{t("editBooking.fields.roomNumber")}</Label>
                   <Input
                     value={roomNumber}
                     onChange={(e) => setRoomNumber(e.target.value)}
@@ -2211,27 +2225,27 @@ export default function EditBookingDialog({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="edit-client-note" className="text-xs flex items-center gap-1">
-                    <CalendarIcon className="h-3 w-3" /> Note réservation
+                    <CalendarIcon className="h-3 w-3" /> {t("bookingDetail.bookingNote")}
                   </Label>
                   <Textarea
                     id="edit-client-note"
                     value={clientNote}
                     onChange={(e) => setClientNote(e.target.value)}
                     disabled={clientFieldsDisabled}
-                    placeholder="Note pour cette réservation…"
+                    placeholder={t("editBooking.placeholders.bookingNote")}
                     rows={3}
                   />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="edit-customer-note" className="text-xs flex items-center gap-1">
-                    <User className="h-3 w-3" /> Note client
+                    <User className="h-3 w-3" /> {t("bookingDetail.clientNote")}
                   </Label>
                   <Textarea
                     id="edit-customer-note"
                     value={customerNote}
                     onChange={(e) => setCustomerNote(e.target.value)}
                     disabled={clientFieldsDisabled}
-                    placeholder="Note permanente (VIP, préférences…), sur toutes ses réservations"
+                    placeholder={t("editBooking.placeholders.customerNote")}
                     rows={3}
                   />
                 </div>
@@ -2247,13 +2261,13 @@ export default function EditBookingDialog({
                       onClick={() => setShowNoShowDialog(true)}
                       className="gap-2 text-amber-600 hover:text-amber-700"
                     >
-                      Client pas venu
+                      {t("editBooking.actions.noShow")}
                       <UserX className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
                 <Button type="button" onClick={() => setActiveTab("prestations")}>
-                  Suivant (Prestations) ➔
+                  {t("editBooking.nextTreatments")}
                 </Button>
               </div>
             </TabsContent>
@@ -2263,7 +2277,7 @@ export default function EditBookingDialog({
                 <Alert className="py-2 mx-6 mt-2 mb-0 shrink-0">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription className="text-xs">
-                    Les prestations ne sont plus modifiables pour cette réservation.
+                    {t("editBooking.treatmentsLocked")}
                   </AlertDescription>
                 </Alert>
               )}
@@ -2276,7 +2290,7 @@ export default function EditBookingDialog({
                     <Input
                       value={treatmentSearch}
                       onChange={(e) => setTreatmentSearch(e.target.value)}
-                      placeholder="Rechercher un soin…"
+                      placeholder={t("editBooking.placeholders.searchTreatment")}
                       className="h-10 pl-9 text-sm"
                     />
                   </div>
@@ -2284,25 +2298,26 @@ export default function EditBookingDialog({
                   <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
                     {(() => {
                       const q = treatmentSearch.trim().toLowerCase();
-                      const filtered = (treatments ?? []).filter((t) => {
+                      const filtered = (treatments ?? []).filter((tr) => {
                         if (!q) return true;
                         return (
-                          (t.name?.toLowerCase().includes(q)) ||
-                          (t.category?.toLowerCase().includes(q))
+                          (tr.name?.toLowerCase().includes(q)) ||
+                          (tr.category?.toLowerCase().includes(q))
                         );
                       });
 
                       const grouped: Record<string, typeof filtered> = {};
-                      filtered.forEach(t => {
-                        const c = t.category || "Autres";
+                      const uncategorized = t('editBooking.otherCategory');
+                      filtered.forEach(tr => {
+                        const c = tr.category || uncategorized;
                         if (!grouped[c]) grouped[c] = [];
-                        grouped[c].push(t);
+                        grouped[c].push(tr);
                       });
 
                       if (!filtered.length) {
                         return (
                           <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
-                            Aucune prestation disponible
+                            {t("editBooking.noTreatments")}
                           </div>
                         );
                       }
@@ -2339,7 +2354,7 @@ export default function EditBookingDialog({
                           className="shrink-0 h-7 rounded-full gap-1 px-3 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
                         >
                           <Plus className="h-3.5 w-3.5" />
-                          Ajouter
+                          {t("common:buttons.add")}
                         </Button>
                       );
 
@@ -2438,13 +2453,13 @@ export default function EditBookingDialog({
                   <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
                     <div className="flex items-center gap-2">
                       <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-semibold text-sm">Panier</span>
+                      <span className="font-semibold text-sm">{t("editBooking.cart.title")}</span>
                     </div>
                     {cartDetails.length > 0 && (() => {
                       const count = cartDetails.reduce((n, x) => n + x.quantity, 0);
                       return (
                         <span className="text-xs text-muted-foreground">
-                          {count} soin{count > 1 ? 's' : ''}
+                          {t("editBooking.cart.count", { count })}
                         </span>
                       );
                     })()}
@@ -2454,8 +2469,8 @@ export default function EditBookingDialog({
                     {cartDetails.length === 0 ? (
                       <div className="h-full flex flex-col items-center justify-center text-center px-4 py-8">
                         <ShoppingBag className="h-8 w-8 text-muted-foreground/40 mb-2" />
-                        <p className="text-sm font-medium text-muted-foreground">Votre panier est vide</p>
-                        <p className="text-xs text-muted-foreground/70 mt-0.5">Ajoutez des soins depuis la liste</p>
+                        <p className="text-sm font-medium text-muted-foreground">{t("editBooking.cart.empty")}</p>
+                        <p className="text-xs text-muted-foreground/70 mt-0.5">{t("editBooking.cart.emptyHint")}</p>
                       </div>
                     ) : (
                       cartDetails.map(({ treatmentId, variantId, quantity, priceOverride, treatment }) => {
@@ -2469,14 +2484,14 @@ export default function EditBookingDialog({
                                 <p className="text-sm font-medium leading-tight truncate">
                                   {getCartLineDisplayName(treatment, variantId)}
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-0.5">{unitPrice}€ / unité</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{t("editBooking.cart.unitPrice", { price: unitPrice })}</p>
                               </div>
                               {!treatmentsDisabled && (
                                 <button
                                   type="button"
                                   onClick={() => removeCartLine(treatmentId, variantId)}
                                   className="shrink-0 text-muted-foreground hover:text-destructive transition-colors p-0.5"
-                                  aria-label="Retirer"
+                                  aria-label={t("editBooking.cart.remove")}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
@@ -2508,10 +2523,10 @@ export default function EditBookingDialog({
 
                             {canOverride && (
                               <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
-                                <span className="text-[11px] text-muted-foreground shrink-0">Prix spécial</span>
+                                <span className="text-[11px] text-muted-foreground shrink-0">{t("editBooking.cart.specialPrice")}</span>
                                 {priceOverride != null && (
                                   <span className="text-[8px] uppercase font-semibold text-amber-600 bg-amber-100 rounded px-1 py-0.5">
-                                    modifié
+                                    {t("editBooking.cart.overridden")}
                                   </span>
                                 )}
                                 <Input
@@ -2551,7 +2566,7 @@ export default function EditBookingDialog({
                         onClick={() => setActiveTab("info")}
                         className="flex-1 h-9 text-sm"
                       >
-                        ← Retour
+                        ← {t("common:buttons.back")}
                       </Button>
                       <Button
                         type="submit"
@@ -2559,7 +2574,7 @@ export default function EditBookingDialog({
                         size="sm"
                         className="flex-1 h-9 text-sm bg-primary text-primary-foreground hover:bg-primary/90"
                       >
-                        {updateMutation.isPending ? "Modification…" : "Modifier"}
+                        {updateMutation.isPending ? t("editBooking.saving") : t("common:buttons.edit")}
                         {updateMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                       </Button>
                     </div>
@@ -2602,16 +2617,15 @@ export default function EditBookingDialog({
       <AlertDialog open={showNoShowDialog} onOpenChange={setShowNoShowDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Marquer comme no-show ?</AlertDialogTitle>
+            <AlertDialogTitle>{t("editBooking.noShow.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Le client ne s'est pas présenté. Des frais de no-show peuvent s'appliquer
-              selon la politique de l'établissement. Cette action est définitive.
+              {t("editBooking.noShow.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={noShowLoading}>Annuler</AlertDialogCancel>
+            <AlertDialogCancel disabled={noShowLoading}>{t("common:buttons.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleNoShow} disabled={noShowLoading}>
-              Confirmer le no-show
+              {t("editBooking.noShow.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2633,9 +2647,9 @@ export default function EditBookingDialog({
             booking_time: booking.booking_time,
             total_price: booking.total_price || 0,
             hotel_name: booking.hotel_name || undefined,
-            treatments: bookingTreatments?.map(t => ({
-              name: t.name || 'Service',
-              price: t.price || 0,
+            treatments: bookingTreatments?.map(tr => ({
+              name: tr.name || 'Service',
+              price: tr.price || 0,
             })) || [],
             currency: selectedHotel?.currency || 'EUR',
           }}

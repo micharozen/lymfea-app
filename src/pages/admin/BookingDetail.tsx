@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useDateLocale } from "@/lib/dateLocale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -54,18 +54,18 @@ import {
 } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType, isPartnerBilledBooking, isPaymentStatusLocked } from "@/lib/clientTypePayment";
 
-import { PAYMENT_METHOD_LABELS, manualPaymentMethodsForVenue } from "@/lib/paymentMethod";
+import { paymentMethodLabel, manualPaymentMethodsForVenue } from "@/lib/paymentMethod";
 
 // Origine de la réservation (colonne bookings.source) → tag affiché dans le header.
 // label = texte, className = couleurs du badge (bg + texte + bordure).
-const SOURCE_TAGS: Record<string, { label: string; className: string }> = {
-  client: { label: "Site", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  admin: { label: "Admin", className: "bg-blue-50 text-blue-700 border-blue-200" },
-  concierge: { label: "Gestion du lieu", className: "bg-amber-50 text-amber-700 border-amber-200" },
-  pwa: { label: "App thérapeute", className: "bg-purple-50 text-purple-700 border-purple-200" },
-  phone: { label: "Téléphone", className: "bg-stone-100 text-stone-600 border-stone-200" },
-  email: { label: "Email", className: "bg-stone-100 text-stone-600 border-stone-200" },
-  api: { label: "API", className: "bg-stone-100 text-stone-600 border-stone-200" },
+const SOURCE_TAGS: Record<string, { labelKey: string; className: string }> = {
+  client: { labelKey: "bookingDetail.source.client", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  admin: { labelKey: "bookingDetail.source.admin", className: "bg-blue-50 text-blue-700 border-blue-200" },
+  concierge: { labelKey: "bookingDetail.source.concierge", className: "bg-amber-50 text-amber-700 border-amber-200" },
+  pwa: { labelKey: "bookingDetail.source.pwa", className: "bg-purple-50 text-purple-700 border-purple-200" },
+  phone: { labelKey: "bookingDetail.source.phone", className: "bg-stone-100 text-stone-600 border-stone-200" },
+  email: { labelKey: "bookingDetail.source.email", className: "bg-stone-100 text-stone-600 border-stone-200" },
+  api: { labelKey: "bookingDetail.source.api", className: "bg-stone-100 text-stone-600 border-stone-200" },
 };
 
 const PAYMENT_METHOD_ICONS: Record<string, typeof CreditCard> = {
@@ -121,7 +121,8 @@ export default function BookingDetail() {
   const backTo = (location.state as { from?: string } | null)?.from ?? null;
   const goBack = () => (backTo ? navigate(backTo) : navigate(-1));
 
-  const { t } = useTranslation('admin');
+  const { t } = useTranslation(['admin', 'common']);
+  const dateLocale = useDateLocale();
   const { showsConciergeUx: isConcierge, isAdmin } = useEffectiveRole();
   // Onglet diagnostic de diffusion : admin réel uniquement (la RLS SELECT sur
   // push_notification_logs est elle aussi admin-only), et masqué en vue gestionnaire de lieu.
@@ -272,7 +273,7 @@ export default function BookingDetail() {
   // actually run and returned nothing.
   if (!booking && !isFetched) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  if (!booking) return <div className="p-10 text-center text-muted-foreground">Réservation introuvable.</div>;
+  if (!booking) return <div className="p-10 text-center text-muted-foreground">{t('bookingDetail.notFound')}</div>;
 
   const isPaid = booking.payment_status === 'paid' || booking.payment_status === 'charged_to_room';
   const isRoomPayment = booking.payment_method === 'room' || booking.payment_status === 'charged_to_room';
@@ -345,13 +346,13 @@ export default function BookingDetail() {
   const remainingDue = Math.max(displayPrice - paidAmount, 0);
   const paidRatio = displayPrice > 0 ? Math.min(paidAmount / displayPrice, 1) : (isSettled || isOffert ? 1 : 0);
   const methodLabel = booking.payment_method
-    ? (PAYMENT_METHOD_LABELS[booking.payment_method] || booking.payment_method)
-    : "À définir";
+    ? paymentMethodLabel(booking.payment_method)
+    : t('bookingDetail.methodTbd');
   const MethodIcon = booking.payment_method ? (PAYMENT_METHOD_ICONS[booking.payment_method] ?? CreditCard) : CreditCard;
 
   const cancellationDetail =
     booking.status === "cancelled" && paymentMeta?.cancelled_at
-      ? `${format(new Date(paymentMeta.cancelled_at), "d MMM à HH:mm", { locale: fr })} · ${paymentMeta.cancelled_by ? "Annulé par l'établissement" : "Annulé par le client"}`
+      ? `${format(new Date(paymentMeta.cancelled_at), t('bookingDetail.dateTimeFormat'), { locale: dateLocale })} · ${paymentMeta.cancelled_by ? t('bookingDetail.cancelledByVenue') : t('bookingDetail.cancelledByClient')}`
       : undefined;
 
   // Success banner is only meaningful for a real collected payment — not a room
@@ -360,7 +361,7 @@ export default function BookingDetail() {
   // confondre avec un encaissement direct.
   const showPaymentSuccess = isPaid && !isRoomPayment && !isPartnerBilled;
   const paidAtDetail = paymentMeta?.payment_at
-    ? format(new Date(paymentMeta.payment_at), "d MMM à HH:mm", { locale: fr })
+    ? format(new Date(paymentMeta.payment_at), t('bookingDetail.dateTimeFormat'), { locale: dateLocale })
     : undefined;
 
   // Remboursement (source de vérité = booking_payment_infos.refund_amount, en €).
@@ -373,7 +374,7 @@ export default function BookingDetail() {
   const showInvoice = booking.status === "completed";
   const invoiceLabel = booking.stripe_invoice_url
     ? "Facture"
-    : booking.payment_method === "room" ? "Bon de prestation" : "Facture";
+    : booking.payment_method === "room" ? t('bookingDetail.serviceVoucher') : "Facture";
   // Une seule action primaire, dictée par l'état du booking : terminé → facture,
   // impayé → encaisser, sinon → modifier.
   const primaryAction: "invoice" | "payment" | "edit" = showInvoice
@@ -403,7 +404,7 @@ export default function BookingDetail() {
     if (isPartner && !markPaidPartner) return;
     // Ne pas réécraser un paiement déjà abouti/remboursé.
     if (isPartner && isPaymentStatusLocked(booking.payment_status, booking.payment_method)) {
-      toast.error("Le statut de paiement est verrouillé (payé ou remboursé).");
+      toast.error(t('bookingDetail.paymentLocked'));
       return;
     }
     setMarkPaidLoading(true);
@@ -456,10 +457,10 @@ export default function BookingDetail() {
       }
       toast.success(
         isPartner
-          ? "Facturation partenaire enregistrée."
+          ? t('bookingDetail.partnerBillingSaved')
           : isMethodOnly
-            ? "Méthode de paiement mise à jour."
-            : "Paiement enregistré.",
+            ? t('bookingDetail.paymentMethodUpdated')
+            : t('bookingDetail.paymentSaved'),
       );
       dialogs.setIsMarkPaidOpen(false);
       refetch();
@@ -485,7 +486,7 @@ export default function BookingDetail() {
 
       if (error) throw error;
 
-      toast.success("Signature ajoutée avec succès au dossier !");
+      toast.success(t('bookingDetail.signatureAdded'));
       dialogs.setIsSignatureOpen(false);
 
       refetch();
@@ -511,7 +512,7 @@ export default function BookingDetail() {
     );
     setInvoiceLoading(false);
     if (error || !data) {
-      toast.error("Impossible de générer la facture.");
+      toast.error(t('bookingDetail.invoiceError'));
       return;
     }
     setInvoiceHTML(data.html);
@@ -527,7 +528,7 @@ export default function BookingDetail() {
           <div className="flex items-start gap-3 min-w-0">
             <Button variant="ghost" size="sm" onClick={goBack} className="flex-shrink-0 mt-0.5 -ml-2">
               <ArrowLeft className="h-4 w-4" />
-              <span className="sr-only">Retour</span>
+              <span className="sr-only">{t('common:buttons.back')}</span>
             </Button>
             <div className="min-w-0">
               <div className="flex items-center gap-3 flex-wrap min-w-0">
@@ -546,17 +547,17 @@ export default function BookingDetail() {
                   <span
                     className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${sourceTag.className}`}
                   >
-                    <span className="opacity-60">Source</span>
-                    {sourceTag.label}
+                    <span className="opacity-60">{t('bookingDetail.sourceLabel')}</span>
+                    {t(sourceTag.labelKey)}
                   </span>
                 )}
               </div>
               <p className="mt-0.5 text-xs text-gray-500 flex items-center gap-1.5 flex-wrap">
-                <span>{clientType === "hotel" ? "Client hôtel" : "Client externe"}</span>
+                <span>{clientType === "hotel" ? t('bookingDetail.hotelGuest') : t('bookingDetail.externalGuest')}</span>
                 {booking.room_number && booking.room_number !== "TBD" ? (
                   <><span className="text-gray-300">·</span><span>Ch. {booking.room_number}</span></>
                 ) : clientType === "hotel" && (
-                  <><span className="text-gray-300">·</span><span className="text-amber-600">Chambre à renseigner</span></>
+                  <><span className="text-gray-300">·</span><span className="text-amber-600">{t('bookingDetail.roomMissing')}</span></>
                 )}
                 {isDuo && hasService && (
                   <><span className="text-gray-300">·</span>
@@ -584,7 +585,7 @@ export default function BookingDetail() {
             )}
             {primaryAction === "payment" && (
               <Button variant="default" size="sm" onClick={() => dialogs.setIsPaymentLinkOpen(true)}>
-                Envoyer le paiement <Send className="h-4 w-4 ml-2" />
+                {t('bookingDetail.sendPayment')} <Send className="h-4 w-4 ml-2" />
               </Button>
             )}
             <Button
@@ -593,14 +594,14 @@ export default function BookingDetail() {
               className="rounded-md border-stone-200 px-2.5 text-xs text-stone-700 hover:bg-stone-50 hover:text-stone-900 [&_svg]:size-3.5"
               onClick={() => dialogs.setIsEditOpen(true)}
             >
-              Modifier <Pencil />
+              {t('common:buttons.edit')} <Pencil />
             </Button>
             {(canConvertToDuo || (showInvoice && primaryAction !== "invoice") || (!isSigned && !isConcierge)) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="px-2">
                     <MoreHorizontal className="h-4 w-4" />
-                    <span className="sr-only">Plus d'actions</span>
+                    <span className="sr-only">{t('bookingDetail.moreActions')}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -611,7 +612,7 @@ export default function BookingDetail() {
                   )}
                   {!isSigned && !isConcierge && (
                     <DropdownMenuItem onClick={() => dialogs.setIsSignatureOpen(true)}>
-                      <PenTool className="h-4 w-4 mr-2" /> Demander la signature
+                      <PenTool className="h-4 w-4 mr-2" /> {t('bookingDetail.requestSignature')}
                     </DropdownMenuItem>
                   )}
                   {showInvoice && primaryAction !== "invoice" && (
@@ -636,7 +637,7 @@ export default function BookingDetail() {
               <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2.5 text-red-800">
                 <div className="flex items-center gap-2 min-w-0">
                   <AlertCircle className="h-3.5 w-3.5 text-red-600 flex-shrink-0" />
-                  <span className="font-medium text-xs truncate">Décharge non signée</span>
+                  <span className="font-medium text-xs truncate">{t('bookingDetail.waiverUnsigned')}</span>
                 </div>
                 <Button
                   variant="outline"
@@ -652,10 +653,10 @@ export default function BookingDetail() {
               <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-3 text-blue-800">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <CheckCircle2 className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                  <span className="font-medium text-sm truncate">Décharge signée</span>
+                  <span className="font-medium text-sm truncate">{t('bookingDetail.waiverSigned')}</span>
                 </div>
                 <span className="text-xs opacity-70">
-                  Le {format(new Date(booking.signed_at), "d MMM à HH:mm", { locale: fr })}
+                  {t('bookingDetail.signedOn', { date: format(new Date(booking.signed_at), t('bookingDetail.dateTimeFormat'), { locale: dateLocale }) })}
                 </span>
               </div>
             )}
@@ -689,7 +690,7 @@ export default function BookingDetail() {
                     className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
                     onClick={() => navigate(`/admin/customers/${(booking as any).customer_id}`)}
                   >
-                    Voir le client
+                    {t('bookingDetail.viewClient')}
                     <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -718,13 +719,13 @@ export default function BookingDetail() {
               </div>
               {(booking as any).client_note && (
                 <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note réservation</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">{t('bookingDetail.bookingNote')}</p>
                   <p className="text-sm text-foreground whitespace-pre-wrap">{(booking as any).client_note}</p>
                 </div>
               )}
               {booking.customer_health_notes && (
                 <div className="mt-4 p-3 bg-sky-500/10 border border-sky-500/30 rounded-lg">
-                  <p className="text-xs text-sky-700 dark:text-sky-400 mb-1 font-medium">Note client</p>
+                  <p className="text-xs text-sky-700 dark:text-sky-400 mb-1 font-medium">{t('bookingDetail.clientNote')}</p>
                   <p className="text-sm text-foreground whitespace-pre-wrap">{booking.customer_health_notes}</p>
                 </div>
               )}
@@ -736,7 +737,7 @@ export default function BookingDetail() {
                 <TabsList>
                   <TabsTrigger value="history" className="gap-1.5">
                     <History className="h-3.5 w-3.5" />
-                    Historique
+                    {t('bookingDetail.history')}
                   </TabsTrigger>
                   <TabsTrigger value="notes" className="gap-1.5">
                     <MessageSquare className="h-3.5 w-3.5" />
@@ -791,7 +792,7 @@ export default function BookingDetail() {
             <section className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
               <div className="flex items-center gap-2.5 mb-4">
                 <CreditCard className="h-5 w-5 text-gray-400" />
-                <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Paiement</span>
+                <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">{t('bookingDetail.payment')}</span>
               </div>
 
               <div className="flex justify-between items-baseline">
@@ -806,16 +807,16 @@ export default function BookingDetail() {
                 />
               </div>
               <div className="mt-2 flex justify-between text-sm">
-                <span className="text-gray-500">Payé <span className="font-medium text-gray-900 tabular-nums">{formatPrice(paidAmount, currency)}</span></span>
+                <span className="text-gray-500">{t('bookingDetail.paid')} <span className="font-medium text-gray-900 tabular-nums">{formatPrice(paidAmount, currency)}</span></span>
                 <span className={`font-medium tabular-nums ${remainingDue > 0 ? "text-amber-600" : "text-emerald-600"}`}>
-                  {remainingDue > 0 ? `Reste ${formatPrice(remainingDue, currency)}` : "Soldé"}
+                  {remainingDue > 0 ? t('bookingDetail.remaining', { amount: formatPrice(remainingDue, currency) }) : t('bookingDetail.settled')}
                 </span>
               </div>
 
               {hasRefund && (
                 <div className="mt-2 flex justify-between text-sm">
                   <span className="flex items-center gap-1.5 text-rose-600">
-                    <Undo2 className="h-3.5 w-3.5 shrink-0" /> Remboursé
+                    <Undo2 className="h-3.5 w-3.5 shrink-0" /> {t('bookingDetail.refunded')}
                   </span>
                   <span className="font-medium tabular-nums text-rose-600">
                     −{formatPrice(refundedAmount, currency)}
@@ -828,13 +829,13 @@ export default function BookingDetail() {
                   <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 flex items-center gap-2 text-green-800">
                     <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
                     <span className="font-medium text-xs">
-                      Paiement réalisé avec succès{paidAtDetail && <span className="font-normal opacity-70"> — le {paidAtDetail}</span>}
+                      {t('bookingDetail.paymentSuccessful')}{paidAtDetail && <span className="font-normal opacity-70">{t('bookingDetail.paymentSuccessfulOn', { date: paidAtDetail })}</span>}
                     </span>
                   </div>
                 ) : isRoomPayment ? (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-center gap-2 text-blue-800">
                     <Building2 className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                    <span className="font-medium text-xs">Facturé en chambre.</span>
+                    <span className="font-medium text-xs">{t('bookingDetail.chargedToRoom')}</span>
                   </div>
                 ) : isPartnerBilled ? (
                   <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2 flex items-center gap-2 text-indigo-800">
@@ -845,33 +846,33 @@ export default function BookingDetail() {
                     )}
                     <span className="font-medium text-xs">
                       {partnerName
-                        ? `Facturé au partenaire ${partnerName} (facturation mensuelle).`
-                        : "Paiement géré par le partenaire (facturation mensuelle)."}
+                        ? t('bookingDetail.billedToPartner', { partner: partnerName })
+                        : t('bookingDetail.billedToPartnerGeneric')}
                     </span>
                   </div>
                 ) : (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2 text-amber-800">
                     <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                    <span className="font-medium text-xs">En attente de règlement.</span>
+                    <span className="font-medium text-xs">{t('bookingDetail.awaitingPayment')}</span>
                   </div>
                 )}
               </div>
 
               <Collapsible open={isPaymentDetailOpen} onOpenChange={setIsPaymentDetailOpen} className="mt-4 border-t border-stone-100 pt-3">
                 <CollapsibleTrigger className="flex w-full items-center justify-between text-sm text-gray-500 hover:text-gray-900 transition-colors">
-                  <span>Détail</span>
+                  <span>{t('bookingDetail.details')}</span>
                   <ChevronDown className={`h-4 w-4 transition-transform ${isPaymentDetailOpen ? "rotate-180" : ""}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-3 space-y-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-500 flex items-center gap-2">
-                      <MethodIcon className="h-4 w-4 shrink-0" /> Méthode
+                      <MethodIcon className="h-4 w-4 shrink-0" /> {t('bookingDetail.method')}
                     </span>
                     <button
                       type="button"
                       onClick={() => openPaymentMethodDialog("method")}
                       className="group flex items-center gap-1.5 text-right text-gray-900 font-medium capitalize hover:text-primary transition-colors"
-                      title="Modifier la méthode de paiement"
+                      title={t('bookingDetail.editPaymentMethod')}
                     >
                       {methodLabel}
                       <Pencil className="h-3.5 w-3.5 shrink-0 text-gray-400 group-hover:text-primary" />
@@ -879,25 +880,25 @@ export default function BookingDetail() {
                   </div>
                   {(booking as any).payment_reference && (
                     <p className="font-mono text-[11px] text-gray-400 text-right">
-                      Réf. voucher : {(booking as any).payment_reference}
+                      {t('bookingDetail.voucherRef', { ref: (booking as any).payment_reference })}
                     </p>
                   )}
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500">Sous-total</span>
+                    <span className="text-gray-500">{t('bookingDetail.subtotal')}</span>
                     <span className="text-gray-900 tabular-nums">{formatPrice(subtotal, currency)}</span>
                   </div>
                   {hasSurcharge && (
                     <div className="flex justify-between items-center text-sm font-medium text-amber-600">
                       <span className="flex items-center gap-2">
                         <Clock className="h-4 w-4 shrink-0" />
-                        Majoration hors horaires ({surchargePercent}%)
+                        {t('bookingDetail.surchargeLine', { percent: surchargePercent })}
                       </span>
                       <span className="whitespace-nowrap tabular-nums">+{formatPrice(surchargeAmount, currency)}</span>
                     </div>
                   )}
                   {isOffert && (
                     <div className="flex justify-between items-center text-sm font-medium text-amber-600">
-                      <span>Offert</span>
+                      <span>{t('bookingDetail.complimentary')}</span>
                       <span className="whitespace-nowrap tabular-nums">−{formatPrice(offertOriginalPrice, currency)}</span>
                     </div>
                   )}
@@ -911,7 +912,7 @@ export default function BookingDetail() {
                   className="w-full mt-4"
                   onClick={() => openPaymentMethodDialog("pay")}
                 >
-                  <CheckCircle2 className="h-4 w-4 mr-2" /> Marquer comme payé
+                  <CheckCircle2 className="h-4 w-4 mr-2" /> {t('bookingDetail.markAsPaid')}
                 </Button>
               )}
             </section>
@@ -919,29 +920,29 @@ export default function BookingDetail() {
             <section className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
               <div className="flex items-center gap-2.5 mb-4">
                 <Calendar className="h-5 w-5 text-gray-400" />
-                <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">Rendez-vous</span>
+                <span className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase">{t('bookingDetail.appointment')}</span>
               </div>
               <dl className="divide-y divide-stone-100">
                 <div className="flex items-center justify-between gap-4 py-2.5">
-                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Date</dt>
+                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">{t('bookingDetail.date')}</dt>
                   <dd className="text-sm font-medium text-gray-900 text-right capitalize">
-                    {booking.booking_date ? format(new Date(booking.booking_date), "EEEE d MMMM", { locale: fr }) : "-"}
+                    {booking.booking_date ? format(new Date(booking.booking_date), "EEEE d MMMM", { locale: dateLocale }) : "-"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-4 py-2.5">
-                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Horaire</dt>
+                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">{t('bookingDetail.time')}</dt>
                   <dd className="text-sm font-medium text-gray-900 text-right">
                     {booking.booking_time?.substring(0, 5) || "-"}{totalDuration > 0 && ` · ${totalDuration} min`}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-4 py-2.5">
-                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">Lieu</dt>
+                  <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">{t('bookingDetail.venue')}</dt>
                   <dd className="text-sm font-medium text-gray-900 text-right break-words">{hotelInfo?.name || "-"}</dd>
                 </div>
                 {booking.room_name && (
                   <div className="flex items-center justify-between gap-4 py-2.5">
                     <dt className="text-[11px] font-medium tracking-[0.12em] text-gray-400 uppercase shrink-0">
-                      Cabine{isDuo && booking.secondary_room_name ? "s" : ""}
+                      {t('bookingDetail.room', { count: isDuo && booking.secondary_room_name ? 2 : 1 })}
                     </dt>
                     <dd className="text-sm font-medium text-gray-900 text-right break-words">
                       {booking.room_name}
@@ -981,28 +982,28 @@ export default function BookingDetail() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="font-normal">
-              {markPaidMode === "method" ? "Modifier la méthode de paiement" : "Marquer comme payé"}
+              {markPaidMode === "method" ? t('bookingDetail.editPaymentMethod') : t('bookingDetail.markAsPaid')}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <label className="text-sm text-gray-500">Méthode de paiement</label>
+            <label className="text-sm text-gray-500">{t('bookingDetail.paymentMethod')}</label>
             <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
-              <SelectTrigger><SelectValue placeholder="Choisir une méthode" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t('bookingDetail.chooseMethod')} /></SelectTrigger>
               <SelectContent>
                 {/* `bundle` est réservé au système : on ne l'expose que s'il est
                     déjà la valeur courante, pour ne pas vider le Select. */}
                 {markPaidMethodOptions.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {PAYMENT_METHOD_LABELS[value] ?? value}
+                    {paymentMethodLabel(value)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {markPaidMethod === "partner_billed" && (
               <div className="space-y-2 pt-2">
-                <label className="text-sm text-gray-500">Partenaire facturé</label>
+                <label className="text-sm text-gray-500">{t('bookingDetail.billedPartner')}</label>
                 <Select value={markPaidPartner} onValueChange={(v) => setMarkPaidPartner(v as BookingClientType)}>
-                  <SelectTrigger><SelectValue placeholder="Choisir un partenaire" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('bookingDetail.choosePartner')} /></SelectTrigger>
                   <SelectContent>
                     {PARTNER_BILLED_CLIENT_TYPES.map((type) => (
                       <SelectItem key={type} value={type}>{t(CLIENT_TYPE_META[type].labelKey)}</SelectItem>
@@ -1013,10 +1014,10 @@ export default function BookingDetail() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => dialogs.setIsMarkPaidOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => dialogs.setIsMarkPaidOpen(false)}>{t('common:buttons.cancel')}</Button>
             <Button onClick={handleMarkAsPaid} disabled={!markPaidMethod || (markPaidMethod === "partner_billed" && !markPaidPartner) || markPaidLoading}>
               {markPaidLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {markPaidMode === "method" ? "Enregistrer" : "Confirmer le paiement"}
+              {markPaidMode === "method" ? t('common:buttons.save') : t('bookingDetail.confirmPayment')}
             </Button>
           </DialogFooter>
         </DialogContent>

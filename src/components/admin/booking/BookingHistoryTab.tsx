@@ -1,65 +1,34 @@
 import { useState } from "react";
-import { formatDistanceToNow, format, formatDate } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { format } from "date-fns";
 import { Loader2, History, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBookingHistory, type BookingAuditEntry } from "@/hooks/booking/useBookingHistory";
 import { formatPrice } from "@/lib/formatPrice";
 import { EmailPreviewDialog } from "./EmailPreviewDialog";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
+import i18n from "@/i18n";
+import { getDateLocale } from "@/lib/dateLocale";
 
-const FIELD_LABELS: Record<string, string> = {
-  status: "Statut",
-  payment_status: "Paiement",
-  therapist_id: "Thérapeute",
-  therapist_name: "Thérapeute",
-  booking_date: "Date",
-  booking_time: "Horaire",
-  duration: "Durée",
-  total_price: "Prix total",
-  payment_method: "Méthode de paiement",
-  room_id: "Salle",
-};
+/** Champs de l'audit affichés dans l'historique (les autres sont ignorés). */
+const AUDITED_FIELDS = [
+  "status",
+  "payment_status",
+  "therapist_id",
+  "therapist_name",
+  "booking_date",
+  "booking_time",
+  "duration",
+  "total_price",
+  "payment_method",
+  "room_id",
+] as const;
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: "En attente",
-  awaiting_payment: "En attente de paiement",
-  awaiting_hairdresser_selection: "En attente de thérapeute",
-  waiting_approval: "En attente d'approbation",
-  quote_pending: "Devis en attente",
-  alternative_proposed: "Alternative proposée",
-  accepted: "Accepté",
-  rejected: "Refusé",
-  confirmed: "Confirmé",
-  ongoing: "En cours",
-  completed: "Terminé",
-  cancelled: "Annulé",
-  no_show: "No-show",
-  expired: "Expiré",
-};
-
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  card: "Carte — paiement en ligne",
-  card_on_site: "Carte — sur place",
-  cash: "Espèces",
-  room: "Facturé chambre",
-  bundle: "Forfait",
-  gift_amount: "Carte cadeau",
-  offert: "Offert",
-  voucher: "Payé par voucher",
-  partner_billed: "Facturé au partenaire",
-  cure_fresha: "Cure Fresha",
-};
-
-const PAYMENT_STATUS_LABELS: Record<string, string> = {
-  pending: "En attente",
-  paid: "Payé",
-  failed: "Échoué",
-  refunded: "Remboursé",
-  charged_to_room: "Facturé chambre",
-  pending_partner_billing: "Paiement partenaire",
-  card_saved: "Carte enregistrée",
-};
+/** Traduction avec repli sur la valeur brute quand la clé n'existe pas. */
+function translateValue(group: string, value: string): string {
+  const label = i18n.t(`admin:bookingHistory.${group}.${value}`, { defaultValue: "" });
+  return label || value;
+}
 
 function formatValue(
   field: string,
@@ -70,17 +39,17 @@ function formatValue(
 ): string {
   if (value === null || value === undefined || value === "") return "—";
 
-  if (field === "status") return STATUS_LABELS[value as string] ?? String(value);
+  if (field === "status") return translateValue("statusLabels", String(value));
   if (field === "payment_status") {
     const displayed = effectivePaymentStatus(
       siblingValues.payment_method as string | null | undefined,
       value as string,
     );
-    return PAYMENT_STATUS_LABELS[displayed] ?? String(displayed);
+    return translateValue("paymentStatusLabels", String(displayed));
   }
-  if (field === "payment_method") return PAYMENT_METHOD_LABELS[value as string] ?? String(value);
+  if (field === "payment_method") return translateValue("paymentMethodLabels", String(value));
   if (field === "total_price") return `${Number(value).toFixed(2)} €`;
-  if (field === "duration") return `${value} min`;
+  if (field === "duration") return i18n.t("admin:bookingHistory.minutes", { count: Number(value) });
   if (field === "booking_time" && typeof value === "string") return value.substring(0, 5);
 
   return String(value);
@@ -96,7 +65,7 @@ function getChangedFields(entry: BookingAuditEntry) {
   if (allKeys.has("room_id")) allKeys.delete("room_name");
 
   return Array.from(allKeys)
-    .filter((key) => key in FIELD_LABELS)
+    .filter((key) => (AUDITED_FIELDS as readonly string[]).includes(key))
     .map((key) => {
       // For therapist_id / room_id, display the resolved name only — never fall
       // back to the raw UUID (shows "—" if the name couldn't be resolved).
@@ -104,7 +73,7 @@ function getChangedFields(entry: BookingAuditEntry) {
         key === "therapist_id" ? "therapist_name" : key === "room_id" ? "room_name" : key;
       return {
         field: key,
-        label: FIELD_LABELS[key],
+        label: i18n.t(`admin:bookingHistory.fields.${key}`),
         oldValue: formatValue(displayKey, oldVals[displayKey], oldVals),
         newValue: formatValue(displayKey, newVals[displayKey], newVals),
       };
@@ -127,52 +96,57 @@ function hasEmailPreview(entry: BookingAuditEntry): boolean {
   return newVals.has_preview === true || newVals.has_html === true;
 }
 
-const EMAIL_TYPE_LABELS: Record<string, string> = {
-  booking_confirmation: "Email de confirmation envoyé au client",
-  booking_confirmed: "Email de confirmation de réservation envoyé",
-  booking_pending: "Email de demande de réservation envoyé",
-  booking_notification: "Email de notification envoyé",
-  new_booking_notifications: "Email de nouvelle réservation envoyé",
-  payment_reminder: "Email de rappel de paiement envoyé",
-  booking_cancelled: "Email d'annulation envoyé",
-  payment_link_expired: "Email d'expiration du lien de paiement envoyé",
-};
-
 function renderActionLabel(entry: BookingAuditEntry): string | null {
   const newVals = (entry.new_values ?? {}) as Record<string, unknown>;
   const action = typeof newVals.action === "string" ? newVals.action : null;
 
   if (action === "email_sent") {
     const emailType = typeof newVals.email_type === "string" ? newVals.email_type : "";
-    const base = EMAIL_TYPE_LABELS[emailType] ?? "Email envoyé";
+    const base =
+      i18n.t(`admin:bookingHistory.emailTypes.${emailType}`, { defaultValue: "" }) ||
+      i18n.t("admin:bookingHistory.actions.emailSent");
     const recipients = Array.isArray(newVals.recipients) ? (newVals.recipients as string[]) : [];
-    return recipients.length ? `${base} (${recipients.join(", ")})` : base;
+    return recipients.length
+      ? i18n.t("admin:bookingHistory.actions.withRecipients", {
+          label: base,
+          recipients: recipients.join(", "),
+        })
+      : base;
   }
 
   if (action === "refund") {
     const amount = typeof newVals.amount === "number" ? newVals.amount : null;
     const isPartial = newVals.is_partial === true;
-    const amountLabel = amount != null ? ` de ${formatPrice(amount)}` : "";
-    return `Remboursement${amountLabel}${isPartial ? " (partiel)" : ""}`;
+    const label =
+      amount != null
+        ? i18n.t("admin:bookingHistory.actions.refundWithAmount", { amount: formatPrice(amount) })
+        : i18n.t("admin:bookingHistory.actions.refund");
+    return isPartial
+      ? i18n.t("admin:bookingHistory.actions.partialSuffix", { label })
+      : label;
   }
 
   if (action === "payment_link_sent") {
     const channels = Array.isArray(newVals.channels) ? newVals.channels as string[] : [];
     const labels: string[] = [];
     if (channels.includes("email") && typeof newVals.email === "string") {
-      labels.push(`email à ${newVals.email}`);
+      labels.push(i18n.t("admin:bookingHistory.channels.emailTo", { email: newVals.email }));
     } else if (channels.includes("email")) {
-      labels.push("email");
+      labels.push(i18n.t("admin:bookingHistory.channels.email"));
     }
     if (channels.includes("sms") && typeof newVals.phone === "string") {
-      labels.push(`SMS au ${newVals.phone}`);
+      labels.push(i18n.t("admin:bookingHistory.channels.smsTo", { phone: newVals.phone }));
     } else if (channels.includes("sms")) {
-      labels.push("SMS");
+      labels.push(i18n.t("admin:bookingHistory.channels.sms"));
     }
-    return `Lien de paiement envoyé${labels.length ? ` par ${labels.join(" et ")}` : ""}`;
+    return labels.length
+      ? i18n.t("admin:bookingHistory.actions.paymentLinkSentVia", {
+          channels: labels.join(i18n.t("admin:bookingHistory.channels.joiner")),
+        })
+      : i18n.t("admin:bookingHistory.actions.paymentLinkSent");
   }
 
-  return action ? `Action : ${action}` : null;
+  return action ? i18n.t("admin:bookingHistory.actions.generic", { action }) : null;
 }
 
 interface BookingHistoryTabProps {
@@ -181,6 +155,8 @@ interface BookingHistoryTabProps {
 }
 
 export function BookingHistoryTab({ bookingId, enabled }: BookingHistoryTabProps) {
+  const { t, i18n: i18nInstance } = useTranslation(["admin", "common"]);
+  const dateLocale = getDateLocale(i18nInstance.language);
   const { data: entries, isLoading } = useBookingHistory(bookingId, enabled);
   const [previewAuditId, setPreviewAuditId] = useState<string | null>(null);
 
@@ -196,7 +172,7 @@ export function BookingHistoryTab({ bookingId, enabled }: BookingHistoryTabProps
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
         <History className="h-10 w-10 mb-3 opacity-40" />
-        <p className="text-sm">Aucun changement enregistré pour cette réservation.</p>
+        <p className="text-sm">{t('bookingHistory.empty')}</p>
       </div>
     );
   }
@@ -219,25 +195,31 @@ export function BookingHistoryTab({ bookingId, enabled }: BookingHistoryTabProps
                 <div className="flex items-center justify-between mb-3">
                   <span
                     className="text-xs text-muted-foreground"
-                    title={format(dateObj, "d MMMM yyyy à HH:mm:ss", { locale: fr })}
+                    title={t('bookingHistory.at', {
+                      date: format(dateObj, 'd MMMM yyyy', { locale: dateLocale }),
+                      time: format(dateObj, 'HH:mm:ss'),
+                    })}
                   >
-                    Le {format(entry.changed_at, 'dd/MM/yyyy à HH:mm:ss')} 
+                    {t('bookingHistory.at', {
+                      date: format(dateObj, 'dd/MM/yyyy'),
+                      time: format(dateObj, 'HH:mm:ss'),
+                    })}
                     {/* (il y a {formatDistanceToNow(dateObj, { addSuffix: true, locale: fr, includeSeconds:true })}) */}
                     {/* {format(dateObj)} */}
                     {/* {formatDistanceToNow(dateObj, { addSuffix: true, locale: fr })} */}
                   </span>
                   {entry.changed_by_name && (
                     <span className="text-xs font-medium text-gray-500">
-                      par {entry.changed_by_name}
+                      {t('bookingHistory.by', { name: entry.changed_by_name })}
                     </span>
                   )}
                 </div>
 
                 {isInsert(entry) ? (
-                  <p className="text-sm text-green-600 font-medium">Réservation créée</p>
+                  <p className="text-sm text-green-600 font-medium">{t('bookingHistory.created')}</p>
                 ) : isAction(entry) ? (
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm text-blue-600 font-medium">{renderActionLabel(entry) ?? "Action"}</p>
+                    <p className="text-sm text-blue-600 font-medium">{renderActionLabel(entry) ?? t('bookingHistory.actions.fallback')}</p>
                     {hasEmailPreview(entry) && (
                       <Button
                         variant="ghost"
@@ -246,7 +228,7 @@ export function BookingHistoryTab({ bookingId, enabled }: BookingHistoryTabProps
                         onClick={() => setPreviewAuditId(entry.id)}
                       >
                         <Eye className="h-3.5 w-3.5 mr-1.5" />
-                        Aperçu
+                        {t('bookingHistory.preview')}
                       </Button>
                     )}
                   </div>

@@ -54,11 +54,11 @@ const createFormSchema = (t: TFunction) => z.object({
   variants: z.array(z.object({
     id: z.string().uuid().optional(),
     label: z.string().optional(),
-    duration: z.string().min(1, "Durée requise"),
+    duration: z.string().min(1, t('admin:treatmentMenuDialog.durationRequired')),
     price: z.string().default("0"),
     price_on_request: z.boolean().default(false),
     is_default: z.boolean().default(false),
-  })).min(1, "Au moins une variante requise"),
+  })).min(1, t('admin:treatmentMenuDialog.atLeastOneVariant')),
 });
 
 type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -95,7 +95,7 @@ export function EditTreatmentMenuDialog({
   menu,
   onSuccess,
 }: EditTreatmentMenuDialogProps) {
-  const { t, i18n } = useTranslation('common');
+  const { t, i18n } = useTranslation(['admin', 'common']);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const {
@@ -243,7 +243,7 @@ export function EditTreatmentMenuDialog({
       .eq("id", menu.id);
 
     if (error) {
-      toast.error("Erreur lors de la modification du menu");
+      toast.error(t('admin:treatmentMenuDialog.updateError'));
       return;
     }
 
@@ -253,7 +253,7 @@ export function EditTreatmentMenuDialog({
       .eq('treatment_id', menu.id);
 
     if (fetchErr) {
-      toast.error("Erreur lors de la mise à jour des variantes");
+      toast.error(t('admin:treatmentMenuDialog.variantsUpdateError'));
       return;
     }
 
@@ -270,13 +270,11 @@ export function EditTreatmentMenuDialog({
         .in('id', idsToDelete);
 
       if (delErr?.code === '23503') {
-        toast.error(
-          "Une variante supprimée est utilisée dans des réservations existantes. Modifiez-la au lieu de la supprimer.",
-        );
+        toast.error(t('admin:treatmentMenuDialog.variantInUse'));
         return;
       }
       if (delErr) {
-        toast.error("Erreur lors de la suppression d'une variante");
+        toast.error(t('admin:treatmentMenuDialog.variantDeleteError'));
         return;
       }
     }
@@ -295,7 +293,7 @@ export function EditTreatmentMenuDialog({
         })
         .eq('id', v.id);
       if (updErr) {
-        toast.error("Erreur lors de la mise à jour des variantes");
+        toast.error(t('admin:treatmentMenuDialog.variantsUpdateError'));
         return;
       }
     }
@@ -318,12 +316,12 @@ export function EditTreatmentMenuDialog({
         .from('treatment_variants')
         .insert(toInsert);
       if (insErr) {
-        toast.error("Erreur lors de l'ajout d'une variante");
+        toast.error(t('admin:treatmentMenuDialog.variantAddError'));
         return;
       }
     }
 
-    toast.success("Menu modifié avec succès");
+    toast.success(t('admin:treatmentMenuDialog.updated'));
     onOpenChange(false);
     onSuccess();
   };
@@ -332,7 +330,7 @@ export function EditTreatmentMenuDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Modifier le menu de soins</DialogTitle>
+          <DialogTitle>{t('admin:treatmentMenuDialog.editTitle')}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -364,7 +362,7 @@ export function EditTreatmentMenuDialog({
                   disabled={isUploading}
                   onClick={triggerFileSelect}
                 >
-                  {isUploading ? "Téléchargement..." : "Télécharger"}
+                  {isUploading ? t('admin:treatmentMenuDialog.uploading') : t('admin:treatmentMenuDialog.upload')}
                   {isUploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               </div>
@@ -375,11 +373,11 @@ export function EditTreatmentMenuDialog({
               name="hotel_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hôtel *</FormLabel>
+                  <FormLabel>{t('admin:treatmentTab.venue')}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner un hôtel" />
+                        <SelectValue placeholder={t('admin:treatmentTab.selectVenue')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -401,9 +399,9 @@ export function EditTreatmentMenuDialog({
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nom du menu *</FormLabel>
+                    <FormLabel>{t('admin:treatmentMenuDialog.name')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nom du menu" {...field} />
+                      <Input placeholder={t('admin:treatmentMenuDialog.namePlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -415,11 +413,11 @@ export function EditTreatmentMenuDialog({
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Catégorie *</FormLabel>
+                    <FormLabel>{t('admin:treatmentTab.category')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner une catégorie" />
+                          <SelectValue placeholder={t('admin:treatmentMenuDialog.selectCategory')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -430,8 +428,8 @@ export function EditTreatmentMenuDialog({
                         ) : categories.length === 0 ? (
                           <div className="px-2 py-2 text-sm text-muted-foreground">
                             {selectedHotelId
-                              ? "Aucune catégorie. Ajoutez-en dans les paramètres du lieu."
-                              : "Sélectionnez d'abord un lieu"}
+                              ? t('admin:treatmentMenuDialog.noCategories')
+                              : t('admin:treatmentMenuDialog.selectVenueFirst')}
                           </div>
                         ) : (
                           categories.map((category) => (
@@ -481,7 +479,7 @@ export function EditTreatmentMenuDialog({
                   <FormLabel>Description</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Description du menu"
+                      placeholder={t('admin:treatmentMenuDialog.descriptionPlaceholder')}
                       className="min-h-[100px]"
                       {...field}
                     />
@@ -494,7 +492,7 @@ export function EditTreatmentMenuDialog({
             {/* Variants section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <FormLabel className="text-base font-semibold">Variantes</FormLabel>
+                <FormLabel className="text-base font-semibold">{t('admin:treatmentVariantsTab.title')}</FormLabel>
                 <Button
                   type="button"
                   variant="outline"
@@ -502,7 +500,7 @@ export function EditTreatmentMenuDialog({
                   onClick={handleAddVariant}
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Ajouter une variante
+                  {t('admin:treatmentVariantsTab.addVariant')}
                 </Button>
               </div>
 
@@ -521,7 +519,7 @@ export function EditTreatmentMenuDialog({
                           <FormItem>
                             {index === 0 && <FormLabel className="text-xs">Label</FormLabel>}
                             <FormControl>
-                              <Input placeholder="ex: 60 minutes" {...field} />
+                              <Input placeholder={t('admin:treatmentVariantsTab.labelPlaceholder')} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -533,7 +531,7 @@ export function EditTreatmentMenuDialog({
                         name={`variants.${index}.duration`}
                         render={({ field }) => (
                           <FormItem>
-                            {index === 0 && <FormLabel className="text-xs">Durée (min) *</FormLabel>}
+                            {index === 0 && <FormLabel className="text-xs">{t('admin:treatmentVariantsTab.duration')}</FormLabel>}
                             <FormControl>
                               <Input type="number" placeholder="60" {...field} />
                             </FormControl>
@@ -547,7 +545,7 @@ export function EditTreatmentMenuDialog({
                         name={`variants.${index}.price`}
                         render={({ field }) => (
                           <FormItem>
-                            {index === 0 && <FormLabel className="text-xs">Prix ({currencySymbol})</FormLabel>}
+                            {index === 0 && <FormLabel className="text-xs">{t('admin:treatmentVariantsTab.price', { symbol: currencySymbol })}</FormLabel>}
                             <FormControl>
                               <Input
                                 type="number"
@@ -577,7 +575,7 @@ export function EditTreatmentMenuDialog({
                                   className="h-3.5 w-3.5"
                                 />
                                 <label className="text-xs cursor-pointer whitespace-nowrap">
-                                  Sur demande
+                                  {t('admin:treatmentVariantsTab.onRequest')}
                                 </label>
                               </div>
                             )}
@@ -592,7 +590,7 @@ export function EditTreatmentMenuDialog({
                               className="h-3.5 w-3.5 accent-primary cursor-pointer"
                             />
                             <label className="text-xs cursor-pointer whitespace-nowrap">
-                              Défaut
+                              {t('admin:treatmentVariantsTab.default')}
                             </label>
                           </div>
                         </div>
@@ -626,7 +624,7 @@ export function EditTreatmentMenuDialog({
               name="lead_time"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-sm whitespace-nowrap">Délai minimum de réservation (min)</FormLabel>
+                  <FormLabel className="text-sm whitespace-nowrap">{t('admin:treatmentMenuDialog.leadTime')}</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="0" className="max-w-[200px]" {...field} />
                   </FormControl>
@@ -649,7 +647,7 @@ export function EditTreatmentMenuDialog({
                       />
                     </FormControl>
                     <FormLabel className="text-sm cursor-pointer font-normal m-0">
-                      Bestseller (mis en avant sur la page de réservation)
+                      {t('admin:treatmentTab.bestseller')}
                     </FormLabel>
                   </div>
                 </FormItem>
@@ -661,11 +659,11 @@ export function EditTreatmentMenuDialog({
               name="service_for"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Service pour *</FormLabel>
+                  <FormLabel>{t('admin:treatmentTab.serviceFor')}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner" />
+                        <SelectValue placeholder={t('admin:treatmentTab.select')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -685,7 +683,7 @@ export function EditTreatmentMenuDialog({
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Statut</FormLabel>
+                    <FormLabel>{t('admin:treatmentTab.status')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -696,13 +694,13 @@ export function EditTreatmentMenuDialog({
                         <SelectItem value="active">
                           <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full bg-green-500" />
-                            {t('status.active')}
+                            {t('common:status.active')}
                           </div>
                         </SelectItem>
                         <SelectItem value="inactive">
                           <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full bg-red-500" />
-                            {t('status.inactive')}
+                            {t('common:status.inactive')}
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -717,7 +715,7 @@ export function EditTreatmentMenuDialog({
                 name="sort_order"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm whitespace-nowrap">Ordre d'affichage</FormLabel>
+                    <FormLabel className="text-sm whitespace-nowrap">{t('admin:treatmentTab.displayOrder')}</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="10" {...field} />
                     </FormControl>
@@ -733,9 +731,9 @@ export function EditTreatmentMenuDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Annuler
+                {t('common:buttons.cancel')}
               </Button>
-              <Button type="submit">Enregistrer</Button>
+              <Button type="submit">{t('common:buttons.save')}</Button>
             </div>
           </form>
         </Form>

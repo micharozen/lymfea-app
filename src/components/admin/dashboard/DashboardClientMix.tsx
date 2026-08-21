@@ -1,4 +1,5 @@
 import { Clock, Globe } from "lucide-react";
+import { Trans, useTranslation } from "react-i18next";
 import { MetricHelp } from "@/components/admin/dashboard/MetricHelp";
 import type { BookingChannelData, ClientMixData } from "@/hooks/useDashboardData";
 
@@ -9,6 +10,7 @@ interface DashboardClientMixProps {
 
 /** Évolution d'un segment du mix, en vert/rouge selon le signe. Rien si nulle. */
 function MixTrend({ value }: { value: number }) {
+  const { t } = useTranslation(["admin", "common"]);
   if (value === 0) return null;
   return (
     <>
@@ -17,7 +19,7 @@ function MixTrend({ value }: { value: number }) {
         {value > 0 ? "+" : ""}
         {value}%
       </b>{" "}
-      vs période préc.
+      {t("dashboardClientMix.vsPreviousPeriod")}
     </>
   );
 }
@@ -30,6 +32,7 @@ function PointsDelta({ value }: { value: number }) {
 }
 
 export function DashboardClientMix({ clientMix, bookingChannel }: DashboardClientMixProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const { hotel, external, total } = clientMix;
   const { online, manual } = bookingChannel;
   const iconProps = { className: "h-[15px] w-[15px]", strokeWidth: 1.5 } as const;
@@ -38,26 +41,23 @@ export function DashboardClientMix({ clientMix, bookingChannel }: DashboardClien
     <div className="mix">
       <div className="card">
         <div className="hd">
-          <h2 className="bo-sec-title">Mix clients</h2>
+          <h2 className="bo-sec-title">{t("dashboardClientMix.title")}</h2>
           <span className="seg-note">
-            {total} réservation{total > 1 ? "s" : ""}
+            {t("dashboardClientMix.bookingCount", { count: total })}
           </span>
           <MetricHelp>
-            Répartition des réservations de la période selon le <b>type de client</b>.
-            « Clients hôtel » = client logé dans l&apos;établissement ; « Clients externes »
-            regroupe tout le reste, y compris les partenaires (Staycation, ClassPass,
-            Sezame). Tous statuts confondus, annulations incluses.
+            <Trans i18nKey="dashboardClientMix.help" ns="admin" components={{ b: <b /> }} />
           </MetricHelp>
         </div>
         <div className="split">
-          <i className="a" style={{ width: `${hotel.share}%` }} title={`Clients hôtel ${hotel.share}%`} />
-          <i className="b" style={{ width: `${external.share}%` }} title={`Clients externes ${external.share}%`} />
+          <i className="a" style={{ width: `${hotel.share}%` }} title={`${t("dashboardClientMix.hotelClients")} ${hotel.share}%`} />
+          <i className="b" style={{ width: `${external.share}%` }} title={`${t("dashboardClientMix.externalClients")} ${external.share}%`} />
         </div>
         <div className="mix-rows">
           <div className="mix-row">
             <span className="k">
               <span className="bo-dot" style={{ background: "var(--clay)" }} />
-              Clients hôtel
+              {t("dashboardClientMix.hotelClients")}
             </span>
             <span className="v">{hotel.count}</span>
             <span className="m">
@@ -68,7 +68,7 @@ export function DashboardClientMix({ clientMix, bookingChannel }: DashboardClien
           <div className="mix-row">
             <span className="k">
               <span className="bo-dot" style={{ background: "var(--gold)" }} />
-              Clients externes
+              {t("dashboardClientMix.externalClients")}
             </span>
             <span className="v">{external.count}</span>
             <span className="m">
@@ -83,12 +83,9 @@ export function DashboardClientMix({ clientMix, bookingChannel }: DashboardClien
       <div className="kpi hero">
         <div className="top">
           <Globe {...iconProps} />
-          <span className="lbl">Réservations en ligne</span>
+          <span className="lbl">{t("dashboardClientMix.onlineBookings")}</span>
           <MetricHelp>
-            Réservations créées <b>sans intervention d&apos;un membre de l&apos;équipe</b> :
-            parcours de réservation client et API partenaire. La barre et le pourcentage
-            donnent la part sur le total de la période ; l&apos;écart est exprimé en points
-            de pourcentage face à la période précédente.
+            <Trans i18nKey="dashboardClientMix.onlineHelp" ns="admin" components={{ b: <b /> }} />
           </MetricHelp>
         </div>
         <div className="val">{online.count}</div>
@@ -97,25 +94,22 @@ export function DashboardClientMix({ clientMix, bookingChannel }: DashboardClien
         </div>
         <div className="sub">
           <PointsDelta value={online.shareDelta} />
-          <span className="share">{online.share}% du total</span>
+          <span className="share">{t("dashboardClientMix.shareOfTotal", { value: online.share })}</span>
         </div>
       </div>
 
       <div className="kpi">
         <div className="top">
           <Clock {...iconProps} />
-          <span className="lbl">Manuelles / téléphone</span>
+          <span className="lbl">{t("dashboardClientMix.manualPhone")}</span>
           <MetricHelp>
-            Réservations saisies par l&apos;équipe : back-office, prise par téléphone,
-            gestion du lieu, application thérapeute et réservations issues d&apos;un e-mail.
-            C&apos;est le complément des réservations en ligne — les deux couvrent le total
-            de la période.
+            {t("dashboardClientMix.manualHelp")}
           </MetricHelp>
         </div>
         <div className="val">{manual.count}</div>
         <div className="sub">
           <PointsDelta value={manual.shareDelta} />
-          {manual.share}% du total
+          {t("dashboardClientMix.shareOfTotal", { value: manual.share })}
         </div>
       </div>
     </div>

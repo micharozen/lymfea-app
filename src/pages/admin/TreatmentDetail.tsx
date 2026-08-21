@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,11 +31,11 @@ const createFormSchema = (t: TFunction) =>
     name: z.string().min(1, t("errors.validation.nameRequired")),
     slug: z
       .string()
-      .min(2, "Au moins 2 caractères")
-      .max(60, "60 caractères max")
+      .min(2, t("admin:treatmentDetail.slugMin"))
+      .max(60, t("admin:treatmentDetail.slugMax"))
       .regex(
         /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-        "Lettres minuscules, chiffres et tirets uniquement"
+        t("admin:treatmentDetail.slugFormat")
       )
       .optional()
       .or(z.literal("")),
@@ -61,7 +62,7 @@ const createFormSchema = (t: TFunction) =>
           id: z.string().uuid().optional(),
           label: z.string().optional(),
           label_en: z.string().optional(),
-          duration: z.string().min(1, "Durée requise"),
+          duration: z.string().min(1, t("admin:treatmentDetail.durationRequired")),
           guest_count: z.string().default("1"),
           price: z.string().default("0"),
           price_on_request: z.boolean().default(false),
@@ -70,7 +71,7 @@ const createFormSchema = (t: TFunction) =>
           available_days: z.array(z.number().int().min(0).max(6)).default([]),
         })
       )
-      .min(1, "Au moins une variante requise"),
+      .min(1, t("admin:treatmentDetail.variantRequired")),
   })
     .superRefine((val, ctx) => {
       // Specialty and service_for are mandatory for real soins, but irrelevant
@@ -80,7 +81,7 @@ const createFormSchema = (t: TFunction) =>
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["specialty"],
-            message: "La spécialité est obligatoire",
+            message: i18n.t('admin:treatmentDetail.specialtyRequired'),
           });
         }
         if (!val.service_for) {
@@ -98,7 +99,7 @@ export type TreatmentFormValues = z.infer<ReturnType<typeof createFormSchema>>;
 export default function TreatmentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(['admin', 'common']);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const isNewMode = !id;
@@ -241,7 +242,7 @@ export default function TreatmentDetail() {
         }
       } catch (error) {
         console.error("Error loading treatment data:", error);
-        toast.error("Erreur lors du chargement du soin");
+        toast.error(t('treatmentDetail.loadError'));
       } finally {
         setLoading(false);
       }
@@ -260,15 +261,15 @@ export default function TreatmentDetail() {
     if (!isValid) {
       const errors = form.formState.errors;
       const missingFields: string[] = [];
-      if (errors.name) missingFields.push("Nom du soin");
-      if (errors.hotel_id) missingFields.push("Hôtel");
-      if (errors.category) missingFields.push("Catégorie");
-      if (errors.service_for) missingFields.push("Service pour");
-      if (errors.variants) missingFields.push("Variantes");
+      if (errors.name) missingFields.push(t("treatmentDetail.fieldName"));
+      if (errors.hotel_id) missingFields.push(t("treatmentDetail.fieldVenue"));
+      if (errors.category) missingFields.push(t("treatmentDetail.fieldCategory"));
+      if (errors.service_for) missingFields.push(t("treatmentDetail.fieldServiceFor"));
+      if (errors.variants) missingFields.push(t("treatmentDetail.fieldVariants"));
       toast.error(
         missingFields.length > 0
-          ? `Champs requis manquants : ${missingFields.join(", ")}`
-          : "Veuillez corriger les erreurs du formulaire"
+          ? t("treatmentDetail.missingFields", { fields: missingFields.join(", ") })
+          : t("treatmentDetail.formErrors")
       );
       setActiveTab("general");
       return;
@@ -353,7 +354,7 @@ export default function TreatmentDetail() {
 
         setSavedTreatmentId(newTreatment.id);
         setTreatmentName(values.name);
-        toast.success("Soin créé avec succès");
+        toast.success(t('treatmentDetail.created'));
         navigate(`/admin/treatments/${newTreatment.id}`, { replace: true });
       } else {
         // UPDATE
@@ -391,9 +392,7 @@ export default function TreatmentDetail() {
             .in("id", idsToDelete);
 
           if (delErr?.code === "23503") {
-            toast.error(
-              "Une variante supprimée est utilisée dans des réservations existantes. Modifiez-la au lieu de la supprimer."
-            );
+            toast.error(t("treatmentDetail.variantInUse"));
             return;
           }
           if (delErr) throw delErr;
@@ -461,12 +460,12 @@ export default function TreatmentDetail() {
         }
 
         setTreatmentName(values.name);
-        toast.success("Soin mis à jour avec succès");
+        toast.success(t('treatmentDetail.updated'));
         setIsEditingState(false);
       }
     } catch (error: any) {
       console.error("Error saving treatment:", error);
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error(t('treatmentDetail.saveError'));
     } finally {
       setSaving(false);
     }
@@ -497,13 +496,13 @@ export default function TreatmentDetail() {
               className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Retour</span>
+              <span className="hidden sm:inline">{t('common:buttons.back')}</span>
             </Button>
             <div className="h-5 w-px bg-border flex-shrink-0" />
             <h1 className="text-lg font-medium truncate">
               {isNewMode && !savedTreatmentId
-                ? "Nouveau soin"
-                : watchedName || treatmentName || "Soin"}
+                ? t('treatmentDetail.newTreatment')
+                : watchedName || treatmentName || t('treatmentDetail.treatmentFallback')}
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -519,13 +518,13 @@ export default function TreatmentDetail() {
                       "specialty",
                     ]);
                     if (!ok) {
-                      toast.error("Veuillez remplir les champs requis");
+                      toast.error(t('treatmentDetail.requiredFields'));
                       return;
                     }
                     setWizardStep(2);
                   }}
                 >
-                  Suivant
+                  {t('treatmentDetail.next')}
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
@@ -536,7 +535,7 @@ export default function TreatmentDetail() {
                     disabled={saving}
                   >
                     <ChevronLeft className="mr-2 h-4 w-4" />
-                    Précédent
+                    {t('treatmentDetail.previous')}
                   </Button>
                   <Button onClick={handleSave} disabled={saving}>
                     {saving ? (
@@ -544,7 +543,7 @@ export default function TreatmentDetail() {
                     ) : (
                       <Save className="mr-2 h-4 w-4" />
                     )}
-                    Créer le soin
+                    {t('treatmentDetail.createTreatment')}
                   </Button>
                 </>
               )
@@ -558,7 +557,7 @@ export default function TreatmentDetail() {
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}
-                Enregistrer
+                {t('common:buttons.save')}
               </Button>
             ) : isEditing ? (
               <>
@@ -567,7 +566,7 @@ export default function TreatmentDetail() {
                   onClick={handleCancelEdit}
                   disabled={saving}
                 >
-                  Annuler
+                  {t('common:buttons.cancel')}
                 </Button>
                 <Button
                   onClick={handleSave}
@@ -578,7 +577,7 @@ export default function TreatmentDetail() {
                   ) : (
                     <Save className="mr-2 h-4 w-4" />
                   )}
-                  Enregistrer
+                  {t('common:buttons.save')}
                 </Button>
               </>
             ) : (
@@ -587,7 +586,7 @@ export default function TreatmentDetail() {
                 onClick={() => setIsEditingState(true)}
               >
                 <Pencil className="mr-2 h-4 w-4" />
-                Modifier
+                {t('common:buttons.edit')}
               </Button>
             )}
           </div>
@@ -603,8 +602,8 @@ export default function TreatmentDetail() {
         <div className="px-4 md:px-6 py-4">
           <div className="flex items-center justify-center gap-2 pb-6">
             {[
-              { id: 1 as const, label: "Général" },
-              { id: 2 as const, label: "Variantes" },
+              { id: 1 as const, label: t('treatmentDetail.stepGeneral') },
+              { id: 2 as const, label: t('treatmentDetail.stepVariants') },
             ].map((step, index, arr) => {
               const isCompleted = wizardStep > step.id;
               const isCurrent = wizardStep === step.id;
@@ -668,19 +667,19 @@ export default function TreatmentDetail() {
                 value="general"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
               >
-                Général
+                {t('treatmentDetail.stepGeneral')}
               </TabsTrigger>
               <TabsTrigger
                 value="variants"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
               >
-                Variantes
+                {t('treatmentDetail.stepVariants')}
               </TabsTrigger>
               <TabsTrigger
                 value="addons"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
               >
-                Add-ons
+                {t('treatmentDetail.tabAddons')}
               </TabsTrigger>
             </TabsList>
           </div>

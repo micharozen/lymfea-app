@@ -16,6 +16,7 @@ import { SendPaymentLinkDialog, type BookingData } from "@/components/booking/Se
 import { RefundBookingDialog, type RefundBookingTarget } from "./RefundBookingDialog";
 import { formatPrice } from "@/lib/formatPrice";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 interface QuickActionsDialogProps {
   open: boolean;
@@ -64,6 +65,7 @@ export function QuickActionsDialog({ open, onOpenChange, initialAction }: QuickA
   const [amount, setAmount] = useState<string>("");
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
+  const { t } = useTranslation(["admin", "common"]);
 
   // Remboursement : seules les réservations payées (et pas déjà remboursées,
   // dont le statut passe à `refunded`) sont éligibles.
@@ -106,7 +108,7 @@ export function QuickActionsDialog({ open, onOpenChange, initialAction }: QuickA
         setRefundOpen(true);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Impossible de charger la réservation");
+      toast.error(err instanceof Error ? err.message : t("quickActions.loadError"));
       setBooking(null);
     } finally {
       setLoading(false);
@@ -136,12 +138,12 @@ export function QuickActionsDialog({ open, onOpenChange, initialAction }: QuickA
       <Dialog open={mainOpen} onOpenChange={handleMainOpenChange}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader className="sr-only">
-            <DialogTitle>Actions paiement</DialogTitle>
+            <DialogTitle>{t("quickActions.title")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Réservation</Label>
+              <Label>{t("quickActions.bookingLabel")}</Label>
               <EntitySearchCombobox<BookingSearchResult>
                 value={booking}
                 onChange={handleSelect}
@@ -150,22 +152,24 @@ export function QuickActionsDialog({ open, onOpenChange, initialAction }: QuickA
                 getLabel={(b) =>
                   `#${b.booking_id ?? "?"} · ${b.client_first_name ?? ""} ${b.client_last_name ?? ""}`.trim()
                 }
-                placeholder="Choisir une réservation"
-                searchPlaceholder="Rechercher par numéro ou nom…"
-                emptyText="Aucune réservation trouvée"
+                placeholder={t("quickActions.bookingPlaceholder")}
+                searchPlaceholder={t("quickActions.bookingSearchPlaceholder")}
+                emptyText={t("quickActions.bookingEmpty")}
               />
             </div>
 
             {loading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Chargement de la réservation…
+                {t("quickActions.loadingBooking")}
               </div>
             )}
 
             {fullBooking && !loading && (
               <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                <p className="font-medium">Réservation #{fullBooking.booking_id}</p>
+                <p className="font-medium">
+                  {t("quickActions.bookingRef", { id: fullBooking.booking_id })}
+                </p>
                 <p className="text-muted-foreground">
                   {fullBooking.client_first_name} {fullBooking.client_last_name} ·{" "}
                   {formatPrice(fullBooking.total_price, currency)}
@@ -185,9 +189,11 @@ export function QuickActionsDialog({ open, onOpenChange, initialAction }: QuickA
                 >
                   <span className="flex items-center gap-2 font-medium">
                     <CreditCard className="h-4 w-4" />
-                    Lien de paiement
+                    {t("quickActions.paymentLink")}
                   </span>
-                  <span className="text-xs opacity-70">Montant libre, envoyé par email/SMS</span>
+                  <span className="text-xs opacity-70">
+                    {t("quickActions.paymentLinkHint")}
+                  </span>
                 </Button>
                 <Button
                   variant="outline"
@@ -196,9 +202,11 @@ export function QuickActionsDialog({ open, onOpenChange, initialAction }: QuickA
                 >
                   <span className="flex items-center gap-2 font-medium">
                     <RotateCcw className="h-4 w-4" />
-                    Rembourser
+                    {t("quickActions.refund")}
                   </span>
-                  <span className="text-xs opacity-70">Partiel ou total via Stripe</span>
+                  <span className="text-xs opacity-70">
+                    {t("quickActions.refundHint")}
+                  </span>
                 </Button>
               </div>
             )}
@@ -206,7 +214,7 @@ export function QuickActionsDialog({ open, onOpenChange, initialAction }: QuickA
             {fullBooking && !loading && view === "payment-amount" && (
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="payment-amount">Montant du lien</Label>
+                  <Label htmlFor="payment-amount">{t("quickActions.linkAmount")}</Label>
                   <Input
                     id="payment-amount"
                     type="number"
@@ -216,19 +224,19 @@ export function QuickActionsDialog({ open, onOpenChange, initialAction }: QuickA
                     onChange={(e) => setAmount(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Pré-rempli avec le total de la réservation, modifiable.
+                    {t("quickActions.linkAmountHint")}
                   </p>
                 </div>
                 <div className="flex justify-between gap-2">
                   <Button variant="ghost" onClick={() => setView("select")}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Retour
+                    {t("common:buttons.back")}
                   </Button>
                   <Button
                     disabled={!paymentAmountValid}
                     onClick={() => setPaymentOpen(true)}
                   >
-                    Continuer
+                    {t("common:buttons.continue")}
                   </Button>
                 </div>
               </div>

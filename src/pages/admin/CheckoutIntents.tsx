@@ -53,7 +53,7 @@ const PERIODS = [7, 30, 90] as const;
 const COLUMN_COUNT = 8;
 
 export default function CheckoutIntents() {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(['admin', 'common']);
   const navigate = useNavigate();
   const scope = useOrgScope();
 

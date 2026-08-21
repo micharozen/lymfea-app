@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,6 +47,7 @@ export function ClosureSendEmailDialog({
   onSend,
   defaultIncludeDetails = false,
 }: ClosureSendEmailDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const [candidates, setCandidates] = useState<RecipientCandidate[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -84,10 +86,10 @@ export function ClosureSendEmailDialog({
       })
       .catch((err) => {
         console.error("[ClosureSendEmailDialog] failed to load recipients", err);
-        toast.error("Impossible de charger la liste des destinataires");
+        toast.error(t("finance.closureEmail.loadRecipientsError"));
       })
       .finally(() => setLoadingCandidates(false));
-  }, [open, defaultIncludeDetails]);
+  }, [open, defaultIncludeDetails, t]);
 
   const venueConcierges = useMemo(
     () => candidates.filter((c) => c.role === "concierge" && c.hotel_id === venueId),
@@ -114,11 +116,11 @@ export function ClosureSendEmailDialog({
   const addCustom = () => {
     const value = customEmail.trim().toLowerCase();
     if (!EMAIL_RX.test(value)) {
-      toast.error("Email invalide");
+      toast.error(t("common:errors.validation.emailInvalid"));
       return;
     }
     if (selected.includes(value)) {
-      toast.info("Email déjà sélectionné");
+      toast.info(t("finance.closureEmail.emailAlreadySelected"));
       return;
     }
     setSelected((prev) => [...prev, value]);
@@ -127,18 +129,18 @@ export function ClosureSendEmailDialog({
 
   const handleSend = async () => {
     if (!selected.length) {
-      toast.error("Sélectionnez au moins un destinataire");
+      toast.error(t("finance.closureEmail.selectRecipient"));
       return;
     }
     setSending(true);
     try {
       await onSend(selected, includeDetails);
-      toast.success(`Rapport envoyé à ${selected.length} destinataire${selected.length > 1 ? "s" : ""}`);
+      toast.success(t("finance.closureEmail.sentToast", { count: selected.length }));
       onOpenChange(false);
       setSelected([]);
     } catch (error) {
       console.error("[ClosureSendEmailDialog] send failed:", error);
-      const msg = error instanceof Error ? error.message : "Erreur lors de l'envoi";
+      const msg = error instanceof Error ? error.message : t("finance.closureEmail.sendError");
       toast.error(msg);
     } finally {
       setSending(false);
@@ -149,7 +151,7 @@ export function ClosureSendEmailDialog({
     <Dialog open={open} onOpenChange={(o) => !sending && onOpenChange(o)}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Envoyer la clôture par email</DialogTitle>
+          <DialogTitle>{t("finance.closureEmail.title")}</DialogTitle>
           <DialogDescription>{defaultSubject}</DialogDescription>
         </DialogHeader>
 
@@ -163,7 +165,7 @@ export function ClosureSendEmailDialog({
                     type="button"
                     onClick={() => toggle(email)}
                     className="rounded-full hover:bg-muted-foreground/20 p-0.5"
-                    aria-label={`Retirer ${email}`}
+                    aria-label={t("finance.closureEmail.removeRecipient", { email })}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -175,7 +177,7 @@ export function ClosureSendEmailDialog({
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Rechercher un admin ou gestionnaire du lieu…"
+              placeholder={t("finance.closureEmail.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8"
@@ -187,14 +189,14 @@ export function ClosureSendEmailDialog({
               {loadingCandidates ? (
                 <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Chargement…
+                  {t("common:loading")}
                 </div>
               ) : (
                 <>
                   {filteredVenue.length > 0 && (
                     <>
                       <p className="text-xs font-medium text-muted-foreground px-2 pt-1">
-                        Gestion du lieu — {venueName}
+                        {t("finance.closureEmail.venueGroup", { venue: venueName })}
                       </p>
                       {filteredVenue.map((c) => (
                         <RecipientRow
@@ -208,7 +210,9 @@ export function ClosureSendEmailDialog({
                   )}
                   {filteredOther.length > 0 && (
                     <>
-                      <p className="text-xs font-medium text-muted-foreground px-2 pt-3">Autres contacts</p>
+                      <p className="text-xs font-medium text-muted-foreground px-2 pt-3">
+                        {t("finance.closureEmail.otherContacts")}
+                      </p>
                       {filteredOther.map((c) => (
                         <RecipientRow
                           key={c.id}
@@ -220,7 +224,9 @@ export function ClosureSendEmailDialog({
                     </>
                   )}
                   {!filteredVenue.length && !filteredOther.length && (
-                    <p className="text-sm text-muted-foreground text-center py-6">Aucun contact</p>
+                    <p className="text-sm text-muted-foreground text-center py-6">
+                      {t("finance.closureEmail.noContact")}
+                    </p>
                   )}
                 </>
               )}
@@ -228,7 +234,9 @@ export function ClosureSendEmailDialog({
           </ScrollArea>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Ajouter un email manuel</Label>
+            <Label className="text-xs text-muted-foreground">
+              {t("finance.closureEmail.addManualEmail")}
+            </Label>
             <div className="flex gap-2">
               <Input
                 type="email"
@@ -255,14 +263,14 @@ export function ClosureSendEmailDialog({
               onCheckedChange={(v) => setIncludeDetails(v === true)}
             />
             <Label htmlFor="closure-include-details" className="text-sm font-normal cursor-pointer">
-              Inclure le détail des prestations
+              {t("finance.closureEmail.includeDetails")}
             </Label>
           </div>
         </div>
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>
-            Annuler
+            {t("common:buttons.cancel")}
           </Button>
           <Button onClick={handleSend} disabled={sending || !selected.length}>
             {sending ? (
@@ -270,7 +278,7 @@ export function ClosureSendEmailDialog({
             ) : (
               <Mail className="h-4 w-4 mr-2" />
             )}
-            Envoyer ({selected.length})
+            {t("finance.closureEmail.send", { count: selected.length })}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -287,6 +295,8 @@ function RecipientRow({
   checked: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useTranslation(["admin", "common"]);
+
   return (
     <label
       htmlFor={candidate.id}
@@ -296,7 +306,9 @@ function RecipientRow({
       <div className="flex-1 min-w-0">
         <p className="truncate">
           {candidate.name || candidate.email}{" "}
-          <span className="text-xs text-muted-foreground">· {candidate.role === "admin" ? "Admin" : "Gestion lieu"}</span>
+          <span className="text-xs text-muted-foreground">
+            · {candidate.role === "admin" ? "Admin" : t("finance.closureEmail.roleVenueManager")}
+          </span>
         </p>
         <p className="text-xs text-muted-foreground truncate">{candidate.email}</p>
       </div>

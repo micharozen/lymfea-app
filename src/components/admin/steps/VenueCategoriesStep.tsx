@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,7 @@ interface VenueCategoriesStepProps {
 }
 
 export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const {
     categories,
     isLoading,
@@ -90,7 +92,7 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
   if (!hotelId) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        Veuillez d'abord enregistrer le lieu pour gérer les catégories.
+        {t("venueCategoriesStep.saveVenueFirst")}
       </div>
     );
   }
@@ -101,22 +103,21 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
       <div className="flex items-center gap-2 pb-2 border-b">
         <Tag className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold text-foreground">
-          Catégories de soins
+          {t("venueCategoriesStep.title")}
         </h3>
       </div>
 
       {/* Description */}
       <p className="text-sm text-muted-foreground">
-        Gérez les catégories de traitements pour ce lieu. Les catégories
-        permettent d'organiser vos soins dans le menu.
+        {t("venueCategoriesStep.description")}
       </p>
 
       {/* Add new category */}
       <div className="space-y-2">
-        <Label>Ajouter une catégorie</Label>
+        <Label>{t("venueCategoriesStep.addLabel")}</Label>
         <div className="flex gap-2">
           <Input
-            placeholder="Nom de la catégorie"
+            placeholder={t("venueCategoriesStep.namePlaceholder")}
             value={newCategoryName}
             onChange={(e) => setNewCategoryName(e.target.value)}
             onKeyDown={(e) => {
@@ -128,7 +129,7 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
             disabled={isAdding}
           />
           <Input
-            placeholder="🇬🇧 English name"
+            placeholder={t("venueCategoriesStep.nameEnPlaceholder")}
             value={newCategoryNameEn}
             onChange={(e) => setNewCategoryNameEn(e.target.value)}
             onKeyDown={(e) => {
@@ -156,7 +157,7 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
 
       {/* Categories list */}
       <div className="space-y-2">
-        <Label>Catégories existantes</Label>
+        <Label>{t("venueCategoriesStep.existingLabel")}</Label>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -164,7 +165,7 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
           </div>
         ) : categories.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground border rounded-lg">
-            Aucune catégorie. Ajoutez-en une ci-dessus.
+            {t("venueCategoriesStep.empty")}
           </div>
         ) : (
           <div className="border rounded-lg divide-y">
@@ -224,7 +225,7 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
                           <span className="font-medium">{category.name}</span>
                           {treatmentCount > 0 && (
                             <span className="text-xs text-muted-foreground">
-                              ({treatmentCount} soin{treatmentCount > 1 ? "s" : ""})
+                              {t("venueCategoriesStep.treatmentCount", { count: treatmentCount })}
                             </span>
                           )}
                         </div>
@@ -245,7 +246,7 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
                               }}
                               autoFocus
                               className="h-6 text-xs"
-                              placeholder="English name"
+                              placeholder={t("venueCategoriesStep.nameEnShortPlaceholder")}
                             />
                             <Button
                               type="button"
@@ -279,12 +280,12 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
                             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <span className="text-xs">🇬🇧</span>
-                            {category.name_en || "Add English name"}
+                            {category.name_en || t("venueCategoriesStep.addEnglishName")}
                           </button>
                         )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <label className="text-xs text-muted-foreground">Add-on</label>
+                        <label className="text-xs text-muted-foreground">{t("venueCategoriesStep.addon")}</label>
                         <Switch
                           checked={category.is_addon}
                           onCheckedChange={(checked) => toggleAddon(category.id, checked)}
@@ -310,8 +311,7 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
 
       {/* Info note */}
       <p className="text-xs text-muted-foreground">
-        Cliquez sur le crayon pour renommer une catégorie. Le renommage
-        s'appliquera automatiquement à tous les soins associés.
+        {t("venueCategoriesStep.renameHint")}
       </p>
     </div>
   );

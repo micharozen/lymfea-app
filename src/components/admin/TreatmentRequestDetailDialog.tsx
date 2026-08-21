@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/dateLocale";
 import {
   Phone,
   Mail,
@@ -70,6 +71,8 @@ export default function TreatmentRequestDetailDialog({
   request,
   onUpdate,
 }: TreatmentRequestDetailDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [quotedPrice, setQuotedPrice] = useState<string>("");
@@ -127,15 +130,15 @@ export default function TreatmentRequestDetailDialog({
     },
     onSuccess: () => {
       toast({
-        title: "Demande mise à jour",
-        description: "Les modifications ont été enregistrées.",
+        title: t("treatmentRequest.updated"),
+        description: t("treatmentRequest.updatedDescription"),
       });
       onUpdate();
     },
     onError: () => {
       toast({
-        title: "Erreur",
-        description: "Impossible de mettre à jour la demande.",
+        title: t("common:toasts.error"),
+        description: t("treatmentRequest.updateError"),
         variant: "destructive",
       });
     },
@@ -171,13 +174,13 @@ export default function TreatmentRequestDetailDialog({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return <Badge className="bg-warning/10 text-warning border-warning/30">En attente</Badge>;
+        return <Badge className="bg-warning/10 text-warning border-warning/30">{t("common:status.pending")}</Badge>;
       case "quoted":
-        return <Badge className="bg-info/10 text-info border-info/30">Devis envoyé</Badge>;
+        return <Badge className="bg-info/10 text-info border-info/30">{t("treatmentRequest.statusQuoted")}</Badge>;
       case "converted":
-        return <Badge className="bg-success/10 text-success border-success/30">Converti</Badge>;
+        return <Badge className="bg-success/10 text-success border-success/30">{t("treatmentRequest.statusConverted")}</Badge>;
       case "rejected":
-        return <Badge className="bg-destructive/10 text-destructive border-destructive/30">Rejeté</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive border-destructive/30">{t("treatmentRequest.statusRejected")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -191,7 +194,7 @@ export default function TreatmentRequestDetailDialog({
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
-              <span>Demande On Request</span>
+              <span>{t("treatmentRequest.title")}</span>
               {getStatusBadge(request.status)}
             </DialogTitle>
           </DialogHeader>
@@ -200,7 +203,7 @@ export default function TreatmentRequestDetailDialog({
             {/* Client Info */}
             <div className="space-y-3">
               <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                Informations Client
+                {t("treatmentRequest.clientInfo")}
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
@@ -232,7 +235,7 @@ export default function TreatmentRequestDetailDialog({
                 {request.room_number && (
                   <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                     <DoorOpen className="h-4 w-4 text-muted-foreground" />
-                    <span>Chambre {request.room_number}</span>
+                    <span>{t("treatmentRequest.room", { number: request.room_number })}</span>
                   </div>
                 )}
               </div>
@@ -243,7 +246,7 @@ export default function TreatmentRequestDetailDialog({
             {/* Request Details */}
             <div className="space-y-3">
               <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                Détails de la demande
+                {t("treatmentRequest.requestDetails")}
               </h3>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
@@ -252,7 +255,7 @@ export default function TreatmentRequestDetailDialog({
                 </div>
                 {treatment && (
                   <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                    <span className="font-medium">Soin demandé:</span>
+                    <span className="font-medium">{t("treatmentRequest.requestedTreatment")}</span>
                     <span>{treatment.name}</span>
                   </div>
                 )}
@@ -260,7 +263,7 @@ export default function TreatmentRequestDetailDialog({
                   <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>
-                      {format(new Date(request.preferred_date), "EEEE d MMMM yyyy", { locale: fr })}
+                      {format(new Date(request.preferred_date), "EEEE d MMMM yyyy", { locale: dateLocale })}
                     </span>
                     {request.preferred_time && (
                       <>
@@ -276,7 +279,7 @@ export default function TreatmentRequestDetailDialog({
                   <div className="flex items-start gap-2">
                     <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium mb-1">Description du besoin:</p>
+                      <p className="text-sm font-medium mb-1">{t("treatmentRequest.needDescription")}</p>
                       <p className="text-sm text-muted-foreground">{request.description}</p>
                     </div>
                   </div>
@@ -290,13 +293,13 @@ export default function TreatmentRequestDetailDialog({
             {request.status !== "converted" && request.status !== "rejected" && (
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                  Devis
+                  {t("treatmentRequest.quote")}
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="quotedPrice" className="flex items-center gap-1">
                       <Euro className="h-4 w-4" />
-                      Prix proposé (€)
+                      {t("treatmentRequest.quotedPrice")}
                     </Label>
                     <Input
                       id="quotedPrice"
@@ -305,13 +308,13 @@ export default function TreatmentRequestDetailDialog({
                       step="1"
                       value={quotedPrice}
                       onChange={(e) => setQuotedPrice(e.target.value)}
-                      placeholder="Ex: 150"
+                      placeholder={t("treatmentRequest.quotedPricePlaceholder")}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="quotedDuration" className="flex items-center gap-1">
                       <Timer className="h-4 w-4" />
-                      Durée estimée (min)
+                      {t("treatmentRequest.quotedDuration")}
                     </Label>
                     <Input
                       id="quotedDuration"
@@ -320,17 +323,17 @@ export default function TreatmentRequestDetailDialog({
                       step="15"
                       value={quotedDuration}
                       onChange={(e) => setQuotedDuration(e.target.value)}
-                      placeholder="Ex: 90"
+                      placeholder={t("treatmentRequest.quotedDurationPlaceholder")}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="adminNotes">Notes internes</Label>
+                  <Label htmlFor="adminNotes">{t("treatmentRequest.internalNotes")}</Label>
                   <Textarea
                     id="adminNotes"
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
-                    placeholder="Notes pour l'équipe..."
+                    placeholder={t("treatmentRequest.internalNotesPlaceholder")}
                     rows={2}
                   />
                 </div>
@@ -340,13 +343,19 @@ export default function TreatmentRequestDetailDialog({
             {/* Timestamps */}
             <div className="text-xs text-muted-foreground">
               <p>
-                Créé le{" "}
-                {format(new Date(request.created_at), "dd/MM/yyyy à HH:mm", { locale: fr })}
+                {t("treatmentRequest.createdAt", {
+                  date: format(new Date(request.created_at), t("treatmentRequest.dateTimeFormat"), {
+                    locale: dateLocale,
+                  }),
+                })}
               </p>
               {request.updated_at !== request.created_at && (
                 <p>
-                  Modifié le{" "}
-                  {format(new Date(request.updated_at), "dd/MM/yyyy à HH:mm", { locale: fr })}
+                  {t("treatmentRequest.updatedAt", {
+                    date: format(new Date(request.updated_at), t("treatmentRequest.dateTimeFormat"), {
+                      locale: dateLocale,
+                    }),
+                  })}
                 </p>
               )}
             </div>
@@ -362,7 +371,7 @@ export default function TreatmentRequestDetailDialog({
                   className="text-destructive hover:text-destructive"
                 >
                   <X className="h-4 w-4 mr-2" />
-                  Rejeter
+                  {t("treatmentRequest.reject")}
                   {updateMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
                 <Button
@@ -371,7 +380,7 @@ export default function TreatmentRequestDetailDialog({
                   disabled={updateMutation.isPending}
                 >
                   <Check className="h-4 w-4 mr-2" />
-                  Enregistrer le devis
+                  {t("treatmentRequest.saveQuote")}
                   {updateMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
                 <Button
@@ -379,7 +388,7 @@ export default function TreatmentRequestDetailDialog({
                   disabled={updateMutation.isPending}
                 >
                   <ArrowRight className="h-4 w-4 mr-2" />
-                  Convertir en réservation
+                  {t("treatmentRequest.convertToBooking")}
                   {updateMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               </>

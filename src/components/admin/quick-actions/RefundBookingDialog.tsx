@@ -12,6 +12,7 @@ import { Loader2, RotateCcw, CheckCircle2, AlertCircle } from "lucide-react";
 import { invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 export interface RefundBookingTarget {
   id: string;
@@ -42,6 +43,7 @@ export function RefundBookingDialog({
   booking,
   onSuccess,
 }: RefundBookingDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const currency = booking.currency || "EUR";
   const [amount, setAmount] = useState<string>(String(booking.total_price ?? ""));
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,16 +66,18 @@ export function RefundBookingDialog({
         amount: amountNum,
       });
       if (invokeError) {
-        setError(invokeError.message || "Erreur lors du remboursement");
-        toast.error(invokeError.message || "Erreur lors du remboursement");
+        setError(invokeError.message || t("refundDialog.error"));
+        toast.error(invokeError.message || t("refundDialog.error"));
       } else if (data) {
         setResult(data);
         toast.success(
-          data.is_partial ? "Remboursement partiel effectué" : "Remboursement total effectué",
+          data.is_partial
+            ? t("refundDialog.partialDone")
+            : t("refundDialog.fullDone"),
         );
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      const message = err instanceof Error ? err.message : t("refundDialog.unknownError");
       setError(message);
       toast.error(message);
     } finally {
@@ -89,7 +93,7 @@ export function RefundBookingDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RotateCcw className="h-5 w-5" />
-            Rembourser la réservation
+            {t("refundDialog.title")}
           </DialogTitle>
         </DialogHeader>
 
@@ -97,13 +101,19 @@ export function RefundBookingDialog({
           <div className="py-4 text-center">
             <CheckCircle2 className="mx-auto mb-3 h-12 w-12 text-green-500" />
             <p className="font-medium">
-              {result.is_partial ? "Remboursement partiel effectué" : "Remboursement total effectué"}
+              {result.is_partial ? t("refundDialog.partialDone") : t("refundDialog.fullDone")}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {formatPrice(result.refund_amount, currency)} remboursé{result.is_partial ? " (cumul)" : ""}.
+              {result.is_partial
+                ? t("refundDialog.refundedCumulative", {
+                    amount: formatPrice(result.refund_amount, currency),
+                  })
+                : t("refundDialog.refunded", {
+                    amount: formatPrice(result.refund_amount, currency),
+                  })}
             </p>
             <Button className="mt-6" onClick={() => { onSuccess?.(); handleClose(); }}>
-              Fermer
+              {t("common:buttons.close")}
             </Button>
           </div>
         ) : error ? (
@@ -111,22 +121,27 @@ export function RefundBookingDialog({
             <AlertCircle className="mx-auto mb-3 h-12 w-12 text-destructive" />
             <p className="text-sm text-muted-foreground">{error}</p>
             <div className="mt-6 flex justify-center gap-2">
-              <Button variant="outline" onClick={handleClose}>Fermer</Button>
-              <Button onClick={() => setError(null)}>Réessayer</Button>
+              <Button variant="outline" onClick={handleClose}>
+                {t("common:buttons.close")}
+              </Button>
+              <Button onClick={() => setError(null)}>{t("refundDialog.retry")}</Button>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="rounded-lg bg-muted/50 p-3 text-sm">
-              <p className="font-medium">Réservation #{booking.booking_id}</p>
+              <p className="font-medium">
+                {t("refundDialog.bookingRef", { id: booking.booking_id })}
+              </p>
               <p className="text-muted-foreground">
-                {booking.client_first_name} {booking.client_last_name} · Payé&nbsp;:{" "}
+                {booking.client_first_name} {booking.client_last_name} ·{" "}
+                {t("refundDialog.paidLabel")}&nbsp;:{" "}
                 {formatPrice(booking.total_price, currency)}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="refund-amount">Montant à rembourser</Label>
+              <Label htmlFor="refund-amount">{t("refundDialog.amountLabel")}</Label>
               <Input
                 id="refund-amount"
                 type="number"
@@ -136,24 +151,25 @@ export function RefundBookingDialog({
                 onChange={(e) => setAmount(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Remboursement partiel possible. Le statut passe à « Remboursé » uniquement si le montant total est remboursé.
+                {t("refundDialog.amountHint")}
               </p>
             </div>
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
-                Annuler
+                {t("common:buttons.cancel")}
               </Button>
               <Button variant="destructive" onClick={handleRefund} disabled={!canSubmit || isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Remboursement…
+                    {t("refundDialog.submitting")}
                   </>
                 ) : (
                   <>
                     <RotateCcw className="mr-2 h-4 w-4" />
-                    Rembourser {canSubmit ? formatPrice(amountNum, currency) : ""}
+                    {t("refundDialog.submit")}{" "}
+                    {canSubmit ? formatPrice(amountNum, currency) : ""}
                   </>
                 )}
               </Button>

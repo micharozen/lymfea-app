@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/dateLocale";
 import {
   CalendarIcon,
   Building2,
@@ -90,6 +91,8 @@ const fmtMoney = (amount: number, currency: string) => {
 };
 
 export function DailyClosureTab() {
+  const { t } = useTranslation(['admin', 'common']);
+  const dateLocale = useDateLocale();
   const [venues, setVenues] = useState<VenueOption[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string>("");
   const [date, setDate] = useState<Date>(new Date());
@@ -111,7 +114,7 @@ export function DailyClosureTab() {
       .then(({ data, error }) => {
         if (error) {
           console.error("[DailyClosureTab] load venues failed", error);
-          toast.error("Impossible de charger les lieux");
+          toast.error(t('finance.closure.loadVenuesError'));
           return;
         }
         const list = (data ?? []) as VenueOption[];
@@ -186,7 +189,7 @@ export function DailyClosureTab() {
       setTherapistRates(ratesMap);
     } catch (err) {
       console.error("[DailyClosureTab] fetch failed", err);
-      toast.error("Impossible de charger les réservations");
+      toast.error(t('finance.closure.loadBookingsError'));
       setBookings([]);
     } finally {
       setLoading(false);
@@ -253,11 +256,11 @@ export function DailyClosureTab() {
   const filename = report
     ? `cloture-${report.venue.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${dateIso}${hideCommissions ? "-lieu" : ""}.pdf`
     : "cloture.pdf";
-  const subject = report ? `Clôture ${report.venue.name} — ${format(date, "EEEE d MMMM yyyy", { locale: fr })}` : "";
+  const subject = report ? `Clôture ${report.venue.name} — ${format(date, "EEEE d MMMM yyyy", { locale: dateLocale })}` : "";
 
   const handleSendEmail = useCallback(
     async (recipients: string[], includeDetailsFromDialog: boolean) => {
-      if (!report) throw new Error("Rapport non disponible");
+      if (!report) throw new Error(t('finance.closure.reportUnavailable'));
       const { error } = await invokeEdgeFunction("send-daily-closure-report", {
         body: {
           hotel_id: report.venue.id,
@@ -279,15 +282,15 @@ export function DailyClosureTab() {
       {/* Controls */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-medium">Sélection</CardTitle>
-          <CardDescription>Choisissez un lieu et une date pour générer la clôture.</CardDescription>
+          <CardTitle className="text-base font-medium">{t('finance.closure.selectionTitle')}</CardTitle>
+          <CardDescription>{t('finance.closure.selectionDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row md:items-end gap-3">
           <div className="space-y-1 flex-1">
-            <Label className="text-xs text-muted-foreground">Lieu</Label>
+            <Label className="text-xs text-muted-foreground">{t('finance.closure.venue')}</Label>
             <Select value={selectedVenueId} onValueChange={setSelectedVenueId}>
               <SelectTrigger className="w-full md:w-[260px]">
-                <SelectValue placeholder="Choisir un lieu" />
+                <SelectValue placeholder={t('finance.closure.chooseVenue')} />
               </SelectTrigger>
               <SelectContent>
                 {venues.map((v) => (
@@ -304,7 +307,7 @@ export function DailyClosureTab() {
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full md:w-[220px] justify-start font-normal">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(date, "EEEE d MMMM yyyy", { locale: fr })}
+                  {format(date, "EEEE d MMMM yyyy", { locale: dateLocale })}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -326,7 +329,7 @@ export function DailyClosureTab() {
           <div className="flex gap-2 md:ml-auto">
             <Button variant="outline" onClick={fetchData} disabled={loading}>
               <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-              Rafraîchir
+              {t('finance.closure.refresh')}
             </Button>
           </div>
         </CardContent>
@@ -341,18 +344,17 @@ export function DailyClosureTab() {
                 {selectedVenue?.name}
               </p>
               <p className="text-2xl font-semibold mt-1">
-                {report.stats.completedBookings} prestation
-                {report.stats.completedBookings > 1 ? "s" : ""} · {fmtMoney(report.stats.totalRevenue, currency)}
+                {t('finance.closure.treatmentsCount', { count: report.stats.completedBookings })} · {fmtMoney(report.stats.totalRevenue, currency)}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                {format(date, "EEEE d MMMM yyyy", { locale: fr })}
+                {format(date, "EEEE d MMMM yyyy", { locale: dateLocale })}
               </p>
             </div>
             <div className="flex flex-col md:flex-row gap-2 md:items-center">
               <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background/60">
                 <EyeOff className="h-4 w-4 text-muted-foreground" />
                 <Label htmlFor="closure-hide-commissions" className="text-xs cursor-pointer">
-                  Masquer commissions
+                  {t('finance.closure.hideCommissions')}
                 </Label>
                 <Switch
                   id="closure-hide-commissions"
@@ -362,11 +364,11 @@ export function DailyClosureTab() {
               </div>
               <Button variant="outline" onClick={() => setPreviewOpen(true)} disabled={!report}>
                 <FileDown className="h-4 w-4 mr-2" />
-                Aperçu / PDF
+                {t('finance.closure.previewPdf')}
               </Button>
               <Button onClick={() => setSendOpen(true)} disabled={!report}>
                 <Mail className="h-4 w-4 mr-2" />
-                Envoyer par email
+                {t('finance.closure.sendByEmail')}
               </Button>
             </div>
           </CardContent>
@@ -391,12 +393,12 @@ export function DailyClosureTab() {
       {report && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <StatTile label="Chiffre d'affaires" value={fmtMoney(report.stats.totalRevenue, currency)} />
-            <StatTile label="Total bookings" value={String(report.stats.totalBookings)} />
+            <StatTile label={t('finance.closure.revenue')} value={fmtMoney(report.stats.totalRevenue, currency)} />
+            <StatTile label={t('finance.closure.totalBookings')} value={String(report.stats.totalBookings)} />
             <div className="rounded-lg border bg-card p-3 md:col-span-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Statuts</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">{t('finance.closure.statuses')}</p>
               <p className="text-lg font-semibold mt-1 tabular-nums">
-                {report.stats.completedBookings + report.stats.confirmedBookings} actives
+                {t('finance.closure.activeCount', { count: report.stats.completedBookings + report.stats.confirmedBookings })}
               </p>
             </div>
           </div>
@@ -412,9 +414,9 @@ export function DailyClosureTab() {
 
           {!hideCommissions && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <StatTile label="Part lieu" value={fmtMoney(report.stats.totalVenueShare, currency)} />
-              <StatTile label="Part thérapeute" value={fmtMoney(report.stats.totalTherapistShare, currency)} />
-              <StatTile label="Part plateforme" value={fmtMoney(report.stats.totalPlatformShare, currency)} />
+              <StatTile label={t('finance.closure.venueShare')} value={fmtMoney(report.stats.totalVenueShare, currency)} />
+              <StatTile label={t('finance.closure.therapistShare')} value={fmtMoney(report.stats.totalTherapistShare, currency)} />
+              <StatTile label={t('finance.closure.platformShare')} value={fmtMoney(report.stats.totalPlatformShare, currency)} />
             </div>
           )}
         </>
@@ -424,8 +426,8 @@ export function DailyClosureTab() {
       {report && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <BreakdownCard
-            title="Par type de prestation"
-            empty="Aucune prestation"
+            title={t('finance.closure.byCategory')}
+            empty={t('finance.closure.noTreatment')}
             rows={report.stats.byCategory.map((b) => ({
               label: b.label,
               count: b.count,
@@ -443,7 +445,7 @@ export function DailyClosureTab() {
           />
           {report.stats.byTherapist.length > 0 && (
             <BreakdownCard
-              title="Par thérapeute"
+              title={t('finance.closure.byTherapist')}
               empty=""
               rows={report.stats.byTherapist.map((b) => ({
                 label: b.label,
@@ -456,12 +458,12 @@ export function DailyClosureTab() {
                     : "—",
                 secondaryWarn: !hideCommissions && !b.hasRates,
               }))}
-              secondaryLabel={hideCommissions ? undefined : "Part thér."}
+              secondaryLabel={hideCommissions ? undefined : t('finance.closure.therapistShareShort')}
             />
           )}
           {report.stats.byPaymentMethod.length > 0 && (
             <BreakdownCard
-              title="Par moyen de paiement"
+              title={t('finance.closure.byPaymentMethod')}
               empty=""
               rows={report.stats.byPaymentMethod.map((b) => ({
                 label: b.label,
@@ -480,13 +482,13 @@ export function DailyClosureTab() {
             <div>
               <CardTitle className="text-base font-medium flex items-center gap-2">
                 {showDetail ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                Détail des prestations ({report.bookings.length})
+                {t('finance.closure.detailTitle', { count: report.bookings.length })}
               </CardTitle>
-              <CardDescription>Toutes les réservations du lieu pour la journée.</CardDescription>
+              <CardDescription>{t('finance.closure.detailDesc')}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Label htmlFor="closure-toggle-details" className="text-sm cursor-pointer">
-                Afficher
+                {t('finance.closure.show')}
               </Label>
               <Switch id="closure-toggle-details" checked={showDetail} onCheckedChange={setShowDetail} />
             </div>
@@ -497,15 +499,15 @@ export function DailyClosureTab() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-xs uppercase text-muted-foreground tracking-wide">
-                      <th className="text-left font-medium py-2 pr-3">Heure</th>
-                      <th className="text-left font-medium py-2 pr-3">N°</th>
-                      <th className="text-left font-medium py-2 pr-3">Client</th>
-                      <th className="text-left font-medium py-2 pr-3">Type</th>
-                      <th className="text-left font-medium py-2 pr-3">Prestation</th>
-                      <th className="text-left font-medium py-2 pr-3">Thérapeute</th>
-                      <th className="text-right font-medium py-2 pr-3">Prix</th>
-                      <th className="text-left font-medium py-2 pr-3">Paiement</th>
-                      <th className="text-left font-medium py-2">Statut</th>
+                      <th className="text-left font-medium py-2 pr-3">{t('finance.closure.colTime')}</th>
+                      <th className="text-left font-medium py-2 pr-3">{t('finance.closure.colNumber')}</th>
+                      <th className="text-left font-medium py-2 pr-3">{t('finance.closure.colClient')}</th>
+                      <th className="text-left font-medium py-2 pr-3">{t('finance.closure.colType')}</th>
+                      <th className="text-left font-medium py-2 pr-3">{t('finance.closure.colTreatment')}</th>
+                      <th className="text-left font-medium py-2 pr-3">{t('finance.closure.colTherapist')}</th>
+                      <th className="text-right font-medium py-2 pr-3">{t('finance.closure.colPrice')}</th>
+                      <th className="text-left font-medium py-2 pr-3">{t('finance.closure.colPayment')}</th>
+                      <th className="text-left font-medium py-2">{t('finance.closure.colStatus')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -516,7 +518,7 @@ export function DailyClosureTab() {
                           key={b.id}
                           className="border-b last:border-0 cursor-pointer hover:bg-muted/40 transition-colors"
                           onClick={() => window.open(`/admin/bookings/${b.id}`, "_blank", "noopener,noreferrer")}
-                          title="Ouvrir la réservation dans un nouvel onglet"
+                          title={t('finance.closure.openBooking')}
                         >
                           <td className="py-2 pr-3 tabular-nums">{b.booking_time.slice(0, 5)}</td>
                           <td className="py-2 pr-3 tabular-nums text-muted-foreground">#{b.booking_id}</td>
@@ -558,7 +560,7 @@ export function DailyClosureTab() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <Building2 className="h-10 w-10 mx-auto mb-2 opacity-30" />
-            <p>Aucune réservation pour ce lieu à cette date.</p>
+            <p>{t('finance.closure.noBooking')}</p>
           </CardContent>
         </Card>
       )}
@@ -630,25 +632,26 @@ function BookingStatusChart({
   noShow: number;
   total: number;
 }) {
+  const { t } = useTranslation('admin');
   const segments = [
-    { key: "completed", label: "Complétées", count: completed, color: "bg-green-500", dot: "bg-green-500" },
-    { key: "confirmed", label: "Confirmées", count: confirmed, color: "bg-blue-500", dot: "bg-blue-500" },
-    { key: "pending", label: "En attente", count: pending, color: "bg-yellow-500", dot: "bg-yellow-500" },
-    { key: "cancelled", label: "Annulées", count: cancelled, color: "bg-red-500", dot: "bg-red-500" },
-    { key: "noshow", label: "No-show", count: noShow, color: "bg-zinc-400", dot: "bg-zinc-400" },
-  ];
+    { key: "completed", count: completed, color: "bg-green-500", dot: "bg-green-500" },
+    { key: "confirmed", count: confirmed, color: "bg-blue-500", dot: "bg-blue-500" },
+    { key: "pending", count: pending, color: "bg-yellow-500", dot: "bg-yellow-500" },
+    { key: "cancelled", count: cancelled, color: "bg-red-500", dot: "bg-red-500" },
+    { key: "noshow", count: noShow, color: "bg-zinc-400", dot: "bg-zinc-400" },
+  ].map((s) => ({ ...s, label: t(`finance.closure.segments.${s.key}`) }));
   const denom = total > 0 ? total : 1;
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-          Statuts des réservations
+          {t('finance.closure.statusChartTitle')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {total === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune réservation</p>
+          <p className="text-sm text-muted-foreground">{t('finance.closure.noBookingShort')}</p>
         ) : (
           <>
             <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">

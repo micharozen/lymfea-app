@@ -56,7 +56,7 @@ interface TherapistAgendaViewProps {
 }
 
 export function TherapistAgendaView({ hotelFilter = "all" }: TherapistAgendaViewProps) {
-  const { t, i18n } = useTranslation("admin");
+  const { t, i18n } = useTranslation(["admin", "common"]);
   const navigate = useNavigate();
   const { activeTimezone } = useTimezone();
   const isFr = i18n.language === "fr";
@@ -358,7 +358,9 @@ export function TherapistAgendaView({ hotelFilter = "all" }: TherapistAgendaView
                   {col.name}
                 </span>
                 <span className="text-[9px] text-muted-foreground">
-                  {bookingsByTherapist.get(col.id)?.length || 0} rdv
+                  {t("therapists.agendaView.appointmentsShort", {
+                    count: bookingsByTherapist.get(col.id)?.length || 0,
+                  })}
                 </span>
               </div>
             ))}
@@ -478,6 +480,7 @@ function AgendaBookingCard({
   getHotelInfo: (hotelId: string | null) => Hotel | null;
   onClick: (booking: BookingWithTreatments) => void;
 }) {
+  const { t } = useTranslation(["admin", "common"]);
   const { top, height } = position;
   const hotelInfo = getHotelInfo(booking.hotel_id);
 
@@ -577,7 +580,7 @@ function AgendaBookingCard({
 
           {booking.room_number && (
             <div className="text-xs">
-              Chambre: {decodeHtmlEntities(booking.room_number)}
+              {t("therapists.agendaView.roomLabel")}: {decodeHtmlEntities(booking.room_number)}
             </div>
           )}
 
@@ -598,12 +601,12 @@ function AgendaBookingCard({
 
           <div className="flex items-center gap-2 text-xs">
             <Clock className="h-3 w-3" />
-            <span>Durée: {durationFormatted}</span>
+            <span>{t("therapists.agendaView.durationLabel")}: {durationFormatted}</span>
           </div>
 
           {treatments.length > 0 && (
             <div className="space-y-1">
-              <div className="text-xs font-medium">Traitements:</div>
+              <div className="text-xs font-medium">{t("therapists.agendaView.treatmentsLabel")}:</div>
               <ul className="text-xs space-y-1">
                 {treatments.map((treatment, idx) => {
                   const tHours = Math.floor((treatment.duration || 0) / 60);

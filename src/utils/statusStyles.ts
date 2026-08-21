@@ -1,12 +1,12 @@
 // Centralized Status Configuration
 // All database values are now in English
+import i18n from "@/i18n";
 
 export type BookingStatus = 'pending' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled' | 'noshow' | 'quote_pending' | 'waiting_approval' | 'alternative_proposed';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'charged_to_room' | 'pending_partner_billing' | 'card_saved' | 'offert';
 export type EntityStatus = 'active' | 'pending' | 'inactive' | 'maintenance';
 
-interface StatusConfig {
-  label: string;
+interface StatusStyle {
   badgeClass: string;
   cardClass: string;
   calendarCardClass?: string; // Pastel version for calendar cards
@@ -14,24 +14,52 @@ interface StatusConfig {
   pulse?: boolean; // For animated badges
 }
 
+/**
+ * Module-level definition: the label is stored as a `common` i18n key and is
+ * only resolved when an accessor is called, so switching language re-renders
+ * with the right wording (a label resolved at import time would stay frozen
+ * on the language the app booted with).
+ */
+export interface StatusConfigDef extends StatusStyle {
+  /** Key of the `common` namespace, resolved at call time. */
+  labelKey?: string;
+  /** Language-neutral literal (emoji), used when there is nothing to translate. */
+  label?: string;
+}
+
+/** What the UI consumes: the label is already translated. */
+export interface StatusConfig extends StatusStyle {
+  label: string;
+}
+
+/** Translate a `common` key at call time. */
+export function translateStatusLabel(labelKey: string): string {
+  return i18n.t(labelKey, { ns: "common" });
+}
+
+function resolveStatusConfig(def: StatusConfigDef): StatusConfig {
+  const { labelKey, label, ...style } = def;
+  return { ...style, label: labelKey ? translateStatusLabel(labelKey) : label ?? '' };
+}
+
 // Booking Status Configuration - matching real-world service lifecycle
-export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
+export const bookingStatusConfig: Record<BookingStatus, StatusConfigDef> = {
   pending: {
-    label: 'En attente',
+    labelKey: 'status.pending',
     badgeClass: 'bg-orange-100 text-orange-800 border border-orange-300',
     cardClass: 'bg-orange-500 text-white',
     calendarCardClass: 'bg-orange-50 text-orange-900 dark:bg-orange-900/20 dark:text-orange-100',
     hexColor: '#f97316',
   },
   confirmed: {
-    label: 'Confirmé',
+    labelKey: 'status.confirmed',
     badgeClass: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
     cardClass: 'bg-emerald-500 text-white',
     calendarCardClass: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-100',
     hexColor: '#10b981',
   },
   ongoing: {
-    label: 'En cours',
+    labelKey: 'status.ongoing',
     badgeClass: 'bg-indigo-100 text-indigo-800 border border-indigo-300 animate-pulse',
     cardClass: 'bg-indigo-600 text-white animate-pulse',
     calendarCardClass: 'bg-indigo-50 text-indigo-900 dark:bg-indigo-900/20 dark:text-indigo-100',
@@ -39,42 +67,42 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     pulse: true,
   },
   completed: {
-    label: 'Terminé',
+    labelKey: 'status.completed',
     badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
     cardClass: 'bg-emerald-400 text-white',
     calendarCardClass: 'bg-emerald-50/60 text-emerald-800 dark:bg-emerald-900/10 dark:text-emerald-200',
     hexColor: '#34d399',
   },
   cancelled: {
-    label: 'Annulé',
+    labelKey: 'status.cancelled',
     badgeClass: 'bg-gray-100 text-red-600 border border-gray-300 line-through',
     cardClass: 'bg-gray-400 text-white line-through',
     calendarCardClass: 'bg-cancelled-stripes text-red-700 dark:text-red-300 line-through',
     hexColor: '#9ca3af',
   },
   noshow: {
-    label: 'No-show',
+    labelKey: 'status.noshow',
     badgeClass: 'bg-rose-100 text-rose-800 border border-rose-400 font-bold',
     cardClass: 'bg-rose-600 text-white',
     calendarCardClass: 'bg-rose-50 text-rose-900 dark:bg-rose-900/20 dark:text-rose-100',
     hexColor: '#e11d48',
   },
   quote_pending: {
-    label: 'Devis',
+    labelKey: 'status.quote',
     badgeClass: 'bg-violet-100 text-violet-800 border border-violet-300',
     cardClass: 'bg-violet-500 text-white',
     calendarCardClass: 'bg-violet-50 text-violet-900 dark:bg-violet-900/20 dark:text-violet-100',
     hexColor: '#8b5cf6',
   },
   waiting_approval: {
-    label: 'Attente',
+    labelKey: 'status.awaiting',
     badgeClass: 'bg-purple-100 text-purple-800 border border-purple-400',
     cardClass: 'bg-purple-500 text-white',
     calendarCardClass: 'bg-purple-50 text-purple-900 dark:bg-purple-900/20 dark:text-purple-100',
     hexColor: '#a855f7',
   },
   alternative_proposed: {
-    label: 'Créneau proposé',
+    labelKey: 'status.alternativeProposed',
     badgeClass: 'bg-violet-100 text-violet-700 border border-violet-300',
     cardClass: 'bg-violet-500 text-white',
     calendarCardClass: 'bg-violet-50 text-violet-900 dark:bg-violet-900/20 dark:text-violet-100',
@@ -83,7 +111,7 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
 };
 
 // Payment Status Configuration - emoji only
-export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
+export const paymentStatusConfig: Record<PaymentStatus, StatusConfigDef> = {
   pending: {
     label: '💳',
     badgeClass: 'bg-yellow-100 text-yellow-700',
@@ -115,19 +143,19 @@ export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
     hexColor: '#3b82f6',
   },
   pending_partner_billing: {
-    label: 'Paiement partenaire',
+    labelKey: 'payment.status.partnerBilled',
     badgeClass: 'bg-indigo-100 text-indigo-700',
     cardClass: 'bg-indigo-500 text-white',
     hexColor: '#6366f1',
   },
   card_saved: {
-    label: 'Carte enregistrée',
+    labelKey: 'payment.status.cardSaved',
     badgeClass: 'bg-purple-100 text-purple-700',
     cardClass: 'bg-purple-500 text-white',
     hexColor: '#a855f7',
   },
   offert: {
-    label: 'Offert',
+    labelKey: 'payment.status.offert',
     badgeClass: 'bg-amber-100 text-amber-700',
     cardClass: 'bg-amber-500 text-white',
     hexColor: '#f59e0b',
@@ -135,27 +163,27 @@ export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
 };
 
 // Entity Status Configuration (Therapists, Concierges, Admins, Treatments, Treatment Rooms)
-export const entityStatusConfig: Record<EntityStatus, StatusConfig> = {
+export const entityStatusConfig: Record<EntityStatus, StatusConfigDef> = {
   active: {
-    label: 'Actif',
+    labelKey: 'status.active',
     badgeClass: 'bg-green-500/10 text-green-700',
     cardClass: 'bg-green-500 text-white',
     hexColor: '#22c55e',
   },
   pending: {
-    label: 'En attente',
+    labelKey: 'status.pending',
     badgeClass: 'bg-orange-500/10 text-orange-700',
     cardClass: 'bg-orange-500 text-white',
     hexColor: '#f97316',
   },
   inactive: {
-    label: 'Inactif',
+    labelKey: 'status.inactive',
     badgeClass: 'bg-gray-100 text-gray-700',
     cardClass: 'bg-gray-500 text-white',
     hexColor: '#6b7280',
   },
   maintenance: {
-    label: 'Maintenance',
+    labelKey: 'status.maintenance',
     badgeClass: 'bg-red-500/10 text-red-700',
     cardClass: 'bg-red-500 text-white',
     hexColor: '#ef4444',
@@ -189,7 +217,10 @@ export function getBookingStatusConfig(status: string): StatusConfig {
 
   const key = (aliases[normalized] || (normalized as BookingStatus)) as BookingStatus;
 
-  return bookingStatusConfig[key] || {
+  const def = bookingStatusConfig[key];
+  if (def) return resolveStatusConfig(def);
+
+  return {
     label: capitalizeFirst(raw),
     badgeClass: 'bg-muted text-foreground border border-border',
     cardClass: 'bg-muted text-foreground',
@@ -209,7 +240,10 @@ export function getPaymentStatusConfig(status: string | null | undefined): Statu
   }
   
   const normalizedStatus = status.toLowerCase() as PaymentStatus;
-  return paymentStatusConfig[normalizedStatus] || {
+  const def = paymentStatusConfig[normalizedStatus];
+  if (def) return resolveStatusConfig(def);
+
+  return {
     label: capitalizeFirst(status),
     badgeClass: 'bg-gray-100 text-gray-700',
     cardClass: 'bg-gray-500 text-white',
@@ -219,7 +253,10 @@ export function getPaymentStatusConfig(status: string | null | undefined): Statu
 
 export function getEntityStatusConfig(status: string): StatusConfig {
   const normalizedStatus = status.toLowerCase() as EntityStatus;
-  return entityStatusConfig[normalizedStatus] || {
+  const def = entityStatusConfig[normalizedStatus];
+  if (def) return resolveStatusConfig(def);
+
+  return {
     label: capitalizeFirst(status),
     badgeClass: 'bg-gray-100 text-gray-700',
     cardClass: 'bg-gray-500 text-white',
@@ -245,10 +282,10 @@ export type CalendarFlowStageKey =
   | 'cancelled'
   | 'noshow';
 
-interface CalendarFlowStage {
+export interface CalendarFlowStage {
   key: CalendarFlowStageKey;
-  label: string; // FR
-  labelEn: string;
+  /** Key of the `common` namespace — resolve with `t(stage.labelKey, { ns: 'common' })`. */
+  labelKey: string;
   swatchClass: string; // solid color for the legend swatch
   cardClass: string; // pastel background for the calendar card
 }
@@ -257,64 +294,55 @@ interface CalendarFlowStage {
 export const calendarFlowStages: Record<CalendarFlowStageKey, CalendarFlowStage> = {
   awaiting_therapist_payment: {
     key: 'awaiting_therapist_payment',
-    label: 'Attente thérapeute + paiement',
-    labelEn: 'Awaiting therapist + payment',
+    labelKey: 'calendarStage.awaitingTherapistPayment',
     swatchClass: 'bg-amber-500',
     cardClass: 'bg-amber-50 text-amber-900 dark:bg-amber-900/20 dark:text-amber-100',
   },
   awaiting_therapist: {
     key: 'awaiting_therapist',
-    label: 'Attente thérapeute',
-    labelEn: 'Awaiting therapist',
+    labelKey: 'calendarStage.awaitingTherapist',
     swatchClass: 'bg-violet-500',
     cardClass: 'bg-violet-50 text-violet-900 dark:bg-violet-900/20 dark:text-violet-100',
   },
   payment_pending: {
     key: 'payment_pending',
-    label: 'Paiement en attente',
-    labelEn: 'Payment pending',
+    labelKey: 'payment.status.pending',
     swatchClass: 'bg-blue-500',
     cardClass: 'bg-blue-50 text-blue-900 dark:bg-blue-900/20 dark:text-blue-100',
   },
   confirmed: {
     key: 'confirmed',
-    label: 'Confirmé',
-    labelEn: 'Confirmed',
+    labelKey: 'status.confirmed',
     swatchClass: 'bg-emerald-500',
     cardClass: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-100',
   },
   ongoing: {
     key: 'ongoing',
-    label: 'En cours',
-    labelEn: 'Ongoing',
+    labelKey: 'status.ongoing',
     swatchClass: 'bg-indigo-500',
     cardClass: 'bg-indigo-50 text-indigo-900 dark:bg-indigo-900/20 dark:text-indigo-100',
   },
   completed: {
     key: 'completed',
-    label: 'Terminé',
-    labelEn: 'Completed',
+    labelKey: 'status.completed',
     swatchClass: 'bg-emerald-300',
     cardClass: 'bg-emerald-50/60 text-emerald-800 dark:bg-emerald-900/10 dark:text-emerald-200',
   },
   quote: {
     key: 'quote',
-    label: 'Devis / Proposé',
-    labelEn: 'Quote / Proposed',
+    labelKey: 'calendarStage.quote',
     swatchClass: 'bg-fuchsia-500',
     cardClass: 'bg-fuchsia-50 text-fuchsia-900 dark:bg-fuchsia-900/20 dark:text-fuchsia-100',
   },
   cancelled: {
     key: 'cancelled',
-    label: 'Annulé',
-    labelEn: 'Cancelled',
+    labelKey: 'status.cancelled',
     swatchClass: 'bg-cancelled-stripes border border-gray-300',
     cardClass: 'bg-cancelled-stripes text-red-700 dark:text-red-300 line-through',
   },
   noshow: {
     key: 'noshow',
-    label: 'No-show',
-    labelEn: 'No-show',
+    labelKey: 'status.noshow',
     swatchClass: 'bg-rose-600',
     cardClass: 'bg-rose-50 text-rose-900 dark:bg-rose-900/20 dark:text-rose-100',
   },
@@ -379,16 +407,16 @@ export function getStatusHexColor(status: string, type: 'booking' | 'payment' | 
   }
 }
 
-// Libellés de paiement affichés sur la fiche réservation
-export const PAYMENT_LABELS: Record<string, string> = {
-  pending: "Paiement en attente",
-  paid: "Payé",
-  failed: "Paiement échoué",
-  refunded: "Remboursé",
-  charged_to_room: "Facturé chambre",
-  pending_partner_billing: "Paiement partenaire",
-  card_saved: "Carte enregistrée",
-  offert: "Offert",
+// Clés des libellés de paiement affichés sur la fiche réservation (namespace `common`).
+export const PAYMENT_LABEL_KEYS: Record<string, string> = {
+  pending: "payment.status.pending",
+  paid: "payment.status.paid",
+  failed: "payment.status.failed",
+  refunded: "payment.status.refunded",
+  charged_to_room: "payment.status.chargedToRoom",
+  pending_partner_billing: "payment.status.partnerBilled",
+  card_saved: "payment.status.cardSaved",
+  offert: "payment.status.offert",
 };
 
 /**
@@ -405,13 +433,16 @@ export function getBookingPaymentDisplay(
     booking.payment_method === "partner_billed" || status === "pending_partner_billing";
 
   if (options?.cardSavedToCharge) {
-    return { label: "Carte enregistrée à débiter", hexColor: "#eab308" };
+    return { label: translateStatusLabel("payment.cardSavedToCharge"), hexColor: "#eab308" };
   }
   if (isPartnerBilled) {
-    return { label: PAYMENT_LABELS.pending_partner_billing, hexColor: "#6366f1" };
+    return {
+      label: translateStatusLabel(PAYMENT_LABEL_KEYS.pending_partner_billing),
+      hexColor: "#6366f1",
+    };
   }
   return {
-    label: PAYMENT_LABELS[status] ?? PAYMENT_LABELS.pending,
+    label: translateStatusLabel(PAYMENT_LABEL_KEYS[status] ?? PAYMENT_LABEL_KEYS.pending),
     hexColor: isPaid ? "#22c55e" : "#eab308",
   };
 }

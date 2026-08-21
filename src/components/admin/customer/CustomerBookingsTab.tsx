@@ -2,7 +2,6 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -26,24 +25,24 @@ interface CustomerBookingsTabProps {
 const formatPaymentText = (status: string | null, t: any) => {
   switch (status) {
     case 'charged_to_room':
-      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shadow-none font-medium">Facturé chambre</Badge>;
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shadow-none font-medium">{t("customerBookingsTab.payment.chargedToRoom")}</Badge>;
     case 'paid':
-      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 shadow-none font-medium">Payé</Badge>;
+      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 shadow-none font-medium">{t("customerBookingsTab.payment.paid")}</Badge>;
     case 'refunded':
-      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 shadow-none font-medium">Remboursé</Badge>;
+      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 shadow-none font-medium">{t("customerBookingsTab.payment.refunded")}</Badge>;
     case 'failed':
-      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 shadow-none font-medium">Échec</Badge>;
+      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 shadow-none font-medium">{t("customerBookingsTab.payment.failed")}</Badge>;
     case 'card_saved':
       // Utilisation de la traduction ici
-      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 shadow-none font-medium">{t("badges.card_saved", "Carte enregistrée")}</Badge>;
+      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 shadow-none font-medium">{t("customerBookingsTab.payment.cardSaved")}</Badge>;
     case 'pending':
     default:
-      return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 shadow-none font-medium">En attente</Badge>;
+      return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 shadow-none font-medium">{t("common:status.pending")}</Badge>;
   }
 };
 
 export function CustomerBookingsTab({ customerId }: CustomerBookingsTabProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const navigate = useNavigate();
 
   const { data: bookings = [], isLoading } = useQuery({
@@ -95,14 +94,14 @@ export function CustomerBookingsTab({ customerId }: CustomerBookingsTabProps) {
         <Table className="text-xs w-full min-w-[900px]">
           <TableHeader>
             <TableRow className="bg-muted/20 h-10">
-              <TableHead className="font-medium px-3">N° Résa</TableHead>
-              <TableHead className="font-medium px-3">Date & Heure</TableHead>
-              <TableHead className="font-medium px-3">Lieu</TableHead>
-              <TableHead className="font-medium px-3">Soins</TableHead>
-              <TableHead className="font-medium px-3">Statut Booking</TableHead>
-              <TableHead className="font-medium px-3">Paiement</TableHead>
-              <TableHead className="font-medium px-3">Décharge</TableHead>
-              <TableHead className="font-medium px-3 text-right">Total</TableHead>
+              <TableHead className="font-medium px-3">{t("customerBookingsTab.table.bookingNumber")}</TableHead>
+              <TableHead className="font-medium px-3">{t("customerBookingsTab.table.dateTime")}</TableHead>
+              <TableHead className="font-medium px-3">{t("customerBookingsTab.table.venue")}</TableHead>
+              <TableHead className="font-medium px-3">{t("customerBookingsTab.table.treatments")}</TableHead>
+              <TableHead className="font-medium px-3">{t("customerBookingsTab.table.bookingStatus")}</TableHead>
+              <TableHead className="font-medium px-3">{t("customerBookingsTab.table.payment")}</TableHead>
+              <TableHead className="font-medium px-3">{t("customerBookingsTab.table.waiver")}</TableHead>
+              <TableHead className="font-medium px-3 text-right">{t("customerBookingsTab.table.total")}</TableHead>
             </TableRow>
           </TableHeader>
           {isLoading ? (

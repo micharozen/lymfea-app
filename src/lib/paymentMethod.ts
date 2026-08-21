@@ -1,3 +1,5 @@
+import i18n from "@/i18n";
+
 /**
  * Libellés et regroupements des modes de paiement (bookings.payment_method).
  *
@@ -9,17 +11,17 @@
  * - `card_on_site` désigne une CB encaissée sur place (Tap to Pay ou terminal),
  *   qui ne remonte pas dans le tableau de bord Stripe de la même façon.
  */
-export const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  room: "Facturé en chambre",
-  card: "Paiement en ligne",
-  card_on_site: "CB sur place",
-  cash: "Espèces",
-  offert: "Offert",
-  gift_amount: "Carte cadeau",
-  voucher: "Payé par voucher — encaissé par le lieu",
-  partner_billed: "Facturé au partenaire (fin de mois)",
-  cure_fresha: "Cure Fresha",
-  bundle: "Forfait",
+export const PAYMENT_METHOD_LABEL_KEYS: Record<string, string> = {
+  room: "payment.method.room",
+  card: "payment.method.card",
+  card_on_site: "payment.method.cardOnSite",
+  cash: "payment.method.cash",
+  offert: "payment.method.offert",
+  gift_amount: "payment.method.giftAmount",
+  voucher: "payment.method.voucher",
+  partner_billed: "payment.method.partnerBilled",
+  cure_fresha: "payment.method.cureFresha",
+  bundle: "payment.method.bundle",
 };
 
 /**
@@ -58,26 +60,44 @@ export function manualPaymentMethodsForVenue(hotelId: string | null | undefined)
 /** Valeur de filtre ciblant les réservations sans mode de paiement renseigné. */
 export const PAYMENT_METHOD_UNSET = "unset";
 
-/** Options du filtre "mode de paiement" de la liste des réservations. */
-export const PAYMENT_METHOD_FILTER_OPTIONS: { value: string; label: string }[] = [
-  ...Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({ value, label })),
-  { value: PAYMENT_METHOD_UNSET, label: "Non renseigné" },
+/** Clés (namespace `common`) du filtre "statut de paiement". */
+export const PAYMENT_STATUS_FILTER_KEYS: { value: string; labelKey: string }[] = [
+  { value: "paid", labelKey: "payment.status.paid" },
+  { value: "pending", labelKey: "status.pending" },
+  { value: "awaiting_payment", labelKey: "payment.status.awaitingPayment" },
+  { value: "charged_to_room", labelKey: "payment.method.room" },
+  { value: "offert", labelKey: "payment.status.offert" },
+  { value: "card_saved", labelKey: "payment.status.cardSaved" },
+  { value: "refunded", labelKey: "payment.status.refunded" },
+  { value: "failed", labelKey: "payment.status.failedShort" },
 ];
 
+/**
+ * Options du filtre "mode de paiement" de la liste des réservations.
+ * Fonction (et non constante) : les libellés doivent être résolus à l'appel,
+ * sinon ils resteraient figés sur la langue de démarrage de l'app.
+ */
+export function paymentMethodFilterOptions(): { value: string; label: string }[] {
+  return [
+    ...Object.entries(PAYMENT_METHOD_LABEL_KEYS).map(([value, labelKey]) => ({
+      value,
+      label: i18n.t(labelKey, { ns: "common" }),
+    })),
+    { value: PAYMENT_METHOD_UNSET, label: i18n.t("payment.method.unset", { ns: "common" }) },
+  ];
+}
+
 /** Options du filtre "statut de paiement" de la liste des réservations. */
-export const PAYMENT_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
-  { value: "paid", label: "Payé" },
-  { value: "pending", label: "En attente" },
-  { value: "awaiting_payment", label: "Paiement attendu" },
-  { value: "charged_to_room", label: "Facturé en chambre" },
-  { value: "offert", label: "Offert" },
-  { value: "card_saved", label: "Carte enregistrée" },
-  { value: "refunded", label: "Remboursé" },
-  { value: "failed", label: "Échoué" },
-];
+export function paymentStatusFilterOptions(): { value: string; label: string }[] {
+  return PAYMENT_STATUS_FILTER_KEYS.map(({ value, labelKey }) => ({
+    value,
+    label: i18n.t(labelKey, { ns: "common" }),
+  }));
+}
 
 /** Libellé lisible d'un mode de paiement, avec repli sur la valeur brute. */
 export function paymentMethodLabel(method: string | null | undefined): string {
   if (!method) return "";
-  return PAYMENT_METHOD_LABELS[method] ?? method;
+  const labelKey = PAYMENT_METHOD_LABEL_KEYS[method];
+  return labelKey ? i18n.t(labelKey, { ns: "common" }) : method;
 }

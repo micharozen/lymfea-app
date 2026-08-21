@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { EntityDetailDialog } from "./EntityDetailDialog";
 import { DetailSection, DetailCard, DetailField } from "./DetailSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -43,6 +44,9 @@ export function ConciergeDetailDialog({
   onResendInvite,
   isResendingInvite,
 }: ConciergeDetailDialogProps) {
+  const { t, i18n } = useTranslation(["admin", "common"]);
+  const isFr = i18n.language?.startsWith("fr");
+
   if (!concierge) return null;
 
   const fullName = `${concierge.first_name} ${concierge.last_name}`;
@@ -63,18 +67,22 @@ export function ConciergeDetailDialog({
       status={concierge.status}
     >
       {/* Contact */}
-      <DetailSection icon={Phone} title="Contact">
+      <DetailSection icon={Phone} title={t("conciergeDetailDialog.contact")}>
         <DetailCard>
           <div className="space-y-2">
             <DetailField label="Email" value={concierge.email} />
             <DetailField
-              label="Téléphone"
+              label={t("conciergeDetailDialog.phone")}
               value={`${concierge.country_code} ${concierge.phone}`}
             />
             {concierge.venue_role && (
               <DetailField
-                label="Rôle"
-                value={VENUE_ROLES.find(r => r.value === concierge.venue_role)?.labelFr ?? concierge.venue_role}
+                label={t("conciergeDetailDialog.role")}
+                value={(() => {
+                  const role = VENUE_ROLES.find((r) => r.value === concierge.venue_role);
+                  if (!role) return concierge.venue_role;
+                  return isFr ? role.labelFr : role.labelEn;
+                })()}
               />
             )}
           </div>
@@ -82,7 +90,7 @@ export function ConciergeDetailDialog({
       </DetailSection>
 
       {/* Hotels */}
-      <DetailSection icon={Building2} title={`Lieux (${assignedHotels.length})`} showSeparator={false}>
+      <DetailSection icon={Building2} title={t("conciergeDetailDialog.venues", { count: assignedHotels.length })} showSeparator={false}>
         {assignedHotels.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {assignedHotels.map((hotel) => (
@@ -101,7 +109,9 @@ export function ConciergeDetailDialog({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Aucun lieu assigné</p>
+          <p className="text-sm text-muted-foreground">
+            {t("conciergeDetailDialog.noVenue")}
+          </p>
         )}
       </DetailSection>
     </EntityDetailDialog>

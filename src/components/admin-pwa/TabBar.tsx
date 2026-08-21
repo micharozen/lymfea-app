@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Home, CalendarDays, Plus, Bell } from "lucide-react";
 
 interface AdminTabBarProps {
@@ -6,6 +7,7 @@ interface AdminTabBarProps {
 }
 
 const AdminTabBar = ({ unreadCount = 0 }: AdminTabBarProps) => {
+  const { t } = useTranslation("admin");
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -29,7 +31,7 @@ const AdminTabBar = ({ unreadCount = 0 }: AdminTabBarProps) => {
             strokeWidth={isActive("/admin-pwa/accueil") ? 2.5 : 1.5}
           />
           <span className={`text-[10px] transition-colors ${isActive("/admin-pwa/accueil") ? "text-white font-semibold" : "text-white/50 font-medium"}`}>
-            Accueil
+            {t("sidebar.home")}
           </span>
         </button>
         <button
@@ -41,7 +43,7 @@ const AdminTabBar = ({ unreadCount = 0 }: AdminTabBarProps) => {
             strokeWidth={isActive("/admin-pwa/dashboard") ? 2.5 : 1.5}
           />
           <span className={`text-[10px] transition-colors ${isActive("/admin-pwa/dashboard") ? "text-white font-semibold" : "text-white/50 font-medium"}`}>
-            Réservations
+            {t("sidebar.bookings")}
           </span>
         </button>
         <button
@@ -53,7 +55,7 @@ const AdminTabBar = ({ unreadCount = 0 }: AdminTabBarProps) => {
             strokeWidth={isActive("/admin-pwa/create") ? 2.5 : 1.5}
           />
           <span className={`text-[10px] transition-colors ${isActive("/admin-pwa/create") ? "text-white font-semibold" : "text-white/50 font-medium"}`}>
-            Créer
+            {t("sidebar.create")}
           </span>
         </button>
         <button

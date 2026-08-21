@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { BillingProfileForm } from "@/components/admin/billing/BillingProfileForm";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,7 @@ interface AdminRow {
 }
 
 export default function OrganizationDetail() {
+  const { t } = useTranslation(['admin', 'common']);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const {
@@ -96,7 +98,7 @@ export default function OrganizationDetail() {
     ]);
 
     if (orgRes.error) {
-      toast.error("Organisation introuvable");
+      toast.error(t('organizationDetail.notFound'));
       console.error(orgRes.error);
       setLoading(false);
       return;
@@ -122,7 +124,7 @@ export default function OrganizationDetail() {
   const handleDeleteAdmin = async () => {
     if (!deletingAdmin) return;
     if (deletingAdmin.user_id === userId) {
-      toast.error("Vous ne pouvez pas supprimer votre propre compte");
+      toast.error(t('organizationDetail.cannotDeleteSelf'));
       closeDeleteAdmin();
       return;
     }
@@ -136,7 +138,7 @@ export default function OrganizationDetail() {
       console.error(error);
       return;
     }
-    toast.success("Administrateur supprimé");
+    toast.success(t('organizationDetail.adminDeleted'));
     closeDeleteAdmin();
     fetchAll();
   };
@@ -151,10 +153,10 @@ export default function OrganizationDetail() {
           onClick={() => navigate(isSuperAdmin ? "/admin/organizations" : "/admin")}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour
+          {t('common:buttons.back')}
         </Button>
 
-        {loading && <div className="text-sm text-muted-foreground">Chargement…</div>}
+        {loading && <div className="text-sm text-muted-foreground">{t('organizationDetail.loading')}</div>}
 
         {!loading && org && (
           <div className="flex items-start gap-4 mb-6">
@@ -175,7 +177,7 @@ export default function OrganizationDetail() {
             {isSuperAdmin && (
               <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
                 <Pencil className="h-3.5 w-3.5 mr-2" />
-                Modifier
+                {t('common:buttons.edit')}
               </Button>
             )}
           </div>
@@ -186,9 +188,9 @@ export default function OrganizationDetail() {
         {!loading && org && (
           <section>
             <div className="mb-3">
-              <h2 className="text-sm font-medium text-foreground">Informations de facturation</h2>
+              <h2 className="text-sm font-medium text-foreground">{t('organizationDetail.billingTitle')}</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Identité reprise sur les factures émises et reçues par l'organisation.
+                {t('organizationDetail.billingDesc')}
               </p>
             </div>
             <BillingProfileForm ownerType="organization" ownerId={org.id} />
@@ -197,22 +199,22 @@ export default function OrganizationDetail() {
 
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-medium text-foreground">Hôtels rattachés</h2>
+            <h2 className="text-sm font-medium text-foreground">{t('organizationDetail.venuesTitle')}</h2>
             <span className="text-xs text-muted-foreground">{hotels.length}</span>
           </div>
           <div className="bg-card rounded-lg border border-border">
             {hotels.length === 0 ? (
               <div className="py-8 text-center text-sm text-muted-foreground">
-                Aucun hôtel rattaché.{" "}
+                {t('organizationDetail.noVenue')}{" "}
                 {isSuperAdmin && (
                   <>
-                    Rattachez-en un depuis{" "}
+                    {t('organizationDetail.attachFrom')}{" "}
                     <button
                       type="button"
                       className="underline hover:text-foreground"
                       onClick={() => navigate("/admin/places")}
                     >
-                      la page Lieux
+                      {t('organizationDetail.placesPage')}
                     </button>
                     .
                   </>
@@ -246,10 +248,10 @@ export default function OrganizationDetail() {
 
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-medium text-foreground">Administrateurs</h2>
+            <h2 className="text-sm font-medium text-foreground">{t('organizationDetail.adminsTitle')}</h2>
             <Button size="sm" onClick={() => setIsAddAdminOpen(true)}>
               <UserPlus className="h-3.5 w-3.5 mr-2" />
-              Ajouter un admin
+              {t('organizationDetail.addAdmin')}
             </Button>
           </div>
           <div className="bg-card rounded-lg border border-border overflow-hidden">
@@ -258,8 +260,8 @@ export default function OrganizationDetail() {
                 <TableRow>
                   <TableHead>Nom</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead>Rôle</TableHead>
+                  <TableHead>{t('organizationDetail.colStatus')}</TableHead>
+                  <TableHead>{t('organizationDetail.colRole')}</TableHead>
                   <TableHead className="w-16"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -267,7 +269,7 @@ export default function OrganizationDetail() {
                 {admins.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
-                      Aucun administrateur dans cette organisation.
+                      {t('organizationDetail.noAdmin')}
                     </TableCell>
                   </TableRow>
                 )}
@@ -284,7 +286,7 @@ export default function OrganizationDetail() {
                     </TableCell>
                     <TableCell>
                       {a.is_super_admin ? (
-                        <Badge variant="outline">Super-admin</Badge>
+                        <Badge variant="outline">{t('organizationDetail.superAdmin')}</Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">Admin</span>
                       )}
@@ -330,19 +332,19 @@ export default function OrganizationDetail() {
       <AlertDialog open={!!deletingAdmin} onOpenChange={(o) => !o && closeDeleteAdmin()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cet administrateur ?</AlertDialogTitle>
+            <AlertDialogTitle>{t('organizationDetail.confirmDeleteAdmin')}</AlertDialogTitle>
             <AlertDialogDescription>
               L'administrateur « {deletingAdmin?.first_name} {deletingAdmin?.last_name} » perdra
               l'accès à l'organisation. Cette action ne supprime pas son compte utilisateur.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAdmin}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Supprimer
+              {t('common:buttons.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { ChevronLeft, ChevronRight, PanelLeft, Stethoscope } from "lucide-react";
 import { cn } from "@/lib/utils";
+import i18n from "@/i18n";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
 import { CalendarLegend } from "./CalendarLegend";
 import type { Hotel } from "@/hooks/booking";
@@ -43,13 +44,14 @@ function SidebarContent({
   showCancelled,
   onToggleCancelled,
 }: CalendarSidebarProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const hasCalendarList = entries.length > 1;
   return (
     <div className="flex flex-col h-full">
       {hasCalendarList && (
         <div className="flex items-center justify-between px-3 py-2 border-b">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Calendriers
+            {t("admin:calendarSidebar.calendars")}
           </span>
           <div className="flex gap-1">
             <Button
@@ -58,7 +60,7 @@ function SidebarContent({
               className="h-6 px-2 text-[10px]"
               onClick={onShowAll}
             >
-              Tout
+              {t("admin:calendarSidebar.showAll")}
             </Button>
             <Button
               variant="ghost"
@@ -66,7 +68,7 @@ function SidebarContent({
               className="h-6 px-2 text-[10px]"
               onClick={onHideAll}
             >
-              Rien
+              {t("admin:calendarSidebar.hideAll")}
             </Button>
           </div>
         </div>
@@ -129,6 +131,7 @@ function SidebarContent({
 
 // Desktop: inline sidebar panel with collapse/expand
 export function CalendarSidebarDesktop(props: CalendarSidebarProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
@@ -148,12 +151,12 @@ export function CalendarSidebarDesktop(props: CalendarSidebarProps) {
               size="icon"
               className="h-7 w-7"
               onClick={() => setCollapsed(false)}
-              aria-label="Ouvrir le panneau"
+              aria-label={t("admin:calendarSidebar.openPanel")}
             >
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="right">Afficher la légende</TooltipContent>
+          <TooltipContent side="right">{t("admin:calendarSidebar.showLegend")}</TooltipContent>
         </Tooltip>
       </div>
     );
@@ -169,12 +172,12 @@ export function CalendarSidebarDesktop(props: CalendarSidebarProps) {
               size="icon"
               className="h-6 w-6"
               onClick={() => setCollapsed(true)}
-              aria-label="Fermer le panneau"
+              aria-label={t("admin:calendarSidebar.closePanel")}
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="right">Masquer la légende</TooltipContent>
+          <TooltipContent side="right">{t("admin:calendarSidebar.hideLegend")}</TooltipContent>
         </Tooltip>
       </div>
       <SidebarContent {...props} />
@@ -213,7 +216,7 @@ export function buildCalendarEntries(
     {
       id: "treatments",
       type: "treatments",
-      label: locale === "fr" ? "Soins" : "Treatments",
+      label: i18n.t("admin:calendarSidebar.treatments", { lng: locale.startsWith("en") ? "en" : "fr" }),
       color: "#3b82f6",
     },
   ];

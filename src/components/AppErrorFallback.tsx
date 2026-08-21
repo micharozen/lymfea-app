@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { brand } from "@/config/brand";
 
 interface AppErrorFallbackProps {
@@ -63,6 +64,7 @@ const clearReloadAttempts = (): void => {
 };
 
 export const AppErrorFallback = ({ error, reset }: AppErrorFallbackProps) => {
+  const { t } = useTranslation("common");
   const [reloading, setReloading] = useState(false);
   const chunkError = isChunkLoadError(error);
 
@@ -107,7 +109,7 @@ export const AppErrorFallback = ({ error, reset }: AppErrorFallbackProps) => {
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
         <img src="/images/saoma.png" alt={brand.name} className="h-16 w-16 rounded-2xl mb-6 animate-pulse" />
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        <p className="text-sm text-muted-foreground mt-4">Rechargement en cours…</p>
+        <p className="text-sm text-muted-foreground mt-4">{t("appError.reloadingInProgress")}</p>
       </div>
     );
   }
@@ -116,16 +118,14 @@ export const AppErrorFallback = ({ error, reset }: AppErrorFallbackProps) => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
       <img src="/images/saoma.png" alt={brand.name} className="h-16 w-16 rounded-2xl mb-6" />
       <h1 className="text-xl font-semibold mb-2">
-        {chunkError
-          ? "Une nouvelle version est disponible"
-          : "Une erreur est survenue"}
+        {chunkError ? t("update.title") : t("errors.generic")}
       </h1>
       <p className="text-sm text-muted-foreground max-w-sm mb-6">
         {chunkError
           ? showManualReload
-            ? "Le rechargement automatique a échoué. Veuillez recharger manuellement."
-            : "Veuillez recharger l'application pour continuer."
-          : "L'application a rencontré un problème inattendu."}
+            ? t("appError.autoReloadFailed")
+            : t("appError.reloadToContinue")
+          : t("appError.unexpected")}
       </p>
       <div className="flex flex-col gap-2 w-full max-w-xs">
         <button
@@ -133,14 +133,14 @@ export const AppErrorFallback = ({ error, reset }: AppErrorFallbackProps) => {
           disabled={reloading}
           className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium disabled:opacity-50"
         >
-          {reloading ? "Rechargement…" : "Recharger l'application"}
+          {reloading ? t("appError.reloadingInProgress") : t("appError.reloadApp")}
         </button>
         {!chunkError && (
           <button
             onClick={reset}
             className="rounded-md border border-border px-4 py-2 text-sm"
           >
-            Réessayer
+            {t("appError.retry")}
           </button>
         )}
       </div>

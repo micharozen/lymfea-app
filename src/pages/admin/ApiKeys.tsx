@@ -37,7 +37,7 @@ function maskedFromPrefix(prefix: string): string {
 }
 
 export default function ApiKeys() {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const { data: metadata, isLoading, isError } = useOrgApiKey();
   const reveal = useRevealOrgApiKey();
   const regenerate = useRegenerateOrgApiKey();

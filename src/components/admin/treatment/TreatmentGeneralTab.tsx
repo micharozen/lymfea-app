@@ -53,7 +53,7 @@ export function TreatmentGeneralTab({
   handleImageUpload,
   triggerFileSelect,
 }: TreatmentGeneralTabProps) {
-  const { t, i18n } = useTranslation("common");
+  const { t, i18n } = useTranslation(['admin', 'common']);
 
   const selectedHotelId = useWatch({ control: form.control, name: "hotel_id" });
   const selectedAmenityId = useWatch({ control: form.control, name: "amenity_id" });
@@ -94,7 +94,7 @@ export function TreatmentGeneralTab({
           {menuImage ? (
             <img
               src={menuImage}
-              alt="Photo du soin"
+              alt={t('treatmentTab.photo')}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -119,7 +119,7 @@ export function TreatmentGeneralTab({
             name="hotel_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Hôtel *</FormLabel>
+                <FormLabel>{t('treatmentTab.venue')}</FormLabel>
                 <Select
                   onValueChange={(value) => {
                     field.onChange(value);
@@ -130,7 +130,7 @@ export function TreatmentGeneralTab({
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un hôtel" />
+                      <SelectValue placeholder={t('treatmentTab.selectVenue')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -150,7 +150,7 @@ export function TreatmentGeneralTab({
             name="status"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Statut</FormLabel>
+                <FormLabel>{t('treatmentTab.status')}</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   value={field.value}
@@ -190,10 +190,10 @@ export function TreatmentGeneralTab({
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nom du soin *</FormLabel>
+              <FormLabel>{t('treatmentTab.name')}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Nom du soin"
+                  placeholder={t('treatmentTab.namePlaceholder')}
                   {...field}
                   disabled={disabled}
                 />
@@ -227,10 +227,10 @@ export function TreatmentGeneralTab({
         name="slug"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Lien public</FormLabel>
+            <FormLabel>{t('treatmentTab.publicLink')}</FormLabel>
             <FormControl>
               <Input
-                placeholder="ex: massage-suedois-60"
+                placeholder={t('treatmentTab.publicLinkPlaceholder')}
                 {...field}
                 disabled={disabled}
                 onChange={(e) => {
@@ -256,7 +256,7 @@ export function TreatmentGeneralTab({
           name="category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Catégorie *</FormLabel>
+              <FormLabel>{t('treatmentTab.category')}</FormLabel>
               <FormControl>
                 <CategorySelectField
                   hotelId={selectedHotelId}
@@ -360,7 +360,7 @@ export function TreatmentGeneralTab({
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Description du soin"
+                  placeholder={t('treatmentTab.descriptionPlaceholder')}
                   className="min-h-[80px]"
                   {...field}
                   disabled={disabled}
@@ -398,7 +398,7 @@ export function TreatmentGeneralTab({
             name="service_for"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Service pour *</FormLabel>
+                <FormLabel>{t('treatmentTab.serviceFor')}</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   value={field.value}
@@ -425,7 +425,7 @@ export function TreatmentGeneralTab({
           name="lead_time"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Délai min. réservation (min)</FormLabel>
+              <FormLabel>{t('treatmentTab.minNotice')}</FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -443,7 +443,7 @@ export function TreatmentGeneralTab({
           name="sort_order"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Ordre d'affichage</FormLabel>
+              <FormLabel>{t('treatmentTab.displayOrder')}</FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -466,7 +466,7 @@ export function TreatmentGeneralTab({
           const selected: number[] = field.value ?? [];
           return (
             <FormItem>
-              <FormLabel>Jours de disponibilité</FormLabel>
+              <FormLabel>{t('treatmentTab.availableDays')}</FormLabel>
               <FormControl>
                 <AvailableDaysPicker
                   value={selected}
@@ -476,8 +476,8 @@ export function TreatmentGeneralTab({
               </FormControl>
               <FormDescription className="text-[11px] leading-snug">
                 {selected.length === 0
-                  ? "Ce soin est réservable tous les jours d'ouverture du lieu."
-                  : "Ce soin n'est réservable que les jours sélectionnés."}
+                  ? t('treatmentTab.availableDaysAllHint')
+                  : t('treatmentTab.availableDaysSelectedHint')}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -501,7 +501,7 @@ export function TreatmentGeneralTab({
                 />
               </FormControl>
               <FormLabel className="text-sm cursor-pointer font-normal m-0">
-                Bestseller (mis en avant sur la page de réservation)
+                {t('treatmentTab.bestseller')}
               </FormLabel>
             </div>
           </FormItem>
