@@ -22,83 +22,105 @@
     }
   },
   "trustedBy": {
-    "tagline": "Seven houses orchestrate their spa with Saoma",
+    "tagline": "Six houses orchestrate their spa with Saoma",
+    "starsLabel": "{{count}} stars",
     "venues": {
       "eia": {
         "name": "EÏA",
-        "address": "Av. Victor Hugo · 75116"
+        "kind": "Spa house",
+        "area": "Paris 16th"
       },
-      "hanna": {
-        "name": "Hôtel Hanna",
-        "address": "4 Septembre · 75002"
+      "hana": {
+        "name": "Hôtel Hana",
+        "kind": "Boutique hotel",
+        "area": "Paris 2nd"
       },
       "george": {
-        "name": "Monsieur George",
-        "address": "Washington · 75008"
-      },
-      "soho": {
-        "name": "Soho House",
-        "address": "La Bruyère · 75009"
+        "name": "Hôtel Monsieur George",
+        "kind": "Hotel & Spa",
+        "area": "Paris 8th"
       },
       "buci": {
         "name": "Hôtel de Buci",
-        "address": "De Buci · 75006"
+        "kind": "Boutique hotel",
+        "area": "Paris 6th"
       },
-      "holy": {
-        "name": "Studio by Holy",
-        "address": "Guersant · 75017"
+      "barbizon": {
+        "name": "Hôtel La Folie Barbizon",
+        "kind": "Boutique hotel",
+        "area": "Barbizon"
       },
       "capAntibes": {
         "name": "Cap d'Antibes Beach Hotel",
-        "address": "Cap d'Antibes · 06160"
+        "kind": "Relais & Châteaux",
+        "area": "Antibes"
       }
     }
   },
   "problem": {
-    "title": "Your hotel's spa deserves better",
-    "subtitle": "Scattered tools, manual follow-ups, little visibility on bookings: your teams waste time and you lose guests.",
+    "title": "Your spa deserves better than scattered tools.",
+    "subtitle": "Manual follow-ups, little visibility on bookings: your teams waste time and you lose guests.",
     "points": {
       "fragmented": {
         "title": "Fragmented tools",
-        "desc": "Paper agenda, Excel for therapists, another sheet for billing."
+        "desc": "An agenda no one can truly share: everyone has a different view of the schedule, the payments and the cancellations."
       },
       "followup": {
-        "title": "Manual follow-ups",
-        "desc": "Pending requests get forgotten, no automatic reminders. Guests book elsewhere."
+        "title": "Wasted time",
+        "desc": "Manual follow-ups, payment and refund tracking, confirmation emails, incoming requests re-entered one by one."
       },
       "analytics": {
-        "title": "Limited visibility",
-        "desc": "No clear view of conversion rates or where bookings drop off."
+        "title": "Flying blind",
+        "desc": "No complete dashboard for revenue and spa occupancy, and no forecast to anticipate the weeks ahead."
       }
     }
   },
   "features": {
-    "eyebrow": "Features",
-    "title": "Everything your spa needs, in one platform",
+    "title": "Everything, brought together on one",
+    "titleHighlight": "platform",
     "subtitle": "Designed with directors of 4 and 5-star hotel spas.",
-    "pms": {
-      "title": "Native PMS integration",
-      "desc": "Opera Cloud & Mews. Automatic room charge, real-time guest data sync."
-    },
-    "agenda": {
-      "title": "Unified multi-site schedule",
-      "desc": "All your spas, treatment rooms and therapists in a single view."
-    },
-    "pwa": {
-      "title": "Therapist mobile app",
-      "desc": "Push notifications, in-session add-ons, automatic Stripe Connect payouts."
-    },
-    "booking": {
-      "title": "Frictionless client booking",
-      "desc": "In-room QR code, no-login flow, confirmation in under 10 minutes."
-    },
-    "billing": {
-      "title": "Automatic billing",
-      "desc": "Therapist commissions, monthly hotel invoices, daily reports generated automatically."
-    },
-    "giftcards": {
-      "title": "Gift cards & bundles",
-      "desc": "Create and sell gift cards, treatment bundles and seasonal offers in a few clicks."
+    "items": {
+      "visibility": {
+        "title": "Total visibility",
+        "bullets": {
+          "agenda": "One agenda shared by therapists and venue management",
+          "payments": "Track payments received or still pending",
+          "pms": "Native PMS integration (Opera Cloud & Mews)"
+        }
+      },
+      "therapist": {
+        "title": "Therapist mobile app",
+        "bullets": {
+          "notifications": "Real-time notifications",
+          "availability": "Availability declaration",
+          "addons": "Add-ons added at any time, even in the treatment room",
+          "invoicing": "Therapist invoicing generated automatically"
+        }
+      },
+      "booking": {
+        "title": "Booking experience",
+        "bullets": {
+          "frictionless": "Frictionless booking, no account required",
+          "response": "Requests handled within 2 hours",
+          "qr": "In-room QR code for hotel guests",
+          "acquisition": "Acquisition of outside clientele"
+        }
+      },
+      "basket": {
+        "title": "Higher average basket",
+        "bullets": {
+          "analytics": "Booking journey analytics",
+          "addons": "Smart add-on upselling",
+          "carts": "Abandoned cart tracking and follow-up"
+        }
+      },
+      "reporting": {
+        "title": "Dashboard & reporting",
+        "bullets": {
+          "dashboard": "Revenue dashboard, occupancy rate and 7-day occupancy forecast",
+          "reports": "Daily reports, cash closing and monthly invoices generated on their own"
+        }
+      }
     }
   },
   "aiSpotlight": {
@@ -127,11 +149,6 @@
       "title": "Californian massage · 60 min",
       "client": "Sophie Martin · 2 people",
       "slot": "Sunday 2:30 PM"
-    },
-    "bullets": {
-      "extract": "AI extraction of dates, treatments and client details",
-      "create": "Automatic creation of a pending booking",
-      "validate": "Concierge validates in one click"
     }
   },
   "howItWorks": {

@@ -22,83 +22,105 @@
     }
   },
   "trustedBy": {
-    "tagline": "Sept maisons orchestrent leur spa avec Saoma",
+    "tagline": "Six maisons orchestrent leur spa avec Saoma",
+    "starsLabel": "{{count}} étoiles",
     "venues": {
       "eia": {
         "name": "EÏA",
-        "address": "Av. Victor Hugo · 75116"
+        "kind": "Maison de spa",
+        "area": "Paris 16ᵉ"
       },
-      "hanna": {
-        "name": "Hôtel Hanna",
-        "address": "4 Septembre · 75002"
+      "hana": {
+        "name": "Hôtel Hana",
+        "kind": "Boutique-hôtel",
+        "area": "Paris 2ᵉ"
       },
       "george": {
-        "name": "Monsieur George",
-        "address": "Washington · 75008"
-      },
-      "soho": {
-        "name": "Soho House",
-        "address": "La Bruyère · 75009"
+        "name": "Hôtel Monsieur George",
+        "kind": "Hôtel & Spa",
+        "area": "Paris 8ᵉ"
       },
       "buci": {
         "name": "Hôtel de Buci",
-        "address": "De Buci · 75006"
+        "kind": "Boutique-hôtel",
+        "area": "Paris 6ᵉ"
       },
-      "holy": {
-        "name": "Studio by Holy",
-        "address": "Guersant · 75017"
+      "barbizon": {
+        "name": "Hôtel La Folie Barbizon",
+        "kind": "Boutique-hôtel",
+        "area": "Barbizon"
       },
       "capAntibes": {
         "name": "Cap d'Antibes Beach Hotel",
-        "address": "Cap d'Antibes · 06160"
+        "kind": "Relais & Châteaux",
+        "area": "Antibes"
       }
     }
   },
   "problem": {
-    "title": "Le spa de votre hôtel mérite mieux",
-    "subtitle": "Outils éparpillés, relances à la main, peu de visibilité sur vos réservations : vos équipes perdent du temps et vous laissez passer des clients.",
+    "title": "Votre spa mérite mieux que des outils éparpillés.",
+    "subtitle": "Relances à la main, peu de visibilité sur vos réservations : vos équipes perdent du temps et vous laissez passer des clients.",
     "points": {
       "fragmented": {
         "title": "Outils fragmentés",
-        "desc": "Un agenda papier, un Excel pour les thérapeutes, un autre pour la facturation."
+        "desc": "Un agenda impossible à partager avec tous : personne n'a la même vision du planning, ni des paiements, ni des annulations."
       },
       "followup": {
-        "title": "Relances manuelles",
-        "desc": "Demandes en attente oubliées, pas de rappels automatiques. Les clients réservent ailleurs."
+        "title": "Pertes de temps",
+        "desc": "Relances manuelles, suivi des paiements et remboursements, mails de confirmation, demandes entrantes à ressaisir une par une."
       },
       "analytics": {
-        "title": "Peu de visibilité",
-        "desc": "Impossible de suivre le taux de conversion ou d'identifier où les réservations décrochent."
+        "title": "Pilotage à l'aveugle",
+        "desc": "Pas de tableau de bord complet sur le CA et le taux d'occupation du spa, ni de prévision de remplissage pour anticiper."
       }
     }
   },
   "features": {
-    "eyebrow": "Fonctionnalités",
-    "title": "Tout ce dont votre spa a besoin, dans une seule plateforme",
+    "title": "Tout, réuni sur une seule",
+    "titleHighlight": "plateforme",
     "subtitle": "Conçu avec des directeurs de spa en hôtels 4 et 5 étoiles.",
-    "pms": {
-      "title": "Intégration PMS native",
-      "desc": "Opera Cloud & Mews. Room charge automatique, synchronisation des données invités en temps réel."
-    },
-    "agenda": {
-      "title": "Agenda unifié multi-sites",
-      "desc": "Tous vos spas, toutes vos salles de soin, tous vos thérapeutes dans une seule vue."
-    },
-    "pwa": {
-      "title": "App mobile thérapeute",
-      "desc": "Notifications push, ajout de soin en séance, paiement Stripe Connect automatique."
-    },
-    "booking": {
-      "title": "Booking client sans friction",
-      "desc": "QR code en chambre, flow sans login, confirmation en moins de 10 minutes."
-    },
-    "billing": {
-      "title": "Facturation automatique",
-      "desc": "Commissions thérapeutes, factures hôtels mensuelles, rapports journaliers générés automatiquement."
-    },
-    "giftcards": {
-      "title": "Cartes cadeaux & bundles",
-      "desc": "Créez et vendez des cartes cadeaux, bundles de soins et offres saisonnières en quelques clics."
+    "items": {
+      "visibility": {
+        "title": "Visibilité totale",
+        "bullets": {
+          "agenda": "Agenda partagé entre thérapeutes et gestion du lieu",
+          "payments": "Suivi des paiements reçus ou en attente",
+          "pms": "Intégration native PMS (Opera Cloud & Mews)"
+        }
+      },
+      "therapist": {
+        "title": "App mobile thérapeute",
+        "bullets": {
+          "notifications": "Notifications en temps réel",
+          "availability": "Déclaration des disponibilités",
+          "addons": "Ajout d'add-ons à tout moment, même en cabine",
+          "invoicing": "Facturation des thérapeutes générée automatiquement"
+        }
+      },
+      "booking": {
+        "title": "Expérience de réservation",
+        "bullets": {
+          "frictionless": "Réservation sans friction, sans création de compte",
+          "response": "Prise en charge de la demande sous 2 h",
+          "qr": "QR code en chambre pour les clients de l'hôtel",
+          "acquisition": "Acquisition de clientèle extérieure"
+        }
+      },
+      "basket": {
+        "title": "Augmentation du panier moyen",
+        "bullets": {
+          "analytics": "Analytique du parcours de réservation",
+          "addons": "Vente d'add-ons intelligente",
+          "carts": "Suivi et relance des paniers abandonnés"
+        }
+      },
+      "reporting": {
+        "title": "Dashboard & reporting",
+        "bullets": {
+          "dashboard": "Tableau de bord CA, taux d'occupation et prévisionnel de remplissage à 7 jours",
+          "reports": "Rapports journaliers, clôture de caisse et factures mensuelles générés seuls"
+        }
+      }
     }
   },
   "aiSpotlight": {
@@ -127,11 +149,6 @@
       "title": "Massage californien · 60 min",
       "client": "Sophie Martin · 2 personnes",
       "slot": "Dimanche 14h30"
-    },
-    "bullets": {
-      "extract": "Extraction IA des dates, soins et infos client",
-      "create": "Création automatique d'un booking en attente",
-      "validate": "Validation par le concierge en 1 clic"
     }
   },
   "howItWorks": {
