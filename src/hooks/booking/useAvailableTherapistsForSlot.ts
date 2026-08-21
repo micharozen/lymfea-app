@@ -212,7 +212,9 @@ export function useAvailableTherapistsForSlot({
             requestedStart < timeToMinutes(s.end),
         );
         if (!shift) return { open: false, shiftEnd: null };
-        // Le soin déborde du shift (buffer de rotation exclu) : dispo pour le début, pas la fin.
+        // Le soin déborde du shift (buffer de rotation exclu) : volontairement
+        // plus permissif que les moteurs de réservation (qui exigent que le
+        // shift couvre toute la durée) — l'admin doit pouvoir forcer, on avertit.
         const overflows = requestedStart + durationMinutes > timeToMinutes(shift.end);
         return { open: true, shiftEnd: overflows ? shift.end.slice(0, 5) : null };
       };
