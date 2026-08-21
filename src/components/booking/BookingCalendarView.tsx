@@ -1,6 +1,5 @@
 import { useMemo, useRef, useEffect, useState } from "react";
 import { format, addDays } from "date-fns";
-import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +10,8 @@ import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, 
 import { useTranslation } from "react-i18next";
 import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities, cn } from "@/lib/utils";
+import i18n from "@/i18n";
+import { useDateLocale } from "@/lib/dateLocale";
 import { AvailabilityOverlay } from "./AvailabilityOverlay";
 import { CleanupBufferZone } from "./CleanupBufferZone";
 import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, RoomBlockRow } from "@/hooks/booking";
@@ -19,18 +20,18 @@ import { type CalendarLayoutSlot } from "@/hooks/booking/useCalendarLogic";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 
 // Human-readable payment-status labels for the booking hover tooltip.
-const PAYMENT_STATUS_LABELS: Record<string, string> = {
-  pending: "En attente",
-  awaiting_payment: "En attente de paiement",
-  paid: "Payé",
-  failed: "Échoué",
-  refunded: "Remboursé",
-  charged: "Encaissé",
-  charged_to_room: "Facturé chambre",
-  card_saved: "Carte enregistrée",
-  expired: "Expiré",
-  pending_partner_billing: "Paiement partenaire",
-  pending_room_charge: "Facturation chambre en attente",
+const PAYMENT_STATUS_LABEL_KEYS: Record<string, string> = {
+  pending: "admin:bookingCalendar.paymentStatus.pending",
+  awaiting_payment: "admin:bookingCalendar.paymentStatus.awaitingPayment",
+  paid: "admin:bookingCalendar.paymentStatus.paid",
+  failed: "admin:bookingCalendar.paymentStatus.failed",
+  refunded: "admin:bookingCalendar.paymentStatus.refunded",
+  charged: "admin:bookingCalendar.paymentStatus.charged",
+  charged_to_room: "admin:bookingCalendar.paymentStatus.chargedToRoom",
+  card_saved: "admin:bookingCalendar.paymentStatus.cardSaved",
+  expired: "admin:bookingCalendar.paymentStatus.expired",
+  pending_partner_billing: "admin:bookingCalendar.paymentStatus.partnerBilling",
+  pending_room_charge: "admin:bookingCalendar.paymentStatus.pendingRoomCharge",
 };
 
 // Background colors for the payment-status line in the booking hover tooltip.
@@ -186,7 +187,8 @@ export function BookingCalendarView({
   onDeleteRoomBlock,
 }: BookingCalendarViewProps) {
   const navigate = useNavigate();
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to current time on mount
@@ -411,15 +413,15 @@ export function BookingCalendarView({
   // Date range label
   const dateRangeLabel = useMemo(() => {
     if (dayCount === 1) {
-      return format(currentWeekStart, "EEEE d MMMM yyyy", { locale: fr });
+      return format(currentWeekStart, "EEEE d MMMM yyyy", { locale: dateLocale });
     }
     const endDate = addDays(currentWeekStart, dayCount - 1);
     const sameMonth = format(currentWeekStart, 'MM') === format(endDate, 'MM');
     if (sameMonth) {
-      return `${format(currentWeekStart, "d", { locale: fr })} - ${format(endDate, "d MMMM yyyy", { locale: fr })}`;
+      return `${format(currentWeekStart, "d", { locale: dateLocale })} - ${format(endDate, "d MMMM yyyy", { locale: dateLocale })}`;
     }
-    return `${format(currentWeekStart, "d MMM", { locale: fr })} - ${format(endDate, "d MMM yyyy", { locale: fr })}`;
-  }, [currentWeekStart, dayCount]);
+    return `${format(currentWeekStart, "d MMM", { locale: dateLocale })} - ${format(endDate, "d MMM yyyy", { locale: dateLocale })}`;
+  }, [currentWeekStart, dayCount, dateLocale]);
 
   const gridTemplateColumns = `48px repeat(${dayCount}, 1fr)`;
   const gridTemplateColumnsMd = `52px repeat(${dayCount}, 1fr)`;
@@ -430,7 +432,7 @@ export function BookingCalendarView({
       <div className="flex items-center justify-between mb-1 gap-2 flex-shrink-0">
         {/* Left: today */}
         <Button variant="ghost" size="sm" className="h-7 px-2 text-xs font-medium" onClick={onGoToToday}>
-          Aujourd'hui
+          {t("common:dates.today")}
         </Button>
 
         {/* Center: nav arrows autour de la plage de dates → mini calendar popover */}
@@ -451,7 +453,7 @@ export function BookingCalendarView({
                 onSelect={(date) => {
                   if (date) onSetViewDate(date);
                 }}
-                locale={fr}
+                locale={dateLocale}
                 weekStartsOn={1}
               />
             </PopoverContent>
@@ -478,7 +480,7 @@ export function BookingCalendarView({
               style={{ gridTemplateColumns: gridTemplateColumnsMd }}
             >
               <div className="px-2 py-1.5 border-r border-border bg-muted flex items-center">
-                <span className="text-[10px] md:text-xs font-medium text-muted-foreground">Heure</span>
+                <span className="text-[10px] md:text-xs font-medium text-muted-foreground">{t("bookingCalendar.hourColumn")}</span>
               </div>
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
@@ -491,13 +493,13 @@ export function BookingCalendarView({
                     )}
                   >
                     <span className="text-xs font-medium text-muted-foreground uppercase">
-                      {format(day, "EEE", { locale: fr })}
+                      {format(day, "EEE", { locale: dateLocale })}
                     </span>
                     <span className={cn("text-sm font-bold", isToday && "text-primary")}>
                       {format(day, "d")}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      {format(day, "MMM", { locale: fr })}
+                      {format(day, "MMM", { locale: dateLocale })}
                     </span>
                     {showAvailability && availabilityData && (() => {
                       const dateStr = format(day, "yyyy-MM-dd");
@@ -520,10 +522,10 @@ export function BookingCalendarView({
                           </TooltipTrigger>
                           <TooltipContent side="bottom">
                             <div className="text-xs">
-                              <div className="font-medium">{count}/{total} thérapeutes dispo.</div>
+                              <div className="font-medium">{t("bookingCalendar.therapistsAvailable", { count, total })}</div>
                               {summary.coverageGaps.length > 0 && (
                                 <div className="text-muted-foreground mt-1">
-                                  Trous : {summary.coverageGaps.join(", ")}
+                                  {t("bookingCalendar.coverageGaps", { gaps: summary.coverageGaps.join(", ") })}
                                 </div>
                               )}
                             </div>
@@ -543,7 +545,7 @@ export function BookingCalendarView({
               style={{ gridTemplateColumns }}
             >
               <div className="p-1 border-r border-border bg-muted">
-                <span className="text-[10px] font-medium text-muted-foreground">Heure</span>
+                <span className="text-[10px] font-medium text-muted-foreground">{t("bookingCalendar.hourColumn")}</span>
               </div>
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
@@ -556,13 +558,13 @@ export function BookingCalendarView({
                     )}
                   >
                     <div className="text-[10px] font-medium text-muted-foreground uppercase">
-                      {format(day, "EEE", { locale: fr })}
+                      {format(day, "EEE", { locale: dateLocale })}
                     </div>
                     <div className={cn("text-sm font-bold", isToday && "text-primary")}>
                       {format(day, "d")}
                     </div>
                     <div className="text-[8px] text-muted-foreground">
-                      {format(day, "MMM", { locale: fr })}
+                      {format(day, "MMM", { locale: dateLocale })}
                     </div>
                     {showAvailability && availabilityData && (() => {
                       const dateStr = format(day, "yyyy-MM-dd");
@@ -814,6 +816,7 @@ export function BookingCard({
   navigate: ReturnType<typeof useNavigate>;
   showCleanupBuffer?: boolean;
 }) {
+  const { t } = useTranslation(["admin", "common"]);
   const { top, height } = getBookingPosition(booking);
   const hotelInfo = getHotelInfo(booking.hotel_id);
 
@@ -834,7 +837,7 @@ export function BookingCard({
 
   const therapistShort = formatTherapistShort(booking.therapist_name);
   const clientName = formatClientFull(booking.client_first_name, booking.client_last_name);
-  const treatmentsLabel = treatments.map((t) => t.name).filter(Boolean).join(", ");
+  const treatmentsLabel = treatments.map((tr) => tr.name).filter(Boolean).join(", ");
 
   // Duo booking: one row needing several practitioners (guest_count > 1).
   const guestCount = booking.guest_count ?? 1;
@@ -875,14 +878,17 @@ export function BookingCard({
 
   const paymentTag =
     displayPaymentStatus === 'paid'
-      ? { label: 'Payé', className: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-800' }
+      ? { label: t('bookingCalendar.paymentStatus.paid'), className: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-800' }
       : displayPaymentStatus === 'charged_to_room'
-        ? { label: 'Facturé chambre', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border-blue-200 dark:border-blue-800' }
+        ? { label: t('bookingCalendar.paymentStatus.chargedToRoom'), className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border-blue-200 dark:border-blue-800' }
         : null;
 
   // Full payment-status label + background color for the hover tooltip.
+  const paymentStatusKey = displayPaymentStatus
+    ? PAYMENT_STATUS_LABEL_KEYS[displayPaymentStatus]
+    : undefined;
   const paymentStatusLabel = displayPaymentStatus
-    ? PAYMENT_STATUS_LABELS[displayPaymentStatus] ?? displayPaymentStatus
+    ? (paymentStatusKey ? t(paymentStatusKey) : displayPaymentStatus)
     : null;
   const paymentStatusClass = displayPaymentStatus
     ? PAYMENT_STATUS_CLASSES[displayPaymentStatus] ?? 'bg-muted text-foreground'
@@ -946,17 +952,17 @@ export function BookingCard({
                   : ""}
               </span>
               {booking.is_out_of_hours && (
-                <span className="flex items-center flex-shrink-0" title="Hors horaires">
+                <span className="flex items-center flex-shrink-0" title={t("bookingColumns.badges.outOfHours")}>
                   <Clock className="h-2.5 w-2.5 text-amber-500" />
                 </span>
               )}
               {isDuo && (
                 <span
                   className="flex items-center gap-0.5 flex-shrink-0 px-1 rounded-full text-[9px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                  title={`Soin duo — ${acceptedTherapistCount}/${guestCount} thérapeutes`}
+                  title={t("bookingCalendar.duoTooltip", { accepted: acceptedTherapistCount, total: guestCount })}
                 >
                   <Users className="h-2 w-2" />
-                  Duo {acceptedTherapistCount}/{guestCount}
+                  {t("bookingCalendar.duoBadge", { accepted: acceptedTherapistCount, total: guestCount })}
                 </span>
               )}
               {showInlineClient && (
@@ -986,7 +992,7 @@ export function BookingCard({
                       e.stopPropagation();
                       navigate(`/admin/therapists/${booking.therapist_id}`);
                     }}
-                    title="Voir la fiche thérapeute"
+                    title={t("bookingCalendar.openTherapist")}
                   >
                     <ExternalLink className="h-2.5 w-2.5" />
                   </button>
@@ -1032,9 +1038,9 @@ export function BookingCard({
             {!hasTherapist && !isAmenityOnly && (
               <div
                 className="absolute bottom-1 right-1 px-1.5 h-4 rounded-[3px] flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800 shadow-sm"
-                title="Aucun thérapeute assigné"
+                title={t("bookingCalendar.unassignedTooltip")}
               >
-                À ASSIGNER
+                {t("bookingCalendar.unassignedBadge")}
               </div>
             )}
           </div>
@@ -1044,7 +1050,7 @@ export function BookingCard({
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div className="font-semibold text-sm">
-              Booking #{booking.booking_id}
+              {t("bookingCalendar.bookingNumber", { number: booking.booking_id })}
             </div>
             <Badge className={`text-[8px] ${getStatusColor(booking.status)}`}>
               {getTranslatedStatus(booking.status)}
@@ -1052,7 +1058,7 @@ export function BookingCard({
             {isDuo && (
               <Badge className="text-[8px] gap-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800">
                 <Users className="h-2.5 w-2.5" />
-                Duo {acceptedTherapistCount}/{guestCount}
+                {t("bookingCalendar.duoBadge", { accepted: acceptedTherapistCount, total: guestCount })}
               </Badge>
             )}
           </div>
@@ -1066,7 +1072,7 @@ export function BookingCard({
 
           {booking.room_number && (
             <div className="text-xs">
-              Chambre: {decodeHtmlEntities(booking.room_number)}
+              {t("bookingCalendar.roomNumber", { number: decodeHtmlEntities(booking.room_number) })}
             </div>
           )}
 
@@ -1074,7 +1080,7 @@ export function BookingCard({
             <div className="flex items-center gap-2 text-xs">
               <DoorOpen className="h-3 w-3" />
               <span>
-                Salle : {booking.room_name}
+                {t("bookingCalendar.treatmentRoom", { name: booking.room_name })}
                 {booking.secondary_room_name && ` + ${booking.secondary_room_name}`}
               </span>
             </div>
@@ -1104,35 +1110,35 @@ export function BookingCard({
             <div className="flex items-start gap-2 text-xs">
               <Users className="h-3 w-3 mt-0.5 flex-shrink-0" />
               <span>
-                Thérapeutes :{" "}
+                {t("bookingCalendar.therapistsLabel")}{" "}
                 {therapistNames.length > 0
                   ? therapistNames.join(", ")
-                  : `${acceptedTherapistCount}/${guestCount} assigné(s)`}
+                  : t("bookingCalendar.assignedCount", { accepted: acceptedTherapistCount, total: guestCount })}
               </span>
             </div>
           ) : (
             booking.therapist_name && (
               <div className="flex items-center gap-2 text-xs">
                 <Users className="h-3 w-3" />
-                <span>Thérapeute : {booking.therapist_name}</span>
+                <span>{t("bookingCalendar.therapistLabel", { name: booking.therapist_name })}</span>
               </div>
             )
           )}
 
           <div className="flex items-center gap-2 text-xs">
             <Clock className="h-3 w-3" />
-            <span>Durée: {durationFormatted}</span>
+            <span>{t("bookingCalendar.durationLabel", { value: durationFormatted })}</span>
           </div>
 
           {(() => {
             const allOnQuote = treatments.length > 0 && treatments.every(
-              (t) => (!t.price || t.price === 0) && (!t.duration || t.duration === 0)
+              (tr) => (!tr.price || tr.price === 0) && (!tr.duration || tr.duration === 0)
             );
 
             if (allOnQuote) {
               return (
                 <div className="text-xs text-muted-foreground italic">
-                  Sur devis
+                  {t("bookingCalendar.onQuote")}
                 </div>
               );
             }
@@ -1140,7 +1146,7 @@ export function BookingCard({
             if (treatments.length > 0) {
               return (
                 <div className="space-y-1">
-                  <div className="text-xs font-medium">Traitements:</div>
+                  <div className="text-xs font-medium">{t("bookingCalendar.treatmentsLabel")}</div>
                   <ul className="text-xs space-y-1">
                     {treatments.map((treatment, idx) => {
                       const tHours = Math.floor((treatment.duration || 0) / 60);
@@ -1165,13 +1171,13 @@ export function BookingCard({
 
           <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
             <Euro className="h-3 w-3" />
-            <span>Total: {formatPrice(totalPrice, hotelInfo?.currency || 'EUR')}</span>
+            <span>{t("bookingCalendar.totalLabel", { value: formatPrice(totalPrice, hotelInfo?.currency || 'EUR') })}</span>
           </div>
 
           {paymentStatusLabel && (
             <div className={cn("flex items-center gap-2 text-xs font-medium rounded px-2 py-1", paymentStatusClass)}>
               <CreditCard className="h-3 w-3 flex-shrink-0" />
-              <span>Paiement : {paymentStatusLabel}</span>
+              <span>{t("bookingCalendar.paymentLabel", { value: paymentStatusLabel })}</span>
             </div>
           )}
         </div>

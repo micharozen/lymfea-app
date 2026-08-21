@@ -29,7 +29,7 @@ type Stage = "loading" | "ready" | "sending";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function ReplyDraftComposer({ inquiryId, defaultRecipient, smtpSender, onClose, onSent }: Props) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const queryClient = useQueryClient();
 
   const [stage, setStage] = useState<Stage>("loading");
@@ -107,7 +107,7 @@ export function ReplyDraftComposer({ inquiryId, defaultRecipient, smtpSender, on
     });
 
     if (sendError || !result?.ok) {
-      toast.error(sendError?.message ?? "Send failed");
+      toast.error(sendError?.message ?? t("inbox.detail.reply.sendFailed"));
       setStage("ready");
       return;
     }

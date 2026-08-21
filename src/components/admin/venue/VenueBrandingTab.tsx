@@ -88,7 +88,7 @@ export function VenueBrandingTab({
   hotelSlug,
   previewRefreshKey = 0,
 }: VenueBrandingTabProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const [iframeKey, setIframeKey] = useState(0);
   const combinedIframeKey = iframeKey + previewRefreshKey;
   const identifier = hotelSlug || hotelId;
@@ -190,7 +190,7 @@ export function VenueBrandingTab({
                   triggerHotelImageSelect();
                 }}
                 role="button"
-                aria-label="Modifier la photo"
+                aria-label={t("venue.branding.editPhoto")}
               >
                 {hotelImage ? (
                   <img src={hotelImage} className="h-full w-full object-cover" alt="Venue" />
@@ -227,7 +227,7 @@ export function VenueBrandingTab({
                   triggerCoverImageSelect();
                 }}
                 role="button"
-                aria-label="Modifier la couverture"
+                aria-label={t("venue.branding.editCover")}
               >
                 {coverImage ? (
                   <img src={coverImage} className="h-full w-full object-cover" alt="Cover" />
@@ -252,7 +252,7 @@ export function VenueBrandingTab({
                 onChange={handleCoverImageUpload}
                 className="hidden"
               />
-              <p className="text-[10px] text-muted-foreground font-medium">Couverture</p>
+              <p className="text-[10px] text-muted-foreground font-medium">{t("venue.branding.coverLabel")}</p>
             </div>
           </div>
         </div>
@@ -325,7 +325,7 @@ export function VenueBrandingTab({
                   key={`${previewUrl}-${combinedIframeKey}`}
                   src={previewUrl}
                   className="w-full h-full border-0"
-                  title="Aperçu client"
+                  title={t("venue.branding.previewLabel")}
                   loading="lazy"
                 />
               </div>
@@ -414,7 +414,7 @@ function OpacityField({
   form: VenueBrandingTabProps["form"];
   disabled: boolean;
 }) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   return (
     <FormField
       control={form.control}
@@ -456,7 +456,7 @@ interface FontUploadFieldProps {
 }
 
 function FontUploadField({ form, kind, disabled, label }: FontUploadFieldProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const { url: urlField, family: familyField } = FONT_FIELDS[kind];
@@ -514,7 +514,7 @@ function FontUploadField({ form, kind, disabled, label }: FontUploadFieldProps) 
         }
         toast.success(t("venue.branding.fontUploaded", "Police téléchargée"));
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Upload failed";
+        const message = error instanceof Error ? error.message : t("venue.branding.uploadFailed");
         toast.error(message);
       } finally {
         setUploading(false);

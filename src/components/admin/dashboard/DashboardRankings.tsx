@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatPrice } from "@/lib/formatPrice";
 import type { RankingItem } from "@/hooks/useDashboardData";
 
@@ -11,8 +12,10 @@ interface RankingListProps {
 }
 
 function RankingList({ items, emptyMessage, showRevenue = true }: RankingListProps) {
+  const { t } = useTranslation(["admin", "common"]);
+
   if (items.length === 0) {
-    return <p className="card-empty">{emptyMessage || "Aucune donnée"}</p>;
+    return <p className="card-empty">{emptyMessage || t("common:noData")}</p>;
   }
 
   // La barre de proportion est relative au premier du classement.
@@ -30,7 +33,7 @@ function RankingList({ items, emptyMessage, showRevenue = true }: RankingListPro
                 {item.name}
               </div>
               <div className="ct">
-                {item.bookings} réservation{item.bookings > 1 ? "s" : ""}
+                {t("dashboardRankings.bookingCount", { count: item.bookings })}
               </div>
               <div className="bar">
                 <i style={{ width: `${Math.round((weight / max) * 100)}%` }} />
@@ -55,11 +58,7 @@ interface DashboardRankingsProps {
 
 type RankingTab = "venues" | "therapists" | "treatments";
 
-const TABS: Array<{ key: RankingTab; label: string }> = [
-  { key: "venues", label: "Lieux" },
-  { key: "therapists", label: "Thérapeutes" },
-  { key: "treatments", label: "Soins" },
-];
+const TABS: RankingTab[] = ["venues", "therapists", "treatments"];
 
 export function DashboardRankings({
   topVenues,
@@ -67,27 +66,30 @@ export function DashboardRankings({
   topTreatments,
   isSingleVenue,
 }: DashboardRankingsProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const [tab, setTab] = useState<RankingTab>(isSingleVenue ? "therapists" : "venues");
 
   return (
     <div className="card">
       <div className="tabs">
-        {TABS.map((t) => (
+        {TABS.map((key) => (
           <button
-            key={t.key}
+            key={key}
             type="button"
-            className={tab === t.key ? "active" : undefined}
-            disabled={t.key === "venues" && isSingleVenue}
-            onClick={() => setTab(t.key)}
+            className={tab === key ? "active" : undefined}
+            disabled={key === "venues" && isSingleVenue}
+            onClick={() => setTab(key)}
           >
-            {t.label}
+            {t(`dashboardRankings.tabs.${key}`)}
           </button>
         ))}
       </div>
       {tab === "venues" && (
         <RankingList
           items={isSingleVenue ? [] : topVenues}
-          emptyMessage={isSingleVenue ? "Sélectionnez «Tous les lieux»" : "Aucune donnée"}
+          emptyMessage={
+            isSingleVenue ? t("dashboardRankings.selectAllVenues") : t("common:noData")
+          }
         />
       )}
       {tab === "therapists" && <RankingList items={topTherapists} />}

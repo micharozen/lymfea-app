@@ -34,7 +34,7 @@ interface InboundEmail {
 const SAOMA_CONTACT_EMAIL = "contact@saoma.io";
 
 export function VenueInboundEmailTab({ hotelId }: Props) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const [data, setData] = useState<InboundEmail | null>(null);
 
   // For now the feature is locked behind a Saoma-side toggle; we still surface
@@ -142,7 +142,7 @@ export function VenueInboundEmailTab({ hotelId }: Props) {
                   : t("inbox.tab.activation.bodyLocked")}
               </p>
             </div>
-            <Switch checked={isActivated} disabled aria-label="Activer l'inbox email" />
+            <Switch checked={isActivated} disabled aria-label={t("inbox.tab.activation.toggleAria")} />
           </div>
 
           {!isActivated && (

@@ -5,24 +5,26 @@ import type { NavigateFunction } from "react-router-dom";
 import { Clock, DoorOpen, Layers, Package, Users } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
+import i18n from "@/i18n";
 import { formatPrice } from "@/lib/formatPrice";
 import { paymentMethodLabel } from "@/lib/paymentMethod";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 
-const PAYMENT_TEXT_LABELS: Record<string, string> = {
-  pending: "En attente",
-  paid: "Payé",
-  failed: "Échec",
-  refunded: "Remboursé",
-  charged_to_room: "Chambre",
-  pending_partner_billing: "Paiement partenaire",
-  card_saved: "Carte enregistrée",
+const PAYMENT_TEXT_LABEL_KEYS: Record<string, string> = {
+  pending: "admin:bookingColumns.paymentText.pending",
+  paid: "admin:bookingColumns.paymentText.paid",
+  failed: "admin:bookingColumns.paymentText.failed",
+  refunded: "admin:bookingColumns.paymentText.refunded",
+  charged_to_room: "admin:bookingColumns.paymentText.chargedToRoom",
+  pending_partner_billing: "admin:bookingColumns.paymentText.partnerBilling",
+  card_saved: "admin:bookingColumns.paymentText.cardSaved",
 };
 
 export function getPaymentTextLabel(status: string | null | undefined): string {
-  if (!status) return "Non défini";
-  return PAYMENT_TEXT_LABELS[status.toLowerCase()] ?? status;
+  if (!status) return i18n.t("admin:bookingColumns.paymentText.undefined");
+  const key = PAYMENT_TEXT_LABEL_KEYS[status.toLowerCase()];
+  return key ? i18n.t(key) : status;
 }
 
 /** Colonnes triables : la logique de tri vit dans BookingsList (getValue). */
@@ -93,8 +95,8 @@ function text(value: string | number | null | undefined): ReactNode {
 export const BOOKING_COLUMNS: BookingColumnDef[] = [
   {
     key: "reservation",
-    label: "#Résa",
-    sortLabel: "Réservation",
+    get label() { return i18n.t("admin:bookingColumns.labels.reservation"); },
+    get sortLabel() { return i18n.t("admin:bookingColumns.labels.reservationLong"); },
     width: 6,
     sortKey: "reservation",
     defaultVisible: true,
@@ -102,7 +104,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
       <span className="leading-none flex items-center gap-1 font-medium text-primary">
         #{booking.booking_id}
         {booking.bundle_usage_id && (
-          <Package className="h-3 w-3 text-amber-600 shrink-0" title="Séance cure" />
+          <Package className="h-3 w-3 text-amber-600 shrink-0" title={i18n.t("admin:bookingColumns.badges.bundleSession")} />
         )}
       </span>
     ),
@@ -121,7 +123,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
   },
   {
     key: "time",
-    label: "Heure",
+    get label() { return i18n.t("admin:bookingColumns.labels.time"); },
     width: 6,
     sortKey: "time",
     defaultVisible: true,
@@ -131,7 +133,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
   },
   {
     key: "duration",
-    label: "Durée",
+    get label() { return i18n.t("admin:bookingColumns.labels.duration"); },
     width: 6,
     sortKey: "duration",
     defaultVisible: true,
@@ -143,7 +145,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
   },
   {
     key: "status",
-    label: "Statut",
+    get label() { return i18n.t("admin:bookingColumns.labels.status"); },
     width: 10,
     sortKey: "status",
     defaultVisible: true,
@@ -157,7 +159,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
         {booking.guest_count > 1 && booking.status === "pending" && (
           <span
             className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap font-medium"
-            title={`Soin duo — ${booking.guest_count} praticiens nécessaires`}
+            title={i18n.t("admin:bookingColumns.badges.duoTooltip", { count: booking.guest_count })}
           >
             <Users className="h-2.5 w-2.5" />
             {booking.booking_therapists?.filter((bt) => bt.status === "accepted").length || 0}/
@@ -166,12 +168,12 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
         )}
         {booking.guest_count > 1 && booking.status === "confirmed" && (
           <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 whitespace-nowrap font-medium">
-            <Users className="h-2.5 w-2.5" /> Duo
+            <Users className="h-2.5 w-2.5" /> {i18n.t("admin:bookingColumns.badges.duo")}
           </span>
         )}
         {booking.booking_group_id && (
           <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap font-medium">
-            <Layers className="h-2.5 w-2.5" /> Groupé
+            <Layers className="h-2.5 w-2.5" /> {i18n.t("admin:bookingColumns.badges.grouped")}
           </span>
         )}
       </div>
@@ -179,7 +181,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
   },
   {
     key: "payment",
-    label: "Paiement",
+    get label() { return i18n.t("admin:bookingColumns.labels.payment"); },
     width: 11,
     align: "center",
     sortKey: "payment",
@@ -230,13 +232,13 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
   },
   {
     key: "treatments",
-    label: "Prestations",
+    get label() { return i18n.t("admin:bookingColumns.labels.treatments"); },
     width: 12,
     sortKey: "treatments",
     defaultVisible: true,
     cell: (booking) => (
       <span className="block leading-snug truncate">
-        {booking.treatments.length > 0 ? booking.treatments.map((t) => t.name).join(", ") : "-"}
+        {booking.treatments.length > 0 ? booking.treatments.map((tr) => tr.name).join(", ") : "-"}
       </span>
     ),
   },
@@ -252,14 +254,14 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
           ? t("admin:bookings.offert.tag")
           : formatPrice(booking.total_price, getHotelInfo(booking.hotel_id)?.currency || "EUR")}
         {booking.is_out_of_hours && (
-          <Clock className="h-3 w-3 text-amber-500 shrink-0" title="Hors horaires" />
+          <Clock className="h-3 w-3 text-amber-500 shrink-0" title={i18n.t("admin:bookingColumns.badges.outOfHours")} />
         )}
       </span>
     ),
   },
   {
     key: "location",
-    label: "Lieu",
+    get label() { return i18n.t("admin:bookingColumns.labels.location"); },
     width: 10,
     sortKey: "location",
     defaultVisible: true,
@@ -279,7 +281,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
   },
   {
     key: "therapist",
-    label: "Thérapeute",
+    get label() { return i18n.t("admin:bookingColumns.labels.therapist"); },
     width: 10,
     sortKey: "therapist",
     defaultVisible: true,
@@ -306,21 +308,21 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
   },
   {
     key: "phone",
-    label: "Téléphone",
+    get label() { return i18n.t("admin:bookingColumns.labels.phone"); },
     width: 9,
     defaultVisible: false,
     cell: (booking) => text(booking.phone),
   },
   {
     key: "roomNumber",
-    label: "N° de chambre",
+    get label() { return i18n.t("admin:bookingColumns.labels.roomNumber"); },
     width: 7,
     defaultVisible: false,
     cell: (booking) => text(booking.room_number),
   },
   {
     key: "clientType",
-    label: "Type de client",
+    get label() { return i18n.t("admin:bookingColumns.labels.clientType"); },
     width: 8,
     defaultVisible: false,
     cell: (booking, { t }) =>
@@ -341,7 +343,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
   },
   {
     key: "createdAt",
-    label: "Créée le",
+    get label() { return i18n.t("admin:bookingColumns.labels.createdAt"); },
     width: 9,
     defaultVisible: false,
     cell: (booking) =>
@@ -349,14 +351,14 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
   },
   {
     key: "clientNote",
-    label: "Note client",
+    get label() { return i18n.t("admin:bookingColumns.labels.clientNote"); },
     width: 12,
     defaultVisible: false,
     cell: (booking) => text(booking.client_note),
   },
   {
     key: "room",
-    label: "Salle",
+    get label() { return i18n.t("admin:bookingColumns.labels.room"); },
     width: 9,
     defaultVisible: false,
     cell: (booking) =>
@@ -370,21 +372,21 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
   },
   {
     key: "guestCount",
-    label: "Nb de personnes",
+    get label() { return i18n.t("admin:bookingColumns.labels.guestCount"); },
     width: 6,
     defaultVisible: false,
     cell: (booking) => text(booking.guest_count),
   },
   {
     key: "paymentMethod",
-    label: "Mode de paiement",
+    get label() { return i18n.t("admin:bookingColumns.labels.paymentMethod"); },
     width: 10,
     defaultVisible: false,
     cell: (booking) => text(paymentMethodLabel(booking.payment_method)),
   },
   {
     key: "externalReference",
-    label: "Référence externe",
+    get label() { return i18n.t("admin:bookingColumns.labels.externalReference"); },
     width: 9,
     defaultVisible: false,
     cell: (booking) => text(booking.external_reference),

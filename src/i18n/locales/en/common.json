@@ -63,7 +63,14 @@
     "pending": "Pending",
     "assigned": "Assigned",
     "completed": "Completed",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "confirmed": "Confirmed",
+    "ongoing": "Ongoing",
+    "noshow": "No-show",
+    "quote": "Quote",
+    "awaiting": "Awaiting",
+    "alternativeProposed": "Slot proposed",
+    "maintenance": "Maintenance"
   },
   "loading": "Loading...",
   "noData": "No data",
@@ -125,5 +132,80 @@
       "body": "No more reminders from us. Your booking confirmations will keep coming though — we're not letting you forget your treatment time."
     },
     "error": "This link is no longer valid. Write to us and we'll take care of it."
+  },
+  "payment": {
+    "cardSavedToCharge": "Card saved — to be charged",
+    "status": {
+      "pending": "Payment pending",
+      "paid": "Paid",
+      "failed": "Payment failed",
+      "failedShort": "Failed",
+      "refunded": "Refunded",
+      "chargedToRoom": "Charged to room",
+      "partnerBilled": "Partner payment",
+      "cardSaved": "Card saved",
+      "offert": "Complimentary",
+      "awaitingPayment": "Payment expected"
+    },
+    "method": {
+      "room": "Charged to room",
+      "card": "Online payment",
+      "cardOnSite": "Card on site",
+      "cash": "Cash",
+      "offert": "Complimentary",
+      "giftAmount": "Gift card",
+      "voucher": "Paid by voucher — collected by the venue",
+      "partnerBilled": "Billed to partner (end of month)",
+      "cureFresha": "Fresha programme",
+      "bundle": "Bundle",
+      "unset": "Not set"
+    }
+  },
+  "calendarStage": {
+    "awaitingTherapistPayment": "Awaiting therapist + payment",
+    "awaitingTherapist": "Awaiting therapist",
+    "quote": "Quote / Proposed"
+  },
+  "pagination": {
+    "showing": "Showing {{start}} to {{end}} of {{total}} {{itemName}}",
+    "defaultItemName": "entries",
+    "perPage": "Per page",
+    "pageOf": "Page {{current}} of {{total}}"
+  },
+  "periodSelector": {
+    "lastWeek": "Last week",
+    "last30Days": "Last 30 days",
+    "nextWeek": "Next week",
+    "custom": "Custom date",
+    "selectRange": "Select a period"
+  },
+  "timezone": {
+    "label": "Time zone",
+    "temporaryView": "Temporary view (your zone: {{timezone}})",
+    "backToYours": "Back to your time zone ({{timezone}})",
+    "searchPlaceholder": "Search a time zone...",
+    "empty": "No time zone found.",
+    "select": "Select a time zone"
+  },
+  "update": {
+    "title": "A new version is available",
+    "description": "Reload the page to get the latest improvements",
+    "reloading": "Reloading...",
+    "reload": "Reload"
+  },
+  "appError": {
+    "reloadingInProgress": "Reloading…",
+    "autoReloadFailed": "Automatic reload failed. Please reload manually.",
+    "reloadToContinue": "Please reload the app to continue.",
+    "unexpected": "The app ran into an unexpected problem.",
+    "reloadApp": "Reload the app",
+    "retry": "Try again"
+  },
+  "stagingBanner": {
+    "label": "Test environment"
+  },
+  "phoneField": {
+    "use": "Use {{code}}",
+    "noResult": "No results — type a dialling code (e.g. +355)"
   }
 }

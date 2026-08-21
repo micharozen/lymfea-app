@@ -24,7 +24,8 @@ import {
   Line,
 } from "recharts";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/dateLocale";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useOrgScope } from "@/hooks/useOrgScope";
@@ -36,15 +37,6 @@ const DEVICE_COLORS: Record<string, string> = {
   tablet: "#8b5cf6",
   desktop: "#3b82f6",
   unknown: "#6b7280",
-};
-
-const STEP_LABELS: Record<string, string> = {
-  welcome: "Accueil",
-  treatments: "Menu",
-  schedule: "Date/Heure",
-  guest_info: "Infos client",
-  payment: "Paiement",
-  booking_completed: "Conversion",
 };
 
 interface FunnelStep {
@@ -97,6 +89,8 @@ export default function Analytics() {
   const [sessionsByHotel, setSessionsByHotel] = useState<SessionsByHotel[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
 
   const scope = useOrgScope();
 
@@ -157,8 +151,8 @@ export default function Analytics() {
       } catch (error) {
         console.error("Error fetching analytics:", error);
         toast({
-          title: "Erreur",
-          description: "Impossible de charger les données analytiques",
+          title: t("common:toasts.error"),
+          description: t("analyticsPage.loadError"),
           variant: "destructive",
         });
       } finally {
@@ -178,7 +172,9 @@ export default function Analytics() {
   // Prepare funnel data for chart with French labels
   const chartFunnelData = funnelData.map((step) => ({
     ...step,
-    label: STEP_LABELS[step.step_name] || step.step_name,
+    label: t(`analyticsPage.steps.${step.step_name}`, {
+      defaultValue: step.step_name,
+    }),
   }));
 
   // Prepare device breakdown for pie chart
@@ -200,10 +196,10 @@ export default function Analytics() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
-              Analytics Client
+              {t("analyticsPage.title")}
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Suivi du parcours de réservation
+              {t("analyticsPage.subtitle")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -213,10 +209,10 @@ export default function Analytics() {
               onValueChange={(v) => setSelectedHotel(v === "all" ? null : v)}
             >
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tous les lieux" />
+                <SelectValue placeholder={t("analyticsPage.allVenues")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les lieux</SelectItem>
+                <SelectItem value="all">{t("analyticsPage.allVenues")}</SelectItem>
                 {hotels.map((hotel) => (
                   <SelectItem key={hotel.id} value={hotel.id}>
                     {hotel.name}
@@ -229,7 +225,7 @@ export default function Analytics() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <p className="text-muted-foreground">Chargement...</p>
+            <p className="text-muted-foreground">{t("common:loading")}</p>
           </div>
         ) : (
           <>
@@ -237,27 +233,27 @@ export default function Analytics() {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            title="Sessions"
+            title={t("analyticsPage.sessions")}
             value={summary?.total_sessions?.toString() || "0"}
             icon={Users}
           />
           <StatCard
-            title="Pages vues"
+            title={t("analyticsPage.pageViews")}
             value={summary?.total_page_views?.toString() || "0"}
             icon={Eye}
           />
           <StatCard
-            title="Conversions"
+            title={t("analyticsPage.conversions")}
             value={summary?.total_conversions?.toString() || "0"}
             icon={Target}
           />
           <StatCard
-            title="Taux de conversion"
+            title={t("analyticsPage.conversionRate")}
             value={`${summary?.conversion_rate || 0}%`}
             icon={TrendingUp}
             trend={
               summary?.conversion_rate && summary.conversion_rate > 5
-                ? { value: "Bon", isPositive: true }
+                ? { value: t("analyticsPage.good"), isPositive: true }
                 : undefined
             }
           />
@@ -268,12 +264,14 @@ export default function Analytics() {
           {/* Funnel Chart */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Funnel de conversion</CardTitle>
+              <CardTitle className="text-base">
+                {t("analyticsPage.conversionFunnel")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {chartFunnelData.length === 0 ? (
                 <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                  Aucune donnée disponible
+                  {t("analyticsPage.noDataAvailable")}
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={300}>
@@ -289,7 +287,7 @@ export default function Analytics() {
                     <Tooltip
                       formatter={(value: number) => [
                         `${value} sessions`,
-                        "Visiteurs uniques",
+                        t("analyticsPage.uniqueVisitors"),
                       ]}
                     />
                     <Bar dataKey="unique_sessions" fill="#3b82f6" radius={4} />
@@ -303,13 +301,13 @@ export default function Analytics() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                Répartition par appareil
+                {t("analyticsPage.deviceBreakdown")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {deviceData.length === 0 ? (
                 <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                  Aucune donnée disponible
+                  {t("analyticsPage.noDataAvailable")}
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={300}>
@@ -332,7 +330,7 @@ export default function Analytics() {
                     <Tooltip
                       formatter={(value: number) => [
                         `${value} sessions`,
-                        "Sessions",
+                        t("analyticsPage.sessions"),
                       ]}
                     />
                   </PieChart>
@@ -346,7 +344,9 @@ export default function Analytics() {
         {!selectedHotel && sessionsByHotel.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Sessions par lieu</CardTitle>
+              <CardTitle className="text-base">
+                {t("analyticsPage.sessionsByVenue")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={Math.max(200, sessionsByHotel.length * 50)}>
@@ -362,7 +362,7 @@ export default function Analytics() {
                   <Tooltip
                     formatter={(value: number) => [
                       `${value} sessions`,
-                      "Sessions uniques",
+                      t("analyticsPage.uniqueSessions"),
                     ]}
                   />
                   <Bar dataKey="session_count" radius={4}>
@@ -382,12 +382,14 @@ export default function Analytics() {
         {/* Daily Visitors Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Visiteurs par jour</CardTitle>
+            <CardTitle className="text-base">
+              {t("analyticsPage.dailyVisitors")}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {dailyData.length === 0 ? (
               <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                Aucune donnée disponible
+                {t("analyticsPage.noDataAvailable")}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={250}>
@@ -396,18 +398,18 @@ export default function Analytics() {
                   <XAxis
                     dataKey="date"
                     tickFormatter={(val) =>
-                      format(new Date(val), "dd MMM", { locale: fr })
+                      format(new Date(val), "dd MMM", { locale: dateLocale })
                     }
                     tick={{ fontSize: 12 }}
                   />
                   <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip
                     labelFormatter={(val) =>
-                      format(new Date(val), "dd MMMM yyyy", { locale: fr })
+                      format(new Date(val), "dd MMMM yyyy", { locale: dateLocale })
                     }
                     formatter={(value: number) => [
-                      `${value} visiteurs`,
-                      "Visiteurs",
+                      `${value} ${t("analyticsPage.visitorsUnit")}`,
+                      t("analyticsPage.visitors"),
                     ]}
                   />
                   <Line

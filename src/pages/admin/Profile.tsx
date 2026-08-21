@@ -12,7 +12,7 @@ import { useAdminWelcome } from "@/hooks/useAdminWelcome";
 import { WelcomeDialog } from "@/components/admin/WelcomeDialog";
 
 export default function Profile() {
-  const { t } = useTranslation('pwa');
+  const { t } = useTranslation(['admin', 'pwa', 'common']);
   const { t: tAdmin } = useTranslation('admin');
   const welcome = useAdminWelcome();
   const [isEditing, setIsEditing] = useState(false);
@@ -88,7 +88,7 @@ export default function Profile() {
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
-        toast.error("Erreur lors du chargement du profil");
+        toast.error(t('profilePage.loadError'));
       } finally {
         setLoading(false);
       }
@@ -102,7 +102,7 @@ export default function Profile() {
     if (!file || !adminId) return;
 
     try {
-      toast.info("Upload de l'image en cours...");
+      toast.info(t('profilePage.uploading'));
       
       // Upload vers Supabase Storage
       const fileExt = file.name.split('.').pop();
@@ -139,16 +139,16 @@ export default function Profile() {
 
       // Mettre à jour l'état local pour affichage immédiat
       setProfileImage(urlWithTimestamp);
-      toast.success("Image uploadée avec succès");
+      toast.success(t('profilePage.imageUploaded'));
     } catch (error) {
       console.error("Error uploading image:", error);
-      toast.error("Erreur lors de l'upload de l'image");
+      toast.error(t('profilePage.uploadError'));
     }
   };
 
   const handleSave = async () => {
     if (!adminId) {
-      toast.error("Impossible de sauvegarder le profil");
+      toast.error(t('profilePage.saveError'));
       return;
     }
 
@@ -174,14 +174,14 @@ export default function Profile() {
         })
         .eq('id', adminId);
 
-      toast.success("Profil mis à jour avec succès");
+      toast.success(t('profilePage.updated'));
       setIsEditing(false);
       
       // Rafraîchir la page pour mettre à jour la sidebar
       window.location.reload();
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error("Erreur lors de la mise à jour du profil");
+      toast.error(t('profilePage.updateError'));
     }
   };
 
@@ -189,10 +189,10 @@ export default function Profile() {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-4xl">
-          <h1 className="text-lg font-medium text-foreground mb-4 md:mb-8">Profil</h1>
+          <h1 className="text-lg font-medium text-foreground mb-4 md:mb-8">{t('profilePage.title')}</h1>
           <Card className="border border-border bg-card">
             <CardContent className="p-4 md:p-8">
-              <p className="text-muted-foreground">Chargement...</p>
+              <p className="text-muted-foreground">{t('common:loading')}</p>
             </CardContent>
           </Card>
         </div>
@@ -203,7 +203,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-4xl">
-        <h1 className="text-lg font-medium text-foreground mb-4 md:mb-8">Profil</h1>
+        <h1 className="text-lg font-medium text-foreground mb-4 md:mb-8">{t('profilePage.title')}</h1>
 
         <Card className="border border-border bg-card">
           <CardContent className="p-4 md:p-8">
@@ -211,7 +211,7 @@ export default function Profile() {
             <div className="flex items-center gap-4 md:gap-6 mb-6 md:mb-8">
               <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                 {profileImage ? (
-                  <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={profileImage} alt={t('profilePage.title')} className="w-full h-full object-cover" />
                 ) : (
                   <User className="w-12 h-12 text-muted-foreground" />
                 )}
@@ -230,7 +230,7 @@ export default function Profile() {
                 type="button"
                 disabled={!isEditing}
               >
-                Télécharger une image
+                {t('profilePage.uploadImage')}
               </Button>
             </div>
 
@@ -238,7 +238,7 @@ export default function Profile() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
               <div>
                 <Label htmlFor="firstName" className="text-sm text-muted-foreground mb-1.5 block">
-                  Prénom
+                  {t('profilePage.firstName')}
                 </Label>
                 <Input
                   id="firstName"
@@ -251,7 +251,7 @@ export default function Profile() {
 
               <div>
                 <Label htmlFor="lastName" className="text-sm text-muted-foreground mb-1.5 block">
-                  Nom
+                  {t('profilePage.lastName')}
                 </Label>
                 <Input
                   id="lastName"
@@ -264,7 +264,7 @@ export default function Profile() {
 
               <div>
                 <Label htmlFor="role" className="text-sm text-muted-foreground mb-1.5 block">
-                  Rôle
+                  {t('profilePage.role')}
                 </Label>
                 <Input
                   id="role"
@@ -276,7 +276,7 @@ export default function Profile() {
 
               <div>
                 <Label htmlFor="phone" className="text-sm text-muted-foreground mb-1.5 block">
-                  Téléphone
+                  {t('profilePage.phone')}
                 </Label>
                 <Input
                   id="phone"
@@ -306,7 +306,7 @@ export default function Profile() {
             <div className="pt-4 border-t mb-6">
               <Label className="text-sm text-muted-foreground mb-3 flex items-center gap-2">
                 <Globe className="h-4 w-4" />
-                {t('profile.language')}
+                {t('pwa:profile.language')}
               </Label>
               <LanguageSwitcher variant="list" persistToProfile />
             </div>
@@ -316,7 +316,7 @@ export default function Profile() {
                 <Button 
                   onClick={() => setIsEditing(true)}
                 >
-                  Modifier le profil
+                  {t('profilePage.edit')}
                 </Button>
               ) : (
                 <>
@@ -324,12 +324,12 @@ export default function Profile() {
                     variant="outline"
                     onClick={() => setIsEditing(false)}
                   >
-                    Annuler
+                    {t('common:buttons.cancel')}
                   </Button>
                   <Button
                     onClick={handleSave}
                   >
-                    Enregistrer les modifications
+                    {t('profilePage.saveChanges')}
                   </Button>
                 </>
               )}

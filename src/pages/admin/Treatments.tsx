@@ -58,6 +58,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { TreatmentCard } from "@/components/table/cards/TreatmentCard";
 
 export default function TreatmentMenus() {
+  const { t } = useTranslation(['admin', 'common']);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -158,11 +159,11 @@ export default function TreatmentMenus() {
       .eq("id", deleteMenuId);
 
     if (error) {
-      toast.error("Erreur lors de la suppression du menu");
+      toast.error(t('treatmentsPage.deleteError'));
       return;
     }
 
-    toast.success("Menu supprime avec succes");
+    toast.success(t('treatmentsPage.deleted'));
     closeDelete();
     refetch();
   };
@@ -189,7 +190,7 @@ export default function TreatmentMenus() {
     }).select('id').single();
 
     if (error || !newMenu) {
-      toast.error("Erreur lors de la duplication du soin");
+      toast.error(t('treatmentsPage.duplicateError'));
       return;
     }
 
@@ -205,7 +206,7 @@ export default function TreatmentMenus() {
       );
     }
 
-    toast.success("Soin dupliqué avec succès");
+    toast.success(t('treatmentsPage.duplicated'));
     refetch();
   };
 
@@ -234,11 +235,11 @@ export default function TreatmentMenus() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 md:mb-6 flex items-center justify-between">
           <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
-            Menus de soins
+            {t('treatmentsPage.title')}
           </h1>
           {isAdmin && (
             <Button onClick={() => navigate("/admin/treatments/new")}>
-              Nouvelle prestation
+              {t('treatmentsPage.new')}
             </Button>
           )}
         </div>
@@ -248,7 +249,7 @@ export default function TreatmentMenus() {
             className="rounded-none border-b-2 border-foreground text-foreground px-4 pb-2.5 pt-1.5 text-sm font-medium flex items-center"
           >
             <Sparkles className="h-4 w-4 mr-2" />
-            Soins
+            {t('treatmentsPage.tabTreatments')}
           </button>
           <button
             type="button"
@@ -256,7 +257,7 @@ export default function TreatmentMenus() {
             className="rounded-none border-b-2 border-transparent text-muted-foreground hover:text-foreground px-4 pb-2.5 pt-1.5 text-sm flex items-center"
           >
             <Package className="h-4 w-4 mr-2" />
-            Cures
+            {t('treatmentsPage.tabCures')}
           </button>
           <button
             type="button"
@@ -264,7 +265,7 @@ export default function TreatmentMenus() {
             className="rounded-none border-b-2 border-transparent text-muted-foreground hover:text-foreground px-4 pb-2.5 pt-1.5 text-sm flex items-center"
           >
             <Gift className="h-4 w-4 mr-2" />
-            Cartes cadeaux
+            {t('treatmentsPage.tabGiftCards')}
           </button>
         </div>
       </div>
@@ -275,7 +276,7 @@ export default function TreatmentMenus() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher..."
+                placeholder={t('treatmentsPage.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -285,10 +286,10 @@ export default function TreatmentMenus() {
             {!isConcierge && (
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Filtrer par catégorie" />
+                  <SelectValue placeholder={t('treatmentsPage.filterCategory')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Toutes les catégories</SelectItem>
+                  <SelectItem value="all">{t('treatmentsPage.allCategories')}</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
@@ -301,10 +302,10 @@ export default function TreatmentMenus() {
             {isAdmin && (
               <Select value={hotelFilter} onValueChange={setHotelFilter}>
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Filtrer par hôtel" />
+                  <SelectValue placeholder={t('treatmentsPage.filterVenue')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les hôtels</SelectItem>
+                  <SelectItem value="all">{t('treatmentsPage.allVenues')}</SelectItem>
                   {hotels?.map((hotel) => (
                     <SelectItem key={hotel.id} value={hotel.id}>
                       {hotel.name}
@@ -316,12 +317,12 @@ export default function TreatmentMenus() {
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrer par statut" />
+                <SelectValue placeholder={t('treatmentsPage.filterStatus')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="inactive">Inactif</SelectItem>
+                <SelectItem value="all">{t('treatmentsPage.allStatuses')}</SelectItem>
+                <SelectItem value="active">{t('treatmentsPage.active')}</SelectItem>
+                <SelectItem value="inactive">{t('treatmentsPage.inactive')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -350,13 +351,13 @@ export default function TreatmentMenus() {
                 ) : paginatedMenus.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <HandHeart className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">Aucune prestation trouvee</p>
+                    <p className="text-muted-foreground">{t('treatmentsPage.empty')}</p>
                     {(searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
-                      <p className="text-sm text-muted-foreground mt-1">Essayez de modifier vos filtres</p>
+                      <p className="text-sm text-muted-foreground mt-1">{t('treatmentsPage.emptyHint')}</p>
                     )}
                     {isAdmin && (
                       <Button onClick={() => navigate("/admin/treatments/new")} className="mt-4">
-                        Nouvelle prestation
+                        {t('treatmentsPage.new')}
                       </Button>
                     )}
                   </div>
@@ -382,26 +383,26 @@ export default function TreatmentMenus() {
                   <TableHeader>
                     <TableRow className="bg-muted/20 h-8">
                       <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort} className="w-[180px]">
-                        Prestation
+                        {t('treatmentsPage.colTreatment')}
                       </SortableTableHead>
                       <SortableTableHead column="duration" sortDirection={getSortDirection("duration")} onSort={toggleSort} align="center" className="w-[70px]">
-                        Duree
+                        {t('treatmentsPage.colDuration')}
                       </SortableTableHead>
                       <SortableTableHead column="price" sortDirection={getSortDirection("price")} onSort={toggleSort} align="center" className="w-[60px]">
-                        Tarif
+                        {t('treatmentsPage.colPrice')}
                       </SortableTableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Delai</TableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[90px]">Spécialité</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">{t('treatmentsPage.colNotice')}</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[90px]">{t('treatmentsPage.colSpecialty')}</TableHead>
                       {!isConcierge && (
                         <SortableTableHead column="category" sortDirection={getSortDirection("category")} onSort={toggleSort} align="center" className="w-[90px]">
-                          Categorie
+                          {t('treatmentsPage.colCategory')}
                         </SortableTableHead>
                       )}
                       {!isConcierge && (
-                        <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[140px]">Hotel</TableHead>
+                        <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[140px]">{t('treatmentsPage.colVenue')}</TableHead>
                       )}
                       <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort} align="center" className="w-[70px]">
-                        Statut
+                        {t('treatmentsPage.colStatus')}
                       </SortableTableHead>
                       {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right w-[70px]">Actions</TableHead>}
                     </TableRow>
@@ -412,9 +413,9 @@ export default function TreatmentMenus() {
                     <TableEmptyState
                       colSpan={columnCount}
                       icon={HandHeart}
-                      message="Aucune prestation trouvee"
-                      description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                      actionLabel={isAdmin ? "Ajouter une prestation" : undefined}
+                      message={t('treatmentsPage.empty')}
+                      description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all" ? t('treatmentsPage.emptyHint') : undefined}
+                      actionLabel={isAdmin ? t('treatmentsPage.addTreatment') : undefined}
                       onAction={isAdmin ? () => navigate("/admin/treatments/new") : undefined}
                     />
                   ) : (
@@ -538,15 +539,14 @@ export default function TreatmentMenus() {
       <AlertDialog open={!!deleteMenuId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogTitle>{t('treatmentsPage.confirmDeleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Etes-vous sur de vouloir supprimer ce menu de soins ? Cette action est
-              irreversible.
+              {t('treatmentsPage.confirmDeleteDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Supprimer</AlertDialogAction>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>{t('common:buttons.delete')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

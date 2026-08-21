@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { CalendarClock, CalendarDays, ChevronDown, Users } from "lucide-react";
+import { Trans, useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { cn } from "@/lib/utils";
 import { MetricHelp } from "@/components/admin/dashboard/MetricHelp";
 import type { LeadTimeData, OccupancyData } from "@/hooks/useDashboardData";
@@ -23,10 +25,10 @@ function StatLine({ icon, value, caption }: StatLineProps) {
   );
 }
 
-function formatDays(days: number): string {
+function formatDays(t: TFunction, days: number): string {
   const rounded = Math.round(days * 10) / 10;
   const value = rounded.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
-  return `${value} ${rounded <= 1 ? "jour" : "jours"}`;
+  return t("dashboardToday.days", { count: rounded, value });
 }
 
 interface DashboardTodayStatsProps {
@@ -46,6 +48,7 @@ export function DashboardTodayStats({
   leadTime,
   activeTherapists,
 }: DashboardTodayStatsProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const [showByTreatment, setShowByTreatment] = useState(false);
   const iconProps = { className: "h-[17px] w-[17px]", strokeWidth: 1.5 } as const;
 
@@ -53,60 +56,54 @@ export function DashboardTodayStats({
     <div className="card flex flex-col gap-5">
       <div>
         <div className="hd" style={{ marginBottom: 12 }}>
-          <h2 className="bo-sec-title">Aujourd&apos;hui</h2>
+          <h2 className="bo-sec-title">{t("common:dates.today")}</h2>
           <MetricHelp>
-            Réservations dont le soin a lieu <b>aujourd&apos;hui</b>, pour le lieu
-            sélectionné. Ce compteur ignore volontairement le filtre de période. Le second
-            chiffre isole celles au statut confirmé.
+            <Trans i18nKey="admin:dashboardToday.todayHelp" components={{ b: <b /> }} />
           </MetricHelp>
         </div>
         <StatLine
           icon={<CalendarDays {...iconProps} />}
           value={todayBookings}
-          caption={`réservation${todayBookings > 1 ? "s" : ""} · ${todayConfirmed} confirmée${todayConfirmed > 1 ? "s" : ""}`}
+          caption={`${t("dashboardToday.bookingsLabel", { count: todayBookings })} · ${t("dashboardToday.confirmedLabel", { count: todayConfirmed })}`}
         />
       </div>
 
       <div style={{ borderTop: "1px solid var(--line-soft)", paddingTop: 18 }}>
         <div className="hd" style={{ marginBottom: 12 }}>
-          <h2 className="bo-sec-title">Délai de réservation</h2>
+          <h2 className="bo-sec-title">{t("dashboardToday.leadTimeTitle")}</h2>
           {leadTime.byTreatment.length > 0 && (
             <button
               type="button"
               className="bo-btn ghost sm"
               onClick={() => setShowByTreatment((v) => !v)}
             >
-              Par prestation
+              {t("dashboardToday.byTreatment")}
               <ChevronDown
                 className={cn("h-3.5 w-3.5 transition-transform", showByTreatment && "rotate-180")}
               />
             </button>
           )}
           <MetricHelp>
-            Nombre moyen de jours entre le moment où la réservation est <b>créée</b> et la
-            date du soin. Le périmètre porte sur les réservations <b>créées</b> pendant la
-            période — sinon les réservations prises pour plus tard, celles qui portent
-            justement l&apos;anticipation, seraient exclues. Les délais négatifs (soin le
-            jour même, saisi après coup) comptent pour zéro.
+            <Trans i18nKey="admin:dashboardToday.leadTimeHelp" components={{ b: <b /> }} />
           </MetricHelp>
         </div>
         {leadTime.count === 0 ? (
-          <p className="card-empty">Aucune donnée sur la période</p>
+          <p className="card-empty">{t("dashboardToday.noDataForPeriod")}</p>
         ) : (
           <>
             <StatLine
               icon={<CalendarClock {...iconProps} />}
-              value={formatDays(leadTime.averageDays)}
-              caption={`en moyenne à l'avance · ${leadTime.count} réservation${leadTime.count > 1 ? "s" : ""}`}
+              value={formatDays(t, leadTime.averageDays)}
+              caption={`${t("dashboardToday.onAverageInAdvance")} · ${t("dashboardToday.bookingsCount", { count: leadTime.count })}`}
             />
             {showByTreatment && (
               <div className="mt-4 space-y-1 pt-3" style={{ borderTop: "1px solid var(--line-soft)" }}>
-                {leadTime.byTreatment.map((t) => (
-                  <div key={t.name} className="flex items-center justify-between gap-2 text-[12.5px]">
+                {leadTime.byTreatment.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between gap-2 text-[12.5px]">
                     <span className="truncate" style={{ color: "var(--ink-mute)" }}>
-                      {t.name}
+                      {item.name}
                     </span>
-                    <span className="bo-num shrink-0">{formatDays(t.averageDays)}</span>
+                    <span className="bo-num shrink-0">{formatDays(t, item.averageDays)}</span>
                   </div>
                 ))}
               </div>
@@ -117,12 +114,12 @@ export function DashboardTodayStats({
 
       <div style={{ borderTop: "1px solid var(--line-soft)", paddingTop: 18 }}>
         <div className="hd" style={{ marginBottom: 12 }}>
-          <h2 className="bo-sec-title">Thérapeutes actifs</h2>
+          <h2 className="bo-sec-title">{t("dashboardToday.activeTherapists")}</h2>
           <MetricHelp>
-            Thérapeutes ayant déclaré une <b>disponibilité pour aujourd&apos;hui</b>, sur le
-            total de ceux rattachés au lieu sélectionné. C&apos;est une déclaration de
-            disponibilité, pas une charge réelle : un thérapeute disponible peut n&apos;avoir
-            aucun soin planifié.
+            <Trans
+              i18nKey="admin:dashboardToday.activeTherapistsHelp"
+              components={{ b: <b /> }}
+            />
           </MetricHelp>
         </div>
         <StatLine
@@ -133,7 +130,7 @@ export function DashboardTodayStats({
               <span style={{ fontSize: 18, color: "var(--ink-mute)" }}>/{activeTherapists.total}</span>
             </>
           }
-          caption="disponibles aujourd'hui"
+          caption={t("dashboardToday.availableToday")}
         />
       </div>
     </div>

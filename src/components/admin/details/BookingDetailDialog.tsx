@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useDateLocale } from "@/lib/dateLocale";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -39,6 +40,8 @@ interface BookingDetailDialogProps {
 export function BookingDetailDialog({
   open, onOpenChange, booking, hotel, onEdit, onSendPaymentLink,
 }: BookingDetailDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showNoShowDialog, setShowNoShowDialog] = useState(false);
   const [noShowLoading, setNoShowLoading] = useState(false);
@@ -76,12 +79,13 @@ export function BookingDetailDialog({
       >("mark-booking-noshow", { body: { bookingId: booking.id } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast({ title: "Réservation marquée comme no-show." });
+      toast({ title: t("bookingDetailDialog.noShowSuccess") });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       setShowNoShowDialog(false);
       onOpenChange(false);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur lors du marquage no-show.";
+      const message =
+        err instanceof Error ? err.message : t("bookingDetailDialog.noShowError");
       toast({ title: message, variant: "destructive" });
     } finally {
       setNoShowLoading(false);
@@ -97,7 +101,9 @@ export function BookingDetailDialog({
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div>
-              <DialogTitle className="text-xl font-semibold">Réservation #{booking.booking_id}</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">
+                {t("bookingDetailDialog.title", { id: booking.booking_id })}
+              </DialogTitle>
               <div className="flex items-center gap-2 mt-2">
                 <StatusBadge status={booking.status} type="booking" />
                 {!isConcierge && booking.status !== "quote_pending" && booking.status !== "waiting_approval" && (
@@ -112,7 +118,9 @@ export function BookingDetailDialog({
                   <TooltipTrigger asChild>
                     <Button variant="outline" size="icon" className="h-8 w-8 text-amber-600" onClick={() => setShowNoShowDialog(true)}><UserX className="h-4 w-4" /></Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Client pas venu (no-show)</TooltipContent>
+                  <TooltipContent side="bottom">
+                    {t("bookingDetailDialog.noShowTooltip")}
+                  </TooltipContent>
                 </Tooltip>
               )}
               {canCancel && (
@@ -120,7 +128,7 @@ export function BookingDetailDialog({
                   <TooltipTrigger asChild>
                     <Button variant="outline" size="icon" className="h-8 w-8 text-destructive" onClick={() => setShowCancelDialog(true)}><X className="h-4 w-4" /></Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Annuler</TooltipContent>
+                  <TooltipContent side="bottom">{t("common:buttons.cancel")}</TooltipContent>
                 </Tooltip>
               )}
             </ButtonGroup>
@@ -130,7 +138,7 @@ export function BookingDetailDialog({
         <div className="space-y-5 mt-2 overflow-y-auto flex-1">
           {/* 1. Client Info */}
           <div className="space-y-2">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2"><User className="h-4 w-4" />Client</h3>
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2"><User className="h-4 w-4" />{t("bookingDetailDialog.client")}</h3>
             <div className="bg-muted/50 rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2">
                 <span className="font-medium">{booking.client_first_name} {booking.client_last_name}</span>
@@ -138,7 +146,7 @@ export function BookingDetailDialog({
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{booking.phone}</div>
                 {booking.client_email && <div className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{booking.client_email}</div>}
-                {booking.room_number && <div className="flex items-center gap-1"><DoorOpen className="h-3.5 w-3.5" />Chambre {booking.room_number}</div>}
+                {booking.room_number && <div className="flex items-center gap-1"><DoorOpen className="h-3.5 w-3.5" />{t("bookingDetailDialog.room", { number: booking.room_number })}</div>}
               </div>
             </div>
           </div>
@@ -150,7 +158,7 @@ export function BookingDetailDialog({
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Décharge de responsabilité
+              {t("bookingDetailDialog.waiverTitle")}
             </h3>
             <div className={`rounded-lg p-3 border ${
               (booking as any).signed_at 
@@ -162,13 +170,19 @@ export function BookingDetailDialog({
                   <p className={`text-sm font-medium ${
                     (booking as any).signed_at ? 'text-green-700 dark:text-green-400' : 'text-yellow-700 dark:text-yellow-400'
                   }`}>
-                    {(booking as any).signed_at 
-                      ? `✅ Signée le ${format(new Date((booking as any).signed_at), "dd/MM/yyyy à HH:mm", { locale: fr })}` 
-                      : '⏳ En attente de signature'}
+                    {(booking as any).signed_at
+                      ? `✅ ${t("bookingDetailDialog.waiverSignedOn", {
+                          date: format(
+                            new Date((booking as any).signed_at),
+                            t("bookingDetailDialog.signedAtFormat"),
+                            { locale: dateLocale },
+                          ),
+                        })}`
+                      : `⏳ ${t("bookingDetailDialog.waiverPending")}`}
                   </p>
                   {!(booking as any).signed_at && (booking as any).signature_token && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Le client doit signer sur la tablette avant le soin.
+                      {t("bookingDetailDialog.waiverHint")}
                     </p>
                   )}
                 </div>
@@ -184,7 +198,7 @@ export function BookingDetailDialog({
                     }}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    Ouvrir le formulaire
+                    {t("bookingDetailDialog.openForm")}
                   </Button>
                 )}
               </div>
@@ -196,14 +210,14 @@ export function BookingDetailDialog({
 
           {/* 3. Booking Details */}
           <div className="space-y-2">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2"><Calendar className="h-4 w-4" />Réservation</h3>
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2"><Calendar className="h-4 w-4" />{t("bookingDetailDialog.booking")}</h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-muted/50 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Calendar className="h-3.5 w-3.5" />Date</div>
-                <p className="font-medium">{format(new Date(booking.booking_date), "EEEE d MMMM yyyy", { locale: fr })}</p>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Calendar className="h-3.5 w-3.5" />{t("bookingDetailDialog.date")}</div>
+                <p className="font-medium">{format(new Date(booking.booking_date), "EEEE d MMMM yyyy", { locale: dateLocale })}</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Clock className="h-3.5 w-3.5" />Heure</div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Clock className="h-3.5 w-3.5" />{t("bookingDetailDialog.time")}</div>
                 <p className="font-medium">{booking.booking_time.substring(0, 5)}</p>
               </div>
             </div>
@@ -213,7 +227,7 @@ export function BookingDetailDialog({
 
           {/* 4. Treatments */}
           <div className="space-y-2">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2"><HandHeart className="h-4 w-4" />Soins ({booking.treatments.length})</h3>
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2"><HandHeart className="h-4 w-4" />{t("bookingDetailDialog.treatments", { count: booking.treatments.length })}</h3>
             {booking.treatments.length > 0 ? (
               <div className="space-y-2">
                 {booking.treatments.map((t, i) => (
@@ -223,12 +237,12 @@ export function BookingDetailDialog({
                   </div>
                 ))}
               </div>
-            ) : (<p className="text-sm text-muted-foreground">Aucun soin</p>)}
+            ) : (<p className="text-sm text-muted-foreground">{t("bookingDetailDialog.noTreatment")}</p>)}
           </div>
         </div>
 
         <DialogFooter className="mt-4 shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Fermer</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common:buttons.close")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -262,16 +276,15 @@ export function BookingDetailDialog({
     <AlertDialog open={showNoShowDialog} onOpenChange={setShowNoShowDialog}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Marquer comme no-show ?</AlertDialogTitle>
+          <AlertDialogTitle>{t("bookingDetailDialog.noShowConfirmTitle")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Le client ne s'est pas présenté. Des frais de no-show peuvent s'appliquer
-            selon la politique de l'établissement. Cette action est définitive.
+            {t("bookingDetailDialog.noShowConfirmDesc")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={noShowLoading}>Annuler</AlertDialogCancel>
+          <AlertDialogCancel disabled={noShowLoading}>{t("common:buttons.cancel")}</AlertDialogCancel>
           <AlertDialogAction onClick={handleNoShow} disabled={noShowLoading}>
-            Confirmer le no-show
+            {t("bookingDetailDialog.noShowConfirmAction")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

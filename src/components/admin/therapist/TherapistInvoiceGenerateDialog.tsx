@@ -39,7 +39,7 @@ export function TherapistInvoiceGenerateDialog({
   therapistId,
   onGenerated,
 }: TherapistInvoiceGenerateDialogProps) {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation(["admin", "common"]);
   const [generating, setGenerating] = useState(false);
 
   const now = new Date();
@@ -83,7 +83,7 @@ export function TherapistInvoiceGenerateDialog({
   };
 
   const formatDate = (d: string) =>
-    new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+    new Date(d + "T00:00:00").toLocaleDateString(i18n.language, { day: "2-digit", month: "short" });
 
   const clientName = (b: PendingBooking) =>
     [b.client_first_name, b.client_last_name].filter(Boolean).join(" ") || "—";
@@ -96,9 +96,9 @@ export function TherapistInvoiceGenerateDialog({
   const monthLabels = useMemo(() => {
     return Array.from({ length: 12 }, (_, i) => {
       const d = new Date(2025, i, 1);
-      return { value: i + 1, label: d.toLocaleDateString("fr-FR", { month: "long" }) };
+      return { value: i + 1, label: d.toLocaleDateString(i18n.language, { month: "long" }) };
     });
-  }, []);
+  }, [i18n.language]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -255,7 +255,7 @@ export function TherapistInvoiceGenerateDialog({
                     {b.hotel_name ?? "—"}
                   </span>
                   <span className="tabular-nums font-medium flex-shrink-0">
-                    {Number(b.total_price ?? 0).toLocaleString("fr-FR")} €
+                    {Number(b.total_price ?? 0).toLocaleString(i18n.language)} €
                   </span>
                 </li>
               ))}
@@ -283,7 +283,7 @@ export function TherapistInvoiceGenerateDialog({
             onClick={() => onOpenChange(false)}
             disabled={generating || finalizing}
           >
-            {t("common:cancel", "Annuler")}
+            {t("common:buttons.cancel")}
           </Button>
           <Button onClick={handleGenerate} disabled={generating || finalizing}>
             {generating ? (

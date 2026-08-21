@@ -41,23 +41,23 @@ import { Upload, Loader2, Plus, Trash2 } from "lucide-react";
 import { SPECIALTY_OPTIONS } from "@/lib/specialtyTypes";
 
 const createFormSchema = (t: TFunction) => z.object({
-  name: z.string().min(1, t('errors.validation.nameRequired')),
+  name: z.string().min(1, t('common:errors.validation.nameRequired')),
   description: z.string().optional(),
   lead_time: z.string().default("0"),
-  service_for: z.string().min(1, t('errors.validation.serviceForRequired')),
-  category: z.string().min(1, t('errors.validation.categoryRequired')),
-  hotel_id: z.string().min(1, t('errors.validation.hotelRequired')),
+  service_for: z.string().min(1, t('common:errors.validation.serviceForRequired')),
+  category: z.string().min(1, t('common:errors.validation.categoryRequired')),
+  hotel_id: z.string().min(1, t('common:errors.validation.hotelRequired')),
   status: z.string().default("active"),
   sort_order: z.string().default("0"),
   is_bestseller: z.boolean().default(false),
   specialty: z.string().optional(),
   variants: z.array(z.object({
     label: z.string().optional(),
-    duration: z.string().min(1, "Durée requise"),
+    duration: z.string().min(1, t('admin:treatmentMenuDialog.durationRequired')),
     price: z.string().default("0"),
     price_on_request: z.boolean().default(false),
     is_default: z.boolean().default(false),
-  })).min(1, "Au moins une variante requise"),
+  })).min(1, t('admin:treatmentMenuDialog.atLeastOneVariant')),
 });
 
 type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -73,7 +73,7 @@ export function AddTreatmentMenuDialog({
   onOpenChange,
   onSuccess,
 }: AddTreatmentMenuDialogProps) {
-  const { t, i18n } = useTranslation('common');
+  const { t, i18n } = useTranslation(['admin', 'common']);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const {
@@ -168,7 +168,7 @@ export function AddTreatmentMenuDialog({
     }).select('id').single();
 
     if (error || !newTreatment) {
-      toast.error("Erreur lors de l'ajout du menu");
+      toast.error(t('admin:treatmentMenuDialog.addError'));
       return;
     }
 
@@ -185,11 +185,11 @@ export function AddTreatmentMenuDialog({
 
     const { error: variantsError } = await supabase.from("treatment_variants").insert(variantsToInsert);
     if (variantsError) {
-      toast.error("Erreur lors de l'ajout des variantes");
+      toast.error(t('admin:treatmentMenuDialog.variantsAddError'));
       return;
     }
 
-    toast.success("Menu ajouté avec succès");
+    toast.success(t('admin:treatmentMenuDialog.added'));
     form.reset();
     setMenuImage("");
     onOpenChange(false);
@@ -200,7 +200,7 @@ export function AddTreatmentMenuDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Ajouter un menu de soins</DialogTitle>
+          <DialogTitle>{t('admin:treatmentMenuDialog.addTitle')}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -232,7 +232,7 @@ export function AddTreatmentMenuDialog({
                   disabled={isUploading}
                   onClick={triggerFileSelect}
                 >
-                  {isUploading ? "Téléchargement..." : "Télécharger"}
+                  {isUploading ? t('admin:treatmentMenuDialog.uploading') : t('admin:treatmentMenuDialog.upload')}
                   {isUploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               </div>
@@ -243,7 +243,7 @@ export function AddTreatmentMenuDialog({
               name="hotel_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hôtel *</FormLabel>
+                  <FormLabel>{t('admin:treatmentTab.venue')}</FormLabel>
                   <Select
                     onValueChange={(value) => {
                       field.onChange(value);
@@ -254,7 +254,7 @@ export function AddTreatmentMenuDialog({
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner un hôtel" />
+                        <SelectValue placeholder={t('admin:treatmentTab.selectVenue')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -276,9 +276,9 @@ export function AddTreatmentMenuDialog({
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nom du menu *</FormLabel>
+                    <FormLabel>{t('admin:treatmentMenuDialog.name')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nom du menu" {...field} />
+                      <Input placeholder={t('admin:treatmentMenuDialog.namePlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -290,11 +290,11 @@ export function AddTreatmentMenuDialog({
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Catégorie *</FormLabel>
+                    <FormLabel>{t('admin:treatmentTab.category')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner une catégorie" />
+                          <SelectValue placeholder={t('admin:treatmentMenuDialog.selectCategory')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -305,8 +305,8 @@ export function AddTreatmentMenuDialog({
                         ) : categories.length === 0 ? (
                           <div className="px-2 py-2 text-sm text-muted-foreground">
                             {selectedHotelId
-                              ? "Aucune catégorie. Ajoutez-en dans les paramètres du lieu."
-                              : "Sélectionnez d'abord un lieu"}
+                              ? t('admin:treatmentMenuDialog.noCategories')
+                              : t('admin:treatmentMenuDialog.selectVenueFirst')}
                           </div>
                         ) : (
                           categories.map((category) => (
@@ -356,7 +356,7 @@ export function AddTreatmentMenuDialog({
                   <FormLabel>Description</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Description du menu"
+                      placeholder={t('admin:treatmentMenuDialog.descriptionPlaceholder')}
                       className="min-h-[100px]"
                       {...field}
                     />
@@ -369,7 +369,7 @@ export function AddTreatmentMenuDialog({
             {/* Variants section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <FormLabel className="text-base font-semibold">Variantes</FormLabel>
+                <FormLabel className="text-base font-semibold">{t('admin:treatmentVariantsTab.title')}</FormLabel>
                 <Button
                   type="button"
                   variant="outline"
@@ -377,7 +377,7 @@ export function AddTreatmentMenuDialog({
                   onClick={handleAddVariant}
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Ajouter une variante
+                  {t('admin:treatmentVariantsTab.addVariant')}
                 </Button>
               </div>
 
@@ -396,7 +396,7 @@ export function AddTreatmentMenuDialog({
                           <FormItem>
                             {index === 0 && <FormLabel className="text-xs">Label</FormLabel>}
                             <FormControl>
-                              <Input placeholder="ex: 60 minutes" {...field} />
+                              <Input placeholder={t('admin:treatmentVariantsTab.labelPlaceholder')} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -408,7 +408,7 @@ export function AddTreatmentMenuDialog({
                         name={`variants.${index}.duration`}
                         render={({ field }) => (
                           <FormItem>
-                            {index === 0 && <FormLabel className="text-xs">Durée (min) *</FormLabel>}
+                            {index === 0 && <FormLabel className="text-xs">{t('admin:treatmentVariantsTab.duration')}</FormLabel>}
                             <FormControl>
                               <Input type="number" placeholder="60" {...field} />
                             </FormControl>
@@ -422,7 +422,7 @@ export function AddTreatmentMenuDialog({
                         name={`variants.${index}.price`}
                         render={({ field }) => (
                           <FormItem>
-                            {index === 0 && <FormLabel className="text-xs">Prix ({currencySymbol})</FormLabel>}
+                            {index === 0 && <FormLabel className="text-xs">{t('admin:treatmentVariantsTab.price', { symbol: currencySymbol })}</FormLabel>}
                             <FormControl>
                               <Input
                                 type="number"
@@ -452,7 +452,7 @@ export function AddTreatmentMenuDialog({
                                   className="h-3.5 w-3.5"
                                 />
                                 <label className="text-xs cursor-pointer whitespace-nowrap">
-                                  Sur demande
+                                  {t('admin:treatmentVariantsTab.onRequest')}
                                 </label>
                               </div>
                             )}
@@ -467,7 +467,7 @@ export function AddTreatmentMenuDialog({
                               className="h-3.5 w-3.5 accent-primary cursor-pointer"
                             />
                             <label className="text-xs cursor-pointer whitespace-nowrap">
-                              Défaut
+                              {t('admin:treatmentVariantsTab.default')}
                             </label>
                           </div>
                         </div>
@@ -501,7 +501,7 @@ export function AddTreatmentMenuDialog({
               name="lead_time"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-sm whitespace-nowrap">Délai minimum de réservation (min)</FormLabel>
+                  <FormLabel className="text-sm whitespace-nowrap">{t('admin:treatmentMenuDialog.leadTime')}</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="0" className="max-w-[200px]" {...field} />
                   </FormControl>
@@ -524,7 +524,7 @@ export function AddTreatmentMenuDialog({
                       />
                     </FormControl>
                     <FormLabel className="text-sm cursor-pointer font-normal m-0">
-                      Bestseller (mis en avant sur la page de réservation)
+                      {t('admin:treatmentTab.bestseller')}
                     </FormLabel>
                   </div>
                 </FormItem>
@@ -536,11 +536,11 @@ export function AddTreatmentMenuDialog({
               name="service_for"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Service pour *</FormLabel>
+                  <FormLabel>{t('admin:treatmentTab.serviceFor')}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner" />
+                        <SelectValue placeholder={t('admin:treatmentTab.select')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -560,7 +560,7 @@ export function AddTreatmentMenuDialog({
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Statut</FormLabel>
+                    <FormLabel>{t('admin:treatmentTab.status')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -571,13 +571,13 @@ export function AddTreatmentMenuDialog({
                         <SelectItem value="active">
                           <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full bg-green-500" />
-                            {t('status.active')}
+                            {t('common:status.active')}
                           </div>
                         </SelectItem>
                         <SelectItem value="inactive">
                           <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full bg-red-500" />
-                            {t('status.inactive')}
+                            {t('common:status.inactive')}
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -592,7 +592,7 @@ export function AddTreatmentMenuDialog({
                 name="sort_order"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm whitespace-nowrap">Ordre d'affichage</FormLabel>
+                    <FormLabel className="text-sm whitespace-nowrap">{t('admin:treatmentTab.displayOrder')}</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="10" {...field} />
                     </FormControl>
@@ -608,9 +608,9 @@ export function AddTreatmentMenuDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Annuler
+                {t('common:buttons.cancel')}
               </Button>
-              <Button type="submit">Ajouter</Button>
+              <Button type="submit">{t('common:buttons.add')}</Button>
             </div>
           </form>
         </Form>

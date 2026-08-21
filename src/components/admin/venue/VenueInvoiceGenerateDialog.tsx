@@ -32,7 +32,7 @@ export function VenueInvoiceGenerateDialog({
   hotelId,
   onGenerated,
 }: VenueInvoiceGenerateDialogProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const [generating, setGenerating] = useState(false);
 
   const defaults = previousMonthRange();
@@ -182,7 +182,7 @@ export function VenueInvoiceGenerateDialog({
             onClick={() => onOpenChange(false)}
             disabled={generating}
           >
-            {t("common.cancel", "Annuler")}
+            {t("common:buttons.cancel")}
           </Button>
           <Button onClick={handleGenerate} disabled={generating}>
             {generating ? (

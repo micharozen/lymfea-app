@@ -75,7 +75,7 @@ interface Therapist {
 }
 
 export default function Therapists() {
-  const { t } = useTranslation();
+  const { t } = useTranslation(['admin', 'common']);
   const navigate = useNavigate();
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [filteredTherapists, setFilteredTherapists] = useState<Therapist[]>([]);
@@ -133,7 +133,7 @@ export default function Therapists() {
       const data = await listHotelsForOrg(supabase, scope);
       setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
     } catch {
-      toast.error("Erreur lors du chargement des hôtels");
+      toast.error(t('therapistsPage.loadVenuesError'));
     }
   };
 
@@ -144,7 +144,7 @@ export default function Therapists() {
       const data = await listTherapistsForOrg(supabase, scope);
       setTherapists(data as unknown as Therapist[]);
     } catch {
-      toast.error("Erreur lors du chargement des thérapeutes");
+      toast.error(t('therapistsPage.loadError'));
     } finally {
       setLoading(false);
     }
@@ -242,11 +242,11 @@ export default function Therapists() {
       .eq("id", deleteTherapistId);
 
     if (error) {
-      toast.error("Erreur lors de la suppression");
+      toast.error(t('therapistsPage.deleteError'));
       return;
     }
 
-    toast.success("Thérapeute supprimé avec succès");
+    toast.success(t('therapistsPage.deleted'));
     closeDelete();
     fetchTherapists();
   };
@@ -258,7 +258,7 @@ export default function Therapists() {
       .eq("id", therapistId);
 
     if (error) {
-      toast.error("Erreur lors de la mise à jour");
+      toast.error(t('therapistsPage.updateError'));
       return;
     }
 
@@ -275,9 +275,9 @@ export default function Therapists() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-lg font-medium tracking-tight">Thérapeutes</h1>
+            <h1 className="text-lg font-medium tracking-tight">{t('therapistsPage.title')}</h1>
             <p className="text-muted-foreground mt-1">
-              Gérez vos thérapeutes et leurs informations
+              {t('therapistsPage.subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -302,7 +302,7 @@ export default function Therapists() {
             </div>
             {isAdmin && (
               <Button onClick={openAdd}>
-                Nouveau thérapeute
+                {t('therapistsPage.new')}
               </Button>
             )}
           </div>
@@ -320,7 +320,7 @@ export default function Therapists() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Rechercher par nom, email ou téléphone..."
+                placeholder={t('therapistsPage.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -330,10 +330,10 @@ export default function Therapists() {
             {isAdmin && (
               <Select value={hotelFilter} onValueChange={setHotelFilter}>
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Tous les hôtels" />
+                  <SelectValue placeholder={t('therapistsPage.allVenues')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les hôtels</SelectItem>
+                  <SelectItem value="all">{t('therapistsPage.allVenues')}</SelectItem>
                   {hotels.map((hotel) => (
                     <SelectItem key={hotel.id} value={hotel.id}>
                       {hotel.name}
@@ -345,13 +345,13 @@ export default function Therapists() {
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tous les statuts" />
+                <SelectValue placeholder={t('therapistsPage.allStatuses')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="pending">En attente</SelectItem>
-                <SelectItem value="inactive">Inactif</SelectItem>
+                <SelectItem value="all">{t('therapistsPage.allStatuses')}</SelectItem>
+                <SelectItem value="active">{t('therapistsPage.active')}</SelectItem>
+                <SelectItem value="pending">{t('therapistsPage.pending')}</SelectItem>
+                <SelectItem value="inactive">{t('therapistsPage.inactive')}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -368,12 +368,12 @@ export default function Therapists() {
                   <SortableTableHead column="email" sortDirection={getSortDirection("email")} onSort={toggleSort}>
                     Email
                   </SortableTableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Telephone</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prestations</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[80px] text-center">Min. garanti</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">{t('therapistsPage.colPhone')}</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">{t('therapistsPage.colVenue')}</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">{t('therapistsPage.colTreatments')}</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[80px] text-center">{t('therapistsPage.colGuaranteed')}</TableHead>
                   <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
-                    Statut
+                    {t('therapistsPage.colStatus')}
                   </SortableTableHead>
                   {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>}
                 </TableRow>
@@ -384,9 +384,13 @@ export default function Therapists() {
                 <TableEmptyState
                   colSpan={columnCount}
                   icon={Users}
-                  message="Aucun thérapeute trouve"
-                  description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                  actionLabel={isAdmin ? "Ajouter un thérapeute" : undefined}
+                  message={t("therapistsPage.emptyMessage")}
+                  description={
+                    searchQuery || hotelFilter !== "all" || statusFilter !== "all"
+                      ? t("therapistsPage.emptyHint")
+                      : undefined
+                  }
+                  actionLabel={isAdmin ? t("therapistsPage.addTherapist") : undefined}
                   onAction={isAdmin ? openAdd : undefined}
                 />
               ) : (
@@ -470,7 +474,7 @@ export default function Therapists() {
               totalItems={filteredTherapists.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              itemName="thérapeutes"
+              itemName={t("therapistsPage.itemName")}
             />
           )}
         </div>
@@ -486,14 +490,14 @@ export default function Therapists() {
       <AlertDialog open={!!deleteTherapistId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Etes-vous sur ?</AlertDialogTitle>
+            <AlertDialogTitle>{t('therapistsPage.confirmDeleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irreversible. Le thérapeute sera definitivement supprime.
+              {t('therapistsPage.confirmDeleteDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Supprimer</AlertDialogAction>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>{t('common:buttons.delete')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

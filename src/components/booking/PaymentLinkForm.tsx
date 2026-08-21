@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -82,6 +83,7 @@ export function PaymentLinkForm({
   showSkipButton = false,
   amountOverride,
 }: PaymentLinkFormProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const hasAmountOverride = typeof amountOverride === "number" && amountOverride > 0;
   const displayAmount = hasAmountOverride ? amountOverride : booking.total_price;
   const [language, setLanguage] = useState<Language>("fr");
@@ -116,13 +118,13 @@ export function PaymentLinkForm({
         });
         if (cancelled) return;
         if (error) {
-          setGenerateError(error.message || "Erreur lors de la génération du lien");
+          setGenerateError(error.message || t("admin:paymentLink.errors.generateFailed"));
         } else if (data?.paymentLinkUrl) {
           setPaymentLinkUrl(data.paymentLinkUrl);
         }
       } catch (err) {
         if (!cancelled) {
-          setGenerateError(err instanceof Error ? err.message : "Erreur inconnue");
+          setGenerateError(err instanceof Error ? err.message : t("admin:paymentLink.errors.unknown"));
         }
       } finally {
         if (!cancelled) setIsGenerating(false);
@@ -135,9 +137,16 @@ export function PaymentLinkForm({
     if (!paymentLinkUrl) return;
     try {
       await navigator.clipboard.writeText(paymentLinkUrl);
-      toast({ title: "Lien copié", description: "Le lien de paiement a été copié dans le presse-papiers." });
+      toast({
+        title: t("admin:paymentLink.toasts.copiedTitle"),
+        description: t("admin:paymentLink.toasts.copiedDescription"),
+      });
     } catch {
-      toast({ title: "Erreur", description: "Impossible de copier le lien", variant: "destructive" });
+      toast({
+        title: t("common:toasts.error"),
+        description: t("admin:paymentLink.errors.copyFailed"),
+        variant: "destructive",
+      });
     }
   };
 
@@ -208,10 +217,10 @@ export function PaymentLinkForm({
       });
 
       if (error) {
-        setResult({ success: false, error: error.message || "Erreur lors de l'envoi" });
+        setResult({ success: false, error: error.message || t("admin:paymentLink.errors.sendFailed") });
         toast({
-          title: "Erreur",
-          description: error.message || "Erreur lors de l'envoi du lien de paiement",
+          title: t("common:toasts.error"),
+          description: error.message || t("admin:paymentLink.errors.sendLinkFailed"),
           variant: "destructive",
         });
       } else if (data) {
@@ -222,15 +231,15 @@ export function PaymentLinkForm({
           paymentLinkUrl: data.paymentLinkUrl,
         });
         toast({
-          title: "Lien envoyé",
-          description: "Le lien de paiement a été envoyé avec succès",
+          title: t("admin:paymentLink.toasts.sentTitle"),
+          description: t("admin:paymentLink.toasts.sentDescription"),
         });
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
+      const errorMessage = err instanceof Error ? err.message : t("admin:paymentLink.errors.unknown");
       setResult({ success: false, error: errorMessage });
       toast({
-        title: "Erreur",
+        title: t("common:toasts.error"),
         description: errorMessage,
         variant: "destructive",
       });
@@ -243,9 +252,16 @@ export function PaymentLinkForm({
     if (!result?.paymentLinkUrl) return;
     try {
       await navigator.clipboard.writeText(result.paymentLinkUrl);
-      toast({ title: "Lien copié", description: "Le lien de paiement a été copié dans le presse-papiers." });
+      toast({
+        title: t("admin:paymentLink.toasts.copiedTitle"),
+        description: t("admin:paymentLink.toasts.copiedDescription"),
+      });
     } catch {
-      toast({ title: "Erreur", description: "Impossible de copier le lien", variant: "destructive" });
+      toast({
+        title: t("common:toasts.error"),
+        description: t("admin:paymentLink.errors.copyFailed"),
+        variant: "destructive",
+      });
     }
   };
 
@@ -253,14 +269,14 @@ export function PaymentLinkForm({
     return (
       <div className="py-6 text-center">
         <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Lien envoyé avec succès !</h3>
+        <h3 className="text-lg font-semibold mb-2">{t("admin:paymentLink.success.title")}</h3>
         <div className="text-sm text-muted-foreground space-y-1">
-          {result.emailSent && <p>Email envoyé à {clientEmail}</p>}
-          {result.smsSent && <p>SMS envoyé à {clientPhone}</p>}
+          {result.emailSent && <p>{t("admin:paymentLink.success.emailSentTo", { target: clientEmail })}</p>}
+          {result.smsSent && <p>{t("admin:paymentLink.success.smsSentTo", { target: clientPhone })}</p>}
         </div>
         {result.paymentLinkUrl && (
           <div className="mt-4 p-3 bg-muted rounded-lg">
-            <p className="text-xs text-muted-foreground mb-2">Lien de paiement :</p>
+            <p className="text-xs text-muted-foreground mb-2">{t("admin:paymentLink.linkLabelColon")}</p>
             <a
               href={result.paymentLinkUrl}
               target="_blank"
@@ -272,13 +288,13 @@ export function PaymentLinkForm({
             <div className="mt-3">
               <Button variant="outline" size="sm" onClick={handleCopyLink}>
                 <Copy className="h-3.5 w-3.5 mr-2" />
-                Copier le lien
+                {t("admin:paymentLink.copyLink")}
               </Button>
             </div>
           </div>
         )}
         <Button className="mt-6" onClick={onSuccess}>
-          Fermer
+          {t("common:buttons.close")}
         </Button>
       </div>
     );
@@ -288,14 +304,14 @@ export function PaymentLinkForm({
     return (
       <div className="py-6 text-center">
         <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Erreur lors de l'envoi</h3>
+        <h3 className="text-lg font-semibold mb-2">{t("admin:paymentLink.errors.sendFailed")}</h3>
         <p className="text-sm text-muted-foreground">{result.error}</p>
         <div className="flex gap-2 justify-center mt-6">
           <Button variant="outline" onClick={onSkip}>
-            Fermer
+            {t("common:buttons.close")}
           </Button>
           <Button onClick={() => setResult(null)}>
-            Réessayer
+            {t("admin:paymentLink.retry")}
           </Button>
         </div>
       </div>
@@ -306,35 +322,37 @@ export function PaymentLinkForm({
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Send className="h-5 w-5" />
-        <h3 className="text-lg font-semibold">Envoyer le lien de paiement</h3>
+        <h3 className="text-lg font-semibold">{t("admin:paymentLink.title")}</h3>
       </div>
 
       <div className="p-3 bg-muted/50 rounded-lg text-sm">
-        <p className="font-medium">Réservation #{booking.booking_id}</p>
+        <p className="font-medium">{t("admin:paymentLink.bookingNumber", { number: booking.booking_id })}</p>
         <p className="text-muted-foreground">
           {booking.client_first_name} {booking.client_last_name} - {formatPrice(displayAmount, booking.currency || 'EUR')}
         </p>
         {hasAmountOverride && (
           <p className="text-xs text-amber-600 mt-1">
-            Montant personnalisé (total réservation&nbsp;: {formatPrice(booking.total_price, booking.currency || 'EUR')})
+            {t("admin:paymentLink.customAmount", {
+              total: formatPrice(booking.total_price, booking.currency || 'EUR'),
+            })}
           </p>
         )}
       </div>
 
       <div className="p-3 border rounded-lg bg-muted/30 space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Lien de paiement</Label>
+          <Label className="text-xs uppercase tracking-wide text-muted-foreground">{t("admin:paymentLink.linkLabel")}</Label>
           {paymentLinkUrl && (
             <Button variant="ghost" size="sm" onClick={handleCopyGeneratedLink} className="h-7 px-2">
               <Copy className="h-3.5 w-3.5 mr-1.5" />
-              Copier
+              {t("admin:paymentLink.copy")}
             </Button>
           )}
         </div>
         {isGenerating ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Génération du lien…
+            {t("admin:paymentLink.generating")}
           </div>
         ) : generateError ? (
           <p className="text-sm text-destructive">{generateError}</p>
@@ -351,7 +369,7 @@ export function PaymentLinkForm({
       </div>
 
       <div className="space-y-2">
-        <Label>Langue du message</Label>
+        <Label>{t("admin:paymentLink.messageLanguage")}</Label>
         <div className="flex gap-2">
           <button
             type="button"
@@ -381,7 +399,7 @@ export function PaymentLinkForm({
       </div>
 
       <div className="space-y-3">
-        <Label>Envoyer par</Label>
+        <Label>{t("admin:paymentLink.sendVia")}</Label>
 
         <div className="p-3 border rounded-lg space-y-2">
           <div className="flex items-center justify-between">
@@ -428,10 +446,10 @@ export function PaymentLinkForm({
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="sms-body" className="text-xs text-muted-foreground">
-                    Contenu du SMS
+                    {t("admin:paymentLink.smsBodyLabel")}
                   </Label>
                   <span className="text-xs text-muted-foreground">
-                    {smsBody.length} car. · {smsSegments} SMS
+                    {t("admin:paymentLink.smsCounter", { chars: smsBody.length, segments: smsSegments })}
                   </span>
                 </div>
                 <Textarea
@@ -441,7 +459,7 @@ export function PaymentLinkForm({
                   onChange={(e) => handleSmsBodyChange(e.target.value)}
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Le lien Stripe sera ajouté automatiquement à la fin du message.
+                  {t("admin:paymentLink.smsLinkAppended")}
                 </p>
               </div>
             </div>
@@ -452,19 +470,19 @@ export function PaymentLinkForm({
       <div className="flex gap-2 justify-end">
         {showSkipButton && (
           <Button variant="outline" onClick={onSkip} disabled={isSending}>
-            Passer
+            {t("admin:paymentLink.skip")}
           </Button>
         )}
         <Button onClick={handleSend} disabled={!canSend || isSending}>
           {isSending ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Envoi en cours...
+              {t("admin:paymentLink.sending")}
             </>
           ) : (
             <>
               <Send className="h-4 w-4 mr-2" />
-              Envoyer
+              {t("admin:paymentLink.send")}
             </>
           )}
         </Button>

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { HandHeart } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -73,6 +74,8 @@ export function DuoRecapTable({
   therapistCommission,
   surchargePercent = 0,
 }: DuoRecapTableProps) {
+  const { t: translate } = useTranslation(["admin", "common"]);
+
   // Earnings column is shown only when the caller provides the pay mode.
   const showEarnings = globalTherapistCommission !== undefined;
 
@@ -112,19 +115,19 @@ export function DuoRecapTable({
         duration: t?.duration ?? null,
         therapist: therapist
           ? `${therapist.first_name} ${therapist.last_name}`.trim()
-          : "En attente",
+          : translate("duoRecap.pendingTherapist"),
         room: (i === 0 ? roomName : secondaryRoomName ?? roomName) ?? "-",
         amount: perTreatment ? t?.price ?? 0 : sharedAmount,
         schedule: formatSchedule(bookingTime, t?.duration ?? null),
         earnings,
       };
     });
-  }, [treatments, acceptedTherapists, guestCount, roomName, secondaryRoomName, bookingTime, displayPrice, showEarnings, globalTherapistCommission, therapistCommission, therapistRatesMap, surchargePercent]);
+  }, [translate, treatments, acceptedTherapists, guestCount, roomName, secondaryRoomName, bookingTime, displayPrice, showEarnings, globalTherapistCommission, therapistCommission, therapistRatesMap, surchargePercent]);
 
   return (
     <section className="bg-white rounded-xl border p-6 shadow-sm">
       <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4 flex items-center gap-2">
-        <HandHeart className="h-4 w-4" /> Récapitulatif Duo
+        <HandHeart className="h-4 w-4" /> {translate("duoRecap.title")}
       </h3>
 
       {/* Tableau (≥ sm) */}
@@ -132,12 +135,14 @@ export function DuoRecapTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Soin</TableHead>
-              <TableHead>Thérapeute</TableHead>
-              <TableHead>Salle</TableHead>
-              <TableHead className="text-right">Montant</TableHead>
-              {showEarnings && <TableHead className="text-right">Gain thérapeute</TableHead>}
-              <TableHead className="text-right">Horaire</TableHead>
+              <TableHead>{translate("duoRecap.treatment")}</TableHead>
+              <TableHead>{translate("duoRecap.therapist")}</TableHead>
+              <TableHead>{translate("duoRecap.room")}</TableHead>
+              <TableHead className="text-right">{translate("duoRecap.amount")}</TableHead>
+              {showEarnings && (
+                <TableHead className="text-right">{translate("duoRecap.earnings")}</TableHead>
+              )}
+              <TableHead className="text-right">{translate("duoRecap.schedule")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -159,7 +164,9 @@ export function DuoRecapTable({
                     {leg.earnings != null ? (
                       <span className="font-semibold">{formatPrice(leg.earnings, currency)}</span>
                     ) : (
-                      <span className="text-xs text-amber-600">Tarifs incomplets</span>
+                      <span className="text-xs text-amber-600">
+                        {translate("duoRecap.incompleteRates")}
+                      </span>
                     )}
                   </TableCell>
                 )}
@@ -186,25 +193,27 @@ export function DuoRecapTable({
               </span>
             </div>
             <div className="flex justify-between text-muted-foreground">
-              <span>Thérapeute</span>
+              <span>{translate("duoRecap.therapist")}</span>
               <span className="text-foreground">{leg.therapist}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
-              <span>Salle</span>
+              <span>{translate("duoRecap.room")}</span>
               <span className="text-foreground">{leg.room}</span>
             </div>
             {showEarnings && (
               <div className="flex justify-between text-muted-foreground">
-                <span>Gain thérapeute</span>
+                <span>{translate("duoRecap.earnings")}</span>
                 {leg.earnings != null ? (
                   <span className="font-semibold text-foreground">{formatPrice(leg.earnings, currency)}</span>
                 ) : (
-                  <span className="text-xs text-amber-600">Tarifs incomplets</span>
+                  <span className="text-xs text-amber-600">
+                    {translate("duoRecap.incompleteRates")}
+                  </span>
                 )}
               </div>
             )}
             <div className="flex justify-between text-muted-foreground">
-              <span>Horaire</span>
+              <span>{translate("duoRecap.schedule")}</span>
               <span className="text-foreground">{leg.schedule}</span>
             </div>
           </div>

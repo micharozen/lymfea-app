@@ -63,7 +63,14 @@
     "pending": "En attente",
     "assigned": "Assigné",
     "completed": "Terminé",
-    "cancelled": "Annulé"
+    "cancelled": "Annulé",
+    "confirmed": "Confirmé",
+    "ongoing": "En cours",
+    "noshow": "No-show",
+    "quote": "Devis",
+    "awaiting": "Attente",
+    "alternativeProposed": "Créneau proposé",
+    "maintenance": "Maintenance"
   },
   "loading": "Chargement...",
   "noData": "Aucune donnée",
@@ -125,5 +132,80 @@
       "body": "Plus aucune relance de notre part. Vos confirmations de réservation, elles, continueront d'arriver — on ne va pas vous laisser oublier l'heure de votre soin."
     },
     "error": "Ce lien n'est plus valide. Écrivez-nous et nous nous en occupons."
+  },
+  "payment": {
+    "cardSavedToCharge": "Carte enregistrée à débiter",
+    "status": {
+      "pending": "Paiement en attente",
+      "paid": "Payé",
+      "failed": "Paiement échoué",
+      "failedShort": "Échoué",
+      "refunded": "Remboursé",
+      "chargedToRoom": "Facturé chambre",
+      "partnerBilled": "Paiement partenaire",
+      "cardSaved": "Carte enregistrée",
+      "offert": "Offert",
+      "awaitingPayment": "Paiement attendu"
+    },
+    "method": {
+      "room": "Facturé en chambre",
+      "card": "Paiement en ligne",
+      "cardOnSite": "CB sur place",
+      "cash": "Espèces",
+      "offert": "Offert",
+      "giftAmount": "Carte cadeau",
+      "voucher": "Payé par voucher — encaissé par le lieu",
+      "partnerBilled": "Facturé au partenaire (fin de mois)",
+      "cureFresha": "Cure Fresha",
+      "bundle": "Forfait",
+      "unset": "Non renseigné"
+    }
+  },
+  "calendarStage": {
+    "awaitingTherapistPayment": "Attente thérapeute + paiement",
+    "awaitingTherapist": "Attente thérapeute",
+    "quote": "Devis / Proposé"
+  },
+  "pagination": {
+    "showing": "Affichage de {{start}} à {{end}} sur {{total}} {{itemName}}",
+    "defaultItemName": "entrées",
+    "perPage": "Par page",
+    "pageOf": "Page {{current}} sur {{total}}"
+  },
+  "periodSelector": {
+    "lastWeek": "Semaine dernière",
+    "last30Days": "30 derniers jours",
+    "nextWeek": "Semaine prochaine",
+    "custom": "Date personnalisée",
+    "selectRange": "Sélectionnez une période"
+  },
+  "timezone": {
+    "label": "Fuseau horaire",
+    "temporaryView": "Vue temporaire (votre fuseau : {{timezone}})",
+    "backToYours": "Revenir à votre fuseau ({{timezone}})",
+    "searchPlaceholder": "Rechercher un fuseau horaire...",
+    "empty": "Aucun fuseau horaire trouvé.",
+    "select": "Sélectionner un fuseau horaire"
+  },
+  "update": {
+    "title": "Une nouvelle version est disponible",
+    "description": "Rechargez la page pour profiter des dernières améliorations",
+    "reloading": "Rechargement...",
+    "reload": "Recharger"
+  },
+  "appError": {
+    "reloadingInProgress": "Rechargement en cours…",
+    "autoReloadFailed": "Le rechargement automatique a échoué. Veuillez recharger manuellement.",
+    "reloadToContinue": "Veuillez recharger l'application pour continuer.",
+    "unexpected": "L'application a rencontré un problème inattendu.",
+    "reloadApp": "Recharger l'application",
+    "retry": "Réessayer"
+  },
+  "stagingBanner": {
+    "label": "Environnement de test"
+  },
+  "phoneField": {
+    "use": "Utiliser {{code}}",
+    "noResult": "Aucun résultat — tapez un indicatif (ex: +355)"
   }
 }

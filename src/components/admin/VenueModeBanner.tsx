@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Building2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useViewMode } from "@/contexts/ViewModeContext";
@@ -15,6 +16,7 @@ async function fetchVenueName(venueId: string): Promise<string | null> {
 }
 
 export function VenueModeBanner() {
+  const { t } = useTranslation(["admin", "common"]);
   const { mode, venueId, switchToAdmin } = useViewMode();
 
   const { data: venueName } = useQuery({
@@ -32,7 +34,7 @@ export function VenueModeBanner() {
         <div className="flex items-center gap-2 min-w-0">
           <Building2 className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={2} />
           <span className="font-medium truncate">
-            Mode Gestion du lieu{venueName ? ` — ${venueName}` : ""}
+            {t("venueModeBanner.label")}{venueName ? ` — ${venueName}` : ""}
           </span>
         </div>
         <button
@@ -41,7 +43,7 @@ export function VenueModeBanner() {
           className="flex items-center gap-1 font-medium hover:underline whitespace-nowrap"
         >
           <ArrowLeft className="h-3 w-3" strokeWidth={2} />
-          Revenir au mode admin
+          {t("venueModeBanner.backToAdmin")}
         </button>
       </div>
     </div>

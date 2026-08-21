@@ -35,27 +35,23 @@ import {
   Plus,
 } from "lucide-react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/dateLocale";
 import { cn } from "@/lib/utils";
 import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
 import { toast } from "sonner";
 
 const DAYS_OF_WEEK = [
-  { value: 1, label: "Lun" },
-  { value: 2, label: "Mar" },
-  { value: 3, label: "Mer" },
-  { value: 4, label: "Jeu" },
-  { value: 5, label: "Ven" },
-  { value: 6, label: "Sam" },
-  { value: 0, label: "Dim" },
+  { value: 1, key: "mon" },
+  { value: 2, key: "tue" },
+  { value: 3, key: "wed" },
+  { value: 4, key: "thu" },
+  { value: 5, key: "fri" },
+  { value: 6, key: "sat" },
+  { value: 0, key: "sun" },
 ];
 
-const RECURRENCE_OPTIONS = [
-  { value: 1, label: "Chaque semaine" },
-  { value: 2, label: "Toutes les 2 semaines" },
-  { value: 3, label: "Toutes les 3 semaines" },
-  { value: 4, label: "Toutes les 4 semaines" },
-];
+const RECURRENCE_OPTIONS = [1, 2, 3, 4];
 
 // Generate time options from 00:00 to 23:30 in 30-minute increments
 const generateTimeOptions = () => {
@@ -105,6 +101,8 @@ interface VenueDeploymentStepProps {
 }
 
 export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlockedSlotsChange, disabled = false }: VenueDeploymentStepProps) {
+  const { t } = useTranslation(['admin', 'common']);
+  const dateLocale = useDateLocale();
   const {
     isAlwaysOpen,
     scheduleType,
@@ -127,15 +125,15 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
 
   const addBlockedSlot = () => {
     if (!newBlockedSlot.label || !newBlockedSlot.start_time || !newBlockedSlot.end_time) {
-      toast.error("Veuillez remplir tous les champs");
+      toast.error(t('venue.deployment.errorRequiredFields'));
       return;
     }
     if (newBlockedSlot.start_time >= newBlockedSlot.end_time) {
-      toast.error("L'heure de début doit être avant l'heure de fin");
+      toast.error(t('venue.deployment.errorStartBeforeEnd'));
       return;
     }
     if (newBlockedSlot.days_of_week !== null && newBlockedSlot.days_of_week.length === 0) {
-      toast.error("Sélectionnez au moins un jour");
+      toast.error(t('venue.deployment.errorSelectDay'));
       return;
     }
     onBlockedSlotsChange([...blockedSlots, { ...newBlockedSlot }]);
@@ -195,7 +193,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
     <div className="space-y-6">
       {/* Opening hours section */}
       <div>
-        <SectionHeader icon={Clock} title="Horaires" />
+        <SectionHeader icon={Clock} title={t('venue.deployment.hoursTitle')} />
 
         <div className="grid grid-cols-2 gap-4">
           <FormField
@@ -205,7 +203,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
               <FormItem>
                 <FormLabel className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  Heure d'ouverture
+                  {t('venue.deployment.openingTime')}
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
                   <SelectTrigger>
@@ -231,7 +229,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
               <FormItem>
                 <FormLabel className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  Heure de fermeture
+                  {t('venue.deployment.closingTime')}
                 </FormLabel>
                 <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
                   <SelectTrigger>
@@ -258,7 +256,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
             <FormItem className="mt-4">
               <FormLabel className="flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                Intervalle des créneaux
+                {t('venue.deployment.slotInterval')}
               </FormLabel>
               <Select
                 value={String(field.value ?? 30)}
@@ -284,7 +282,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
 
       {/* Blocked time slots section */}
       <div>
-        <SectionHeader icon={Ban} title="Plages horaires bloquées" />
+        <SectionHeader icon={Ban} title={t('venue.deployment.blockedSlotsTitle')} />
 
         {blockedSlots.length > 0 && (
           <div className="space-y-2 mb-4">
@@ -302,12 +300,12 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                     <div className="flex gap-1">
                       {DAYS_OF_WEEK.filter(d => slot.days_of_week!.includes(d.value)).map(d => (
                         <span key={d.value} className="text-xs px-1.5 py-0.5 bg-muted rounded">
-                          {d.label}
+                          {t(`venue.deployment.days.${d.key}`)}
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <span className="text-xs text-muted-foreground">Tous les jours</span>
+                    <span className="text-xs text-muted-foreground">{t('venue.deployment.everyDay')}</span>
                   )}
                 </div>
                 {!disabled && (
@@ -329,17 +327,17 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
           showAddBlockedSlot ? (
             <div className="p-4 border rounded-lg bg-muted/10 space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-sm">Nom</Label>
+                <Label className="text-sm">{t('venue.deployment.slotName')}</Label>
                 <Input
                   value={newBlockedSlot.label}
                   onChange={(e) => setNewBlockedSlot(prev => ({ ...prev, label: e.target.value }))}
-                  placeholder="ex: Pause déjeuner"
+                  placeholder={t('venue.deployment.slotNamePlaceholder')}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Début</Label>
+                  <Label className="text-sm">{t('venue.deployment.start')}</Label>
                   <div className="flex gap-1.5">
                     <Select
                       value={newBlockedSlot.start_time.split(':')[0]}
@@ -370,7 +368,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Fin</Label>
+                  <Label className="text-sm">{t('venue.deployment.end')}</Label>
                   <div className="flex gap-1.5">
                     <Select
                       value={newBlockedSlot.end_time.split(':')[0]}
@@ -404,7 +402,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
 
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <Label className="text-sm">Jours spécifiques</Label>
+                  <Label className="text-sm">{t('venue.deployment.specificDays')}</Label>
                   <Switch
                     checked={newBlockedSlot.days_of_week !== null}
                     onCheckedChange={(checked) =>
@@ -429,7 +427,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                             : "bg-background hover:bg-muted border-input"
                         )}
                       >
-                        {day.label}
+                        {t(`venue.deployment.days.${day.key}`)}
                       </button>
                     ))}
                   </div>
@@ -443,10 +441,10 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                   size="sm"
                   onClick={() => setShowAddBlockedSlot(false)}
                 >
-                  Annuler
+                  {t('common:buttons.cancel')}
                 </Button>
                 <Button type="button" size="sm" onClick={addBlockedSlot}>
-                  Ajouter
+                  {t('common:buttons.add')}
                 </Button>
               </div>
             </div>
@@ -459,7 +457,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
               className="w-full"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Ajouter une plage bloquée
+              {t('venue.deployment.addBlockedSlot')}
             </Button>
           )
         )}
@@ -467,13 +465,13 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
 
       {/* Deployment schedule section */}
       <div>
-        <SectionHeader icon={CalendarDays} title="Planning de déploiement" />
+        <SectionHeader icon={CalendarDays} title={t('venue.deployment.scheduleTitle')} />
 
         {/* Always open switch */}
         <div className="flex items-center justify-between py-3 px-4 border rounded-lg bg-muted/20 mb-4">
           <Label htmlFor="always-open" className="cursor-pointer flex items-center gap-2">
             <ToggleLeft className="h-4 w-4 text-muted-foreground" />
-            Toujours disponible
+            {t('venue.deployment.alwaysAvailable')}
           </Label>
           <Switch
             id="always-open"
@@ -497,7 +495,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                 className="flex-1"
               >
                 <Repeat className="h-4 w-4 mr-2" />
-                Jours récurrents
+                {t('venue.deployment.recurringDays')}
               </Button>
               <Button
                 type="button"
@@ -508,7 +506,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                 className="flex-1"
               >
                 <CalendarCheck className="h-4 w-4 mr-2" />
-                Dates spécifiques
+                {t('venue.deployment.specificDates')}
               </Button>
             </div>
 
@@ -519,7 +517,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                 <div className="space-y-2">
                   <Label className="text-sm flex items-center gap-1.5">
                     <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-                    Jours de la semaine
+                    {t('venue.deployment.weekDays')}
                   </Label>
                   <div className="flex flex-wrap gap-2">
                     {DAYS_OF_WEEK.map(day => (
@@ -537,12 +535,12 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                           !disabled && !selectedDays.includes(day.value) && "hover:bg-muted"
                         )}
                       >
-                        {day.label}
+                        {t(`venue.deployment.days.${day.key}`)}
                       </button>
                     ))}
                   </div>
                   {selectedDays.length === 0 && (
-                    <p className="text-xs text-destructive">Sélectionnez au moins un jour</p>
+                    <p className="text-xs text-destructive">{t('venue.deployment.errorSelectDay')}</p>
                   )}
                 </div>
 
@@ -550,7 +548,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                 <div className="space-y-2">
                   <Label className="text-sm flex items-center gap-1.5">
                     <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
-                    Fréquence de récurrence
+                    {t('venue.deployment.recurrenceFrequency')}
                   </Label>
                   <Select
                     value={recurrenceInterval.toString()}
@@ -558,19 +556,19 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                     disabled={disabled}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Chaque semaine" />
+                      <SelectValue placeholder={t('venue.deployment.recurrence.every1')} />
                     </SelectTrigger>
                     <SelectContent>
                       {RECURRENCE_OPTIONS.map(option => (
-                        <SelectItem key={option.value} value={option.value.toString()}>
-                          {option.label}
+                        <SelectItem key={option} value={option.toString()}>
+                          {t(`venue.deployment.recurrence.every${option}`)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   {recurrenceInterval > 1 && (
                     <p className="text-xs text-muted-foreground">
-                      Le lieu sera disponible toutes les {recurrenceInterval} semaines, à partir de la date de début.
+                      {t('venue.deployment.recurrenceNote', { count: recurrenceInterval })}
                     </p>
                   )}
                 </div>
@@ -580,7 +578,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center gap-1.5">
                       <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                      À partir du
+                      {t('venue.deployment.fromDate')}
                     </Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -594,8 +592,8 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {recurringStartDate
-                            ? format(recurringStartDate, "d MMM yyyy", { locale: fr })
-                            : "Aujourd'hui"}
+                            ? format(recurringStartDate, "d MMM yyyy", { locale: dateLocale })
+                            : t('venue.deployment.today')}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -603,7 +601,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                           mode="single"
                           selected={recurringStartDate}
                           onSelect={(date) => updateState({ recurringStartDate: date })}
-                          locale={fr}
+                          locale={dateLocale}
                         />
                       </PopoverContent>
                     </Popover>
@@ -613,7 +611,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center gap-1.5">
                       <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                      Jusqu'au (optionnel)
+                      {t('venue.deployment.untilDate')}
                     </Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -627,8 +625,8 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {recurringEndDate
-                            ? format(recurringEndDate, "d MMM yyyy", { locale: fr })
-                            : "Indéfiniment"}
+                            ? format(recurringEndDate, "d MMM yyyy", { locale: dateLocale })
+                            : t('venue.deployment.indefinitely')}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -636,7 +634,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                           mode="single"
                           selected={recurringEndDate}
                           onSelect={(date) => updateState({ recurringEndDate: date })}
-                          locale={fr}
+                          locale={dateLocale}
                           disabled={(date) =>
                             recurringStartDate ? date < recurringStartDate : false
                           }
@@ -652,7 +650,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                         className="text-xs text-muted-foreground"
                       >
                         <X className="h-3 w-3 mr-1" />
-                        Supprimer la date de fin
+                        {t('venue.deployment.removeEndDate')}
                       </Button>
                     )}
                   </div>
@@ -666,20 +664,20 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                 <div className="space-y-2">
                   <Label className="text-sm flex items-center gap-1.5">
                     <CalendarCheck className="h-3.5 w-3.5 text-muted-foreground" />
-                    Sélectionner les dates
+                    {t('venue.deployment.selectDates')}
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" disabled={disabled} className="w-full justify-start">
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        Ajouter une date
+                        {t('venue.deployment.addDate')}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
                         onSelect={handleSpecificDateSelect}
-                        locale={fr}
+                        locale={dateLocale}
                         disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                         modifiers={{
                           selected: specificDates,
@@ -700,7 +698,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center gap-1.5">
                       <CalendarCheck className="h-3.5 w-3.5 text-muted-foreground" />
-                      Dates sélectionnées ({specificDates.length})
+                      {t('venue.deployment.selectedDates', { count: specificDates.length })}
                     </Label>
                     <div className="flex flex-wrap gap-2">
                       {specificDates.map((date, index) => (
@@ -708,7 +706,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                           key={index}
                           className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm"
                         >
-                          {format(date, "d MMM yyyy", { locale: fr })}
+                          {format(date, "d MMM yyyy", { locale: dateLocale })}
                           {!disabled && (
                             <button
                               type="button"
@@ -723,7 +721,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                     </div>
                   </div>
                 ) : (
-                  <p className="text-xs text-destructive">Sélectionnez au moins une date</p>
+                  <p className="text-xs text-destructive">{t('venue.deployment.errorSelectDate')}</p>
                 )}
               </div>
             )}

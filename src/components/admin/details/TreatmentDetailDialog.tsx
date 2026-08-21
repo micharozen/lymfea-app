@@ -46,7 +46,7 @@ export function TreatmentDetailDialog({
   onEdit,
   onDuplicate,
 }: TreatmentDetailDialogProps) {
-  const { t, i18n } = useTranslation('common');
+  const { t, i18n } = useTranslation(['admin', 'common']);
 
   if (!treatment) return null;
 
@@ -72,9 +72,9 @@ export function TreatmentDetailDialog({
 
   const getServiceForLabel = (serviceFor: string | null) => {
     switch (serviceFor) {
-      case "Male": return "Homme";
-      case "Female": return "Femme";
-      default: return "Tous";
+      case "Male": return t('treatmentDetail.dialog.serviceForMale');
+      case "Female": return t('treatmentDetail.dialog.serviceForFemale');
+      default: return t('treatmentDetail.dialog.serviceForAll');
     }
   };
 
@@ -98,20 +98,20 @@ export function TreatmentDetailDialog({
       status={treatment.status}
     >
       {/* Pricing */}
-      <DetailSection icon={Euro} title="Tarification">
+      <DetailSection icon={Euro} title={t('treatmentDetail.dialog.pricing')}>
         <DetailGrid columns={3}>
           <DetailStat
-            label="Prix"
-            value={treatment.price_on_request ? "Sur demande" : formatPrice(treatment.price || 0, treatment.currency || "EUR", { decimals: 0 })}
+            label={t('treatments.price')}
+            value={treatment.price_on_request ? t('treatmentDetail.dialog.onRequest') : formatPrice(treatment.price || 0, treatment.currency || "EUR", { decimals: 0 })}
             center
           />
           <DetailStat
-            label="Duree"
-            value={treatment.price_on_request ? "Sur demande" : formatDuration(treatment.duration)}
+            label={t('treatments.duration')}
+            value={treatment.price_on_request ? t('treatmentDetail.dialog.onRequest') : formatDuration(treatment.duration)}
             center
           />
           <DetailStat
-            label="Delai"
+            label={t('treatmentDetail.dialog.leadTime')}
             value={formatLeadTime(treatment.lead_time)}
             center
           />
@@ -119,16 +119,16 @@ export function TreatmentDetailDialog({
       </DetailSection>
 
       {/* Details */}
-      <DetailSection icon={HandHeart} title="Details">
+      <DetailSection icon={HandHeart} title={t('treatmentDetail.dialog.details')}>
         <DetailCard>
           <div className="space-y-3">
             <div className="flex items-center gap-4">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Categorie</p>
+                <p className="text-xs text-muted-foreground mb-1">{t('treatments.category')}</p>
                 <p className="text-sm font-medium">{treatment.category || "-"}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-1">{t('admin:treatments.specialty')}</p>
+                <p className="text-xs text-muted-foreground mb-1">{t('treatments.specialty')}</p>
                 <p className="text-sm font-medium">
                   {treatment.treatment_type
                     ? getSpecialtyLabel(treatment.treatment_type, i18n.language)
@@ -136,7 +136,7 @@ export function TreatmentDetailDialog({
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Public</p>
+                <p className="text-xs text-muted-foreground mb-1">{t('treatmentDetail.dialog.audience')}</p>
                 <p className="text-sm font-medium">
                   {getServiceForEmoji(treatment.service_for)} {getServiceForLabel(treatment.service_for)}
                 </p>
@@ -144,7 +144,7 @@ export function TreatmentDetailDialog({
             </div>
             {treatment.description && (
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Description</p>
+                <p className="text-xs text-muted-foreground mb-1">{t('treatments.description')}</p>
                 <p className="text-sm text-muted-foreground">{treatment.description}</p>
               </div>
             )}
@@ -153,7 +153,7 @@ export function TreatmentDetailDialog({
       </DetailSection>
 
       {/* Hotel */}
-      <DetailSection icon={Building2} title="Assignation" showSeparator={false}>
+      <DetailSection icon={Building2} title={t('treatmentDetail.dialog.assignment')} showSeparator={false}>
         <DetailCard>
           {hotel ? (
             <div className="flex items-center gap-2">
@@ -166,7 +166,7 @@ export function TreatmentDetailDialog({
               <span className="text-sm font-medium">{hotel.name}</span>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Prestation globale (tous les hotels)</p>
+            <p className="text-sm text-muted-foreground">{t('treatmentDetail.dialog.globalTreatment')}</p>
           )}
         </DetailCard>
       </DetailSection>

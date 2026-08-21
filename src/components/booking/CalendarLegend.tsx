@@ -21,8 +21,7 @@ export function CalendarLegend({
   onToggleCancelled,
   className,
 }: CalendarLegendProps) {
-  const { t, i18n } = useTranslation("admin");
-  const fr = i18n.language?.startsWith("fr");
+  const { t } = useTranslation(["admin", "common"]);
   const hasVenueFilter = !!hotelFilter?.length;
   // Built from the same flow stages used to color the cards, so the legend
   // always matches what's shown on the planning. With no venue filtered,
@@ -31,7 +30,7 @@ export function CalendarLegend({
     .filter((key) => hasVenueFilter || (key !== "cancelled" && key !== "noshow"))
     .map((key) => {
       const stage = calendarFlowStages[key];
-      return { key, label: fr ? stage.label : stage.labelEn, swatchClass: stage.swatchClass };
+      return { key, label: t(stage.labelKey, { ns: "common" }), swatchClass: stage.swatchClass };
     });
 
   const visibleHotels = hasVenueFilter

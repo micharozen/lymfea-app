@@ -41,7 +41,7 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
   const { isAdmin } = useUserContext();
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const { activeTimezone } = useTimezone();
-  const { t, i18n } = useTranslation("admin");
+  const { t, i18n } = useTranslation(["admin", "common"]);
 
   // Data
   const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();
@@ -244,7 +244,7 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
               className="h-8 w-8"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              title="Refresh"
+              title={t("venueBookingCalendar.refresh")}
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
             </Button>
@@ -261,7 +261,7 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
               className="bg-green-600 hover:bg-green-700 text-white h-8 text-xs"
             >
               <Plus className="h-3.5 w-3.5" />
-              {isConcierge ? "Demande" : "Réservation"}
+              {isConcierge ? t("venueBookingCalendar.newRequest") : t("venueBookingCalendar.newBooking")}
             </Button>
           </div>
         </div>

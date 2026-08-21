@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 
@@ -21,6 +22,7 @@ const ADMIN_ONLY_ROUTE_PATTERNS: RegExp[] = [
 ];
 
 const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
+  const { t } = useTranslation("common");
   const location = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -125,7 +127,7 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Chargement...</p>
+          <p className="text-muted-foreground">{t("loading")}</p>
         </div>
       </div>
     );

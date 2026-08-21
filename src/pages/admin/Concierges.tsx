@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Pencil, Trash2, Users } from "lucide-react";
 import { VENUE_ROLES } from "@/lib/venueRoles";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import {
   Table,
   TableBody,
@@ -64,6 +65,7 @@ interface Hotel {
 }
 
 export default function Concierges() {
+  const { t, i18n } = useTranslation(['admin', 'common']);
   const [concierges, setConcierges] = useState<Concierge[]>([]);
   const [filteredConcierges, setFilteredConcierges] = useState<Concierge[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -149,7 +151,7 @@ export default function Concierges() {
       const data = await listConciergesForOrg(supabase, scope);
       setConcierges(data as unknown as Concierge[]);
     } catch (error: unknown) {
-      toast.error("Erreur lors du chargement de l'équipe lieu");
+      toast.error(t('conciergesPage.loadError'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -203,11 +205,11 @@ export default function Concierges() {
 
       if (error) throw error;
 
-      toast.success("Membre supprimé avec succès");
+      toast.success(t('conciergesPage.deleted'));
       closeDelete();
       fetchConcierges();
     } catch (error: any) {
-      toast.error("Erreur lors de la suppression du membre");
+      toast.error(t('conciergesPage.deleteError'));
       console.error(error);
     }
   };
@@ -228,9 +230,9 @@ export default function Concierges() {
         },
       });
       if (error) throw error;
-      toast.success("Invitation renvoyée avec succès");
+      toast.success(t('conciergesPage.inviteResent'));
     } catch (error) {
-      toast.error("Erreur lors du renvoi de l'invitation");
+      toast.error(t('conciergesPage.inviteResendError'));
       console.error(error);
     } finally {
       setResendingInviteId(null);
@@ -244,7 +246,7 @@ export default function Concierges() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4">
           <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
-            Équipe lieu
+            {t('conciergesPage.title')}
           </h1>
         </div>
       </div>
@@ -255,7 +257,7 @@ export default function Concierges() {
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher"
+                placeholder={t('conciergesPage.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -264,10 +266,10 @@ export default function Concierges() {
             
             <Select value={hotelFilter} onValueChange={setHotelFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tous les hôtels" />
+                <SelectValue placeholder={t('conciergesPage.allVenues')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les hôtels</SelectItem>
+                <SelectItem value="all">{t('conciergesPage.allVenues')}</SelectItem>
                 {hotels.map((hotel) => (
                   <SelectItem key={hotel.id} value={hotel.id}>
                     {hotel.name}
@@ -278,12 +280,12 @@ export default function Concierges() {
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tous les statuts" />
+                <SelectValue placeholder={t('conciergesPage.allStatuses')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="inactive">Inactif</SelectItem>
+                <SelectItem value="all">{t('conciergesPage.allStatuses')}</SelectItem>
+                <SelectItem value="active">{t('conciergesPage.active')}</SelectItem>
+                <SelectItem value="inactive">{t('conciergesPage.inactive')}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -292,7 +294,7 @@ export default function Concierges() {
                 className="ml-auto"
                 onClick={openAdd}
               >
-                Nouveau membre
+                {t('conciergesPage.new')}
               </Button>
             )}
           </div>
@@ -303,26 +305,26 @@ export default function Concierges() {
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
                   <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
-                    Nom
+                    {t('conciergesPage.colName')}
                   </SortableTableHead>
                   <SortableTableHead column="email" sortDirection={getSortDirection("email")} onSort={toggleSort}>
                     Email
                   </SortableTableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
-                    Telephone
+                    {t('conciergesPage.colPhone')}
                   </TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
-                    Lieu(x)
+                    {t('conciergesPage.colVenues')}
                   </TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
-                    Rôle
+                    {t('conciergesPage.colRole')}
                   </TableHead>
                   <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
-                    Statut
+                    {t('conciergesPage.colStatus')}
                   </SortableTableHead>
                   {userRole === "admin" && (
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">
-                      Actions
+                      {t('common:actions')}
                     </TableHead>
                   )}
                 </TableRow>
@@ -333,9 +335,9 @@ export default function Concierges() {
                 <TableEmptyState
                   colSpan={columnCount}
                   icon={Users}
-                  message="Aucun membre trouvé"
-                  description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                  actionLabel={userRole === "admin" ? "Ajouter un membre" : undefined}
+                  message={t('conciergesPage.empty')}
+                  description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? t('conciergesPage.emptyHint') : undefined}
+                  actionLabel={userRole === "admin" ? t('conciergesPage.addMember') : undefined}
                   onAction={userRole === "admin" ? openAdd : undefined}
                 />
               ) : (
@@ -363,7 +365,11 @@ export default function Concierges() {
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <span className="truncate block text-foreground">
                           {concierge.venue_role
-                            ? VENUE_ROLES.find(r => r.value === concierge.venue_role)?.labelFr ?? concierge.venue_role
+                            ? (() => {
+                                const role = VENUE_ROLES.find(r => r.value === concierge.venue_role);
+                                if (!role) return concierge.venue_role;
+                                return i18n.language.startsWith('en') ? role.labelEn : role.labelFr;
+                              })()
                             : '-'}
                         </span>
                       </TableCell>
@@ -413,7 +419,7 @@ export default function Concierges() {
               totalItems={filteredConcierges.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              itemName="membres"
+              itemName={t('conciergesPage.itemName')}
             />
           )}
         </div>
@@ -437,18 +443,18 @@ export default function Concierges() {
       <AlertDialog open={!!deleteConciergeId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogTitle>{t('conciergesPage.confirmDeleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce membre ? Cette action est irréversible.
+              {t('conciergesPage.confirmDeleteDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConcierge}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Supprimer
+              {t('common:buttons.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

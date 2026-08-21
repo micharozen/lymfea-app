@@ -66,7 +66,7 @@ interface Customer {
 
 export default function Customers() {
   const navigate = useNavigate();
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -223,8 +223,8 @@ export default function Customers() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("customers.allLanguages")}</SelectItem>
-                <SelectItem value="fr">Français</SelectItem>
-                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="fr">{t("common:language.fr")}</SelectItem>
+                <SelectItem value="en">{t("common:language.en")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -359,7 +359,7 @@ export default function Customers() {
               totalItems={total}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              itemName="clients"
+              itemName={t("customers.itemName")}
             />
           )}
         </div>

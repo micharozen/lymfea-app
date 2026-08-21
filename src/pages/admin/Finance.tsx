@@ -73,7 +73,7 @@ interface FinanceSummary {
 }
 
 const Finance = () => {
-  const { t } = useTranslation();
+  const { t } = useTranslation(['admin', 'common']);
   const scope = useOrgScope();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -108,7 +108,7 @@ const Finance = () => {
           } else {
             nettingMap.set(entry.hotel_id, {
               hotel_id: entry.hotel_id,
-              hotel_name: entry.hotels?.name || 'Hôtel inconnu',
+              hotel_name: entry.hotels?.name || t('finance.page.unknownVenue'),
               hotel_image: entry.hotels?.image || null,
               total_pending: entry.amount,
               entries_count: 1,
@@ -142,7 +142,7 @@ const Finance = () => {
 
     } catch (error) {
       console.error('Error fetching finance data:', error);
-      toast.error("Erreur lors du chargement des données financières");
+      toast.error(t('finance.page.loadError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -177,17 +177,17 @@ const Finance = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">En attente</Badge>;
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">{t('finance.page.statusPending')}</Badge>;
       case 'billed':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Facturé</Badge>;
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">{t('finance.page.statusBilled')}</Badge>;
       case 'paid':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Payé</Badge>;
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{t('finance.page.statusPaid')}</Badge>;
       case 'completed':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Complété</Badge>;
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{t('finance.page.statusCompleted')}</Badge>;
       case 'failed':
-        return <Badge variant="destructive">Échoué</Badge>;
+        return <Badge variant="destructive">{t('finance.page.statusFailed')}</Badge>;
       case 'processing':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">En cours</Badge>;
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">{t('finance.page.statusProcessing')}</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -206,8 +206,8 @@ const Finance = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-lg font-medium text-foreground">Finance</h1>
-          <p className="text-muted-foreground">Suivi des revenus, netting hôtels et paiements thérapeutes</p>
+          <h1 className="text-lg font-medium text-foreground">{t('finance.page.title')}</h1>
+          <p className="text-muted-foreground">{t('finance.page.subtitle')}</p>
         </div>
         <Button 
           variant="outline" 
@@ -215,14 +215,14 @@ const Finance = () => {
           disabled={refreshing}
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-          Actualiser
+          {t('finance.page.refresh')}
         </Button>
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="closure" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="closure">📋 Clôture quotidienne</TabsTrigger>
+          <TabsTrigger value="closure">{t('finance.page.tabClosure')}</TabsTrigger>
         </TabsList>
 
         {/* Daily Closure Tab */}
@@ -234,16 +234,16 @@ const Finance = () => {
         <TabsContent value="netting" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Soldes par Hôtel</CardTitle>
+              <CardTitle>{t('finance.page.nettingTitle')}</CardTitle>
               <CardDescription>
-                {`Montants en attente de règlement avec chaque hôtel (positif = l'hôtel doit à ${brand.name})`}
+                {t('finance.page.nettingDesc', { brand: brand.name })}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {hotelNetting.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Building2 className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                  <p>Aucune entrée en attente</p>
+                  <p>{t('finance.page.nettingEmpty')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -276,7 +276,7 @@ const Finance = () => {
                             {hotel.total_pending >= 0 ? '+' : ''}{hotel.total_pending.toFixed(2)}€
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {hotel.total_pending >= 0 ? 'À recevoir' : 'À payer'}
+                            {hotel.total_pending >= 0 ? t('finance.page.toReceive') : t('finance.page.toPay')}
                           </p>
                         </div>
                       </div>
@@ -291,16 +291,16 @@ const Finance = () => {
         <TabsContent value="ledger" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Grand Livre</CardTitle>
+              <CardTitle>{t('finance.page.ledgerTitle')}</CardTitle>
               <CardDescription>
-                Historique de toutes les transactions hôtels
+                {t('finance.page.ledgerDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {ledgerEntries.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Euro className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                  <p>Aucune entrée dans le ledger</p>
+                  <p>{t('finance.page.ledgerEmpty')}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -308,10 +308,10 @@ const Finance = () => {
                     <thead>
                       <tr className="border-b">
                         <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Date</th>
-                        <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Hôtel</th>
+                        <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">{t('finance.page.colVenue')}</th>
                         <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Description</th>
-                        <th className="text-right py-3 px-2 text-xs font-medium text-muted-foreground">Montant</th>
-                        <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">Statut</th>
+                        <th className="text-right py-3 px-2 text-xs font-medium text-muted-foreground">{t('finance.page.colAmount')}</th>
+                        <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">{t('finance.page.colStatus')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -353,16 +353,16 @@ const Finance = () => {
         <TabsContent value="payouts" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Historique des Payouts</CardTitle>
+              <CardTitle>{t('finance.page.payoutsTitle')}</CardTitle>
               <CardDescription>
-                Transferts vers les comptes Stripe des thérapeutes
+                {t('finance.page.payoutsDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {payoutEntries.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                  <p>Aucun payout enregistré</p>
+                  <p>{t('finance.page.payoutsEmpty')}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -370,10 +370,10 @@ const Finance = () => {
                     <thead>
                       <tr className="border-b">
                         <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Date</th>
-                        <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Thérapeute</th>
-                        <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Réservation</th>
-                        <th className="text-right py-3 px-2 text-xs font-medium text-muted-foreground">Montant</th>
-                        <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">Statut</th>
+                        <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">{t('finance.page.colTherapist')}</th>
+                        <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">{t('finance.page.colBooking')}</th>
+                        <th className="text-right py-3 px-2 text-xs font-medium text-muted-foreground">{t('finance.page.colAmount')}</th>
+                        <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">{t('finance.page.colStatus')}</th>
                       </tr>
                     </thead>
                     <tbody>

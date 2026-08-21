@@ -64,7 +64,7 @@ function readStoredView(): View {
 }
 
 export default function EmailInbox() {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [view, setView] = useState<View>(readStoredView);
   const [statusFilter, setStatusFilter] = useState<EmailInquiryStatus | "all">("all");

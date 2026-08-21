@@ -24,7 +24,7 @@ const formatDay = (iso: string) => format(parseISO(iso), "dd/MM/yyyy");
  * (multi-salles / multi-jours) et supprimables en bloc.
  */
 export function RoomBlocksSection({ hotelId }: RoomBlocksSectionProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data: rows, isLoading } = useRoomBlocks({
     venueId: hotelId,

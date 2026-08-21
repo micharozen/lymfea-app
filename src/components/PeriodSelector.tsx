@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { CalendarIcon, ChevronDown, Check, ArrowLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { format, subDays, startOfWeek, endOfWeek, addWeeks, startOfDay, endOfDay } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useDateLocale } from "@/lib/dateLocale";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -19,6 +20,8 @@ interface PeriodSelectorProps {
 }
 
 export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
+  const { t } = useTranslation("common");
+  const dateLocale = useDateLocale();
   const [periodType, setPeriodType] = useState<PeriodType>("last-30-days");
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const [isOpen, setIsOpen] = useState(false);
@@ -54,20 +57,20 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
   const getPeriodLabel = () => {
     switch (periodType) {
       case "today":
-        return "Aujourd'hui";
+        return t("dates.today");
       case "last-week":
-        return "Semaine dernière";
+        return t("periodSelector.lastWeek");
       case "last-30-days":
-        return "30 derniers jours";
+        return t("periodSelector.last30Days");
       case "next-week":
-        return "Semaine prochaine";
+        return t("periodSelector.nextWeek");
       case "custom":
         if (customDateRange?.from && customDateRange?.to) {
-          return `${format(customDateRange.from, "dd MMM", { locale: fr })} - ${format(customDateRange.to, "dd MMM", { locale: fr })}`;
+          return `${format(customDateRange.from, "dd MMM", { locale: dateLocale })} - ${format(customDateRange.to, "dd MMM", { locale: dateLocale })}`;
         }
-        return "Date personnalisée";
+        return t("periodSelector.custom");
       default:
-        return "30 derniers jours";
+        return t("periodSelector.last30Days");
     }
   };
 
@@ -143,11 +146,11 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
   };
 
   const periods = [
-    { value: "today" as PeriodType, label: "Aujourd'hui" },
-    { value: "last-week" as PeriodType, label: "Semaine dernière" },
-    { value: "last-30-days" as PeriodType, label: "30 derniers jours" },
-    { value: "next-week" as PeriodType, label: "Semaine prochaine" },
-    { value: "custom" as PeriodType, label: "Date personnalisée" },
+    { value: "today" as PeriodType, label: t("dates.today") },
+    { value: "last-week" as PeriodType, label: t("periodSelector.lastWeek") },
+    { value: "last-30-days" as PeriodType, label: t("periodSelector.last30Days") },
+    { value: "next-week" as PeriodType, label: t("periodSelector.nextWeek") },
+    { value: "custom" as PeriodType, label: t("periodSelector.custom") },
   ];
 
   return (
@@ -187,11 +190,11 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Retour
+              {t("buttons.back")}
             </button>
 
             <div>
-              <label className="text-xs font-medium mb-2 block text-muted-foreground">Sélectionnez une période</label>
+              <label className="text-xs font-medium mb-2 block text-muted-foreground">{t("periodSelector.selectRange")}</label>
               <Calendar
                 mode="range"
                 selected={customDateRange}
@@ -199,7 +202,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                 numberOfMonths={1}
                 initialFocus
                 className="p-3 pointer-events-auto"
-                locale={fr}
+                locale={dateLocale}
               />
             </div>
 
@@ -209,7 +212,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
               disabled={!customDateRange?.from || !customDateRange?.to}
               className="w-full text-xs"
             >
-              Confirmer
+              {t("buttons.confirm")}
             </Button>
           </div>
         )}

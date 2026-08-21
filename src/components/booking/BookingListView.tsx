@@ -41,9 +41,12 @@ import {
 export type { BookingSortKey, SortDirection };
 
 /** Options de la barre de tri mobile — dérivées des colonnes triables. */
+/** Colonnes triables : le libellé est lu au rendu, il dépend de la langue active. */
 const SORT_OPTIONS = BOOKING_COLUMNS.filter((c) => c.sortKey).map((c) => ({
   key: c.sortKey as BookingSortKey,
-  label: c.sortLabel ?? c.label,
+  get label() {
+    return c.sortLabel ?? c.label;
+  },
   hideForConcierge: c.hideForConcierge ?? false,
 }));
 
@@ -109,7 +112,7 @@ export function BookingListView({
   onPageSizeChange,
   scrollable = false,
 }: BookingListViewProps) {
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(["admin", "common"]);
   const navigate = useNavigate();
 
   // Le filtre concierge reste porté par la config, pas par les appelants.
@@ -159,7 +162,7 @@ export function BookingListView({
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label={`Redimensionner ${column.label}`}
+        aria-label={t("admin:bookingListView.resizeColumn", { label: column.label })}
         onPointerDown={(e) => startResize(column, e)}
         onDoubleClick={() => onColumnResizeReset?.(column.key)}
         // Le `truncate` de l'en-tête pose overflow:hidden : la poignée doit
@@ -221,7 +224,7 @@ export function BookingListView({
               <X className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{t("cancelBookingDialog.listCancelTooltip")}</TooltipContent>
+          <TooltipContent>{t("common:cancelBookingDialog.listCancelTooltip")}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
     );
@@ -232,7 +235,7 @@ export function BookingListView({
       {/* ── Mobile sort bar (<md) ──────────────────────────── */}
       {onSort && sortKey && (
         <div className="flex md:hidden items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
-          <span className="text-xs text-muted-foreground shrink-0">Trier par</span>
+          <span className="text-xs text-muted-foreground shrink-0">{t("admin:bookingListView.sortBy")}</span>
           <Select value={sortKey} onValueChange={(v) => onSort(v as BookingSortKey)}>
             <SelectTrigger className="h-8 flex-1 text-xs">
               <SelectValue />
@@ -251,7 +254,7 @@ export function BookingListView({
             size="icon"
             className="h-8 w-8 shrink-0"
             onClick={() => onSort(sortKey)}
-            title={sortDirection === "asc" ? "Croissant" : "Décroissant"}
+            title={sortDirection === "asc" ? t("admin:bookingListView.ascending") : t("admin:bookingListView.descending")}
           >
             {sortDirection === "asc" ? (
               <ArrowUpNarrowWide className="h-4 w-4" />
@@ -265,7 +268,7 @@ export function BookingListView({
       {/* ── Mobile card view (<md) ─────────────────────────── */}
       <div className="flex flex-col md:hidden flex-1 overflow-y-auto divide-y divide-border">
         {paginatedBookings.length === 0 && (
-          <p className="text-center text-muted-foreground text-sm py-8">Aucune réservation trouvée</p>
+          <p className="text-center text-muted-foreground text-sm py-8">{t("admin:bookingListView.empty")}</p>
         )}
         {paginatedBookings.map((booking) => {
           const hotel = getHotelInfo(booking.hotel_id);
@@ -294,7 +297,7 @@ export function BookingListView({
                     #{booking.booking_id}
                   </span>
                   {(booking as any).bundle_usage_id && (
-                    <Package className="h-3 w-3 text-amber-600 shrink-0" title="Séance cure" />
+                    <Package className="h-3 w-3 text-amber-600 shrink-0" title={t("admin:bookingColumns.badges.bundleSession")} />
                   )}
                   <span className="text-xs text-muted-foreground shrink-0">
                     {format(new Date(booking.booking_date), "dd/MM/yyyy")} · {booking.booking_time.substring(0, 5)}
@@ -310,7 +313,7 @@ export function BookingListView({
                     ? t("admin:bookings.offert.tag")
                     : formatPrice(booking.total_price, hotel?.currency || "EUR")}
                   {booking.is_out_of_hours && (
-                    <Clock className="h-3 w-3 text-amber-500 shrink-0" title="Hors horaires" />
+                    <Clock className="h-3 w-3 text-amber-500 shrink-0" title={t("admin:bookingColumns.badges.outOfHours")} />
                   )}
                 </span>
               </div>
@@ -334,7 +337,7 @@ export function BookingListView({
                   booking.status === "pending" && (
                     <span
                       className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap font-medium"
-                      title={`Soin duo — ${(booking as any).guest_count} praticiens nécessaires`}
+                      title={t("admin:bookingColumns.badges.duoTooltip", { count: (booking as any).guest_count })}
                     >
                       <Users className="h-2.5 w-2.5" />
                       {(booking as any).booking_therapists?.filter((bt: any) => bt.status === "accepted").length || 0}/{(booking as any).guest_count}
@@ -342,12 +345,12 @@ export function BookingListView({
                   )}
                 {(booking as any).guest_count > 1 && booking.status === "confirmed" && (
                   <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 whitespace-nowrap font-medium">
-                    <Users className="h-2.5 w-2.5" /> Duo
+                    <Users className="h-2.5 w-2.5" /> {t("admin:bookingColumns.badges.duo")}
                   </span>
                 )}
                 {(booking as any).booking_group_id && (
                   <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap font-medium">
-                    <Layers className="h-2.5 w-2.5" /> Groupé
+                    <Layers className="h-2.5 w-2.5" /> {t("admin:bookingColumns.badges.grouped")}
                   </span>
                 )}
               </div>
@@ -371,7 +374,7 @@ export function BookingListView({
                   )}
                   <span className="text-muted-foreground truncate block">
                     {booking.treatments.length > 0
-                      ? booking.treatments.map((t) => t.name).join(", ")
+                      ? booking.treatments.map((tr) => tr.name).join(", ")
                       : "-"}
                   </span>
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -458,7 +461,7 @@ export function BookingListView({
             {filteredBookingsCount === 0 && (
               <TableRow>
                 <TableCell colSpan={totalColumns} className="text-center text-muted-foreground py-6">
-                  No bookings found
+                  {t("admin:bookingListView.empty")}
                 </TableCell>
               </TableRow>
             )}
@@ -472,7 +475,7 @@ export function BookingListView({
         totalItems={totalItems}
         itemsPerPage={itemsPerPage}
         onPageChange={onPageChange}
-        itemName="réservations"
+        itemName={t("admin:bookingListView.itemName")}
         pageSize={pageSize}
         pageSizeOptions={pageSizeOptions}
         onPageSizeChange={onPageSizeChange}

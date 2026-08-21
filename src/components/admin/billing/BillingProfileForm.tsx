@@ -94,7 +94,7 @@ export function BillingProfileForm({
   disabled = false,
   submitRef,
 }: BillingProfileFormProps) {
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(["admin", "common"]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasProfile, setHasProfile] = useState(true);
@@ -320,18 +320,18 @@ export function BillingProfileForm({
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={t("common:none", "Aucune")} />
+                          <SelectValue placeholder={t("admin:therapists.billingInfo.legalFormNone")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="none">—</SelectItem>
                         <SelectItem value="Auto-entrepreneur">Auto-entrepreneur</SelectItem>
-                        <SelectItem value="EI">Entreprise Individuelle (EI)</SelectItem>
+                        <SelectItem value="EI">{t("admin:therapists.billingInfo.legalFormEi")}</SelectItem>
                         <SelectItem value="EURL">EURL</SelectItem>
                         <SelectItem value="SARL">SARL</SelectItem>
                         <SelectItem value="SAS">SAS</SelectItem>
                         <SelectItem value="SASU">SASU</SelectItem>
-                        <SelectItem value="Autre">Autre</SelectItem>
+                        <SelectItem value="Autre">{t("admin:therapists.billingInfo.legalFormOther")}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -642,7 +642,7 @@ export function BillingProfileForm({
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              {t("common:save", "Enregistrer")}
+              {t("common:buttons.save")}
             </Button>
           </div>
         )}

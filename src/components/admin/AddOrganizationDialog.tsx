@@ -1,4 +1,7 @@
+import { useMemo } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,18 +30,23 @@ import { Building2, Loader2, Upload } from "lucide-react";
 
 const slugPattern = /^[a-z0-9-]+$/;
 
-const formSchema = z.object({
-  name: z.string().min(1, "Nom requis"),
-  slug: z
-    .string()
-    .min(2, "Slug trop court")
-    .max(64, "Slug trop long")
-    .regex(slugPattern, "Slug: minuscules, chiffres et tirets uniquement"),
-  contact_email: z.string().email("Email invalide").optional().or(z.literal("")),
-  logo_url: z.string().optional(),
-});
+const makeFormSchema = (t: TFunction) =>
+  z.object({
+    name: z.string().min(1, t("addOrganizationDialog.errors.nameRequired")),
+    slug: z
+      .string()
+      .min(2, t("addOrganizationDialog.errors.slugTooShort"))
+      .max(64, t("addOrganizationDialog.errors.slugTooLong"))
+      .regex(slugPattern, t("addOrganizationDialog.errors.slugPattern")),
+    contact_email: z
+      .string()
+      .email(t("common:errors.validation.emailInvalid"))
+      .optional()
+      .or(z.literal("")),
+    logo_url: z.string().optional(),
+  });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<ReturnType<typeof makeFormSchema>>;
 
 interface AddOrganizationDialogProps {
   open: boolean;
@@ -57,7 +65,9 @@ function slugify(input: string): string {
 }
 
 export function AddOrganizationDialog({ open, onClose, onSuccess }: AddOrganizationDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const invalidateOrganizationsList = useInvalidateOrganizationsList();
+  const formSchema = useMemo(() => makeFormSchema(t), [t]);
   const {
     url: logoUrl,
     setUrl: setLogoUrl,
@@ -86,7 +96,7 @@ export function AddOrganizationDialog({ open, onClose, onSuccess }: AddOrganizat
       .maybeSingle();
 
     if (existing) {
-      form.setError("slug", { message: "Ce slug est déjà utilisé" });
+      form.setError("slug", { message: t("organizationDialog.slugTaken") });
       return;
     }
 
@@ -98,12 +108,12 @@ export function AddOrganizationDialog({ open, onClose, onSuccess }: AddOrganizat
     });
 
     if (error) {
-      toast.error("Création impossible");
+      toast.error(t("addOrganizationDialog.createError"));
       console.error(error);
       return;
     }
 
-    toast.success("Organisation créée");
+    toast.success(t("addOrganizationDialog.created"));
     await invalidateOrganizationsList();
     handleClose();
     onSuccess();
@@ -117,7 +127,7 @@ export function AddOrganizationDialog({ open, onClose, onSuccess }: AddOrganizat
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouvelle organisation</DialogTitle>
+          <DialogTitle>{t("addOrganizationDialog.title")}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -150,11 +160,11 @@ export function AddOrganizationDialog({ open, onClose, onSuccess }: AddOrganizat
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom</FormLabel>
+                  <FormLabel>{t("addOrganizationDialog.name")}</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
-                      placeholder="Groupe Marriott"
+                      placeholder={t("addOrganizationDialog.namePlaceholder")}
                       onChange={(e) => {
                         field.onChange(e);
                         if (!slugValue || slugValue === slugify(nameValue)) {
@@ -177,7 +187,7 @@ export function AddOrganizationDialog({ open, onClose, onSuccess }: AddOrganizat
                   <FormControl>
                     <Input {...field} placeholder="groupe-marriott" />
                   </FormControl>
-                  <FormDescription>Identifiant unique URL-friendly</FormDescription>
+                  <FormDescription>{t("organizationDialog.slugHelp")}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -188,7 +198,7 @@ export function AddOrganizationDialog({ open, onClose, onSuccess }: AddOrganizat
               name="contact_email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email de contact</FormLabel>
+                  <FormLabel>{t("organizationDialog.contactEmail")}</FormLabel>
                   <FormControl>
                     <Input {...field} type="email" placeholder="contact@marriott.com" />
                   </FormControl>
@@ -199,11 +209,11 @@ export function AddOrganizationDialog({ open, onClose, onSuccess }: AddOrganizat
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={handleClose}>
-                Annuler
+                {t("common:buttons.cancel")}
               </Button>
               <Button type="submit" disabled={submitting || uploading}>
                 {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Créer
+                {t("addOrganizationDialog.create")}
               </Button>
             </DialogFooter>
           </form>

@@ -1,13 +1,14 @@
+import { useTranslation } from "react-i18next";
 import { Toggle } from "@/components/ui/toggle";
 
-const DAYS: { value: number; label: string; title: string }[] = [
-  { value: 1, label: "L", title: "Lundi" },
-  { value: 2, label: "M", title: "Mardi" },
-  { value: 3, label: "M", title: "Mercredi" },
-  { value: 4, label: "J", title: "Jeudi" },
-  { value: 5, label: "V", title: "Vendredi" },
-  { value: 6, label: "S", title: "Samedi" },
-  { value: 0, label: "D", title: "Dimanche" },
+const DAYS: { value: number; key: string }[] = [
+  { value: 1, key: "monday" },
+  { value: 2, key: "tuesday" },
+  { value: 3, key: "wednesday" },
+  { value: 4, key: "thursday" },
+  { value: 5, key: "friday" },
+  { value: 6, key: "saturday" },
+  { value: 0, key: "sunday" },
 ];
 
 interface AvailableDaysPickerProps {
@@ -27,8 +28,9 @@ export function AvailableDaysPicker({
   value,
   onChange,
   disabled,
-  everyDayLabel = "Tous les jours",
+  everyDayLabel,
 }: AvailableDaysPickerProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const isEveryDay = value.length === 0;
 
   // Le dernier jour coché ne peut pas être décoché : une liste vide
@@ -54,7 +56,7 @@ export function AvailableDaysPicker({
           variant="outline"
           className="h-8 px-3 text-xs font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary"
         >
-          {everyDayLabel}
+          {everyDayLabel ?? t("availableDays.everyDay")}
         </Toggle>
         <Toggle
           type="button"
@@ -65,7 +67,7 @@ export function AvailableDaysPicker({
           variant="outline"
           className="h-8 px-3 text-xs font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary"
         >
-          Jours spécifiques
+          {t("availableDays.specificDays")}
         </Toggle>
       </div>
       {!isEveryDay && (
@@ -74,7 +76,7 @@ export function AvailableDaysPicker({
             <Toggle
               key={day.value}
               type="button"
-              title={day.title}
+              title={t(`availableDays.days.${day.key}`)}
               pressed={value.includes(day.value)}
               onPressedChange={() => toggle(day.value)}
               disabled={disabled}
@@ -82,7 +84,7 @@ export function AvailableDaysPicker({
               variant="outline"
               className="w-8 h-8 p-0 text-xs font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary"
             >
-              {day.label}
+              {t(`availableDays.short.${day.key}`)}
             </Toggle>
           ))}
         </div>

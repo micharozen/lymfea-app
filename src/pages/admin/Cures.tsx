@@ -90,7 +90,7 @@ interface CustomerBundle {
 export default function Cures() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(['admin', 'common']);
   const queryClient = useQueryClient();
 
   const [topTab, setTopTab] = useState<"cures" | "gift-cards">(
@@ -165,12 +165,12 @@ export default function Cures() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Modele supprime avec succes");
+      toast.success(t('curesPage.deleted'));
       closeDelete();
       queryClient.invalidateQueries({ queryKey: ["treatment-bundles"] });
     },
     onError: () => {
-      toast.error("Erreur lors de la suppression");
+      toast.error(t('curesPage.deleteError'));
     },
   });
 
@@ -244,7 +244,7 @@ export default function Cures() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 md:mb-6 flex items-center justify-between">
           <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
-            Menus de soins
+            {t('curesPage.title')}
           </h1>
           {topTab === "cures" && (
             <div className="flex items-center gap-2">
@@ -281,21 +281,21 @@ export default function Cures() {
               className="rounded-none border-b-2 border-transparent text-muted-foreground hover:text-foreground px-4 pb-2.5 pt-1.5 text-sm flex items-center"
             >
               <Sparkles className="h-4 w-4 mr-2" />
-              Soins
+              {t('curesPage.tabTreatments')}
             </button>
             <TabsTrigger
               value="cures"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
             >
               <Package className="h-4 w-4 mr-2" />
-              Cures
+              {t('curesPage.tabCures')}
             </TabsTrigger>
             <TabsTrigger
               value="gift-cards"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
             >
               <Gift className="h-4 w-4 mr-2" />
-              Cartes cadeaux
+              {t('curesPage.tabGiftCards')}
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -333,7 +333,7 @@ export default function Cures() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher..."
+                placeholder={t('curesPage.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -343,10 +343,10 @@ export default function Cures() {
             {isAdmin && (
               <Select value={hotelFilter} onValueChange={setHotelFilter}>
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Tous les lieux" />
+                  <SelectValue placeholder={t('curesPage.allVenues')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les lieux</SelectItem>
+                  <SelectItem value="all">{t('curesPage.allVenues')}</SelectItem>
                   {hotels?.map((hotel) => (
                     <SelectItem key={hotel.id} value={hotel.id}>
                       {hotel.name}
@@ -358,14 +358,14 @@ export default function Cures() {
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tous les statuts" />
+                <SelectValue placeholder={t('curesPage.allStatuses')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="all">{t('curesPage.allStatuses')}</SelectItem>
                 {activeTab === "templates" ? (
                   <>
-                    <SelectItem value="active">Actif</SelectItem>
-                    <SelectItem value="inactive">Inactif</SelectItem>
+                    <SelectItem value="active">{t('curesPage.active')}</SelectItem>
+                    <SelectItem value="inactive">{t('curesPage.inactive')}</SelectItem>
                   </>
                 ) : (
                   <>
@@ -390,18 +390,18 @@ export default function Cures() {
                         Nom
                       </SortableTableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 w-[140px]">Lieu</TableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center w-[80px]">Soins</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center w-[80px]">{t('curesPage.colTreatments')}</TableHead>
                       <SortableTableHead column="sessions" sortDirection={getSortDirection("sessions")} onSort={toggleSort} align="center" className="w-[80px]">
-                        Seances
+                        {t('curesPage.colSessions')}
                       </SortableTableHead>
                       <SortableTableHead column="price" sortDirection={getSortDirection("price")} onSort={toggleSort} align="center" className="w-[80px]">
                         Prix
                       </SortableTableHead>
                       <SortableTableHead column="validity" sortDirection={getSortDirection("validity")} onSort={toggleSort} align="center" className="w-[80px]">
-                        Validite
+                        {t('curesPage.colValidity')}
                       </SortableTableHead>
                       <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort} align="center" className="w-[80px]">
-                        Statut
+                        {t('curesPage.colStatus')}
                       </SortableTableHead>
                       {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-right w-[70px]">Actions</TableHead>}
                     </TableRow>
@@ -493,7 +493,7 @@ export default function Cures() {
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 w-[120px]">Lieu</TableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center w-[120px]">{t("cures.remainingSessions")}</TableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center w-[100px]">{t("cures.expiresAt")}</TableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center w-[80px]">Statut</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center w-[80px]">{t('curesPage.colStatus')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   {soldLoading ? (
@@ -572,9 +572,9 @@ export default function Cures() {
             <AlertDialogDescription>{t("cures.delete.description")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)}>
-              Supprimer
+              {t('common:buttons.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

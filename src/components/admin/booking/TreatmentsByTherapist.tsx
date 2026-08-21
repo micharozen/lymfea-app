@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { HandHeart, Pencil, Loader2, Check, X, DoorClosed, Waves } from "lucide-react";
@@ -88,6 +89,8 @@ export function TreatmentsByTherapist({
   surchargePercent = 0,
   onReassigned,
 }: TreatmentsByTherapistProps) {
+  const { t: translate, i18n } = useTranslation(["admin", "common"]);
+  const isEn = i18n.language.startsWith("en");
   const navigate = useNavigate();
   const showEarnings = globalTherapistCommission !== undefined;
   const { reassign, loading: reassigning } = useReassignTreatmentTherapists();
@@ -190,7 +193,9 @@ export function TreatmentsByTherapist({
         order.push(therapistId);
         byId.set(therapistId, {
           therapistId,
-          therapistName: therapistId ? (nameById.get(therapistId) ?? "Thérapeute") : "Non assigné",
+          therapistName: therapistId
+            ? (nameById.get(therapistId) ?? translate("treatmentsByTherapist.therapistFallback"))
+            : translate("treatmentsByTherapist.unassigned"),
           room: null,
           lines: [],
           totalDuration: 0,
@@ -226,7 +231,7 @@ export function TreatmentsByTherapist({
       }
       return g;
     });
-  }, [serviceTreatments, lineTherapistIds, nameById, roomName, secondaryRoomName, showEarnings, globalTherapistCommission, therapistCommission, therapistRatesMap, surchargePercent]);
+  }, [serviceTreatments, lineTherapistIds, nameById, roomName, secondaryRoomName, showEarnings, globalTherapistCommission, therapistCommission, therapistRatesMap, surchargePercent, translate]);
 
   const startEdit = (lineId: string, currentTherapistId: string | null) => {
     setEditingLineId(lineId);
@@ -268,19 +273,26 @@ export function TreatmentsByTherapist({
           console.error("Error sending confirmation notifications:", notifError);
         }
       }
-      toast.success(becameConfirmed ? "Thérapeute assigné — réservation confirmée." : "Thérapeute réassigné.");
+      toast.success(
+        becameConfirmed
+          ? translate("treatmentsByTherapist.assignedConfirmed")
+          : translate("treatmentsByTherapist.reassigned"),
+      );
       cancelEdit();
       onReassigned();
     } catch (err: unknown) {
       console.error(err);
-      toast.error(err instanceof Error ? err.message : "Erreur lors de la réassignation.");
+      toast.error(err instanceof Error ? err.message : translate("treatmentsByTherapist.reassignError"));
     }
   };
 
   return (
     <section className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
       <h3 className="text-xs font-semibold tracking-[0.15em] text-gray-400 uppercase mb-4 flex items-center gap-2">
-        <HandHeart className="h-4 w-4" /> {hasServices ? `Soins & Praticien${guestCount > 1 ? "s" : ""}` : "Prestations"}
+        <HandHeart className="h-4 w-4" />{" "}
+        {hasServices
+          ? translate("treatmentsByTherapist.header", { count: guestCount })
+          : translate("treatmentsByTherapist.services")}
       </h3>
 
       <div className="space-y-3">
@@ -311,7 +323,7 @@ export function TreatmentsByTherapist({
 
                 {showEarnings && (
                   <div className="text-right shrink-0">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Gain</p>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{translate("treatmentsByTherapist.earnings")}</p>
                     {group.earnings != null ? (
                       <p className="text-sm font-medium text-amber-700 tabular-nums">{formatPrice(group.earnings, currency)}</p>
                     ) : group.therapistId ? (
@@ -319,12 +331,12 @@ export function TreatmentsByTherapist({
                         type="button"
                         className="text-[11px] text-amber-600 underline underline-offset-2 hover:text-amber-700"
                         onClick={() => navigate(`/admin/therapists/${group.therapistId}`)}
-                        title="Renseigner les tarifs du thérapeute"
+                        title={translate("treatmentsByTherapist.setRatesTitle")}
                       >
-                        Compléter les tarifs
+                        {translate("treatmentsByTherapist.completeRates")}
                       </button>
                     ) : (
-                      <p className="text-[11px] text-amber-600">Tarifs incomplets</p>
+                      <p className="text-[11px] text-amber-600">{translate("treatmentsByTherapist.incompleteRates")}</p>
                     )}
                   </div>
                 )}
@@ -354,7 +366,7 @@ export function TreatmentsByTherapist({
                               variant="ghost"
                               className="h-7 w-7 text-muted-foreground hover:text-primary"
                               onClick={() => startEdit(lineId, group.therapistId)}
-                              title="Réassigner ce soin"
+                              title={translate("treatmentsByTherapist.reassignTitle")}
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
@@ -366,7 +378,7 @@ export function TreatmentsByTherapist({
                         <div className="mt-2 flex items-center gap-2">
                           <Select value={pendingTherapistId} onValueChange={setPendingTherapistId}>
                             <SelectTrigger className="h-8 w-[200px]">
-                              <SelectValue placeholder="Choisir un thérapeute" />
+                              <SelectValue placeholder={translate("treatmentsByTherapist.chooseTherapist")} />
                             </SelectTrigger>
                             <SelectContent>
                               {assignable.map((t) => (
@@ -412,12 +424,12 @@ export function TreatmentsByTherapist({
               <div className="h-9 w-9 rounded-full ring-2 bg-cyan-50 text-cyan-700 ring-cyan-200 flex items-center justify-center shrink-0">
                 <Waves className="h-4 w-4" />
               </div>
-              <p className="font-medium text-sm">Accès / commodités</p>
+              <p className="font-medium text-sm">{translate("treatmentsByTherapist.amenityAccess")}</p>
             </div>
             <div className="divide-y divide-gray-100">
               {amenityTreatments.map((line, i) => {
                 const typeDef = line.amenity_type ? getAmenityType(line.amenity_type) : undefined;
-                const amenityLabel = typeDef?.labelFr ?? line.amenity_name ?? null;
+                const amenityLabel = (isEn ? typeDef?.labelEn : typeDef?.labelFr) ?? line.amenity_name ?? null;
                 return (
                   <div key={line.bookingTreatmentId || i} className="px-4 py-2.5">
                     <div className="flex items-center justify-between gap-3">

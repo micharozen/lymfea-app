@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useDateLocale } from "@/lib/dateLocale";
 import { CalendarIcon, Check, ChevronsUpDown, Euro, Timer, Globe, ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -59,6 +60,8 @@ export default function CreateBookingFromRequestDialog({
   quotedDuration,
   onSuccess,
 }: CreateBookingFromRequestDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
+  const dateLocale = useDateLocale();
   const queryClient = useQueryClient();
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("");
@@ -135,7 +138,7 @@ export default function CreateBookingFromRequestDialog({
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!request || !date || !time) {
-        throw new Error("Missing required fields");
+        throw new Error(t("createBookingFromRequest.missingFields"));
       }
 
       const therapist = therapists?.find((h) => h.id === therapistId);
@@ -239,16 +242,16 @@ export default function CreateBookingFromRequestDialog({
     },
     onSuccess: (data) => {
       toast({
-        title: "Réservation créée",
-        description: "La demande a été convertie en réservation.",
+        title: t("createBookingFromRequest.createdTitle"),
+        description: t("createBookingFromRequest.createdDesc"),
       });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       onSuccess(data.id);
     },
     onError: (error) => {
       toast({
-        title: "Erreur",
-        description: "Impossible de créer la réservation.",
+        title: t("common:toasts.error"),
+        description: t("createBookingFromRequest.createError"),
         variant: "destructive",
       });
       console.error("Error creating booking:", error);
@@ -259,8 +262,8 @@ export default function CreateBookingFromRequestDialog({
     e.preventDefault();
     if (!date || !time) {
       toast({
-        title: "Champs requis",
-        description: "Veuillez sélectionner une date et une heure.",
+        title: t("createBookingFromRequest.requiredTitle"),
+        description: t("createBookingFromRequest.requiredDesc"),
         variant: "destructive",
       });
       return;
@@ -283,7 +286,7 @@ export default function CreateBookingFromRequestDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Convertir en réservation</DialogTitle>
+          <DialogTitle>{t("createBookingFromRequest.title")}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -295,7 +298,7 @@ export default function CreateBookingFromRequestDialog({
             <p className="text-sm text-muted-foreground">{request.client_phone}</p>
             {request.room_number && (
               <p className="text-sm text-muted-foreground">
-                Chambre {request.room_number}
+                {t("createBookingFromRequest.room", { number: request.room_number })}
               </p>
             )}
           </div>
@@ -311,7 +314,7 @@ export default function CreateBookingFromRequestDialog({
           {/* Date and Time */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Date *</Label>
+              <Label>{t("createBookingFromRequest.date")}</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -323,8 +326,8 @@ export default function CreateBookingFromRequestDialog({
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {date
-                      ? format(date, "dd/MM/yyyy", { locale: fr })
-                      : "Sélectionner"}
+                      ? format(date, "dd/MM/yyyy", { locale: dateLocale })
+                      : t("createBookingFromRequest.selectDate")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -333,13 +336,13 @@ export default function CreateBookingFromRequestDialog({
                     selected={date}
                     onSelect={setDate}
                     initialFocus
-                    locale={fr}
+                    locale={dateLocale}
                   />
                 </PopoverContent>
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label>Heure *</Label>
+              <Label>{t("createBookingFromRequest.time")}</Label>
               <div className="flex gap-1 items-center">
                 <Popover open={hourOpen} onOpenChange={setHourOpen}>
                   <PopoverTrigger asChild>
@@ -415,34 +418,34 @@ export default function CreateBookingFromRequestDialog({
             <div className="space-y-2">
               <Label className="flex items-center gap-1">
                 <Euro className="h-4 w-4" />
-                Prix total (€)
+                {t("createBookingFromRequest.totalPrice")}
               </Label>
               <Input
                 type="number"
                 min="0"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                placeholder="Ex: 150"
+                placeholder={t("createBookingFromRequest.pricePlaceholder")}
               />
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-1">
                 <Timer className="h-4 w-4" />
-                Durée (min)
+                {t("createBookingFromRequest.duration")}
               </Label>
               <Input
                 type="number"
                 min="0"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
-                placeholder="Ex: 90"
+                placeholder={t("createBookingFromRequest.durationPlaceholder")}
               />
             </div>
           </div>
 
           {/* Therapist */}
           <div className="space-y-2">
-            <Label>Thérapeute (optionnel)</Label>
+            <Label>{t("createBookingFromRequest.therapist")}</Label>
             <Popover open={therapistOpen} onOpenChange={setTherapistOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -456,18 +459,20 @@ export default function CreateBookingFromRequestDialog({
                 >
                   {therapistId
                     ? (() => {
-                        const t = therapists?.find((t) => t.id === therapistId);
-                        return t ? `${t.first_name} ${t.last_name}` : "Sélectionner un thérapeute";
+                        const therapist = therapists?.find((item) => item.id === therapistId);
+                        return therapist
+                          ? `${therapist.first_name} ${therapist.last_name}`
+                          : t("createBookingFromRequest.selectTherapist");
                       })()
-                    : "Sélectionner un thérapeute"}
+                    : t("createBookingFromRequest.selectTherapist")}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                 <Command>
-                  <CommandInput placeholder="Rechercher un thérapeute..." />
+                  <CommandInput placeholder={t("createBookingFromRequest.searchTherapist")} />
                   <CommandList>
-                    <CommandEmpty>Aucun thérapeute trouvé.</CommandEmpty>
+                    <CommandEmpty>{t("createBookingFromRequest.noTherapist")}</CommandEmpty>
                     <CommandGroup>
                       {therapists?.map((therapist) => (
                         <CommandItem
@@ -497,10 +502,12 @@ export default function CreateBookingFromRequestDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            Annuler
+            {t("common:buttons.cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={createMutation.isPending}>
-            {createMutation.isPending ? "Création..." : "Créer la réservation"}
+            {createMutation.isPending
+              ? t("createBookingFromRequest.creating")
+              : t("createBookingFromRequest.submit")}
             {createMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
           </Button>
         </DialogFooter>

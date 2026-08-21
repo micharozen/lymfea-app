@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -16,6 +17,7 @@ interface TablePaginationProps {
   totalItems: number;
   itemsPerPage: number;
   onPageChange: (page: number) => void;
+  /** Nom des éléments comptés ; par défaut « entrées » traduit. */
   itemName?: string;
   /** Valeur courante du sélecteur de taille de page (nombre ou "auto"). */
   pageSize?: PageSize;
@@ -31,11 +33,12 @@ export function TablePagination({
   totalItems,
   itemsPerPage,
   onPageChange,
-  itemName = "entrées",
+  itemName,
   pageSize,
   pageSizeOptions,
   onPageSizeChange,
 }: TablePaginationProps) {
+  const { t } = useTranslation("common");
   const showSizeSelector = !!onPageSizeChange && !!pageSizeOptions?.length;
 
   // Sans sélecteur de taille, on masque la barre s'il n'y a qu'une page (comportement historique).
@@ -47,12 +50,17 @@ export function TablePagination({
   return (
     <div className="flex items-center justify-between px-4 py-3 border-t border-border flex-shrink-0 bg-card">
       <p className="text-xs text-muted-foreground">
-        Affichage de {startItem} à {endItem} sur {totalItems} {itemName}
+        {t("pagination.showing", {
+          start: startItem,
+          end: endItem,
+          total: totalItems,
+          itemName: itemName ?? t("pagination.defaultItemName"),
+        })}
       </p>
       <div className="flex items-center gap-2">
         {showSizeSelector && (
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground hidden sm:inline">Par page</span>
+            <span className="text-xs text-muted-foreground hidden sm:inline">{t("pagination.perPage")}</span>
             <Select
               value={String(pageSize)}
               onValueChange={(v) =>
@@ -87,7 +95,7 @@ export function TablePagination({
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-xs text-muted-foreground">
-              Page {currentPage} sur {totalPages}
+              {t("pagination.pageOf", { current: currentPage, total: totalPages })}
             </span>
             <Button
               variant="outline"

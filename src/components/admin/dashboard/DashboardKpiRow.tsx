@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Ban, CalendarCheck, Euro, ShoppingBasket } from "lucide-react";
+import { Trans, useTranslation } from "react-i18next";
 import { MetricHelp } from "@/components/admin/dashboard/MetricHelp";
 
 interface KpiCardProps {
@@ -81,73 +82,63 @@ export function DashboardKpiRow({
   cancelledCount,
   showRevenue,
 }: DashboardKpiRowProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const iconProps = { className: "h-[15px] w-[15px]", strokeWidth: 1.5 } as const;
+  const richComponents = { b: <b />, br: <br /> };
 
   return (
     <div className={showRevenue ? "kpis" : "kpis cols-2"}>
       {showRevenue && (
         <KpiCard
           icon={<Euro {...iconProps} />}
-          label="Chiffre d'affaires"
+          label={t("dashboardKpi.revenue")}
           value={formatAmount(totalSales)}
           unit="€"
           trend={salesTrend}
-          caption="vs période précédente"
+          caption={t("dashboardKpi.vsPreviousPeriod")}
           help={
-            <>
-              Somme des montants TTC des réservations dont la <b>date de soin</b> tombe
-              dans la période et le lieu sélectionnés. Les réservations annulées et les
-              no-show sont exclues. Les montants dans une autre devise sont convertis en
-              euros au taux du jour.
-              <br />
-              L&apos;évolution compare à la période de même durée qui précède
-              immédiatement.
-            </>
+            <Trans
+              i18nKey="admin:dashboardKpi.revenueHelp"
+              components={richComponents}
+            />
           }
         />
       )}
       <KpiCard
         icon={<CalendarCheck {...iconProps} />}
-        label="Réservations"
+        label={t("dashboardKpi.bookings")}
         value={totalBookings.toLocaleString("fr-FR")}
         trend={bookingsTrend}
-        caption="vs période précédente"
+        caption={t("dashboardKpi.vsPreviousPeriod")}
         help={
-          <>
-            Nombre de réservations dont la <b>date de soin</b> tombe dans la période et le
-            lieu sélectionnés, <b>tous statuts confondus</b> — les annulations sont donc
-            comptées ici.
-            <br />
-            L&apos;évolution compare à la période de même durée qui précède immédiatement.
-          </>
+          <Trans i18nKey="admin:dashboardKpi.bookingsHelp" components={richComponents} />
         }
       />
       {showRevenue && (
         <KpiCard
           icon={<ShoppingBasket {...iconProps} />}
-          label="Panier moyen"
+          label={t("dashboardKpi.averageBasket")}
           value={formatBasket(averageBasket)}
           unit="€"
           help={
-            <>
-              Chiffre d&apos;affaires divisé par le nombre de réservations qui génèrent du
-              revenu (hors annulées et no-show). C&apos;est une moyenne par réservation, pas
-              par soin : une réservation de plusieurs prestations compte pour une.
-            </>
+            <Trans
+              i18nKey="admin:dashboardKpi.averageBasketHelp"
+              components={richComponents}
+            />
           }
         />
       )}
       <KpiCard
         icon={<Ban {...iconProps} />}
-        label="Taux d'annulation"
+        label={t("dashboardKpi.cancellationRate")}
         value={String(cancellationRate)}
         unit="%"
-        caption={`${cancelledCount} annulation${cancelledCount > 1 ? "s" : ""}`}
+        caption={t("dashboardKpi.cancellations", { count: cancelledCount })}
         help={
-          <>
-            Part des réservations au statut <b>annulé</b> parmi toutes celles de la période
-            et du lieu. Les no-show ne sont pas comptés comme des annulations.
-          </>
+          <Trans
+            i18nKey="admin:dashboardKpi.cancellationRateHelp"
+            components={richComponents}
+          />
         }
       />
     </div>

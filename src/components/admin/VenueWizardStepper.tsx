@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 interface VenueWizardStepperProps {
@@ -6,12 +7,14 @@ interface VenueWizardStepperProps {
 }
 
 const STEPS = [
-  { id: 1, label: "Informations générales" },
-  { id: 2, label: "Planning de déploiement" },
-  { id: 3, label: "Catégories de soins" },
+  { id: 1, key: "general" },
+  { id: 2, key: "deployment" },
+  { id: 3, key: "categories" },
 ];
 
 export function VenueWizardStepper({ currentStep }: VenueWizardStepperProps) {
+  const { t } = useTranslation(["admin", "common"]);
+
   return (
     <div className="flex items-center justify-center gap-2 py-4">
       {STEPS.map((step, index) => {
@@ -42,7 +45,7 @@ export function VenueWizardStepper({ currentStep }: VenueWizardStepperProps) {
                   !isCurrent && "text-muted-foreground"
                 )}
               >
-                {step.label}
+                {t(`venueWizardStepper.steps.${step.key}`)}
               </span>
             </div>
 

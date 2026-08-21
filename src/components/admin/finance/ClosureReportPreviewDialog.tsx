@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +27,7 @@ export function ClosureReportPreviewDialog({
   filename,
   title,
 }: ClosureReportPreviewDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {
@@ -34,7 +36,7 @@ export function ClosureReportPreviewDialog({
       await downloadInvoicePdf(html, filename, { useCors: true });
     } catch (error) {
       console.error("[ClosureReportPreviewDialog] PDF generation failed:", error);
-      toast.error("Impossible de générer le PDF");
+      toast.error(t("finance.closure.pdfError"));
     } finally {
       setDownloading(false);
     }
@@ -56,7 +58,7 @@ export function ClosureReportPreviewDialog({
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Fermer
+            {t("common:buttons.close")}
           </Button>
           <Button onClick={handleDownload} disabled={downloading}>
             {downloading ? (
@@ -64,7 +66,7 @@ export function ClosureReportPreviewDialog({
             ) : (
               <Download className="h-4 w-4 mr-2" />
             )}
-            Télécharger PDF
+            {t("finance.closure.downloadPdf")}
           </Button>
         </DialogFooter>
       </DialogContent>

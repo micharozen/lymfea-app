@@ -45,7 +45,7 @@ export function SellBundleDialog({
   prefilledCustomerId,
   prefilledCustomerName,
 }: SellBundleDialogProps) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const queryClient = useQueryClient();
 
   const [selectedBundleId, setSelectedBundleId] = useState<string>("");
@@ -100,7 +100,7 @@ export function SellBundleDialog({
       // Create new client if needed
       if (showNewClient && !customerId) {
         if (!newFirstName || !newPhone) {
-          throw new Error("Prenom et telephone requis");
+          throw new Error(t("sellBundleDialog.errors.firstNameAndPhoneRequired"));
         }
         const { data: newCustomer, error: customerError } = await supabase
           .from("customers")
@@ -117,7 +117,7 @@ export function SellBundleDialog({
       }
 
       if (!customerId || !selectedBundleId || !selectedBundle) {
-        throw new Error("Selectionnez un modele et un client");
+        throw new Error(t("sellBundleDialog.errors.selectTemplateAndClient"));
       }
 
       // Call RPC to create customer bundle
@@ -151,7 +151,7 @@ export function SellBundleDialog({
       onSuccess?.();
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Erreur lors de la vente");
+      toast.error(error.message || t("sellBundleDialog.errors.sellFailed"));
     },
   });
 
@@ -192,7 +192,7 @@ export function SellBundleDialog({
               <SelectContent>
                 {bundles?.map((bundle) => (
                   <SelectItem key={bundle.id} value={bundle.id}>
-                    {bundle.name} — {hotelName(bundle.hotel_id)} ({bundle.total_sessions} seances)
+                    {bundle.name} — {hotelName(bundle.hotel_id)} ({t("sellBundleDialog.sessionsCount", { count: bundle.total_sessions })})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -216,7 +216,7 @@ export function SellBundleDialog({
                   }}
                 >
                   <UserPlus className="h-3 w-3 mr-1" />
-                  {showNewClient ? "Rechercher" : t("cures.sell.newClient")}
+                  {showNewClient ? t("common:buttons.search") : t("cures.sell.newClient")}
                 </Button>
               </div>
 
@@ -224,16 +224,16 @@ export function SellBundleDialog({
                 <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-xs">Prenom *</Label>
+                      <Label className="text-xs">{t("sellBundleDialog.firstName")}</Label>
                       <Input value={newFirstName} onChange={(e) => setNewFirstName(e.target.value)} className="mt-1" />
                     </div>
                     <div>
-                      <Label className="text-xs">Nom</Label>
+                      <Label className="text-xs">{t("sellBundleDialog.lastName")}</Label>
                       <Input value={newLastName} onChange={(e) => setNewLastName(e.target.value)} className="mt-1" />
                     </div>
                   </div>
                   <div>
-                    <Label className="text-xs">Telephone *</Label>
+                    <Label className="text-xs">{t("sellBundleDialog.phone")}</Label>
                     <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} className="mt-1" />
                   </div>
                   <div>
@@ -250,7 +250,7 @@ export function SellBundleDialog({
                       setCustomerSearch(e.target.value);
                       if (selectedCustomerId) setSelectedCustomerId("");
                     }}
-                    placeholder="Nom ou telephone..."
+                    placeholder={t("sellBundleDialog.searchPlaceholder")}
                     className="pl-9"
                   />
                   {/* Dropdown results */}
@@ -295,7 +295,7 @@ export function SellBundleDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
+            {t("common:buttons.cancel")}
           </Button>
           <Button
             onClick={() => sellMutation.mutate()}

@@ -50,7 +50,7 @@ interface Props {
 }
 
 export function VenueInboxToneSection({ hotelId }: Props) {
-  const { t } = useTranslation("admin");
+  const { t } = useTranslation(["admin", "common"]);
   const { isAdmin } = useUser();
   const queryClient = useQueryClient();
 

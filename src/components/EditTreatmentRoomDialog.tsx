@@ -43,18 +43,18 @@ import { Upload, ChevronDown, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ROOM_TYPES = [
-  { value: "Massage", label: "Massage" },
-  { value: "Facial", label: "Soin visage" },
-  { value: "Hammam", label: "Hammam" },
-  { value: "Jacuzzi", label: "Jacuzzi" },
-  { value: "Sauna", label: "Sauna" },
-  { value: "Body Wrap", label: "Enveloppement" },
-  { value: "Multi-purpose", label: "Polyvalente" },
+  { value: "Massage", labelKey: "massage" },
+  { value: "Facial", labelKey: "facial" },
+  { value: "Hammam", labelKey: "hammam" },
+  { value: "Jacuzzi", labelKey: "jacuzzi" },
+  { value: "Sauna", labelKey: "sauna" },
+  { value: "Body Wrap", labelKey: "bodyWrap" },
+  { value: "Multi-purpose", labelKey: "multiPurpose" },
 ];
 
 const createFormSchema = (t: TFunction) => z.object({
-  name: z.string().min(1, t('errors.validation.nameRequired')),
-  room_type: z.string().min(1, t('errors.validation.roomTypeRequired')),
+  name: z.string().min(1, t('common:errors.validation.nameRequired')),
+  room_type: z.string().min(1, t('common:errors.validation.roomTypeRequired')),
   hotel_id: z.string().optional(),
 });
 
@@ -73,7 +73,7 @@ export function EditTreatmentRoomDialog({
   room,
   onSuccess,
 }: EditTreatmentRoomDialogProps) {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['admin', 'common']);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const [typePopoverOpen, setTypePopoverOpen] = useState(false);
@@ -132,11 +132,11 @@ export function EditTreatmentRoomDialog({
       .eq("id", room.id);
 
     if (error) {
-      toast.error("Erreur lors de la modification de la salle de soin");
+      toast.error(t('admin:treatmentRoomDialog.updateError'));
       return;
     }
 
-    toast.success("Salle de soin modifiee avec succes");
+    toast.success(t('admin:treatmentRoomDialog.updated'));
     onOpenChange(false);
     onSuccess();
   };
@@ -145,13 +145,13 @@ export function EditTreatmentRoomDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Modifier la salle de soin</DialogTitle>
+          <DialogTitle>{t('admin:treatmentRoomDialog.editTitle')}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="flex flex-col gap-3">
-              <FormLabel>Image de la salle</FormLabel>
+              <FormLabel>{t('admin:treatmentRoomDialog.image')}</FormLabel>
               <div className="flex items-center gap-3">
                 <div className="relative h-12 w-12 rounded-md border border-border flex items-center justify-center overflow-hidden bg-muted">
                   {roomImage ? (
@@ -171,7 +171,7 @@ export function EditTreatmentRoomDialog({
                   disabled={isUploading}
                   onClick={triggerFileSelect}
                 >
-                  {isUploading ? "Telechargement..." : "Telecharger"}
+                  {isUploading ? t('admin:treatmentRoomGeneral.uploading') : t('admin:treatmentRoomGeneral.upload')}
                   {isUploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
                 <input
@@ -189,9 +189,9 @@ export function EditTreatmentRoomDialog({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom de la salle</FormLabel>
+                  <FormLabel>{t('admin:treatmentRoomDialog.name')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Salle Zen" {...field} />
+                    <Input placeholder={t('admin:treatmentRoomGeneral.namePlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -203,7 +203,7 @@ export function EditTreatmentRoomDialog({
               name="room_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Type de salle</FormLabel>
+                  <FormLabel>{t('admin:treatmentRoomDialog.roomType')}</FormLabel>
                   <Popover open={typePopoverOpen} onOpenChange={setTypePopoverOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -215,7 +215,12 @@ export function EditTreatmentRoomDialog({
                           )}
                         >
                           <span className="truncate">
-                            {ROOM_TYPES.find(t => t.value === field.value)?.label || "Selectionner"}
+                            {(() => {
+                              const selectedType = ROOM_TYPES.find((rt) => rt.value === field.value);
+                              return selectedType
+                                ? t(`admin:treatmentRoomGeneral.capabilities.${selectedType.labelKey}`)
+                                : t('admin:treatmentTab.select');
+                            })()}
                           </span>
                           <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                         </Button>
@@ -244,7 +249,7 @@ export function EditTreatmentRoomDialog({
                                   isSelected && "font-medium"
                                 )}
                               >
-                                <span className="min-w-0 truncate text-left">{type.label}</span>
+                                <span className="min-w-0 truncate text-left">{t(`admin:treatmentRoomGeneral.capabilities.${type.labelKey}`)}</span>
                                 {isSelected ? (
                                   <span className="h-4 w-4 grid place-items-center rounded-sm bg-primary text-primary-foreground">
                                     <Check className="h-3 w-3" strokeWidth={3} />
@@ -270,11 +275,11 @@ export function EditTreatmentRoomDialog({
               name="hotel_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hotel</FormLabel>
+                  <FormLabel>{t('admin:treatmentRoomDialog.venue')}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selectionner" />
+                        <SelectValue placeholder={t('admin:treatmentTab.select')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -296,9 +301,9 @@ export function EditTreatmentRoomDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Annuler
+                {t('common:buttons.cancel')}
               </Button>
-              <Button type="submit">Enregistrer</Button>
+              <Button type="submit">{t('common:buttons.save')}</Button>
             </div>
           </form>
         </Form>

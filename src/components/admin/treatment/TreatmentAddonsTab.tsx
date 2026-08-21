@@ -1,4 +1,5 @@
 import { UseFormReturn, useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/formatPrice";
@@ -35,6 +36,7 @@ export function TreatmentAddonsTab({
   disabled,
   currentTreatmentId,
 }: TreatmentAddonsTabProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const isAddon = useWatch({ control: form.control, name: "is_addon" });
   const selectedHotelId = useWatch({
     control: form.control,
@@ -91,11 +93,10 @@ export function TreatmentAddonsTab({
             <FormItem className="flex items-start justify-between gap-4 space-y-0">
               <div className="space-y-1">
                 <FormLabel className="text-sm font-medium">
-                  Ce soin est un add-on
+                  {t("treatmentAddonsTab.isAddon")}
                 </FormLabel>
                 <p className="text-xs text-muted-foreground">
-                  Un add-on ne peut pas être réservé seul. Il sera proposé au
-                  client après sélection d'un créneau pour un soin principal.
+                  {t("treatmentAddonsTab.isAddonHelp")}
                 </p>
               </div>
               <FormControl>
@@ -115,19 +116,17 @@ export function TreatmentAddonsTab({
           <div className="flex items-center justify-between">
             <div>
               <FormLabel className="text-base font-semibold">
-                Add-ons liés à ce soin
+                {t("treatmentAddonsTab.linkedTitle")}
               </FormLabel>
               <p className="text-xs text-muted-foreground mt-1">
-                Sélectionnez les add-ons qui pourront être proposés après ce
-                soin.
+                {t("treatmentAddonsTab.linkedHelp")}
               </p>
             </div>
           </div>
 
           {!selectedHotelId ? (
             <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              Sélectionnez un lieu dans l'onglet Général pour voir les add-ons
-              disponibles.
+              {t("treatmentAddonsTab.selectVenueFirst")}
             </div>
           ) : isLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -135,10 +134,9 @@ export function TreatmentAddonsTab({
             </div>
           ) : !addonCandidates || addonCandidates.length === 0 ? (
             <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground space-y-2">
-              <p>Aucun add-on disponible pour ce lieu.</p>
+              <p>{t("treatmentAddonsTab.empty")}</p>
               <p className="text-xs">
-                Créez d'abord un soin et marquez-le comme add-on pour pouvoir
-                le rattacher ici.
+                {t("treatmentAddonsTab.emptyHint")}
               </p>
             </div>
           ) : (
@@ -148,7 +146,7 @@ export function TreatmentAddonsTab({
                 .map((addon) => {
                   const checked = (selectedAddonIds ?? []).includes(addon.id);
                   const priceLabel = addon.price_on_request
-                    ? "Sur demande"
+                    ? t("treatmentAddonsTab.onRequest")
                     : formatPrice(addon.price ?? 0, addon.currency ?? "EUR");
                   return (
                     <label
@@ -176,7 +174,7 @@ export function TreatmentAddonsTab({
                       </div>
                       {checked && (
                         <Badge variant="secondary" className="text-[10px]">
-                          Lié
+                          {t("treatmentAddonsTab.linked")}
                         </Badge>
                       )}
                     </label>
@@ -190,8 +188,7 @@ export function TreatmentAddonsTab({
             addonCandidates.length === 0 &&
             selectedHotelId && (
               <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                <Plus className="h-3 w-3" /> Créez un nouveau soin, puis activez
-                "Ce soin est un add-on".
+                <Plus className="h-3 w-3" /> {t("treatmentAddonsTab.createHint")}
               </p>
             )}
         </div>

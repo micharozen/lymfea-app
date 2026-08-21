@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/select";
 import { CalendarIcon, Loader2, X, Repeat } from "lucide-react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/dateLocale";
 import { cn } from "@/lib/utils";
 import { Database } from "@/integrations/supabase/types";
 
@@ -41,23 +42,20 @@ interface VenueDeploymentScheduleFormProps {
 }
 
 const DAYS_OF_WEEK = [
-  { value: 1, label: "Lun" },
-  { value: 2, label: "Mar" },
-  { value: 3, label: "Mer" },
-  { value: 4, label: "Jeu" },
-  { value: 5, label: "Ven" },
-  { value: 6, label: "Sam" },
-  { value: 0, label: "Dim" },
+  { value: 1, key: "mon" },
+  { value: 2, key: "tue" },
+  { value: 3, key: "wed" },
+  { value: 4, key: "thu" },
+  { value: 5, key: "fri" },
+  { value: 6, key: "sat" },
+  { value: 0, key: "sun" },
 ];
 
-const RECURRENCE_OPTIONS = [
-  { value: 1, label: "Chaque semaine" },
-  { value: 2, label: "Toutes les 2 semaines" },
-  { value: 3, label: "Toutes les 3 semaines" },
-  { value: 4, label: "Toutes les 4 semaines" },
-];
+const RECURRENCE_OPTIONS = [1, 2, 3, 4];
 
 export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentScheduleFormProps) {
+  const { t } = useTranslation(['admin', 'common']);
+  const dateLocale = useDateLocale();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [scheduleData, setScheduleData] = useState<VenueScheduleData | null>(null);
@@ -103,7 +101,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
       }
     } catch (error) {
       console.error("Error loading schedule:", error);
-      toast.error("Erreur lors du chargement du planning");
+      toast.error(t('deploymentForm.loadError'));
     } finally {
       setLoading(false);
     }
@@ -126,7 +124,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
       if (!isAlwaysOpen) {
         if (scheduleType === "specific_days") {
           if (selectedDays.length === 0) {
-            toast.error("Veuillez sélectionner au moins un jour");
+            toast.error(t('venue.deployment.errorSelectDay'));
             return;
           }
           schedulePayload.days_of_week = selectedDays;
@@ -138,7 +136,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
             : null;
         } else if (scheduleType === "one_time") {
           if (specificDates.length === 0) {
-            toast.error("Veuillez sélectionner au moins une date");
+            toast.error(t('venue.deployment.errorSelectDate'));
             return;
           }
           schedulePayload.specific_dates = specificDates.map(d => format(d, "yyyy-MM-dd"));
@@ -162,11 +160,11 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
         if (error) throw error;
       }
 
-      toast.success("Planning de déploiement enregistré");
+      toast.success(t('deploymentForm.saved'));
       loadSchedule();
     } catch (error) {
       console.error("Error saving schedule:", error);
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error(t('deploymentForm.saveError'));
     } finally {
       setSaving(false);
     }
@@ -209,9 +207,9 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
     <div className="space-y-6 p-4 border rounded-lg bg-muted/20">
       <div className="flex items-center justify-between">
         <div>
-          <Label className="text-base font-medium">Planning de déploiement</Label>
+          <Label className="text-base font-medium">{t('venue.deployment.scheduleTitle')}</Label>
           <p className="text-sm text-muted-foreground mt-1">
-            Définissez quand ce lieu est disponible pour les réservations
+            {t('deploymentForm.desc')}
           </p>
         </div>
       </div>
@@ -219,7 +217,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
       {/* Always open switch */}
       <div className="flex items-center justify-between py-2">
         <Label htmlFor="always-open" className="cursor-pointer">
-          Toujours disponible
+          {t('venue.deployment.alwaysAvailable')}
         </Label>
         <Switch
           id="always-open"
@@ -240,7 +238,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
               onClick={() => setScheduleType("specific_days")}
               className="flex-1"
             >
-              Jours récurrents
+              {t('venue.deployment.recurringDays')}
             </Button>
             <Button
               type="button"
@@ -249,7 +247,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
               onClick={() => setScheduleType("one_time")}
               className="flex-1"
             >
-              Dates spécifiques
+              {t('venue.deployment.specificDates')}
             </Button>
           </div>
 
@@ -258,7 +256,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
             <div className="space-y-4">
               {/* Days of week */}
               <div className="space-y-2">
-                <Label className="text-sm">Jours de la semaine</Label>
+                <Label className="text-sm">{t('venue.deployment.weekDays')}</Label>
                 <div className="flex flex-wrap gap-2">
                   {DAYS_OF_WEEK.map(day => (
                     <button
@@ -272,7 +270,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
                           : "bg-background hover:bg-muted border-input"
                       )}
                     >
-                      {day.label}
+                      {t(`venue.deployment.days.${day.key}`)}
                     </button>
                   ))}
                 </div>
@@ -282,19 +280,19 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
               <div className="space-y-2">
                 <Label className="text-sm flex items-center gap-1.5">
                   <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
-                  Fréquence de récurrence
+                  {t('venue.deployment.recurrenceFrequency')}
                 </Label>
                 <Select
                   value={recurrenceInterval.toString()}
                   onValueChange={(value) => setRecurrenceInterval(parseInt(value, 10))}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Chaque semaine" />
+                    <SelectValue placeholder={t('venue.deployment.recurrence.every1')} />
                   </SelectTrigger>
                   <SelectContent>
                     {RECURRENCE_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value.toString()}>
-                        {option.label}
+                      <SelectItem key={option} value={option.toString()}>
+                        {t(`venue.deployment.recurrence.every${option}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -309,7 +307,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
               {/* Start date */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-sm">À partir du</Label>
+                  <Label className="text-sm">{t('venue.deployment.fromDate')}</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -321,7 +319,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {recurringStartDate
-                          ? format(recurringStartDate, "d MMM yyyy", { locale: fr })
+                          ? format(recurringStartDate, "d MMM yyyy", { locale: dateLocale })
                           : "Aujourd'hui"}
                       </Button>
                     </PopoverTrigger>
@@ -330,7 +328,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
                         mode="single"
                         selected={recurringStartDate}
                         onSelect={setRecurringStartDate}
-                        locale={fr}
+                        locale={dateLocale}
                       />
                     </PopoverContent>
                   </Popover>
@@ -338,7 +336,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
 
                 {/* End date (optional) */}
                 <div className="space-y-2">
-                  <Label className="text-sm">Jusqu'au (optionnel)</Label>
+                  <Label className="text-sm">{t('venue.deployment.untilDate')}</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -350,7 +348,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {recurringEndDate
-                          ? format(recurringEndDate, "d MMM yyyy", { locale: fr })
+                          ? format(recurringEndDate, "d MMM yyyy", { locale: dateLocale })
                           : "Indéfiniment"}
                       </Button>
                     </PopoverTrigger>
@@ -359,7 +357,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
                         mode="single"
                         selected={recurringEndDate}
                         onSelect={setRecurringEndDate}
-                        locale={fr}
+                        locale={dateLocale}
                         disabled={(date) =>
                           recurringStartDate ? date < recurringStartDate : false
                         }
@@ -374,7 +372,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
                       onClick={() => setRecurringEndDate(undefined)}
                       className="text-xs text-muted-foreground"
                     >
-                      Supprimer la date de fin
+                      {t('venue.deployment.removeEndDate')}
                     </Button>
                   )}
                 </div>
@@ -386,19 +384,19 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
           {scheduleType === "one_time" && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-sm">Sélectionner les dates</Label>
+                <Label className="text-sm">{t('venue.deployment.selectDates')}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start">
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      Ajouter une date
+                      {t('venue.deployment.addDate')}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       onSelect={handleSpecificDateSelect}
-                      locale={fr}
+                      locale={dateLocale}
                       disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       modifiers={{
                         selected: specificDates,
@@ -424,7 +422,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
                         key={index}
                         className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm"
                       >
-                        {format(date, "d MMM yyyy", { locale: fr })}
+                        {format(date, "d MMM yyyy", { locale: dateLocale })}
                         <button
                           type="button"
                           onClick={() => removeSpecificDate(index)}
