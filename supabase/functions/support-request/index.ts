@@ -16,7 +16,7 @@ const SUPPORT_INBOX = Deno.env.get("SUPPORT_INBOX_EMAIL") || "contact@saoma.io";
 // Sans override, sendEmail retombe sur brand.emails.from.default.
 const SUPPORT_FROM = Deno.env.get("SUPPORT_FROM_EMAIL");
 // Webhook entrant Slack qui reçoit les demandes du formulaire public.
-const SLACK_WEBHOOK_SUPPORT = Deno.env.get("SLACK_WEBHOOK_SUPPORT");
+const SLACK_WEBHOOK_LEAD = Deno.env.get("SLACK_WEBHOOK_LEAD");
 
 const CATEGORIES = [
   "integration",
@@ -175,9 +175,9 @@ const handler = async (req: Request): Promise<Response> => {
         source: "WEBSITE_FORM",
         submittedAt: new Date().toISOString(),
       }),
-      SLACK_WEBHOOK_SUPPORT
-        ? postSlackMessage(SLACK_WEBHOOK_SUPPORT, buildSlackPayload(input))
-        : Promise.resolve({ ok: false, error: "SLACK_WEBHOOK_SUPPORT not configured" }),
+      SLACK_WEBHOOK_LEAD
+        ? postSlackMessage(SLACK_WEBHOOK_LEAD, buildSlackPayload(input))
+        : Promise.resolve({ ok: false, error: "SLACK_WEBHOOK_LEAD not configured" }),
     ]);
 
     if (!lead.ok) {
