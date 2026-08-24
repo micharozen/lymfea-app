@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   format,
   differenceInCalendarDays,
@@ -19,7 +19,7 @@ import { convertToEUR } from "@/lib/currencyConversion";
 import { formatPrice } from "@/lib/formatPrice";
 import { getBookingStatusConfig } from "@/utils/statusStyles";
 import { normalizeBookingClientType } from "@/lib/clientTypeMeta";
-import { useOrgScope } from "@/hooks/useOrgScope";
+import { useOrgScope, orgScopeKey } from "@/hooks/useOrgScope";
 import { getDashboardDataForOrg, type DashboardBooking } from "@shared/db";
 import {
   buildMonthlyOutlook,
@@ -251,7 +251,10 @@ export function useDashboardData(
   // (période précédente pour les tendances, historique de l'outlook mensuel).
   // Borne haute = un an, pour que le compteur « n° de chambre manquant » et
   // l'outlook restent exacts sur les réservations futures.
-  const dataWindow = useMemo(() => {
+  // Bornes exprimées en chaînes ISO : l'effet ci-dessous doit dépendre de
+  // valeurs comparables, pas d'objets dont l'identité change à chaque rendu —
+  // sinon chaque chargement en déclenche un autre.
+  const { fromDate, toDate } = useMemo(() => {
     const now = new Date();
     const periodDays = Math.max(0, differenceInDays(endDate, startDate));
     const from = subDays(startDate, periodDays + 1);
@@ -263,13 +266,23 @@ export function useDashboardData(
     };
   }, [startDate, endDate]);
 
+  // Même raison pour le scope : c'est un objet, on ne garde que sa clé dans les
+  // dépendances et on lit la valeur courante au moment de l'appel.
+  const scopeKey = orgScopeKey(scope);
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+
   useEffect(() => {
-    if (!scope) return;
+    const currentScope = scopeRef.current;
+    if (!currentScope) return;
     let cancelled = false;
     (async () => {
       try {
         setLoading(true);
-        const data = await getDashboardDataForOrg(supabase, scope, dataWindow);
+        const data = await getDashboardDataForOrg(supabase, currentScope, {
+          fromDate,
+          toDate,
+        });
 
         if (cancelled) return;
         setBookings(
@@ -293,7 +306,7 @@ export function useDashboardData(
     return () => {
       cancelled = true;
     };
-  }, [scope, dataWindow]);
+  }, [scopeKey, fromDate, toDate]);
 
   // ── Currency map ──────────────────────────────────────────────────
 

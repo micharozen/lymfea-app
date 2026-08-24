@@ -384,7 +384,7 @@ export default function BookingsList() {
 
       <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 min-h-0 min-w-0">
         <div className="bg-card rounded-lg border border-border h-full flex flex-col min-w-0 overflow-hidden">
-          {isLoading && !bookings ? (
+          {isLoading ? (
             <AppLoader fullScreen={false} className="flex-1" />
           ) : (
           <BookingListView

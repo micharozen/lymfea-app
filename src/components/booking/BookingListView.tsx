@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef } from "react";
+import { Fragment, useRef } from "react";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -87,8 +87,8 @@ interface BookingListViewProps {
   scrollable?: boolean;
   /**
    * Chargement par lots : fournir le handler remplace la pagination par un
-   * défilement infini doublé d'un bouton « Charger plus ». `totalItems` reste
-   * le total côté serveur, pas le nombre de lignes déjà chargées.
+   * bouton « Charger plus ». `totalItems` reste le total côté serveur, pas le
+   * nombre de lignes déjà chargées.
    */
   onLoadMore?: () => void;
   hasMore?: boolean;
@@ -140,28 +140,6 @@ export function BookingListView({
   // Le redimensionnement raisonne en poids : on convertit le déplacement en px
   // via la largeur rendue de la table, d'où ce ref.
   const tableRef = useRef<HTMLTableElement>(null);
-
-  // Défilement infini : une sentinelle par vue (mobile / bureau). Celle qui est
-  // masquée par le point de rupture n'est jamais visible, donc ne déclenche rien.
-  const mobileSentinelRef = useRef<HTMLDivElement>(null);
-  const desktopSentinelRef = useRef<HTMLTableRowElement>(null);
-  const onLoadMoreRef = useRef(onLoadMore);
-  onLoadMoreRef.current = onLoadMore;
-
-  useEffect(() => {
-    if (!isIncremental || !hasMore || isLoadingMore) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) onLoadMoreRef.current?.();
-      },
-      // Anticipe : on charge le lot suivant avant d'atteindre le bas.
-      { rootMargin: "200px" },
-    );
-    for (const node of [mobileSentinelRef.current, desktopSentinelRef.current]) {
-      if (node) observer.observe(node);
-    }
-    return () => observer.disconnect();
-  }, [isIncremental, hasMore, isLoadingMore, paginatedBookings.length]);
 
   const startResize = (column: BookingColumnDef, event: React.PointerEvent) => {
     if (!onColumnResize) return;
@@ -435,7 +413,6 @@ export function BookingListView({
             </div>
           );
         })}
-        {isIncremental && hasMore && <div ref={mobileSentinelRef} className="h-px" aria-hidden />}
       </div>
 
       {/* ── Desktop table view (≥md) ────────────────────────── */}
@@ -501,12 +478,6 @@ export function BookingListView({
                 </TableCell>
               </TableRow>
             )}
-
-            {isIncremental && hasMore && (
-              <TableRow ref={desktopSentinelRef} className="h-px" aria-hidden>
-                <TableCell colSpan={totalColumns} className="h-px p-0" />
-              </TableRow>
-            )}
           </TableBody>
         </Table>
       </div>
@@ -525,7 +496,9 @@ export function BookingListView({
               variant="outline"
               size="sm"
               className="h-8 text-xs"
-              onClick={onLoadMore}
+              // Sans l'enveloppe, l'événement de clic partirait en argument de
+              // fetchNextPage, qui l'interpréterait comme des options.
+              onClick={() => onLoadMore?.()}
               disabled={isLoadingMore}
             >
               {isLoadingMore

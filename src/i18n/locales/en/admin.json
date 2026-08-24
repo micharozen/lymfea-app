@@ -284,7 +284,8 @@
         "pending_partner_billing": "Partner billing",
         "card_saved": "Card saved",
         "offert": "Complimentary"
-      }
+      },
+      "failed": "Export failed"
     }
   },
   "hotels": {
@@ -3656,7 +3657,8 @@
     "refundBooking": "Refund a booking",
     "exportCsv": "Export to CSV",
     "newRequest": "New request",
-    "newBooking": "New booking"
+    "newBooking": "New booking",
+    "exporting": "Exporting…"
   },
   "treatmentRoomDialog": {
     "details": "Details",
@@ -4189,7 +4191,10 @@
     "ascending": "Ascending",
     "descending": "Descending",
     "empty": "No bookings found",
-    "itemName": "bookings"
+    "itemName": "bookings",
+    "loadedCount": "{{loaded}} of {{total}}",
+    "loadMore": "Load more",
+    "loading": "Loading…"
   },
   "amenityBookingDetail": {
     "room": "Room: {{number}}",

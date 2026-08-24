@@ -10,6 +10,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { paymentMethodLabel } from "@/lib/paymentMethod";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
+import type { BookingSortKey } from "@shared/db";
 
 const PAYMENT_TEXT_LABEL_KEYS: Record<string, string> = {
   pending: "admin:bookingColumns.paymentText.pending",
@@ -27,19 +28,13 @@ export function getPaymentTextLabel(status: string | null | undefined): string {
   return key ? i18n.t(key) : status;
 }
 
-/** Colonnes triables : la logique de tri vit dans BookingsList (getValue). */
-export type BookingSortKey =
-  | "reservation"
-  | "date"
-  | "time"
-  | "duration"
-  | "status"
-  | "payment"
-  | "client"
-  | "treatments"
-  | "total"
-  | "location"
-  | "therapist";
+/**
+ * Colonnes triables. Le tri est exécuté par Postgres : la liste des clés vient
+ * donc de la couche données, pas l'inverse. Les prestations n'y figurent pas —
+ * leur libellé vient d'une table jointe, sur laquelle PostgREST ne sait pas
+ * trier la table parente.
+ */
+export type { BookingSortKey };
 
 export type SortDirection = "asc" | "desc";
 
@@ -234,7 +229,6 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
     key: "treatments",
     get label() { return i18n.t("admin:bookingColumns.labels.treatments"); },
     width: 12,
-    sortKey: "treatments",
     defaultVisible: true,
     cell: (booking) => (
       <span className="block leading-snug truncate">

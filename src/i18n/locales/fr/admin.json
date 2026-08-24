@@ -284,7 +284,8 @@
         "pending_partner_billing": "Paiement partenaire",
         "card_saved": "Carte enregistrée",
         "offert": "Offert"
-      }
+      },
+      "failed": "L'export a échoué"
     }
   },
   "hotels": {
@@ -3656,7 +3657,8 @@
     "refundBooking": "Rembourser une réservation",
     "exportCsv": "Exporter en CSV",
     "newRequest": "Nouvelle demande",
-    "newBooking": "Nouvelle réservation"
+    "newBooking": "Nouvelle réservation",
+    "exporting": "Export en cours…"
   },
   "treatmentRoomDialog": {
     "details": "Détails",
@@ -4189,7 +4191,10 @@
     "ascending": "Croissant",
     "descending": "Décroissant",
     "empty": "Aucune réservation trouvée",
-    "itemName": "réservations"
+    "itemName": "réservations",
+    "loadedCount": "{{loaded}} sur {{total}}",
+    "loadMore": "Charger plus",
+    "loading": "Chargement…"
   },
   "amenityBookingDetail": {
     "room": "Chambre : {{number}}",
