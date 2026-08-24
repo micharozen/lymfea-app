@@ -37,6 +37,8 @@ export type VenueAmenityInsert = {
   slot_duration?: number;
   allowed_durations?: number[];
   prep_time?: number;
+  /** Une réservation privatise le créneau (bassin) : plus aucun partage possible. */
+  is_exclusive?: boolean;
   price_external?: number;
   price_lymfea?: number;
   lymfea_access_included?: boolean;

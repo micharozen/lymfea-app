@@ -2727,7 +2727,11 @@
     "brandClient": "{{brand}} (treatment client)",
     "title": "Amenities ({{count}})",
     "persons": "{{count}} people",
-    "prep": "+{{count}} min prep"
+    "prep": "+{{count}} min prep",
+    "exclusive": "Exclusive use",
+    "exclusiveHelp": "One booking takes the whole slot. Capacity then only caps how many people a single booking may have.",
+    "exclusiveBadge": "Exclusive",
+    "prepTimeHelp": "Turnaround time held after every booking: nothing can start before the cleaning is over."
   },
   "profilePage": {
     "loadError": "Could not load the profile",
@@ -4251,6 +4255,8 @@
     "time": "Time",
     "guestCount": "Number of guests",
     "capacityBadge": "{{remaining}} / {{total}} free",
+    "slotExclusiveWarning": "This slot is already booked (turnaround time included) on an exclusive-use amenity.",
+    "slotFullWarning": "This slot does not have enough room left.",
     "duration": "Duration",
     "durationValue": "Duration: {{value}}",
     "prepTime": "+{{minutes}} min preparation",
@@ -4291,6 +4297,11 @@
     "discardDescription": "Everything you have entered will be lost. Are you sure you want to leave?",
     "keepEditing": "Keep editing",
     "discard": "Discard",
+    "amenityConflictTitle": "Slot already taken",
+    "amenityConflictExclusive": "{{amenity}} is already booked on this slot, turnaround time included. The client site no longer offers it. Book anyway?",
+    "amenityConflictFull": "{{amenity}} does not have enough room left on this slot. Book anyway?",
+    "amenityConflictConfirm": "Book anyway",
+    "amenityConflictCancel": "Pick another slot",
     "toasts": {
       "emailAdjustedTitle": "Email adjusted",
       "emailAdjustedDescription": "The address was normalised to {{email}} (accents and capitals removed)."
