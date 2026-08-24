@@ -33,7 +33,11 @@ import {
   listTreatmentMenusForOrg,
 } from "@shared/db";
 import { useBookingCart } from "@/hooks/booking/useBookingCart";
-import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
+import {
+  useCreateBookingMutation,
+  type AmenityConflictError,
+  type CreateBookingPayload,
+} from "@/hooks/booking/useCreateBookingMutation";
 import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { BookingWizardStepper } from "@/components/ui/BookingWizardStepper";
@@ -147,6 +151,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const [createdBooking, setCreatedBooking] = useState<{ id: string; booking_id: number; hotel_name: string; groupBookings?: Array<{ id: string; booking_id?: number }> } | null>(null);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
+  // Créneau de commodité déjà pris : l'opérateur tranche (cf. AlertDialog plus bas).
+  const [amenityConflict, setAmenityConflict] = useState<AmenityConflictError | null>(null);
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
   const [customDuration, setCustomDuration] = useState<string>("");
@@ -433,6 +439,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const mutation = useCreateBookingMutation({
     hotels,
     therapists,
+    onAmenityConflict: setAmenityConflict,
     onSuccess: (data) => {
       if (data) {
         setCreatedBooking({
@@ -990,6 +997,36 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         />
       );
     })()}
+
+    <AlertDialog open={!!amenityConflict} onOpenChange={(open) => !open && setAmenityConflict(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t("admin:createBooking.amenityConflictTitle")}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t(
+              amenityConflict?.reason === "AMENITY_EXCLUSIVE"
+                ? "admin:createBooking.amenityConflictExclusive"
+                : "admin:createBooking.amenityConflictFull",
+              { amenity: amenityConflict?.amenityName ?? "" },
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t("admin:createBooking.amenityConflictCancel")}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              // Mêmes paramètres, conflit assumé : react-query conserve la
+              // dernière soumission, inutile de la reconstruire.
+              const previous = mutation.variables as CreateBookingPayload | undefined;
+              setAmenityConflict(null);
+              if (previous) mutation.mutate({ ...previous, forceAmenityConflict: true });
+            }}
+          >
+            {t("admin:createBooking.amenityConflictConfirm")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <AlertDialog open={showConfirmClose} onOpenChange={setShowConfirmClose}>
       <AlertDialogContent>

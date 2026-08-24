@@ -196,7 +196,16 @@ export async function getVenueAvailability(
 
   // 5b. Amenity capacity: config + occupancy for the amenities in the cart.
   // amenityId → { capacity, opening, closing, duration } (minutes; hours fall back to venue).
-  type AmenityCfg = { capacity: number; opening: number; closing: number; duration: number };
+  type AmenityCfg = {
+    capacity: number;
+    opening: number;
+    closing: number;
+    duration: number;
+    /** Remise en état réservée après chaque réservation (minutes). */
+    prep: number;
+    /** Une réservation privatise le créneau : aucun partage possible (défaut). */
+    exclusive: boolean;
+  };
   const amenityCfg = new Map<string, AmenityCfg>();
   // amenityId → date → overlapping bookings [startMin, endMin, guests].
   const amenityOccByDate = new Map<string, Map<string, Array<{ s: number; e: number; g: number }>>>();
@@ -204,7 +213,7 @@ export async function getVenueAvailability(
   if (cartAmenityIds.length > 0) {
     const { data: amenityRows } = await supabase
       .from("venue_amenities")
-      .select("id, capacity_per_slot, opening_time, closing_time")
+      .select("id, capacity_per_slot, opening_time, closing_time, prep_time, is_exclusive")
       .in("id", cartAmenityIds);
     (amenityRows || []).forEach((a: any) => {
       amenityCfg.set(a.id, {
@@ -212,6 +221,8 @@ export async function getVenueAvailability(
         opening: a.opening_time ? timeToMinutes(a.opening_time) : baseOpening,
         closing: a.closing_time ? timeToMinutes(a.closing_time) : baseClosing,
         duration: cartAmenityDurations.get(a.id) || slotInterval,
+        prep: a.prep_time ?? 0,
+        exclusive: !!a.is_exclusive,
       });
     });
     const { data: amenityBookingRows } = await supabase
@@ -235,6 +246,15 @@ export async function getVenueAvailability(
 
   // Amenity gate for a candidate slot. Returns the min remaining amenity capacity
   // across every amenity in the cart, or null when any amenity is closed/full.
+  //
+  // Miroir de la fonction SQL `amenity_slot_conflict`, qui fait autorité à la
+  // réservation : toute évolution de règle doit être portée des deux côtés.
+  //  - la remise en état est réservée APRÈS chaque réservation, donc les deux
+  //    fenêtres comparées sont étendues en aval (le nettoyage a le droit de
+  //    déborder après la fermeture, il n'ampute pas le dernier créneau) ;
+  //  - une commodité exclusive (le défaut) n'accepte qu'une réservation par
+  //    créneau : la capacité n'y plafonne que les personnes d'une même
+  //    réservation, elle ne se partage pas entre clients.
   const amenityCapacityAt = (date: string, slotMinutes: number): number | null => {
     if (cartAmenityIds.length === 0) return Infinity;
     let minAvail = Infinity;
@@ -243,11 +263,19 @@ export async function getVenueAvailability(
       if (!cfg) return null; // amenity missing/misconfigured
       const slotEnd = slotMinutes + cfg.duration;
       if (slotMinutes < cfg.opening || slotEnd > cfg.closing) return null;
-      const occ = (amenityOccByDate.get(amenityId)?.get(date) || []).reduce(
-        (sum, b) => (slotMinutes < b.e && slotEnd > b.s ? sum + b.g : sum),
-        0,
+      if (cfg.capacity < requiredGuestCount) return null;
+
+      const overlaps = (amenityOccByDate.get(amenityId)?.get(date) || []).filter(
+        (b) => slotMinutes < b.e + cfg.prep && slotEnd + cfg.prep > b.s,
       );
-      const avail = cfg.capacity - occ;
+
+      if (cfg.exclusive) {
+        if (overlaps.length > 0) return null;
+        if (cfg.capacity < minAvail) minAvail = cfg.capacity;
+        continue;
+      }
+
+      const avail = cfg.capacity - overlaps.reduce((sum, b) => sum + b.g, 0);
       if (avail < requiredGuestCount) return null;
       if (avail < minAvail) minAvail = avail;
     }

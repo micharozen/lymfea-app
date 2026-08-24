@@ -1197,6 +1197,68 @@ $$;
 
 ALTER FUNCTION "public"."generate_unique_treatment_slug"("_hotel_id" "text", "_base" "text", "_exclude_id" "uuid") OWNER TO "postgres";
 
+CREATE OR REPLACE FUNCTION "public"."amenity_slot_conflict"("_venue_amenity_id" "uuid", "_booking_date" "date", "_start_time" time without time zone, "_end_time" time without time zone, "_guests" integer DEFAULT 1, "_exclude_amenity_booking_id" "uuid" DEFAULT NULL::"uuid") RETURNS "text"
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  _capacity  integer;
+  _prep      integer;
+  _exclusive boolean;
+  _occupied  integer;
+  _start_min integer;
+  _end_min   integer;
+BEGIN
+  SELECT capacity_per_slot, COALESCE(prep_time, 0), is_exclusive
+  INTO _capacity, _prep, _exclusive
+  FROM venue_amenities
+  WHERE id = _venue_amenity_id;
+
+  IF NOT FOUND THEN RETURN 'AMENITY_FULL'; END IF;
+
+  -- Une réservation ne peut jamais dépasser la capacité de l'équipement.
+  IF _guests > _capacity THEN RETURN 'AMENITY_FULL'; END IF;
+
+  -- Comparaison en minutes depuis minuit : ajouter la remise en état à un `time`
+  -- le ferait repasser par 00:00 en soirée, et le conflit ne serait pas vu.
+  _start_min := EXTRACT(HOUR FROM _start_time) * 60 + EXTRACT(MINUTE FROM _start_time);
+  _end_min   := EXTRACT(HOUR FROM _end_time) * 60 + EXTRACT(MINUTE FROM _end_time);
+
+  -- Chaque réservation immobilise son créneau + sa remise en état. Les deux
+  -- fenêtres sont donc étendues en aval avant d'être comparées.
+  IF _exclusive THEN
+    IF EXISTS (
+      SELECT 1 FROM amenity_bookings ab
+      WHERE ab.venue_amenity_id = _venue_amenity_id
+        AND ab.booking_date = _booking_date
+        AND ab.status <> 'cancelled'
+        AND (_exclude_amenity_booking_id IS NULL OR ab.id <> _exclude_amenity_booking_id)
+        AND _start_min < (EXTRACT(HOUR FROM ab.end_time) * 60 + EXTRACT(MINUTE FROM ab.end_time)) + _prep
+        AND _end_min + _prep > (EXTRACT(HOUR FROM ab.booking_time) * 60 + EXTRACT(MINUTE FROM ab.booking_time))
+    ) THEN
+      RETURN 'AMENITY_EXCLUSIVE';
+    END IF;
+    RETURN NULL;
+  END IF;
+
+  SELECT COALESCE(SUM(ab.num_guests), 0)::integer INTO _occupied
+  FROM amenity_bookings ab
+  WHERE ab.venue_amenity_id = _venue_amenity_id
+    AND ab.booking_date = _booking_date
+    AND ab.status <> 'cancelled'
+    AND (_exclude_amenity_booking_id IS NULL OR ab.id <> _exclude_amenity_booking_id)
+    AND _start_min < (EXTRACT(HOUR FROM ab.end_time) * 60 + EXTRACT(MINUTE FROM ab.end_time)) + _prep
+    AND _end_min + _prep > (EXTRACT(HOUR FROM ab.booking_time) * 60 + EXTRACT(MINUTE FROM ab.booking_time));
+
+  IF _occupied + _guests > _capacity THEN RETURN 'AMENITY_FULL'; END IF;
+  RETURN NULL;
+END;
+$$;
+
+ALTER FUNCTION "public"."amenity_slot_conflict"("_venue_amenity_id" "uuid", "_booking_date" "date", "_start_time" time without time zone, "_end_time" time without time zone, "_guests" integer, "_exclude_amenity_booking_id" "uuid") OWNER TO "postgres";
+
+COMMENT ON FUNCTION "public"."amenity_slot_conflict"("_venue_amenity_id" "uuid", "_booking_date" "date", "_start_time" time without time zone, "_end_time" time without time zone, "_guests" integer, "_exclude_amenity_booking_id" "uuid") IS 'Règle unique de conflit sur une commodité : exclusivité, capacité et remise en état. NULL = réservable, sinon AMENITY_EXCLUSIVE ou AMENITY_FULL.';
+
 CREATE OR REPLACE FUNCTION "public"."get_amenity_slot_occupancy"("p_venue_amenity_id" "uuid", "p_date" "date", "p_start_time" time without time zone, "p_end_time" time without time zone) RETURNS integer
     LANGUAGE "sql" STABLE SECURITY DEFINER
     AS $$
@@ -2820,7 +2882,7 @@ DECLARE
   _free                  INTEGER;
   _has_soin              BOOLEAN;
   _am                    RECORD;
-  _am_occ                INTEGER;
+  _am_conflict           TEXT;
   _am_start              TIME;
   _am_end                TIME;
   _soin_duration         INTEGER := 0;
@@ -2898,7 +2960,7 @@ BEGIN
 
   -- ----- Capacité amenity : verrou + contrôle atomique (avant tout insert) -----
   FOR _am IN
-    SELECT tm.amenity_id, tm.duration AS am_duration, tm.price AS am_price, va.capacity_per_slot
+    SELECT tm.amenity_id, tm.duration AS am_duration, tm.price AS am_price
     FROM treatment_menus tm
     JOIN venue_amenities va ON va.id = tm.amenity_id
     WHERE tm.id::text = ANY(_treatment_ids) AND tm.amenity_id IS NOT NULL
@@ -2913,15 +2975,14 @@ BEGIN
       ELSE _booking_time
     END;
     _am_end := (_am_start + make_interval(mins => COALESCE(_am.am_duration, _duration, 60)))::time;
-    SELECT COALESCE(SUM(num_guests), 0)::INTEGER INTO _am_occ
-    FROM amenity_bookings
-    WHERE venue_amenity_id = _am.amenity_id
-      AND booking_date = _booking_date
-      AND status NOT IN ('cancelled')
-      AND booking_time < _am_end
-      AND end_time > _am_start;
-    IF _am_occ + _guests > _am.capacity_per_slot THEN
-      RAISE EXCEPTION 'AMENITY_FULL';
+
+    -- Exclusivité, capacité et remise en état : règle commune au site client et
+    -- à l'admin (amenity_slot_conflict).
+    _am_conflict := amenity_slot_conflict(
+      _am.amenity_id, _booking_date, _am_start, _am_end, _guests
+    );
+    IF _am_conflict IS NOT NULL THEN
+      RAISE EXCEPTION '%', _am_conflict;
     END IF;
   END LOOP;
 

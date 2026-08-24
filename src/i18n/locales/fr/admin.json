@@ -278,7 +278,8 @@
         "pending_partner_billing": "Paiement partenaire",
         "card_saved": "Carte enregistrée",
         "offert": "Offert"
-      }
+      },
+      "failed": "L'export a échoué"
     }
   },
   "hotels": {
@@ -2704,7 +2705,11 @@
     "brandClient": "{{brand}} (client soin)",
     "title": "Commodités ({{count}})",
     "persons": "{{count}} pers.",
-    "prep": "+{{count}} min prépa"
+    "prep": "+{{count}} min prépa",
+    "exclusive": "Privatisation",
+    "exclusiveHelp": "Une réservation bloque tout le créneau. La capacité ne limite alors que le nombre de personnes d'une même réservation. À décocher pour un équipement réellement partagé.",
+    "exclusiveBadge": "Privatisée",
+    "prepTimeHelp": "Remise en état réservée après chaque réservation : rien ne peut démarrer avant la fin du nettoyage."
   },
   "profilePage": {
     "loadError": "Erreur lors du chargement du profil",
@@ -3629,7 +3634,8 @@
     "refundBooking": "Rembourser une réservation",
     "exportCsv": "Exporter en CSV",
     "newRequest": "Nouvelle demande",
-    "newBooking": "Nouvelle réservation"
+    "newBooking": "Nouvelle réservation",
+    "exporting": "Export en cours…"
   },
   "treatmentRoomDialog": {
     "details": "Détails",
@@ -4162,7 +4168,10 @@
     "ascending": "Croissant",
     "descending": "Décroissant",
     "empty": "Aucune réservation trouvée",
-    "itemName": "réservations"
+    "itemName": "réservations",
+    "loadedCount": "{{loaded}} sur {{total}}",
+    "loadMore": "Charger plus",
+    "loading": "Chargement…"
   },
   "amenityBookingDetail": {
     "room": "Chambre : {{number}}",
@@ -4228,6 +4237,8 @@
     "time": "Heure",
     "guestCount": "Nombre de personnes",
     "capacityBadge": "{{remaining}} / {{total}} dispo",
+    "slotExclusiveWarning": "Ce créneau est déjà réservé (remise en état comprise) sur une commodité privatisable.",
+    "slotFullWarning": "Ce créneau n'a plus assez de places.",
     "duration": "Durée",
     "durationValue": "Durée : {{value}}",
     "prepTime": "+{{minutes}} min de préparation",
@@ -4268,6 +4279,11 @@
     "discardDescription": "Les informations saisies seront perdues. Êtes-vous sûr de vouloir quitter ?",
     "keepEditing": "Continuer la saisie",
     "discard": "Abandonner",
+    "amenityConflictTitle": "Créneau déjà occupé",
+    "amenityConflictExclusive": "{{amenity}} est déjà réservé sur ce créneau, remise en état comprise. Le site client ne le propose plus. Confirmer quand même ?",
+    "amenityConflictFull": "{{amenity}} n'a plus assez de places sur ce créneau. Confirmer quand même ?",
+    "amenityConflictConfirm": "Réserver quand même",
+    "amenityConflictCancel": "Changer de créneau",
     "toasts": {
       "emailAdjustedTitle": "Email ajusté",
       "emailAdjustedDescription": "L'adresse a été normalisée en {{email}} (accents/majuscules retirés)."

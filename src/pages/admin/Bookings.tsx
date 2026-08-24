@@ -121,7 +121,11 @@ export default function Booking() {
     const parsed = raw ? parseISO(raw) : null;
     const base = parsed && isValid(parsed) ? parsed : new Date();
     const from = startOfMonth(subDays(base, 7));
-    const to = endOfMonth(addDays(base, dayCount + 45));
+    // Tampon volontairement court : la fenêtre doit rester sous le plafond de
+    // lignes de PostgREST, sinon des créneaux disparaissent du planning sans
+    // erreur. Un mois et demi visible suffit pour que naviguer d'une semaine à
+    // l'autre reste dans la fenêtre déjà en cache.
+    const to = endOfMonth(addDays(base, dayCount + 7));
     return { fromDate: format(from, "yyyy-MM-dd"), toDate: format(to, "yyyy-MM-dd") };
   }, [searchParams, dayCount]);
 

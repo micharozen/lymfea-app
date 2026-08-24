@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Download, RefreshCw, ChevronDown, CreditCard, RotateCcw } from "lucide-react";
 import { format, parseISO } from "date-fns";
@@ -22,11 +22,14 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 import {
-  useBookingData,
+  useBookingsList,
   useBookingFilters,
   useBookingSelection,
   type BookingWithTreatments,
 } from "@/hooks/booking";
+import { useDebounce } from "@/hooks/useDebounce";
+import { supabase } from "@/integrations/supabase/client";
+import type { BookingListFilters, BookingListSort } from "@shared/db";
 import {
   BookingFilters,
   BookingListView,
@@ -46,46 +49,16 @@ export default function BookingsList() {
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const [searchParams] = useSearchParams();
 
-  const [periodDays, setPeriodDays] = useState<number>(() => {
-    const stored = Number(localStorage.getItem("bookingsList.periodDays"));
-    return [10, 30, 60, 90].includes(stored) ? stored : 10;
-  });
-
-  // Plage explicite (ex. "juillet complet" pour un pointage) ; prioritaire sur
-  // la fenêtre glissante periodDays quand elle est renseignée.
+  // Plage explicite (ex. "juillet complet" pour un pointage). Vide = pas de
+  // borne : la liste couvre tout l'historique, chargée par lots.
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
 
-  const fromDate = useMemo(() => {
-    if (customRange) return customRange.from;
-    const d = new Date();
-    d.setDate(d.getDate() - periodDays);
-    return d.toISOString().slice(0, 10);
-  }, [periodDays, customRange]);
-
-  const { bookings, hotels, therapists, getHotelInfo, refetch, isLoading } = useBookingData({
-    fromDate,
-    toDate: customRange?.to,
-  });
   const [isRefreshing, setIsRefreshing] = useState(false);
-
+  const [isExporting, setIsExporting] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [quickAction, setQuickAction] = useState<"payment" | "refund">("payment");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-
-  useEffect(() => {
-    const bookingId = searchParams.get("id");
-    if (bookingId && bookings && bookings.length > 0) {
-      const target = bookings.find(
-        (b) => b.id === bookingId || b.booking_id?.toString() === bookingId
-      );
-      if (target) {
-        // replace: true évite d'empiler l'entrée `?id=...` dans l'historique,
-        // sinon le bouton "retour" y revient et re-déclenche cette redirection (boucle).
-        navigate(`/admin/bookings/${target.id}`, { replace: true });
-      }
-    }
-  }, [searchParams, bookings, navigate]);
 
   const {
     searchQuery,
@@ -100,83 +73,86 @@ export default function BookingsList() {
     setPaymentMethodFilter,
     paymentStatusFilter,
     setPaymentStatusFilter,
-    filteredBookings,
     resetFilters,
-  } = useBookingFilters(bookings, "bookingsList.filters");
+    // La liste est filtrée par Postgres : le hook ne sert plus qu'à porter
+    // l'état des filtres (et à le mémoriser d'un écran à l'autre).
+  } = useBookingFilters(undefined, "bookingsList.filters");
 
   const columnPreferences = useColumnPreferences("bookingsList.columns", BOOKING_COLUMNS);
 
   const [sortKey, setSortKey] = useState<BookingSortKey>("reservation");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  const sortedBookings = useMemo<BookingWithTreatments[]>(() => {
-    const list = filteredBookings ?? [];
-    const dir = sortDirection === "asc" ? 1 : -1;
+  // 450 ms : laisse finir un mot avant de repartir en base.
+  const debouncedSearch = useDebounce(searchQuery, 450);
 
-    const getValue = (b: BookingWithTreatments): string | number => {
-      switch (sortKey) {
-        case "reservation":
-          return b.booking_id ?? 0;
-        case "date":
-          return `${b.booking_date ?? ""}T${b.booking_time ?? ""}`;
-        case "time":
-          return b.booking_time ?? "";
-        case "duration":
-          return b.totalDuration ?? 0;
-        case "status":
-          return b.status ?? "";
-        case "payment":
-          return b.payment_status ?? "";
-        case "client":
-          return (b.client_last_name ?? b.client_first_name ?? "").toLowerCase();
-        case "treatments":
-          return b.treatments.map((t) => t.name).join(", ").toLowerCase();
-        case "total":
-          return b.total_price ?? 0;
-        case "location":
-          return (getHotelInfo(b.hotel_id)?.name ?? "").toLowerCase();
-        case "therapist":
-          return (b.therapist_name ?? "").toLowerCase();
-        default:
-          return 0;
-      }
-    };
+  const filters = useMemo<BookingListFilters>(
+    () => ({
+      ...(customRange ? { fromDate: customRange.from, toDate: customRange.to } : {}),
+      ...(statusFilter.length ? { statuses: statusFilter } : {}),
+      ...(hotelFilter.length ? { hotelIds: hotelFilter } : {}),
+      ...(therapistFilter.length ? { therapistIds: therapistFilter } : {}),
+      ...(paymentMethodFilter.length ? { paymentMethods: paymentMethodFilter } : {}),
+      ...(paymentStatusFilter.length ? { paymentStatuses: paymentStatusFilter } : {}),
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    }),
+    [
+      customRange,
+      statusFilter,
+      hotelFilter,
+      therapistFilter,
+      paymentMethodFilter,
+      paymentStatusFilter,
+      debouncedSearch,
+    ],
+  );
 
-    return [...list].sort((a, b) => {
-      const va = getValue(a);
-      const vb = getValue(b);
-      if (typeof va === "number" && typeof vb === "number") {
-        return (va - vb) * dir;
-      }
-      return String(va).localeCompare(String(vb)) * dir;
-    });
-  }, [filteredBookings, sortKey, sortDirection, getHotelInfo]);
+  const sort = useMemo<BookingListSort>(
+    () => ({ key: sortKey, direction: sortDirection }),
+    [sortKey, sortDirection],
+  );
 
-  const [currentPage, setCurrentPage] = useState(1);
-  // Nombre de lignes calculé pour remplir l'écran (mode "auto").
-  const [autoRows, setAutoRows] = useState(15);
-  const [pageSize, setPageSize] = useState<PageSize>(() => {
-    const stored = localStorage.getItem("bookingsList.pageSize");
-    if (stored && stored !== "auto" && [20, 50, 100].includes(Number(stored))) {
-      return Number(stored);
+  const {
+    bookings,
+    total,
+    hotels,
+    therapists,
+    getHotelInfo,
+    fetchAllMatching,
+    isLoading,
+    hasMore,
+    isLoadingMore,
+    loadMore,
+    refetch,
+  } = useBookingsList({ filters, sort });
+
+  // Lien externe `?id=` : uuid ou numéro de réservation. La cible n'est pas
+  // forcément dans les lots chargés, on la résout donc en base.
+  useEffect(() => {
+    const param = searchParams.get("id");
+    if (!param) return;
+
+    // replace: true évite d'empiler l'entrée `?id=...` dans l'historique,
+    // sinon le bouton "retour" y revient et re-déclenche cette redirection (boucle).
+    if (!/^\d+$/.test(param)) {
+      navigate(`/admin/bookings/${param}`, { replace: true });
+      return;
     }
-    return "auto";
-  });
 
-  const isAutoPageSize = pageSize === "auto";
-  const itemsPerPage = isAutoPageSize ? autoRows : pageSize;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("booking_id", Number(param))
+        .maybeSingle();
+      if (!cancelled && data) navigate(`/admin/bookings/${data.id}`, { replace: true });
+    })();
 
-  const handlePageSizeChange = (size: PageSize) => {
-    setPageSize(size);
-    localStorage.setItem("bookingsList.pageSize", String(size));
-    setCurrentPage(1);
-  };
-
-  const handlePeriodDaysChange = (days: number) => {
-    setPeriodDays(days);
-    localStorage.setItem("bookingsList.periodDays", String(days));
-    setCurrentPage(1);
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, navigate]);
 
   const handleSort = (key: BookingSortKey) => {
     if (key === sortKey) {
@@ -185,7 +161,6 @@ export default function BookingsList() {
       setSortKey(key);
       setSortDirection("asc");
     }
-    setCurrentPage(1);
   };
 
   const { selectedBooking } = useBookingSelection({
@@ -197,56 +172,17 @@ export default function BookingsList() {
 
   const headerRef = useRef<HTMLDivElement>(null);
 
-  const computeRows = useCallback(() => {
-    const rowHeight = 56;
-    const tableHeaderHeight = 32;
-    const paginationHeight = 48;
-    const sidebarOffset = 64;
-    const headerHeight = headerRef.current?.offsetHeight || 140;
-    const contentPadding = 48;
-    const usedHeight =
-      headerHeight + tableHeaderHeight + paginationHeight + contentPadding + sidebarOffset;
-    const availableForRows = window.innerHeight - usedHeight;
-    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
-
-    setAutoRows(rows);
-  }, []);
-
-  useEffect(() => {
-    computeRows();
-    window.addEventListener("resize", computeRows);
-    return () => window.removeEventListener("resize", computeRows);
-  }, [computeRows]);
-
-  const paginatedBookings = sortedBookings.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-  // En mode "auto" on remplit l'écran avec des lignes vides ; en taille fixe, le tableau défile.
-  const emptyRowsCount = isAutoPageSize
-    ? Math.max(0, itemsPerPage - paginatedBookings.length)
-    : 0;
-  const totalPages = Math.max(1, Math.ceil(sortedBookings.length / itemsPerPage));
-
   const handleBookingClick = (booking: typeof selectedBooking) => {
     if (booking) {
       navigate(`/admin/bookings/${booking.id}`);
     }
   };
 
-  const handleFilterChange =
-    <T,>(setter: (value: T) => void) =>
-    (value: T) => {
-      setter(value);
-      setCurrentPage(1);
-    };
-
   // La plage personnalisée vit sur la page, pas dans le hook : le reset doit
   // la remettre à zéro aussi, sinon le bouton resterait affiché après un clic.
   const handleResetFilters = () => {
     resetFilters();
     setCustomRange(null);
-    setCurrentPage(1);
   };
 
   const handleRefresh = async () => {
@@ -255,10 +191,25 @@ export default function BookingsList() {
     setIsRefreshing(false);
   };
 
-  // Exporte les réservations filtrées + triées (pas seulement la page affichée).
-  // Une ligne = une réservation ; les prestations sont jointes dans une colonne.
-  const handleExportCsv = () => {
-    if (sortedBookings.length === 0) {
+  // Exporte toutes les réservations correspondant aux filtres, pas seulement
+  // les lots déjà chargés. Une ligne = une réservation ; les prestations sont
+  // jointes dans une colonne.
+  const handleExportCsv = async () => {
+    if (total === 0) {
+      toast.info(t("bookings.export.empty"));
+      return;
+    }
+    setIsExporting(true);
+    let rows: BookingWithTreatments[];
+    try {
+      rows = await fetchAllMatching();
+    } catch {
+      toast.error(t("bookings.export.failed"));
+      return;
+    } finally {
+      setIsExporting(false);
+    }
+    if (rows.length === 0) {
       toast.info(t("bookings.export.empty"));
       return;
     }
@@ -319,8 +270,8 @@ export default function BookingsList() {
       { header: t("bookings.export.columns.customerNote"), value: (b) => b.customer_health_notes ?? "" },
       { header: t("bookings.export.columns.bookingNote"), value: (b) => b.client_note ?? "" },
     ];
-    downloadCsv(buildCsv(sortedBookings, columns), `reservations_${format(new Date(), "yyyy-MM-dd")}.csv`);
-    toast.success(t("bookings.export.success", { count: sortedBookings.length }));
+    downloadCsv(buildCsv(rows, columns), `reservations_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    toast.success(t("bookings.export.success", { count: rows.length }));
   };
 
   return (
@@ -382,9 +333,18 @@ export default function BookingsList() {
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuItem className="cursor-pointer" onClick={handleExportCsv}>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  disabled={isExporting}
+                  // L'export part chercher toutes les lignes filtrées : garder le
+                  // menu ouvert évite de croire que rien ne s'est passé.
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handleExportCsv();
+                  }}
+                >
                   <Download className="mr-2 h-4 w-4" />
-                  {t("bookingsList.exportCsv")}
+                  {isExporting ? t("bookingsList.exporting") : t("bookingsList.exportCsv")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -398,15 +358,15 @@ export default function BookingsList() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           statusFilter={statusFilter}
-          onStatusChange={handleFilterChange(setStatusFilter)}
+          onStatusChange={setStatusFilter}
           hotelFilter={hotelFilter}
-          onHotelChange={handleFilterChange(setHotelFilter)}
+          onHotelChange={setHotelFilter}
           therapistFilter={therapistFilter}
-          onTherapistChange={handleFilterChange(setTherapistFilter)}
+          onTherapistChange={setTherapistFilter}
           paymentMethodFilter={paymentMethodFilter}
-          onPaymentMethodChange={handleFilterChange(setPaymentMethodFilter)}
+          onPaymentMethodChange={setPaymentMethodFilter}
           paymentStatusFilter={paymentStatusFilter}
-          onPaymentStatusChange={handleFilterChange(setPaymentStatusFilter)}
+          onPaymentStatusChange={setPaymentStatusFilter}
           view="list"
           onViewChange={() => {}}
           dayCount={5}
@@ -415,8 +375,6 @@ export default function BookingsList() {
           hotels={hotels}
           therapists={therapists}
           hideViewToggle
-          periodDays={periodDays}
-          onPeriodDaysChange={handlePeriodDaysChange}
           customRange={customRange}
           onCustomRangeChange={setCustomRange}
           filterVisibilityStorageKey="bookingsList.visibleFilters"
@@ -426,32 +384,28 @@ export default function BookingsList() {
 
       <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 min-h-0 min-w-0">
         <div className="bg-card rounded-lg border border-border h-full flex flex-col min-w-0 overflow-hidden">
-          {isLoading && !bookings ? (
+          {isLoading ? (
             <AppLoader fullScreen={false} className="flex-1" />
           ) : (
           <BookingListView
-            paginatedBookings={paginatedBookings}
-            filteredBookingsCount={sortedBookings.length}
-            emptyRowsCount={emptyRowsCount}
+            paginatedBookings={bookings}
+            filteredBookingsCount={bookings.length}
+            emptyRowsCount={0}
             columns={columnPreferences.visibleColumns}
             onBookingClick={handleBookingClick}
             getHotelInfo={getHotelInfo}
             isConcierge={isConcierge}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={sortedBookings.length}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
+            totalItems={total}
             paymentAsText
             sortKey={sortKey}
             sortDirection={sortDirection}
             onSort={handleSort}
             onColumnResize={columnPreferences.setWidth}
             onColumnResizeReset={columnPreferences.resetWidth}
-            pageSize={pageSize}
-            pageSizeOptions={[20, 50, 100]}
-            onPageSizeChange={handlePageSizeChange}
-            scrollable={!isAutoPageSize}
+            scrollable
+            onLoadMore={loadMore}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
           />
           )}
         </div>

@@ -3489,6 +3489,7 @@ export type Database = {
           hotel_id: string
           id: string
           is_enabled: boolean
+          is_exclusive: boolean
           lymfea_access_duration: number | null
           lymfea_access_included: boolean
           name: string | null
@@ -3510,6 +3511,7 @@ export type Database = {
           hotel_id: string
           id?: string
           is_enabled?: boolean
+          is_exclusive?: boolean
           lymfea_access_duration?: number | null
           lymfea_access_included?: boolean
           name?: string | null
@@ -3531,6 +3533,7 @@ export type Database = {
           hotel_id?: string
           id?: string
           is_enabled?: boolean
+          is_exclusive?: boolean
           lymfea_access_duration?: number | null
           lymfea_access_included?: boolean
           name?: string | null
@@ -3790,6 +3793,17 @@ export type Database = {
       admin_can_access_therapist: {
         Args: { _therapist_id: string }
         Returns: boolean
+      }
+      amenity_slot_conflict: {
+        Args: {
+          _booking_date: string
+          _end_time: string
+          _exclude_booking_id?: string
+          _guests?: number
+          _start_time: string
+          _venue_amenity_id: string
+        }
+        Returns: string
       }
       apply_schedule_template: {
         Args: {

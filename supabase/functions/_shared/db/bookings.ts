@@ -25,7 +25,18 @@ export type BookingTreatment = {
   price: number | null;
 };
 
-export type BookingListItem = BookingRow & {
+/**
+ * Colonnes volumineuses jamais lues par la liste ni le planning :
+ * `client_signature` est une data-URL d'image (~47 Ko en moyenne, 300 Ko au
+ * pire), `client_form_data` et `payment_error_details` du JSON libre. Elles
+ * sont exclues du select de liste et ne remontent que sur la fiche (getBookingById).
+ */
+type HeavyBookingColumn = "client_signature" | "client_form_data" | "payment_error_details";
+
+export type BookingListItem = Omit<BookingRow, HeavyBookingColumn> &
+  // Absentes des lignes de liste, présentes sur la fiche : optionnelles pour
+  // que le typage dise la vérité des deux côtés.
+  Partial<Pick<BookingRow, HeavyBookingColumn>> & {
   totalDuration: number;
   treatmentsTotalDuration: number;
   treatmentsTotalPrice: number;
@@ -48,7 +59,62 @@ export type BookingListFilters = {
   fromDate?: string;
   toDate?: string;
   statuses?: string[];
+  therapistIds?: string[];
+  /** Modes de paiement ; la sentinelle PAYMENT_METHOD_UNSET vise payment_method IS NULL. */
+  paymentMethods?: string[];
+  paymentStatuses?: string[];
+  /** Recherche plein texte : nom, prénom, téléphone, et n° de réservation si numérique. */
+  search?: string;
 };
+
+/**
+ * Clés de tri poussées à Postgres. Pas de tri sur les prestations : leur libellé
+ * vient d'une table jointe, PostgREST ne sait pas trier le parent dessus.
+ */
+export type BookingSortKey =
+  | "reservation"
+  | "date"
+  | "time"
+  | "duration"
+  | "status"
+  | "payment"
+  | "client"
+  | "total"
+  | "location"
+  | "therapist";
+
+export type BookingListSort = {
+  key: BookingSortKey;
+  direction: "asc" | "desc";
+};
+
+// Colonnes réelles derrière chaque clé de tri. `location` s'appuie sur la
+// colonne dénormalisée hotel_name (PostgREST ne trie pas sur un embed) : les
+// lignes sans nom de lieu atterrissent en fin de liste.
+const SORT_COLUMNS: Record<BookingSortKey, string[]> = {
+  reservation: ["booking_id"],
+  date: ["booking_date", "booking_time"],
+  time: ["booking_time"],
+  duration: ["duration"],
+  status: ["status"],
+  payment: ["payment_status"],
+  client: ["client_last_name", "client_first_name"],
+  total: ["total_price"],
+  location: ["hotel_name"],
+  therapist: ["therapist_name"],
+};
+
+/** Sentinelle « mode de paiement non renseigné ». Doit rester alignée sur src/lib/paymentMethod.ts. */
+const PAYMENT_METHOD_UNSET = "unset";
+
+/**
+ * Neutralise les caractères qui ont un sens dans la grammaire des filtres
+ * PostgREST (`or=(...)`) : sans ça, une virgule tapée dans la recherche casse
+ * la requête entière.
+ */
+function sanitizeSearchTerm(raw: string): string {
+  return raw.replace(/[,()"\\%*]/g, " ").trim();
+}
 
 type RawBookingRow = BookingRow & {
   booking_treatments?: Array<{
@@ -169,12 +235,79 @@ function computeBookingItem(row: RawBookingRow): BookingListItem {
   };
 }
 
-// Nested select shared by listBookings and getBookingById. Kept in sync so a
-// booking rendered from the list cache and one fetched by id have identical shape.
-// NB: the org filter join (`hotels!inner(id, organization_id)`) is appended only
-// by listBookings — getBookingById looks up by PK and relies on RLS for scoping.
-const BOOKING_SELECT = `
-      *,
+// Colonnes de bookings remontées par la liste et le planning : tout sauf les
+// colonnes lourdes (cf. HeavyBookingColumn). Énumérées explicitement pour que
+// l'ajout d'une future colonne volumineuse soit un choix, pas un effet de bord.
+const BOOKING_LIST_COLUMNS = [
+  "id",
+  "booking_id",
+  "booking_date",
+  "booking_time",
+  "booking_group_id",
+  "assigned_at",
+  "broadcast_wave",
+  "broadcast_wave_sent_at",
+  "bundle_usage_id",
+  "cancellation_reason",
+  "client_email",
+  "client_first_name",
+  "client_last_name",
+  "client_note",
+  "client_type",
+  "created_at",
+  "customer_id",
+  "declined_by",
+  "duration",
+  "email_inquiry_id",
+  "external_id",
+  "external_reference",
+  "gift_amount_applied_cents",
+  "guest_count",
+  "hold_expires_at",
+  "hotel_id",
+  "hotel_name",
+  "is_out_of_hours",
+  "language",
+  "payment_error_code",
+  "payment_error_message",
+  "payment_link_channels",
+  "payment_link_language",
+  "payment_link_sent_at",
+  "payment_link_url",
+  "payment_method",
+  "payment_reference",
+  "payment_status",
+  "phone",
+  "pms_charge_id",
+  "pms_charge_status",
+  "pms_error_message",
+  "pms_guest_check_in",
+  "pms_guest_check_out",
+  "quote_token",
+  "room_id",
+  "room_number",
+  "secondary_room_id",
+  "short_token",
+  "signature_token",
+  "signed_at",
+  "source",
+  "status",
+  "stripe_invoice_url",
+  "surcharge_amount",
+  "therapist_checked_in_at",
+  "therapist_gender_preference",
+  "therapist_id",
+  "therapist_name",
+  "total_price",
+  "updated_at",
+].join(", ");
+
+// Jointures partagées par listBookings et getBookingById. Gardées identiques
+// pour qu'une réservation rendue depuis le cache de liste et une réservation
+// chargée par id aient la même forme.
+// NB : la jointure du filtre d'org (`hotels!inner(id, organization_id)`) n'est
+// ajoutée que par listBookings — getBookingById cherche par PK et s'appuie sur RLS.
+const BOOKING_EMBEDS = `
       booking_treatments(
         id,
         treatment_id,
@@ -191,6 +324,12 @@ const BOOKING_SELECT = `
       treatment_rooms!room_id(name),
       secondary_room:treatment_rooms!secondary_room_id(name),
       customers(health_notes)`;
+
+/** Fiche : toutes les colonnes, y compris signature et formulaire de santé. */
+const BOOKING_SELECT = `*,${BOOKING_EMBEDS}`;
+
+/** Liste et planning : colonnes utiles seulement. */
+const BOOKING_LIST_SELECT = `${BOOKING_LIST_COLUMNS},${BOOKING_EMBEDS}`;
 
 /**
  * Fetch a single booking by its primary key, with the same nested shape as
@@ -212,18 +351,23 @@ export async function getBookingById(
   return computeBookingItem(data as RawBookingRow);
 }
 
-export async function listBookings(
-  client: TClient,
+/**
+ * Applique le scope d'organisation et les filtres à une requête bookings déjà
+ * construite. Partagé par la liste bornée par dates (planning) et la liste
+ * paginée (/admin/bookings), pour que les deux filtrent exactement pareil.
+ */
+// Le type du builder PostgREST dépend du select et du comptage demandés ; on le
+// traite comme opaque plutôt que de le reproduire à l'identique dans chaque appelant.
+// deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type BookingQuery = any;
+
+function applyBookingFilters(
+  query: BookingQuery,
   scope: OrgScope,
-  filters: BookingListFilters = {},
-): Promise<BookingListItem[]> {
-  // Single query with nested select replaces the previous N+1 (one fetch per booking for treatments).
-  // hotels!inner is appended here only to enable the org filter; it's stripped client-side below.
-  let q = client
-    .from("bookings")
-    .select(`${BOOKING_SELECT},\n      hotels!inner(id, organization_id)`)
-    .order("booking_date", { ascending: true })
-    .order("booking_time", { ascending: true });
+  filters: BookingListFilters,
+): BookingQuery {
+  let q = query;
 
   if ("organizationId" in scope && scope.organizationId) {
     q = q.eq("hotels.organization_id", scope.organizationId);
@@ -232,13 +376,134 @@ export async function listBookings(
   if (filters.fromDate) q = q.gte("booking_date", filters.fromDate);
   if (filters.toDate) q = q.lte("booking_date", filters.toDate);
   if (filters.statuses?.length) q = q.in("status", filters.statuses);
+  if (filters.therapistIds?.length) q = q.in("therapist_id", filters.therapistIds);
+  if (filters.paymentStatuses?.length) q = q.in("payment_status", filters.paymentStatuses);
+
+  if (filters.paymentMethods?.length) {
+    const methods = filters.paymentMethods.filter((m) => m !== PAYMENT_METHOD_UNSET);
+    const wantsUnset = filters.paymentMethods.includes(PAYMENT_METHOD_UNSET);
+    if (wantsUnset && methods.length) {
+      q = q.or(`payment_method.is.null,payment_method.in.(${methods.join(",")})`);
+    } else if (wantsUnset) {
+      q = q.is("payment_method", null);
+    } else {
+      q = q.in("payment_method", methods);
+    }
+  }
+
+  const search = filters.search ? sanitizeSearchTerm(filters.search) : "";
+  if (search) {
+    const conditions = [
+      `client_first_name.ilike.%${search}%`,
+      `client_last_name.ilike.%${search}%`,
+      `phone.ilike.%${search}%`,
+    ];
+    // booking_id est un integer : un ilike dessus fait échouer toute la requête
+    // (42883). On ne l'interroge donc qu'en égalité, et seulement si la saisie
+    // est bien un numéro.
+    if (/^\d+$/.test(search)) conditions.push(`booking_id.eq.${search}`);
+    q = q.or(conditions.join(","));
+  }
+
+  return q;
+}
+
+// Retire la jointure hotels, ajoutée uniquement pour le filtre d'organisation.
+function toListItem(row: unknown): BookingListItem {
+  const { hotels: _hotels, ...rest } = row as RawBookingRow & { hotels?: unknown };
+  return computeBookingItem(rest as RawBookingRow);
+}
+
+export async function listBookings(
+  client: TClient,
+  scope: OrgScope,
+  filters: BookingListFilters = {},
+): Promise<BookingListItem[]> {
+  // Single query with nested select replaces the previous N+1 (one fetch per booking for treatments).
+  const q = applyBookingFilters(
+    client
+      .from("bookings")
+      .select(`${BOOKING_LIST_SELECT},\n      hotels!inner(id, organization_id)`)
+      .order("booking_date", { ascending: true })
+      .order("booking_time", { ascending: true }),
+    scope,
+    filters,
+  );
 
   const { data, error } = await q;
   if (error) throw error;
 
-  return (data ?? []).map((row) => {
-    // Strip the hotels join column — it was only added for the org filter.
-    const { hotels: _hotels, ...rest } = row as RawBookingRow & { hotels?: unknown };
-    return computeBookingItem(rest as RawBookingRow);
-  });
+  return (data ?? []).map(toListItem);
+}
+
+export type BookingPage = {
+  items: BookingListItem[];
+  /** Nombre total de réservations correspondant aux filtres, toutes pages confondues. */
+  total: number;
+};
+
+/**
+ * Une page de réservations, filtrée et triée par Postgres. Indispensable dès
+ * que la liste dépasse le plafond de lignes de PostgREST : un filtre appliqué
+ * côté client sur une réponse déjà tronquée donne un résultat faux, sans erreur.
+ */
+export async function listBookingsPage(
+  client: TClient,
+  scope: OrgScope,
+  filters: BookingListFilters,
+  page: { offset: number; limit: number; sort: BookingListSort },
+): Promise<BookingPage> {
+  const ascending = page.sort.direction === "asc";
+  let q = applyBookingFilters(
+    client
+      .from("bookings")
+      .select(`${BOOKING_LIST_SELECT},\n      hotels!inner(id, organization_id)`, {
+        count: "exact",
+      }),
+    scope,
+    filters,
+  );
+
+  for (const column of SORT_COLUMNS[page.sort.key]) {
+    q = q.order(column, { ascending, nullsFirst: false });
+  }
+  // Départage stable : sans ça, deux lignes de même valeur peuvent changer de
+  // page entre deux requêtes et apparaître en double ou disparaître.
+  q = q.order("id", { ascending: true });
+
+  const { data, error, count } = await q.range(
+    page.offset,
+    page.offset + page.limit - 1,
+  );
+  if (error) throw error;
+
+  return { items: (data ?? []).map(toListItem), total: count ?? 0 };
+}
+
+/** Plafond de lignes de PostgREST : une réponse plus longue est tronquée en silence. */
+const POSTGREST_PAGE_SIZE = 1000;
+
+/**
+ * Toutes les réservations correspondant aux filtres, récupérées par lots.
+ * Réservé aux usages qui ont réellement besoin de l'ensemble (export CSV) —
+ * l'affichage, lui, pagine.
+ */
+export async function listAllBookings(
+  client: TClient,
+  scope: OrgScope,
+  filters: BookingListFilters,
+  sort: BookingListSort,
+  maxRows = 10_000,
+): Promise<BookingListItem[]> {
+  const items: BookingListItem[] = [];
+  for (let offset = 0; offset < maxRows; offset += POSTGREST_PAGE_SIZE) {
+    const page = await listBookingsPage(client, scope, filters, {
+      offset,
+      limit: Math.min(POSTGREST_PAGE_SIZE, maxRows - offset),
+      sort,
+    });
+    items.push(...page.items);
+    if (items.length >= page.total || page.items.length === 0) break;
+  }
+  return items;
 }
