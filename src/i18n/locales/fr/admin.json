@@ -2729,7 +2729,7 @@
     "persons": "{{count}} pers.",
     "prep": "+{{count}} min prépa",
     "exclusive": "Privatisation",
-    "exclusiveHelp": "Une réservation bloque tout le créneau. La capacité ne limite alors que le nombre de personnes d'une même réservation.",
+    "exclusiveHelp": "Une réservation bloque tout le créneau. La capacité ne limite alors que le nombre de personnes d'une même réservation. À décocher pour un équipement réellement partagé.",
     "exclusiveBadge": "Privatisée",
     "prepTimeHelp": "Remise en état réservée après chaque réservation : rien ne peut démarrer avant la fin du nettoyage."
   },

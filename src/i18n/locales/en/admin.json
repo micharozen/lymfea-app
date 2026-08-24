@@ -2729,7 +2729,7 @@
     "persons": "{{count}} people",
     "prep": "+{{count}} min prep",
     "exclusive": "Exclusive use",
-    "exclusiveHelp": "One booking takes the whole slot. Capacity then only caps how many people a single booking may have.",
+    "exclusiveHelp": "One booking takes the whole slot. Capacity then only caps how many people a single booking may have. Uncheck it for a genuinely shared facility.",
     "exclusiveBadge": "Exclusive",
     "prepTimeHelp": "Turnaround time held after every booking: nothing can start before the cleaning is over."
   },

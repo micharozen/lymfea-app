@@ -3,14 +3,16 @@
 --
 -- Deux règles manquaient au moteur de disponibilité :
 --
--- 1. Exclusivité — un bassin se privatise dès la première réservation.
+-- 1. Exclusivité — une commodité se privatise dès la première réservation.
 --    Jusqu'ici `capacity_per_slot` était traité comme une capacité mutualisée :
 --    les num_guests de toutes les réservations qui se chevauchent étaient
 --    additionnés et comparés à la capacité. Deux privatisations pouvaient donc
 --    se superposer (constaté sur l'Hôtel de Buci le 21/08).
 --    `capacity_per_slot` devient le plafond de personnes d'UNE réservation ;
 --    une commodité exclusive n'en accepte qu'une seule par créneau.
---    Le drapeau est par commodité : un hammam ou un sauna reste mutualisé.
+--    C'est le comportement par défaut, y compris pour toute commodité créée
+--    plus tard. Le drapeau reste réglable par commodité, à décocher pour un
+--    équipement réellement partagé (sauna, salle de fitness…).
 --
 -- 2. Remise en état — `prep_time` (30 min sur le bassin de Buci) n'était lu
 --    par aucun calcul, uniquement affiché. Il s'applique APRÈS chaque
@@ -25,12 +27,13 @@
 
 -- 1. Drapeau d'exclusivité ----------------------------------------------------
 ALTER TABLE public.venue_amenities
-  ADD COLUMN IF NOT EXISTS is_exclusive boolean NOT NULL DEFAULT false;
+  ADD COLUMN IF NOT EXISTS is_exclusive boolean NOT NULL DEFAULT true;
 
 COMMENT ON COLUMN public.venue_amenities.is_exclusive IS
   'Une réservation privatise le créneau : aucune autre réservation ne peut le '
   'partager. capacity_per_slot ne plafonne alors que le nombre de personnes '
-  'd''une même réservation.';
+  'd''une même réservation. Vrai par défaut : à décocher pour un équipement '
+  'réellement partagé.';
 
 COMMENT ON COLUMN public.venue_amenities.capacity_per_slot IS
   'Nombre maximum de personnes. Sur une commodité exclusive : par réservation. '
@@ -40,9 +43,9 @@ COMMENT ON COLUMN public.venue_amenities.prep_time IS
   'Remise en état en minutes, réservée après chaque réservation : aucune autre '
   'ne peut démarrer avant la fin du nettoyage.';
 
--- Les bassins se privatisent, c'est la règle métier d'aujourd'hui sur les deux
--- lieux qui en exploitent un. Les autres équipements restent mutualisés.
-UPDATE public.venue_amenities SET is_exclusive = true WHERE type = 'pool';
+-- Les commodités existantes suivent le même défaut : une réservation privatise
+-- le créneau. Le partage devient l'exception, à activer lieu par lieu.
+UPDATE public.venue_amenities SET is_exclusive = true;
 
 -- 2. Règle unique de conflit --------------------------------------------------
 -- Retourne NULL quand le créneau est réservable, sinon le motif de refus :

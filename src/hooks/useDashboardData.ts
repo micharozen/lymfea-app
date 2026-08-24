@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { format, differenceInCalendarDays, differenceInDays, addDays, subDays, isWithinInterval, parseISO } from "date-fns";
+import {
+  format,
+  differenceInCalendarDays,
+  differenceInDays,
+  addDays,
+  addMonths,
+  endOfMonth,
+  isWithinInterval,
+  parseISO,
+  startOfMonth,
+  subDays,
+  subMonths,
+} from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useExchangeRates } from "@/hooks/useExchangeRates";
@@ -12,6 +24,7 @@ import { getDashboardDataForOrg, type DashboardBooking } from "@shared/db";
 import {
   buildMonthlyOutlook,
   buildMonthlyOutlookByVenue,
+  OUTLOOK_PAST_MONTHS,
   type MonthlyOutlookByVenue,
   type MonthlyOutlookPoint,
 } from "@/lib/monthlyOutlook";
@@ -233,44 +246,38 @@ export function useDashboardData(
   const [loading, setLoading] = useState(true);
   const { rates } = useExchangeRates();
 
+  // Fenêtre de lecture : le dashboard ne charge plus toute la table.
+  // Borne basse = la plus ancienne des deux lectures qui remontent dans le passé
+  // (période précédente pour les tendances, historique de l'outlook mensuel).
+  // Borne haute = un an, pour que le compteur « n° de chambre manquant » et
+  // l'outlook restent exacts sur les réservations futures.
+  const dataWindow = useMemo(() => {
+    const now = new Date();
+    const periodDays = Math.max(0, differenceInDays(endDate, startDate));
+    const from = subDays(startDate, periodDays + 1);
+    const outlookFrom = startOfMonth(subMonths(now, OUTLOOK_PAST_MONTHS));
+    const to = endOfMonth(addMonths(now, 12));
+    return {
+      fromDate: format(from < outlookFrom ? from : outlookFrom, "yyyy-MM-dd"),
+      toDate: format(endDate > to ? endDate : to, "yyyy-MM-dd"),
+    };
+  }, [startDate, endDate]);
+
   useEffect(() => {
     if (!scope) return;
     let cancelled = false;
     (async () => {
       try {
         setLoading(true);
-        const data = await getDashboardDataForOrg(supabase, scope);
-
-        // Fetch treatment names for the bookings we got (non-blocking).
-        const treatmentMap: Record<string, string[]> = {};
-        const bookingIds = data.bookings.map((b) => b.id);
-        if (bookingIds.length > 0) {
-          try {
-            const { data: btData } = await supabase
-              .from("booking_treatments")
-              .select("booking_id, treatment_menus(name)")
-              .in("booking_id", bookingIds);
-            if (btData) {
-              btData.forEach((bt: { booking_id: string | null; treatment_menus: { name: string } | null }) => {
-                const name = bt.treatment_menus?.name;
-                if (name && bt.booking_id) {
-                  if (!treatmentMap[bt.booking_id]) treatmentMap[bt.booking_id] = [];
-                  treatmentMap[bt.booking_id].push(name);
-                }
-              });
-            }
-          } catch {
-            // Non-critical
-          }
-        }
+        const data = await getDashboardDataForOrg(supabase, scope, dataWindow);
 
         if (cancelled) return;
         setBookings(
           data.bookings.map((b) => ({
             ...b,
-            booking_treatments: (treatmentMap[b.id] || []).map((name) => ({
-              treatment_menus: { name },
-            })),
+            booking_treatments: b.booking_treatments.filter(
+              (bt): bt is { treatment_menus: { name: string } } => !!bt.treatment_menus?.name,
+            ),
           })),
         );
         setHotels(data.hotels);
@@ -286,7 +293,7 @@ export function useDashboardData(
     return () => {
       cancelled = true;
     };
-  }, [scope]);
+  }, [scope, dataWindow]);
 
   // ── Currency map ──────────────────────────────────────────────────
 

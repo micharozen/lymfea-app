@@ -1,4 +1,4 @@
-import { Fragment, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -65,11 +65,12 @@ interface BookingListViewProps {
   getHotelInfo: (hotelId: string | null) => Hotel | null;
   isAdmin?: boolean;
   isConcierge: boolean;
-  currentPage: number;
-  totalPages: number;
+  /** Pagination classique. Omis en mode incrémental (cf. onLoadMore). */
+  currentPage?: number;
+  totalPages?: number;
   totalItems: number;
-  itemsPerPage: number;
-  onPageChange: (page: number) => void;
+  itemsPerPage?: number;
+  onPageChange?: (page: number) => void;
   paymentAsText?: boolean;
   onRequestCancel?: (booking: BookingWithTreatments) => void;
   sortKey?: BookingSortKey;
@@ -84,6 +85,14 @@ interface BookingListViewProps {
   onPageSizeChange?: (size: PageSize) => void;
   /** Quand true, le tableau défile verticalement (taille de page fixe > écran). */
   scrollable?: boolean;
+  /**
+   * Chargement par lots : fournir le handler remplace la pagination par un
+   * défilement infini doublé d'un bouton « Charger plus ». `totalItems` reste
+   * le total côté serveur, pas le nombre de lignes déjà chargées.
+   */
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 export function BookingListView({
@@ -95,10 +104,10 @@ export function BookingListView({
   getHotelInfo,
   isAdmin = false,
   isConcierge,
-  currentPage,
-  totalPages,
+  currentPage = 1,
+  totalPages = 1,
   totalItems,
-  itemsPerPage,
+  itemsPerPage = 0,
   onPageChange,
   paymentAsText = false,
   onRequestCancel,
@@ -111,9 +120,13 @@ export function BookingListView({
   pageSizeOptions,
   onPageSizeChange,
   scrollable = false,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
 }: BookingListViewProps) {
   const { t } = useTranslation(["admin", "common"]);
   const navigate = useNavigate();
+  const isIncremental = !!onLoadMore;
 
   // Le filtre concierge reste porté par la config, pas par les appelants.
   const visibleColumns = (columns ?? DEFAULT_COLUMNS).filter(
@@ -127,6 +140,28 @@ export function BookingListView({
   // Le redimensionnement raisonne en poids : on convertit le déplacement en px
   // via la largeur rendue de la table, d'où ce ref.
   const tableRef = useRef<HTMLTableElement>(null);
+
+  // Défilement infini : une sentinelle par vue (mobile / bureau). Celle qui est
+  // masquée par le point de rupture n'est jamais visible, donc ne déclenche rien.
+  const mobileSentinelRef = useRef<HTMLDivElement>(null);
+  const desktopSentinelRef = useRef<HTMLTableRowElement>(null);
+  const onLoadMoreRef = useRef(onLoadMore);
+  onLoadMoreRef.current = onLoadMore;
+
+  useEffect(() => {
+    if (!isIncremental || !hasMore || isLoadingMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) onLoadMoreRef.current?.();
+      },
+      // Anticipe : on charge le lot suivant avant d'atteindre le bas.
+      { rootMargin: "200px" },
+    );
+    for (const node of [mobileSentinelRef.current, desktopSentinelRef.current]) {
+      if (node) observer.observe(node);
+    }
+    return () => observer.disconnect();
+  }, [isIncremental, hasMore, isLoadingMore, paginatedBookings.length]);
 
   const startResize = (column: BookingColumnDef, event: React.PointerEvent) => {
     if (!onColumnResize) return;
@@ -400,6 +435,7 @@ export function BookingListView({
             </div>
           );
         })}
+        {isIncremental && hasMore && <div ref={mobileSentinelRef} className="h-px" aria-hidden />}
       </div>
 
       {/* ── Desktop table view (≥md) ────────────────────────── */}
@@ -465,21 +501,52 @@ export function BookingListView({
                 </TableCell>
               </TableRow>
             )}
+
+            {isIncremental && hasMore && (
+              <TableRow ref={desktopSentinelRef} className="h-px" aria-hidden>
+                <TableCell colSpan={totalColumns} className="h-px p-0" />
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
 
-      <TablePagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalItems={totalItems}
-        itemsPerPage={itemsPerPage}
-        onPageChange={onPageChange}
-        itemName={t("admin:bookingListView.itemName")}
-        pageSize={pageSize}
-        pageSizeOptions={pageSizeOptions}
-        onPageSizeChange={onPageSizeChange}
-      />
+      {isIncremental ? (
+        <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2">
+          <span className="text-xs text-muted-foreground">
+            {t("admin:bookingListView.loadedCount", {
+              loaded: paginatedBookings.length,
+              total: totalItems,
+            })}
+          </span>
+          {hasMore && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore
+                ? t("admin:bookingListView.loading")
+                : t("admin:bookingListView.loadMore")}
+            </Button>
+          )}
+        </div>
+      ) : (
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={onPageChange ?? (() => {})}
+          itemName={t("admin:bookingListView.itemName")}
+          pageSize={pageSize}
+          pageSizeOptions={pageSizeOptions}
+          onPageSizeChange={onPageSizeChange}
+        />
+      )}
     </div>
   );
 }

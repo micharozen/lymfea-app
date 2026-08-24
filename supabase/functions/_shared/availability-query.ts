@@ -203,7 +203,7 @@ export async function getVenueAvailability(
     duration: number;
     /** Remise en état réservée après chaque réservation (minutes). */
     prep: number;
-    /** Une réservation privatise le créneau (bassin) : aucun partage possible. */
+    /** Une réservation privatise le créneau : aucun partage possible (défaut). */
     exclusive: boolean;
   };
   const amenityCfg = new Map<string, AmenityCfg>();
@@ -252,7 +252,7 @@ export async function getVenueAvailability(
   //  - la remise en état est réservée APRÈS chaque réservation, donc les deux
   //    fenêtres comparées sont étendues en aval (le nettoyage a le droit de
   //    déborder après la fermeture, il n'ampute pas le dernier créneau) ;
-  //  - une commodité exclusive (bassin) n'accepte qu'une réservation par
+  //  - une commodité exclusive (le défaut) n'accepte qu'une réservation par
   //    créneau : la capacité n'y plafonne que les personnes d'une même
   //    réservation, elle ne se partage pas entre clients.
   const amenityCapacityAt = (date: string, slotMinutes: number): number | null => {
