@@ -2306,6 +2306,37 @@ $$;
 
 ALTER FUNCTION "public"."prevent_overlapping_treatment_room_bookings"() OWNER TO "postgres";
 
+CREATE OR REPLACE FUNCTION "public"."propagate_booking_status_to_amenities"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+BEGIN
+  -- Annulation / no-show : on libère la capacité de l'amenity.
+  IF NEW.status IN ('cancelled', 'Annulé', 'noshow')
+     AND (OLD.status IS DISTINCT FROM NEW.status) THEN
+    UPDATE public.amenity_bookings
+    SET status = CASE WHEN NEW.status = 'noshow' THEN 'noshow' ELSE 'cancelled' END
+    WHERE linked_booking_id = NEW.id
+      AND status = 'confirmed';
+
+  -- Retour en arrière (revert_booking_cancellation_after_stripe_error,
+  -- reactivate_prereservation) : on rend sa place à la réservation.
+  ELSIF OLD.status IN ('cancelled', 'Annulé', 'noshow')
+        AND NEW.status NOT IN ('cancelled', 'Annulé', 'noshow') THEN
+    UPDATE public.amenity_bookings
+    SET status = 'confirmed'
+    WHERE linked_booking_id = NEW.id
+      AND status IN ('cancelled', 'noshow');
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+ALTER FUNCTION "public"."propagate_booking_status_to_amenities"() OWNER TO "postgres";
+
+COMMENT ON FUNCTION "public"."propagate_booking_status_to_amenities"() IS 'Aligne amenity_bookings.status sur bookings.status pour les lignes liées (linked_booking_id), afin qu''une annulation libère la capacité de l''amenity.';
+
 CREATE OR REPLACE FUNCTION "public"."log_therapist_availability_change"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$

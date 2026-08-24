@@ -7,6 +7,7 @@ import { derivePaymentForClientType } from "@/lib/clientTypePayment";
 import { composePhoneNumber, languageFromCountryCode } from "@/lib/phone";
 import { normalizeEmail, isValidEmail } from "@/lib/email";
 import { therapistForTreatment } from "@/lib/therapistForTreatment";
+import { amenityClientTypeFromBooking } from "@/lib/amenityTypes";
 
 interface Hotel {
   id: string;
@@ -245,6 +246,153 @@ async function assertRoomsFree(
   }
 }
 
+/** Un accès amenity à réserver, agrégé par commodité (1 ligne de panier = 1 place). */
+interface LinkedAmenityLine {
+  venueAmenityId: string;
+  duration: number;
+  price: number;
+  numGuests: number;
+}
+
+/**
+ * Résout les lignes « amenity » du panier vers les commodités qu'elles consomment.
+ * Un treatment relié à un venue_amenity (treatment_menus.amenity_id) doit produire
+ * une ligne amenity_bookings, sans quoi il n'occupe aucune capacité et reste
+ * invisible dans le planning commodités — c'est ce que fait déjà la RPC
+ * reserve_trunk_atomically pour le flux client.
+ */
+async function resolveLinkedAmenityLines(d: CreateBookingPayload): Promise<LinkedAmenityLine[]> {
+  const amenityTreatments = (d.treatments ?? []).filter((t) => t.isAmenity);
+  if (!amenityTreatments.length) return [];
+
+  const { data: menus, error } = await supabase
+    .from("treatment_menus")
+    .select("id, amenity_id, duration, price")
+    .in("id", Array.from(new Set(amenityTreatments.map((t) => t.treatmentId))));
+  if (error) throw error;
+
+  const variantIds = amenityTreatments
+    .map((t) => t.variantId)
+    .filter((id): id is string => !!id);
+  const variantById = new Map<string, { duration: number; price: number | null }>();
+  if (variantIds.length) {
+    const { data: variants, error: variantError } = await supabase
+      .from("treatment_variants")
+      .select("id, duration, price")
+      .in("id", Array.from(new Set(variantIds)));
+    if (variantError) throw variantError;
+    for (const v of variants ?? []) variantById.set(v.id, { duration: v.duration, price: v.price });
+  }
+
+  const menuById = new Map((menus ?? []).map((m) => [m.id, m]));
+  const byAmenity = new Map<string, LinkedAmenityLine>();
+
+  for (const line of amenityTreatments) {
+    const menu = menuById.get(line.treatmentId);
+    if (!menu?.amenity_id) continue;
+    const variant = line.variantId ? variantById.get(line.variantId) : undefined;
+    const duration = variant?.duration ?? menu.duration ?? d.totalDuration ?? 60;
+    const price = line.priceOverride ?? variant?.price ?? Number(menu.price ?? 0);
+
+    const existing = byAmenity.get(menu.amenity_id);
+    if (existing) {
+      byAmenity.set(menu.amenity_id, {
+        ...existing,
+        duration: Math.max(existing.duration, duration),
+        price: existing.price + price,
+        numGuests: existing.numGuests + 1,
+      });
+    } else {
+      byAmenity.set(menu.amenity_id, {
+        venueAmenityId: menu.amenity_id,
+        duration,
+        price,
+        numGuests: 1,
+      });
+    }
+  }
+
+  return Array.from(byAmenity.values());
+}
+
+/**
+ * Garde-fou de capacité, équivalent applicatif du AMENITY_FULL de la RPC. Non
+ * atomique (pas d'advisory lock côté client), mais évite le surbooking courant :
+ * jusqu'ici le chemin admin ne vérifiait que les salles, qu'un accès amenity n'a pas.
+ */
+async function assertAmenityCapacity(
+  date: string,
+  time: string,
+  lines: LinkedAmenityLine[],
+) {
+  for (const line of lines) {
+    const { data: amenity, error } = await supabase
+      .from("venue_amenities")
+      .select("name, capacity_per_slot")
+      .eq("id", line.venueAmenityId)
+      .single();
+    if (error) throw error;
+
+    const { data: occupancy, error: occupancyError } = await supabase.rpc(
+      "get_amenity_slot_occupancy",
+      {
+        p_venue_amenity_id: line.venueAmenityId,
+        p_date: date,
+        p_start_time: time,
+        p_end_time: computeEndTime(time, line.duration),
+      },
+    );
+    if (occupancyError) throw occupancyError;
+
+    const remaining = amenity.capacity_per_slot - (occupancy ?? 0);
+    if (line.numGuests > remaining) {
+      throw new Error(
+        `Capacité insuffisante sur ${amenity.name || "la commodité"} : ${remaining} place(s) restante(s) sur ce créneau.`,
+      );
+    }
+  }
+}
+
+async function insertLinkedAmenityBookings(
+  d: CreateBookingPayload,
+  bookingId: string,
+  customerId: string | null,
+  paymentMethod: string | null,
+  paymentStatus: string | null,
+  lines: LinkedAmenityLine[],
+) {
+  if (!lines.length) return;
+
+  const { error } = await supabase.from("amenity_bookings").insert(
+    lines.map((line) => ({
+      hotel_id: d.hotelId,
+      venue_amenity_id: line.venueAmenityId,
+      booking_date: d.date,
+      booking_time: d.time,
+      duration: line.duration,
+      end_time: computeEndTime(d.time, line.duration),
+      customer_id: customerId || null,
+      client_type: amenityClientTypeFromBooking(d.clientType),
+      room_number: d.roomNumber?.trim() ? d.roomNumber.trim() : null,
+      num_guests: line.numGuests,
+      price: d.isOffert ? 0 : line.price,
+      payment_method: paymentMethod,
+      payment_status: d.isOffert || line.price === 0 ? "offert" : paymentStatus ?? "pending",
+      status: "confirmed",
+      linked_booking_id: bookingId,
+    })),
+  );
+  if (error) throw error;
+}
+
+function computeEndTime(startTime: string, durationMinutes: number): string {
+  const [h, m] = startTime.split(":").map(Number);
+  const total = h * 60 + m + durationMinutes;
+  const endH = Math.floor(total / 60) % 24;
+  const endM = total % 60;
+  return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+}
+
 async function insertSingleBooking(
   d: CreateBookingPayload,
   hotel: Hotel | undefined,
@@ -264,6 +412,11 @@ async function insertSingleBooking(
     resolveAssignment(allTherapistIds, guestCount, therapists);
   // Un panier 100 % amenity n'attend aucun praticien : confirmé sans assignation.
   const status = d.amenityOnly ? "confirmed" : resolvedStatus;
+
+  // Capacité vérifiée avant l'insert : un échec après coup laisserait une
+  // réservation orpheline sans son accès commodité.
+  const amenityLines = await resolveLinkedAmenityLines(d);
+  await assertAmenityCapacity(d.date, d.time, amenityLines);
 
   const { data: booking, error } = await supabase.from("bookings").insert({
     hotel_id: d.hotelId,
@@ -393,6 +546,8 @@ async function insertSingleBooking(
     );
     if (te) throw te;
   }
+
+  await insertLinkedAmenityBookings(d, booking.id, customerId, paymentMethod, paymentStatus, amenityLines);
 
   if (booking && allTherapistIds.length > 0) {
     // Insert simple (pas d'upsert) : la réservation vient d'être créée, aucune ligne
@@ -725,6 +880,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           : "Demande envoyée aux thérapeutes";
       toast({ title: message });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["amenity-bookings"] });
       onSuccess(data);
     },
     onError: (error: any) => {
