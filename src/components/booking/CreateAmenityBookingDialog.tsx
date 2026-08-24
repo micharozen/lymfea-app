@@ -321,6 +321,25 @@ export function CreateAmenityBookingDialog({
     enabled: !!selectedAmenityId && !!bookingDate && !!bookingTime,
   });
 
+  // Créneau privatisé ou remise en état en cours : la capacité brute ci-dessus
+  // ne les voit pas. Avertissement seulement — en interne l'opérateur tranche.
+  const { data: slotConflict } = useQuery({
+    queryKey: ["amenity-conflict", selectedAmenityId, bookingDate, bookingTime, duration, editBooking?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("amenity_slot_conflict", {
+        _venue_amenity_id: selectedAmenityId,
+        _booking_date: bookingDate,
+        _start_time: bookingTime,
+        _end_time: computeEndTime(bookingTime, duration),
+        _guests: form.getValues("num_guests") || 1,
+        _exclude_amenity_booking_id: editBooking?.id,
+      });
+      if (error) throw error;
+      return data as string | null;
+    },
+    enabled: !!selectedAmenityId && !!bookingDate && !!bookingTime,
+  });
+
   // When editing the same amenity/slot, the occupancy already counts this
   // booking's guests — credit them back so the booking can keep its places.
   const ownGuestsInSlot =
@@ -724,6 +743,15 @@ export function CreateAmenityBookingDialog({
                     {t("admin:amenityBookingForm.capacityBadge", { remaining: remainingCapacity, total: selectedAmenity.capacity_per_slot })}
                   </Badge>
                 </div>
+              )}
+              {slotConflict && (
+                <p className="text-xs text-destructive pb-2">
+                  {t(
+                    slotConflict === "AMENITY_EXCLUSIVE"
+                      ? "admin:amenityBookingForm.slotExclusiveWarning"
+                      : "admin:amenityBookingForm.slotFullWarning",
+                  )}
+                </p>
               )}
             </div>
 
