@@ -5,6 +5,8 @@ export { useBooking } from "./useBooking";
 export { useCalendarHotels } from "./useCalendarHotels";
 export { useActiveTherapists } from "./useActiveTherapists";
 
+export { useBookingsList, BOOKINGS_PAGE_SIZE } from "./useBookingsList";
+
 export { useBookingFilters } from "./useBookingFilters";
 
 export { useCalendarLogic, CALENDAR_CONSTANTS } from "./useCalendarLogic";

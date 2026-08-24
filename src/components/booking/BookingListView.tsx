@@ -65,11 +65,12 @@ interface BookingListViewProps {
   getHotelInfo: (hotelId: string | null) => Hotel | null;
   isAdmin?: boolean;
   isConcierge: boolean;
-  currentPage: number;
-  totalPages: number;
+  /** Pagination classique. Omis en mode incrémental (cf. onLoadMore). */
+  currentPage?: number;
+  totalPages?: number;
   totalItems: number;
-  itemsPerPage: number;
-  onPageChange: (page: number) => void;
+  itemsPerPage?: number;
+  onPageChange?: (page: number) => void;
   paymentAsText?: boolean;
   onRequestCancel?: (booking: BookingWithTreatments) => void;
   sortKey?: BookingSortKey;
@@ -84,6 +85,14 @@ interface BookingListViewProps {
   onPageSizeChange?: (size: PageSize) => void;
   /** Quand true, le tableau défile verticalement (taille de page fixe > écran). */
   scrollable?: boolean;
+  /**
+   * Chargement par lots : fournir le handler remplace la pagination par un
+   * bouton « Charger plus ». `totalItems` reste le total côté serveur, pas le
+   * nombre de lignes déjà chargées.
+   */
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 export function BookingListView({
@@ -95,10 +104,10 @@ export function BookingListView({
   getHotelInfo,
   isAdmin = false,
   isConcierge,
-  currentPage,
-  totalPages,
+  currentPage = 1,
+  totalPages = 1,
   totalItems,
-  itemsPerPage,
+  itemsPerPage = 0,
   onPageChange,
   paymentAsText = false,
   onRequestCancel,
@@ -111,9 +120,13 @@ export function BookingListView({
   pageSizeOptions,
   onPageSizeChange,
   scrollable = false,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
 }: BookingListViewProps) {
   const { t } = useTranslation(["admin", "common"]);
   const navigate = useNavigate();
+  const isIncremental = !!onLoadMore;
 
   // Le filtre concierge reste porté par la config, pas par les appelants.
   const visibleColumns = (columns ?? DEFAULT_COLUMNS).filter(
@@ -469,17 +482,44 @@ export function BookingListView({
         </Table>
       </div>
 
-      <TablePagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalItems={totalItems}
-        itemsPerPage={itemsPerPage}
-        onPageChange={onPageChange}
-        itemName={t("admin:bookingListView.itemName")}
-        pageSize={pageSize}
-        pageSizeOptions={pageSizeOptions}
-        onPageSizeChange={onPageSizeChange}
-      />
+      {isIncremental ? (
+        <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2">
+          <span className="text-xs text-muted-foreground">
+            {t("admin:bookingListView.loadedCount", {
+              loaded: paginatedBookings.length,
+              total: totalItems,
+            })}
+          </span>
+          {hasMore && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              // Sans l'enveloppe, l'événement de clic partirait en argument de
+              // fetchNextPage, qui l'interpréterait comme des options.
+              onClick={() => onLoadMore?.()}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore
+                ? t("admin:bookingListView.loading")
+                : t("admin:bookingListView.loadMore")}
+            </Button>
+          )}
+        </div>
+      ) : (
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={onPageChange ?? (() => {})}
+          itemName={t("admin:bookingListView.itemName")}
+          pageSize={pageSize}
+          pageSizeOptions={pageSizeOptions}
+          onPageSizeChange={onPageSizeChange}
+        />
+      )}
     </div>
   );
 }

@@ -15,6 +15,9 @@ export const bookingKeys = {
   forOrg: (scope: ScopeLike) => [...bookingKeys.all, "org", orgKey(scope)] as const,
   list: (scope: ScopeLike, filters: Record<string, unknown> = {}) =>
     [...bookingKeys.forOrg(scope), "list", filters] as const,
+  /** Liste paginée (/admin/bookings) : filtres et tri font partie de la clé, ils sont résolus par Postgres. */
+  paged: (scope: ScopeLike, filters: Record<string, unknown> = {}) =>
+    [...bookingKeys.forOrg(scope), "paged", filters] as const,
   detail: (scope: ScopeLike, id: string) =>
     [...bookingKeys.forOrg(scope), "detail", id] as const,
 };
