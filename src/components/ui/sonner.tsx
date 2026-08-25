@@ -10,6 +10,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       position="top-center"
+      // L'app est en viewport-fit=cover : sans safe-area, les toasts top-center
+      // passent sous la barre de statut / Dynamic Island en PWA installée et
+      // sont tronqués. Sonner applique --mobile-offset-* sous 600px, il faut
+      // donc décaler les deux. Les autres côtés gardent leurs valeurs par défaut.
+      offset={{ top: "calc(env(safe-area-inset-top, 0px) + 32px)" }}
+      mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
       className="toaster group"
       toastOptions={{
         classNames: {

@@ -7,9 +7,9 @@ import {
   AlertCircle,
   Bell,
   BellOff,
-  Check,
   CheckCheck,
   CheckCircle,
+  ChevronLeft,
   Mail,
   Trash2,
   XCircle,
@@ -17,12 +17,10 @@ import {
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { oneSignalSubscribe, oneSignalUnsubscribe, isOneSignalSubscribed, isOneSignalReady, getOneSignalDiagnostics } from "@/hooks/useOneSignal";
-import PwaHeader from "@/components/pwa/Header";
-import PwaPageLoader from "@/components/pwa/PageLoader";
+import { AppLoader } from "@/components/AppLoader";
 import { useIsMounted } from "@/hooks/useIsMounted";
 
 interface Notification {
@@ -38,11 +36,21 @@ interface PwaNotificationsProps {
   standalone?: boolean;
 }
 
+/** Geste de swipe en cours sur une rangée : position de départ + décalage courant. */
+interface SwipeState {
+  id: string;
+  startX: number;
+  offset: number;
+}
+
+const SWIPE_MAX = 100;
+const SWIPE_DELETE_THRESHOLD = 80;
+
 const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const { t, i18n } = useTranslation('pwa');
   const [notifications, setNotifications] = useState<Notification[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [swipeStates, setSwipeStates] = useState<Record<string, number>>({});
+  const [swipe, setSwipe] = useState<SwipeState | null>(null);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const navigate = useNavigate();
@@ -196,39 +204,25 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   };
 
   const handleTouchStart = (notificationId: string, event: React.TouchEvent) => {
-    const touch = event.touches[0];
-    setSwipeStates(prev => ({
-      ...prev,
-      [notificationId]: touch.clientX
-    }));
+    setSwipe({ id: notificationId, startX: event.touches[0].clientX, offset: 0 });
   };
 
   const handleTouchMove = (notificationId: string, event: React.TouchEvent) => {
-    const touch = event.touches[0];
-    const startX = swipeStates[notificationId];
-    if (startX !== undefined) {
-      const diff = startX - touch.clientX;
-      if (diff > 0) {
-        setSwipeStates(prev => ({
-          ...prev,
-          [notificationId]: -Math.min(diff, 100)
-        }));
-      }
-    }
+    setSwipe(prev => {
+      if (!prev || prev.id !== notificationId) return prev;
+      const delta = event.touches[0].clientX - prev.startX;
+      // Swipe vers la gauche uniquement, plafonné à SWIPE_MAX.
+      return { ...prev, offset: Math.max(-SWIPE_MAX, Math.min(0, delta)) };
+    });
   };
 
   const handleTouchEnd = async (notificationId: string) => {
-    const swipeDistance = Math.abs(swipeStates[notificationId] || 0);
-    
-    if (swipeDistance > 80) {
+    const offset = swipe?.id === notificationId ? swipe.offset : 0;
+    setSwipe(null);
+
+    if (offset <= -SWIPE_DELETE_THRESHOLD) {
       await deleteNotification(notificationId);
     }
-    
-    setSwipeStates(prev => {
-      const newState = { ...prev };
-      delete newState[notificationId];
-      return newState;
-    });
   };
 
   const handleNotificationClick = async (notification: Notification) => {
@@ -241,19 +235,21 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
     }
   };
 
-  const getNotificationIcon = (type: string) => {
+  // Pastille d'icône : la teinte suit les tokens de statut de la refonte
+  // (moss = ok, gold = à traiter, clay = attention) plutôt que le rouge système.
+  const getNotificationVisual = (type: string): { tone: string; icon: JSX.Element } => {
     switch (type) {
       case "new_booking":
-        return <Bell className="h-5 w-5 shrink-0 text-primary" />;
+        return { tone: "due", icon: <Bell size={16} /> };
       case "booking_cancelled":
-        return <XCircle className="h-5 w-5 shrink-0 text-destructive" />;
+        return { tone: "warn", icon: <XCircle size={16} /> };
       case "booking_taken":
       case "booking_confirmed":
-        return <CheckCircle className="h-5 w-5 shrink-0 text-green-500" />;
+        return { tone: "ok", icon: <CheckCircle size={16} /> };
       case "payment_failed":
-        return <AlertCircle className="h-5 w-5 shrink-0 text-destructive" />;
+        return { tone: "warn", icon: <AlertCircle size={16} /> };
       default:
-        return <Mail className="h-5 w-5 shrink-0 text-muted-foreground" />;
+        return { tone: "info", icon: <Mail size={16} /> };
     }
   };
 
@@ -321,134 +317,125 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const notificationsList = notifications || [];
   const unreadCount = notificationsList.filter(n => !n.read).length;
 
+  const header = (
+    <header className="hdr" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
+      {standalone && (
+        <button
+          className="back-btn"
+          onClick={() => navigate("/pwa/profile")}
+          aria-label={t('common:buttons.back')}
+        >
+          <ChevronLeft size={18} />
+        </button>
+      )}
+      <span style={{ fontSize: 18, fontWeight: 400 }}>{t('notifications.title')}</span>
+      <div className="spacer" />
+      {unreadCount > 0 && (
+        <button
+          className="hdr-icon-btn"
+          onClick={markAllAsRead}
+          aria-label={t('notifications.markAllRead')}
+        >
+          <CheckCheck size={15} />
+        </button>
+      )}
+    </header>
+  );
+
   // Only show loader on very first load when we have no data at all
   if (loading && notificationsList.length === 0 && notifications === null) {
     return (
-      <PwaPageLoader 
-        title={t('notifications.title')} 
-        showBack={standalone} 
-        backPath="/pwa/profile" 
-      />
+      <div className="app-refonte flex flex-1 flex-col">
+        {header}
+        <AppLoader fullScreen={false} className="flex-1" />
+      </div>
     );
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-muted/30">
-      <PwaHeader
-        title={t('notifications.title')}
-        showBack={standalone}
-        backPath="/pwa/profile"
-        rightSlot={
-          unreadCount > 0 ? (
-            <button
-              onClick={markAllAsRead}
-              className="p-1.5 hover:bg-muted rounded-lg transition-colors"
-            >
-              <CheckCheck className="h-4 w-4 text-muted-foreground" />
-            </button>
-          ) : null
-        }
-      />
+    <div className="app-refonte flex flex-1 flex-col">
+      {header}
 
-      {/* Push Notifications Settings */}
-      <div className="bg-background border-b border-border px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Bell className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <Label htmlFor="push-notifications" className="text-sm font-medium">
-                {t('notifications.pushNotifications')}
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                {t('notifications.pushDescription')}
-              </p>
-            </div>
-          </div>
-          <Switch
-            id="push-notifications"
-            checked={pushEnabled}
-            onCheckedChange={handleTogglePushNotifications}
-            disabled={pushLoading}
-          />
+      {/* Réglage des notifications push */}
+      <div className="notif-push">
+        <span className="ic">
+          <Bell size={16} />
+        </span>
+        <div className="tx">
+          <Label htmlFor="push-notifications" className="t">
+            {t('notifications.pushNotifications')}
+          </Label>
+          <span className="s">{t('notifications.pushDescription')}</span>
         </div>
+        <Switch
+          id="push-notifications"
+          checked={pushEnabled}
+          onCheckedChange={handleTogglePushNotifications}
+          disabled={pushLoading}
+        />
       </div>
 
-      {/* Notifications List - no own scroll */}
-      <div className="flex-1 min-h-0 pb-4">
-        {notificationsList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-            <BellOff className="h-8 w-8 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              {t('notifications.noNotifications')}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {t('notifications.willBeNotified')}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {notificationsList.map((notification) => {
-              const swipeOffset = swipeStates[notification.id] || 0;
-              const isSwipingNumber = typeof swipeOffset === 'number' && swipeOffset < 0;
-              
-              return (
-                <div key={notification.id} className="relative overflow-hidden">
-                  <div className="absolute inset-0 bg-destructive flex items-center justify-end px-6">
-                    <Trash2 className="h-5 w-5 text-white" />
-                  </div>
-                  
-                  <button
-                    onClick={() => handleNotificationClick(notification)}
-                    onTouchStart={(e) => handleTouchStart(notification.id, e)}
-                    onTouchMove={(e) => handleTouchMove(notification.id, e)}
-                    onTouchEnd={() => handleTouchEnd(notification.id)}
-                    style={{
-                      transform: isSwipingNumber ? `translateX(${swipeOffset}px)` : 'translateX(0)',
-                      transition: isSwipingNumber ? 'none' : 'transform 0.3s ease-out'
-                    }}
-                    className={`w-full text-left px-4 py-4 hover:bg-muted transition-colors relative ${
-                      !notification.read ? "bg-primary/5" : "bg-background"
-                    }`}
-                  >
-                    <div className="flex gap-3">
-                      <div className="flex-shrink-0 flex items-center justify-center">
-                        {getNotificationIcon(notification.type)}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!notification.read ? "font-semibold text-foreground" : "text-foreground"}`}>
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatDistanceToNow(new Date(notification.created_at), {
-                            addSuffix: true,
-                            locale: dateLocale
-                          })}
-                        </p>
-                      </div>
+      {/* Liste - pas de scroll propre, le conteneur PWA scrolle */}
+      {notificationsList.length === 0 ? (
+        <div className="placeholder">
+          <BellOff size={26} />
+          <div className="big">{t('notifications.noNotifications')}</div>
+          <p>{t('notifications.willBeNotified')}</p>
+        </div>
+      ) : (
+        <div className="pb-4">
+          {notificationsList.map((notification) => {
+            const isSwiping = swipe?.id === notification.id && swipe.offset < 0;
+            const offset = isSwiping ? swipe.offset : 0;
+            const { tone, icon } = getNotificationVisual(notification.type);
 
-                      <div className="flex-shrink-0 flex items-center gap-2">
-                        {!notification.read ? (
-                          <div className="w-2.5 h-2.5 bg-primary rounded-full" />
-                        ) : (
-                          <Check className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <button
-                          onClick={(e) => deleteNotification(notification.id, e)}
-                          className="p-1.5 hover:bg-destructive/10 rounded transition-colors"
-                          aria-label={t('notifications.deleteNotification')}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </button>
-                      </div>
-                    </div>
+            return (
+              <div key={notification.id} className="notif-swipe">
+                <div className="swipe-bg">
+                  <Trash2 size={16} />
+                </div>
+
+                <div
+                  className={`notif-row${notification.read ? "" : " unread"}`}
+                  onTouchStart={(e) => handleTouchStart(notification.id, e)}
+                  onTouchMove={(e) => handleTouchMove(notification.id, e)}
+                  onTouchEnd={() => handleTouchEnd(notification.id)}
+                  style={{
+                    transform: `translateX(${offset}px)`,
+                    transition: isSwiping ? "none" : "transform 0.3s ease-out",
+                  }}
+                >
+                  <button
+                    className="notif-main"
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <span className={`ic ${tone}`}>{icon}</span>
+                    <span className="tx">
+                      <span className="msg">{notification.message}</span>
+                      <span className="when">
+                        {formatDistanceToNow(new Date(notification.created_at), {
+                          addSuffix: true,
+                          locale: dateLocale,
+                        })}
+                      </span>
+                    </span>
+                  </button>
+
+                  {!notification.read && <span className="dot" />}
+
+                  <button
+                    className="notif-del"
+                    onClick={(e) => deleteNotification(notification.id, e)}
+                    aria-label={t('notifications.deleteNotification')}
+                  >
+                    <Trash2 size={15} />
                   </button>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
