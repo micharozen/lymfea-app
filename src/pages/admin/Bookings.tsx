@@ -36,11 +36,13 @@ import {
   useBookingFilters,
   useCalendarLogic,
   useBookingSelection,
+  useAmenityBookingData,
   useTherapistDayPlanning,
   useRoomBlocks,
   useDeleteRoomBlockRow,
   type RoomBlockRow,
   type BookingWithTreatments,
+  type AmenityBookingForCalendar,
 } from "@/hooks/booking";
 
 import {
@@ -61,6 +63,8 @@ import {
   buildCalendarEntries,
 } from "@/components/booking/CalendarSidebar";
 import { useVenueAmenities } from "@/hooks/useVenueAmenities";
+import { CreateAmenityBookingDialog } from "@/components/booking/CreateAmenityBookingDialog";
+import { AmenityBookingDetailDialog } from "@/components/booking/AmenityBookingDetailDialog";
 
 export default function Booking() {
   const navigate = useNavigate();
@@ -161,6 +165,11 @@ export default function Booking() {
     if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
   }, []);
 
+  // Commodités réservées sans booking : fiche au clic, édition depuis la fiche.
+  const [isAmenityDetailOpen, setIsAmenityDetailOpen] = useState(false);
+  const [viewedAmenityBooking, setViewedAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
+  const [editingAmenityBooking, setEditingAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
+
   // --- LOGIQUE DE REDIRECTION (ADAPTÉE À LA NOUVELLE PAGE) ---
 useEffect(() => {
   const bookingId = searchParams.get("id");
@@ -236,6 +245,21 @@ useEffect(() => {
   }, [filteredBookings, hasVenueFilter, showCancelled]);
 
   const { amenities: venueAmenities } = useVenueAmenities(singleVenueId ?? "");
+
+  // Une commodité réservée avec un booking est déjà dessinée par la carte de ce
+  // booking. Restent celles saisies pour elles-mêmes (import Hana, réservation
+  // directe d'un accès) : sans elles, la piscine n'apparaîtrait nulle part.
+  const { amenityBookings } = useAmenityBookingData({
+    hotelFilter: singleVenueId ?? undefined,
+    venueAmenities,
+    fromDate,
+    toDate,
+  });
+  const standaloneAmenityBookings = useMemo(
+    () => amenityBookings.filter((b) => !b.linked_booking_id),
+    [amenityBookings],
+  );
+
   // Calendar sidebar state
   const [visibleCalendars, setVisibleCalendars] = useState<Record<string, boolean>>({ treatments: true });
 
@@ -392,6 +416,11 @@ useEffect(() => {
       // Navigation vers la nouvelle page détaillée au lieu d'ouvrir la modale
       navigate(`/admin/bookings/${booking.id}`);
     }
+  };
+
+  const handleAmenityBookingClick = (booking: AmenityBookingForCalendar) => {
+    setViewedAmenityBooking(booking);
+    setIsAmenityDetailOpen(true);
   };
 
   const handleEditFromDetail = () => {
@@ -607,6 +636,8 @@ useEffect(() => {
               hotelFilter={hotelFilter}
               showCleanupBuffer={!!hasVenueFilter}
               visibleCalendars={hasVenueFilter ? visibleCalendars : undefined}
+              amenityBookings={standaloneAmenityBookings}
+              onAmenityBookingClick={handleAmenityBookingClick}
               roomBlocks={roomBlocks}
               onEditRoomBlock={setEditingRoomBlock}
               onDeleteRoomBlock={setDeletingRoomBlock}
@@ -655,6 +686,26 @@ useEffect(() => {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         booking={selectedBooking}
+      />
+
+      <AmenityBookingDetailDialog
+        open={isAmenityDetailOpen}
+        onOpenChange={setIsAmenityDetailOpen}
+        booking={viewedAmenityBooking}
+        onEdit={(booking) => {
+          setIsAmenityDetailOpen(false);
+          setEditingAmenityBooking(booking);
+        }}
+      />
+
+      {/* Édition d'une commodité existante (le dialog de création en mode édition) */}
+      <CreateAmenityBookingDialog
+        open={!!editingAmenityBooking}
+        onOpenChange={(o) => {
+          if (!o) setEditingAmenityBooking(null);
+        }}
+        hotelId={editingAmenityBooking?.hotel_id}
+        editBooking={editingAmenityBooking}
       />
 
       {cancelBooking && (
