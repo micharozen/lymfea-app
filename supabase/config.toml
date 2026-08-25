@@ -247,3 +247,9 @@ verify_jwt = false
 
 [functions.finalize-payment]
 verify_jwt = false
+
+# Branche persistante staging : sans ce bloc, la CLI avertit à chaque `db push`
+# et l'intégration Supabase ignore les changements de config.toml au merge.
+# Aucune surcharge ici — staging hérite de toute la configuration ci-dessus.
+[remotes.staging]
+project_id = "xfkujlgettlxdgrnqluw"
