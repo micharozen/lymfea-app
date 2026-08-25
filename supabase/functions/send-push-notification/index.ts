@@ -56,7 +56,16 @@ serve(async (req) => {
 
     const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID");
     const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
-    const SITE_URL = (Deno.env.get("SITE_URL") || `https://${brand.appDomain}`).replace(/\/+$/, "");
+    // Une app OneSignal est liée à un domaine (l'App ID diffère par environnement).
+    // Le SDK est initialisé avec notificationClickHandlerMatch: "origin" : si l'URL
+    // de clic n'a pas la même origine que la PWA installée, le clic ne route nulle
+    // part. SITE_URL est partagé par ~36 functions (Stripe, emails, invitations) et
+    // peut légitimement pointer ailleurs, d'où ce réglage dédié, avec repli sur lui.
+    const SITE_URL = (
+      Deno.env.get("ONESIGNAL_SITE_URL") ||
+      Deno.env.get("SITE_URL") ||
+      `https://${brand.appDomain}`
+    ).replace(/\/+$/, "");
 
     if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
       throw new Error("OneSignal credentials not configured");

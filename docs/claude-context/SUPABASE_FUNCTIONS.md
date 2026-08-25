@@ -173,6 +173,11 @@ const result = await invokeEdgeFunction('function-name', {
 - `STRIPE_WEBHOOK_SECRET`
 - `ONESIGNAL_APP_ID`
 - `ONESIGNAL_API_KEY`
+- `ONESIGNAL_SITE_URL` (optionnel) — domaine servant à construire l'URL de clic des
+  notifications push. Une app OneSignal est liée à un domaine, et le SDK est initialisé
+  en `notificationClickHandlerMatch: "origin"` : si l'origine diffère de celle de la PWA
+  installée, le clic ne route nulle part. À renseigner quand `SITE_URL` pointe ailleurs
+  (Stripe, emails, invitations le partagent) ; repli sur `SITE_URL` puis `brand.appDomain`.
 - `RESEND_API_KEY` (emails)
 
 ## Renommages de Fonctions à Prévoir
