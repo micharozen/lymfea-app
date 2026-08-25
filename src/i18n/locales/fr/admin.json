@@ -4280,6 +4280,7 @@
       "amenityRequired": "Sélectionnez une commodité",
       "firstNameRequired": "Prénom requis",
       "phoneRequired": "Téléphone requis",
+      "phoneInvalid": "Numéro de téléphone invalide",
       "dateRequired": "Date requise",
       "timeRequired": "Heure requise"
     },

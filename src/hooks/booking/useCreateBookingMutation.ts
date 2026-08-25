@@ -4,7 +4,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType } from "@/lib/clientTypePayment";
-import { composePhoneNumber, languageFromCountryCode } from "@/lib/phone";
+import { composePhoneNumber, isPlaceholderPhone, languageFromCountryCode } from "@/lib/phone";
 import { normalizeEmail, isValidEmail } from "@/lib/email";
 import { therapistForTreatment } from "@/lib/therapistForTreatment";
 import { amenityClientTypeFromBooking, getAmenityLabel } from "@/lib/amenityTypes";
@@ -457,7 +457,9 @@ async function insertSingleBooking(
     client_first_name: d.clientFirstName,
     client_last_name: d.clientLastName,
     client_email: d.clientEmail || null,
-    phone: d.phone.trim() ? composePhoneNumber(d.countryCode, d.phone).replace(/\s/g, "") : null,
+    phone: d.phone.trim() && !isPlaceholderPhone(d.phone)
+      ? composePhoneNumber(d.countryCode, d.phone).replace(/\s/g, "")
+      : null,
     room_number: d.roomNumber?.trim() ? d.roomNumber.trim() : null,
     client_note: d.clientNote?.trim() ? d.clientNote.trim() : null,
     booking_date: d.date,
@@ -628,7 +630,10 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess, onAmen
         isOffert,
       });
 
-      const hasPhone = d.phone.trim().length > 0;
+      // Un numéro bouche-trou (000000000…) vaut une absence de numéro : on ne
+      // le stocke pas et on ne dédoublonne pas dessus, sans quoi tous les
+      // clients saisis sans téléphone se retrouvent sur la même fiche.
+      const hasPhone = d.phone.trim().length > 0 && !isPlaceholderPhone(d.phone);
       const normalizedPhone = hasPhone
         ? composePhoneNumber(d.countryCode, d.phone).replace(/\s/g, "")
         : null;

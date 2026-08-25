@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Users, Search, Globe, Hotel, Sparkles, KeyRound } from "lucide-react";
 import { getAmenityLabel, getAmenityType, type AmenityClientType } from "@/lib/amenityTypes";
+import { isPlaceholderPhone } from "@/lib/phone";
 import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities";
 import type { AmenityBookingForCalendar } from "@/hooks/booking";
 
@@ -45,7 +46,13 @@ const createFormSchema = (t: Translate) =>
     client_type: z.enum(["external", "internal", "lymfea", "sezame"]),
     first_name: z.string().min(1, t("admin:amenityBookingForm.validation.firstNameRequired")),
     last_name: z.string().optional(),
-    phone: z.string().min(1, t("admin:amenityBookingForm.validation.phoneRequired")),
+    // Le téléphone est la clé de rattachement à la fiche client : un numéro
+    // bouche-trou (000000000…) agrégerait des clients distincts sur une même
+    // fiche, on le refuse à la saisie plutôt que de l'assainir en silence.
+    phone: z
+      .string()
+      .min(1, t("admin:amenityBookingForm.validation.phoneRequired"))
+      .refine((v) => !isPlaceholderPhone(v), t("admin:amenityBookingForm.validation.phoneInvalid")),
     email: z.string().optional(),
     room_number: z.string().optional(),
     num_guests: z.number().min(1).default(1),
