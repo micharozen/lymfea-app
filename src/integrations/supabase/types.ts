@@ -2958,6 +2958,9 @@ export type Database = {
           last_name: string
           minimum_guarantee: Json | null
           minimum_guarantee_active: boolean | null
+          notification_test_error: string | null
+          notification_test_sent_at: string | null
+          notification_test_status: string | null
           password_set: boolean | null
           phone: string
           profile_image: string | null
@@ -2986,6 +2989,9 @@ export type Database = {
           last_name: string
           minimum_guarantee?: Json | null
           minimum_guarantee_active?: boolean | null
+          notification_test_error?: string | null
+          notification_test_sent_at?: string | null
+          notification_test_status?: string | null
           password_set?: boolean | null
           phone: string
           profile_image?: string | null
@@ -3014,6 +3020,9 @@ export type Database = {
           last_name?: string
           minimum_guarantee?: Json | null
           minimum_guarantee_active?: boolean | null
+          notification_test_error?: string | null
+          notification_test_sent_at?: string | null
+          notification_test_status?: string | null
           password_set?: boolean | null
           phone?: string
           profile_image?: string | null

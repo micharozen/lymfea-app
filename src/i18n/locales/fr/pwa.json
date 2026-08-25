@@ -252,7 +252,12 @@
     "enablePromptTitle": "Activer les notifications ?",
     "enablePromptDesc": "Recevez des alertes en temps réel pour vos nouvelles réservations, même quand l'app est fermée.",
     "enablePromptLater": "Plus tard",
-    "enablePromptButton": "Activer"
+    "enablePromptButton": "Activer",
+    "testButton": "Tester mes notifications",
+    "testSending": "Envoi…",
+    "testSent": "Notification de test envoyée",
+    "testUndelivered": "Envoi impossible : aucun appareil abonné. Réactivez les notifications sur cet appareil.",
+    "testError": "Impossible d'envoyer la notification de test"
   },
   "profile": {
     "title": "Profil",
@@ -714,5 +719,15 @@
     "created": "Ticket envoyé avec succès",
     "createError": "Erreur lors de l'envoi du ticket",
     "fieldsRequired": "Veuillez remplir tous les champs obligatoires"
+  },
+  "notificationTest": {
+    "title": "Test de notification",
+    "question": "Avez-vous bien reçu cette notification ?",
+    "ok": "Réception OK",
+    "nok": "Problème",
+    "thanksOk": "Merci, la réception est confirmée.",
+    "thanksNok": "Merci, le problème a été signalé.",
+    "noPendingTest": "Aucun test de notification en cours.",
+    "error": "Impossible d'enregistrer votre réponse"
   }
 }

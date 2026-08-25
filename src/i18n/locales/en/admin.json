@@ -955,7 +955,17 @@
     "groupHint": "Group 1 is contacted first when a booking comes in. Group 2 only follows after the delay set in the Configuration tab, or as soon as every therapist in group 1 has declined. While everyone sits in group 1, all therapists are notified at once.",
     "priorityUpdated": "Group updated",
     "priorityError": "Could not change the group",
-    "groupOnVenueHint": "Set from the venue page, Therapists tab."
+    "groupOnVenueHint": "Set from the venue page, Therapists tab.",
+    "notificationTest": {
+      "send": "Test notifications",
+      "sending": "Sending…",
+      "result": "{{sent}} sent, {{undelivered}} not delivered",
+      "error": "Failed to send tests",
+      "pending": "Pending",
+      "ok": "OK",
+      "nok": "NOK",
+      "undelivered": "Not delivered"
+    }
   },
   "customers": {
     "title": "Customers",

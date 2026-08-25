@@ -73,6 +73,9 @@ verify_jwt = false
 [functions.send-push-notification]
 verify_jwt = false
 
+[functions.send-notification-test]
+verify_jwt = false
+
 [functions.trigger-new-booking-notifications]
 verify_jwt = false
 
