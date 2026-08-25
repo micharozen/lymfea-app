@@ -4256,6 +4256,7 @@
       "amenityRequired": "Select an amenity",
       "firstNameRequired": "First name required",
       "phoneRequired": "Phone required",
+      "phoneInvalid": "Invalid phone number",
       "dateRequired": "Date required",
       "timeRequired": "Time required"
     },

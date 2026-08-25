@@ -50,7 +50,7 @@ import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, 
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
-import { composePhoneNumber, splitPhoneNumber } from "@/lib/phone";
+import { composePhoneNumber, isPlaceholderPhone, splitPhoneNumber } from "@/lib/phone";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -761,10 +761,13 @@ export default function EditBookingDialog({
       // Non bloquant : un échec de sync ne doit pas casser l'édition du booking.
       if (!isConcierge) {
         // Téléphone normalisé (sans espaces) — convention de la table customers
-        // et clé de déduplication (cf. find_or_create_customer).
-        const normalizedPhone = bookingData.phone
-          ? String(bookingData.phone).replace(/\s/g, "")
-          : null;
+        // et clé de déduplication (cf. find_or_create_customer). Un numéro
+        // bouche-trou (000000000…) est traité comme une absence de numéro :
+        // il agrégerait des clients distincts sur une même fiche.
+        const normalizedPhone =
+          bookingData.phone && !isPlaceholderPhone(String(bookingData.phone))
+            ? String(bookingData.phone).replace(/\s/g, "")
+            : null;
         if (customerId) {
           const { error: customerError } = await supabase
             .from("customers")
@@ -1296,7 +1299,9 @@ export default function EditBookingDialog({
       hotel_id: isConcierge ? (booking?.hotel_id || "") : hotelId,
       client_first_name: isConcierge ? (booking?.client_first_name || "") : clientFirstName,
       client_last_name: isConcierge ? (booking?.client_last_name || "") : clientLastName,
-      phone: isConcierge ? (booking?.phone || null) : (composePhoneNumber(countryCode, phone) || null),
+      phone: isConcierge
+        ? (booking?.phone || null)
+        : (isPlaceholderPhone(phone) ? null : composePhoneNumber(countryCode, phone) || null),
       room_number: isConcierge ? (booking?.room_number || "") : roomNumber,
       room_id: isConcierge ? (booking?.room_id ?? null) : (roomId || null),
       secondary_room_id: isConcierge
