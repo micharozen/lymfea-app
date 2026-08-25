@@ -441,7 +441,7 @@ export function CreateAmenityBookingDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="bo-refonte bo-modal sm:max-w-2xl"
+        className="bo-refonte bo-modal flex flex-col p-0 gap-0 sm:max-w-2xl"
         onOpenAutoFocus={(e) => {
           // Radix pose le focus sur le premier élément focusable. Le champ
           // « Commodité » étant désactivé tant qu'aucun lieu n'est choisi, le
@@ -452,7 +452,7 @@ export function CreateAmenityBookingDialog({
           content.querySelector<HTMLElement>("[data-first-field]:not([disabled])")?.focus();
         }}
       >
-        <DialogHeader className="bo-modal-head">
+        <DialogHeader className="bo-modal-head flex-row items-center justify-center space-y-0 text-center sm:text-center">
           <DialogTitle>{isEditMode ? t("admin:amenityBookingForm.editTitle") : t("admin:amenityBookingForm.createTitle")}</DialogTitle>
         </DialogHeader>
 
