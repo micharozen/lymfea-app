@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -45,6 +46,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const [swipeStates, setSwipeStates] = useState<Record<string, number>>({});
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isMountedRef = useIsMounted();
@@ -318,6 +320,25 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
     }
   };
 
+  const handleSendTestNotification = async () => {
+    setTestLoading(true);
+    const { data, error } = await invokeEdgeFunction<
+      { scope: "self" },
+      { sent: number; undelivered: number }
+    >("send-notification-test", { body: { scope: "self" } });
+    setTestLoading(false);
+
+    if (error) {
+      toast.error(t('notifications.testError'));
+      return;
+    }
+    if ((data?.undelivered ?? 0) > 0) {
+      toast.error(t('notifications.testUndelivered'));
+      return;
+    }
+    toast.success(t('notifications.testSent'));
+  };
+
   const notificationsList = notifications || [];
   const unreadCount = notificationsList.filter(n => !n.read).length;
 
@@ -371,6 +392,16 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
             disabled={pushLoading}
           />
         </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-3 w-full"
+          disabled={!pushEnabled || testLoading}
+          onClick={handleSendTestNotification}
+        >
+          {testLoading ? t('notifications.testSending') : t('notifications.testButton')}
+        </Button>
       </div>
 
       {/* Notifications List - no own scroll */}

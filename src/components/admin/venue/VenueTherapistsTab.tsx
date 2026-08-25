@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { format } from "date-fns";
 import { useUser } from "@/contexts/UserContext";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { Button } from "@/components/ui/button";
@@ -15,7 +17,7 @@ import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TherapistDetailDialog } from "@/components/admin/details/TherapistDetailDialog";
 import { toast } from "sonner";
-import { Plus, X, Loader2, UserPlus, Phone } from "lucide-react";
+import { Plus, X, Loader2, UserPlus, Phone, BellRing } from "lucide-react";
 import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
 import { TherapistTreatmentsSelector } from "@/components/admin/therapist/TherapistTreatmentsSelector";
 import { useTherapistTreatmentCounts } from "@/hooks/useTherapistTreatments";
@@ -23,6 +25,17 @@ import { SelectField } from "@/components/ui/select-field";
 
 /** Groupes de priorité proposés à l'écran. La colonne accepte N rangs, l'UI en expose deux. */
 const PRIORITY_OPTIONS = [1, 2];
+
+/** Rendu du dernier test de réception push (therapists.notification_test_status). */
+const NOTIFICATION_TEST_BADGE: Record<
+  string,
+  { variant: "outline" | "secondary" | "destructive"; className: string; fallback: string }
+> = {
+  pending: { variant: "outline", className: "border-amber-300 text-amber-700", fallback: "En attente" },
+  ok: { variant: "outline", className: "border-emerald-300 text-emerald-700", fallback: "OK" },
+  nok: { variant: "destructive", className: "", fallback: "NOK" },
+  undelivered: { variant: "outline", className: "text-muted-foreground", fallback: "Non délivré" },
+};
 
 const COUNTRY_OPTIONS = [
   { key: "france", code: "+33", flag: "🇫🇷" },
@@ -137,6 +150,32 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     queryClient.invalidateQueries({ queryKey: ["venue-therapists", hotelId] });
     queryClient.invalidateQueries({ queryKey: ["all-therapists"] });
   };
+
+  // Envoi d'une notification de test à tous les thérapeutes du lieu. Le résultat
+  // (En attente / OK / NOK / Non délivré) revient dans la query venue-therapists.
+  const notificationTestMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await invokeEdgeFunction<
+        { scope: "venue"; hotelId: string },
+        { sent: number; undelivered: number }
+      >("send-notification-test", { body: { scope: "venue", hotelId } });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["venue-therapists", hotelId] });
+      toast.success(
+        t("admin:venueTherapists.notificationTest.result", {
+          sent: data?.sent ?? 0,
+          undelivered: data?.undelivered ?? 0,
+          defaultValue: "{{sent}} envoyée(s), {{undelivered}} non délivrée(s)",
+        }),
+      );
+    },
+    onError: () => {
+      toast.error(t("admin:venueTherapists.notificationTest.error", "Échec de l'envoi des tests"));
+    },
+  });
 
   // Assign mutation
   const assignMutation = useMutation({
@@ -302,9 +341,31 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     <div className="space-y-6">
       {/* Assigned therapists list */}
       <div>
-        <h3 className="text-sm font-semibold text-foreground mb-1">
-          {t('venueTherapistsTab.assignedTitle', { count: assignedTherapists.length })}
-        </h3>
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h3 className="text-sm font-semibold text-foreground">
+            {t('venueTherapistsTab.assignedTitle', { count: assignedTherapists.length })}
+          </h3>
+          {assignedTherapists.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 flex-shrink-0"
+              disabled={notificationTestMutation.isPending}
+              onClick={() => notificationTestMutation.mutate()}
+            >
+              {notificationTestMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <BellRing className="h-3.5 w-3.5" />
+              )}
+              <span className="ml-1.5">
+                {notificationTestMutation.isPending
+                  ? t("admin:venueTherapists.notificationTest.sending", "Envoi…")
+                  : t("admin:venueTherapists.notificationTest.send", "Tester les notifications")}
+              </span>
+            </Button>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground mb-3">
           {t(
             "admin:venueTherapists.groupHint",
@@ -365,6 +426,20 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                           count: treatmentCounts[therapist.id],
                           defaultValue: "{{count}} prestations",
                         })}
+                      </Badge>
+                    )}
+                    {therapist.notification_test_sent_at && (
+                      <Badge
+                        variant={NOTIFICATION_TEST_BADGE[therapist.notification_test_status as string]?.variant ?? "outline"}
+                        className={`ml-1.5 text-[10px] px-1.5 py-0 font-normal ${NOTIFICATION_TEST_BADGE[therapist.notification_test_status as string]?.className ?? ""}`}
+                        title={therapist.notification_test_error || undefined}
+                      >
+                        {t(
+                          `admin:venueTherapists.notificationTest.${therapist.notification_test_status}`,
+                          NOTIFICATION_TEST_BADGE[therapist.notification_test_status as string]?.fallback ?? "",
+                        )}
+                        {" · "}
+                        {format(new Date(therapist.notification_test_sent_at), "dd/MM HH:mm")}
                       </Badge>
                     )}
                   </div>
