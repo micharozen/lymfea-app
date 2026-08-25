@@ -350,7 +350,6 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
               onSetViewDate={calendar.setViewDate}
               getBookingsForDay={calendar.getBookingsForDay}
               getBookingPosition={calendar.getBookingPosition}
-              getBookingsLayoutForDay={calendar.getBookingsLayoutForDay}
               getCurrentTimePosition={calendar.getCurrentTimePosition}
               getStatusColor={calendar.getStatusColor}
               getTranslatedStatus={calendar.getTranslatedStatus}
