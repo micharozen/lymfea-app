@@ -29,8 +29,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Users, Search, Globe, Hotel, Sparkles, KeyRound } from "lucide-react";
 import { getAmenityLabel, getAmenityType, type AmenityClientType } from "@/lib/amenityTypes";
@@ -442,414 +440,421 @@ export function CreateAmenityBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="bo-refonte bo-modal sm:max-w-2xl">
+        <DialogHeader className="bo-modal-head">
           <DialogTitle>{isEditMode ? t("admin:amenityBookingForm.editTitle") : t("admin:amenityBookingForm.createTitle")}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Venue selection (picker mode only) */}
-            {showVenuePicker && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t("admin:amenityBookingForm.venue")}</label>
-                <Select
-                  value={pickedHotelId}
-                  onValueChange={(v) => {
-                    setPickedHotelId(v);
-                    form.setValue("venue_amenity_id", "");
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("admin:amenityBookingForm.venuePlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {amenityHotels.map((h) => (
-                      <SelectItem key={h.id} value={h.id}>
-                        {h.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Amenity selection */}
-            <FormField
-              control={form.control}
-              name="venue_amenity_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("admin:amenityBookingForm.amenity")}</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("admin:amenityBookingForm.selectPlaceholder")} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {enabledAmenities.map((a) => {
-                        const typeDef = getAmenityType(a.type);
-                        const Icon = typeDef?.icon;
-                        return (
-                          <SelectItem key={a.id} value={a.id}>
-                            <div className="flex items-center gap-2">
-                              {Icon && <Icon className="h-3.5 w-3.5" style={{ color: a.color }} />}
-                              {a.name || getAmenityLabel(a.type, i18nInstance.language)}
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  {effectiveHotelId && enabledAmenities.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      {t("admin:amenityBookingForm.noAmenityEnabled")}
-                    </p>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Client type */}
-            <FormField
-              control={form.control}
-              name="client_type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("admin:amenityBookingForm.clientType")}</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="external">
-                        <span className="flex items-center gap-2">
-                          <Globe className="h-4 w-4" />
-                          {t("admin:amenityBookingForm.clientTypes.external")}
-                        </span>
-                      </SelectItem>
-                      {effectiveVenueType === "hotel" && (
-                        <SelectItem value="internal">
-                          <span className="flex items-center gap-2">
-                            <Hotel className="h-4 w-4" />
-                            {t("admin:amenityBookingForm.clientTypes.internal")}
-                          </span>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <div className="bo-modal-body bo-fields">
+              {/* Venue selection (picker mode only) */}
+              {showVenuePicker && (
+                <div className="space-y-2">
+                  <label>{t("admin:amenityBookingForm.venue")}</label>
+                  <Select
+                    value={pickedHotelId}
+                    onValueChange={(v) => {
+                      setPickedHotelId(v);
+                      form.setValue("venue_amenity_id", "");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("admin:amenityBookingForm.venuePlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent className="bo-refonte bo-menu">
+                      {amenityHotels.map((h) => (
+                        <SelectItem key={h.id} value={h.id}>
+                          {h.name}
                         </SelectItem>
-                      )}
-                      <SelectItem value="lymfea">
-                        <span className="flex items-center gap-2">
-                          <Sparkles className="h-4 w-4" />
-                          {t("admin:amenityBookingForm.clientTypes.lymfea")}
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="sezame">
-                        <span className="flex items-center gap-2">
-                          <KeyRound className="h-4 w-4" />
-                          Sezame
-                        </span>
-                      </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Existing customer search */}
-            <div className="relative">
-              <label className="flex items-center gap-1.5 mb-1 text-sm font-medium">
-                <Search className="h-3.5 w-3.5" />
-                {t("admin:amenityBookingForm.searchCustomer")}
-              </label>
-              <Input
-                value={customerSearch}
-                onChange={(e) => {
-                  setCustomerSearch(e.target.value);
-                  setSelectedCustomerId(null);
-                }}
-                placeholder={t("admin:amenityBookingForm.searchCustomerPlaceholder")}
-                className="h-9"
-              />
-              {trimmedCustomerSearch.length >= 3 && !selectedCustomerId && (
-                <div className="absolute z-10 left-0 right-0 mt-1 rounded-lg border bg-popover shadow-md">
-                  {isSearchingCustomers ? (
-                    <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      {t("admin:amenityBookingForm.searching")}
-                    </div>
-                  ) : customerResults.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">{t("admin:amenityBookingForm.noCustomerFound")}</div>
-                  ) : (
-                    customerResults.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => handleSelectCustomer(c)}
-                        className="w-full flex flex-col items-start px-3 py-2 text-sm text-left hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg"
-                      >
-                        <span className="font-medium">
-                          {[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {[c.phone, c.email].filter(Boolean).join(" · ")}
-                        </span>
-                      </button>
-                    ))
-                  )}
                 </div>
               )}
-            </div>
 
-            {/* Client info */}
-            <div className="grid grid-cols-2 gap-3">
+              {/* Amenity selection */}
               <FormField
                 control={form.control}
-                name="first_name"
+                name="venue_amenity_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("admin:amenityBookingForm.firstName")} *</FormLabel>
-                    <FormControl>
-                      <Input {...field} className="h-9" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="last_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("admin:amenityBookingForm.lastName")}</FormLabel>
-                    <FormControl>
-                      <Input {...field} className="h-9" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("admin:amenityBookingForm.phone")} *</FormLabel>
-                    <FormControl>
-                      <Input {...field} className="h-9" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="email" className="h-9" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Room number — internal only */}
-            {selectedClientType === "internal" && (
-              <FormField
-                control={form.control}
-                name="room_number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("admin:amenityBookingForm.roomNumber")}</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="ex: 302" className="h-9" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {/* Date & Time */}
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="booking_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("admin:amenityBookingForm.date")} *</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="date" className="h-9" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="booking_time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("admin:amenityBookingForm.time")} *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <FormLabel>{t("admin:amenityBookingForm.amenity")}</FormLabel>
+                    {/* Les commodités dépendent du lieu : tant qu'aucun n'est
+                        choisi, la liste serait vide — on ferme le champ plutôt
+                        que d'ouvrir un menu sans option. */}
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={!effectiveHotelId}
+                    >
                       <FormControl>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder={t("admin:amenityBookingForm.selectPlaceholder")} />
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={
+                              effectiveHotelId
+                                ? t("admin:amenityBookingForm.selectPlaceholder")
+                                : t("admin:amenityBookingForm.venuePlaceholder")
+                            }
+                          />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        {TIME_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
+                      <SelectContent className="bo-refonte bo-menu">
+                        {enabledAmenities.map((a) => {
+                          const typeDef = getAmenityType(a.type);
+                          const Icon = typeDef?.icon;
+                          return (
+                            <SelectItem key={a.id} value={a.id}>
+                              <div className="flex items-center gap-2">
+                                {Icon && <Icon className="h-3.5 w-3.5" style={{ color: a.color }} />}
+                                {a.name || getAmenityLabel(a.type, i18nInstance.language)}
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
-                    <FormMessage />
+                    {effectiveHotelId && enabledAmenities.length === 0 && (
+                      <p className="bo-hint">
+                        {t("admin:amenityBookingForm.noAmenityEnabled")}
+                      </p>
+                    )}
+                    <FormMessage className="bo-err" />
                   </FormItem>
                 )}
               />
-            </div>
 
-            {/* Guests + capacity indicator */}
-            <div className="flex items-end gap-3">
+              {/* Client type */}
               <FormField
                 control={form.control}
-                name="num_guests"
+                name="client_type"
                 render={({ field }) => (
-                  <FormItem className="flex-1">
-                    <FormLabel>{t("admin:amenityBookingForm.guestCount")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={remainingCapacity || 999}
-                        value={field.value}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                        className="h-9"
-                      />
-                    </FormControl>
-                    <FormMessage />
+                  <FormItem>
+                    <FormLabel>{t("admin:amenityBookingForm.clientType")}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bo-refonte bo-menu">
+                        <SelectItem value="external">
+                          <span className="flex items-center gap-2">
+                            <Globe className="h-4 w-4" />
+                            {t("admin:amenityBookingForm.clientTypes.external")}
+                          </span>
+                        </SelectItem>
+                        {effectiveVenueType === "hotel" && (
+                          <SelectItem value="internal">
+                            <span className="flex items-center gap-2">
+                              <Hotel className="h-4 w-4" />
+                              {t("admin:amenityBookingForm.clientTypes.internal")}
+                            </span>
+                          </SelectItem>
+                        )}
+                        <SelectItem value="lymfea">
+                          <span className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4" />
+                            {t("admin:amenityBookingForm.clientTypes.lymfea")}
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="sezame">
+                          <span className="flex items-center gap-2">
+                            <KeyRound className="h-4 w-4" />
+                            Sezame
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="bo-err" />
                   </FormItem>
                 )}
               />
-              {selectedAmenity && bookingDate && bookingTime && (
-                <div className="flex items-center gap-1.5 pb-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <Badge
-                    variant={remainingCapacity > 0 ? "secondary" : "destructive"}
-                    className="text-xs"
-                  >
-                    {t("admin:amenityBookingForm.capacityBadge", { remaining: remainingCapacity, total: selectedAmenity.capacity_per_slot })}
-                  </Badge>
-                </div>
-              )}
-              {slotConflict && (
-                <p className="text-xs text-destructive pb-2">
-                  {t(
-                    slotConflict === "AMENITY_EXCLUSIVE"
-                      ? "admin:amenityBookingForm.slotExclusiveWarning"
-                      : "admin:amenityBookingForm.slotFullWarning",
-                  )}
-                </p>
-              )}
-            </div>
 
-            {/* Duration — picked among the durations the venue allows */}
-            {selectedAmenity && (
-              durationOptions.length > 1 ? (
+              {/* Existing customer search */}
+              <div className="relative space-y-2">
+                <label>
+                  <Search />
+                  {t("admin:amenityBookingForm.searchCustomer")}
+                </label>
+                <Input
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    setSelectedCustomerId(null);
+                  }}
+                  placeholder={t("admin:amenityBookingForm.searchCustomerPlaceholder")}
+                />
+                {trimmedCustomerSearch.length >= 3 && !selectedCustomerId && (
+                  <div className="bo-suggest">
+                    {isSearchingCustomers ? (
+                      <div className="state">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        {t("admin:amenityBookingForm.searching")}
+                      </div>
+                    ) : customerResults.length === 0 ? (
+                      <div className="state">{t("admin:amenityBookingForm.noCustomerFound")}</div>
+                    ) : (
+                      customerResults.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => handleSelectCustomer(c)}
+                        >
+                          <span className="nm">
+                            {[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
+                          </span>
+                          <span className="meta">
+                            {[c.phone, c.email].filter(Boolean).join(" · ")}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Client info */}
+              <div className="bo-row">
                 <FormField
                   control={form.control}
-                  name="duration"
-                  render={() => (
+                  name="first_name"
+                  render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("admin:amenityBookingForm.duration")}</FormLabel>
-                      <Select
-                        value={String(duration)}
-                        onValueChange={(v) => form.setValue("duration", parseInt(v))}
-                      >
+                      <FormLabel>{t("admin:amenityBookingForm.firstName")} *</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage className="bo-err" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="last_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("admin:amenityBookingForm.lastName")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="bo-row">
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("admin:amenityBookingForm.phone")} *</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage className="bo-err" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="email" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Room number — internal only */}
+              {selectedClientType === "internal" && (
+                <FormField
+                  control={form.control}
+                  name="room_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("admin:amenityBookingForm.roomNumber")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="ex: 302" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Date & Time */}
+              <div className="bo-row">
+                <FormField
+                  control={form.control}
+                  name="booking_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("admin:amenityBookingForm.date")} *</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage className="bo-err" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="booking_time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("admin:amenityBookingForm.time")} *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("admin:amenityBookingForm.selectPlaceholder")} />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
-                          {durationOptions.map((d) => (
-                            <SelectItem key={d} value={String(d)}>
-                              {formatDuration(d)}
+                        <SelectContent className="bo-refonte bo-menu">
+                          {TIME_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      {selectedAmenity.prep_time > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          {t("admin:amenityBookingForm.prepTime", { minutes: selectedAmenity.prep_time })}
-                        </p>
-                      )}
-                      <FormMessage />
+                      <FormMessage className="bo-err" />
                     </FormItem>
                   )}
                 />
-              ) : (
-                <div className="text-sm text-muted-foreground">
-                  {t("admin:amenityBookingForm.durationValue", { value: formatDuration(duration) })}
-                  {selectedAmenity.prep_time > 0 && (
-                    <span> {t("admin:amenityBookingForm.prepTimeInline", { minutes: selectedAmenity.prep_time })}</span>
-                  )}
-                </div>
-              )
-            )}
+              </div>
 
-            {/* Price */}
-            <div className="flex items-center gap-2 text-sm font-medium bg-muted/50 rounded p-2">
-              {t("admin:amenityBookingForm.price")}&nbsp;
-              {computedPrice === 0 ? (
-                <Badge variant="secondary">{t("admin:amenityBookingForm.free")}</Badge>
-              ) : (
-                <span>{computedPrice * numGuests} {selectedAmenity?.currency || "EUR"}</span>
-              )}
+              {/* Guests + duration */}
+              <div className="bo-row">
+                <FormField
+                  control={form.control}
+                  name="num_guests"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("admin:amenityBookingForm.guestCount")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={remainingCapacity || 999}
+                          value={field.value}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        />
+                      </FormControl>
+                      <FormMessage className="bo-err" />
+                    </FormItem>
+                  )}
+                />
+                {/* Durée — choisie parmi celles que le lieu autorise. Une seule
+                    durée possible : elle est rappelée dans le récapitulatif. */}
+                {selectedAmenity && durationOptions.length > 1 && (
+                  <FormField
+                    control={form.control}
+                    name="duration"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>{t("admin:amenityBookingForm.duration")}</FormLabel>
+                        <Select
+                          value={String(duration)}
+                          onValueChange={(v) => form.setValue("duration", parseInt(v))}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="bo-refonte bo-menu">
+                            {durationOptions.map((d) => (
+                              <SelectItem key={d} value={String(d)}>
+                                {formatDuration(d)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedAmenity.prep_time > 0 && (
+                          <p className="bo-hint">
+                            {t("admin:amenityBookingForm.prepTime", { minutes: selectedAmenity.prep_time })}
+                          </p>
+                        )}
+                        <FormMessage className="bo-err" />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+
+              {/* Récapitulatif : capacité restante, durée fixe et prix se lisent
+                  d'un bloc — ce sont les trois chiffres qui décident. */}
+              <div className="bo-summary">
+                {selectedAmenity && bookingDate && bookingTime && (
+                  <span className={`bo-chip ${remainingCapacity > 0 ? "ok" : "bad"}`}>
+                    <Users className="h-3 w-3" />
+                    {t("admin:amenityBookingForm.capacityBadge", { remaining: remainingCapacity, total: selectedAmenity.capacity_per_slot })}
+                  </span>
+                )}
+                {selectedAmenity && durationOptions.length <= 1 && (
+                  <span className="k">
+                    {t("admin:amenityBookingForm.durationValue", { value: formatDuration(duration) })}
+                    {selectedAmenity.prep_time > 0 && (
+                      <> {t("admin:amenityBookingForm.prepTimeInline", { minutes: selectedAmenity.prep_time })}</>
+                    )}
+                  </span>
+                )}
+                <span className="amount">
+                  <em className="k">{t("admin:amenityBookingForm.price")}</em>
+                  {computedPrice === 0
+                    ? t("admin:amenityBookingForm.free")
+                    : `${computedPrice * numGuests} ${selectedAmenity?.currency || "EUR"}`}
+                </span>
+                {slotConflict && (
+                  <p className="bo-warn w-full">
+                    {t(
+                      slotConflict === "AMENITY_EXCLUSIVE"
+                        ? "admin:amenityBookingForm.slotExclusiveWarning"
+                        : "admin:amenityBookingForm.slotFullWarning",
+                    )}
+                  </p>
+                )}
+              </div>
+
+              {/* Notes */}
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("admin:amenityBookingForm.notes")}</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} rows={2} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
             </div>
 
-            {/* Notes */}
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("admin:amenityBookingForm.notes")}</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} rows={2} className="resize-none" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            {/* Submit — footer collant en bas du dialogue */}
-            <div className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex justify-end gap-2 border-t bg-background/95 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-              <Button
+            {/* Submit — pied ancré, hors de la zone qui défile */}
+            <div className="bo-modal-foot">
+              <button
                 type="button"
-                variant="outline"
+                className="bo-btn outline"
                 onClick={() => onOpenChange(false)}
               >
                 {t("common:buttons.cancel")}
-              </Button>
-              <Button
+              </button>
+              <button
                 type="submit"
+                className="bo-btn primary"
                 disabled={createMutation.isPending}
-                className="bg-foreground text-background hover:bg-foreground/90"
               >
                 {createMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 )}
                 {isEditMode ? t("common:buttons.save") : t("admin:amenityBookingForm.book")}
-              </Button>
+              </button>
             </div>
           </form>
         </Form>
