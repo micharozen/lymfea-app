@@ -440,7 +440,18 @@ export function CreateAmenityBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bo-refonte bo-modal sm:max-w-2xl">
+      <DialogContent
+        className="bo-refonte bo-modal sm:max-w-2xl"
+        onOpenAutoFocus={(e) => {
+          // Radix pose le focus sur le premier élément focusable. Le champ
+          // « Commodité » étant désactivé tant qu'aucun lieu n'est choisi, le
+          // focus tombait sur « Annuler » : on le pose sur le premier champ
+          // réellement saisissable, ou nulle part.
+          e.preventDefault();
+          const content = e.currentTarget as HTMLElement;
+          content.querySelector<HTMLElement>("[data-first-field]:not([disabled])")?.focus();
+        }}
+      >
         <DialogHeader className="bo-modal-head">
           <DialogTitle>{isEditMode ? t("admin:amenityBookingForm.editTitle") : t("admin:amenityBookingForm.createTitle")}</DialogTitle>
         </DialogHeader>
@@ -459,7 +470,7 @@ export function CreateAmenityBookingDialog({
                       form.setValue("venue_amenity_id", "");
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger data-first-field>
                       <SelectValue placeholder={t("admin:amenityBookingForm.venuePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent className="bo-refonte bo-menu">
@@ -489,7 +500,7 @@ export function CreateAmenityBookingDialog({
                       disabled={!effectiveHotelId}
                     >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger data-first-field>
                           <SelectValue
                             placeholder={
                               effectiveHotelId

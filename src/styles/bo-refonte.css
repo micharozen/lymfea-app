@@ -468,7 +468,9 @@
   flex:none;padding:16px 22px 13px;border-bottom:1px solid var(--line);
   background:var(--bo-surface);text-align:left;
 }
-.bo-modal .bo-modal-head h2{font-size:17px;letter-spacing:-.01em;line-height:1.25;color:var(--ink);margin:0;}
+/* Le titre et la croix de fermeture partagent la même hauteur de ligne : c'est
+   ce qui les aligne, sans caler la croix sur une valeur devinée. */
+.bo-modal .bo-modal-head h2{font-size:17px;letter-spacing:-.01em;line-height:26px;color:var(--ink);margin:0;padding-right:32px;}
 .bo-modal .bo-modal-head .sub{font-size:11.5px;color:var(--ink-mute);margin-top:3px;}
 /* Le corps porte le défilement : l'en-tête et le pied restent visibles. */
 .bo-modal .bo-modal-body{flex:1;min-height:0;overflow-y:auto;padding:16px 22px 18px;}
@@ -477,10 +479,19 @@
   padding:11px 22px;border-top:1px solid var(--line);background:var(--bo-surface);
 }
 .bo-modal .bo-modal-foot .note{margin-right:auto;font-size:11.5px;color:var(--ink-mute);}
-/* Croix de fermeture (rendue par DialogContent, hors de notre JSX). */
+/* Focus clavier des boutons : même trait clay que les champs, plutôt que
+   l'anneau par défaut du navigateur. */
+.bo-refonte.bo-modal .bo-btn:focus-visible,
+.bo-refonte.bo-modal > button[type="button"]:last-child:focus-visible{
+  outline:none;border-color:var(--clay);box-shadow:0 0 0 2px var(--clay-soft);
+}
+/* Croix de fermeture (rendue par DialogContent, hors de notre JSX). Carré de
+   26px calé sur le padding de l'en-tête : sa ligne est celle du titre. */
 .bo-refonte.bo-modal > button[type="button"]:last-child{
-  top:14px;right:16px;opacity:1;color:var(--ink-mute);border-radius:var(--r-s);
-  padding:4px;transition:color .12s,background .12s;
+  top:16px;right:18px;width:26px;height:26px;padding:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  opacity:1;color:var(--ink-mute);border-radius:var(--r-s);
+  transition:color .12s,background .12s;
 }
 .bo-refonte.bo-modal > button[type="button"]:last-child:hover{color:var(--ink);background:var(--bo-surface-2);}
 
