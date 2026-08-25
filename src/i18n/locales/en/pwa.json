@@ -252,7 +252,12 @@
     "enablePromptTitle": "Enable notifications?",
     "enablePromptDesc": "Receive real-time alerts for your new bookings, even when the app is closed.",
     "enablePromptLater": "Later",
-    "enablePromptButton": "Enable"
+    "enablePromptButton": "Enable",
+    "testButton": "Send myself a test",
+    "testSending": "Sending…",
+    "testSent": "Test notification sent",
+    "testUndelivered": "Not delivered: no subscribed device. Turn notifications back on for this device.",
+    "testError": "Could not send the test notification"
   },
   "profile": {
     "title": "Profile",
@@ -714,5 +719,15 @@
     "created": "Ticket submitted successfully",
     "createError": "Failed to submit ticket",
     "fieldsRequired": "Please fill in all required fields"
+  },
+  "notificationTest": {
+    "title": "Notification test",
+    "question": "Did you receive this notification?",
+    "ok": "Received OK",
+    "nok": "Something's wrong",
+    "thanksOk": "Thanks, reception confirmed.",
+    "thanksNok": "Thanks, the issue has been reported.",
+    "noPendingTest": "No notification test in progress.",
+    "error": "Could not save your answer"
   }
 }

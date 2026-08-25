@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -53,6 +54,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const [swipe, setSwipe] = useState<SwipeState | null>(null);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isMountedRef = useIsMounted();
@@ -314,6 +316,25 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
     }
   };
 
+  const handleSendTestNotification = async () => {
+    setTestLoading(true);
+    const { data, error } = await invokeEdgeFunction<
+      { scope: "self" },
+      { sent: number; undelivered: number }
+    >("send-notification-test", { body: { scope: "self" } });
+    setTestLoading(false);
+
+    if (error) {
+      toast.error(t('notifications.testError'));
+      return;
+    }
+    if ((data?.undelivered ?? 0) > 0) {
+      toast.error(t('notifications.testUndelivered'));
+      return;
+    }
+    toast.success(t('notifications.testSent'));
+  };
+
   const notificationsList = notifications || [];
   const unreadCount = notificationsList.filter(n => !n.read).length;
 
@@ -358,21 +379,31 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
 
       {/* Réglage des notifications push */}
       <div className="notif-push">
-        <span className="ic">
-          <Bell size={16} />
-        </span>
-        <div className="tx">
-          <Label htmlFor="push-notifications" className="t">
-            {t('notifications.pushNotifications')}
-          </Label>
-          <span className="s">{t('notifications.pushDescription')}</span>
+        <div className="row">
+          <span className="ic">
+            <Bell size={16} />
+          </span>
+          <div className="tx">
+            <Label htmlFor="push-notifications" className="t">
+              {t('notifications.pushNotifications')}
+            </Label>
+            <span className="s">{t('notifications.pushDescription')}</span>
+          </div>
+          <Switch
+            id="push-notifications"
+            checked={pushEnabled}
+            onCheckedChange={handleTogglePushNotifications}
+            disabled={pushLoading}
+          />
         </div>
-        <Switch
-          id="push-notifications"
-          checked={pushEnabled}
-          onCheckedChange={handleTogglePushNotifications}
-          disabled={pushLoading}
-        />
+
+        <button
+          className="notif-test"
+          disabled={!pushEnabled || testLoading}
+          onClick={handleSendTestNotification}
+        >
+          {testLoading ? t('notifications.testSending') : t('notifications.testButton')}
+        </button>
       </div>
 
       {/* Liste - pas de scroll propre, le conteneur PWA scrolle */}
