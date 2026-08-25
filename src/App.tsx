@@ -117,6 +117,7 @@ const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
 const PwaNewBooking = lazy(() => import("./pages/pwa/NewBooking"));
 const PwaSchedule = lazy(() => import("./pages/pwa/Schedule"));
 const PwaSupport = lazy(() => import("./pages/pwa/Support"));
+const PwaNotificationTest = lazy(() => import("./pages/pwa/NotificationTest"));
 
 
 // Admin PWA Layout & Pages
@@ -463,6 +464,14 @@ const App = () => {
               element={
                 <TherapistProtectedRoute>
                   <PwaSupport />
+                </TherapistProtectedRoute>
+              }
+            />
+            <Route
+              path="/pwa/notification-test"
+              element={
+                <TherapistProtectedRoute>
+                  <PwaNotificationTest />
                 </TherapistProtectedRoute>
               }
             />
