@@ -71,6 +71,25 @@ export const composePhoneNumber = (countryCode: string, phone: string): string =
 };
 
 /**
+ * Détecte un numéro « bouche-trou » : celui qu'un opérateur saisit faute de
+ * vrai numéro (000000000, 0, +33 000000000…).
+ *
+ * Un tel numéro ne doit JAMAIS servir de clé de déduplication client : en prod,
+ * la fiche « Mrs Al Babtain » créée avec +33000000000 a fini par absorber
+ * quatre réservations de clients différents, dont deux affichées à tort sur le
+ * planning commodités de Buci.
+ *
+ * Miroir exact de `is_placeholder_phone()` côté Postgres (migration
+ * 20260824160000_placeholder_phone_no_dedupe.sql) : aucun chiffre non nul, ou
+ * neuf zéros consécutifs ou plus — un vrai numéro national n'aligne jamais neuf
+ * zéros, son premier chiffre après l'indicatif étant significatif.
+ */
+export const isPlaceholderPhone = (raw: string | null | undefined): boolean => {
+  const digits = (raw ?? "").replace(/[^0-9]/g, "");
+  return !/[1-9]/.test(digits) || /0{9,}/.test(digits);
+};
+
+/**
  * Sépare un numéro stocké en indicatif pays + numéro local, pour ré-alimenter
  * un champ de saisie à indicatif séparé (ex: édition d'une réservation).
  *
