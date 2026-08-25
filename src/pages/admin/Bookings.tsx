@@ -453,11 +453,6 @@ useEffect(() => {
     setIsRefreshing(false);
   };
 
-  const handleAmenityBookingClick = (booking: AmenityBookingForCalendar) => {
-    setViewedAmenityBooking(booking);
-    setIsAmenityDetailOpen(true);
-  };
-
   return (
     <div className="h-full min-h-0 bg-background flex flex-col overflow-hidden">
       {/* Header & Filters — single toolbar row to maximize planning space */}
@@ -645,7 +640,6 @@ useEffect(() => {
               hotels={hotels}
               hotelFilter={hotelFilter}
               showCleanupBuffer={!!hasVenueFilter}
-              amenityBookings={amenityBookings}
               visibleCalendars={hasVenueFilter ? visibleCalendars : undefined}
               amenityBookings={standaloneAmenityBookings}
               onAmenityBookingClick={handleAmenityBookingClick}

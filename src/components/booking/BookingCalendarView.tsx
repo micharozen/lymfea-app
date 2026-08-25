@@ -25,6 +25,7 @@ import type {
 import { getAmenityType } from "@/lib/amenityTypes";
 import {
   computeColumnLayout,
+  toLayoutItem,
   type CalendarLayoutItem,
   type CalendarLayoutSlot,
 } from "@/hooks/booking/useCalendarLogic";
@@ -92,9 +93,6 @@ interface BookingCalendarViewProps {
   // Draw the "remise en état" (room turnover) buffer zone under each booking.
   // Hidden when viewing all venues at once to keep the planning readable.
   showCleanupBuffer?: boolean;
-  // Réservations de commodité autonomes — celles liées à un booking ne sont pas
-  // dessinées ici : le booking les porte déjà (voir placeBooking).
-  amenityBookings?: AmenityBookingForCalendar[];
   /** Calendriers visibles : « treatments » + un id par commodité du lieu. */
   visibleCalendars?: Record<string, boolean>;
   /**
@@ -200,7 +198,6 @@ export function BookingCalendarView({
   availabilityData,
   showAvailability,
   showCleanupBuffer = true,
-  amenityBookings,
   visibleCalendars,
   amenityBookings,
   onAmenityBookingClick,
@@ -296,33 +293,6 @@ export function BookingCalendarView({
       calendarId: visible.amenity_id!,
       // Copie de travail : la carte occupe le créneau de l'accès, pas celui du panier.
       booking: amenityDuration > 0 ? { ...booking, totalDuration: amenityDuration } : booking,
-    };
-  };
-
-  /** Les commodités réservées sans booking derrière, pour le jour affiché. */
-  const getAmenityBookingsForDay = (day: Date): AmenityBookingForCalendar[] => {
-    if (!amenityBookings) return [];
-    const dateStr = format(day, "yyyy-MM-dd");
-    return amenityBookings.filter((b) => {
-      if (b.booking_date !== dateStr) return false;
-      if (visibleCalendars && visibleCalendars[b.venue_amenity_id] === false) return false;
-      return true;
-    });
-  };
-
-  const getAmenityPosition = (booking: AmenityBookingForCalendar): { top: number; height: number } => {
-    const [h, m] = booking.booking_time.split(":").map(Number);
-    const top = ((h - startHour) + m / 60) * hourHeight;
-    const height = Math.max(20, (booking.duration / 60) * hourHeight);
-    return { top, height };
-  };
-
-  const toAmenityLayoutItem = (booking: AmenityBookingForCalendar): CalendarLayoutItem => {
-    const [h, m] = booking.booking_time.split(":").map(Number);
-    return {
-      id: booking.id,
-      startMinutes: h * 60 + m,
-      duration: booking.duration > 0 ? booking.duration : 60,
     };
   };
 
