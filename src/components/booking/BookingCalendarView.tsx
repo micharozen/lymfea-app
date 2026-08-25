@@ -14,9 +14,20 @@ import i18n from "@/i18n";
 import { useDateLocale } from "@/lib/dateLocale";
 import { AvailabilityOverlay } from "./AvailabilityOverlay";
 import { CleanupBufferZone } from "./CleanupBufferZone";
-import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar, RoomBlockRow } from "@/hooks/booking";
+import type {
+  BookingWithTreatments,
+  Hotel,
+  DaySummary,
+  HourAvailability,
+  RoomBlockRow,
+  AmenityBookingForCalendar,
+} from "@/hooks/booking";
 import { getAmenityType } from "@/lib/amenityTypes";
-import { computeColumnLayout, toLayoutItem, type CalendarLayoutItem, type CalendarLayoutSlot } from "@/hooks/booking/useCalendarLogic";
+import {
+  computeColumnLayout,
+  type CalendarLayoutItem,
+  type CalendarLayoutSlot,
+} from "@/hooks/booking/useCalendarLogic";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 
 // Human-readable payment-status labels for the booking hover tooltip.
@@ -86,6 +97,12 @@ interface BookingCalendarViewProps {
   amenityBookings?: AmenityBookingForCalendar[];
   /** Calendriers visibles : « treatments » + un id par commodité du lieu. */
   visibleCalendars?: Record<string, boolean>;
+  /**
+   * Réservations de commodité **autonomes** — celles qui n'ont pas de booking
+   * derrière (import Hana, saisie directe). Celles rattachées à un booking sont
+   * déjà dessinées par la carte du booking : les passer ici les doublerait.
+   */
+  amenityBookings?: AmenityBookingForCalendar[];
   onAmenityBookingClick?: (booking: AmenityBookingForCalendar) => void;
   /** Blocages ponctuels datés couvrant la plage affichée, tous lieux visibles confondus. */
   roomBlocks?: RoomBlockRow[];
@@ -185,6 +202,7 @@ export function BookingCalendarView({
   showCleanupBuffer = true,
   amenityBookings,
   visibleCalendars,
+  amenityBookings,
   onAmenityBookingClick,
   roomBlocks,
   onEditRoomBlock,
@@ -245,12 +263,14 @@ export function BookingCalendarView({
 
   /**
    * Le calendrier d'une réservation. Une commodité (piscine, sauna…) se réserve
-   * comme un soin relié à un venue_amenity : la réservation apparaît donc dans le
-   * calendrier de cette commodité, et sa ligne amenity_bookings n'est pas dessinée.
+   * comme un soin relié à un venue_amenity, et son amenity_booking lié n'est
+   * qu'un registre de capacité : c'est la carte du booking qui la représente.
    *
-   * - panier avec au moins un soin → calendrier « Soins », durée complète ;
-   * - sinon (ou si « Soins » est masqué) → calendrier de la 1re commodité visible,
-   *   réduit à la durée de ses accès pour un panier mixte.
+   * - « Soins » visible → calendrier « Soins », durée complète, y compris pour un
+   *   panier 100 % commodité : une réservation reste une réservation ;
+   * - « Soins » masqué — c'est ainsi qu'on filtre sur une commodité — → calendrier
+   *   de la 1re commodité visible, réduit à la durée de ses accès pour un panier
+   *   mixte.
    *
    * Une réservation n'est jamais rendue deux fois : un seul calendrier la porte.
    */
@@ -259,13 +279,9 @@ export function BookingCalendarView({
   ): { calendarId: string; booking: BookingWithTreatments } | null => {
     const lines = booking.treatments ?? [];
     const amenityLines = lines.filter((t) => t.is_amenity && t.amenity_id);
-    const hasSoin = lines.some((t) => !t.is_amenity);
 
-    if (hasSoin && showTreatments) return { calendarId: "treatments", booking };
-    // Aucune commodité à porter le créneau : le calendrier « Soins » reste le
-    // défaut, y compris pour un panier vide — mieux vaut une carte sans détail
-    // qu'une réservation absente du planning.
-    if (!amenityLines.length) return showTreatments ? { calendarId: "treatments", booking } : null;
+    if (showTreatments) return { calendarId: "treatments", booking };
+    if (!amenityLines.length) return null;
 
     const visible = amenityLines.find(
       (t) => !visibleCalendars || visibleCalendars[t.amenity_id!] !== false,
@@ -283,32 +299,60 @@ export function BookingCalendarView({
     };
   };
 
+  /** Les commodités réservées sans booking derrière, pour le jour affiché. */
+  const getAmenityBookingsForDay = (day: Date): AmenityBookingForCalendar[] => {
+    if (!amenityBookings) return [];
+    const dateStr = format(day, "yyyy-MM-dd");
+    return amenityBookings.filter((b) => {
+      if (b.booking_date !== dateStr) return false;
+      if (visibleCalendars && visibleCalendars[b.venue_amenity_id] === false) return false;
+      return true;
+    });
+  };
+
+  const getAmenityPosition = (booking: AmenityBookingForCalendar): { top: number; height: number } => {
+    const [h, m] = booking.booking_time.split(":").map(Number);
+    const top = ((h - startHour) + m / 60) * hourHeight;
+    const height = Math.max(20, (booking.duration / 60) * hourHeight);
+    return { top, height };
+  };
+
+  const toAmenityLayoutItem = (booking: AmenityBookingForCalendar): CalendarLayoutItem => {
+    const [h, m] = booking.booking_time.split(":").map(Number);
+    return {
+      id: booking.id,
+      startMinutes: h * 60 + m,
+      duration: booking.duration > 0 ? booking.duration : 60,
+    };
+  };
+
   /**
-   * Each visible calendar (treatments + one per amenity that has bookings in the
-   * displayed range) gets its own vertical band inside a day, so an amenity is
-   * never covered by back-to-back treatments. With a single visible calendar the
-   * band spans the whole day column.
+   * Each visible calendar (treatments + one per amenity that has something to
+   * draw in the displayed range) gets its own vertical band inside a day, so an
+   * amenity is never covered by back-to-back treatments. With a single visible
+   * calendar the band spans the whole day column.
+   *
+   * Une bande n'existe que si elle porte quelque chose : les bookings n'y tombent
+   * que « Soins » masqué, les commodités autonomes y sont toujours.
    */
   const amenityCalendarIds = useMemo(() => {
     const ids: string[] = [];
-    const push = (id: string) => {
+    const add = (id: string) => {
       if (visibleCalendars && visibleCalendars[id] === false) return;
       if (!ids.includes(id)) ids.push(id);
     };
-    for (const day of weekDays) {
-      for (const b of getBookingsForDay(day)) {
-        for (const t of b.treatments ?? []) {
-          if (!t.is_amenity || !t.amenity_id) continue;
-          push(t.amenity_id);
+    if (!showTreatments) {
+      for (const day of weekDays) {
+        for (const b of getBookingsForDay(day)) {
+          for (const t of b.treatments ?? []) {
+            if (t.is_amenity && t.amenity_id) add(t.amenity_id);
+          }
         }
       }
     }
-    for (const b of amenityBookings ?? []) {
-      if (b.linked_booking_id) continue;
-      push(b.venue_amenity_id);
-    }
+    for (const b of amenityBookings ?? []) add(b.venue_amenity_id);
     return ids;
-  }, [weekDays, getBookingsForDay, amenityBookings, visibleCalendars]);
+  }, [weekDays, getBookingsForDay, visibleCalendars, showTreatments, amenityBookings]);
 
   const bandCount = (showTreatments ? 1 : 0) + amenityCalendarIds.length;
   const bandOf = (calendarId: string) =>
@@ -335,7 +379,17 @@ export function BookingCalendarView({
       computeColumnLayout(items).forEach((slot, id) => layout.set(id, slot));
     }
 
-    return { placements, dayAmenities, layout };
+    // Une commodité autonome partage la bande de son équipement : son créneau
+    // doit compter dans les colonnes de cette bande, pas dans celles des soins.
+    const amenityLayout = new Map<string, CalendarLayoutSlot>();
+    for (const amenityId of amenityCalendarIds) {
+      const items = dayAmenities.filter((b) => b.venue_amenity_id === amenityId);
+      computeColumnLayout(items.map(toAmenityLayoutItem)).forEach((slot, id) =>
+        amenityLayout.set(id, slot),
+      );
+    }
+
+    return { placements, layout, dayAmenities, amenityLayout };
   };
 
   // Compute off-hours based on filtered venue or all venues
@@ -663,7 +717,7 @@ export function BookingCalendarView({
               {/* Day columns */}
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                const { placements, dayAmenities, layout: dayLayout } = getDayLayout(day);
+                const { placements, layout: dayLayout, dayAmenities, amenityLayout } = getDayLayout(day);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -725,6 +779,18 @@ export function BookingCalendarView({
                           showCleanupBuffer={showCleanupBuffer}
                         />
                       ))}
+                      {/* Commodités réservées sans booking derrière */}
+                      {dayAmenities.map((ab) => (
+                        <AmenityBookingCard
+                          key={ab.id}
+                          booking={ab}
+                          position={getAmenityPosition(ab)}
+                          layoutInfo={amenityLayout.get(ab.id)}
+                          band={bandOf(ab.venue_amenity_id)}
+                          bandCount={bandCount}
+                          onClick={onAmenityBookingClick}
+                        />
+                      ))}
                     </TooltipProvider>
 
                     {/* Reservations de commodite sans booking associe */}
@@ -774,7 +840,7 @@ export function BookingCalendarView({
               {/* Day columns */}
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                const { placements, dayAmenities, layout: dayLayout } = getDayLayout(day);
+                const { placements, layout: dayLayout, dayAmenities, amenityLayout } = getDayLayout(day);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -832,6 +898,18 @@ export function BookingCalendarView({
                           onBookingClick={onBookingClick}
                           navigate={navigate}
                           showCleanupBuffer={showCleanupBuffer}
+                        />
+                      ))}
+                      {/* Commodités réservées sans booking derrière */}
+                      {dayAmenities.map((ab) => (
+                        <AmenityBookingCard
+                          key={ab.id}
+                          booking={ab}
+                          position={getAmenityPosition(ab)}
+                          layoutInfo={amenityLayout.get(ab.id)}
+                          band={bandOf(ab.venue_amenity_id)}
+                          bandCount={bandCount}
+                          onClick={onAmenityBookingClick}
                         />
                       ))}
                     </TooltipProvider>
@@ -1268,8 +1346,6 @@ export function BookingCard({
   );
 }
 
-
-// Amenity booking card for the calendar grid
 function AmenityBookingCard({
   booking,
   position,

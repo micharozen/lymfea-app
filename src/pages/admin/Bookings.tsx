@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addDays, subDays, startOfMonth, endOfMonth, format, parseISO, isValid } from "date-fns";
-import { Ban, ChevronDown, LayoutGrid, RefreshCw } from "lucide-react";
+import { Ban, ChevronDown, LayoutGrid, RefreshCw, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppLoader } from "@/components/AppLoader";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
@@ -165,7 +165,9 @@ export default function Booking() {
     if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
   }, []);
 
-  // Amenity dialog state
+  // Commodités réservées sans booking : création depuis la barre d'actions,
+  // fiche au clic, édition depuis la fiche.
+  const [isAmenityCreateOpen, setIsAmenityCreateOpen] = useState(false);
   const [isAmenityDetailOpen, setIsAmenityDetailOpen] = useState(false);
   const [viewedAmenityBooking, setViewedAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
   const [editingAmenityBooking, setEditingAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
@@ -245,9 +247,20 @@ useEffect(() => {
   }, [filteredBookings, hasVenueFilter, showCancelled]);
 
   const { amenities: venueAmenities } = useVenueAmenities(singleVenueId ?? "");
-  const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({
+
+  // Une commodité réservée avec un booking est déjà dessinée par la carte de ce
+  // booking. Restent celles saisies pour elles-mêmes (import Hana, réservation
+  // directe d'un accès) : sans elles, la piscine n'apparaîtrait nulle part.
+  const { amenityBookings } = useAmenityBookingData({
     hotelFilter: singleVenueId ?? undefined,
+    venueAmenities,
+    fromDate,
+    toDate,
   });
+  const standaloneAmenityBookings = useMemo(
+    () => amenityBookings.filter((b) => !b.linked_booking_id),
+    [amenityBookings],
+  );
 
   // Calendar sidebar state
   const [visibleCalendars, setVisibleCalendars] = useState<Record<string, boolean>>({ treatments: true });
@@ -407,6 +420,11 @@ useEffect(() => {
     }
   };
 
+  const handleAmenityBookingClick = (booking: AmenityBookingForCalendar) => {
+    setViewedAmenityBooking(booking);
+    setIsAmenityDetailOpen(true);
+  };
+
   const handleEditFromDetail = () => {
     if (viewedBooking) {
       setSelectedBooking(viewedBooking);
@@ -502,10 +520,14 @@ useEffect(() => {
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
-              {/* Bouton « Commodité » retiré : une réservation de commodité se crée
-                  désormais via « Nouvelle réservation », en choisissant le soin lié à
-                  l'équipement — seul chemin qui décompte la capacité et alimente le
-                  planning. Le dialog reste monté plus bas pour l'édition. */}
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700 text-white transition-transform duration-100 active:scale-90"
+                onClick={() => setIsAmenityCreateOpen(true)}
+              >
+                Commodité
+                <Waves className="h-3.5 w-3.5 ml-1" />
+              </Button>
               {/* Split button : action principale + menu (ouvert au survol) */}
               <div className="flex">
                 <Button
@@ -625,6 +647,7 @@ useEffect(() => {
               showCleanupBuffer={!!hasVenueFilter}
               amenityBookings={amenityBookings}
               visibleCalendars={hasVenueFilter ? visibleCalendars : undefined}
+              amenityBookings={standaloneAmenityBookings}
               onAmenityBookingClick={handleAmenityBookingClick}
               roomBlocks={roomBlocks}
               onEditRoomBlock={setEditingRoomBlock}
@@ -676,14 +699,15 @@ useEffect(() => {
         booking={selectedBooking}
       />
 
-      {/* Edit an existing amenity booking (reuses the create dialog in edit mode) */}
+      {/* Création d'une commodité sans booking derrière */}
       <CreateAmenityBookingDialog
-        open={!!editingAmenityBooking}
-        onOpenChange={(o) => {
-          if (!o) setEditingAmenityBooking(null);
-        }}
-        hotelId={editingAmenityBooking?.hotel_id}
-        editBooking={editingAmenityBooking}
+        open={isAmenityCreateOpen}
+        onOpenChange={setIsAmenityCreateOpen}
+        hotelId={singleVenueId ?? undefined}
+        venueAmenities={hasVenueFilter ? venueAmenities : undefined}
+        hotels={hotels}
+        preselectedDate={selectedDate}
+        preselectedTime={selectedTime}
       />
 
       <AmenityBookingDetailDialog
@@ -694,6 +718,16 @@ useEffect(() => {
           setIsAmenityDetailOpen(false);
           setEditingAmenityBooking(booking);
         }}
+      />
+
+      {/* Édition d'une commodité existante (le dialog de création en mode édition) */}
+      <CreateAmenityBookingDialog
+        open={!!editingAmenityBooking}
+        onOpenChange={(o) => {
+          if (!o) setEditingAmenityBooking(null);
+        }}
+        hotelId={editingAmenityBooking?.hotel_id}
+        editBooking={editingAmenityBooking}
       />
 
       {cancelBooking && (
