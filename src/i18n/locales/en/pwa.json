@@ -451,7 +451,9 @@
     "scopeVenue": "Whole venue",
     "empty": "No bookings found",
     "editSchedule": "My availability",
-    "scheduleIncomplete": "Update your availability for the next 2 weeks"
+    "scheduleIncomplete": "Update your availability for the next 2 weeks",
+    "periodLabel": "Period shown: {{from}} → {{to}}",
+    "loadOlder": "Show older"
   },
   "statistics": {
     "title": "Statistics",

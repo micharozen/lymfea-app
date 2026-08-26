@@ -451,7 +451,9 @@
     "scopeVenue": "Tout le lieu",
     "empty": "Aucune réservation trouvée",
     "editSchedule": "Mes disponibilités",
-    "scheduleIncomplete": "Mettez à jour vos dispos pour les 2 prochaines semaines"
+    "scheduleIncomplete": "Mettez à jour vos dispos pour les 2 prochaines semaines",
+    "periodLabel": "Période affichée : {{from}} → {{to}}",
+    "loadOlder": "Voir plus ancien"
   },
   "statistics": {
     "title": "Statistiques",

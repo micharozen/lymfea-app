@@ -33,6 +33,13 @@ interface PwaCalendarViewProps {
   bookings: Booking[];
   onBookingClick: (booking: Booking) => void;
   onSlotClick?: (date: string, time: string) => void;
+  /**
+   * Premier jour affiché, remonté à chaque changement de semaine ou d'index.
+   * La semaine visible est un état local (persisté en sessionStorage) : sans
+   * cette remontée, naviguer dans la vue 3 jours ne déplacerait pas la fenêtre
+   * de chargement du parent.
+   */
+  onVisibleRangeChange?: (firstVisibleDay: Date) => void;
 }
 
 const HOUR_HEIGHT = 48;
@@ -44,7 +51,7 @@ const BLOCK_GAP = 2;
 const WEEK_STORAGE_KEY = "pwa-calendar-3day-week";
 const INDEX_STORAGE_KEY = "pwa-calendar-3day-index";
 
-export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCalendarViewProps) {
+export function PwaCalendarView({ bookings, onBookingClick, onSlotClick, onVisibleRangeChange }: PwaCalendarViewProps) {
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const stored = typeof window !== "undefined" ? sessionStorage.getItem(WEEK_STORAGE_KEY) : null;
     if (stored) {
@@ -99,6 +106,11 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
   const visibleDays = useMemo(() => {
     return weekDays.slice(startDayIndex, startDayIndex + 3);
   }, [weekDays, startDayIndex]);
+
+  const firstVisibleDay = visibleDays[0];
+  useEffect(() => {
+    if (firstVisibleDay) onVisibleRangeChange?.(firstVisibleDay);
+  }, [firstVisibleDay, onVisibleRangeChange]);
 
   const hours = useMemo(() => {
     return Array.from({ length: END_HOUR - START_HOUR }, (_, i) => i + START_HOUR);
