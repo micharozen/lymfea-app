@@ -108,6 +108,12 @@ export interface ClosureStats {
   totalBookings: number;
   completedBookings: number;
   confirmedBookings: number;
+  /** Résas retenues dans le CA : les complétées, plus les non finalisées si incluses. */
+  countedBookings: number;
+  /** CA que représenteraient les résas non finalisées, qu'elles soient incluses ou non. */
+  unfinalizedRevenue: number;
+  /** Vrai quand les résas non finalisées ont été comptées dans les totaux. */
+  includedUnfinalized: boolean;
   cancelledBookings: number;
   noShowBookings: number;
   pendingBookings: number;
@@ -197,15 +203,35 @@ function bumpBucket(map: Map<string, ClosureBucket>, key: string, label: string,
   }
 }
 
+/**
+ * Statuts d'une résa qui a bien eu lieu mais que le cron n'a pas encore
+ * finalisée — typiquement un soin du soir consulté avant son terme.
+ */
+const UNFINALIZED_STATUSES = ["confirmed"];
+
+export interface ComputeClosureStatsOptions {
+  /**
+   * Compte les résas non finalisées dans le CA et les répartitions, comme si
+   * elles étaient complétées. Purement projectif : rien n'est écrit en base et
+   * leur statut réel reste affiché tel quel dans le détail.
+   */
+  includeUnfinalized?: boolean;
+}
+
 export function computeClosureStats(
   bookings: ClosureBooking[],
   venue: ClosureVenue,
   therapistRates: TherapistRatesMap = {},
+  options: ComputeClosureStatsOptions = {},
 ): ClosureStats {
+  const { includeUnfinalized = false } = options;
   const stats: ClosureStats = {
     totalBookings: bookings.length,
     completedBookings: 0,
     confirmedBookings: 0,
+    countedBookings: 0,
+    unfinalizedRevenue: 0,
+    includedUnfinalized: includeUnfinalized,
     cancelledBookings: 0,
     noShowBookings: 0,
     pendingBookings: 0,
@@ -233,7 +259,8 @@ export function computeClosureStats(
 
   for (const booking of bookings) {
     const price = booking.total_price ?? 0;
-    const isCompleted = booking.status === "completed";
+    const isUnfinalized = UNFINALIZED_STATUSES.includes(booking.status);
+    const isCounted = booking.status === "completed" || (includeUnfinalized && isUnfinalized);
 
     if (booking.status === "completed") stats.completedBookings += 1;
     else if (booking.status === "confirmed") stats.confirmedBookings += 1;
@@ -241,10 +268,13 @@ export function computeClosureStats(
     else if (booking.status === "no_show") stats.noShowBookings += 1;
     else if (booking.status === "pending") stats.pendingBookings += 1;
 
-    bumpBucket(statusMap, booking.status, STATUS_LABELS[booking.status] ?? booking.status, isCompleted ? price : 0);
+    if (isUnfinalized) stats.unfinalizedRevenue += price;
 
-    if (!isCompleted) continue;
+    bumpBucket(statusMap, booking.status, STATUS_LABELS[booking.status] ?? booking.status, isCounted ? price : 0);
 
+    if (!isCounted) continue;
+
+    stats.countedBookings += 1;
     stats.totalRevenue += price;
     stats.totalVenueShare += price * venueRate;
 
@@ -375,11 +405,14 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
   const currency = venue.currency || "EUR";
   const money = (v: number) => fmtMoney(v, currency);
 
-  const headline = `${stats.completedBookings} prestation${stats.completedBookings > 1 ? "s" : ""} · ${money(stats.totalRevenue)}`;
+  const headline = `${stats.countedBookings} prestation${stats.countedBookings > 1 ? "s" : ""} · ${money(stats.totalRevenue)}`;
 
   const revenueRow = `
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0;">
-      ${statCard("Prestations complétées", String(stats.completedBookings))}
+      ${statCard(
+        stats.includedUnfinalized ? "Prestations comptées" : "Prestations complétées",
+        String(stats.countedBookings),
+      )}
       ${statCard("Chiffre d'affaires", money(stats.totalRevenue))}
     </div>
   `;
@@ -390,6 +423,15 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
       ${statCard("Total bookings", String(stats.totalBookings), "#6b7280")}
     </div>
   `;
+
+  // Le lecteur du rapport doit savoir que des prestations non encore terminées
+  // sont comptées : sans cette mention, le CA n'est pas rapprochable de la base.
+  const unfinalizedBanner =
+    stats.includedUnfinalized && stats.confirmedBookings > 0
+      ? `<div style="margin:0 0 20px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:13px;color:#1e40af;">
+          ℹ ${stats.confirmedBookings} réservation${stats.confirmedBookings > 1 ? "s" : ""} non encore finalisée${stats.confirmedBookings > 1 ? "s" : ""} (${money(stats.unfinalizedRevenue)}) ${stats.confirmedBookings > 1 ? "sont comptées" : "est comptée"} dans ce rapport.
+        </div>`
+      : "";
 
   const warningBanner =
     !hideCommissions && stats.bookingsWithoutTherapistRate > 0
@@ -496,6 +538,7 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
       </div>
     </div>
 
+    ${unfinalizedBanner}
     ${warningBanner}
     ${revenueRow}
     ${lossRow}
