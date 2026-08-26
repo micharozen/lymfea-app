@@ -15,3 +15,9 @@ interface Window {
     };
   };
 }
+
+// Injectés au build par le bloc `define` de vite.config.ts.
+declare const __APP_VERSION__: string;
+declare const __APP_COMMIT_SHA__: string;
+declare const __APP_BRANCH__: string;
+declare const __APP_BUILD_TIME__: string;

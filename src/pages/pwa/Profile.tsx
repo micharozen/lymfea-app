@@ -13,10 +13,12 @@ import { toast } from "sonner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
+import VersionLine from "@/components/pwa/VersionLine";
 import { brand } from "@/config/brand";
 
 interface Therapist {
   id: string;
+  user_id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -312,6 +314,8 @@ const PwaProfile = () => {
           <LogOut className="h-4 w-4 mr-2" />
           {t('profile.logout')}
         </Button>
+
+        <VersionLine therapistId={therapist.id} userId={therapist.user_id} />
       </div>
 
       {/* Edit Profile Dialog */}
