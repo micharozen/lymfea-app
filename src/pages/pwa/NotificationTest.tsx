@@ -81,7 +81,7 @@ const PwaNotificationTest = () => {
         backPath="/pwa/dashboard"
       />
 
-      <div className="flex flex-1 flex-col justify-center px-6 pb-[max(env(safe-area-inset-bottom),24px)]">
+      <div className="flex flex-1 flex-col justify-center px-6 pb-6">
         <div className="w-full max-w-sm mx-auto space-y-6 text-center">
           {isPending ? (
             <>

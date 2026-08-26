@@ -28,7 +28,6 @@ export function UpdateAvailableBanner() {
     setIsReloading(true);
     // Clear all relevant storage to ensure clean reload
     try {
-      sessionStorage.removeItem('app_etag');
       sessionStorage.removeItem('__chunk_reloaded_at');
       sessionStorage.removeItem('__chunk_reload_attempts');
       sessionStorage.removeItem('eia_chunk_error_reload');

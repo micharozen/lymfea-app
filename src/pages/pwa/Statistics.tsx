@@ -120,7 +120,7 @@ const PwaStatistics = () => {
   };
 
   return (
-    <div className="flex flex-1 flex-col bg-background">
+    <div className="flex flex-1 min-h-0 flex-col bg-background">
       <PwaHeader
         centerSlot={
           <h1 className="text-base font-semibold text-foreground">{t("statistics.title")}</h1>
@@ -154,7 +154,7 @@ const PwaStatistics = () => {
               <Skeleton className="h-32 rounded-xl" />
             </div>
           ) : (
-            <div className="px-4 pb-24 space-y-4">
+            <div className="px-4 pb-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <Card className="p-3.5">
                   <div className="flex items-center gap-2 mb-1.5">
