@@ -1,6 +1,7 @@
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState, useLayoutEffect, useRef } from "react";
+import { Outlet, useLocation, useNavigate, useNavigationType } from "react-router-dom";
+import { Suspense, useEffect, useState, useLayoutEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { AppLoader } from "@/components/AppLoader";
 import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
 import { setNotificationClickHandler, getPendingNotificationUrl } from "@/hooks/useOneSignal";
@@ -14,6 +15,8 @@ const PwaLayout = () => {
   const [therapistId, setTherapistId] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
   const location = useLocation();
+  const navigationType = useNavigationType();
+  const scrollPositions = useRef<Map<string, number>>(new Map());
   const queryClient = useQueryClient();
   const isMountedRef = useIsMounted();
   const { data: scheduleCompleteness } = useScheduleCompleteness(therapistId);
@@ -37,11 +40,26 @@ const PwaLayout = () => {
     loadTherapistId();
   }, []);
 
-  // Scroll to top on every route change - use useLayoutEffect for immediate execution
+  // Reset scroll on navigation, but restore it on a back navigation (POP) —
+  // sinon revenir du détail d'une réservation renvoyait le planning tout en haut.
   useLayoutEffect(() => {
-    window.scrollTo(0, 0);
-    mainRef.current?.scrollTo(0, 0);
-  }, [location.pathname]);
+    const main = mainRef.current;
+    const positions = scrollPositions.current;
+    const saved = positions.get(location.pathname);
+
+    if (navigationType === "POP" && saved != null) {
+      main?.scrollTo(0, saved);
+    } else {
+      window.scrollTo(0, 0);
+      main?.scrollTo(0, 0);
+    }
+
+    // Le nettoyage se joue juste avant le changement de path : c'est le moment
+    // "je quitte cette page", donc la bonne position à mémoriser.
+    return () => {
+      if (main) positions.set(location.pathname, main.scrollTop);
+    };
+  }, [location.pathname, navigationType]);
 
   // Therapists who have a session but haven't finished onboarding (pending status or
   // no password set) must complete it first. This covers users who reach the PWA shell
@@ -237,19 +255,25 @@ const PwaLayout = () => {
   const shouldShowTabBar = !location.pathname.includes('/pwa/booking/') && !location.pathname.includes('/pwa/new-booking');
 
   return (
-    <div className="notranslate h-[100dvh] flex flex-col bg-background">
+    <div className="notranslate h-[100dvh] flex flex-col overflow-hidden bg-background">
+      {/* <main> est une colonne flex : les pages écrivent déjà `flex flex-1
+          flex-col` sur leur racine, ce qui était inerte tant que ce parent
+          était une boîte bloc. Plus de paddingBottom en dur non plus — la tab
+          bar est dans le flux, le layout lui alloue sa place (la réservation de
+          64px ne correspondait pas à sa hauteur réelle, ~80-90px, et rognait la
+          dernière ligne de chaque écran). */}
       <main
         ref={mainRef}
-        className="flex-1 overflow-y-auto overscroll-y-none"
-        style={{ 
-          paddingBottom: shouldShowTabBar 
-            ? "calc(64px + env(safe-area-inset-bottom, 0px))" 
-            : undefined 
-        }}
+        className="flex flex-1 min-h-0 flex-col overflow-y-auto overscroll-y-none"
       >
-        <Outlet />
+        {/* Boundary local : sans lui, un chunk lazy non chargé remonte jusqu'au
+            Suspense au-dessus de <Routes> et fait disparaître toute la coquille
+            (header + tab bar) derrière le logo plein écran. */}
+        <Suspense fallback={<AppLoader fullScreen={false} className="flex-1" />}>
+          <Outlet />
+        </Suspense>
       </main>
-      
+
       {shouldShowTabBar && (
         <TabBar
           unreadCount={unreadCount}

@@ -65,7 +65,7 @@ export default function PwaSupport() {
         backPath="/pwa/profile"
       />
 
-      <div className="flex-1 px-4 pt-4 pb-[max(env(safe-area-inset-bottom),24px)]">
+      <div className="flex-1 px-4 pt-4 pb-6">
         <div className="space-y-4 max-w-lg mx-auto">
           {/* Subject & Description */}
           <Card className="border-l-4 border-l-gold-500">
