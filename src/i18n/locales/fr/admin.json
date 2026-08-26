@@ -2369,6 +2369,9 @@
       "treatmentsCount_other": "{{count}} prestations",
       "revenue": "Chiffre d'affaires",
       "activeCount": "{{count}} actives",
+      "unfinalizedNotice_one": "{{count}} réservation n'est pas encore finalisée ({{amount}}).",
+      "unfinalizedNotice_other": "{{count}} réservations ne sont pas encore finalisées ({{amount}}).",
+      "includeUnfinalized": "Les inclure",
       "therapistShareShort": "Part thér.",
       "detailTitle": "Détail des prestations ({{count}})",
       "segments": {

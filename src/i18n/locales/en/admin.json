@@ -2369,6 +2369,9 @@
       "treatmentsCount_other": "{{count}} treatments",
       "revenue": "Revenue",
       "activeCount": "{{count}} active",
+      "unfinalizedNotice_one": "{{count}} booking is not finalised yet ({{amount}}).",
+      "unfinalizedNotice_other": "{{count}} bookings are not finalised yet ({{amount}}).",
+      "includeUnfinalized": "Include them",
       "therapistShareShort": "Ther. share",
       "detailTitle": "Treatment details ({{count}})",
       "segments": {

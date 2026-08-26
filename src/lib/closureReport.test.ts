@@ -79,6 +79,59 @@ describe("computeClosureStats — status differentiation", () => {
   });
 });
 
+describe("computeClosureStats — includeUnfinalized", () => {
+  const mixed = () => [
+    makeBooking({ id: "b1", status: "completed", total_price: 100 }),
+    makeBooking({ id: "b2", status: "confirmed", total_price: 200 }),
+  ];
+
+  it("reports unfinalized revenue even when they are excluded", () => {
+    const stats = computeClosureStats(mixed(), venue, rates);
+
+    expect(stats.includedUnfinalized).toBe(false);
+    expect(stats.countedBookings).toBe(1);
+    expect(stats.totalRevenue).toBe(100);
+    // Le montant est exposé pour le bandeau, sans peser sur les totaux.
+    expect(stats.unfinalizedRevenue).toBe(200);
+  });
+
+  it("counts confirmed bookings into revenue and shares when included", () => {
+    const stats = computeClosureStats(mixed(), venue, rates, { includeUnfinalized: true });
+
+    expect(stats.includedUnfinalized).toBe(true);
+    expect(stats.countedBookings).toBe(2);
+    expect(stats.totalRevenue).toBe(300);
+    expect(stats.unfinalizedRevenue).toBe(200);
+    // hotel_commission = 10 %
+    expect(stats.totalVenueShare).toBeCloseTo(30, 5);
+    // Les répartitions suivent le même périmètre que le CA.
+    expect(stats.byCategory.reduce((sum, b) => sum + b.count, 0)).toBe(2);
+    expect(stats.byTherapist.reduce((sum, b) => sum + b.revenue, 0)).toBe(300);
+  });
+
+  it("never counts cancelled, no_show or pending, even when including", () => {
+    const bookings = [
+      makeBooking({ id: "b1", status: "completed", total_price: 100 }),
+      makeBooking({ id: "b2", status: "confirmed", total_price: 200 }),
+      makeBooking({ id: "b3", status: "pending", total_price: 80 }),
+      makeBooking({ id: "b4", status: "cancelled", total_price: 50 }),
+      makeBooking({ id: "b5", status: "no_show", total_price: 60 }),
+    ];
+    const stats = computeClosureStats(bookings, venue, rates, { includeUnfinalized: true });
+
+    expect(stats.countedBookings).toBe(2);
+    expect(stats.totalRevenue).toBe(300);
+    expect(stats.unfinalizedRevenue).toBe(200);
+  });
+
+  it("leaves the booking status untouched — the projection is display-only", () => {
+    const bookings = mixed();
+    computeClosureStats(bookings, venue, rates, { includeUnfinalized: true });
+
+    expect(bookings.map((b) => b.status)).toEqual(["completed", "confirmed"]);
+  });
+});
+
 describe("computeClosureStats — therapist commissions", () => {
   it("uses therapist rates by therapist_id and duration", () => {
     // ther-1: rate_60=40 for 60min; venue 10%; price 100

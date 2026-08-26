@@ -17,7 +17,12 @@ interface ClosureRequest {
   recipients: string[];
   include_details?: boolean;
   hide_commissions?: boolean;
+  /** Compte les résas encore confirmées dans les totaux, comme l'écran de clôture. */
+  include_unfinalized?: boolean;
 }
+
+/** Statuts d'une résa qui a eu lieu mais que le cron n'a pas encore finalisée. */
+const UNFINALIZED_STATUSES = ["confirmed"];
 
 type ClientTypeValue = BookingClientType;
 
@@ -150,6 +155,7 @@ serve(async (req: Request): Promise<Response> => {
       recipients,
       include_details = false,
       hide_commissions = false,
+      include_unfinalized = false,
     } = body;
 
     if (!hotel_id || !report_date) {
@@ -251,6 +257,9 @@ serve(async (req: Request): Promise<Response> => {
     let completed = 0;
     let cancelled = 0;
     let noShow = 0;
+    let counted = 0;
+    let unfinalized = 0;
+    let unfinalizedRevenue = 0;
     let totalRevenue = 0;
     let bookingsWithoutTherapistRate = 0;
 
@@ -268,8 +277,17 @@ serve(async (req: Request): Promise<Response> => {
       else if (b.status === "cancelled") cancelled += 1;
       else if (b.status === "no_show") noShow += 1;
 
-      if (b.status !== "completed") continue;
+      const isUnfinalized = UNFINALIZED_STATUSES.includes(b.status);
+      if (isUnfinalized) {
+        unfinalized += 1;
+        unfinalizedRevenue += b.total_price ?? 0;
+      }
 
+      // Même périmètre que l'écran de clôture : les résas non finalisées ne
+      // comptent que si l'expéditeur a explicitement demandé leur inclusion.
+      if (b.status !== "completed" && !(include_unfinalized && isUnfinalized)) continue;
+
+      counted += 1;
       const price = b.total_price ?? 0;
       totalRevenue += price;
 
@@ -325,10 +343,10 @@ serve(async (req: Request): Promise<Response> => {
       crossMap.set(crossKey, cStat);
     }
 
-    const headline = `${completed} prestation${completed > 1 ? "s" : ""} · ${money(totalRevenue)}`;
+    const headline = `${counted} prestation${counted > 1 ? "s" : ""} · ${money(totalRevenue)}`;
 
     const revenueCards = [
-      ["Prestations complétées", String(completed)],
+      [include_unfinalized ? "Prestations comptées" : "Prestations complétées", String(counted)],
       ["Chiffre d'affaires", money(totalRevenue)],
     ];
 
@@ -355,6 +373,17 @@ serve(async (req: Request): Promise<Response> => {
           </tr>
         </table>
       </td></tr>`
+        : "";
+
+    // Le destinataire doit savoir que des prestations non encore terminées sont
+    // comptées : sans cette mention, le CA n'est pas rapprochable de la base.
+    const unfinalizedBanner =
+      include_unfinalized && unfinalized > 0
+        ? `<tr><td style="padding:0 30px 12px;">
+          <p style="margin:0;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:13px;color:#1e40af;">
+            ℹ ${unfinalized} réservation${unfinalized > 1 ? "s" : ""} non encore finalisée${unfinalized > 1 ? "s" : ""} (${money(unfinalizedRevenue)}) ${unfinalized > 1 ? "sont comptées" : "est comptée"} dans ce rapport.
+          </p>
+        </td></tr>`
         : "";
 
     const warningBanner =
@@ -492,7 +521,8 @@ serve(async (req: Request): Promise<Response> => {
         <p style="margin:0;font-size:16px;font-weight:600;color:#111827;">${escapeHtml(venue.name as string)}</p>
         <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(issuer)} · ${escapeHtml(fmtDateLong(report_date))}</p>
       </td></tr>
-      ${warningBanner}
+      ${unfinalizedBanner}
+${warningBanner}
       ${renderCardsRow(revenueCards)}
       ${renderCardsRow(lossCards)}
       ${sectionsHtml}
