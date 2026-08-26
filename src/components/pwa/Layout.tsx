@@ -2,43 +2,30 @@ import { Outlet, useLocation, useNavigate, useNavigationType } from "react-route
 import { Suspense, useEffect, useState, useLayoutEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLoader } from "@/components/AppLoader";
-import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
 import { setNotificationClickHandler, getPendingNotificationUrl } from "@/hooks/useOneSignal";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { isTherapistPending } from "@/hooks/useRoleRedirect";
 import { useScheduleCompleteness } from "@/hooks/pwa/useScheduleCompleteness";
+import { useCurrentTherapist } from "@/hooks/pwa/useCurrentTherapist";
 
 const PwaLayout = () => {
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
-  const [therapistId, setTherapistId] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const navigationType = useNavigationType();
   const scrollPositions = useRef<Map<string, number>>(new Map());
-  const queryClient = useQueryClient();
   const isMountedRef = useIsMounted();
+
+  // Une seule résolution d'identité pour toute la coquille. Avant, ce composant
+  // faisait à lui seul trois getUser() + select sur therapists, et Dashboard et
+  // Bookings en ajoutaient chacun un : cinq allers-retours pour une même ligne.
+  const { data: me } = useCurrentTherapist();
+  const therapistId = me?.therapist?.id ?? null;
+  const userId = me?.userId ?? null;
+
   const { data: scheduleCompleteness } = useScheduleCompleteness(therapistId);
-
-  useEffect(() => {
-    const loadTherapistId = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data } = await supabase
-        .from("therapists")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (data?.id) setTherapistId(data.id);
-    };
-
-    loadTherapistId();
-  }, []);
 
   // Reset scroll on navigation, but restore it on a back navigation (POP) —
   // sinon revenir du détail d'une réservation renvoyait le planning tout en haut.
@@ -66,28 +53,11 @@ const PwaLayout = () => {
   // directly via the installed start_url (/pwa) — e.g. an admin who is ALSO a therapist
   // and whose therapist setup is still pending — instead of landing on an empty dashboard.
   useEffect(() => {
-    let cancelled = false;
-
-    const ensureOnboarded = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-
-      const { data: therapist } = await supabase
-        .from("therapists")
-        .select("status, password_set")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!cancelled && isTherapistPending(therapist)) {
-        navigate("/pwa/onboarding", { replace: true });
-      }
-    };
-
-    ensureOnboarded();
-    return () => {
-      cancelled = true;
-    };
-  }, [navigate]);
+    if (!me?.therapist) return;
+    if (isTherapistPending(me.therapist)) {
+      navigate("/pwa/onboarding", { replace: true });
+    }
+  }, [me, navigate]);
 
   // Set up notification click handler for push notifications
   useEffect(() => {
@@ -105,119 +75,15 @@ const PwaLayout = () => {
     });
   }, [navigate]);
 
-  // Prefetch adjacent pages data
   useEffect(() => {
-    const prefetchData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Get therapist ID for prefetching
-      const { data: therapistData } = await supabase
-        .from("therapists")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!therapistData) return;
-
-      const currentPath = location.pathname;
-
-      // Prefetch notifications when on dashboard
-      if (currentPath === "/pwa/dashboard") {
-        queryClient.prefetchQuery({
-          queryKey: ["notifications", user.id],
-          queryFn: async () => {
-            const { data } = await supabase
-              .from("notifications")
-              .select("*")
-              .eq("user_id", user.id)
-              .order("created_at", { ascending: false });
-            return data;
-          },
-        });
-      }
-
-      // Prefetch bookings when on notifications
-      if (currentPath === "/pwa/notifications") {
-        // Get affiliated hotels
-        const { data: affiliatedHotels } = await supabase
-          .from("therapist_venues")
-          .select("hotel_id")
-          .eq("therapist_id", therapistData.id);
-
-        if (affiliatedHotels && affiliatedHotels.length > 0) {
-          const hotelIds = affiliatedHotels.map(h => h.hotel_id);
-
-          // Prefetch my bookings
-          queryClient.prefetchQuery({
-            queryKey: ["myBookings", therapistData.id],
-            queryFn: async () => {
-              const { data } = await supabase
-                .from("bookings")
-                .select(`
-                  *,
-                  booking_treatments (
-                    treatment_menus (
-                      price,
-                      duration
-                    )
-                  )
-                `)
-                .eq("therapist_id", therapistData.id)
-                .in("hotel_id", hotelIds);
-              return data;
-            },
-          });
-
-          // Prefetch pending bookings. Mirror the Dashboard's real request feed:
-          // status 'pending', and keep open duos visible even once the first
-          // therapist has accepted (therapist_id is set but guest_count > 1).
-          // The old `.is("therapist_id", null)` dropped a still-open duo from
-          // this cache as soon as one therapist claimed a leg.
-          queryClient.prefetchQuery({
-            queryKey: ["pendingBookings", therapistData.id],
-            queryFn: async () => {
-              const { data } = await supabase
-                .from("bookings")
-                .select(`
-                  *,
-                  booking_therapists ( status, therapist_id, assigned_at ),
-                  booking_treatments (
-                    treatment_menus (
-                      price,
-                      duration
-                    )
-                  )
-                `)
-                .in("hotel_id", hotelIds)
-                .eq("status", "pending")
-                .or("therapist_id.is.null,guest_count.gt.1");
-              return data;
-            },
-          });
-        }
-      }
-    };
-
-    // Debounce prefetching to avoid too many requests
-    const timer = setTimeout(() => {
-      prefetchData();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [location.pathname, queryClient]);
-
-  useEffect(() => {
+    if (!userId) return;
     let cancelled = false;
 
     const fetchUnreadCount = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-
       const { count } = await supabase
         .from("notifications")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .eq("read", false);
 
       if (!cancelled && isMountedRef.current) {
@@ -249,7 +115,7 @@ const PwaLayout = () => {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [userId, isMountedRef]);
 
   // Hide TabBar on booking detail pages
   const shouldShowTabBar = !location.pathname.includes('/pwa/booking/') && !location.pathname.includes('/pwa/new-booking');

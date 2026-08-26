@@ -1,4 +1,4 @@
-import { useEffect, useState, Fragment } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,15 @@ import { fetchTherapistUnavailableDates } from "@/hooks/pwa/useScheduleCompleten
 import { useTherapistOrganizationName } from "@/hooks/pwa/useTherapistOrganizationName";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import { myLegDuration, bookingSlotDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
+import { useCurrentTherapist } from "@/hooks/pwa/useCurrentTherapist";
+import { useTherapistVenues } from "@/hooks/pwa/useTherapistVenues";
+import {
+  useMyBookingsWindow,
+  usePendingBookingsWindow,
+  type PwaBooking,
+} from "@/hooks/pwa/usePwaBookings";
+import { pwaBookingKeys } from "@/hooks/pwa/pwaBookingKeys";
+import { dashboardWindow, historyWindow } from "@/lib/pwaBookingWindow";
 
 interface Therapist {
   id: string;
@@ -115,11 +124,10 @@ const treatmentsLabel = (b: { booking_treatments?: Array<{ treatment_menus: { na
 const acceptedCount = (b: { booking_therapists?: { status: string }[] }) =>
   b.booking_therapists?.filter((bt) => bt.status === 'accepted').length || 0;
 
+const EMPTY_PRIORITIES: Record<string, number> = {};
+
 const PwaDashboard = () => {
   const { t } = useTranslation('pwa');
-  const [therapist, setTherapist] = useState<Therapist | null>(null);
-  const [allBookings, setAllBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -128,15 +136,92 @@ const PwaDashboard = () => {
   const [processing, setProcessing] = useState<{ id: string; action: "accept" | "decline" } | null>(null);
   const processingBookingId = processing?.id ?? null;
   const [unavailableDates, setUnavailableDates] = useState<Set<string>>(new Set());
-  // Mon groupe de priorité sur chaque lieu (therapist_venues.priority). Sert à
-  // masquer les demandes dont la vague de broadcast n'est pas encore arrivée
-  // jusqu'à moi : le push est filtré côté serveur, cette liste doit l'être aussi.
-  const [priorityByHotel, setPriorityByHotel] = useState<Record<string, number>>({});
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const isMountedRef = useIsMounted();
+
+  const { data: me, isPending: identityPending } = useCurrentTherapist();
+  const therapist = me?.therapist ?? null;
   const orgName = useTherapistOrganizationName(therapist?.id);
+
+  // Mon groupe de priorité sur chaque lieu (therapist_venues.priority). Sert à
+  // masquer les demandes dont la vague de broadcast n'est pas encore arrivée
+  // jusqu'à moi : le push est filtré côté serveur, cette liste doit l'être aussi.
+  const { data: venues } = useTherapistVenues(therapist?.id);
+  const priorityByHotel = venues?.priorityByHotel ?? EMPTY_PRIORITIES;
+
+  // La fenêtre est mémoïsée sur la date du jour, pas sur `new Date()` : sinon
+  // la clé de requête changerait à chaque rendu. `dayKey` est rafraîchi au
+  // retour au premier plan, sans quoi une app laissée ouverte la nuit garderait
+  // la fenêtre de la veille.
+  const [dayKey, setDayKey] = useState(() => format(new Date(), "yyyy-MM-dd"));
+  const window_ = useMemo(() => dashboardWindow(new Date(`${dayKey}T00:00:00`)), [dayKey]);
+  const historyWindow_ = useMemo(() => historyWindow(new Date(`${dayKey}T00:00:00`)), [dayKey]);
+
+  const mine = useMyBookingsWindow(therapist?.id, window_);
+  const pending = usePendingBookingsWindow(therapist?.id, venues?.hotelIds, window_);
+  // L'onglet Historique a sa propre fenêtre : la fenêtre J-7 du tableau de bord
+  // le tronquerait à une semaine.
+  const history = useMyBookingsWindow(therapist?.id, historyWindow_, {
+    enabled: activeTab === "history",
+  });
+
+  const loading = identityPending || mine.isPending;
+
+  /**
+   * Vue unifiée consommée par la page. L'enrichissement (image/devise du lieu,
+   * créneaux proposés) se fait ici et n'est jamais réécrit dans le cache : une
+   * seule requête écrit chaque clé, ce qui rend impossible le désaccord de
+   * forme qui faisait afficher au tableau de bord des réservations annulées.
+   */
+  const allBookings: Booking[] = useMemo(() => {
+    const settings = venues?.settingsByHotel;
+    const slots = pending.data?.slotsByBooking;
+
+    const rows: PwaBooking[] = [
+      ...(mine.data ?? []),
+      ...(pending.data?.bookings ?? []),
+      ...(activeTab === "history" ? history.data ?? [] : []),
+    ];
+
+    const unique = Array.from(new Map(rows.map((b) => [b.id, b])).values());
+
+    return unique
+      .map((b) => ({
+        ...b,
+        hotels: settings?.get(b.hotel_id) ?? { image: null, currency: null },
+        proposed_slots: slots?.get(b.id) ?? null,
+      }))
+      .sort((a, b) => {
+        const byDate = a.booking_date.localeCompare(b.booking_date);
+        return byDate !== 0 ? byDate : a.booking_time.localeCompare(b.booking_time);
+      }) as unknown as Booking[];
+  }, [mine.data, pending.data, history.data, venues?.settingsByHotel, activeTab]);
+
+  const refreshBookings = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: pwaBookingKeys.all }),
+    [queryClient],
+  );
+
+  // Lu par l'écouteur realtime sans le faire dépendre des données : sinon le
+  // canal serait détruit et recréé à chaque rafraîchissement.
+  const bookingsRef = useRef(allBookings);
+  bookingsRef.current = allBookings;
+
+  useEffect(() => {
+    if (!me) return;
+    if (!me.userId) {
+      navigate("/pwa/login");
+      return;
+    }
+    // Ciblage des notifications push.
+    setOneSignalExternalUserId(me.userId);
+    if (!me.therapist) {
+      toast.error(t('dashboard.profileNotFound'));
+      void supabase.auth.signOut().then(() => navigate("/pwa/login"));
+    }
+  }, [me, navigate, t]);
 
   useEffect(() => {
     if (!therapist) return;
@@ -155,55 +240,24 @@ const PwaDashboard = () => {
     );
   }, [therapist, allBookings]);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
   // Le message de bienvenue disparaît après 30 secondes.
   useEffect(() => {
     const timer = setTimeout(() => setShowGreeting(false), 30000);
     return () => clearTimeout(timer);
   }, []);
 
-  // Single useEffect to handle initial load - use cache first
+  // Retour depuis le détail d'une réservation après une action (accepter,
+  // désassigner...). Les clés étant préfixées, une seule invalidation rafraîchit
+  // aussi le planning — ce que l'ancien removeQueries ne faisait pas.
   useEffect(() => {
-    if (!therapist) return;
+    if (!location.state?.forceRefresh) return;
+    void refreshBookings();
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state?.forceRefresh, location.pathname, navigate, refreshBookings]);
 
-    // Check if we need to force refresh (e.g., after unassigning a booking)
-    const shouldForceRefresh = location.state?.forceRefresh;
-
-    if (shouldForceRefresh) {
-      queryClient.removeQueries({ queryKey: ["myBookings", therapist.id] });
-      queryClient.removeQueries({ queryKey: ["pendingBookings", therapist.id] });
-      // Clear navigation state
-      navigate(location.pathname, { replace: true, state: {} });
-      fetchAllBookings(therapist.id);
-      return;
-    }
-
-    // Check for cached bookings first - show immediately if available
-    const cachedMyBookings = queryClient.getQueryData<any[]>(["myBookings", therapist.id]);
-    const cachedPendingBookings = queryClient.getQueryData<any[]>(["pendingBookings", therapist.id]);
-
-    if (cachedMyBookings || cachedPendingBookings) {
-      const allData = [...(cachedMyBookings || []), ...(cachedPendingBookings || [])];
-      const uniqueData = Array.from(new Map(allData.map((b: any) => [b.id, b])).values());
-      const sortedData = uniqueData.sort((a: any, b: any) => {
-        const dateCompare = a.booking_date.localeCompare(b.booking_date);
-        if (dateCompare !== 0) return dateCompare;
-        return a.booking_time.localeCompare(b.booking_time);
-      });
-      if (isMountedRef.current) {
-        setAllBookings(sortedData);
-        setLoading(false);
-      }
-    }
-
-    // Always fetch fresh data in background
-    fetchAllBookings(therapist.id);
-  }, [therapist, location.state?.forceRefresh]);
-
-  // Realtime listener for bookings
+  // Realtime listener for bookings.
+  // NB : la table `bookings` n'est pas dans la publication supabase_realtime,
+  // ces écouteurs sont donc inertes en production. Conservés pour parité.
   useEffect(() => {
     if (!therapist) return;
 
@@ -213,95 +267,49 @@ const PwaDashboard = () => {
       .channel('bookings-updates')
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'bookings'
-        },
+        { event: 'UPDATE', schema: 'public', table: 'bookings' },
         (payload) => {
           if (cancelled || !isMountedRef.current) return;
 
-          const newData = payload.new as any;
-          const oldData = payload.old as any;
-          
-          setAllBookings(prev => {
-            const idx = prev.findIndex(b => b.id === newData.id);
+          const newData = payload.new as { id: string; booking_id: number; therapist_id: string | null; guest_count?: number };
+          const oldData = payload.old as { therapist_id: string | null };
 
-            // Solo pending taken by another therapist → toast.
-            // Duos (guest_count > 1) stay visible to other therapists, so skip them.
-            if (idx !== -1 &&
-                oldData.therapist_id === null &&
-                newData.therapist_id !== null &&
-                newData.therapist_id !== therapist.id &&
-                !(newData.guest_count > 1)) {
-              const isSecondary = prev[idx].booking_therapists?.some(
-                (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
-              );
-              if (!isSecondary && isMountedRef.current) {
-                toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
-              }
+          // Solo pending taken by another therapist → toast.
+          // Duos (guest_count > 1) stay visible to other therapists, so skip them.
+          if (oldData.therapist_id === null &&
+              newData.therapist_id !== null &&
+              newData.therapist_id !== therapist.id &&
+              !(newData.guest_count && newData.guest_count > 1)) {
+            const known = bookingsRef.current.find((b) => b.id === newData.id);
+            const isSecondary = known?.booking_therapists?.some(
+              (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
+            );
+            if (known && !isSecondary) {
+              toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
             }
-
-            // Booking not in our list → ignore
-            if (idx === -1) return prev;
-
-            // Cancelled/noshow and we're not involved → remove
-            if (newData.status === 'cancelled' || newData.status === 'noshow') {
-              const isInvolved = newData.therapist_id === therapist.id ||
-                prev[idx].booking_therapists?.some(
-                  (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
-                );
-              if (!isInvolved) return prev.filter(b => b.id !== newData.id);
-            }
-
-            // Update in place — getFilteredBookings handles visibility
-            const updated = [...prev];
-            updated[idx] = { ...updated[idx], ...newData };
-            return updated;
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'bookings'
-        },
-        (_payload) => {
-          if (!cancelled && isMountedRef.current) {
-            fetchAllBookings(therapist.id);
           }
+
+          void refreshBookings();
         }
       )
-      // Mise à jour du compteur duo en temps réel :
-      // Quand A accepte, un INSERT dans booking_therapists se produit.
-      // Sans cet écouteur, B voit 0/2 jusqu'au prochain fetch complet
-      // car le realtime bookings UPDATE ne transporte pas les relations.
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'booking_therapists'
-        },
+        { event: 'INSERT', schema: 'public', table: 'bookings' },
+        () => {
+          if (!cancelled && isMountedRef.current) void refreshBookings();
+        }
+      )
+      // Mise à jour du compteur duo en temps réel : quand A accepte, un INSERT
+      // dans booking_therapists se produit. Le realtime bookings UPDATE ne
+      // transporte pas les relations, d'où cet écouteur dédié.
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'booking_therapists' },
         (payload) => {
-          const newBt = payload.new as { booking_id: string; therapist_id: string; status: string };
+          const newBt = payload.new as { status: string };
           if (newBt.status !== 'accepted') return;
           if (cancelled || !isMountedRef.current) return;
-
-          setAllBookings(prev => {
-            const idx = prev.findIndex(b => b.id === newBt.booking_id);
-            if (idx === -1) return prev;
-            const existingBts = prev[idx].booking_therapists || [];
-            if (existingBts.some(bt => bt.therapist_id === newBt.therapist_id)) return prev;
-            const updated = [...prev];
-            updated[idx] = {
-              ...updated[idx],
-              booking_therapists: [...existingBts, { status: newBt.status, therapist_id: newBt.therapist_id }],
-            };
-            return updated;
-          });
+          void refreshBookings();
         }
       )
       .subscribe();
@@ -310,306 +318,21 @@ const PwaDashboard = () => {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [therapist]);
+  }, [therapist, isMountedRef, refreshBookings, t]);
 
   // Re-fetch when the app regains focus/visibility: realtime is disabled in prod,
   // so this is what makes a reassigned booking disappear for the old therapist.
   useRefetchOnFocus(() => {
-    if (therapist) fetchAllBookings(therapist.id);
+    setDayKey(format(new Date(), "yyyy-MM-dd"));
+    void refreshBookings();
   }, !!therapist);
-
-
-  const checkAuth = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        navigate("/pwa/login");
-        return;
-      }
-
-      if (!isMountedRef.current) return;
-
-      // Set OneSignal external user ID for push notification targeting
-      setOneSignalExternalUserId(user.id);
-
-      // Use cached data if available
-      const cachedData = queryClient.getQueryData<any>(["therapist", user.id]);
-
-      if (cachedData) {
-        if (isMountedRef.current) {
-          setTherapist(cachedData);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const { data: therapistData, error } = await supabase
-        .from("therapists")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!isMountedRef.current) return;
-
-      if (error || !therapistData) {
-        if (isMountedRef.current) {
-          toast.error(t('dashboard.profileNotFound'));
-        }
-        await supabase.auth.signOut();
-        navigate("/pwa/login");
-        return;
-      }
-
-      // Cache therapist data
-      queryClient.setQueryData(["therapist", user.id], therapistData);
-      if (isMountedRef.current) {
-        setTherapist(therapistData);
-      }
-    } catch (error) {
-      console.error("Auth error:", error);
-      navigate("/pwa/login");
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
-    }
-  };
-
-  const fetchAllBookings = async (therapistId: string, forceRefresh = false) => {
-    if (!isMountedRef.current) return;
-
-    // Clear cache when force refreshing
-    if (forceRefresh) {
-      queryClient.removeQueries({ queryKey: ["myBookings", therapistId] });
-      queryClient.removeQueries({ queryKey: ["pendingBookings", therapistId] });
-    }
-
-    const { data: affiliatedHotels, error: hotelsError } = await supabase
-      .from("therapist_venues")
-      .select("hotel_id, priority")
-      .eq("therapist_id", therapistId);
-
-    if (!isMountedRef.current) return;
-
-    if (hotelsError || !affiliatedHotels || affiliatedHotels.length === 0) {
-      console.error("❌ Error fetching affiliated hotels:", hotelsError);
-      if (isMountedRef.current) {
-        setAllBookings([]);
-        setLoading(false);
-      }
-      return;
-    }
-
-    const hotelIds = affiliatedHotels.map(h => h.hotel_id);
-    setPriorityByHotel(
-      Object.fromEntries(affiliatedHotels.map(h => [h.hotel_id, h.priority ?? 1]))
-    );
-
-    // Fetch hotel images/currency + commission & surcharge settings separately
-    // (no FK relationship). Commission/surcharge live on the venue, not the booking.
-    const { data: hotelData } = await supabase
-      .from("hotels")
-      .select("id, image, currency, global_therapist_commission, therapist_commission, out_of_hours_surcharge_percent")
-      .in("id", hotelIds);
-
-    if (!isMountedRef.current) return;
-
-    const hotelDataMap = new Map(hotelData?.map(h => [h.id, {
-      image: h.image,
-      currency: h.currency,
-      global_therapist_commission: h.global_therapist_commission === true,
-      therapist_commission: h.therapist_commission,
-      out_of_hours_surcharge_percent: h.out_of_hours_surcharge_percent,
-    }]) || []);
-
-    // 1. Get bookings assigned to this therapist (any status)
-    const { data: myBookings, error: myError } = await supabase
-      .from("bookings")
-      .select(`
-        *,
-        treatment_rooms!bookings_trunk_id_fkey ( name ),
-        booking_therapists ( status, therapist_id, assigned_at ),
-        booking_treatments (
-          therapist_id,
-          is_addon,
-          treatment_menus (
-            name,
-            price,
-            duration
-          )
-        )
-      `)
-      .eq("therapist_id", therapistId)
-      .in("hotel_id", hotelIds)
-      .neq("status", "cancelled");
-
-    if (!isMountedRef.current) return;
-
-    let myBookingsWithImages: Booking[] = [];
-    if (myError) {
-      console.error('Error fetching my bookings:', myError);
-    } else {
-      myBookingsWithImages = (myBookings || []).map(b => ({
-        ...b,
-        room_name: (b as { treatment_rooms?: { name: string | null } | null }).treatment_rooms?.name ?? null,
-        hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
-      }));
-
-      // Fetch duo bookings where this therapist is secondary (in booking_therapists but not primary)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: btData } = await (supabase as any)
-        .from("booking_therapists")
-        .select("booking_id")
-        .eq("therapist_id", therapistId)
-        .eq("status", "accepted");
-
-      if (!isMountedRef.current) return;
-
-      const primaryIds = new Set((myBookings || []).map(b => b.id));
-      const secondaryBookingIds = ((btData as { booking_id: string }[]) || [])
-        .map((bt) => bt.booking_id)
-        .filter((id) => !primaryIds.has(id));
-
-      if (secondaryBookingIds.length > 0) {
-        const { data: secondaryBookings } = await supabase
-          .from("bookings")
-          .select(`
-            *,
-            booking_therapists ( status, therapist_id, assigned_at ),
-            booking_treatments (
-              therapist_id,
-              is_addon,
-              treatment_menus (
-                name,
-                price,
-                duration
-              )
-            )
-          `)
-          .in("id", secondaryBookingIds)
-          .neq("status", "cancelled");
-
-        if (!isMountedRef.current) return;
-
-        const secondaryWithImages = (secondaryBookings || []).map(b => ({
-          ...b,
-          room_name: (b as { treatment_rooms?: { name: string | null } | null }).treatment_rooms?.name ?? null,
-          hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
-        }));
-        myBookingsWithImages = [...myBookingsWithImages, ...secondaryWithImages];
-      }
-
-      queryClient.setQueryData(["myBookings", therapistId], myBookingsWithImages);
-    }
-
-    // 2. Get pending bookings (unassigned solos + duo bookings awaiting more therapists)
-    const pendingQuery = supabase
-      .from("bookings")
-      .select(`
-        *,
-        treatment_rooms!bookings_trunk_id_fkey ( name ),
-        booking_therapists ( status, therapist_id, assigned_at ),
-        booking_treatments (
-          therapist_id,
-          is_addon,
-          treatment_menus (
-            name,
-            price,
-            duration
-          )
-        )
-      `)
-      .in("hotel_id", hotelIds)
-      .eq("status", "pending");
-
-    const { data: pendingBookings, error: pendingError } = await pendingQuery;
-
-    if (!isMountedRef.current) return;
-
-    // Filter pending bookings
-    const filteredPendingBookings = pendingBookings?.filter(b => {
-      // Duo bookings (guest_count > 1) waiting for more therapists: show to all
-      // hotel therapists who haven't accepted yet. A fully staffed duo is
-      // already 'confirmed', so any pending duo here is still open.
-      if (b.guest_count > 1) {
-        const alreadyAccepted = (b.booking_therapists as { status: string; therapist_id?: string }[] | undefined)?.some(
-          bt => bt.therapist_id === therapistId && bt.status === 'accepted'
-        );
-        return !alreadyAccepted;
-      }
-      // Solo pending bookings: must be unassigned (assigned ones come from myBookings).
-      // Visible to all therapists of the venue, regardless of treatment room.
-      return b.therapist_id === null;
-    }) || [];
-
-
-    // Fetch proposed slots for open duo bookings
-    const awaitingBookingIds = filteredPendingBookings
-      .filter(b => b.guest_count > 1)
-      .map(b => b.id);
-
-    let slotsMap = new Map<string, any>();
-    if (awaitingBookingIds.length > 0) {
-      const { data: slotsData } = await supabase
-        .from("booking_proposed_slots")
-        .select("booking_id, slot_1_date, slot_1_time, slot_2_date, slot_2_time, slot_3_date, slot_3_time")
-        .in("booking_id", awaitingBookingIds);
-
-      if (!isMountedRef.current) return;
-
-      if (slotsData) {
-        slotsMap = new Map(slotsData.map(s => [s.booking_id, s]));
-      }
-    }
-
-    // Add hotel images and proposed slots to pending bookings
-    const pendingBookingsWithImages = filteredPendingBookings.map(b => ({
-      ...b,
-      room_name: (b as { treatment_rooms?: { name: string | null } | null }).treatment_rooms?.name ?? null,
-      hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null },
-      proposed_slots: slotsMap.get(b.id) || null,
-    }));
-
-    if (pendingError) {
-      console.error('❌ Error fetching pending bookings:', pendingError);
-    } else {
-      // Cache pending bookings
-      queryClient.setQueryData(["pendingBookings", therapistId], pendingBookingsWithImages);
-    }
-
-
-    // Only return if BOTH queries failed
-    if (myError && pendingError) {
-      console.error('❌ Both queries failed');
-      if (isMountedRef.current) {
-        setAllBookings([]);
-        setLoading(false);
-      }
-      return;
-    }
-
-    // Combine, deduplicate, and sort both sets of bookings
-    const allData = [...myBookingsWithImages, ...pendingBookingsWithImages];
-    const uniqueData = Array.from(new Map(allData.map(b => [b.id, b])).values());
-    const sortedData = uniqueData.sort((a, b) => {
-      const dateCompare = a.booking_date.localeCompare(b.booking_date);
-      if (dateCompare !== 0) return dateCompare;
-      return a.booking_time.localeCompare(b.booking_time);
-    });
-
-    if (isMountedRef.current) {
-      setAllBookings(sortedData);
-      setLoading(false);
-    }
-  };
 
   const handleRefresh = async () => {
     if (!therapist || refreshing) return;
     if (!isMountedRef.current) return;
 
     setRefreshing(true);
-    await fetchAllBookings(therapist.id);
+    await refreshBookings();
     if (isMountedRef.current) {
       setRefreshing(false);
     }
@@ -705,7 +428,7 @@ const PwaDashboard = () => {
           } else {
             toast.error(t('dashboard.acceptError'));
           }
-          fetchAllBookings(therapist.id);
+          void refreshBookings();
         }
         return;
       }
@@ -722,7 +445,7 @@ const PwaDashboard = () => {
       if (!isMountedRef.current) return;
 
       toast.success(t('dashboard.bookingAccepted'));
-      fetchAllBookings(therapist.id, true); // Force refresh to get updated data
+      void refreshBookings();
     } catch (error) {
       console.error("Error accepting booking:", error);
       if (!isMountedRef.current) return;
@@ -730,7 +453,7 @@ const PwaDashboard = () => {
       const msg = error instanceof Error ? error.message : '';
       if (msg.includes('already_taken') || msg.includes('already assigned') || msg.includes('déjà assignée')) {
         toast.error(t('dashboard.bookingAlreadyTaken'));
-        fetchAllBookings(therapist.id);
+        void refreshBookings();
       } else {
         toast.error(t('dashboard.acceptError'));
       }
@@ -765,7 +488,7 @@ const PwaDashboard = () => {
       if (error) throw error;
 
       toast.success(t('dashboard.bookingDeclined'));
-      fetchAllBookings(therapist.id, true); // Force refresh
+      void refreshBookings();
     } catch (error) {
       console.error("Error declining booking:", error);
       if (isMountedRef.current) {
