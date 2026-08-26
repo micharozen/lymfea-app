@@ -2703,6 +2703,8 @@
     "publicLinkPlaceholder": "ex : massage-suedois-60",
     "descriptionPlaceholder": "Description du soin",
     "bestseller": "Bestseller (mis en avant sur la page de réservation)",
+    "bookableOnline": "Réservable en ligne",
+    "bookableOnlineHint": "Décoché : le soin reste réservable en interne (admin et thérapeute) mais n'apparaît pas dans le parcours de réservation client.",
     "venue": "Hôtel *",
     "selectVenue": "Sélectionner un hôtel",
     "status": "Statut",

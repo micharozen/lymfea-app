@@ -2703,6 +2703,8 @@
     "publicLinkPlaceholder": "e.g. swedish-massage-60",
     "descriptionPlaceholder": "Treatment description",
     "bestseller": "Bestseller (highlighted on the booking page)",
+    "bookableOnline": "Bookable online",
+    "bookableOnlineHint": "Unchecked: the treatment stays bookable internally (admin and therapist) but never shows up in the client booking flow.",
     "venue": "Venue *",
     "selectVenue": "Select a venue",
     "status": "Status",
