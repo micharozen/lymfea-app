@@ -13,6 +13,7 @@ import {
   ChevronDown,
   EyeOff,
   AlertTriangle,
+  Clock,
 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,6 +105,9 @@ export function DailyClosureTab() {
   const [hideCommissions, setHideCommissions] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  // Projection : compter les résas encore confirmées (soin pas terminé, ou cron
+  // de complétion pas encore passé) dans les totaux. N'écrit rien en base.
+  const [includeUnfinalized, setIncludeUnfinalized] = useState(false);
 
   useEffect(() => {
     supabase
@@ -245,8 +249,10 @@ export function DailyClosureTab() {
 
   const stats: ClosureStats | null = useMemo(() => {
     if (!closureVenue) return null;
-    return computeClosureStats(closureBookings, closureVenue, therapistRates);
-  }, [closureBookings, closureVenue, therapistRates]);
+    return computeClosureStats(closureBookings, closureVenue, therapistRates, {
+      includeUnfinalized,
+    });
+  }, [closureBookings, closureVenue, therapistRates, includeUnfinalized]);
 
   const report: ClosureReport | null = useMemo(() => {
     if (!closureVenue || !stats) return null;
@@ -268,11 +274,12 @@ export function DailyClosureTab() {
           recipients,
           include_details: includeDetailsFromDialog,
           hide_commissions: hideCommissions,
+          include_unfinalized: includeUnfinalized,
         },
       });
       if (error) throw error;
     },
-    [report, hideCommissions],
+    [report, hideCommissions, includeUnfinalized],
   );
 
   const currency = closureVenue?.currency ?? "EUR";
@@ -343,8 +350,8 @@ export function DailyClosureTab() {
               <p className="text-xs uppercase tracking-wider text-muted-foreground">
                 {selectedVenue?.name}
               </p>
-              <p className="text-2xl font-semibold mt-1">
-                {t('finance.closure.treatmentsCount', { count: report.stats.completedBookings })} · {fmtMoney(report.stats.totalRevenue, currency)}
+              <p className="text-2xl mt-1">
+                {t('finance.closure.treatmentsCount', { count: report.stats.countedBookings })} · {fmtMoney(report.stats.totalRevenue, currency)}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {format(date, "EEEE d MMMM yyyy", { locale: dateLocale })}
@@ -370,6 +377,31 @@ export function DailyClosureTab() {
                 <Mail className="h-4 w-4 mr-2" />
                 {t('finance.closure.sendByEmail')}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Unfinalized bookings — projection toggle */}
+      {report && report.stats.confirmedBookings > 0 && (
+        <Card className="border-blue-300 bg-blue-50 dark:bg-blue-900/10">
+          <CardContent className="py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+            <Clock className="h-5 w-5 text-blue-600 shrink-0" />
+            <p className="text-sm text-blue-900 dark:text-blue-200 flex-1">
+              {t('finance.closure.unfinalizedNotice', {
+                count: report.stats.confirmedBookings,
+                amount: fmtMoney(report.stats.unfinalizedRevenue, currency),
+              })}
+            </p>
+            <div className="flex items-center gap-2 shrink-0">
+              <Label htmlFor="closure-include-unfinalized" className="text-xs cursor-pointer">
+                {t('finance.closure.includeUnfinalized')}
+              </Label>
+              <Switch
+                id="closure-include-unfinalized"
+                checked={includeUnfinalized}
+                onCheckedChange={setIncludeUnfinalized}
+              />
             </div>
           </CardContent>
         </Card>
