@@ -2,6 +2,7 @@ import { Outlet, useLocation, useNavigate, useNavigationType } from "react-route
 import { Suspense, useEffect, useState, useLayoutEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLoader } from "@/components/AppLoader";
+import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
 import { setNotificationClickHandler, getPendingNotificationUrl } from "@/hooks/useOneSignal";
 import { useIsMounted } from "@/hooks/useIsMounted";
@@ -17,6 +18,7 @@ const PwaLayout = () => {
   const navigationType = useNavigationType();
   const scrollPositions = useRef<Map<string, number>>(new Map());
   const isMountedRef = useIsMounted();
+  const queryClient = useQueryClient();
 
   // Une seule résolution d'identité pour toute la coquille. Avant, ce composant
   // faisait à lui seul trois getUser() + select sur therapists, et Dashboard et
@@ -58,6 +60,35 @@ const PwaLayout = () => {
       navigate("/pwa/onboarding", { replace: true });
     }
   }, [me, navigate]);
+
+  // Préchauffe la liste de notifications pendant que le thérapeute est sur
+  // l'accueil, pour que l'onglet s'ouvre déjà peint au lieu d'afficher son
+  // loader. Notifications.tsx lit cette clé avant son propre fetch puis la
+  // réécrit : on rejoue donc strictement sa requête, pour qu'une seule forme
+  // existe dans cette entrée de cache.
+  useEffect(() => {
+    if (!userId || location.pathname !== "/pwa/dashboard") return;
+
+    const timer = window.setTimeout(() => {
+      void queryClient.prefetchQuery({
+        queryKey: ["notifications", userId],
+        queryFn: async () => {
+          const { data } = await supabase
+            .from("notifications")
+            .select("*")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false });
+          return data;
+        },
+        staleTime: 30_000,
+        // Sans observateur, l'entrée serait collectée au bout du gcTime global
+        // de 5 min, soit bien avant la fin d'une session typique.
+        gcTime: 30 * 60_000,
+      });
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [userId, location.pathname, queryClient]);
 
   // Set up notification click handler for push notifications
   useEffect(() => {
