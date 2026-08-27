@@ -7,6 +7,12 @@
 --
 -- On aligne booking_treatments sur bookings avec la même règle de participation.
 
+-- Rejouable : la policy a été posée à la main sur la prod pendant le
+-- diagnostic, avant que cette migration n'y soit appliquée. Sans le DROP,
+-- `supabase db push` échouerait sur un CREATE POLICY déjà existant.
+DROP POLICY IF EXISTS "Therapists can view treatments for bookings they joined"
+ON public.booking_treatments;
+
 CREATE POLICY "Therapists can view treatments for bookings they joined"
 ON public.booking_treatments
 FOR SELECT
