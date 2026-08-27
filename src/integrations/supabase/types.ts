@@ -3287,6 +3287,7 @@ export type Database = {
         Row: {
           amenity_id: string | null
           available_days: number[] | null
+          bookable_online: boolean
           bundle_id: string | null
           category: string
           created_at: string
@@ -3316,6 +3317,7 @@ export type Database = {
         Insert: {
           amenity_id?: string | null
           available_days?: number[] | null
+          bookable_online?: boolean
           bundle_id?: string | null
           category: string
           created_at?: string
@@ -3345,6 +3347,7 @@ export type Database = {
         Update: {
           amenity_id?: string | null
           available_days?: number[] | null
+          bookable_online?: boolean
           bundle_id?: string | null
           category?: string
           created_at?: string
@@ -4524,11 +4527,12 @@ export type Database = {
         }[]
       }
       get_public_treatments: {
-        Args: { _hotel_id: string }
+        Args: { _hotel_id: string; _include_internal?: boolean }
         Returns: {
           amenity_id: string
           amenity_type: string
           available_days: number[]
+          bookable_online: boolean
           bundle_id: string
           category: string
           currency: string

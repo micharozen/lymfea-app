@@ -34,6 +34,8 @@ export function VenueClientPreviewTab({ hotelId, slug }: VenueClientPreviewTabPr
         .select('id, slug, name, name_en, category')
         .eq('hotel_id', hotelId)
         .eq('status', 'active')
+        // Un soin interne n'a pas de page client : pas de lien profond à copier.
+        .eq('bookable_online', true)
         .order('category', { ascending: true })
         .order('name', { ascending: true });
       if (error) throw error;

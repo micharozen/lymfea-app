@@ -245,6 +245,31 @@ export function TreatmentGeneralTab({
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="bookable_online"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex items-center gap-2">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    className="h-4 w-4"
+                    disabled={disabled}
+                  />
+                </FormControl>
+                <FormLabel className="text-sm cursor-pointer font-normal m-0">
+                  {t('treatmentTab.bookableOnline')}
+                </FormLabel>
+              </div>
+              <FormDescription className="text-[11px] leading-snug">
+                {t('treatmentTab.bookableOnlineHint')}
+              </FormDescription>
+            </FormItem>
+          )}
+        />
       </div>
 
       {/* ── Colonne droite : paramétrage ────────────────────────────────── */}

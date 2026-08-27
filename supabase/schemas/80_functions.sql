@@ -1891,7 +1891,7 @@ $$;
 
 ALTER FUNCTION "public"."get_public_treatment_addons"("_parent_id" "uuid") OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") RETURNS TABLE("id" "uuid", "slug" "text", "name" "text", "name_en" "text", "description" "text", "description_en" "text", "category" "text", "service_for" "text", "duration" integer, "price" numeric, "price_on_request" boolean, "lead_time" integer, "image" "text", "sort_order" integer, "currency" "text", "is_bestseller" boolean, "is_addon" boolean, "is_bundle" boolean, "bundle_id" "uuid", "available_days" integer[], "amenity_id" "uuid", "amenity_type" "text", "variants" "jsonb")
+CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text", "_include_internal" boolean DEFAULT false) RETURNS TABLE("id" "uuid", "slug" "text", "name" "text", "name_en" "text", "description" "text", "description_en" "text", "category" "text", "service_for" "text", "duration" integer, "price" numeric, "price_on_request" boolean, "lead_time" integer, "image" "text", "sort_order" integer, "currency" "text", "is_bestseller" boolean, "is_addon" boolean, "is_bundle" boolean, "bundle_id" "uuid", "available_days" integer[], "amenity_id" "uuid", "amenity_type" "text", "bookable_online" boolean, "variants" "jsonb")
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
@@ -1908,6 +1908,7 @@ CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") 
     t.available_days,
     t.amenity_id,
     va.type AS amenity_type,
+    t.bookable_online,
     COALESCE(
       (SELECT jsonb_agg(
         jsonb_build_object(
@@ -1929,10 +1930,14 @@ CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") 
   LEFT JOIN public.venue_amenities va
     ON va.id = t.amenity_id
   WHERE t.status = 'active' AND t.hotel_id = _hotel_id
+    -- Les soins internes ne sortent que pour un appelant authentifié (admin, PWA
+    -- thérapeute) : le flow client, session invité sans JWT Supabase, ne peut pas
+    -- les obtenir même en passant `_include_internal => true`.
+    AND (t.bookable_online OR (_include_internal AND auth.uid() IS NOT NULL))
   ORDER BY t.sort_order, t.name;
 $$;
 
-ALTER FUNCTION "public"."get_public_treatments"("_hotel_id" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."get_public_treatments"("_hotel_id" "text", "_include_internal" boolean) OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."get_room_next_booking_gap"("_room_id" "uuid", "_booking_date" "date", "_booking_end_time" time without time zone, "_current_booking_id" "uuid") RETURNS TABLE("next_booking_time" time without time zone, "gap_minutes" integer)
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -3855,11 +3860,11 @@ GRANT ALL ON FUNCTION "public"."get_public_treatment_addons"("_parent_id" "uuid"
 
 GRANT ALL ON FUNCTION "public"."get_public_treatment_addons"("_parent_id" "uuid") TO "service_role";
 
-GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text", "_include_internal" boolean) TO "anon";
 
-GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text", "_include_internal" boolean) TO "authenticated";
 
-GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text", "_include_internal" boolean) TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."get_room_next_booking_gap"("_room_id" "uuid", "_booking_date" "date", "_booking_end_time" time without time zone, "_current_booking_id" "uuid") TO "anon";
 
