@@ -518,6 +518,8 @@ CREATE POLICY "Therapists can view treatment menus from their hotels" ON "public
    FROM "public"."therapist_venues" "tv"
   WHERE ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"())))) OR ("hotel_id" IS NULL))));
 
+CREATE POLICY "Therapists can view treatments for bookings they joined" ON "public"."booking_treatments" FOR SELECT TO "authenticated" USING ("public"."is_booking_participant"("booking_id", "public"."get_therapist_id"("auth"."uid"())));
+
 CREATE POLICY "Therapists can view treatments for pending bookings" ON "public"."booking_treatments" FOR SELECT USING (("booking_id" IN ( SELECT "b"."id"
    FROM "public"."bookings" "b"
   WHERE (("b"."status" = 'pending'::"text") AND (("b"."therapist_id" IS NULL) OR ("b"."guest_count" > 1)) AND ("b"."hotel_id" IN ( SELECT "tv"."hotel_id"
