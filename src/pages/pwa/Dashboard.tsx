@@ -109,8 +109,29 @@ const PaymentStatus = ({ status }: { status: PaymentDesignStatus | null }) =>
     </span>
   ) : null;
 
-const treatmentsLabel = (b: { booking_treatments?: Array<{ treatment_menus: { name: string } | null }> }) =>
-  b.booking_treatments?.map((bt) => bt.treatment_menus?.name).filter(Boolean).join(', ') || '';
+/**
+ * Libellé des soins d'une réservation. Sur un duo, chaque thérapeute a son
+ * propre leg (booking_treatments.therapist_id) : on n'affiche que le sien,
+ * sinon la carte répète le même soin autant de fois qu'il y a de participants.
+ * Sans leg qui m'est assigné (demande ouverte, réservation non répartie), on
+ * retombe sur la liste complète.
+ */
+const treatmentsLabel = (
+  b: {
+    booking_treatments?: Array<{
+      therapist_id?: string | null;
+      treatment_menus: { name: string } | null;
+    }>;
+  },
+  therapistId?: string | null,
+) => {
+  const all = b.booking_treatments ?? [];
+  const mine = therapistId ? all.filter((bt) => bt.therapist_id === therapistId) : [];
+  return (mine.length > 0 ? mine : all)
+    .map((bt) => bt.treatment_menus?.name)
+    .filter(Boolean)
+    .join(', ');
+};
 
 const acceptedCount = (b: { booking_therapists?: { status: string }[] }) =>
   b.booking_therapists?.filter((bt) => bt.status === 'accepted').length || 0;
@@ -1026,7 +1047,7 @@ const PwaDashboard = () => {
               <div className="hero-detail">
                 <div className="who">{nextRdv.hotel_name}</div>
                 <div className="what">
-                  {treatmentsLabel(nextRdv)}{treatmentsLabel(nextRdv) ? ' · ' : ''}{calculateTotalDuration(nextRdv)} min
+                  {treatmentsLabel(nextRdv, therapist?.id)}{treatmentsLabel(nextRdv, therapist?.id) ? ' · ' : ''}{calculateTotalDuration(nextRdv)} min
                 </div>
               </div>
               <ChevronRight size={18} />
@@ -1140,7 +1161,7 @@ const PwaDashboard = () => {
                     </div>
                     <div className="bk-main">
                       <div className="who">{b.hotel_name}</div>
-                      <div className="what">{treatmentsLabel(b)}</div>
+                      <div className="what">{treatmentsLabel(b, therapist?.id)}</div>
                       {(b.room_name || toConfirm) && (
                         <div className="meta">
                           {b.room_name || ''}{b.room_name && toConfirm ? ' · ' : ''}{toConfirm ? t('dashboard.toConfirm') : ''}
