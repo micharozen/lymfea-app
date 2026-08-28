@@ -25,6 +25,7 @@ import type {
 import { getAmenityType } from "@/lib/amenityTypes";
 import {
   computeColumnLayout,
+  toLayoutItem,
   type CalendarLayoutItem,
   type CalendarLayoutSlot,
 } from "@/hooks/booking/useCalendarLogic";
@@ -70,7 +71,6 @@ interface BookingCalendarViewProps {
   onSetViewDate: (date: Date) => void;
   getBookingsForDay: (date: Date) => BookingWithTreatments[];
   getBookingPosition: (booking: BookingWithTreatments) => { top: number; height: number };
-  getBookingsLayoutForDay: (bookings: BookingWithTreatments[]) => Map<string, { column: number; totalColumns: number }>;
   getCurrentTimePosition: (date: Date) => { showIndicator: boolean; position: number };
   getStatusColor: (status: string) => string;
   getTranslatedStatus: (status: string) => string;
@@ -183,7 +183,6 @@ export function BookingCalendarView({
   onSetViewDate,
   getBookingsForDay,
   getBookingPosition,
-  getBookingsLayoutForDay,
   getCurrentTimePosition,
   getStatusColor,
   getTranslatedStatus,
@@ -269,6 +268,7 @@ export function BookingCalendarView({
     if (!amenityBookings) return [];
     const dateStr = format(day, "yyyy-MM-dd");
     return amenityBookings.filter((b) => {
+      if (b.linked_booking_id) return false;
       if (b.booking_date !== dateStr) return false;
       if (visibleCalendars && visibleCalendars[b.venue_amenity_id] === false) return false;
       return true;
@@ -329,24 +329,22 @@ export function BookingCalendarView({
       .filter((p): p is { calendarId: string; booking: BookingWithTreatments } => p !== null);
     const dayAmenities = getAmenityBookingsForDay(day);
 
-    // Les chevauchements sont résolus band par band, indépendamment.
+    // Les chevauchements sont résolus band par band, indépendamment. Dans la band
+    // d'une commodité, bookings et réservations autonomes se partagent les colonnes.
     const layout = new Map<string, CalendarLayoutSlot>();
     for (const calendarId of ["treatments", ...amenityCalendarIds]) {
-      const items = placements.filter((p) => p.calendarId === calendarId).map((p) => p.booking);
-      getBookingsLayoutForDay(items).forEach((slot, id) => layout.set(id, slot));
+      const items: CalendarLayoutItem[] = placements
+        .filter((p) => p.calendarId === calendarId)
+        .map((p) => toLayoutItem(p.booking));
+      if (calendarId !== "treatments") {
+        items.push(
+          ...dayAmenities.filter((b) => b.venue_amenity_id === calendarId).map(toAmenityLayoutItem),
+        );
+      }
+      computeColumnLayout(items).forEach((slot, id) => layout.set(id, slot));
     }
 
-    // Une commodité autonome partage la bande de son équipement : son créneau
-    // doit compter dans les colonnes de cette bande, pas dans celles des soins.
-    const amenityLayout = new Map<string, CalendarLayoutSlot>();
-    for (const amenityId of amenityCalendarIds) {
-      const items = dayAmenities.filter((b) => b.venue_amenity_id === amenityId);
-      computeColumnLayout(items.map(toAmenityLayoutItem)).forEach((slot, id) =>
-        amenityLayout.set(id, slot),
-      );
-    }
-
-    return { placements, layout, dayAmenities, amenityLayout };
+    return { placements, layout, dayAmenities };
   };
 
   // Compute off-hours based on filtered venue or all venues
@@ -674,7 +672,7 @@ export function BookingCalendarView({
               {/* Day columns */}
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                const { placements, layout: dayLayout, dayAmenities, amenityLayout } = getDayLayout(day);
+                const { placements, layout: dayLayout, dayAmenities } = getDayLayout(day);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -742,7 +740,7 @@ export function BookingCalendarView({
                           key={ab.id}
                           booking={ab}
                           position={getAmenityPosition(ab)}
-                          layoutInfo={amenityLayout.get(ab.id)}
+                          layoutInfo={dayLayout.get(ab.id)}
                           band={bandOf(ab.venue_amenity_id)}
                           bandCount={bandCount}
                           onClick={onAmenityBookingClick}
@@ -784,7 +782,7 @@ export function BookingCalendarView({
               {/* Day columns */}
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                const { placements, layout: dayLayout, dayAmenities, amenityLayout } = getDayLayout(day);
+                const { placements, layout: dayLayout, dayAmenities } = getDayLayout(day);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -850,7 +848,7 @@ export function BookingCalendarView({
                           key={ab.id}
                           booking={ab}
                           position={getAmenityPosition(ab)}
-                          layoutInfo={amenityLayout.get(ab.id)}
+                          layoutInfo={dayLayout.get(ab.id)}
                           band={bandOf(ab.venue_amenity_id)}
                           bandCount={bandCount}
                           onClick={onAmenityBookingClick}

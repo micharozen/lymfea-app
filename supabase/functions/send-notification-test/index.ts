@@ -146,12 +146,17 @@ serve(async (req: Request): Promise<Response> => {
         },
       );
 
-      // OneSignal answers 400 (unknown external_id) or 200 with recipients: 0
-      // when the therapist has no subscribed device. There is no way to know
-      // beforehand: no subscription state is persisted server-side.
+      // A non-empty `id` is the only reliable proof of delivery. OneSignal returns
+      // 200 in every case, and `errors` can be present on a notification that was
+      // actually delivered (e.g. `invalid_aliases` when one alias among several
+      // failed to resolve). When nothing is delivered, `id` comes back empty:
+      //   delivered     -> { id: "09a6…", errors: { invalid_aliases: … } }
+      //   not delivered -> { id: "", errors: ["All included players are not subscribed"] }
+      //   not delivered -> { id: "", errors: { invalid_aliases: … } }
+      // `recipients` is not usable either: it is absent when targeting by alias.
+      // No pre-check is possible: no subscription state is persisted server-side.
       const result = (pushData as { result?: Record<string, unknown> } | null)?.result;
-      const recipients = Number(result?.recipients ?? 0);
-      const delivered = !pushError && Boolean(result?.id) && recipients > 0 && !result?.errors;
+      const delivered = !pushError && Boolean(result?.id);
 
       if (delivered) {
         sent += 1;
