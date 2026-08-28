@@ -4,11 +4,17 @@
 import { brand } from "@/config/brand";
 import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
 import { isBookingClientType, type BookingClientType } from "@/lib/clientTypeMeta";
+import { splitBookingByTherapist } from "@/lib/closureTherapistSplit";
 
 export interface ClosureBookingTreatment {
   name: string;
   category: string | null;
   duration: number | null;
+  /** Thérapeute qui réalise ce soin — porté par booking_treatments sur les duos. */
+  therapist_id?: string | null;
+  is_addon?: boolean | null;
+  /** Prix résolu de la ligne (resolveTreatmentPrice), pour la répartition en duo. */
+  price?: number | null;
 }
 
 export interface ClosureBooking {
@@ -22,6 +28,9 @@ export interface ClosureBooking {
   room_number: string | null;
   therapist_id: string | null;
   therapist_name: string | null;
+  /** Thérapeutes ayant accepté, dans l'ordre d'assignation (duos). */
+  therapists?: Array<{ id: string; name: string }>;
+  guest_count?: number | null;
   duration: number | null;
   total_price: number | null;
   is_out_of_hours?: boolean | null;
@@ -151,7 +160,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   card: "Carte — paiement en ligne",
   card_on_site: "Carte — sur place",
   cash: "Espèces",
-  room: "Note de chambre",
+  room: "Facturé en chambre",
   offert: "Offert",
   gift_amount: "Carte cadeau",
   voucher: "Payé par voucher",
@@ -165,7 +174,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 const PAYMENT_STATUS_FALLBACK_LABELS: Record<string, string> = {
   paid: "Payé",
   pending: "À régler sur place",
-  charged_to_room: "Note de chambre",
+  charged_to_room: "Facturé en chambre",
   pending_partner_billing: "Facturé au partenaire",
   offert: "Offert",
   refunded: "Remboursé",
@@ -186,6 +195,18 @@ export function closurePaymentLabel(
 export function closureRoomNumber(booking: Pick<ClosureBooking, "client_type" | "room_number">): string {
   if (booking.client_type !== "hotel") return "—";
   return booking.room_number?.trim() || "—";
+}
+
+/**
+ * Intervenants d'une réservation, tels qu'affichés dans le détail. Un duo en
+ * compte deux : n'afficher que `therapist_name` contredirait la répartition.
+ */
+export function closureTherapistNames(
+  booking: Pick<ClosureBooking, "therapists" | "therapist_name">,
+): string {
+  const names = (booking.therapists ?? []).map((t) => t.name?.trim()).filter(Boolean);
+  if (names.length) return names.join(" + ");
+  return booking.therapist_name?.trim() || "—";
 }
 
 function bookingDuration(booking: ClosureBooking): number {
@@ -278,24 +299,31 @@ export function computeClosureStats(
     stats.totalRevenue += price;
     stats.totalVenueShare += price * venueRate;
 
-    const rates = booking.therapist_id ? therapistRates[booking.therapist_id] ?? null : null;
-    const duration = bookingDuration(booking);
-    // Out-of-hours surcharge uplift (venue percent). NOTE: earnings are attributed
-    // to the primary therapist only; a full per-therapist duo split in the daily
-    // report is deferred (secondary therapist names are not part of this dataset).
+    // Majoration hors horaires (pourcentage du lieu).
     const surchargePercent = booking.is_out_of_hours
       ? (Number(venue.out_of_hours_surcharge_percent) || 0)
       : 0;
-    const earnings =
-      booking.therapist_id && duration > 0
-        ? computeTherapistEarnings(rates, duration, { surchargePercent })
-        : null;
-    const therapistEarnings = earnings ?? 0;
-    const hasRates = earnings !== null;
-    if (booking.therapist_id && !hasRates) stats.bookingsWithoutTherapistRate += 1;
-    stats.totalTherapistShare += therapistEarnings;
 
-    const primaryCategory = booking.treatments[0]?.category ?? "Autres";
+    // Un duo est réparti entre ses thérapeutes : chacun est crédité de son propre
+    // soin, et rémunéré sur ses propres tarifs pour la durée qu'il a réellement
+    // travaillée. Un solo renvoie une part unique, identique au calcul précédent.
+    const parts = splitBookingByTherapist({
+      lines: booking.treatments.map((t) => ({
+        therapist_id: t.therapist_id ?? null,
+        duration: t.duration,
+        is_addon: t.is_addon ?? false,
+        price: t.price ?? 0,
+      })),
+      orderedTherapistIds: (booking.therapists ?? []).map((t) => t.id),
+      guestCount: booking.guest_count ?? 1,
+      primaryTherapistId: booking.therapist_id,
+      totalPrice: price,
+      bookingDuration: bookingDuration(booking),
+    });
+
+    // Première catégorie renseignée : les lignes sans soin lisible sont gardées
+    // pour la répartition en duo, elles ne doivent pas basculer la catégorie.
+    const primaryCategory = booking.treatments.find((t) => t.category)?.category ?? "Autres";
     bumpBucket(categoryMap, primaryCategory, primaryCategory, price);
 
     const ctKey = isBookingClientType(booking.client_type) ? booking.client_type : "external";
@@ -310,23 +338,44 @@ export function computeClosureStats(
     ctBucket.revenue += price;
     clientTypeMap.set(ctKey, ctBucket);
 
-    const therapistName = booking.therapist_name ?? "Non assigné";
-    const therapistKey = booking.therapist_id ?? `name:${therapistName}`;
-    const tExisting = therapistMap.get(therapistKey);
-    if (tExisting) {
-      tExisting.count += 1;
-      tExisting.revenue += price;
-      tExisting.earnings += therapistEarnings;
-      tExisting.hasRates = tExisting.hasRates && hasRates;
-    } else {
-      therapistMap.set(therapistKey, {
-        key: therapistKey,
-        label: therapistName,
-        count: 1,
-        revenue: price,
-        earnings: therapistEarnings,
-        hasRates,
-      });
+    const namesById = new Map((booking.therapists ?? []).map((t) => [t.id, t.name]));
+    for (const part of parts) {
+      const rates = part.therapistId ? therapistRates[part.therapistId] ?? null : null;
+      const earnings =
+        part.therapistId && part.duration > 0
+          ? computeTherapistEarnings(rates, part.duration, { surchargePercent })
+          : null;
+      const partEarnings = earnings ?? 0;
+      const hasRates = earnings !== null;
+      if (part.therapistId && !hasRates) stats.bookingsWithoutTherapistRate += 1;
+      stats.totalTherapistShare += partEarnings;
+
+      // Le nom du roster prime ; le snapshot `therapist_name` de la réservation
+      // ne vaut que pour le thérapeute principal, jamais pour son binôme.
+      const therapistName =
+        (part.therapistId ? namesById.get(part.therapistId) : null)?.trim() ||
+        (part.therapistId && part.therapistId === booking.therapist_id
+          ? booking.therapist_name
+          : null) ||
+        (part.therapistId ? null : booking.therapist_name) ||
+        "Non assigné";
+      const therapistKey = part.therapistId ?? `name:${therapistName}`;
+      const tExisting = therapistMap.get(therapistKey);
+      if (tExisting) {
+        tExisting.count += 1;
+        tExisting.revenue += part.revenue;
+        tExisting.earnings += partEarnings;
+        tExisting.hasRates = tExisting.hasRates && hasRates;
+      } else {
+        therapistMap.set(therapistKey, {
+          key: therapistKey,
+          label: therapistName,
+          count: 1,
+          revenue: part.revenue,
+          earnings: partEarnings,
+          hasRates,
+        });
+      }
     }
 
     // Les règlements sur place n'ont pas de payment_method : on retombe sur le
@@ -420,7 +469,7 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
     <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 24px;">
       ${statCard("Annulées", String(stats.cancelledBookings), "#dc2626")}
       ${statCard("No show", String(stats.noShowBookings), "#dc2626")}
-      ${statCard("Total bookings", String(stats.totalBookings), "#6b7280")}
+      ${statCard("Nombre total de réservations", String(stats.totalBookings), "#6b7280")}
     </div>
   `;
 
@@ -459,7 +508,9 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
 
   const therapistSection = sectionTable(
     "Par thérapeute",
-    ["Thérapeute", "Prestations", "CA"],
+    // « Prestations réalisées » et non « Prestations » : sur un duo, chacun des
+    // deux thérapeutes en compte une, donc le total dépasse le nombre de résas.
+    ["Thérapeute", "Prestations réalisées", "CA"],
     stats.byTherapist.map((b) => [escapeHtml(b.label), String(b.count), money(b.revenue)]),
   );
 
@@ -486,14 +537,17 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
     .slice()
     .sort((a, b) => a.booking_time.localeCompare(b.booking_time))
     .map((b) => {
-      const treatments = b.treatments.map((t) => t.name).join(", ");
+      const treatments = b.treatments
+        .map((t) => t.name)
+        .filter((name) => name && name !== "—")
+        .join(", ");
       return `
         <tr>
           <td style="${cellBase}">#${b.booking_id}</td>
           <td style="${cellBase}">${escapeHtml(`${b.client_first_name} ${b.client_last_name}`)}</td>
           <td style="${cellBase}">${escapeHtml(closureRoomNumber(b))}</td>
           <td style="${cellBase}">${escapeHtml(treatments || "—")}</td>
-          <td style="${cellBase}">${escapeHtml(b.therapist_name ?? "—")}</td>
+          <td style="${cellBase}">${escapeHtml(closureTherapistNames(b))}</td>
           <td style="${cellBase};text-align:right;">${b.total_price != null ? money(b.total_price) : "—"}</td>
           <td style="${cellBase}">${escapeHtml(closurePaymentLabel(b.payment_method, b.payment_status))}</td>
           <td style="${cellBase}">${escapeHtml(STATUS_LABELS[b.status] ?? b.status)}</td>
@@ -542,12 +596,12 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
     ${warningBanner}
     ${revenueRow}
     ${lossRow}
+    ${detailSection}
     ${categorySection}
     ${clientTypeSection}
     ${therapistSection}
     ${paymentSection}
     ${clientPaymentSection}
-    ${detailSection}
 
     <p style="margin-top:32px;font-size:11px;color:#9ca3af;text-align:center;">
       Rapport généré par ${escapeHtml(closureIssuer(venue))} · ${escapeHtml(new Date().toLocaleString("fr-FR"))}

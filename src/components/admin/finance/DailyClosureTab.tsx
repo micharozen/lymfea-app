@@ -41,6 +41,7 @@ import {
   CLIENT_TYPE_LABELS,
   closurePaymentLabel,
   closureRoomNumber,
+  closureTherapistNames,
   computeClosureStats,
   fmtPercent,
   renderClosureReportHtml,
@@ -50,6 +51,8 @@ import {
   type ClosureVenue,
   type TherapistRatesMap,
 } from "@/lib/closureReport";
+import { orderRoster } from "@/lib/closureTherapistSplit";
+import { resolveTreatmentPrice } from "@/lib/treatmentPrice";
 import { normalizeBookingClientType } from "@/lib/clientTypeMeta";
 
 import { ClosureReportPreviewDialog } from "./ClosureReportPreviewDialog";
@@ -83,8 +86,23 @@ interface RawBookingRow {
   payment_status: string | null;
   status: string;
   hotel_id: string;
+  guest_count: number | null;
   booking_treatments?: Array<{
-    treatment_menus: { name: string; category: string | null; duration: number | null } | null;
+    therapist_id: string | null;
+    is_addon: boolean | null;
+    price_override: number | null;
+    treatment_menus: {
+      name: string;
+      category: string | null;
+      duration: number | null;
+      price: number | null;
+    } | null;
+    treatment_variants: { duration: number | null; price: number | null } | null;
+  }> | null;
+  booking_therapists?: Array<{
+    therapist_id: string;
+    status: string | null;
+    assigned_at: string | null;
   }> | null;
 }
 
@@ -105,6 +123,7 @@ export function DailyClosureTab() {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [bookings, setBookings] = useState<RawBookingRow[]>([]);
   const [therapistRates, setTherapistRates] = useState<TherapistRatesMap>({});
+  const [therapistNames, setTherapistNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [hideCommissions, setHideCommissions] = useState(false);
@@ -147,16 +166,23 @@ export function DailyClosureTab() {
           .from("bookings")
           .select(
             `id, booking_id, booking_date, booking_time, client_first_name, client_last_name,
-             client_type, room_number, therapist_id, therapist_name, duration,
+             client_type, room_number, therapist_id, therapist_name, duration, guest_count,
              total_price, is_out_of_hours, payment_method, payment_status, status, hotel_id,
-             booking_treatments ( treatment_menus ( name, category, duration ) )`,
+             booking_treatments (
+               therapist_id, is_addon, price_override,
+               treatment_menus ( name, category, duration, price ),
+               treatment_variants ( duration, price )
+             ),
+             booking_therapists ( therapist_id, status, assigned_at )`,
           )
           .eq("hotel_id", selectedVenueId)
           .eq("booking_date", dateIso)
           .order("booking_time", { ascending: true }),
         supabase
           .from("therapist_venues")
-          .select("therapist_id, therapists ( id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150 )")
+          .select(
+            "therapist_id, therapists ( id, first_name, last_name, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150 )",
+          )
           .eq("hotel_id", selectedVenueId),
       ]);
 
@@ -166,10 +192,15 @@ export function DailyClosureTab() {
       setBookings((bookingsResult.data ?? []) as RawBookingRow[]);
 
       const ratesMap: TherapistRatesMap = {};
+      // Noms des thérapeutes du lieu : seule source pour nommer le binôme d'un
+      // duo, `bookings.therapist_name` ne connaissant que le principal.
+      const names: Record<string, string> = {};
       for (const row of ratesResult.data ?? []) {
         const t = (row as {
           therapists: {
             id: string;
+            first_name: string | null;
+            last_name: string | null;
             rate_45: number | null;
             rate_60: number | null;
             rate_75: number | null;
@@ -194,8 +225,11 @@ export function DailyClosureTab() {
         } else {
           ratesMap[t.id] = rates;
         }
+        const fullName = `${t.first_name ?? ""} ${t.last_name ?? ""}`.trim();
+        if (fullName) names[t.id] = fullName;
       }
       setTherapistRates(ratesMap);
+      setTherapistNames(names);
     } catch (err) {
       console.error("[DailyClosureTab] fetch failed", err);
       toast.error(t('finance.closure.loadBookingsError'));
@@ -244,16 +278,24 @@ export function DailyClosureTab() {
         payment_method: b.payment_method,
         payment_status: b.payment_status,
         status: b.status,
+        guest_count: b.guest_count,
+        therapists: orderRoster(
+          (b.booking_therapists ?? []).filter((r) => r.status === "accepted"),
+        ).map((id) => ({ id, name: therapistNames[id] ?? "" })),
+        // Toutes les lignes sont conservées : une ligne sans soin lisible porte
+        // quand même un prix et un thérapeute, dont la répartition en duo a
+        // besoin. C'est le rendu du détail qui écarte les noms manquants.
         treatments:
-          b.booking_treatments
-            ?.map((bt) => ({
-              name: bt.treatment_menus?.name ?? "—",
-              category: bt.treatment_menus?.category ?? null,
-              duration: bt.treatment_menus?.duration ?? null,
-            }))
-            .filter((t) => t.name !== "—") ?? [],
+          b.booking_treatments?.map((bt) => ({
+            name: bt.treatment_menus?.name ?? "—",
+            category: bt.treatment_menus?.category ?? null,
+            duration: bt.treatment_variants?.duration ?? bt.treatment_menus?.duration ?? null,
+            therapist_id: bt.therapist_id,
+            is_addon: bt.is_addon,
+            price: resolveTreatmentPrice(bt),
+          })) ?? [],
       })),
-    [bookings],
+    [bookings, therapistNames],
   );
 
   const stats: ClosureStats | null = useMemo(() => {
@@ -463,51 +505,6 @@ export function DailyClosureTab() {
         </>
       )}
 
-      {/* Breakdown sections */}
-      {report && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <BreakdownCard
-            title={t('finance.closure.byCategory')}
-            empty={t('finance.closure.noTreatment')}
-            rows={report.stats.byCategory.map((b) => ({
-              label: b.label,
-              count: b.count,
-              value: fmtMoney(b.revenue, currency),
-            }))}
-          />
-          <ClientTypeChart buckets={report.stats.byClientType} currency={currency} />
-          {report.stats.byTherapist.length > 0 && (
-            <BreakdownCard
-              title={t('finance.closure.byTherapist')}
-              empty=""
-              rows={report.stats.byTherapist.map((b) => ({
-                label: b.label,
-                count: b.count,
-                value: fmtMoney(b.revenue, currency),
-                secondary: hideCommissions
-                  ? undefined
-                  : b.hasRates
-                    ? fmtMoney(b.earnings, currency)
-                    : "—",
-                secondaryWarn: !hideCommissions && !b.hasRates,
-              }))}
-              secondaryLabel={hideCommissions ? undefined : t('finance.closure.therapistShareShort')}
-            />
-          )}
-          {report.stats.byPaymentMethod.length > 0 && (
-            <BreakdownCard
-              title={t('finance.closure.byPaymentMethod')}
-              empty=""
-              rows={report.stats.byPaymentMethod.map((b) => ({
-                label: b.label,
-                count: b.count,
-                value: fmtMoney(b.revenue, currency),
-              }))}
-            />
-          )}
-        </div>
-      )}
-
       {/* Detail toggle */}
       {report && report.bookings.length > 0 && (
         <Card>
@@ -561,8 +558,13 @@ export function DailyClosureTab() {
                           <td className="py-2 pr-3 text-xs text-muted-foreground">
                             {CLIENT_TYPE_LABELS[b.client_type]}
                           </td>
-                          <td className="py-2 pr-3">{b.treatments.map((t) => t.name).join(", ") || "—"}</td>
-                          <td className="py-2 pr-3">{b.therapist_name ?? "—"}</td>
+                          <td className="py-2 pr-3">
+                            {b.treatments
+                              .map((t) => t.name)
+                              .filter((name) => name && name !== "—")
+                              .join(", ") || "—"}
+                          </td>
+                          <td className="py-2 pr-3">{closureTherapistNames(b)}</td>
                           <td className="py-2 pr-3 text-right tabular-nums">
                             {b.total_price != null ? fmtMoney(b.total_price, currency) : "—"}
                           </td>
@@ -580,6 +582,51 @@ export function DailyClosureTab() {
             </CardContent>
           )}
         </Card>
+      )}
+
+      {/* Breakdown sections */}
+      {report && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <BreakdownCard
+            title={t('finance.closure.byCategory')}
+            empty={t('finance.closure.noTreatment')}
+            rows={report.stats.byCategory.map((b) => ({
+              label: b.label,
+              count: b.count,
+              value: fmtMoney(b.revenue, currency),
+            }))}
+          />
+          <ClientTypeChart buckets={report.stats.byClientType} currency={currency} />
+          {report.stats.byTherapist.length > 0 && (
+            <BreakdownCard
+              title={t('finance.closure.byTherapist')}
+              empty=""
+              rows={report.stats.byTherapist.map((b) => ({
+                label: b.label,
+                count: b.count,
+                value: fmtMoney(b.revenue, currency),
+                secondary: hideCommissions
+                  ? undefined
+                  : b.hasRates
+                    ? fmtMoney(b.earnings, currency)
+                    : "—",
+                secondaryWarn: !hideCommissions && !b.hasRates,
+              }))}
+              secondaryLabel={hideCommissions ? undefined : t('finance.closure.therapistShareShort')}
+            />
+          )}
+          {report.stats.byPaymentMethod.length > 0 && (
+            <BreakdownCard
+              title={t('finance.closure.byPaymentMethod')}
+              empty=""
+              rows={report.stats.byPaymentMethod.map((b) => ({
+                label: b.label,
+                count: b.count,
+                value: fmtMoney(b.revenue, currency),
+              }))}
+            />
+          )}
+        </div>
       )}
 
       {/* Loading / empty */}

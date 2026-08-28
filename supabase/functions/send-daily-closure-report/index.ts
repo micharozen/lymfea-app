@@ -5,6 +5,8 @@ import { sendEmail } from "../_shared/send-email.ts";
 import { getBaseEmailTemplate, getEmailHeader } from "../_shared/email-template.ts";
 import { computeTherapistEarnings, type TherapistRates } from "../_shared/therapistEarnings.ts";
 import { normalizeClientType, clientTypeLabel, type BookingClientType } from "../_shared/client-type.ts";
+import { splitBookingByTherapist, orderRoster } from "../_shared/closureTherapistSplit.ts";
+import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,12 +40,28 @@ interface RawBooking {
   therapist_id: string | null;
   therapist_name: string | null;
   duration: number | null;
+  guest_count: number | null;
   total_price: number | null;
+  is_out_of_hours: boolean | null;
   payment_method: string | null;
   payment_status: string | null;
   status: string;
   booking_treatments?: Array<{
-    treatment_menus: { name: string; category: string | null; duration: number | null } | null;
+    therapist_id: string | null;
+    is_addon: boolean | null;
+    price_override: number | null;
+    treatment_menus: {
+      name: string;
+      category: string | null;
+      duration: number | null;
+      price: number | null;
+    } | null;
+    treatment_variants: { duration: number | null; price: number | null } | null;
+  }> | null;
+  booking_therapists?: Array<{
+    therapist_id: string;
+    status: string | null;
+    assigned_at: string | null;
   }> | null;
 }
 
@@ -61,7 +79,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   card: "Carte — paiement en ligne",
   card_on_site: "Carte — sur place",
   cash: "Espèces",
-  room: "Note de chambre",
+  room: "Facturé en chambre",
   offert: "Offert",
   gift_amount: "Carte cadeau",
   voucher: "Payé par voucher",
@@ -74,7 +92,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 const PAYMENT_STATUS_FALLBACK_LABELS: Record<string, string> = {
   paid: "Payé",
   pending: "À régler sur place",
-  charged_to_room: "Note de chambre",
+  charged_to_room: "Facturé en chambre",
   pending_partner_billing: "Facturé au partenaire",
   offert: "Offert",
   refunded: "Remboursé",
@@ -129,11 +147,29 @@ function fmtDateLong(iso: string): string {
   });
 }
 
+/** Durée d'une ligne : la variante choisie prime sur la durée du soin au menu. */
+function lineDuration(bt: NonNullable<RawBooking["booking_treatments"]>[number]): number {
+  return bt.treatment_variants?.duration ?? bt.treatment_menus?.duration ?? 0;
+}
+
 function bookingDuration(booking: RawBooking): number {
   if (booking.duration && booking.duration > 0) return booking.duration;
-  return (booking.booking_treatments ?? []).reduce(
-    (sum, bt) => sum + (bt.treatment_menus?.duration ?? 0),
-    0,
+  return (booking.booking_treatments ?? []).reduce((sum, bt) => sum + lineDuration(bt), 0);
+}
+
+/** Intervenants de la réservation — un duo en compte deux. */
+function therapistNames(b: RawBooking, namesById: Record<string, string>): string {
+  const names = acceptedRoster(b)
+    .map((id) => namesById[id]?.trim())
+    .filter(Boolean);
+  if (names.length) return names.join(" + ");
+  return b.therapist_name?.trim() || "—";
+}
+
+/** Thérapeutes ayant accepté, dans un ordre positionnel reproductible. */
+function acceptedRoster(b: RawBooking): string[] {
+  return orderRoster(
+    (b.booking_therapists ?? []).filter((r) => r.status === "accepted"),
   );
 }
 
@@ -178,7 +214,9 @@ serve(async (req: Request): Promise<Response> => {
 
     const { data: venue, error: venueError } = await supabase
       .from("hotels")
-      .select("id, name, currency, venue_type, organizations ( name, commercial_name )")
+      .select(
+        "id, name, currency, venue_type, out_of_hours_surcharge_percent, organizations ( name, commercial_name )",
+      )
       .eq("id", hotel_id)
       .single();
 
@@ -195,16 +233,23 @@ serve(async (req: Request): Promise<Response> => {
         .from("bookings")
         .select(
           `id, booking_id, booking_date, booking_time, client_first_name, client_last_name,
-           client_type, room_number, therapist_id, therapist_name, duration,
-           total_price, payment_method, payment_status, status,
-           booking_treatments ( treatment_menus ( name, category, duration ) )`,
+           client_type, room_number, therapist_id, therapist_name, duration, guest_count,
+           total_price, is_out_of_hours, payment_method, payment_status, status,
+           booking_treatments (
+             therapist_id, is_addon, price_override,
+             treatment_menus ( name, category, duration, price ),
+             treatment_variants ( duration, price )
+           ),
+           booking_therapists ( therapist_id, status, assigned_at )`,
         )
         .eq("hotel_id", hotel_id)
         .eq("booking_date", report_date)
         .order("booking_time", { ascending: true }),
       supabase
         .from("therapist_venues")
-        .select("therapist_id, therapists ( id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150 )")
+        .select(
+          "therapist_id, therapists ( id, first_name, last_name, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150 )",
+        )
         .eq("hotel_id", hotel_id),
     ]);
 
@@ -218,10 +263,16 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const ratesMap: Record<string, TherapistRates | null> = {};
+    // Noms des thérapeutes du lieu : c'est la seule source pour nommer le binôme
+    // d'un duo (`bookings.therapist_name` ne connaît que le thérapeute principal,
+    // et `booking_therapists` n'a pas de FK vers `therapists` à embarquer).
+    const namesById: Record<string, string> = {};
     for (const row of ratesRes.data ?? []) {
       const t = (row as {
         therapists: {
           id: string;
+          first_name: string | null;
+          last_name: string | null;
           rate_45: number | null;
           rate_60: number | null;
           rate_75: number | null;
@@ -243,6 +294,8 @@ serve(async (req: Request): Promise<Response> => {
       };
       const empty = rates.rate_60 == null && rates.rate_75 == null && rates.rate_90 == null;
       ratesMap[t.id] = empty ? null : rates;
+      const fullName = `${t.first_name ?? ""} ${t.last_name ?? ""}`.trim();
+      if (fullName) namesById[t.id] = fullName;
     }
 
     // Émetteur affiché : l'organisation du lieu, repli sur la marque plateforme
@@ -254,6 +307,7 @@ serve(async (req: Request): Promise<Response> => {
     const bookings = (bookingsRes.data ?? []) as RawBooking[];
     const currency = (venue.currency as string) || "EUR";
     const money = (v: number) => fmtMoney(v, currency);
+    const venueSurchargePercent = Number(venue.out_of_hours_surcharge_percent) || 0;
     let completed = 0;
     let cancelled = 0;
     let noShow = 0;
@@ -291,12 +345,24 @@ serve(async (req: Request): Promise<Response> => {
       const price = b.total_price ?? 0;
       totalRevenue += price;
 
-      const rates = b.therapist_id ? ratesMap[b.therapist_id] ?? null : null;
-      const duration = bookingDuration(b);
-      const earnings = b.therapist_id && duration > 0 ? computeTherapistEarnings(rates, duration) : null;
-      const therapistEarnings = earnings ?? 0;
-      const hasRates = earnings !== null;
-      if (b.therapist_id && !hasRates) bookingsWithoutTherapistRate += 1;
+      const surchargePercent = b.is_out_of_hours ? venueSurchargePercent : 0;
+
+      // Un duo est réparti entre ses thérapeutes : chacun est crédité de son
+      // propre soin et rémunéré sur ses propres tarifs. Un solo renvoie une part
+      // unique, strictement identique au calcul précédent.
+      const parts = splitBookingByTherapist({
+        lines: (b.booking_treatments ?? []).map((bt) => ({
+          therapist_id: bt.therapist_id,
+          duration: lineDuration(bt),
+          is_addon: bt.is_addon ?? false,
+          price: resolveTreatmentPrice(bt),
+        })),
+        orderedTherapistIds: acceptedRoster(b),
+        guestCount: b.guest_count ?? 1,
+        primaryTherapistId: b.therapist_id,
+        totalPrice: price,
+        bookingDuration: bookingDuration(b),
+      });
 
       const categoryName = b.booking_treatments?.[0]?.treatment_menus?.category ?? "Autres";
       const cat = categoryMap.get(categoryName) ?? { count: 0, revenue: 0 };
@@ -310,16 +376,39 @@ serve(async (req: Request): Promise<Response> => {
       ct.revenue += price;
       clientTypeMap.set(ctKey, ct);
 
-      const tName = b.therapist_name ?? "Non assigné";
-      const tKey = b.therapist_id ?? `name:${tName}`;
-      const tStat = therapistMap.get(tKey);
-      if (tStat) {
-        tStat.count += 1;
-        tStat.revenue += price;
-        tStat.earnings += therapistEarnings;
-        tStat.hasRates = tStat.hasRates && hasRates;
-      } else {
-        therapistMap.set(tKey, { name: tName, count: 1, revenue: price, earnings: therapistEarnings, hasRates });
+      for (const part of parts) {
+        const rates = part.therapistId ? ratesMap[part.therapistId] ?? null : null;
+        const earnings =
+          part.therapistId && part.duration > 0
+            ? computeTherapistEarnings(rates, part.duration, { surchargePercent })
+            : null;
+        const partEarnings = earnings ?? 0;
+        const hasRates = earnings !== null;
+        if (part.therapistId && !hasRates) bookingsWithoutTherapistRate += 1;
+
+        // Le nom du lieu prime ; le snapshot `therapist_name` de la réservation
+        // ne vaut que pour le thérapeute principal, jamais pour son binôme.
+        const tName =
+          (part.therapistId ? namesById[part.therapistId] : null) ||
+          (part.therapistId && part.therapistId === b.therapist_id ? b.therapist_name : null) ||
+          (part.therapistId ? null : b.therapist_name) ||
+          "Non assigné";
+        const tKey = part.therapistId ?? `name:${tName}`;
+        const tStat = therapistMap.get(tKey);
+        if (tStat) {
+          tStat.count += 1;
+          tStat.revenue += part.revenue;
+          tStat.earnings += partEarnings;
+          tStat.hasRates = tStat.hasRates && hasRates;
+        } else {
+          therapistMap.set(tKey, {
+            name: tName,
+            count: 1,
+            revenue: part.revenue,
+            earnings: partEarnings,
+            hasRates,
+          });
+        }
       }
 
       // Les règlements sur place n'ont pas de payment_method : on retombe sur le
@@ -353,18 +442,20 @@ serve(async (req: Request): Promise<Response> => {
     const lossCards = [
       ["Annulées", String(cancelled)],
       ["No show", String(noShow)],
-      ["Total bookings", String(bookings.length)],
+      ["Nombre total de réservations", String(bookings.length)],
     ];
 
     const renderCardsRow = (cards: string[][], bg = "#ffffff") =>
       cards.length
         ? `<tr><td style="padding:8px 30px 0;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <!-- table-layout:fixed : sans lui, un libellé long élargit sa carte au
+             détriment des autres et la rangée n'est plus régulière. -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;table-layout:fixed;">
           <tr>
             ${cards
               .map(
                 ([label, value]) => `
-              <td style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;background:${bg};text-align:center;vertical-align:top;">
+              <td width="${Math.floor(100 / cards.length)}%" style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;background:${bg};text-align:center;vertical-align:top;">
                 <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">${escapeHtml(label)}</p>
                 <p style="margin:6px 0 0;font-size:16px;font-weight:600;color:#111827;">${escapeHtml(value)}</p>
               </td>`,
@@ -468,7 +559,14 @@ serve(async (req: Request): Promise<Response> => {
       <tr><td style="padding:20px 30px 0;">
         ${buildTable("Par type de prestation", ["Catégorie", "Prestations", "CA"], categoryRows)}
         ${buildTable("Par type de client", ["Type", "Prestations", "Part", "CA"], clientTypeRows)}
-        ${buildTable("Par thérapeute", ["Thérapeute", "Prestations", "CA"], therapistRows)}
+        ${buildTable(
+          "Par thérapeute",
+          // « Prestations réalisées » et non « Prestations » : sur un duo, chacun
+          // des deux thérapeutes en compte une, donc le total dépasse le nombre
+          // de réservations.
+          ["Thérapeute", "Prestations réalisées", "CA"],
+          therapistRows,
+        )}
         ${buildTable("Par moyen de paiement", ["Moyen", "Nombre", "Montant"], paymentRows)}
         ${buildTable("Type de client × moyen de paiement", ["Type de client", "Moyen de paiement", "Prestations", "CA"], crossRows)}
       </td></tr>
@@ -487,7 +585,7 @@ serve(async (req: Request): Promise<Response> => {
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(`${b.client_first_name} ${b.client_last_name}`)}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(roomNumberLabel(b))}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(treatments)}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(b.therapist_name ?? "—")}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(therapistNames(b, namesById))}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;text-align:right;">${b.total_price != null ? money(b.total_price) : "—"}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(paymentLabel(b.payment_method, b.payment_status))}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(STATUS_LABELS[b.status] ?? b.status)}</td>
@@ -525,8 +623,8 @@ serve(async (req: Request): Promise<Response> => {
 ${warningBanner}
       ${renderCardsRow(revenueCards)}
       ${renderCardsRow(lossCards)}
-      ${sectionsHtml}
       ${detailsHtml}
+      ${sectionsHtml}
     `;
 
     const html = getBaseEmailTemplate(headerContent);
