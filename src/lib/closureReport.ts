@@ -152,6 +152,7 @@ const STATUS_LABELS: Record<string, string> = {
   pending: "En attente",
   cancelled: "Annulée",
   no_show: "No show",
+  noshow: "No show",
   declined: "Refusée",
   expired: "Expirée",
 };
@@ -286,7 +287,7 @@ export function computeClosureStats(
     if (booking.status === "completed") stats.completedBookings += 1;
     else if (booking.status === "confirmed") stats.confirmedBookings += 1;
     else if (booking.status === "cancelled") stats.cancelledBookings += 1;
-    else if (booking.status === "no_show") stats.noShowBookings += 1;
+    else if (booking.status === "no_show" || booking.status === "noshow") stats.noShowBookings += 1;
     else if (booking.status === "pending") stats.pendingBookings += 1;
 
     if (isUnfinalized) stats.unfinalizedRevenue += price;
@@ -454,22 +455,29 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
   const currency = venue.currency || "EUR";
   const money = (v: number) => fmtMoney(v, currency);
 
-  const headline = `${stats.countedBookings} prestation${stats.countedBookings > 1 ? "s" : ""} · ${money(stats.totalRevenue)}`;
+  const averageTicket = stats.countedBookings > 0 ? stats.totalRevenue / stats.countedBookings : 0;
+  const completionRate =
+    stats.totalBookings > 0 ? (stats.countedBookings / stats.totalBookings) * 100 : 0;
 
-  const revenueRow = `
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0;">
-      ${statCard(
-        stats.includedUnfinalized ? "Prestations comptées" : "Prestations complétées",
-        String(stats.countedBookings),
-      )}
-      ${statCard("Chiffre d'affaires", money(stats.totalRevenue))}
-    </div>
-  `;
-  const lossRow = `
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 24px;">
-      ${statCard("Annulées", String(stats.cancelledBookings), "#dc2626")}
-      ${statCard("No show", String(stats.noShowBookings), "#dc2626")}
-      ${statCard("Nombre total de réservations", String(stats.totalBookings), "#6b7280")}
+  // Bande du jour : un seul chiffre lu en premier, les autres le nuancent.
+  // La répartition des commissions n'y figure pas : ce rapport part au lieu.
+  const summaryBand = `
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;border:1px solid ${LINE};border-radius:12px;padding:20px 22px;margin:20px 0 24px;">
+      <div>
+        <p style="margin:0;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${INK_SOFT};">
+          ${escapeHtml(stats.includedUnfinalized ? "Chiffre d'affaires projeté" : "Chiffre d'affaires réalisé")}
+        </p>
+        <p style="margin:6px 0 0;font-size:34px;font-weight:600;line-height:1;">${escapeHtml(money(stats.totalRevenue))}</p>
+        <p style="margin:8px 0 0;font-size:13px;color:${INK_SOFT};">
+          ${stats.countedBookings} prestation${stats.countedBookings > 1 ? "s" : ""} comptée${stats.countedBookings > 1 ? "s" : ""} sur ${stats.totalBookings} réservation${stats.totalBookings > 1 ? "s" : ""}, soit ${escapeHtml(fmtPercent(completionRate))} réalisé${stats.includedUnfinalized ? " ou à venir" : " à date"}
+        </p>
+      </div>
+      <div style="display:flex;">
+        ${bandStat("Panier moyen", money(averageTicket), false)}
+        ${bandStat("Nombre total de réservations", String(stats.totalBookings), true)}
+        ${bandStat("Annulées", String(stats.cancelledBookings), true, stats.cancelledBookings > 0 ? CRIT : undefined)}
+        ${bandStat("No show", String(stats.noShowBookings), true, stats.noShowBookings > 0 ? CRIT : undefined)}
+      </div>
     </div>
   `;
 
@@ -477,60 +485,74 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
   // sont comptées : sans cette mention, le CA n'est pas rapprochable de la base.
   const unfinalizedBanner =
     stats.includedUnfinalized && stats.confirmedBookings > 0
-      ? `<div style="margin:0 0 20px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:13px;color:#1e40af;">
+      ? `<div style="margin:18px 0 0;padding:11px 14px;background:#EEF3F8;border:1px solid #C9D8E6;border-radius:10px;font-size:13px;color:#3E5C7A;">
           ℹ ${stats.confirmedBookings} réservation${stats.confirmedBookings > 1 ? "s" : ""} non encore finalisée${stats.confirmedBookings > 1 ? "s" : ""} (${money(stats.unfinalizedRevenue)}) ${stats.confirmedBookings > 1 ? "sont comptées" : "est comptée"} dans ce rapport.
         </div>`
       : "";
 
   const warningBanner =
     !hideCommissions && stats.bookingsWithoutTherapistRate > 0
-      ? `<div style="margin:0 0 20px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:13px;color:#92400e;">
+      ? `<div style="margin:18px 0 0;padding:11px 14px;background:#F9F0DC;border:1px solid #E4CB92;border-radius:10px;font-size:13px;color:#8A6216;">
           ⚠ ${stats.bookingsWithoutTherapistRate} prestation${stats.bookingsWithoutTherapistRate > 1 ? "s" : ""} sans tarif thérapeute défini — part thérapeute calculée à 0 sur ces lignes.
         </div>`
       : "";
 
-  const categorySection = sectionTable(
+  const categorySection = breakdownTable(
     "Par type de prestation",
-    ["Catégorie", "Prestations", "CA"],
-    stats.byCategory.map((b) => [escapeHtml(b.label), String(b.count), money(b.revenue)]),
+    "Catégorie",
+    withRevenueShare(stats.byCategory).map((b) => ({
+      label: b.label,
+      count: b.count,
+      share: b.share,
+      amount: money(b.revenue),
+    })),
   );
 
-  const clientTypeSection = sectionTable(
+  const clientTypeSection = breakdownTable(
     "Par type de client",
-    ["Type", "Prestations", "Part", "CA"],
-    stats.byClientType.map((b) => [
-      escapeHtml(b.label),
-      String(b.count),
-      escapeHtml(fmtPercent(b.sharePercent)),
-      money(b.revenue),
-    ]),
+    "Type",
+    stats.byClientType.map((b) => ({
+      label: b.label,
+      count: b.count,
+      share: b.sharePercent,
+      amount: money(b.revenue),
+    })),
   );
 
-  const therapistSection = sectionTable(
+  const therapistSection = breakdownTable(
     "Par thérapeute",
+    "Thérapeute",
+    stats.byTherapist.map((b) => ({
+      label: b.label,
+      count: b.count,
+      share: 0,
+      amount: money(b.revenue),
+    })),
     // « Prestations réalisées » et non « Prestations » : sur un duo, chacun des
     // deux thérapeutes en compte une, donc le total dépasse le nombre de résas.
-    ["Thérapeute", "Prestations réalisées", "CA"],
-    stats.byTherapist.map((b) => [escapeHtml(b.label), String(b.count), money(b.revenue)]),
+    { countHeader: "Prestations réalisées", hideShare: true },
   );
 
-  const paymentSection = stats.byPaymentMethod.length
-    ? sectionTable(
-        "Par moyen de paiement",
-        ["Moyen", "Prestations", "Montant"],
-        stats.byPaymentMethod.map((b) => [escapeHtml(b.label), String(b.count), money(b.revenue)]),
-      )
-    : "";
+  const paymentSection = breakdownTable(
+    "Par moyen de paiement",
+    "Moyen",
+    withRevenueShare(stats.byPaymentMethod).map((b) => ({
+      label: b.label,
+      count: b.count,
+      share: b.share,
+      amount: money(b.revenue),
+    })),
+  );
 
-  const clientPaymentSection = sectionTable(
+  const clientPaymentSection = breakdownTable(
     "Type de client × moyen de paiement",
-    ["Type de client", "Moyen de paiement", "Prestations", "CA"],
-    stats.byClientTypeAndPayment.map((b) => [
-      escapeHtml(b.clientTypeLabel),
-      escapeHtml(b.paymentLabel),
-      String(b.count),
-      money(b.revenue),
-    ]),
+    "Croisement",
+    withRevenueShare(stats.byClientTypeAndPayment).map((b) => ({
+      label: `${b.clientTypeLabel} · ${b.paymentLabel}`,
+      count: b.count,
+      share: b.share,
+      amount: money(b.revenue),
+    })),
   );
 
   const detailRows = bookings
@@ -550,7 +572,7 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
           <td style="${cellBase}">${escapeHtml(closureTherapistNames(b))}</td>
           <td style="${cellBase};text-align:right;">${b.total_price != null ? money(b.total_price) : "—"}</td>
           <td style="${cellBase}">${escapeHtml(closurePaymentLabel(b.payment_method, b.payment_status))}</td>
-          <td style="${cellBase}">${escapeHtml(STATUS_LABELS[b.status] ?? b.status)}</td>
+          <td style="${cellBase}">${statusPill(b.status)}</td>
         </tr>`;
     })
     .join("");
@@ -560,7 +582,7 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
         <h2 style="${sectionTitle}">Détail des prestations</h2>
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <thead>
-            <tr style="background:#f9fafb;">
+            <tr>
               <th style="${cellHeader}">N°</th>
               <th style="${cellHeader}">Client</th>
               <th style="${cellHeader}">Chambre</th>
@@ -577,25 +599,24 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
     : "";
 
   return `<!DOCTYPE html>
-<html lang="fr"><head><meta charset="utf-8"><title>Clôture ${escapeHtml(venue.name)} - ${escapeHtml(date)}</title></head>
-<body style="margin:0;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#111827;background:#ffffff;">
+<html lang="fr"><head><meta charset="utf-8"><title>Clôture ${escapeHtml(venue.name)} - ${escapeHtml(date)}</title>
+<style>
+  tr { page-break-inside: avoid; }
+  h2 { page-break-after: avoid; }
+  table { page-break-inside: auto; }
+</style>
+</head>
+<body style="margin:0;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${INK};background:#ffffff;">
   <div style="max-width:780px;margin:0 auto;">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #111827;padding-bottom:16px;margin-bottom:8px;">
-      <div>
-        <p style="margin:0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;">${escapeHtml(closureIssuer(venue))} · Clôture quotidienne</p>
-        <h1 style="margin:6px 0 0;font-size:22px;font-weight:600;">${escapeHtml(venue.name)}</h1>
-        <p style="margin:4px 0 0;font-size:14px;color:#374151;">${escapeHtml(fmtDateLong(date))}</p>
-      </div>
-      <div style="text-align:right;">
-        <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;">Résultat du jour</p>
-        <p style="margin:6px 0 0;font-size:20px;font-weight:600;">${escapeHtml(headline)}</p>
-      </div>
+    <div style="border-bottom:2px solid ${ACCENT};padding-bottom:14px;">
+      <p style="margin:0;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:${INK_SOFT};">${escapeHtml(closureIssuer(venue))} · Clôture quotidienne</p>
+      <h1 style="margin:6px 0 0;font-size:22px;font-weight:600;">${escapeHtml(venue.name)}</h1>
+      <p style="margin:4px 0 0;font-size:14px;color:${INK_SOFT};">${escapeHtml(fmtDateLong(date))}</p>
     </div>
 
     ${unfinalizedBanner}
     ${warningBanner}
-    ${revenueRow}
-    ${lossRow}
+    ${summaryBand}
     ${detailSection}
     ${categorySection}
     ${clientTypeSection}
@@ -603,43 +624,115 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
     ${paymentSection}
     ${clientPaymentSection}
 
-    <p style="margin-top:32px;font-size:11px;color:#9ca3af;text-align:center;">
+    <p style="margin-top:32px;font-size:11px;color:${INK_FAINT};text-align:center;">
       Rapport généré par ${escapeHtml(closureIssuer(venue))} · ${escapeHtml(new Date().toLocaleString("fr-FR"))}
     </p>
   </div>
 </body></html>`;
 }
 
-const cellBase = "padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#111827;";
-const cellHeader = "padding:8px 10px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;border-bottom:1px solid #e5e7eb;";
-const sectionTitle = "margin:24px 0 12px;font-size:14px;font-weight:600;color:#111827;text-transform:uppercase;letter-spacing:0.05em;";
+const INK = "#241E1B";
+const INK_SOFT = "#6E635C";
+const INK_FAINT = "#9A8F87";
+const LINE = "#E7DFD7";
+const LINE_SOFT = "#F0E9E2";
 
-function statCard(label: string, value: string, accent = "#111827"): string {
+const OK = "#3F6B4C";
+const INFO = "#3E5C7A";
+const CRIT = "#9B4238";
+const ACCENT = "#C4714A";
+
+/** Pastille de statut : la couleur code l'état, jamais la décoration. */
+const STATUS_TONES: Record<string, { fg: string }> = {
+  completed: { fg: OK },
+  confirmed: { fg: INFO },
+  pending: { fg: INFO },
+  cancelled: { fg: CRIT },
+  no_show: { fg: CRIT },
+  noshow: { fg: CRIT },
+  declined: { fg: CRIT },
+  expired: { fg: INK_SOFT },
+};
+
+function statusPill(status: string): string {
+  const tone = STATUS_TONES[status] ?? { fg: INK_SOFT };
+  const label = STATUS_LABELS[status] ?? status;
+  // Statut en couleur, sans pastille : html2canvas décale la boîte de fond des
+  // éléments en ligne, quelle que soit la technique (inline-block, hauteur
+  // forcée, table en ligne). La couleur du texte, elle, est toujours juste.
+  return `<span style="color:${tone.fg};font-weight:500;white-space:nowrap;">${escapeHtml(label)}</span>`;
+}
+
+const cellBase = `padding:8px 10px;border-bottom:1px solid ${LINE_SOFT};font-size:12px;color:${INK};`;
+const cellHeader = `padding:8px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:${INK_FAINT};border-bottom:1px solid ${LINE};`;
+const sectionTitle = `margin:26px 0 10px;font-size:13px;font-weight:600;color:${INK};`;
+
+/** Statistique secondaire du bandeau : séparée par un filet, jamais encadrée. */
+function bandStat(label: string, value: string, divider: boolean, tone?: string): string {
   return `
-    <div style="border:1px solid #e5e7eb;border-radius:10px;padding:14px;background:#ffffff;">
-      <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">${escapeHtml(label)}</p>
-      <p style="margin:8px 0 0;font-size:20px;font-weight:600;color:${accent};">${escapeHtml(value)}</p>
+    <div style="padding:0 18px;${divider ? `border-left:1px solid ${LINE};` : "padding-left:0;"}">
+      <p style="margin:0;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:${INK_FAINT};white-space:nowrap;">${escapeHtml(label)}</p>
+      <p style="margin:6px 0 0;font-size:17px;font-weight:600;color:${tone ?? INK};">${escapeHtml(value)}</p>
     </div>`;
 }
 
+/** Ajoute à chaque tranche sa part du total, pour la barre de proportion. */
+function withRevenueShare<T extends { revenue: number }>(buckets: T[]): Array<T & { share: number }> {
+  const total = buckets.reduce((sum, b) => sum + b.revenue, 0);
+  return buckets.map((b) => ({ ...b, share: total > 0 ? (b.revenue / total) * 100 : 0 }));
+}
 
-function sectionTable(title: string, headers: string[], rows: string[][]): string {
+interface BreakdownRow {
+  label: string;
+  count: number;
+  share: number;
+  amount: string;
+}
+
+/**
+ * Table de répartition : chaque ligne porte sa part en pourcentage, pour qu'un
+ * total se lise sans calcul. Volontairement sans jauge : le rapport part au
+ * lieu comme document de chiffres, la barre de proportion reste à l'écran.
+ */
+interface BreakdownTableOptions {
+  /** En-tête de la colonne de comptage. */
+  countHeader?: string;
+  /** Masque la colonne de part quand elle n'a pas de sens. */
+  hideShare?: boolean;
+}
+
+function breakdownTable(
+  title: string,
+  labelHeader: string,
+  rows: BreakdownRow[],
+  options: BreakdownTableOptions = {},
+): string {
   if (!rows.length) return "";
-  const head = headers
-    .map((h, i) => `<th style="${cellHeader}${i === headers.length - 1 ? ";text-align:right" : ""}">${escapeHtml(h)}</th>`)
-    .join("");
+  const { countHeader = "Prestations", hideShare = false } = options;
+  const shareHeader = hideShare ? "" : `<th style="${cellHeader};text-align:right;">Part</th>`;
   const body = rows
-    .map(
-      (cells) =>
-        `<tr>${cells
-          .map((c, i) => `<td style="${cellBase}${i === cells.length - 1 ? ";text-align:right" : ""}">${c}</td>`)
-          .join("")}</tr>`,
-    )
+    .map((r) => {
+      const shareCell = hideShare
+        ? ""
+        : `<td style="${cellBase};text-align:right;color:${INK_SOFT};width:70px;">${escapeHtml(fmtPercent(r.share))}</td>`;
+      return `
+        <tr>
+          <td style="${cellBase}">${escapeHtml(r.label)}</td>
+          <td style="${cellBase};text-align:right;width:90px;">${escapeHtml(String(r.count))}</td>
+          ${shareCell}
+          <td style="${cellBase};text-align:right;width:120px;">${r.amount}</td>
+        </tr>`;
+    })
     .join("");
   return `
     <h2 style="${sectionTitle}">${escapeHtml(title)}</h2>
     <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
-      <thead><tr style="background:#f9fafb;">${head}</tr></thead>
+      <thead><tr>
+        <th style="${cellHeader}">${escapeHtml(labelHeader)}</th>
+        <th style="${cellHeader};text-align:right;">${escapeHtml(countHeader)}</th>
+        ${shareHeader}
+        <th style="${cellHeader};text-align:right;">CA</th>
+      </tr></thead>
       <tbody>${body}</tbody>
     </table>`;
 }

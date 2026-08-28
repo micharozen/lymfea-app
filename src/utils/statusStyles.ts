@@ -213,6 +213,10 @@ export function getBookingStatusConfig(status: string): StatusConfig {
     "confirme": "confirmed",
     "créneau proposé": "alternative_proposed",
     "creneau propose": "alternative_proposed",
+    // La base porte les deux orthographes du no-show selon l'écrivain de la
+    // ligne ; la config n'en connaît qu'une.
+    "no_show": "noshow",
+    "no show": "noshow",
   };
 
   const key = (aliases[normalized] || (normalized as BookingStatus)) as BookingStatus;
