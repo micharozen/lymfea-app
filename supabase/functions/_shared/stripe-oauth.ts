@@ -119,6 +119,31 @@ export function buildAuthorizeUrl(state: string): string {
   return `${authorizeUrl}?${params.toString()}`;
 }
 
+/**
+ * `/v1/oauth/token` répond avec deux formes d'erreur selon le cas :
+ *   - OAuth historique : { error: "invalid_grant", error_description: "…" }
+ *   - erreur API standard : { error: { type, code, message } }
+ * La seconde produisait `[object Object]` comme message, ce qui masquait la
+ * cause réelle aussi bien dans les logs que dans la modale admin.
+ */
+function oauthErrorParts(
+  payload: Record<string, unknown>,
+  status: number,
+): [string, string | undefined] {
+  const raw = payload?.error;
+
+  if (raw !== null && typeof raw === "object") {
+    const apiError = raw as Record<string, unknown>;
+    const code = apiError.code ?? apiError.type ?? `http_${status}`;
+    return [String(code), apiError.message as string | undefined];
+  }
+
+  return [
+    raw ? String(raw) : `http_${status}`,
+    payload?.error_description as string | undefined,
+  ];
+}
+
 async function requestTokens(
   params: Record<string, string>,
 ): Promise<StripeOAuthTokens> {
@@ -134,10 +159,7 @@ async function requestTokens(
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new StripeOAuthError(
-      payload?.error ?? `http_${response.status}`,
-      payload?.error_description,
-    );
+    throw new StripeOAuthError(...oauthErrorParts(payload, response.status));
   }
 
   if (!payload.access_token || !payload.refresh_token) {
