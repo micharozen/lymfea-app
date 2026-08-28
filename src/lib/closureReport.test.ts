@@ -424,7 +424,128 @@ describe("détail des prestations", () => {
   it("groups on-site payments in the payment breakdown", () => {
     const labels = report.stats.byPaymentMethod.map((b) => b.label);
     expect(labels).toContain("À régler sur place");
-    expect(labels).toContain("Note de chambre");
+    expect(labels).toContain("Facturé en chambre");
+  });
+});
+
+describe("répartition par thérapeute — duo", () => {
+  const duo = (over: Partial<ClosureBooking> = {}) =>
+    makeBooking({
+      guest_count: 2,
+      therapist_id: "ther-1",
+      therapist_name: "Thérapeute Un",
+      therapists: [
+        { id: "ther-1", name: "Thérapeute Un" },
+        { id: "ther-2", name: "Thérapeute Deux" },
+      ],
+      duration: 75,
+      total_price: 380,
+      treatments: [
+        { name: "Bols tibétains", category: "Massage", duration: 75, therapist_id: "ther-1", price: 190 },
+        { name: "Bols tibétains", category: "Massage", duration: 75, therapist_id: "ther-2", price: 190 },
+      ],
+      ...over,
+    });
+
+  it("crédite chaque thérapeute de son propre soin (cas #1575)", () => {
+    const stats = computeClosureStats([duo()], venue, rates);
+
+    expect(stats.byTherapist).toHaveLength(2);
+    const un = stats.byTherapist.find((b) => b.key === "ther-1");
+    const deux = stats.byTherapist.find((b) => b.key === "ther-2");
+    expect(un).toMatchObject({ label: "Thérapeute Un", count: 1, revenue: 190 });
+    expect(deux).toMatchObject({ label: "Thérapeute Deux", count: 1, revenue: 190 });
+    // Le CA de la réservation reste intact.
+    expect(stats.totalRevenue).toBe(380);
+  });
+
+  it("répartit un duo partagé (un seul soin à deux) à parts égales", () => {
+    const stats = computeClosureStats(
+      [duo({ treatments: [{ name: "Massage", category: "Massage", duration: 75, price: 380 }] })],
+      venue,
+      rates,
+    );
+    expect(stats.byTherapist.map((b) => b.revenue).sort((a, b) => a - b)).toEqual([190, 190]);
+  });
+
+  it("retombe sur le thérapeute principal quand la résa n'a pas de roster", () => {
+    const stats = computeClosureStats([duo({ therapists: [] })], venue, rates);
+
+    expect(stats.byTherapist).toHaveLength(1);
+    expect(stats.byTherapist[0]).toMatchObject({ key: "ther-1", revenue: 380 });
+  });
+
+  it("garde la somme des CA par thérapeute égale au CA total", () => {
+    const stats = computeClosureStats(
+      [duo({ id: "b1" }), makeBooking({ id: "b2", total_price: 100 })],
+      venue,
+      rates,
+    );
+    const summed = stats.byTherapist.reduce((sum, b) => sum + b.revenue, 0);
+    expect(summed).toBeCloseTo(stats.totalRevenue, 2);
+    expect(stats.totalRevenue).toBe(480);
+  });
+
+  it("rémunère chaque thérapeute sur ses propres tarifs et sa propre durée", () => {
+    const stats = computeClosureStats([duo()], venue, rates);
+    // ther-1 rate_90=60 et ther-2 rate_90=50, chacun sur son leg de 75 min.
+    const un = stats.byTherapist.find((b) => b.key === "ther-1");
+    const deux = stats.byTherapist.find((b) => b.key === "ther-2");
+    expect(un?.earnings).toBeGreaterThan(0);
+    expect(deux?.earnings).toBeGreaterThan(0);
+    expect(un?.earnings).not.toBe(deux?.earnings);
+    expect(stats.totalTherapistShare).toBeCloseTo((un?.earnings ?? 0) + (deux?.earnings ?? 0), 5);
+  });
+
+  it("liste les deux intervenants dans le détail", () => {
+    const bookings = [duo()];
+    const html = renderClosureReportHtml(
+      { venue, date: "2026-05-11", stats: computeClosureStats(bookings, venue, rates), bookings },
+      { includeDetails: true },
+    );
+    expect(html).toContain("Thérapeute Un + Thérapeute Deux");
+  });
+
+  it("ne change rien à une réservation solo", () => {
+    const stats = computeClosureStats([makeBooking({ duration: 60 })], venue, rates);
+    expect(stats.byTherapist).toHaveLength(1);
+    expect(stats.byTherapist[0]).toMatchObject({ key: "ther-1", count: 1, revenue: 100 });
+    expect(stats.totalTherapistShare).toBeCloseTo(40, 2);
+  });
+});
+
+describe("libellés et mise en forme du rapport", () => {
+  const bookings = [makeBooking()];
+  const report = () => ({
+    venue,
+    date: "2026-05-11",
+    stats: computeClosureStats(bookings, venue, rates),
+    bookings,
+  });
+
+  it("nomme la carte « Nombre total de réservations »", () => {
+    const html = renderClosureReportHtml(report(), { includeDetails: false });
+    expect(html).toContain("Nombre total de réservations");
+    expect(html).not.toContain("Total bookings");
+  });
+
+  it("place le détail des prestations avant les répartitions", () => {
+    const html = renderClosureReportHtml(report(), { includeDetails: true });
+    expect(html.indexOf("Détail des prestations")).toBeLessThan(
+      html.indexOf("Par type de prestation"),
+    );
+  });
+
+  it("garde les répartitions quand le détail est masqué", () => {
+    const html = renderClosureReportHtml(report(), { includeDetails: false });
+    expect(html).toContain("Par type de prestation");
+    expect(html).not.toContain("Détail des prestations");
+  });
+
+  it("intitule la colonne « Prestations réalisées » dans la section thérapeute", () => {
+    expect(renderClosureReportHtml(report(), { includeDetails: false })).toContain(
+      "Prestations réalisées",
+    );
   });
 });
 
@@ -486,7 +607,7 @@ describe("croisement type de client × moyen de paiement", () => {
   it("groups completed bookings by client type and payment method", () => {
     expect(stats.byClientTypeAndPayment).toHaveLength(3);
     const hotelRoom = stats.byClientTypeAndPayment.find(
-      (b) => b.clientTypeKey === "hotel" && b.paymentLabel === "Note de chambre",
+      (b) => b.clientTypeKey === "hotel" && b.paymentLabel === "Facturé en chambre",
     );
     expect(hotelRoom).toMatchObject({ count: 2, revenue: 165 });
   });

@@ -2,9 +2,11 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
-import { getBaseEmailTemplate, getEmailHeader } from "../_shared/email-template.ts";
+import { renderClosureEmailHtml } from "../_shared/closureReportHtml.ts";
 import { computeTherapistEarnings, type TherapistRates } from "../_shared/therapistEarnings.ts";
 import { normalizeClientType, clientTypeLabel, type BookingClientType } from "../_shared/client-type.ts";
+import { splitBookingByTherapist, orderRoster } from "../_shared/closureTherapistSplit.ts";
+import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,12 +40,28 @@ interface RawBooking {
   therapist_id: string | null;
   therapist_name: string | null;
   duration: number | null;
+  guest_count: number | null;
   total_price: number | null;
+  is_out_of_hours: boolean | null;
   payment_method: string | null;
   payment_status: string | null;
   status: string;
   booking_treatments?: Array<{
-    treatment_menus: { name: string; category: string | null; duration: number | null } | null;
+    therapist_id: string | null;
+    is_addon: boolean | null;
+    price_override: number | null;
+    treatment_menus: {
+      name: string;
+      category: string | null;
+      duration: number | null;
+      price: number | null;
+    } | null;
+    treatment_variants: { duration: number | null; price: number | null } | null;
+  }> | null;
+  booking_therapists?: Array<{
+    therapist_id: string;
+    status: string | null;
+    assigned_at: string | null;
   }> | null;
 }
 
@@ -53,6 +71,7 @@ const STATUS_LABELS: Record<string, string> = {
   pending: "En attente",
   cancelled: "Annulée",
   no_show: "No show",
+  noshow: "No show",
   declined: "Refusée",
   expired: "Expirée",
 };
@@ -61,7 +80,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   card: "Carte — paiement en ligne",
   card_on_site: "Carte — sur place",
   cash: "Espèces",
-  room: "Note de chambre",
+  room: "Facturé en chambre",
   offert: "Offert",
   gift_amount: "Carte cadeau",
   voucher: "Payé par voucher",
@@ -74,7 +93,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 const PAYMENT_STATUS_FALLBACK_LABELS: Record<string, string> = {
   paid: "Payé",
   pending: "À régler sur place",
-  charged_to_room: "Note de chambre",
+  charged_to_room: "Facturé en chambre",
   pending_partner_billing: "Facturé au partenaire",
   offert: "Offert",
   refunded: "Remboursé",
@@ -129,11 +148,29 @@ function fmtDateLong(iso: string): string {
   });
 }
 
+/** Durée d'une ligne : la variante choisie prime sur la durée du soin au menu. */
+function lineDuration(bt: NonNullable<RawBooking["booking_treatments"]>[number]): number {
+  return bt.treatment_variants?.duration ?? bt.treatment_menus?.duration ?? 0;
+}
+
 function bookingDuration(booking: RawBooking): number {
   if (booking.duration && booking.duration > 0) return booking.duration;
-  return (booking.booking_treatments ?? []).reduce(
-    (sum, bt) => sum + (bt.treatment_menus?.duration ?? 0),
-    0,
+  return (booking.booking_treatments ?? []).reduce((sum, bt) => sum + lineDuration(bt), 0);
+}
+
+/** Intervenants de la réservation — un duo en compte deux. */
+function therapistNames(b: RawBooking, namesById: Record<string, string>): string {
+  const names = acceptedRoster(b)
+    .map((id) => namesById[id]?.trim())
+    .filter(Boolean);
+  if (names.length) return names.join(" + ");
+  return b.therapist_name?.trim() || "—";
+}
+
+/** Thérapeutes ayant accepté, dans un ordre positionnel reproductible. */
+function acceptedRoster(b: RawBooking): string[] {
+  return orderRoster(
+    (b.booking_therapists ?? []).filter((r) => r.status === "accepted"),
   );
 }
 
@@ -178,7 +215,9 @@ serve(async (req: Request): Promise<Response> => {
 
     const { data: venue, error: venueError } = await supabase
       .from("hotels")
-      .select("id, name, currency, venue_type, organizations ( name, commercial_name )")
+      .select(
+        "id, name, currency, venue_type, out_of_hours_surcharge_percent, organizations ( name, commercial_name )",
+      )
       .eq("id", hotel_id)
       .single();
 
@@ -195,16 +234,23 @@ serve(async (req: Request): Promise<Response> => {
         .from("bookings")
         .select(
           `id, booking_id, booking_date, booking_time, client_first_name, client_last_name,
-           client_type, room_number, therapist_id, therapist_name, duration,
-           total_price, payment_method, payment_status, status,
-           booking_treatments ( treatment_menus ( name, category, duration ) )`,
+           client_type, room_number, therapist_id, therapist_name, duration, guest_count,
+           total_price, is_out_of_hours, payment_method, payment_status, status,
+           booking_treatments (
+             therapist_id, is_addon, price_override,
+             treatment_menus ( name, category, duration, price ),
+             treatment_variants ( duration, price )
+           ),
+           booking_therapists ( therapist_id, status, assigned_at )`,
         )
         .eq("hotel_id", hotel_id)
         .eq("booking_date", report_date)
         .order("booking_time", { ascending: true }),
       supabase
         .from("therapist_venues")
-        .select("therapist_id, therapists ( id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150 )")
+        .select(
+          "therapist_id, therapists ( id, first_name, last_name, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150 )",
+        )
         .eq("hotel_id", hotel_id),
     ]);
 
@@ -218,10 +264,16 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const ratesMap: Record<string, TherapistRates | null> = {};
+    // Noms des thérapeutes du lieu : c'est la seule source pour nommer le binôme
+    // d'un duo (`bookings.therapist_name` ne connaît que le thérapeute principal,
+    // et `booking_therapists` n'a pas de FK vers `therapists` à embarquer).
+    const namesById: Record<string, string> = {};
     for (const row of ratesRes.data ?? []) {
       const t = (row as {
         therapists: {
           id: string;
+          first_name: string | null;
+          last_name: string | null;
           rate_45: number | null;
           rate_60: number | null;
           rate_75: number | null;
@@ -243,17 +295,20 @@ serve(async (req: Request): Promise<Response> => {
       };
       const empty = rates.rate_60 == null && rates.rate_75 == null && rates.rate_90 == null;
       ratesMap[t.id] = empty ? null : rates;
+      const fullName = `${t.first_name ?? ""} ${t.last_name ?? ""}`.trim();
+      if (fullName) namesById[t.id] = fullName;
     }
 
     // Émetteur affiché : l'organisation du lieu, repli sur la marque plateforme
     // quand le lieu n'est rattaché à aucune organisation.
     const org = (venue as { organizations: { name: string | null; commercial_name: string | null } | null })
       .organizations;
-    const issuer = org?.commercial_name?.trim() || org?.name?.trim() || brand.name;
+    const issuer = org?.commercial_name?.trim() || org?.name?.trim() || null;
 
     const bookings = (bookingsRes.data ?? []) as RawBooking[];
     const currency = (venue.currency as string) || "EUR";
     const money = (v: number) => fmtMoney(v, currency);
+    const venueSurchargePercent = Number(venue.out_of_hours_surcharge_percent) || 0;
     let completed = 0;
     let cancelled = 0;
     let noShow = 0;
@@ -275,7 +330,7 @@ serve(async (req: Request): Promise<Response> => {
     for (const b of bookings) {
       if (b.status === "completed") completed += 1;
       else if (b.status === "cancelled") cancelled += 1;
-      else if (b.status === "no_show") noShow += 1;
+      else if (b.status === "no_show" || b.status === "noshow") noShow += 1;
 
       const isUnfinalized = UNFINALIZED_STATUSES.includes(b.status);
       if (isUnfinalized) {
@@ -291,12 +346,24 @@ serve(async (req: Request): Promise<Response> => {
       const price = b.total_price ?? 0;
       totalRevenue += price;
 
-      const rates = b.therapist_id ? ratesMap[b.therapist_id] ?? null : null;
-      const duration = bookingDuration(b);
-      const earnings = b.therapist_id && duration > 0 ? computeTherapistEarnings(rates, duration) : null;
-      const therapistEarnings = earnings ?? 0;
-      const hasRates = earnings !== null;
-      if (b.therapist_id && !hasRates) bookingsWithoutTherapistRate += 1;
+      const surchargePercent = b.is_out_of_hours ? venueSurchargePercent : 0;
+
+      // Un duo est réparti entre ses thérapeutes : chacun est crédité de son
+      // propre soin et rémunéré sur ses propres tarifs. Un solo renvoie une part
+      // unique, strictement identique au calcul précédent.
+      const parts = splitBookingByTherapist({
+        lines: (b.booking_treatments ?? []).map((bt) => ({
+          therapist_id: bt.therapist_id,
+          duration: lineDuration(bt),
+          is_addon: bt.is_addon ?? false,
+          price: resolveTreatmentPrice(bt),
+        })),
+        orderedTherapistIds: acceptedRoster(b),
+        guestCount: b.guest_count ?? 1,
+        primaryTherapistId: b.therapist_id,
+        totalPrice: price,
+        bookingDuration: bookingDuration(b),
+      });
 
       const categoryName = b.booking_treatments?.[0]?.treatment_menus?.category ?? "Autres";
       const cat = categoryMap.get(categoryName) ?? { count: 0, revenue: 0 };
@@ -310,16 +377,39 @@ serve(async (req: Request): Promise<Response> => {
       ct.revenue += price;
       clientTypeMap.set(ctKey, ct);
 
-      const tName = b.therapist_name ?? "Non assigné";
-      const tKey = b.therapist_id ?? `name:${tName}`;
-      const tStat = therapistMap.get(tKey);
-      if (tStat) {
-        tStat.count += 1;
-        tStat.revenue += price;
-        tStat.earnings += therapistEarnings;
-        tStat.hasRates = tStat.hasRates && hasRates;
-      } else {
-        therapistMap.set(tKey, { name: tName, count: 1, revenue: price, earnings: therapistEarnings, hasRates });
+      for (const part of parts) {
+        const rates = part.therapistId ? ratesMap[part.therapistId] ?? null : null;
+        const earnings =
+          part.therapistId && part.duration > 0
+            ? computeTherapistEarnings(rates, part.duration, { surchargePercent })
+            : null;
+        const partEarnings = earnings ?? 0;
+        const hasRates = earnings !== null;
+        if (part.therapistId && !hasRates) bookingsWithoutTherapistRate += 1;
+
+        // Le nom du lieu prime ; le snapshot `therapist_name` de la réservation
+        // ne vaut que pour le thérapeute principal, jamais pour son binôme.
+        const tName =
+          (part.therapistId ? namesById[part.therapistId] : null) ||
+          (part.therapistId && part.therapistId === b.therapist_id ? b.therapist_name : null) ||
+          (part.therapistId ? null : b.therapist_name) ||
+          "Non assigné";
+        const tKey = part.therapistId ?? `name:${tName}`;
+        const tStat = therapistMap.get(tKey);
+        if (tStat) {
+          tStat.count += 1;
+          tStat.revenue += part.revenue;
+          tStat.earnings += partEarnings;
+          tStat.hasRates = tStat.hasRates && hasRates;
+        } else {
+          therapistMap.set(tKey, {
+            name: tName,
+            count: 1,
+            revenue: part.revenue,
+            earnings: partEarnings,
+            hasRates,
+          });
+        }
       }
 
       // Les règlements sur place n'ont pas de payment_method : on retombe sur le
@@ -343,199 +433,128 @@ serve(async (req: Request): Promise<Response> => {
       crossMap.set(crossKey, cStat);
     }
 
-    const headline = `${counted} prestation${counted > 1 ? "s" : ""} · ${money(totalRevenue)}`;
-
-    const revenueCards = [
-      [include_unfinalized ? "Prestations comptées" : "Prestations complétées", String(counted)],
-      ["Chiffre d'affaires", money(totalRevenue)],
-    ];
-
-    const lossCards = [
-      ["Annulées", String(cancelled)],
-      ["No show", String(noShow)],
-      ["Total bookings", String(bookings.length)],
-    ];
-
-    const renderCardsRow = (cards: string[][], bg = "#ffffff") =>
-      cards.length
-        ? `<tr><td style="padding:8px 30px 0;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-          <tr>
-            ${cards
-              .map(
-                ([label, value]) => `
-              <td style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;background:${bg};text-align:center;vertical-align:top;">
-                <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">${escapeHtml(label)}</p>
-                <p style="margin:6px 0 0;font-size:16px;font-weight:600;color:#111827;">${escapeHtml(value)}</p>
-              </td>`,
-              )
-              .join('<td width="8"></td>')}
-          </tr>
-        </table>
-      </td></tr>`
-        : "";
-
-    // Le destinataire doit savoir que des prestations non encore terminées sont
-    // comptées : sans cette mention, le CA n'est pas rapprochable de la base.
-    const unfinalizedBanner =
-      include_unfinalized && unfinalized > 0
-        ? `<tr><td style="padding:0 30px 12px;">
-          <p style="margin:0;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:13px;color:#1e40af;">
-            ℹ ${unfinalized} réservation${unfinalized > 1 ? "s" : ""} non encore finalisée${unfinalized > 1 ? "s" : ""} (${money(unfinalizedRevenue)}) ${unfinalized > 1 ? "sont comptées" : "est comptée"} dans ce rapport.
-          </p>
-        </td></tr>`
-        : "";
-
-    const warningBanner =
-      !hide_commissions && bookingsWithoutTherapistRate > 0
-        ? `<tr><td style="padding:0 30px 12px;">
-          <p style="margin:0;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:13px;color:#92400e;">
-            ⚠ ${bookingsWithoutTherapistRate} prestation${bookingsWithoutTherapistRate > 1 ? "s" : ""} sans tarif thérapeute défini — part thérapeute calculée à 0 sur ces lignes.
-          </p>
-        </td></tr>`
-        : "";
-
-    const buildTable = (title: string, headers: string[], rows: string[][]) => {
-      if (!rows.length) return "";
-      const head = headers
-        .map(
-          (h, i) =>
-            `<th style="padding:6px 10px;text-align:${i === headers.length - 1 ? "right" : "left"};font-size:11px;color:#6b7280;text-transform:uppercase;">${escapeHtml(h)}</th>`,
-        )
-        .join("");
-      const body = rows
-        .map(
-          (cells) =>
-            `<tr>${cells
-              .map(
-                (c, i) =>
-                  `<td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:13px;text-align:${i === cells.length - 1 ? "right" : "left"};${i === cells.length - 1 ? "font-weight:500;" : ""}">${c}</td>`,
-              )
-              .join("")}</tr>`,
-        )
-        .join("");
-      const heading = title
-        ? `<h3 style="margin:20px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">${escapeHtml(title)}</h3>`
-        : "";
-      return `${heading}
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-          <thead><tr style="background:#f9fafb;">${head}</tr></thead>
-          <tbody>${body}</tbody>
-        </table>`;
+    const money2 = (v: number) => money(v);
+    const withShare = <T extends { revenue: number }>(rows: T[]) => {
+      const total = rows.reduce((sum, r) => sum + r.revenue, 0);
+      return rows.map((r) => ({ ...r, share: total > 0 ? (r.revenue / total) * 100 : 0 }));
     };
 
-    const categoryRows = Array.from(categoryMap.entries())
-      .sort((a, b) => b[1].revenue - a[1].revenue)
-      .map(([name, v]) => [escapeHtml(name), String(v.count), money(v.revenue)]);
+    const categoryBuckets = withShare(
+      Array.from(categoryMap.entries())
+        .map(([name, v]) => ({ label: name, count: v.count, revenue: v.revenue }))
+        .sort((x, y) => y.revenue - x.revenue),
+    );
 
     const clientTypeTotal = Array.from(clientTypeMap.values()).reduce((sum, v) => sum + v.count, 0);
     const clientTypeBuckets = Array.from(clientTypeMap.entries())
-      .sort((a, b) => b[1].revenue - a[1].revenue)
+      .sort((x, y) => y[1].revenue - x[1].revenue)
       .map(([key, v]) => ({
-        key,
+        label: clientTypeLabel(key, "fr"),
         count: v.count,
         revenue: v.revenue,
-        sharePercent: clientTypeTotal ? (v.count / clientTypeTotal) * 100 : 0,
+        share: clientTypeTotal ? (v.count / clientTypeTotal) * 100 : 0,
       }));
-    const clientTypeRows = clientTypeBuckets.map((b) => [
-      escapeHtml(clientTypeLabel(b.key, "fr")),
-      String(b.count),
-      fmtPercent(b.sharePercent),
-      money(b.revenue),
-    ]);
 
-    const therapistRows = Array.from(therapistMap.values())
-      .sort((a, b) => b.revenue - a.revenue)
-      .map((t) => [escapeHtml(t.name), String(t.count), money(t.revenue)]);
+    const therapistBuckets = withShare(
+      Array.from(therapistMap.values())
+        .map((t) => ({ label: t.name, count: t.count, revenue: t.revenue }))
+        .sort((x, y) => y.revenue - x.revenue),
+    );
 
-    const paymentRows = Array.from(paymentMap.values())
-      .sort((a, b) => b.revenue - a.revenue)
-      .map((v) => [escapeHtml(v.label), String(v.count), money(v.revenue)]);
+    const paymentBuckets = withShare(
+      Array.from(paymentMap.values())
+        .map((v) => ({ label: v.label, count: v.count, revenue: v.revenue }))
+        .sort((x, y) => y.revenue - x.revenue),
+    );
 
-    const crossRows = Array.from(crossMap.values())
-      .sort(
-        (a, b) =>
-          a.clientTypeLabel.localeCompare(b.clientTypeLabel, "fr") || b.revenue - a.revenue,
-      )
-      .map((v) => [
-        escapeHtml(v.clientTypeLabel),
-        escapeHtml(v.paymentLabel),
-        String(v.count),
-        money(v.revenue),
-      ]);
+    const crossBuckets = withShare(
+      Array.from(crossMap.values())
+        .sort(
+          (x, y) =>
+            x.clientTypeLabel.localeCompare(y.clientTypeLabel, "fr") || y.revenue - x.revenue,
+        )
+        .map((v) => ({
+          label: `${v.clientTypeLabel} · ${v.paymentLabel}`,
+          count: v.count,
+          revenue: v.revenue,
+        })),
+    );
 
-    const sectionsHtml = `
-      <tr><td style="padding:20px 30px 0;">
-        ${buildTable("Par type de prestation", ["Catégorie", "Prestations", "CA"], categoryRows)}
-        ${buildTable("Par type de client", ["Type", "Prestations", "Part", "CA"], clientTypeRows)}
-        ${buildTable("Par thérapeute", ["Thérapeute", "Prestations", "CA"], therapistRows)}
-        ${buildTable("Par moyen de paiement", ["Moyen", "Nombre", "Montant"], paymentRows)}
-        ${buildTable("Type de client × moyen de paiement", ["Type de client", "Moyen de paiement", "Prestations", "CA"], crossRows)}
-      </td></tr>
-    `;
+    const toRows = (rows: Array<{ label: string; count: number; revenue: number; share: number }>) =>
+      rows.map((r) => ({ label: r.label, count: r.count, share: r.share, amount: money2(r.revenue) }));
 
-    let detailsHtml = "";
-    if (include_details && bookings.length) {
-      const detailRows = [...bookings]
-        .sort((a, b) => a.booking_time.localeCompare(b.booking_time))
-        .map((b) => {
-          const treatments =
-            b.booking_treatments?.map((bt) => bt.treatment_menus?.name).filter(Boolean).join(", ") || "—";
-          return `
-            <tr>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">#${b.booking_id}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(`${b.client_first_name} ${b.client_last_name}`)}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(roomNumberLabel(b))}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(treatments)}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(b.therapist_name ?? "—")}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;text-align:right;">${b.total_price != null ? money(b.total_price) : "—"}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(paymentLabel(b.payment_method, b.payment_status))}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(STATUS_LABELS[b.status] ?? b.status)}</td>
-            </tr>`;
-        })
-        .join("");
+    const detailRows = include_details
+      ? [...bookings]
+          .sort((x, y) => x.booking_time.localeCompare(y.booking_time))
+          .map((b) => ({
+            bookingId: b.booking_id,
+            time: (b.booking_time ?? "").slice(0, 5),
+            client: `${b.client_first_name} ${b.client_last_name}`,
+            room: roomNumberLabel(b),
+            treatments:
+              b.booking_treatments?.map((bt) => bt.treatment_menus?.name).filter(Boolean).join(", ") ||
+              "—",
+            therapist: therapistNames(b, namesById),
+            price: b.total_price != null ? money(b.total_price) : "—",
+            payment: paymentLabel(b.payment_method, b.payment_status),
+            status: b.status,
+            statusLabel: STATUS_LABELS[b.status] ?? b.status,
+          }))
+      : [];
 
-      detailsHtml = `
-        <tr><td style="padding:20px 30px 0;">
-          <h3 style="margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">Détail des prestations</h3>
-          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-            <thead><tr style="background:#f9fafb;">
-              <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">N°</th>
-              <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Client</th>
-              <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Chambre</th>
-              <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Prestation</th>
-              <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Thérapeute</th>
-              <th style="padding:6px 8px;text-align:right;font-size:10px;color:#6b7280;text-transform:uppercase;">Prix</th>
-              <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Paiement</th>
-              <th style="padding:6px 8px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;">Statut</th>
-            </tr></thead>
-            <tbody>${detailRows}</tbody>
-          </table>
-        </td></tr>
-      `;
-    }
+    const completionPercent = `${bookings.length > 0 ? Math.round((counted / bookings.length) * 100) : 0} %`;
 
-    const headerContent = `
-      ${getEmailHeader(`Clôture quotidienne`, headline, "#111827")}
-      <tr><td style="padding:0 30px;text-align:center;">
-        <p style="margin:0;font-size:16px;font-weight:600;color:#111827;">${escapeHtml(venue.name as string)}</p>
-        <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(issuer)} · ${escapeHtml(fmtDateLong(report_date))}</p>
-      </td></tr>
-      ${unfinalizedBanner}
-${warningBanner}
-      ${renderCardsRow(revenueCards)}
-      ${renderCardsRow(lossCards)}
-      ${sectionsHtml}
-      ${detailsHtml}
-    `;
+    const html = renderClosureEmailHtml({
+      venueName: venue.name as string,
+      issuer,
+      dateLabel: fmtDateLong(report_date),
+      totalRevenue: money(totalRevenue),
+      averageTicket: money(counted > 0 ? totalRevenue / counted : 0),
+      countedBookings: counted,
+      totalBookings: bookings.length,
+      cancelledBookings: cancelled,
+      noShowBookings: noShow,
+      completionPercent,
+      includedUnfinalized: Boolean(include_unfinalized) && unfinalized > 0,
+      unfinalizedCount: unfinalized,
+      unfinalizedRevenue: money(unfinalizedRevenue),
+      bookingsWithoutTherapistRate,
+      hideCommissions: Boolean(hide_commissions),
+      detail: detailRows,
+      sections: [
+        { title: "Par type de prestation", labelHeader: "Catégorie", rows: toRows(categoryBuckets) },
+        { title: "Par type de client", labelHeader: "Type", rows: toRows(clientTypeBuckets) },
+        {
+          title: "Par thérapeute",
+          labelHeader: "Thérapeute",
+          // « Prestations réalisées » : sur un duo chacun des deux en compte une,
+          // donc le total dépasse le nombre de réservations.
+          countHeader: "Prestations réalisées",
+          rows: toRows(therapistBuckets),
+          hideShare: true,
+        },
+        { title: "Par moyen de paiement", labelHeader: "Moyen", rows: toRows(paymentBuckets) },
+        {
+          title: "Type de client × moyen de paiement",
+          labelHeader: "Croisement",
+          rows: toRows(crossBuckets),
+        },
+      ],
+    });
 
-    const html = getBaseEmailTemplate(headerContent);
-
-    const subject = `[${issuer}] Clôture ${venue.name} — ${fmtDateLong(report_date)}`;
+    // Le sujet et le nom d'expéditeur ne nomment que le lieu et son organisation.
+    const subject = issuer
+      ? `[${issuer}] Clôture ${venue.name} — ${fmtDateLong(report_date)}`
+      : `Clôture ${venue.name} — ${fmtDateLong(report_date)}`;
+    const fromAddress =
+      brand.emails.from.transactional.match(/<([^>]+)>/)?.[1] ??
+      brand.emails.from.transactional;
+    const from = `${issuer ?? (venue.name as string)} <${fromAddress}>`;
 
     const result = await sendEmail({
       to: cleanRecipients,
       subject,
+      from,
       html,
     });
 
