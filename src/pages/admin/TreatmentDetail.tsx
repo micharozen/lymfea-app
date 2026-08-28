@@ -50,10 +50,13 @@ const createFormSchema = (t: TFunction) =>
     status: z.string().default("active"),
     sort_order: z.string().default("0"),
     is_bestseller: z.boolean().default(false),
+    // False = soin réservable uniquement en interne (masqué du flow client).
+    bookable_online: z.boolean().default(true),
     available_days: z.array(z.number().int().min(0).max(6)).default([]),
     is_addon: z.boolean().default(false),
     addon_ids: z.array(z.string().uuid()).default([]),
     // Amenity access treatments have no therapist, so no specialty is required.
+    is_amenity: z.boolean().default(false),
     amenity_id: z.string().uuid().nullable().default(null),
     specialty: z.string().default(""),
     variants: z
@@ -76,7 +79,15 @@ const createFormSchema = (t: TFunction) =>
     .superRefine((val, ctx) => {
       // Specialty and service_for are mandatory for real soins, but irrelevant
       // for amenity treatments (no therapist, no gender targeting).
-      if (!val.amenity_id) {
+      if (val.is_amenity) {
+        if (!val.amenity_id) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["amenity_id"],
+            message: i18n.t('admin:treatmentDetail.amenityRequired'),
+          });
+        }
+      } else {
         if (!val.specialty) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -129,7 +140,9 @@ export default function TreatmentDetail() {
     defaultValues: {
       name: "",
       slug: "",
+      name_en: "",
       description: "",
+      description_en: "",
       lead_time: "0",
       service_for: "",
       category: "",
@@ -137,9 +150,11 @@ export default function TreatmentDetail() {
       status: "active",
       sort_order: "0",
       is_bestseller: false,
+      bookable_online: true,
       available_days: [],
       is_addon: false,
       addon_ids: [],
+      is_amenity: false,
       amenity_id: null,
       specialty: "",
       variants: [
@@ -229,9 +244,11 @@ export default function TreatmentDetail() {
             status: treatment.status || "active",
             sort_order: treatment.sort_order?.toString() || "0",
             is_bestseller: treatment.is_bestseller || false,
+            bookable_online: treatment.bookable_online ?? true,
             available_days: (treatment as any).available_days ?? [],
             is_addon: treatment.is_addon ?? false,
             addon_ids: addonIds,
+            is_amenity: !!treatment.amenity_id,
             amenity_id: treatment.amenity_id ?? null,
             specialty: treatment.treatment_type || "",
             variants: variantsData,
@@ -265,6 +282,7 @@ export default function TreatmentDetail() {
       if (errors.hotel_id) missingFields.push(t("treatmentDetail.fieldVenue"));
       if (errors.category) missingFields.push(t("treatmentDetail.fieldCategory"));
       if (errors.service_for) missingFields.push(t("treatmentDetail.fieldServiceFor"));
+      if (errors.amenity_id) missingFields.push(t("treatmentDetail.fieldAmenity"));
       if (errors.variants) missingFields.push(t("treatmentDetail.fieldVariants"));
       toast.error(
         missingFields.length > 0
@@ -301,10 +319,11 @@ export default function TreatmentDetail() {
         sort_order: parseInt(values.sort_order),
         price_on_request: defaultVariant.price_on_request,
         is_bestseller: values.is_bestseller,
+        bookable_online: values.bookable_online,
         available_days: values.available_days.length > 0 ? values.available_days : null,
         is_addon: values.is_addon,
         treatment_type: values.specialty || null,
-        amenity_id: values.amenity_id || null,
+        amenity_id: values.is_amenity ? values.amenity_id : null,
       };
 
       // An add-on cannot itself have sub-add-ons — clear links if toggled on

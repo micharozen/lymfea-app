@@ -1,10 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+// Pinned to the same version as _shared/stripe-resolver.ts: the SupabaseClient
+// generics differ across 2.4x/2.5x, so passing a client built here to the
+// resolver only type-checks when both agree.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import {
   buildPaymentConfig,
   getPaymentProvider,
   type PaymentProviderType,
 } from "../_shared/payment-provider.ts";
+import { getStripeForVenue } from "../_shared/stripe-resolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,11 +58,60 @@ serve(async (req) => {
       );
     }
 
-    const rpcName =
-      provider === "stripe" ? "get_payment_stripe_secrets" : "get_payment_adyen_secrets";
-    const { data: secrets, error: secretsError } = await supabase.rpc(rpcName, {
-      p_hotel_id: hotelId,
-    });
+    // Stripe goes through the resolver so an OAuth venue gets its access token
+    // refreshed before we test it. A venue whose own credential is broken must
+    // report "failed", so both the resolver error and the source guard (a venue
+    // with no credential at all, which resolves to the platform key) end up as
+    // connected:false rather than bubbling up as a 500.
+    if (provider === "stripe") {
+      let result: { connected: boolean; error?: string };
+      let authMethod: string | null = null;
+
+      try {
+        const resolved = await getStripeForVenue(supabase, hotelId);
+        authMethod = resolved.authMethod;
+
+        if (resolved.source !== "venue") {
+          result = {
+            connected: false,
+            error: "No working Stripe credential for this venue",
+          };
+        } else {
+          await resolved.client.balance.retrieve();
+          result = { connected: true };
+        }
+      } catch (error) {
+        result = {
+          connected: false,
+          error: error instanceof Error ? error.message : "Unknown Stripe error",
+        };
+      }
+
+      console.log(
+        `[payment-test-connection] stripe auth=${authMethod ?? "none"} result=`,
+        result,
+      );
+
+      await supabase
+        .from("hotel_payment_configs")
+        .update({
+          connection_status: result.connected ? "connected" : "failed",
+          connection_error: result.connected ? null : result.error ?? "Unknown error",
+          ...(result.connected ? { connection_verified_at: new Date().toISOString() } : {}),
+        })
+        .eq("hotel_id", hotelId);
+
+      return new Response(
+        JSON.stringify(result),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+      );
+    }
+
+    // Stripe returned above — only Adyen reaches this point.
+    const { data: secrets, error: secretsError } = await supabase.rpc(
+      "get_payment_adyen_secrets",
+      { p_hotel_id: hotelId },
+    );
 
     if (secretsError) {
       console.error("[payment-test-connection] Failed to read Vault secrets:", secretsError);
@@ -70,7 +123,7 @@ serve(async (req) => {
 
     const config = buildPaymentConfig(provider, paymentConfig, secrets as Record<string, any> | null);
     const client = getPaymentProvider(provider, config);
-    console.log("[payment-test-connection] Config:", config);
+    // Never log `config` — it carries the decrypted API key.
     const result = await client.testConnection();
 
     console.log("[payment-test-connection] Result:", result);

@@ -4,6 +4,31 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from 'vite-plugin-pwa';
 import brandConfig from './src/config/brand.json';
+import pkg from './package.json';
+
+// Identité de build. Railway expose RAILWAY_GIT_* au moment du build sans le
+// préfixe VITE_ ; `define` est évalué côté Node, le préfixe est donc sans objet.
+const APP_VERSION = pkg.version;
+const COMMIT_SHA =
+  (process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GITHUB_SHA || '').slice(0, 7) || 'dev';
+const BUILD_BRANCH = process.env.RAILWAY_GIT_BRANCH || process.env.GITHUB_REF_NAME || 'local';
+const BUILD_TIME = new Date().toISOString();
+
+// Expose l'identité du build dans index.html. useVersionCheck compare ce méta au
+// SHA compilé pour détecter un déploiement : l'ancienne heuristique reposait sur
+// un ETag que scripts/serve-prod.mjs ne pose jamais, donc elle ne se déclenchait
+// jamais.
+function appVersionMetaPlugin(): Plugin {
+  return {
+    name: 'app-version-meta',
+    transformIndexHtml(html: string) {
+      return html.replace(
+        /<head>/i,
+        `<head>\n    <meta name="app-version" content="${COMMIT_SHA}">`,
+      );
+    },
+  };
+}
 
 // Injects brand values into index.html at build time
 function brandPlugin(): Plugin {
@@ -95,6 +120,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     brandPlugin(),
     crossoriginPlugin(),
+    appVersionMetaPlugin(),
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
@@ -126,6 +152,12 @@ export default defineConfig(({ mode }) => ({
       }
     })
   ].filter((p): p is Plugin => p !== false), // Typage explicite pour éviter l'erreur d'overload
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+    __APP_COMMIT_SHA__: JSON.stringify(COMMIT_SHA),
+    __APP_BRANCH__: JSON.stringify(BUILD_BRANCH),
+    __APP_BUILD_TIME__: JSON.stringify(BUILD_TIME),
+  },
   resolve: {
     // Radix installe plusieurs copies de react-focus-scope (dialog en épingle une, popover
     // une autre). Chaque copie tient sa propre pile de scopes : le focus-trap d'une modale

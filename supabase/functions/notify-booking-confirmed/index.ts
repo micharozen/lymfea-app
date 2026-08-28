@@ -35,8 +35,29 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { bookingId } = await req.json();
-    console.log('[notify-booking-confirmed] Processing booking:', bookingId);
+    // `mode: 'resend'` = renvoi manuel déclenché par un admin depuis la fiche
+    // booking. On ne rejoue alors QUE la notification client (email et/ou SMS
+    // selon `channels`) : pas de push thérapeute, pas d'email admin/concierge,
+    // pas de Slack — l'équipe a déjà été notifiée au passage en `confirmed`.
+    const {
+      bookingId,
+      mode = 'auto',
+      channels,
+      language: languageOverride,
+      clientEmail: emailOverride,
+      clientPhone: phoneOverride,
+    } = await req.json() as {
+      bookingId: string;
+      mode?: 'auto' | 'resend';
+      channels?: { email?: boolean; sms?: boolean };
+      language?: 'fr' | 'en';
+      clientEmail?: string;
+      clientPhone?: string;
+    };
+    const isResend = mode === 'resend';
+    const wantsEmail = isResend ? channels?.email !== false : true;
+    const wantsSms = isResend ? channels?.sms === true : true;
+    console.log('[notify-booking-confirmed] Processing booking:', bookingId, { mode });
 
     const BOOKING_SELECT = `
         id,
@@ -110,7 +131,9 @@ serve(async (req) => {
         .eq('new_values->>action', 'email_sent')
         .eq('new_values->>email_type', 'booking_confirmed')
         .limit(1);
-      if (sentRows && sentRows.length > 0) {
+      // En renvoi manuel, le verrou anti-doublon ne s'applique pas : c'est
+      // justement un second envoi, demandé explicitement par un admin.
+      if (!isResend && sentRows && sentRows.length > 0) {
         console.log('[notify-booking-confirmed] Skipping — group confirmation already sent');
         return new Response(
           JSON.stringify({ success: true, skipped: 'group_already_sent' }),
@@ -199,6 +222,7 @@ serve(async (req) => {
     // Client language drives which confirmation template (FR/EN) is sent to the
     // client. Admin/concierge emails stay in French. The customer record wins,
     // the booking column is only a fallback (see _shared/client-language.ts).
+    let clientLanguage: 'fr' | 'en' = 'fr';
     let customerLanguage: string | null = null;
     let customerCivility: string | null = null;
     if ((booking as any).customer_id) {
@@ -211,7 +235,12 @@ serve(async (req) => {
       customerCivility = (customer as any)?.civility ?? null;
     }
     const bookingLanguage = (booking as any).language;
-    const clientLanguage = resolveClientLanguage(customerLanguage, bookingLanguage);
+    if (languageOverride === 'en' || languageOverride === 'fr') {
+      // Renvoi manuel : l'opérateur peut forcer la langue depuis la modale.
+      clientLanguage = languageOverride;
+    } else {
+      clientLanguage = resolveClientLanguage(customerLanguage, bookingLanguage);
+    }
     console.log('[notify-booking-confirmed] language resolution', {
       bookingId: booking.id,
       booking_language: bookingLanguage ?? null,
@@ -405,9 +434,12 @@ serve(async (req) => {
     // 3. Send to client (only once payment is engaged)
     const isGroup = !!groupSiblings && groupSiblings.length > 1;
     let clientEmailOk = false;
-    if (booking.client_email && isPaidEnough) {
+    // En renvoi manuel, l'opérateur peut corriger l'adresse depuis la modale
+    // (cas typique : première tentative sur une adresse erronée).
+    const clientEmailTarget: string = (isResend && emailOverride) || booking.client_email;
+    if (clientEmailTarget && isPaidEnough && wantsEmail) {
       const { error: emailError } = await sendEmail({
-        to: booking.client_email,
+        to: clientEmailTarget,
         subject: clientLanguage === 'en'
           ? `✅ Your ${isGroup ? 'treatments are' : 'treatment is'} confirmed · ${booking.hotel_name ?? ''}`
           : `✅ ${isGroup ? 'Vos soins sont confirmés' : 'Votre soin est confirmé'} · ${booking.hotel_name ?? ''}`,
@@ -418,23 +450,30 @@ serve(async (req) => {
       });
 
       if (emailError) {
-        errors.push(`client:${booking.client_email}`);
+        errors.push(`client:${clientEmailTarget}`);
       } else {
-        emailsSent.push(`client:${booking.client_email}`);
+        emailsSent.push(`client:${clientEmailTarget}`);
         clientEmailOk = true;
       }
     } else {
       console.log('[notify-booking-confirmed] Client confirmation email skipped', {
-        hasEmail: !!booking.client_email,
+        hasEmail: !!clientEmailTarget,
         isPaidEnough,
+        wantsEmail,
         payment_status: (booking as any).payment_status,
       });
     }
 
     // 3bis. Send SMS to client when booking transitions to confirmed
     // (therapist accepted). Même garde de paiement que l'email ci-dessus.
-    const clientPhone: string = (booking as any).phone ?? (booking as any).client_phone ?? '';
-    if (clientPhone && clientEmailOk && isPaidEnough) {
+    const clientPhone: string = (isResend && phoneOverride)
+      || (booking as any).phone
+      || (booking as any).client_phone
+      || '';
+    // En renvoi manuel, le SMS est indépendant de l'email : l'opérateur peut ne
+    // cocher que le SMS. En envoi automatique il reste conditionné à l'email.
+    let clientSmsOk = false;
+    if (clientPhone && isPaidEnough && wantsSms && (isResend || clientEmailOk)) {
       try {
         // Civilité : "Madame Dupont" si renseignée, sinon le prénom.
         const { greetingName: smsGreetingName } = clientGreeting(
@@ -459,6 +498,7 @@ serve(async (req) => {
         } else {
           console.log('[notify-booking-confirmed][sms] Confirmation SMS sent:', smsResult.sid);
           emailsSent.push(`sms:${clientPhone}`);
+          clientSmsOk = true;
         }
       } catch (smsErr) {
         console.error('[notify-booking-confirmed][sms] Confirmation SMS exception:', smsErr);
@@ -466,9 +506,26 @@ serve(async (req) => {
       }
     } else {
       console.log('[notify-booking-confirmed][sms] SMS skipped', {
-        hasPhone: !!clientPhone, clientEmailOk, isPaidEnough,
+        hasPhone: !!clientPhone, clientEmailOk, isPaidEnough, wantsSms,
         payment_status: (booking as any).payment_status,
       });
+    }
+
+    // Renvoi manuel : on s'arrête ici. Tout ce qui suit (push thérapeutes,
+    // emails admin/concierge, notifications bulk, Slack) concerne la première
+    // notification et ne doit pas être rejoué.
+    if (isResend) {
+      const success = (wantsEmail ? clientEmailOk : true) && (wantsSms ? clientSmsOk : true);
+      return new Response(
+        JSON.stringify({
+          success,
+          emailSent: clientEmailOk,
+          smsSent: clientSmsOk,
+          ...(isPaidEnough ? {} : { skipped: 'payment_not_engaged' }),
+          ...(errors.length ? { errors } : {}),
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // 4. Send push notification to all accepted therapists (primary + duo

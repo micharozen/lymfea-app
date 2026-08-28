@@ -268,7 +268,10 @@
     "logout": "Log out",
     "logoutConfirm": "Are you sure you want to log out?",
     "version": "Version",
-    "myTreatments": "Treatments performed"
+    "myTreatments": "Treatments performed",
+    "debugTitle": "Debug info",
+    "debugCopy": "Copy",
+    "debugDisable": "Disable debug"
   },
   "security": {
     "title": "Account Security",
@@ -448,7 +451,9 @@
     "scopeVenue": "Whole venue",
     "empty": "No bookings found",
     "editSchedule": "My availability",
-    "scheduleIncomplete": "Update your availability for the next 2 weeks"
+    "scheduleIncomplete": "Update your availability for the next 2 weeks",
+    "periodLabel": "Period shown: {{from}} → {{to}}",
+    "loadOlder": "Show older"
   },
   "statistics": {
     "title": "Statistics",

@@ -119,6 +119,11 @@ serve(async (req) => {
         .eq("hotel_id", hotelId)
         .maybeSingle();
 
+      // Nothing to tear down on the venue's Stripe account: OAuth venues never
+      // got a dedicated webhook endpoint (the app has a single shared one), and
+      // Stripe Apps offer no deauthorize call. Deleting the row below stops us
+      // from matching their incoming events; the venue revokes access for good
+      // by uninstalling the app from its own Dashboard.
       if (existing?.stripe_vault_secret_id) {
         await supabase.rpc("delete_payment_secret", {
           p_secret_id: existing.stripe_vault_secret_id,
@@ -179,7 +184,7 @@ serve(async (req) => {
           }
         }
 
-        const merged = {
+        const merged: Record<string, string | null> = {
           stripe_secret_key:
             secrets.stripe_secret_key !== undefined
               ? secrets.stripe_secret_key || null
@@ -189,6 +194,20 @@ serve(async (req) => {
               ? secrets.stripe_webhook_secret || null
               : existingPayload.stripe_webhook_secret ?? null,
         };
+
+        // Pasting a secret key means going (back) to BYOK: flip the auth method
+        // and drop any OAuth tokens, so the resolver can't silently keep using
+        // a connection the admin just replaced.
+        if (secrets.stripe_secret_key) {
+          updateRow.auth_method = "keys";
+          updateRow.oauth_expires_at = null;
+          updateRow.oauth_connected_at = null;
+          merged.stripe_access_token = null;
+          merged.stripe_refresh_token = null;
+        } else {
+          merged.stripe_access_token = existingPayload.stripe_access_token ?? null;
+          merged.stripe_refresh_token = existingPayload.stripe_refresh_token ?? null;
+        }
 
         const { data: secretId, error: vaultError } = await supabase.rpc(
           "upsert_payment_secret",

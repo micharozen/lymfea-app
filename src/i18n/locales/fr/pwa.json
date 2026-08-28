@@ -268,7 +268,10 @@
     "logout": "Se déconnecter",
     "logoutConfirm": "Êtes-vous sûr de vouloir vous déconnecter ?",
     "version": "Version",
-    "myTreatments": "Prestations réalisables"
+    "myTreatments": "Prestations réalisables",
+    "debugTitle": "Infos de debug",
+    "debugCopy": "Copier",
+    "debugDisable": "Désactiver le debug"
   },
   "security": {
     "title": "Sécurité du compte",
@@ -448,7 +451,9 @@
     "scopeVenue": "Tout le lieu",
     "empty": "Aucune réservation trouvée",
     "editSchedule": "Mes disponibilités",
-    "scheduleIncomplete": "Mettez à jour vos dispos pour les 2 prochaines semaines"
+    "scheduleIncomplete": "Mettez à jour vos dispos pour les 2 prochaines semaines",
+    "periodLabel": "Période affichée : {{from}} → {{to}}",
+    "loadOlder": "Voir plus ancien"
   },
   "statistics": {
     "title": "Statistiques",

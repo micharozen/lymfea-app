@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, Plus } from "lucide-react";
 import {
@@ -53,11 +53,24 @@ export function CategorySelectField({
     return true;
   });
 
+  // Ouvrir le dialogue pendant que le Select se ferme laisse un
+  // `pointer-events: none` orphelin sur le body (la page devient inutilisable) :
+  // on attend la fin de la fermeture avant de monter le dialogue.
+  const pendingCreateRef = useRef(false);
+
   const handleCreateClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    pendingCreateRef.current = true;
     setSelectOpen(false);
-    setDialogOpen(true);
+  };
+
+  const handleSelectCloseAutoFocus = (e: Event) => {
+    if (!pendingCreateRef.current) return;
+    pendingCreateRef.current = false;
+    // Le focus revient au dialogue, pas au trigger.
+    e.preventDefault();
+    requestAnimationFrame(() => setDialogOpen(true));
   };
 
   const handleCreated = (category: TreatmentCategory) => {
@@ -76,7 +89,7 @@ export function CategorySelectField({
         <SelectTrigger>
           <SelectValue placeholder={resolvedPlaceholder} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent onCloseAutoFocus={handleSelectCloseAutoFocus}>
           {isLoading ? (
             <div className="flex items-center justify-center py-2">
               <Loader2 className="h-4 w-4 animate-spin" />

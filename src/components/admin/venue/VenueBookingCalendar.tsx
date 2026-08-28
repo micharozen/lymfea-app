@@ -9,7 +9,6 @@ import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDia
 import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
-import { AmenityBookingDetailDialog } from "@/components/booking/AmenityBookingDetailDialog";
 
 import {
   useBookingData,
@@ -17,9 +16,7 @@ import {
   useCalendarLogic,
   useBookingSelection,
   useVenueAvailability,
-  useAmenityBookingData,
   type BookingWithTreatments,
-  type AmenityBookingForCalendar,
 } from "@/hooks/booking";
 
 import {
@@ -49,7 +46,6 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
   // Data
   const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();
   const { amenities: venueAmenities } = useVenueAmenities(hotelId);
-  const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({ hotelFilter: hotelId });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Calendar sidebar state
@@ -88,10 +84,6 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
-
-  // Amenity booking dialogs
-  const [isAmenityDetailOpen, setIsAmenityDetailOpen] = useState(false);
-  const [viewedAmenityBooking, setViewedAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
 
   // Day count with localStorage persistence (venue-specific key)
   const [dayCount, setDayCount] = useState<number>(() => {
@@ -201,11 +193,6 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
       setViewedBooking(booking);
       setIsDetailDialogOpen(true);
     }
-  };
-
-  const handleAmenityBookingClick = (booking: AmenityBookingForCalendar) => {
-    setViewedAmenityBooking(booking);
-    setIsAmenityDetailOpen(true);
   };
 
   const handleEditFromDetail = () => {
@@ -367,9 +354,7 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
                 daySummaries: availability.daySummaries,
                 hourAvailability: availability.hourAvailability,
               } : undefined}
-              amenityBookings={amenityBookings}
               visibleCalendars={visibleCalendars}
-              onAmenityBookingClick={handleAmenityBookingClick}
             />
           ) : (
             <BookingListView
@@ -436,11 +421,6 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
         />
       )}
 
-      <AmenityBookingDetailDialog
-        open={isAmenityDetailOpen}
-        onOpenChange={setIsAmenityDetailOpen}
-        booking={viewedAmenityBooking}
-      />
     </div>
   );
 }

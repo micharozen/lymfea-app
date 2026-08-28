@@ -2,6 +2,11 @@
 
 > Connecte votre **propre compte Stripe** à Eïa, pour que vos paiements clients soient encaissés sur votre compte et que leurs statuts se mettent à jour automatiquement dans Eïa.
 
+> **Il existe désormais plus simple.** Le bouton « Connecter Stripe » fait la même chose en
+> un clic, sans clé secrète à transmettre et avec le webhook créé automatiquement. Ce guide
+> reste valable pour les établissements déjà configurés ainsi, ou si la connexion en un clic
+> n'est pas disponible. Détails techniques : [STRIPE_APP_OAUTH_SETUP.md](./STRIPE_APP_OAUTH_SETUP.md).
+
 **Durée estimée :** 10 minutes
 **Prérequis :**
 - Un compte Stripe actif en mode **Live** ([dashboard.stripe.com](https://dashboard.stripe.com))

@@ -223,9 +223,6 @@ const Finance = () => {
       <Tabs defaultValue="closure" className="space-y-4">
         <TabsList>
           <TabsTrigger value="closure">{t('finance.page.tabClosure')}</TabsTrigger>
-          <TabsTrigger value="netting" disabled title="Bientôt disponible">🏨 Netting Hôtels</TabsTrigger>
-          <TabsTrigger value="ledger" disabled title="Bientôt disponible">📒 Grand Livre</TabsTrigger>
-          <TabsTrigger value="payouts" disabled title="Bientôt disponible">💆 Payouts Thérapeutes</TabsTrigger>
         </TabsList>
 
         {/* Daily Closure Tab */}

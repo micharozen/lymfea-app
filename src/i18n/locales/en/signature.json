@@ -1,0 +1,83 @@
+{
+  "unavailable": {
+    "title": "Document unavailable",
+    "text": "This link has expired or the form has already been completed and signed."
+  },
+  "success": {
+    "byBrand": "{{hotelName}} by Eïa",
+    "titleLine1": "Your experience",
+    "titleLine2": "begins",
+    "text": "Thank you for your trust. Your profile has been sent to your practitioner.",
+    "text2": "All that is left to do is let go and fully enjoy your moment of well-being."
+  },
+  "header": {
+    "subtitle": "Consent form"
+  },
+  "client": {
+    "name": "Last name, First name:",
+    "date": "Date:",
+    "roomNumber": "Room no.",
+    "roomNumberHint": "(Hotel guests only)"
+  },
+  "medical": {
+    "title": "Important information before your treatment:",
+    "intro": "So that we can offer you a safe experience, tailored to your needs and to how you feel today, please answer the following questions:",
+    "pregnant": "Are you currently pregnant?",
+    "heartIssues": "Do you have any cardiac, circulatory or respiratory history?",
+    "medicalTreatment": "Are you currently following a medical treatment?",
+    "chronicPain": "Do you have chronic pain, inflammation, injuries or recent surgery?",
+    "allergies": "Do you have any known allergies (oils, products, latex, etc.)?",
+    "recentSurgery": "Have you had surgery in the last 6 months:",
+    "ifYes": "If yes, please specify:"
+  },
+  "state": {
+    "title": "How are you feeling right now?:",
+    "emotional": "Emotional state",
+    "physical": "Overall physical state",
+    "mental": "Mental / psychological state",
+    "body": "Overall body sensation",
+    "tensions": "Localised tension",
+    "tensionsHint": "(e.g. face, jaw, trapezius...)"
+  },
+  "preferences": {
+    "title": "Preferred massage pressure:",
+    "question": "Which pressure do you prefer?",
+    "light": "Light",
+    "medium": "Medium",
+    "firm": "Firm",
+    "focusZones": "Which areas would you like us to pay particular attention to?",
+    "avoidZones": "Are there any areas you would rather we avoid?"
+  },
+  "billing": {
+    "title": "Billing clause",
+    "titleHint": "(Hotel guests only):",
+    "undersignedPrefix": "I, the undersigned",
+    "roomPrefix": "staying in room no.",
+    "authorize": "authorise the spa to charge the following amount to my room bill:",
+    "serviceType": "Type of service:",
+    "amount": "Amount:",
+    "confirm": "I confirm"
+  },
+  "consent": {
+    "title": "Informed consent:",
+    "text": "The client declares that the personal information provided, expressly requested in order to assess compatibility with the treatments given, is true. The client therefore releases {{hotelName}} and Eïa from any liability for any problem arising from the intentional or unintentional omission of information concerning any pathological, allergic, inflammatory or other condition that may compromise their state of health. {{hotelName}} and Eïa declare that they respect the client's confidentiality in accordance with the legislation in force and that they do not disclose the client's personal data to third parties, whether for profit or commercial purposes.",
+    "signatureLabel": "Client signature:",
+    "signatureHint": "Preceded by the words \"Read and approved\"",
+    "canvasPlaceholder": "Read and approved...",
+    "clear": "Start over"
+  },
+  "actions": {
+    "submit": "Submit the document"
+  },
+  "common": {
+    "yes": "Yes",
+    "no": "No",
+    "yesWithMedicalApproval": "Yes, with medical approval",
+    "defaultTreatment": "Bespoke treatment",
+    "priceToBeDefined": "To be defined"
+  },
+  "errors": {
+    "signRequired": "Please sign the document",
+    "saveFailed": "Error while saving"
+  }
+}

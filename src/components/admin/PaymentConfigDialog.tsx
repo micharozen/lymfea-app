@@ -29,9 +29,25 @@ import {
   FormMessage,
   FormDescription,
 } from "@/components/ui/form";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
-import { CreditCard, Loader2, CheckCircle2, XCircle, Plug, Copy } from "lucide-react";
+import {
+  CreditCard,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Plug,
+  Copy,
+  ChevronDown,
+  Link2,
+  Unlink,
+} from "lucide-react";
 
 const paymentConfigSchema = z
   .object({
@@ -69,6 +85,16 @@ const paymentConfigSchema = z
 
 type PaymentConfigFormValues = z.infer<typeof paymentConfigSchema>;
 
+/**
+ * OAuth connection to the venue's own Stripe account (Saoma Stripe App).
+ * `null` means the venue is on the legacy BYOK path (pasted secret key).
+ */
+interface StripeOAuthConnection {
+  accountId: string | null;
+  livemode: boolean | null;
+  connectedAt: string | null;
+}
+
 interface PaymentConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -96,6 +122,10 @@ export function PaymentConfigDialog({
   const [hasExistingStripeWebhook, setHasExistingStripeWebhook] = useState(false);
   const [hasExistingAdyenKey, setHasExistingAdyenKey] = useState(false);
   const [hasExistingAdyenHmac, setHasExistingAdyenHmac] = useState(false);
+  const [oauthConnection, setOauthConnection] =
+    useState<StripeOAuthConnection | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   const form = useForm<PaymentConfigFormValues>({
     resolver: zodResolver(paymentConfigSchema),
@@ -124,7 +154,11 @@ export function PaymentConfigDialog({
 
       const { data, error } = await supabase
         .from("hotel_payment_configs" as any)
-        .select("*")
+        .select(
+          "provider, stripe_publishable_key, stripe_account_id, stripe_vault_secret_id, " +
+            "auth_method, livemode, oauth_connected_at, " +
+            "adyen_merchant_account, adyen_environment, adyen_client_key, adyen_vault_secret_id",
+        )
         .eq("hotel_id", hotelId)
         .maybeSingle();
 
@@ -144,12 +178,23 @@ export function PaymentConfigDialog({
         });
         // Sensitive fields are stored in Vault; we never load them back into
         // the form. We only know whether a secret was previously configured.
+        const isOauth = config.auth_method === "oauth";
         const hasStripeVault = !!config.stripe_vault_secret_id;
         const hasAdyenVault = !!config.adyen_vault_secret_id;
-        setHasExistingStripeSecret(hasStripeVault);
-        setHasExistingStripeWebhook(hasStripeVault);
+        // In OAuth mode there is no pasted secret key to preserve.
+        setHasExistingStripeSecret(hasStripeVault && !isOauth);
+        setHasExistingStripeWebhook(hasStripeVault && !isOauth);
         setHasExistingAdyenKey(hasAdyenVault);
         setHasExistingAdyenHmac(hasAdyenVault);
+        setOauthConnection(
+          isOauth
+            ? {
+                accountId: config.stripe_account_id ?? null,
+                livemode: config.livemode ?? null,
+                connectedAt: config.oauth_connected_at ?? null,
+              }
+            : null,
+        );
       } else {
         form.reset({
           provider: "none",
@@ -167,6 +212,7 @@ export function PaymentConfigDialog({
         setHasExistingStripeWebhook(false);
         setHasExistingAdyenKey(false);
         setHasExistingAdyenHmac(false);
+        setOauthConnection(null);
       }
 
       setIsLoading(false);
@@ -174,6 +220,53 @@ export function PaymentConfigDialog({
 
     loadConfig();
   }, [open, hotelId]);
+
+  // Sends the admin to Stripe's consent screen. Stripe redirects back to
+  // /admin/stripe-oauth-callback, which finishes the exchange server-side.
+  const handleConnectStripe = async () => {
+    setIsConnecting(true);
+
+    const { data, error } = await invokeEdgeFunction<
+      { hotelId: string },
+      { url: string }
+    >("stripe-oauth-start", {
+      body: { hotelId },
+      logContext: { flow: "stripe-oauth", hotelId },
+    });
+
+    if (error || !data?.url) {
+      toast.error(error?.message || t("payment.oauthStartFailed"));
+      setIsConnecting(false);
+      return;
+    }
+
+    window.location.href = data.url;
+  };
+
+  const handleDisconnectStripe = async () => {
+    setIsDisconnecting(true);
+
+    const { error } = await invokeEdgeFunction<
+      { hotelId: string; provider: "none" },
+      { success: boolean }
+    >("payment-config-upsert", {
+      body: { hotelId, provider: "none" },
+      logContext: { flow: "stripe-oauth", hotelId },
+    });
+
+    if (error) {
+      toast.error(error.message || t("payment.oauthDisconnectFailed"));
+      setIsDisconnecting(false);
+      return;
+    }
+
+    setOauthConnection(null);
+    setTestResult(null);
+    form.setValue("provider", "none");
+    toast.success(t("payment.oauthDisconnected"));
+    onSaved?.();
+    setIsDisconnecting(false);
+  };
 
   const handleTestConnection = async () => {
     setIsTesting(true);
@@ -294,7 +387,9 @@ export function PaymentConfigDialog({
   };
 
   const stripeReady =
-    !!form.watch("stripe_secret_key") || hasExistingStripeSecret;
+    !!oauthConnection ||
+    !!form.watch("stripe_secret_key") ||
+    hasExistingStripeSecret;
   const adyenReady =
     (!!form.watch("adyen_api_key") || hasExistingAdyenKey) &&
     !!form.watch("adyen_merchant_account") &&
@@ -345,13 +440,95 @@ export function PaymentConfigDialog({
                 )}
               />
 
-              {provider === "stripe" && (
+              {provider === "stripe" && oauthConnection && (
                 <>
                   <Separator />
                   <div className="space-y-4">
-                    <h4 className="text-sm font-medium text-muted-foreground">
-                      {t("payment.stripeCredentials")}
-                    </h4>
+                    <div className="flex items-start justify-between gap-4 rounded-lg border border-green-200 bg-green-50 p-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-800">
+                            {t("payment.oauthConnectedTitle")}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {oauthConnection.livemode
+                              ? t("payment.oauthLive")
+                              : t("payment.oauthTest")}
+                          </Badge>
+                        </div>
+                        {oauthConnection.accountId && (
+                          <p className="font-mono text-xs text-green-700">
+                            {oauthConnection.accountId}
+                          </p>
+                        )}
+                        {oauthConnection.connectedAt && (
+                          <p className="text-xs text-green-700">
+                            {t("payment.oauthConnectedSince", {
+                              date: new Date(
+                                oauthConnection.connectedAt,
+                              ).toLocaleDateString(i18n.language),
+                            })}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDisconnectStripe}
+                        disabled={isDisconnecting}
+                      >
+                        {isDisconnecting ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Unlink className="h-4 w-4 mr-2" />
+                        )}
+                        {t("payment.oauthDisconnect")}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {provider === "stripe" && !oauthConnection && (
+                <>
+                  <Separator />
+                  <div className="space-y-4">
+                    <div className="rounded-lg border p-4 space-y-3">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-medium">
+                          {t("payment.oauthCtaTitle")}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          {t("payment.oauthCtaDesc")}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={handleConnectStripe}
+                        disabled={isConnecting}
+                        className="bg-foreground text-background hover:bg-foreground/90"
+                      >
+                        {isConnecting ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Link2 className="h-4 w-4 mr-2" />
+                        )}
+                        {t("payment.oauthConnect")}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Collapsible>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border px-4 py-3 text-sm text-muted-foreground hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
+                      {t("payment.manualConfig")}
+                      <ChevronDown className="h-4 w-4 transition-transform" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-4 pt-4">
+                    <p className="text-xs text-muted-foreground">
+                      {t("payment.manualConfigDesc")}
+                    </p>
 
                     <div className="grid gap-4 md:grid-cols-2">
                     <FormField
@@ -433,7 +610,8 @@ export function PaymentConfigDialog({
                     </div>
 
                     <StripeWebhookUrlField hotelId={hotelId} />
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </>
               )}
 

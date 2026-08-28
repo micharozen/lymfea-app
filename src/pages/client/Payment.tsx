@@ -22,6 +22,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { HoldBanner } from '@/components/client/HoldBanner';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
+import { redirectToCheckout } from '@/lib/stripeCheckoutUrl';
 import { buildMultiBookingItems, totalTreatmentCount } from '@/lib/multiTimeBooking';
 import { checkoutIntentFields } from '@/lib/client/checkoutIntentFields';
 import { languageFromCountryCode } from '@/lib/phone';
@@ -186,13 +187,8 @@ export default function Payment() {
         if (error) throw error;
 
         if (data?.url) {
-          const url = new URL(data.url);
-          const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-          if (url.protocol !== 'https:' || !trustedDomains.some(domain => url.hostname.endsWith(domain))) {
-            throw new Error('Invalid redirect URL');
-          }
           setPendingCheckoutSession(data.sessionId);
-          window.location.href = data.url;
+          redirectToCheckout(data.url);
         }
       } catch (error: unknown) {
         console.error('Bundle payment error:', error);
@@ -292,13 +288,8 @@ export default function Payment() {
           if (error) throw error;
 
           if (data?.url) {
-            const url = new URL(data.url);
-            const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-            if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
-              throw new Error('Invalid redirect URL');
-            }
             setPendingCheckoutSession(data.sessionId);
-            window.location.href = data.url;
+            redirectToCheckout(data.url);
           }
           return;
         }
@@ -395,13 +386,8 @@ export default function Payment() {
         if (error) throw error;
 
         if (data?.url) {
-          const url = new URL(data.url);
-          const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-          if (url.protocol !== 'https:' || !trustedDomains.some(domain => url.hostname.endsWith(domain))) {
-            throw new Error('Invalid redirect URL');
-          }
           setPendingCheckoutSession(data.sessionId);
-          window.location.href = data.url;
+          redirectToCheckout(data.url);
         }
       } else {
         // --- FLUX CHAMBRE / SUR PLACE (multi & solo) ---

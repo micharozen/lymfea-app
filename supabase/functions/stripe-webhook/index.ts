@@ -39,10 +39,16 @@ serve(async (req) => {
     return new Response("No signature", { status: 400 });
   }
 
-  // Per-venue webhook routing: each venue configures their endpoint URL with
-  // ?hotel_id=<uuid> in their Stripe Dashboard. We resolve the matching key +
-  // webhook secret from Vault. Bookings made on the platform's global Stripe
-  // account fall back to STRIPE_WEBHOOK_SECRET (legacy).
+  // Three ways an event can reach us, in order of specificity:
+  //
+  //   1. ?hotel_id=<uuid>  — BYOK venue: it created the endpoint itself in its
+  //      Dashboard, so key + signing secret both come from Vault.
+  //   2. Saoma Stripe App  — ONE endpoint for every venue that installed the
+  //      app, signed with STRIPE_APP_WEBHOOK_SECRET. The venue is identified by
+  //      `event.account` (acct_…), never by the URL. Stripe Apps cannot create
+  //      per-venue endpoints (webhook_write is disallowed), which is exactly why
+  //      routing moved into the payload.
+  //   3. Neither          — platform's own account, STRIPE_WEBHOOK_SECRET (legacy).
   const url = new URL(req.url);
   const hotelIdParam = url.searchParams.get("hotel_id");
 
@@ -51,35 +57,119 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
 
-  let stripe: Stripe;
-  let webhookSecret: string | null;
-  if (hotelIdParam) {
-    const resolved = await getStripeForVenue(supabase, hotelIdParam);
-    stripe = resolved.client;
-    webhookSecret = resolved.webhookSecret ?? Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? null;
-  } else {
-    stripe = getGlobalStripe().client;
-    webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? null;
-  }
-
-  if (!webhookSecret) {
-    console.error(`[STRIPE-WEBHOOK] No webhook secret for hotel_id=${hotelIdParam ?? "<none>"}`);
-    log.error("webhook.missing_secret", null, { hotelId: hotelIdParam });
-    await log.flush();
-    return new Response("Webhook secret not configured", { status: 400 });
-  }
-
   try {
     const body = await req.text();
 
-    const event = await stripe.webhooks.constructEventAsync(
-      body,
-      signature,
-      webhookSecret
+    let stripe: Stripe;
+    let event: Stripe.Event;
+    let hotelId: string | null = hotelIdParam;
+    let route: "venue-endpoint" | "app" | "platform";
+
+    if (hotelIdParam) {
+      const resolved = await getStripeForVenue(supabase, hotelIdParam);
+      const secret = resolved.webhookSecret ??
+        Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? null;
+      if (!secret) {
+        console.error(`[STRIPE-WEBHOOK] No webhook secret for hotel_id=${hotelIdParam}`);
+        log.error("webhook.missing_secret", null, { hotelId: hotelIdParam });
+        await log.flush();
+        return new Response("Webhook secret not configured", { status: 400 });
+      }
+      event = await resolved.client.webhooks.constructEventAsync(body, signature, secret);
+      stripe = resolved.client;
+      route = "venue-endpoint";
+    } else {
+      // Signature verification is pure crypto — any client instance will do.
+      const verifier = getGlobalStripe().client;
+      const candidates: Array<{ route: "app" | "platform"; secret: string | undefined }> = [
+        { route: "app", secret: Deno.env.get("STRIPE_APP_WEBHOOK_SECRET") },
+        { route: "platform", secret: Deno.env.get("STRIPE_WEBHOOK_SECRET") },
+      ];
+
+      let verified: { route: "app" | "platform"; event: Stripe.Event } | null = null;
+      for (const candidate of candidates) {
+        if (!candidate.secret) continue;
+        try {
+          verified = {
+            route: candidate.route,
+            event: await verifier.webhooks.constructEventAsync(
+              body,
+              signature,
+              candidate.secret,
+            ),
+          };
+          break;
+        } catch {
+          // Wrong secret for this event — try the next one.
+        }
+      }
+
+      if (!verified) {
+        console.error("[STRIPE-WEBHOOK] Signature matched no configured secret");
+        log.error("webhook.signature_unmatched", null, {});
+        await log.flush();
+        return new Response("Invalid signature", { status: 400 });
+      }
+
+      event = verified.event;
+      route = verified.route;
+
+      if (route === "app") {
+        const account = event.account;
+        if (!account) {
+          console.warn("[STRIPE-WEBHOOK] App event without account — ignoring");
+          await log.flush();
+          return new Response(JSON.stringify({ received: true }), { status: 200 });
+        }
+
+        const { data: cfg } = await supabase
+          .from("hotel_payment_configs")
+          .select("hotel_id")
+          .eq("stripe_account_id", account)
+          .maybeSingle();
+
+        if (!cfg?.hotel_id) {
+          // Not a venue we know (uninstalled, or another platform's account).
+          // 200 so Stripe stops retrying.
+          console.warn(`[STRIPE-WEBHOOK] No venue for account=${account} — ignoring`);
+          log.warn("webhook.unknown_account", { account });
+          await log.flush();
+          return new Response(JSON.stringify({ received: true }), { status: 200 });
+        }
+
+        hotelId = cfg.hotel_id;
+        stripe = (await getStripeForVenue(supabase, hotelId)).client;
+      } else {
+        stripe = verifier;
+      }
+    }
+
+    log.bind({ event_type: event.type, hotelId });
+    console.log(
+      `[STRIPE-WEBHOOK] Event: ${event.type} (route=${route} hotel=${hotelId ?? "platform"})`,
     );
 
-    log.bind({ event_type: event.type, hotelId: hotelIdParam });
-    console.log(`[STRIPE-WEBHOOK] Event: ${event.type} (hotel=${hotelIdParam ?? "global"})`);
+    // The venue uninstalled the Saoma app: its tokens are dead. Drop the config
+    // so the resolver stops retrying and the UI shows it as disconnected.
+    if (event.type === "account.application.deauthorized" && hotelId) {
+      const { data: existing } = await supabase
+        .from("hotel_payment_configs")
+        .select("stripe_vault_secret_id")
+        .eq("hotel_id", hotelId)
+        .maybeSingle();
+
+      if (existing?.stripe_vault_secret_id) {
+        await supabase.rpc("delete_payment_secret", {
+          p_secret_id: existing.stripe_vault_secret_id,
+        });
+      }
+      await supabase.from("hotel_payment_configs").delete().eq("hotel_id", hotelId);
+      await supabase.from("hotels").update({ payment_provider: null }).eq("id", hotelId);
+
+      console.log(`[STRIPE-WEBHOOK] hotel=${hotelId} uninstalled the app — config cleared`);
+      await log.flush();
+      return new Response(JSON.stringify({ received: true }), { status: 200 });
+    }
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;

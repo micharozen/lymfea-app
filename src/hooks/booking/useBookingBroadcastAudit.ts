@@ -9,6 +9,7 @@ export type BroadcastExclusionReason =
   | "declined"
   | "not_qualified"
   | "unavailable"
+  | "gender_mismatch"
   | "wave_pending";
 
 export interface BroadcastTherapist {
@@ -34,6 +35,8 @@ export interface BroadcastAuditRow {
 export interface BookingBroadcastAudit {
   notified: BroadcastAuditRow[];
   notReached: BroadcastAuditRow[];
+  /** Préférence de genre demandée sur la réservation, pour libeller "gender_mismatch". */
+  genderPreference: string | null;
   /** Dernier groupe de priorité sollicité, pour libeller "wave_pending". null = lieu sans groupes. */
   currentWave: number | null;
 }
@@ -66,14 +69,19 @@ export function useBookingBroadcastAudit({
     enabled: enabled && !!bookingId,
     staleTime: 30_000,
     queryFn: async (): Promise<BookingBroadcastAudit> => {
-      const empty: BookingBroadcastAudit = { notified: [], notReached: [], currentWave: null };
+      const empty: BookingBroadcastAudit = {
+        notified: [],
+        notReached: [],
+        genderPreference: null,
+        currentWave: null,
+      };
       if (!bookingId) return empty;
 
       // 0. Les colonnes du booking dont dépend le prédicat. Lues ici plutôt qu'ajoutées au
       // select partagé de useBookingData, qui alimente toutes les listes de réservations.
       const { data: booking, error: bookingError } = await supabase
         .from("bookings")
-        .select("hotel_id, booking_date, declined_by, broadcast_wave")
+        .select("hotel_id, booking_date, declined_by, therapist_gender_preference, broadcast_wave")
         .eq("id", bookingId)
         .single();
       if (bookingError) throw bookingError;
@@ -81,6 +89,7 @@ export function useBookingBroadcastAudit({
       const hotelId = booking?.hotel_id;
       const bookingDate = booking?.booking_date;
       const declinedBy = booking?.declined_by ?? [];
+      const genderPreference = booking?.therapist_gender_preference ?? null;
       const currentWave = booking?.broadcast_wave ?? null;
       if (!hotelId) return empty;
 
@@ -174,13 +183,22 @@ export function useBookingBroadcastAudit({
       const notified: BroadcastAuditRow[] = [];
       const notReached: BroadcastAuditRow[] = [];
 
-      venueTherapists.forEach((t) => {
+      // Passe 1 : les filtres évalués thérapeute par thérapeute, dans l'ordre de l'edge function.
+      type Evaluated = {
+        source: TherapistRow;
+        row: BroadcastAuditRow;
+        notifiedAt: string | null;
+      };
+      const evaluated: Evaluated[] = venueTherapists.map((t) => {
         const { user_id, ...therapist } = t;
         const notifiedAt = user_id ? sentAtByUserId.get(user_id) ?? null : null;
 
         if (notifiedAt) {
-          notified.push({ therapist, notifiedAt, exclusionReason: null, missingTreatments: [] });
-          return;
+          return {
+            source: t,
+            notifiedAt,
+            row: { therapist, notifiedAt, exclusionReason: null, missingTreatments: [] },
+          };
         }
 
         const owned = ownedByTherapist.get(t.id);
@@ -189,20 +207,51 @@ export function useBookingBroadcastAudit({
             ? requiredTreatmentIds.filter((id) => !owned.has(id)).map((id) => treatmentNames.get(id)!)
             : [];
 
-        // Ordre d'évaluation identique à l'edge function.
         let exclusionReason: BroadcastExclusionReason | null = null;
         if (!user_id) exclusionReason = "no_pwa_account";
         else if (!ACTIVE_STATUSES.includes((t.status || "").toLowerCase())) exclusionReason = "inactive";
         else if (declinedSet.has(t.id)) exclusionReason = "declined";
         else if (missingTreatments.length > 0) exclusionReason = "not_qualified";
         else if (blockedTherapistIds.has(t.id)) exclusionReason = "unavailable";
-        // Un praticien encore éligible mais rangé au-delà de la vague courante n'a pas été
-        // écarté, seulement pas encore sollicité — d'où un libellé distinct.
-        else if (currentWave !== null && (priorityByTherapist.get(t.id) ?? 1) > currentWave)
-          exclusionReason = "wave_pending";
 
-        notReached.push({ therapist, notifiedAt: null, exclusionReason, missingTreatments });
+        return {
+          source: t,
+          notifiedAt: null,
+          row: { therapist, notifiedAt: null, exclusionReason, missingTreatments },
+        };
       });
+
+      // Passe 2 : le filtre de genre, appliqué en dernier par l'edge function et sur le groupe
+      // entier — un praticien n'est écarté que si le groupe prioritaire n'est pas vide. Un `gender`
+      // non renseigné ne matche jamais la préférence : c'est le cas le plus fréquent ici.
+      const pref = genderPreference?.toLowerCase() ?? null;
+      if (pref) {
+        const survivors = evaluated.filter((e) => e.notifiedAt || e.row.exclusionReason === null);
+        const hasPriorityGroup = survivors.some(
+          (e) => (e.source.gender || "").toLowerCase() === pref,
+        );
+        if (hasPriorityGroup) {
+          survivors.forEach((e) => {
+            if (!e.notifiedAt && (e.source.gender || "").toLowerCase() !== pref) {
+              e.row.exclusionReason = "gender_mismatch";
+            }
+          });
+        }
+      }
+
+      // Passe 3 : les vagues de priorité, appliquées par l'edge function après le genre. Un
+      // praticien encore éligible mais rangé dans un groupe au-delà de la vague courante n'a
+      // pas été écarté, seulement pas encore sollicité — d'où un libellé distinct.
+      if (currentWave !== null) {
+        evaluated.forEach((e) => {
+          if (e.notifiedAt || e.row.exclusionReason !== null) return;
+          if ((priorityByTherapist.get(e.source.id) ?? 1) > currentWave) {
+            e.row.exclusionReason = "wave_pending";
+          }
+        });
+      }
+
+      evaluated.forEach((e) => (e.notifiedAt ? notified : notReached).push(e.row));
 
       notified.sort(
         (a, b) =>
@@ -211,7 +260,7 @@ export function useBookingBroadcastAudit({
       );
       notReached.sort((a, b) => a.therapist.first_name.localeCompare(b.therapist.first_name));
 
-      return { notified, notReached, currentWave };
+      return { notified, notReached, genderPreference, currentWave };
     },
   });
 }

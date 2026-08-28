@@ -226,39 +226,6 @@ export function BookingCalendarView({
   const showTreatments = !visibleCalendars || visibleCalendars["treatments"] !== false;
 
   /**
-   * Réservations de commodité sans booking : les seules encore dessinées comme
-   * cartes autonomes. Celles nées d'un booking (linked_booking_id) sont un simple
-   * registre de capacité — les dessiner doublerait la réservation sur le créneau.
-   */
-  const getAmenityBookingsForDay = (day: Date): AmenityBookingForCalendar[] => {
-    if (!amenityBookings) return [];
-    const dateStr = format(day, "yyyy-MM-dd");
-    return amenityBookings.filter((b) => {
-      if (b.linked_booking_id) return false;
-      if (b.booking_date !== dateStr) return false;
-      if (visibleCalendars && visibleCalendars[b.venue_amenity_id] === false) return false;
-      return true;
-    });
-  };
-
-  // Compute position for an amenity booking (same logic as treatment bookings)
-  const getAmenityPosition = (booking: AmenityBookingForCalendar): { top: number; height: number } => {
-    const [h, m] = booking.booking_time.split(":").map(Number);
-    const top = ((h - startHour) + m / 60) * hourHeight;
-    const height = Math.max(20, (booking.duration / 60) * hourHeight);
-    return { top, height };
-  };
-
-  const toAmenityLayoutItem = (booking: AmenityBookingForCalendar): CalendarLayoutItem => {
-    const [h, m] = booking.booking_time.split(":").map(Number);
-    return {
-      id: booking.id,
-      startMinutes: h * 60 + m,
-      duration: booking.duration > 0 ? booking.duration : 60,
-    };
-  };
-
-  /**
    * Le calendrier d'une réservation. Une commodité (piscine, sauna…) se réserve
    * comme un soin relié à un venue_amenity, et son amenity_booking lié n'est
    * qu'un registre de capacité : c'est la carte du booking qui la représente.
@@ -293,6 +260,34 @@ export function BookingCalendarView({
       calendarId: visible.amenity_id!,
       // Copie de travail : la carte occupe le créneau de l'accès, pas celui du panier.
       booking: amenityDuration > 0 ? { ...booking, totalDuration: amenityDuration } : booking,
+    };
+  };
+
+  /** Les commodités réservées sans booking derrière, pour le jour affiché. */
+  const getAmenityBookingsForDay = (day: Date): AmenityBookingForCalendar[] => {
+    if (!amenityBookings) return [];
+    const dateStr = format(day, "yyyy-MM-dd");
+    return amenityBookings.filter((b) => {
+      if (b.linked_booking_id) return false;
+      if (b.booking_date !== dateStr) return false;
+      if (visibleCalendars && visibleCalendars[b.venue_amenity_id] === false) return false;
+      return true;
+    });
+  };
+
+  const getAmenityPosition = (booking: AmenityBookingForCalendar): { top: number; height: number } => {
+    const [h, m] = booking.booking_time.split(":").map(Number);
+    const top = ((h - startHour) + m / 60) * hourHeight;
+    const height = Math.max(20, (booking.duration / 60) * hourHeight);
+    return { top, height };
+  };
+
+  const toAmenityLayoutItem = (booking: AmenityBookingForCalendar): CalendarLayoutItem => {
+    const [h, m] = booking.booking_time.split(":").map(Number);
+    return {
+      id: booking.id,
+      startMinutes: h * 60 + m,
+      duration: booking.duration > 0 ? booking.duration : 60,
     };
   };
 
@@ -349,17 +344,7 @@ export function BookingCalendarView({
       computeColumnLayout(items).forEach((slot, id) => layout.set(id, slot));
     }
 
-    // Une commodité autonome partage la bande de son équipement : son créneau
-    // doit compter dans les colonnes de cette bande, pas dans celles des soins.
-    const amenityLayout = new Map<string, CalendarLayoutSlot>();
-    for (const amenityId of amenityCalendarIds) {
-      const items = dayAmenities.filter((b) => b.venue_amenity_id === amenityId);
-      computeColumnLayout(items.map(toAmenityLayoutItem)).forEach((slot, id) =>
-        amenityLayout.set(id, slot),
-      );
-    }
-
-    return { placements, layout, dayAmenities, amenityLayout };
+    return { placements, layout, dayAmenities };
   };
 
   // Compute off-hours based on filtered venue or all venues
@@ -687,7 +672,7 @@ export function BookingCalendarView({
               {/* Day columns */}
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                const { placements, layout: dayLayout, dayAmenities, amenityLayout } = getDayLayout(day);
+                const { placements, layout: dayLayout, dayAmenities } = getDayLayout(day);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -755,26 +740,13 @@ export function BookingCalendarView({
                           key={ab.id}
                           booking={ab}
                           position={getAmenityPosition(ab)}
-                          layoutInfo={amenityLayout.get(ab.id)}
+                          layoutInfo={dayLayout.get(ab.id)}
                           band={bandOf(ab.venue_amenity_id)}
                           bandCount={bandCount}
                           onClick={onAmenityBookingClick}
                         />
                       ))}
                     </TooltipProvider>
-
-                    {/* Reservations de commodite sans booking associe */}
-                    {dayAmenities.map((ab) => (
-                      <AmenityBookingCard
-                        key={ab.id}
-                        booking={ab}
-                        position={getAmenityPosition(ab)}
-                        layoutInfo={dayLayout.get(ab.id)}
-                        band={bandOf(ab.venue_amenity_id)}
-                        bandCount={bandCount}
-                        onClick={onAmenityBookingClick}
-                      />
-                    ))}
 
                     {/* Current time indicator */}
                     {showIndicator && (
@@ -810,7 +782,7 @@ export function BookingCalendarView({
               {/* Day columns */}
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                const { placements, layout: dayLayout, dayAmenities, amenityLayout } = getDayLayout(day);
+                const { placements, layout: dayLayout, dayAmenities } = getDayLayout(day);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -876,26 +848,13 @@ export function BookingCalendarView({
                           key={ab.id}
                           booking={ab}
                           position={getAmenityPosition(ab)}
-                          layoutInfo={amenityLayout.get(ab.id)}
+                          layoutInfo={dayLayout.get(ab.id)}
                           band={bandOf(ab.venue_amenity_id)}
                           bandCount={bandCount}
                           onClick={onAmenityBookingClick}
                         />
                       ))}
                     </TooltipProvider>
-
-                    {/* Reservations de commodite sans booking associe */}
-                    {dayAmenities.map((ab) => (
-                      <AmenityBookingCard
-                        key={ab.id}
-                        booking={ab}
-                        position={getAmenityPosition(ab)}
-                        layoutInfo={dayLayout.get(ab.id)}
-                        band={bandOf(ab.venue_amenity_id)}
-                        bandCount={bandCount}
-                        onClick={onAmenityBookingClick}
-                      />
-                    ))}
 
                     {showIndicator && (
                       <div

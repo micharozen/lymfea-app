@@ -14,7 +14,7 @@ import {
   Calendar, Clock, Building2, MoreHorizontal, ChevronDown,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
-  FileText, CreditCard, ListTodo, Undo2, Radio
+  FileText, CreditCard, ListTodo, Undo2, Radio, MailCheck, AlertTriangle
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingTasksTab } from "@/components/admin/tasks/BookingTasksTab";
@@ -39,6 +39,8 @@ import {
 import { formatPrice } from "@/lib/formatPrice";
 import { getBookingStatusConfig, getBookingPaymentDisplay } from "@/utils/statusStyles";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { SendConfirmationDialog } from "@/components/booking/SendConfirmationDialog";
+import { useConfirmationEmailSent } from "@/hooks/booking/useConfirmationEmailSent";
 import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useBooking } from "@/hooks/booking/useBooking";
@@ -102,7 +104,9 @@ function useBookingDetailDialogs() {
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
   const [isConvertToDuoOpen, setIsConvertToDuoOpen] = useState(false);
+  const [isSendConfirmationOpen, setIsSendConfirmationOpen] = useState(false);
   return {
+    isSendConfirmationOpen, setIsSendConfirmationOpen,
     isEditOpen, setIsEditOpen,
     isPaymentLinkOpen, setIsPaymentLinkOpen,
     isMarkPaidOpen, setIsMarkPaidOpen,
@@ -146,6 +150,9 @@ export default function BookingDetail() {
 
   const { data: booking, isLoading, isFetched, refetch } = useBooking(id);
   const { data: therapists } = useActiveTherapists();
+  // Une confirmation déjà envoyée ? (audit_log — lecture admin uniquement)
+  const { data: confirmationStatus, refetch: refetchConfirmationStatus } =
+    useConfirmationEmailSent(id, isAdmin);
   const { data: hotels } = useCalendarHotels();
   const getHotelInfo = (hotelId: string | null) =>
     (hotelId && hotels?.find((h) => h.id === hotelId)) || null;
@@ -279,6 +286,16 @@ export default function BookingDetail() {
   const isRoomPayment = booking.payment_method === 'room' || booking.payment_status === 'charged_to_room';
   const isPartnerBilled = isPartnerBilledBooking(booking.payment_method, booking.payment_status);
   const isSigned = !!booking.signed_at;
+
+  // Renvoi manuel de l'email de confirmation : miroir de la garde paiement de
+  // `notify-booking-confirmed`. Tant que le paiement n'est pas engagé, l'email
+  // partira tout seul au moment de l'encaissement → action masquée.
+  const CONFIRMATION_PAID_STATUSES = ['paid', 'charged', 'charged_to_room', 'card_saved', 'pending_partner_billing', 'offert'];
+  const canSendConfirmation = !isConcierge
+    && booking.status === 'confirmed'
+    && CONFIRMATION_PAID_STATUSES.includes(booking.payment_status ?? '')
+    && (!!booking.client_email || !!booking.phone);
+  const confirmationAlreadySent = !!confirmationStatus?.alreadySent;
 
   const hotelInfo = getHotelInfo(booking.hotel_id);
   const currency = hotelInfo?.currency || 'EUR';
@@ -596,7 +613,7 @@ export default function BookingDetail() {
             >
               {t('common:buttons.edit')} <Pencil />
             </Button>
-            {(canConvertToDuo || (showInvoice && primaryAction !== "invoice") || (!isSigned && !isConcierge)) && (
+            {(canConvertToDuo || canSendConfirmation || (showInvoice && primaryAction !== "invoice") || (!isSigned && !isConcierge)) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="px-2">
@@ -608,6 +625,19 @@ export default function BookingDetail() {
                   {canConvertToDuo && (
                     <DropdownMenuItem onClick={() => dialogs.setIsConvertToDuoOpen(true)}>
                       <Users className="h-4 w-4 mr-2" /> {t("booking.convertToDuo.button")}
+                    </DropdownMenuItem>
+                  )}
+                  {canSendConfirmation && (
+                    <DropdownMenuItem
+                      onClick={() => dialogs.setIsSendConfirmationOpen(true)}
+                      title={confirmationAlreadySent && confirmationStatus?.lastSentAt
+                        ? t('bookingDetail.confirmationAlreadySent', { date: format(new Date(confirmationStatus.lastSentAt), t('bookingDetail.dateTimeFormat'), { locale: dateLocale }) })
+                        : undefined}
+                    >
+                      <MailCheck className="h-4 w-4 mr-2" /> {t('bookingDetail.sendConfirmation')}
+                      {confirmationAlreadySent && (
+                        <AlertTriangle className="h-3.5 w-3.5 ml-2 text-amber-500" />
+                      )}
                     </DropdownMenuItem>
                   )}
                   {!isSigned && !isConcierge && (
@@ -976,6 +1006,15 @@ export default function BookingDetail() {
         open={dialogs.isPaymentLinkOpen}
         onOpenChange={dialogs.setIsPaymentLinkOpen}
         booking={booking}
+      />
+
+      <SendConfirmationDialog
+        open={dialogs.isSendConfirmationOpen}
+        onOpenChange={dialogs.setIsSendConfirmationOpen}
+        booking={booking}
+        alreadySent={confirmationAlreadySent}
+        lastSentAt={confirmationStatus?.lastSentAt}
+        onSuccess={() => { refetchConfirmationStatus(); }}
       />
 
       <Dialog open={dialogs.isMarkPaidOpen} onOpenChange={dialogs.setIsMarkPaidOpen}>

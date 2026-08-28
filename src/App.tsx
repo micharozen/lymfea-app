@@ -42,6 +42,7 @@ const BookingsList = lazy(() => import("./pages/admin/BookingsList"));
 const Therapists = lazy(() => import("./pages/admin/Therapists"));
 const AdminHotels = lazy(() => import("./pages/admin/Hotels"));
 const VenueDetail = lazy(() => import("./pages/admin/VenueDetail"));
+const PaymentOAuthCallback = lazy(() => import("./pages/admin/PaymentOAuthCallback"));
 const MyVenue = lazy(() => import("./pages/admin/MyVenue"));
 const TherapistDetail = lazy(() => import("./pages/admin/TherapistDetail"));
 const AdminTreatments = lazy(() => import("./pages/admin/Treatments"));
@@ -400,7 +401,10 @@ const App = () => {
                 </TherapistProtectedRoute>
               }
             />
-            {/* PWA routes with TabBar */}
+            {/* PWA routes — toutes sous PwaLayout : une seule garde d'auth montée
+                pour toute la session (au lieu d'un TherapistProtectedRoute
+                remonté à chaque navigation, avec son écran blanc "Loading"), et
+                la tab bar visible partout sauf là où shouldShowTabBar la masque. */}
             <Route
               path="/pwa"
               element={
@@ -417,64 +421,16 @@ const App = () => {
               <Route path="hotels" element={<PwaHotels />} />
               <Route path="statistics" element={<PwaStatistics />} />
               <Route path="new-booking" element={<PwaNewBooking />} />
+              <Route path="profile" element={<PwaProfile />} />
+              <Route path="profile/notifications" element={<PwaNotifications standalone />} />
+              <Route path="profile/hotels" element={<PwaHotels standalone />} />
+              <Route path="account-security" element={<PwaAccountSecurity />} />
+              <Route path="schedule" element={<PwaSchedule />} />
+              <Route path="support" element={<PwaSupport />} />
+              <Route path="notification-test" element={<PwaNotificationTest />} />
+              {/* Sans ça, /pwa/nimporte-quoi rendait une page blanche. */}
+              <Route path="*" element={<Navigate to="/pwa/dashboard" replace />} />
             </Route>
-            {/* PWA routes without TabBar (still protected) */}
-            <Route
-              path="/pwa/profile"
-              element={
-                <TherapistProtectedRoute>
-                  <PwaProfile />
-                </TherapistProtectedRoute>
-              }
-            />
-            <Route
-              path="/pwa/profile/notifications"
-              element={
-                <TherapistProtectedRoute>
-                  <PwaNotifications standalone />
-                </TherapistProtectedRoute>
-              }
-            />
-            <Route
-              path="/pwa/profile/hotels"
-              element={
-                <TherapistProtectedRoute>
-                  <PwaHotels standalone />
-                </TherapistProtectedRoute>
-              }
-            />
-            <Route
-              path="/pwa/account-security"
-              element={
-                <TherapistProtectedRoute>
-                  <PwaAccountSecurity />
-                </TherapistProtectedRoute>
-              }
-            />
-            <Route
-              path="/pwa/schedule"
-              element={
-                <TherapistProtectedRoute>
-                  <PwaSchedule />
-                </TherapistProtectedRoute>
-              }
-            />
-            <Route
-              path="/pwa/support"
-              element={
-                <TherapistProtectedRoute>
-                  <PwaSupport />
-                </TherapistProtectedRoute>
-              }
-            />
-            <Route
-              path="/pwa/notification-test"
-              element={
-                <TherapistProtectedRoute>
-                  <PwaNotificationTest />
-                </TherapistProtectedRoute>
-              }
-            />
 
             {/* Admin PWA Public Routes */}
             <Route path="/admin-pwa/install" element={<AdminPwaInstall />} />
@@ -543,6 +499,9 @@ const App = () => {
                               <Route path="/places" element={<AdminHotels />} />
                               <Route path="/places/new" element={<VenueDetail />} />
                               <Route path="/places/:id" element={<VenueDetail />} />
+                              {/* Redirect target of a payment provider's OAuth consent screen.
+                                  For Stripe, must match saoma/stripe-app.json allowed_redirect_uris */}
+                              <Route path="/payment-oauth-callback/:provider" element={<PaymentOAuthCallback />} />
                               <Route path="/my-venue" element={<MyVenue />} />
                               <Route path="/treatments" element={<AdminTreatments />} />
                               <Route path="/treatments/new" element={<TreatmentDetail />} />

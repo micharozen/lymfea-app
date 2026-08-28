@@ -1,0 +1,83 @@
+{
+  "unavailable": {
+    "title": "Document indisponible",
+    "text": "Ce lien est expiré ou le formulaire a déjà été complété et signé."
+  },
+  "success": {
+    "byBrand": "{{hotelName}} by Eïa",
+    "titleLine1": "Votre expérience",
+    "titleLine2": "commence",
+    "text": "Nous vous remercions pour votre confiance. Votre profil a bien été transmis à votre praticien(ne).",
+    "text2": "Il ne vous reste plus qu'à lâcher prise et profiter pleinement de votre instant de bien-être."
+  },
+  "header": {
+    "subtitle": "Formulaire de consentement"
+  },
+  "client": {
+    "name": "Nom, Prénom :",
+    "date": "Date :",
+    "roomNumber": "N° Chambre",
+    "roomNumberHint": "(Si client de l'hôtel)"
+  },
+  "medical": {
+    "title": "Informations importantes avant le soin :",
+    "intro": "Afin de vous proposer une expérience sécurisée, adaptée à vos besoins et à votre état du moment, merci de bien vouloir répondre aux questions suivantes :",
+    "pregnant": "Êtes-vous actuellement enceinte ?",
+    "heartIssues": "Avez-vous des antécédents cardiaques, circulatoires ou respiratoires ?",
+    "medicalTreatment": "Suivez-vous un traitement médical en cours ?",
+    "chronicPain": "Présentez-vous des douleurs chroniques, inflammations, blessures ou opérations récentes ?",
+    "allergies": "Avez-vous des allergies connues (huiles, produits, latex, etc) ?",
+    "recentSurgery": "Avez-vous eu une intervention chirurgicale dans les 6 derniers mois :",
+    "ifYes": "Si oui, précisez :"
+  },
+  "state": {
+    "title": "Comment vous sentez-vous en ce moment ? :",
+    "emotional": "État émotionnel",
+    "physical": "État physique général",
+    "mental": "État mental / psychique",
+    "body": "Sensation corporelle globale",
+    "tensions": "Tensions localisées",
+    "tensionsHint": "(ex. visage, mâchoires, trapèzes...)"
+  },
+  "preferences": {
+    "title": "Intensité du massage souhaitée :",
+    "question": "Quelle intensité préférez-vous ?",
+    "light": "Léger",
+    "medium": "Moyen",
+    "firm": "Appuyé",
+    "focusZones": "Quelles sont les zones sur lesquelles vous souhaitez que l'on porte une attention particulière ?",
+    "avoidZones": "Y a-t-il des zones que vous préférez que l'on évite ?"
+  },
+  "billing": {
+    "title": "Clause de facturation",
+    "titleHint": "(Clients de l'hôtel uniquement) :",
+    "undersignedPrefix": "Je soussigné(e)",
+    "roomPrefix": "occupant de la chambre n°",
+    "authorize": "autorise le spa à porter le montant suivant sur ma note de chambre :",
+    "serviceType": "Type de prestation :",
+    "amount": "Montant :",
+    "confirm": "Je confirme"
+  },
+  "consent": {
+    "title": "Consentement éclairé :",
+    "text": "Le client déclare que les données concernant ses informations personnelles, expressément demandées dans le but d'évaluer la compatibilité avec les soins fournis, sont vraies. Le client dégage donc {{hotelName}} et Eïa de toute responsabilité quant à tout problème découlant de l'omission intentionnelle ou non d'informations concernant tout état pathologique, allergique, inflammatoire ou autre, qui peut compromettre l'état de santé de ce dernier. {{hotelName}} et Eïa déclarent respecter les règles de confidentialité du client sur la base de la législation en vigueur et ne pas divulguer à des tiers les données à caractère personnel de ce dernier, que ce soit à des fins lucratives ou commerciales.",
+    "signatureLabel": "Signature du client :",
+    "signatureHint": "Précédée de la mention « Lu et approuvé »",
+    "canvasPlaceholder": "Lu et approuvé...",
+    "clear": "Recommencer"
+  },
+  "actions": {
+    "submit": "Soumettre le document"
+  },
+  "common": {
+    "yes": "Oui",
+    "no": "Non",
+    "yesWithMedicalApproval": "Oui, avec accord médical",
+    "defaultTreatment": "Soin sur mesure",
+    "priceToBeDefined": "À définir"
+  },
+  "errors": {
+    "signRequired": "Veuillez signer le document",
+    "saveFailed": "Erreur lors de la sauvegarde"
+  }
+}

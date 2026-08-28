@@ -318,14 +318,14 @@ export default function PwaSchedule() {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-background">
+    <div className="flex flex-1 min-h-0 flex-col bg-background">
       <PwaHeader
         title={t("schedule.title")}
         showBack
         backPath="/pwa/bookings"
       />
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 pb-24">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 pb-4">
         {scheduleCompleteness && (
           <ScheduleActionBanner
             completeness={scheduleCompleteness}
@@ -426,8 +426,11 @@ export default function PwaSchedule() {
         )}
       </div>
 
+      {/* Frère flex, plus `fixed` : la tab bar est désormais dans le flux et
+          masquerait un élément fixe en z-40. La safe area est portée par la
+          barre en dessous, plus besoin de la compenser ici. */}
       {scheduleCompleteness && scheduleCompleteness.status !== "complete" && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-[max(env(safe-area-inset-bottom),12px)]">
+        <div className="shrink-0 border-t border-border bg-background px-4 pb-3 pt-2">
           <Button
             className="w-full shadow-lg"
             onClick={() => {
