@@ -15,6 +15,7 @@ import { getBookingConfirmedHtml } from "../_shared/templates/booking-confirmed.
 import { getBookingPendingHtml } from "../_shared/templates/booking-pending.ts";
 import { buildBookingIcs } from "../_shared/ics.ts";
 import type { EmailAttachment } from "../_shared/send-email.ts";
+import { resolveClientLanguage } from "../_shared/client-language.ts";
 
 /** UTF-8-safe base64 (btoa alone breaks on accented chars in the .ics). */
 function toBase64Utf8(str: string): string {
@@ -495,15 +496,13 @@ serve(async (req) => {
         customer = customerRow ?? null;
       }
 
-      // Resolve the client communication language. The booking-level value is
-      // the operator's explicit per-booking choice (set at creation from the
-      // phone country code, but editable) and takes precedence over the
-      // customer's stored default.
+      // Resolve the client communication language: the customer record wins,
+      // the booking column is only a fallback (see _shared/client-language.ts).
       const bookingLanguage = (booking as any).language;
-      const resolvedLanguage: 'fr' | 'en' =
-        bookingLanguage === 'en' || bookingLanguage === 'fr'
-          ? bookingLanguage
-          : ((customer as any)?.language === 'en' ? 'en' : 'fr');
+      const resolvedLanguage = resolveClientLanguage(
+        (customer as any)?.language,
+        bookingLanguage,
+      );
       console.log('[trigger-new-booking-notifications] language resolution', {
         bookingId,
         booking_language: bookingLanguage ?? null,
