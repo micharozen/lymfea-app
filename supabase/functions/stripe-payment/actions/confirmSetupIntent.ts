@@ -710,6 +710,9 @@ export async function handleConfirmSetupIntent(
           phone: meta.phone,
           room_number: meta.roomNumber || null,
           client_note: meta.note || null,
+          // Le draft est créé avec language='fr' en dur : sans cette ligne la
+          // réservation garde 'fr' et le client reçoit ses e-mails en français.
+          language: resolveClientLanguage(meta),
           status: bookingStatus,
           source: "client",
           client_type: normalizeClientType(meta.clientType),

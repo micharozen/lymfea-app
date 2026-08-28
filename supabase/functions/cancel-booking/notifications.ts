@@ -16,7 +16,6 @@ import {
 import {
   type CancelLang,
   getCancelMessages,
-  resolveCancelLang,
   shouldSendCancellationSms,
 } from "./i18n.ts";
 
@@ -37,6 +36,8 @@ interface CancelNotificationContext {
   isPartnerBilled: boolean;
   isChargedToRoom: boolean;
   resolvedBookingId: string;
+  /** Langue client déjà résolue par index.ts (customer d'abord, booking en repli). */
+  clientLanguage: CancelLang;
 }
 
 export async function sendCancellationNotifications(ctx: CancelNotificationContext): Promise<void> {
@@ -54,6 +55,7 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
     isPartnerBilled,
     isChargedToRoom,
     resolvedBookingId,
+    clientLanguage,
   } = ctx;
 
   try {
@@ -65,7 +67,7 @@ export async function sendCancellationNotifications(ctx: CancelNotificationConte
     console.error("[cancel-booking] handle-booking-cancellation error:", e);
   }
 
-  const lang = resolveCancelLang(booking.language as string | null);
+  const lang = clientLanguage;
   const msg = getCancelMessages(lang);
   const dateLocale = lang === "en" ? "en-GB" : "fr-FR";
   const formattedDate = new Date(String(booking.booking_date)).toLocaleDateString(dateLocale, {

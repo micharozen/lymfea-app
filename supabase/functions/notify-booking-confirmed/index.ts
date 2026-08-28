@@ -8,6 +8,7 @@ import { buildConfirmedVars, clientGreeting, type EmailVenue } from "../_shared/
 import { getBookingConfirmedHtml, getBookingConfirmedAdminHtml } from "../_shared/templates/booking-confirmed.ts";
 import { buildBookingIcs } from "../_shared/ics.ts";
 import type { EmailAttachment } from "../_shared/send-email.ts";
+import { resolveClientLanguage } from "../_shared/client-language.ts";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -196,10 +197,8 @@ serve(async (req) => {
         .map((t) => ({ name: t.baseName, price: t.price, duration: t.duration, is_amenity: t.is_amenity }));
 
     // Client language drives which confirmation template (FR/EN) is sent to the
-    // client. Admin/concierge emails stay in French. The booking-level language
-    // (operator's explicit per-booking choice) takes precedence over the
-    // customer's stored default.
-    let clientLanguage: 'fr' | 'en' = 'fr';
+    // client. Admin/concierge emails stay in French. The customer record wins,
+    // the booking column is only a fallback (see _shared/client-language.ts).
     let customerLanguage: string | null = null;
     let customerCivility: string | null = null;
     if ((booking as any).customer_id) {
@@ -212,11 +211,7 @@ serve(async (req) => {
       customerCivility = (customer as any)?.civility ?? null;
     }
     const bookingLanguage = (booking as any).language;
-    if (bookingLanguage === 'en' || bookingLanguage === 'fr') {
-      clientLanguage = bookingLanguage;
-    } else if (customerLanguage === 'en') {
-      clientLanguage = 'en';
-    }
+    const clientLanguage = resolveClientLanguage(customerLanguage, bookingLanguage);
     console.log('[notify-booking-confirmed] language resolution', {
       bookingId: booking.id,
       booking_language: bookingLanguage ?? null,
