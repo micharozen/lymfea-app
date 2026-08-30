@@ -1,0 +1,162 @@
+name: Claude — corriger une issue
+
+# Déclenché quand tu poses le label `claude:fix` sur une issue (typiquement une issue
+# synchronisée depuis Asana par asana-sync.yml). Claude Code lit l'issue, code un
+# correctif, puis ouvre une PR en DRAFT liée à l'issue.
+#
+# Le label est un garde-fou volontaire : rien n'est codé sans ton feu vert.
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: claude-fix-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+env:
+  BASE_BRANCH: main
+
+jobs:
+  fix:
+    if: github.event.label.name == 'claude:fix'
+    name: Coder le correctif
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          # Un PAT permet à la PR draft de déclencher la CI ; avec le GITHUB_TOKEN par
+          # défaut, GitHub bloque l'enchaînement de workflows (protection anti-boucle).
+          token: ${{ secrets.AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Refuser si une branche existe déjà pour cette issue
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="auto/issue-${ISSUE_NUMBER}"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            gh issue comment "$ISSUE_NUMBER" \
+              --body "La branche \`$BRANCH\` existe déjà — je n'ouvre pas de doublon. Supprime-la (ou ferme la PR associée) puis repose le label pour relancer."
+            echo "Branche existante, arrêt." >&2
+            exit 1
+          fi
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      # Le titre et le corps de l'issue sont du contenu externe : ils transitent par des
+      # variables d'environnement et jamais par une interpolation ${{ }} dans le shell,
+      # sinon une issue piégée pourrait exécuter du code dans le runner.
+      - name: Construire le prompt
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          cat > /tmp/prompt.txt <<'PROMPT'
+          Tu corriges un bug remonté par l'équipe produit sur l'app Eïa (plateforme SaaS de gestion de spa).
+
+          Lis d'abord CLAUDE.md à la racine : il décrit l'architecture, le mapping de nommage
+          legacy (OOM → Eïa) et les conventions à respecter. Respecte-les strictement.
+
+          Méthode :
+          1. Localise la cause réelle dans le code avant de modifier quoi que ce soit.
+          2. Fais le changement le plus petit qui corrige le problème. Pas de refactor
+             opportuniste, pas d'amélioration du code adjacent.
+          3. Si le bug touche une chaîne visible, mets à jour les traductions FR *et* EN.
+          4. Ajoute un test seulement si le module en a déjà.
+          5. Vérifie avec `bun run lint` et `bunx tsc --noEmit`.
+
+          Si après investigation le rapport est trop vague pour agir, ou si la cause est
+          hors du code de ce dépôt, ne modifie aucun fichier : écris ton analyse dans
+          /tmp/claude-notes.md et arrête-toi. Ne devine pas.
+
+          Voici le rapport :
+
+          PROMPT
+
+          {
+            printf 'Issue #%s\n' "$ISSUE_NUMBER"
+            printf 'Titre : %s\n\n' "$ISSUE_TITLE"
+            printf '%s\n' "$ISSUE_BODY"
+          } >> /tmp/prompt.txt
+
+      - name: Lancer Claude Code
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude -p "$(cat /tmp/prompt.txt)" \
+            --max-turns 40 \
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(bun run lint),Bash(bun run test),Bash(bunx tsc --noEmit)"
+
+      - name: Vérifications
+        id: checks
+        run: |
+          bun run lint > /tmp/lint.log 2>&1 && LINT="✅" || LINT="❌"
+          bunx tsc --noEmit > /tmp/tsc.log 2>&1 && TSC="✅" || TSC="❌"
+          bun run test > /tmp/test.log 2>&1 && TEST="✅" || TEST="❌"
+          {
+            echo "lint=$LINT"
+            echo "tsc=$TSC"
+            echo "test=$TEST"
+          } >> "$GITHUB_OUTPUT"
+          echo "lint $LINT | tsc $TSC | test $TEST"
+
+      - name: Ouvrir la PR draft
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          LINT: ${{ steps.checks.outputs.lint }}
+          TSC: ${{ steps.checks.outputs.tsc }}
+          TEST: ${{ steps.checks.outputs.test }}
+        run: |
+          if git diff --quiet && git diff --staged --quiet; then
+            NOTES="Claude n'a modifié aucun fichier — le rapport est probablement trop vague, ou la cause est hors du dépôt."
+            if [ -f /tmp/claude-notes.md ]; then
+              NOTES="$NOTES"$'\n\n'"$(cat /tmp/claude-notes.md)"
+            fi
+            gh issue comment "$ISSUE_NUMBER" --body "$NOTES"
+            echo "Aucun changement, pas de PR."
+            exit 0
+          fi
+
+          BRANCH="auto/issue-${ISSUE_NUMBER}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "fix: ${ISSUE_TITLE}" -m "Closes #${ISSUE_NUMBER}"
+          git push -u origin "$BRANCH"
+
+          BODY=$(printf '## Contexte\n\nCorrectif proposé automatiquement pour #%s.\n\n## Vérifications\n\n- %s `bun run lint`\n- %s `bunx tsc --noEmit`\n- %s `bun run test`\n\n## À relire\n\nPR en **draft** : relis le diff avant de la passer en ready. Le correctif a été produit à partir du seul rapport de bug, sans reproduction manuelle.\n\nCloses #%s\n' \
+            "$ISSUE_NUMBER" "$LINT" "$TSC" "$TEST" "$ISSUE_NUMBER")
+
+          PR_URL=$(gh pr create \
+            --draft \
+            --title "fix: ${ISSUE_TITLE}" \
+            --body "$BODY" \
+            --base "$BASE_BRANCH" \
+            --head "$BRANCH")
+
+          gh issue comment "$ISSUE_NUMBER" --body "PR draft ouverte : $PR_URL"
+          echo "PR : $PR_URL"
