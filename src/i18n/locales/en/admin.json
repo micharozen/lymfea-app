@@ -473,7 +473,16 @@
     "therapist": "Therapist",
     "rateRequired": "Rate required",
     "rateMustBePositive": "The rate must be greater than 0",
-    "inviteResent": "Invitation resent successfully"
+    "inviteResent": "Invitation resent successfully",
+    "treatmentRates": {
+      "title": "Treatment-specific rates",
+      "description": "Rare case: a treatment that does not pay the same as the others. Without a specific scale, every treatment uses the duration-based scale from the General tab.",
+      "addTreatment": "Add a treatment…",
+      "removeTreatment": "Remove this treatment",
+      "noTreatments": "Select some treatments above first.",
+      "unknownTreatment": "Removed treatment",
+      "hint": "A treatment's scale fully replaces the default scale for that treatment. Every other treatment keeps using the default scale."
+    }
   },
   "treatments": {
     "title": "Treatment Menus",
@@ -3046,7 +3055,9 @@
     "incompleteRates": "Incomplete rates",
     "reassignTitle": "Reassign this treatment",
     "chooseTherapist": "Choose a therapist",
-    "amenityAccess": "Access / amenities"
+    "amenityAccess": "Access / amenities",
+    "treatmentRateBadge": "Specific rate",
+    "treatmentRateTitle": "This amount uses a treatment-specific scale set on the therapist's profile."
   },
   "createBookingFromRequest": {
     "missingFields": "Missing required fields",

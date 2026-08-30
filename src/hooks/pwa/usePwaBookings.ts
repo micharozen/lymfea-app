@@ -11,6 +11,7 @@ import {
 
 export interface PwaBookingTreatment {
   therapist_id?: string | null;
+  treatment_id?: string | null;
   is_addon?: boolean | null;
   /** Résolu côté client pour les duos : "Prénom N." du thérapeute affecté. */
   therapistShortName?: string | null;

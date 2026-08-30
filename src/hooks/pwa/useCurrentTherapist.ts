@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { TreatmentRateMap } from "@/lib/therapistEarnings";
 
 export interface CurrentTherapist {
   id: string;
@@ -17,6 +18,8 @@ export interface CurrentTherapist {
   rate_105: number | null;
   rate_120: number | null;
   rate_150: number | null;
+  treatment_rates: TreatmentRateMap | null;
+  treatment_rates_active: boolean | null;
 }
 
 export interface CurrentTherapistResult {
@@ -25,7 +28,7 @@ export interface CurrentTherapistResult {
 }
 
 const THERAPIST_COLUMNS =
-  "id, user_id, first_name, last_name, email, gender, status, password_set, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150";
+  "id, user_id, first_name, last_name, email, gender, status, password_set, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active";
 
 export const currentTherapistKey = ["pwa", "therapist", "me"] as const;
 

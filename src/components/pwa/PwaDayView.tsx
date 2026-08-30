@@ -5,13 +5,18 @@ import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Check, DoorOpen, User, Users } from "lucide-react";
 import { getCalendarFlowStage } from "@/utils/statusStyles";
 import { formatPrice } from "@/lib/formatPrice";
-import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
+import {
+  computeLegEarnings,
+  type TherapistRates,
+  type TreatmentRateMap,
+} from "@/lib/therapistEarnings";
 import { bookingSlotDuration } from "@/lib/therapistLegDuration";
 import { useLongPress } from "@/hooks/pwa/useLongPress";
 import { BookingPreviewPopover } from "@/components/pwa/BookingPreviewPopover";
 
 interface BookingTreatment {
   therapist_id?: string | null;
+  treatment_id?: string | null;
   is_addon?: boolean | null;
   therapistShortName?: string | null;
   treatment_menus: {
@@ -50,6 +55,8 @@ interface PwaDayViewProps {
   onSlotClick?: (date: string, time: string) => void;
   onAcceptBooking?: (booking: DayViewBooking) => void;
   therapistRates?: TherapistRates | null;
+  /** Barèmes par soin du thérapeute, null quand il les a désactivés. */
+  therapistTreatmentRates?: TreatmentRateMap | null;
   hideEarnings?: boolean;
 }
 
@@ -113,6 +120,7 @@ export function PwaDayView({
   onSlotClick,
   onAcceptBooking,
   therapistRates,
+  therapistTreatmentRates,
   hideEarnings,
 }: PwaDayViewProps) {
   const { t, i18n } = useTranslation("pwa");
@@ -235,12 +243,19 @@ export function PwaDayView({
 
     const totalEarnings = dayBookings.reduce((sum, b) => {
       const dur = calculateDuration(b);
-      const earned = computeTherapistEarnings(therapistRates ?? null, dur);
+      const lines = (b.booking_treatments ?? []).map((bt) => ({
+        treatment_id: bt.treatment_id ?? null,
+        duration: bt.treatment_menus?.duration ?? null,
+      }));
+      const earned = computeLegEarnings(therapistRates ?? null, therapistTreatmentRates ?? null, {
+        totalDuration: dur,
+        lines,
+      });
       return sum + (earned ?? 0);
     }, 0);
 
     return { count, hoursLabel, totalEarnings };
-  }, [dayBookings, therapistRates]);
+  }, [dayBookings, therapistRates, therapistTreatmentRates]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartRef.current = {

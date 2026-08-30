@@ -18,7 +18,12 @@ import PwaPageLoader from "@/components/pwa/PageLoader";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { useUser } from "@/contexts/UserContext";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
-import { myLegDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
+import {
+  myLegDuration,
+  myLegTreatments,
+  estimateTherapistShare,
+} from "@/lib/therapistLegDuration";
+import type { TreatmentRateMap } from "@/lib/therapistEarnings";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 // Aliasé : une variable locale s'appelle déjà effectivePaymentStatus plus bas.
 import { effectivePaymentStatus as toDisplayPaymentStatus } from "@/lib/clientTypePayment";
@@ -75,6 +80,8 @@ interface Booking {
   therapist_rate_75?: number | null;
   therapist_rate_60?: number | null;
   therapist_rate_90?: number | null;
+  /** Barèmes par soin du thérapeute connecté, null quand il les a désactivés. */
+  therapist_treatment_rates?: TreatmentRateMap | null;
   hotel_currency?: string;
   room_id?: string | null;
   room_name?: string | null;
@@ -280,16 +287,23 @@ const PwaBookingDetail = () => {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       let therapistRates = { rate_60: null as number | null, rate_75: null as number | null, rate_90: null as number | null };
       let myTherapistId: string | null = null;
+      let myTreatmentRates: TreatmentRateMap | null = null;
       if (authUser) {
         const { data: myT } = await supabase
           .from("therapists")
-          .select("id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
+          .select(
+            "id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+          )
           .eq("user_id", authUser.id)
           .single();
         if (myT) {
           myTherapistId = myT.id;
           if (isMountedRef.current) setMyTherapistId(myT.id);
           therapistRates = { rate_45: myT.rate_45, rate_60: myT.rate_60, rate_75: myT.rate_75, rate_90: myT.rate_90, rate_105: myT.rate_105, rate_120: myT.rate_120, rate_150: myT.rate_150 };
+          // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+          myTreatmentRates = myT.treatment_rates_active
+            ? ((myT.treatment_rates ?? null) as TreatmentRateMap | null)
+            : null;
         }
       }
 
@@ -325,6 +339,7 @@ const PwaBookingDetail = () => {
         therapist_rate_75: therapistRates.rate_75,
         therapist_rate_60: therapistRates.rate_60,
         therapist_rate_90: therapistRates.rate_90,
+        therapist_treatment_rates: myTreatmentRates,
         hotel_currency: hotelData?.currency || 'EUR',
         out_of_hours_surcharge_percent: hotelData?.out_of_hours_surcharge_percent ?? null,
         venue_type: hotelData?.venue_type || null,
@@ -691,27 +706,31 @@ const PwaBookingDetail = () => {
     // Duo: pay on my own leg — my soin plus the add-ons hanging off it. Stable link
     // (booking_treatments.therapist_id) when present, positional fallback otherwise.
     // Solo: the full booking duration.
+    const legLineInputs = treatments.map((t) => ({
+      therapist_id: t.therapist_id ?? null,
+      treatment_id: t.treatment_id ?? null,
+      duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? null,
+      is_addon: t.is_addon ?? false,
+    }));
     const legDuration = gc > 1
-      ? myLegDuration(
-          myTherapistId ?? "",
-          treatments.map((t) => ({
-            therapist_id: t.therapist_id ?? null,
-            duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? null,
-            is_addon: t.is_addon ?? false,
-          })),
-          orderedTherapistIds,
-          gc,
-        )
+      ? myLegDuration(myTherapistId ?? "", legLineInputs, orderedTherapistIds, gc)
       : totalDuration;
+    // Les lignes dont `legDuration` est la somme — un solo est payé sur tout.
+    const legLines =
+      gc > 1
+        ? myLegTreatments(myTherapistId ?? "", legLineInputs, orderedTherapistIds, gc)
+        : legLineInputs;
     return estimateTherapistShare({
       globalTherapistCommission: booking.global_therapist_commission,
       guestCount: gc,
       legDuration,
+      legLines,
       myRates: {
         rate_60: booking.therapist_rate_60 ?? null,
         rate_75: booking.therapist_rate_75 ?? null,
         rate_90: booking.therapist_rate_90 ?? null,
       },
+      myTreatmentRates: booking.therapist_treatment_rates ?? null,
       grossPrice,
       therapistCommissionPercent: booking.therapist_commission ?? null,
       surchargePercent,

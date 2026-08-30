@@ -3,7 +3,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 import { renderClosureEmailHtml } from "../_shared/closureReportHtml.ts";
-import { computeTherapistEarnings, type TherapistRates } from "../_shared/therapistEarnings.ts";
+import {
+  computeLegEarnings,
+  type TherapistRates,
+  type TreatmentRateMap,
+} from "../_shared/therapistEarnings.ts";
 import { normalizeClientType, clientTypeLabel, type BookingClientType } from "../_shared/client-type.ts";
 import { splitBookingByTherapist, orderRoster } from "../_shared/closureTherapistSplit.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
@@ -48,6 +52,7 @@ interface RawBooking {
   status: string;
   booking_treatments?: Array<{
     therapist_id: string | null;
+    treatment_id: string | null;
     is_addon: boolean | null;
     price_override: number | null;
     treatment_menus: {
@@ -237,7 +242,7 @@ serve(async (req: Request): Promise<Response> => {
            client_type, room_number, therapist_id, therapist_name, duration, guest_count,
            total_price, is_out_of_hours, payment_method, payment_status, status,
            booking_treatments (
-             therapist_id, is_addon, price_override,
+             therapist_id, treatment_id, is_addon, price_override,
              treatment_menus ( name, category, duration, price ),
              treatment_variants ( duration, price )
            ),
@@ -249,7 +254,7 @@ serve(async (req: Request): Promise<Response> => {
       supabase
         .from("therapist_venues")
         .select(
-          "therapist_id, therapists ( id, first_name, last_name, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150 )",
+          "therapist_id, therapists ( id, first_name, last_name, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active )",
         )
         .eq("hotel_id", hotel_id),
     ]);
@@ -264,6 +269,9 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const ratesMap: Record<string, TherapistRates | null> = {};
+    // Barèmes spécifiques par soin. Le flag est honoré ici : une map inactive
+    // n'atteint jamais le moteur de calcul.
+    const treatmentRatesMap: Record<string, TreatmentRateMap | null> = {};
     // Noms des thérapeutes du lieu : c'est la seule source pour nommer le binôme
     // d'un duo (`bookings.therapist_name` ne connaît que le thérapeute principal,
     // et `booking_therapists` n'a pas de FK vers `therapists` à embarquer).
@@ -281,6 +289,8 @@ serve(async (req: Request): Promise<Response> => {
           rate_105: number | null;
           rate_120: number | null;
           rate_150: number | null;
+          treatment_rates: TreatmentRateMap | null;
+          treatment_rates_active: boolean | null;
         } | null;
       }).therapists;
       if (!t) continue;
@@ -295,6 +305,7 @@ serve(async (req: Request): Promise<Response> => {
       };
       const empty = rates.rate_60 == null && rates.rate_75 == null && rates.rate_90 == null;
       ratesMap[t.id] = empty ? null : rates;
+      treatmentRatesMap[t.id] = t.treatment_rates_active ? t.treatment_rates ?? null : null;
       const fullName = `${t.first_name ?? ""} ${t.last_name ?? ""}`.trim();
       if (fullName) namesById[t.id] = fullName;
     }
@@ -357,6 +368,7 @@ serve(async (req: Request): Promise<Response> => {
           duration: lineDuration(bt),
           is_addon: bt.is_addon ?? false,
           price: resolveTreatmentPrice(bt),
+          treatment_id: bt.treatment_id ?? null,
         })),
         orderedTherapistIds: acceptedRoster(b),
         guestCount: b.guest_count ?? 1,
@@ -379,9 +391,17 @@ serve(async (req: Request): Promise<Response> => {
 
       for (const part of parts) {
         const rates = part.therapistId ? ratesMap[part.therapistId] ?? null : null;
+        const treatmentRates = part.therapistId
+          ? treatmentRatesMap[part.therapistId] ?? null
+          : null;
         const earnings =
           part.therapistId && part.duration > 0
-            ? computeTherapistEarnings(rates, part.duration, { surchargePercent })
+            ? computeLegEarnings(
+                rates,
+                treatmentRates,
+                { totalDuration: part.duration, lines: part.lines },
+                { surchargePercent },
+              )
             : null;
         const partEarnings = earnings ?? 0;
         const hasRates = earnings !== null;

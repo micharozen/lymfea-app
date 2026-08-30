@@ -2975,6 +2975,8 @@ export type Database = {
           status: string
           stripe_account_id: string | null
           stripe_onboarding_completed: boolean | null
+          treatment_rates: Json | null
+          treatment_rates_active: boolean | null
           updated_at: string
           user_id: string | null
         }
@@ -3006,6 +3008,8 @@ export type Database = {
           status?: string
           stripe_account_id?: string | null
           stripe_onboarding_completed?: boolean | null
+          treatment_rates?: Json | null
+          treatment_rates_active?: boolean | null
           updated_at?: string
           user_id?: string | null
         }
@@ -3037,6 +3041,8 @@ export type Database = {
           status?: string
           stripe_account_id?: string | null
           stripe_onboarding_completed?: boolean | null
+          treatment_rates?: Json | null
+          treatment_rates_active?: boolean | null
           updated_at?: string
           user_id?: string | null
         }

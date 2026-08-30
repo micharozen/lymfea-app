@@ -1,5 +1,5 @@
 import { brand } from "../../_shared/brand.ts";
-import { computeTherapistEarnings } from "../../_shared/therapistEarnings.ts";
+import { computeLegEarnings } from "../../_shared/therapistEarnings.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
 import type { ActionContext } from "../index.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -141,7 +141,9 @@ export async function handleFinalizePayment(
           rate_90,
           rate_105,
           rate_120,
-          rate_150
+          rate_150,
+          treatment_rates,
+          treatment_rates_active
         )
       `,
       )
@@ -177,14 +179,19 @@ export async function handleFinalizePayment(
     const tvaAmount = totalTTC - totalHT;
     const hotelCommission = totalHT * (hotelCommissionRate / 100);
 
-    const bookingDuration = (booking.booking_treatments || []).reduce(
-      (sum: number, bt: { treatment_menus?: { duration?: number } }) =>
-        sum + (bt.treatment_menus?.duration || 0),
+    const bookingLines = (booking.booking_treatments || []).map(
+      (bt: { treatment_id?: string | null; treatment_menus?: { duration?: number } }) => ({
+        treatment_id: bt.treatment_id ?? null,
+        duration: bt.treatment_menus?.duration || 0,
+      }),
+    );
+    const bookingDuration = bookingLines.reduce(
+      (sum: number, line: { duration: number }) => sum + line.duration,
       0,
     );
 
     const earned = therapist
-      ? computeTherapistEarnings(
+      ? computeLegEarnings(
           {
             rate_45: therapist.rate_45 ?? null,
             rate_60: therapist.rate_60 ?? null,
@@ -194,7 +201,9 @@ export async function handleFinalizePayment(
             rate_120: therapist.rate_120 ?? null,
             rate_150: therapist.rate_150 ?? null,
           },
-          bookingDuration,
+          // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+          therapist.treatment_rates_active ? therapist.treatment_rates ?? null : null,
+          { totalDuration: bookingDuration, lines: bookingLines },
         )
       : null;
 

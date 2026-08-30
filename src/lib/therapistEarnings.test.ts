@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { computeTherapistEarnings } from "./therapistEarnings";
+import {
+  computeTherapistEarnings,
+  computeLegEarnings,
+  computeLegEarningsDetailed,
+  type TreatmentRateMap,
+} from "./therapistEarnings";
 
 const rates = { rate_60: 30, rate_75: 45, rate_90: 60 };
 
@@ -67,5 +72,136 @@ describe("computeTherapistEarnings — extra duration brackets", () => {
     const legacy = { rate_60: 30, rate_75: 45, rate_90: 60 };
     // >90 extrapolates from rate_90: (60/90)*120 = 80
     expect(computeTherapistEarnings(legacy, 120)).toBe(80);
+  });
+});
+
+describe("computeLegEarnings — non-régression sans barème spécifique", () => {
+  // Toute jambe sans barème applicable doit valoir exactement l'ancien calcul :
+  // c'est ce qui garantit qu'aucun payout ni aucune facture existante ne bouge.
+  const cases: Array<[string, number, { surchargePercent?: number } | undefined]> = [
+    ["60 min sans majoration", 60, undefined],
+    ["60 min majoré à 20 %", 60, { surchargePercent: 20 }],
+    ["90 min majoré à 20 %", 90, { surchargePercent: 20 }],
+    ["135 min extrapolé", 135, undefined],
+    ["30 min au prorata", 30, undefined],
+  ];
+
+  for (const [label, duration, options] of cases) {
+    it(`vaut computeTherapistEarnings — ${label}`, () => {
+      const expected = computeTherapistEarnings(rates, duration, options);
+      expect(computeLegEarnings(rates, null, { totalDuration: duration }, options)).toBe(expected);
+      expect(computeLegEarnings(rates, {}, { totalDuration: duration, lines: [] }, options)).toBe(
+        expected,
+      );
+    });
+  }
+
+  it("ignore une map qui ne correspond à aucune ligne de la jambe", () => {
+    const map: TreatmentRateMap = { "autre-soin": { "60": 90 } };
+    const leg = { totalDuration: 60, lines: [{ treatment_id: "massage", duration: 60 }] };
+    expect(computeLegEarnings(rates, map, leg)).toBe(30);
+  });
+
+  it("ignore un barème dont tous les paliers sont vides ou nuls", () => {
+    const map: TreatmentRateMap = { manucure: { "60": 0 } };
+    const leg = { totalDuration: 60, lines: [{ treatment_id: "manucure", duration: 60 }] };
+    expect(computeLegEarnings(rates, map, leg)).toBe(30);
+  });
+
+  it("ignore la map quand le thérapeute a le flag désactivé (null passé à la lecture)", () => {
+    const leg = { totalDuration: 60, lines: [{ treatment_id: "manucure", duration: 60 }] };
+    expect(computeLegEarnings(rates, null, leg)).toBe(30);
+  });
+
+  it("ne signale pas de taux spécifique", () => {
+    const leg = { totalDuration: 60, lines: [{ treatment_id: "massage", duration: 60 }] };
+    expect(computeLegEarningsDetailed(rates, {}, leg).usedTreatmentRate).toBe(false);
+  });
+});
+
+describe("computeLegEarnings — barème spécifique par soin", () => {
+  const map: TreatmentRateMap = {
+    manucure: { "60": 20, "90": 26 },
+    reflexo: { "60": 50 },
+  };
+
+  it("paie la ligne surchargée à son propre barème, le défaut est ignoré", () => {
+    const leg = { totalDuration: 60, lines: [{ treatment_id: "manucure", duration: 60 }] };
+    expect(computeLegEarnings(rates, map, leg)).toBe(20);
+  });
+
+  it("signale l'usage d'un taux spécifique", () => {
+    const leg = { totalDuration: 60, lines: [{ treatment_id: "manucure", duration: 60 }] };
+    expect(computeLegEarningsDetailed(rates, map, leg).usedTreatmentRate).toBe(true);
+  });
+
+  it("interpole entre les paliers du soin, pas ceux du défaut", () => {
+    // manucure 60→20, 90→26, milieu 75 = 23 (le défaut donnerait 45)
+    const leg = { totalDuration: 75, lines: [{ treatment_id: "manucure", duration: 75 }] };
+    expect(computeLegEarnings(rates, map, leg)).toBe(23);
+  });
+
+  it("reste auto-suffisant avec un palier unique — prorata, sans retomber sur le défaut", () => {
+    // reflexo n'a que 60→50 : 90 min extrapole à (50/60)*90 = 75
+    const leg = { totalDuration: 90, lines: [{ treatment_id: "reflexo", duration: 90 }] };
+    expect(computeLegEarnings(rates, map, leg)).toBe(75);
+  });
+
+  it("mixte : la ligne surchargée sort du lot, le reste garde le barème par défaut", () => {
+    // manucure 60 = 20 ; l'add-on de 30 min repart sur le défaut au prorata
+    // ((30/60)*30 = 15) et NON sur le palier 90 du barème par défaut.
+    const leg = {
+      totalDuration: 90,
+      lines: [
+        { treatment_id: "manucure", duration: 60 },
+        { treatment_id: "gommage", duration: 30 },
+      ],
+    };
+    expect(computeLegEarnings(rates, map, leg)).toBe(35);
+    expect(computeTherapistEarnings(rates, 90)).toBe(60); // ce que valait l'ancien calcul
+  });
+
+  it("applique la majoration hors horaires au total combiné", () => {
+    const leg = {
+      totalDuration: 90,
+      lines: [
+        { treatment_id: "manucure", duration: 60 },
+        { treatment_id: "gommage", duration: 30 },
+      ],
+    };
+    expect(computeLegEarnings(rates, map, leg, { surchargePercent: 20 })).toBe(42);
+  });
+
+  it("paie sans barème par défaut quand toute la jambe est surchargée", () => {
+    const leg = { totalDuration: 60, lines: [{ treatment_id: "manucure", duration: 60 }] };
+    expect(computeLegEarnings(null, map, leg)).toBe(20);
+  });
+
+  it("renvoie null quand le reste non surchargé n'a pas de barème par défaut", () => {
+    const leg = {
+      totalDuration: 90,
+      lines: [
+        { treatment_id: "manucure", duration: 60 },
+        { treatment_id: "gommage", duration: 30 },
+      ],
+    };
+    expect(computeLegEarnings(null, map, leg)).toBeNull();
+  });
+
+  it("neutralise un totalDuration incohérent plutôt que de payer en négatif", () => {
+    // La clôture passe bookings.duration, qui peut être plus court que ses lignes.
+    const leg = { totalDuration: 30, lines: [{ treatment_id: "manucure", duration: 60 }] };
+    expect(computeLegEarnings(rates, map, leg)).toBe(20);
+  });
+
+  it("additionne plusieurs lignes surchargées", () => {
+    const leg = {
+      totalDuration: 120,
+      lines: [
+        { treatment_id: "manucure", duration: 60 },
+        { treatment_id: "reflexo", duration: 60 },
+      ],
+    };
+    expect(computeLegEarnings(rates, map, leg)).toBe(70);
   });
 });

@@ -11,7 +11,11 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/formatPrice";
-import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
+import {
+  computeLegEarningsDetailed,
+  type TherapistRates,
+  type TreatmentRateMap,
+} from "@/lib/therapistEarnings";
 import { getAmenityType } from "@/lib/amenityTypes";
 import { useReassignTreatmentTherapists, type LineAssignment } from "@/hooks/booking/useReassignTreatmentTherapists";
 import type { BookingTreatment } from "@/hooks/booking/useBookingData";
@@ -35,6 +39,8 @@ interface TreatmentsByTherapistProps {
   secondaryRoomName: string | null;
   currency: string;
   therapistRatesMap?: Record<string, TherapistRates>;
+  /** Barèmes par soin, par thérapeute. Une entrée nulle = aucun barème applicable. */
+  therapistTreatmentRatesMap?: Record<string, TreatmentRateMap | null>;
   /** true = commission % mode, false = fixed-rate mode, undefined = hide earnings. */
   globalTherapistCommission?: boolean;
   therapistCommission?: number;
@@ -59,6 +65,7 @@ interface TherapistGroup {
   room: string | null;
   lines: Array<{
     bookingTreatmentId: string;
+    treatmentId: string | null;
     name: string;
     duration: number | null;
     price: number | null;
@@ -66,6 +73,8 @@ interface TherapistGroup {
   totalDuration: number;
   totalAmount: number;
   earnings: number | null | undefined;
+  /** true quand un barème spécifique par soin est entré dans le calcul du gain. */
+  usedTreatmentRate: boolean;
 }
 
 /**
@@ -84,6 +93,7 @@ export function TreatmentsByTherapist({
   secondaryRoomName,
   currency,
   therapistRatesMap,
+  therapistTreatmentRatesMap,
   globalTherapistCommission,
   therapistCommission,
   surchargePercent = 0,
@@ -201,11 +211,13 @@ export function TreatmentsByTherapist({
           totalDuration: 0,
           totalAmount: 0,
           earnings: undefined,
+          usedTreatmentRate: false,
         });
       }
       const g = byId.get(therapistId)!;
       g.lines.push({
         bookingTreatmentId: t.bookingTreatmentId ?? "",
+        treatmentId: t.treatment_id ?? null,
         name: t.name,
         duration: t.duration,
         price: t.price,
@@ -223,15 +235,21 @@ export function TreatmentsByTherapist({
       } else if (globalTherapistCommission) {
         g.earnings = Math.round(g.totalAmount * ((therapistCommission ?? 70) / 100) * 100) / 100;
       } else {
-        g.earnings = computeTherapistEarnings(
+        const detailed = computeLegEarningsDetailed(
           therapistRatesMap?.[id] ?? null,
-          g.totalDuration,
+          therapistTreatmentRatesMap?.[id] ?? null,
+          {
+            totalDuration: g.totalDuration,
+            lines: g.lines.map((l) => ({ treatment_id: l.treatmentId, duration: l.duration })),
+          },
           { surchargePercent },
         );
+        g.earnings = detailed.amount;
+        g.usedTreatmentRate = detailed.usedTreatmentRate;
       }
       return g;
     });
-  }, [serviceTreatments, lineTherapistIds, nameById, roomName, secondaryRoomName, showEarnings, globalTherapistCommission, therapistCommission, therapistRatesMap, surchargePercent, translate]);
+  }, [serviceTreatments, lineTherapistIds, nameById, roomName, secondaryRoomName, showEarnings, globalTherapistCommission, therapistCommission, therapistRatesMap, therapistTreatmentRatesMap, surchargePercent, translate]);
 
   const startEdit = (lineId: string, currentTherapistId: string | null) => {
     setEditingLineId(lineId);
@@ -325,7 +343,19 @@ export function TreatmentsByTherapist({
                   <div className="text-right shrink-0">
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{translate("treatmentsByTherapist.earnings")}</p>
                     {group.earnings != null ? (
-                      <p className="text-sm font-medium text-amber-700 tabular-nums">{formatPrice(group.earnings, currency)}</p>
+                      <>
+                        <p className="text-sm font-medium text-amber-700 tabular-nums">{formatPrice(group.earnings, currency)}</p>
+                        {/* Sans ce repère, un montant qui s'écarte du barème habituel
+                            du thérapeute est inexplicable sans ouvrir sa fiche. */}
+                        {group.usedTreatmentRate && (
+                          <p
+                            className="text-[10px] text-muted-foreground"
+                            title={translate("treatmentsByTherapist.treatmentRateTitle")}
+                          >
+                            {translate("treatmentsByTherapist.treatmentRateBadge")}
+                          </p>
+                        )}
+                      </>
                     ) : group.therapistId ? (
                       <button
                         type="button"

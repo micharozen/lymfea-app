@@ -13,7 +13,7 @@ import {
 } from "@/utils/statusStyles";
 import PwaCalendarView from "@/components/pwa/PwaCalendarView";
 import PwaDayView, { DayViewBooking } from "@/components/pwa/PwaDayView";
-import type { TherapistRates } from "@/lib/therapistEarnings";
+import type { TherapistRates, TreatmentRateMap } from "@/lib/therapistEarnings";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { Button } from "@/components/ui/button";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
@@ -87,6 +87,12 @@ const PwaBookings = () => {
             rate_150: therapist.rate_150,
           }
         : null,
+    [therapist],
+  );
+
+  // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+  const therapistTreatmentRates: TreatmentRateMap | null = useMemo(
+    () => (therapist?.treatment_rates_active ? therapist.treatment_rates ?? null : null),
     [therapist],
   );
 
@@ -245,6 +251,7 @@ const PwaBookings = () => {
               onBookingClick={(booking) => navigate(`/pwa/booking/${booking.id}`)}
               onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
               therapistRates={venueMode ? null : therapistRates}
+              therapistTreatmentRates={venueMode ? null : therapistTreatmentRates}
               hideEarnings={venueMode}
             />
           </div>

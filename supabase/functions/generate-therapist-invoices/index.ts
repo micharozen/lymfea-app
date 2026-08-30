@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { brand } from "../_shared/brand.ts";
-import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
+import { computeLegEarnings, type TreatmentRateMap } from "../_shared/therapistEarnings.ts";
 import { myLegTreatments } from "../_shared/therapistLegDuration.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 import { getBaseEmailTemplate, getEmailHeader } from "../_shared/email-template.ts";
@@ -609,7 +609,7 @@ const generateForTherapistHotel = async (
   const endStr = periodEnd.toISOString().slice(0, 10);
 
   const bookingSelect =
-    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, guest_count, therapist_id, client_first_name, client_last_name, customers(first_name, last_name), booking_treatments(therapist_id, is_addon, treatment_menus(name, duration), treatment_variants(label, duration))";
+    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, guest_count, therapist_id, client_first_name, client_last_name, customers(first_name, last_name), booking_treatments(therapist_id, treatment_id, is_addon, treatment_menus(name, duration), treatment_variants(label, duration))";
   // Un no-show est facturé 100 % au client : le thérapeute s'est déplacé, il est
   // rémunéré comme pour un soin réalisé. Les deux orthographes du statut
   // coexistent en base (legacy `no_show`).
@@ -689,7 +689,9 @@ const generateForTherapistHotel = async (
   // Load therapist rates for fallback computation when no payout exists
   const { data: therapistRow } = await supabaseAdmin
     .from("therapists")
-    .select("rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
+    .select(
+      "rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+    )
     .eq("id", therapist.id)
     .maybeSingle();
 
@@ -703,6 +705,12 @@ const generateForTherapistHotel = async (
         rate_120: therapistRow.rate_120 ?? null,
         rate_150: therapistRow.rate_150 ?? null,
       }
+    : null;
+
+  // Barèmes spécifiques par soin — le flag est honoré ici, le moteur ne reçoit
+  // jamais une map inactive.
+  const treatmentRates = therapistRow?.treatment_rates_active
+    ? ((therapistRow.treatment_rates ?? null) as TreatmentRateMap | null)
     : null;
 
   // Out-of-hours uplift for the rate fallback, mirroring the venue setting
@@ -719,6 +727,7 @@ const generateForTherapistHotel = async (
   for (const b of eligibleBookings) {
     const treatments = ((b as any).booking_treatments || []) as Array<{
       therapist_id?: string | null;
+      treatment_id?: string | null;
       is_addon?: boolean | null;
       treatment_menus?: { name?: string | null; duration?: number | null } | null;
       treatment_variants?: { label?: string | null; duration?: number | null } | null;
@@ -811,9 +820,10 @@ const generateForTherapistHotel = async (
     if (fromPayout !== undefined) {
       amount = fromPayout;
     } else {
-      const earned = computeTherapistEarnings(
+      const earned = computeLegEarnings(
         rates,
-        dur,
+        treatmentRates,
+        { totalDuration: dur, lines: legTreatments },
         (b as any).is_out_of_hours ? { surchargePercent } : undefined,
       );
       if (earned === null) {

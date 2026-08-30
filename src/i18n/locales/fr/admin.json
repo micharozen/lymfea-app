@@ -473,7 +473,16 @@
     "therapist": "Thérapeute",
     "rateRequired": "Tarif requis",
     "rateMustBePositive": "Le tarif doit être > 0",
-    "inviteResent": "Invitation renvoyée avec succès"
+    "inviteResent": "Invitation renvoyée avec succès",
+    "treatmentRates": {
+      "title": "Taux spécifiques par soin",
+      "description": "Cas rare : une prestation qui ne rapporte pas la même chose que les autres. Sans barème spécifique, tous les soins utilisent le barème par durée de l'onglet Général.",
+      "addTreatment": "Ajouter un soin…",
+      "removeTreatment": "Retirer ce soin",
+      "noTreatments": "Cochez d'abord des prestations ci-dessus.",
+      "unknownTreatment": "Prestation retirée",
+      "hint": "Le barème d'un soin remplace intégralement le barème par défaut pour ce soin. Les autres prestations continuent d'utiliser le barème par défaut."
+    }
   },
   "treatments": {
     "title": "Menus des Soins",
@@ -3046,7 +3055,9 @@
     "incompleteRates": "Tarifs incomplets",
     "reassignTitle": "Réassigner ce soin",
     "chooseTherapist": "Choisir un thérapeute",
-    "amenityAccess": "Accès / commodités"
+    "amenityAccess": "Accès / commodités",
+    "treatmentRateBadge": "Taux spécifique",
+    "treatmentRateTitle": "Ce gain utilise un barème propre au soin, défini sur la fiche du thérapeute."
   },
   "createBookingFromRequest": {
     "missingFields": "Champs obligatoires manquants",
