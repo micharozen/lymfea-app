@@ -35,8 +35,26 @@ Ajoute-le dans **Settings → Secrets and variables → Actions → Secrets** :
 
 ### 2. GID du projet Asana
 
-Ouvre le projet dans Asana, l'URL a la forme
-`https://app.asana.com/0/1201234567890123/list` — le nombre au milieu est le GID.
+Ouvre le projet dans Asana et lis son URL. Attention, deux formats coexistent et le
+piège est de prendre le GID du **workspace** au lieu de celui du projet :
+
+```
+# Format actuel — le GID du projet suit le segment /project/
+https://app.asana.com/1/1206237091095038/project/1216053482753162/list
+                          ^workspace              ^projet ← celui-ci
+
+# Ancien format — le GID du projet est le nombre du milieu
+https://app.asana.com/0/1216053482753162/list
+                        ^projet ← celui-ci
+```
+
+En cas de doute, la liste des projets accessibles au token :
+
+```bash
+curl -s -H "Authorization: Bearer $ASANA_PAT" \
+  "https://app.asana.com/api/1.0/projects?opt_fields=name&limit=100" \
+  | jq -r '.data[] | "\(.gid)  \(.name)"'
+```
 
 Ajoute-le dans **Settings → Secrets and variables → Actions → Variables** (pas un
 secret, ce n'est pas sensible) :
@@ -119,7 +137,7 @@ garde-fou — le label manuel et la PR en draft.
 |---|---|
 | Aucune issue créée, log « Rien à synchroniser » | toutes les tâches ouvertes ont déjà leur marqueur, ou `ASANA_TAG_FILTER` ne matche rien |
 | `Asana GET /tasks → 401` | `ASANA_PAT` expiré ou absent |
-| `Asana GET /tasks → 404` | mauvais `ASANA_PROJECT_GID`, ou le token n'a pas accès au projet |
+| `Asana GET /tasks → 404` | mauvais `ASANA_PROJECT_GID` (souvent le GID du workspace pris par erreur, voir §2), ou le token n'a pas accès au projet |
 | Des doublons apparaissent | une issue synchronisée a perdu son label `asana` — le script ne la voit plus |
 | La PR draft n'a pas de CI | `AUTOMATION_TOKEN` absent (voir §3) |
 | Le label `claude:fix` ne déclenche rien | le label a été posé par un bot/token : GitHub n'émet pas l'événement |
