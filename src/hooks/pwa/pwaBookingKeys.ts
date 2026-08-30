@@ -16,6 +16,9 @@ export const pwaBookingKeys = {
     [...pwaBookingKeys.all, "pending", therapistId, w.from, w.to] as const,
   venue: (hotelIds: string, w: BookingWindow) =>
     [...pwaBookingKeys.all, "venue", hotelIds, w.from, w.to] as const,
+  /** Filet des prochaines réservations au-delà de la fenêtre du tableau de bord. */
+  next: (therapistId: string, after: string, limit: number) =>
+    [...pwaBookingKeys.all, "next", therapistId, after, limit] as const,
 };
 
 /** Identifiant stable d'un ensemble de lieux, pour servir de segment de clé. */
