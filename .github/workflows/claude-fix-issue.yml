@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BASE_BRANCH: main
+  BASE_BRANCH: staging
 
 jobs:
   fix:
@@ -33,7 +33,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: main
+          ref: staging
           fetch-depth: 0
           # Un PAT permet à la PR draft de déclencher la CI ; avec le GITHUB_TOKEN par
           # défaut, GitHub bloque l'enchaînement de workflows (protection anti-boucle).
