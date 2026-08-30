@@ -453,6 +453,7 @@
     "editSchedule": "Mes disponibilités",
     "scheduleIncomplete": "Mettez à jour vos dispos pour les 2 prochaines semaines",
     "periodLabel": "Période affichée : {{from}} → {{to}}",
+    "beyondPeriod": "Prochaines réservations au-delà de cette période",
     "loadOlder": "Voir plus ancien"
   },
   "statistics": {
