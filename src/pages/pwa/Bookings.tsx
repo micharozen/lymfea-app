@@ -21,6 +21,7 @@ import { useCurrentTherapist } from "@/hooks/pwa/useCurrentTherapist";
 import { useConciergeVenues } from "@/hooks/pwa/useConciergeVenues";
 import {
   useMyBookingsWindow,
+  useMyNextBookings,
   useVenueBookingsWindow,
   type PwaBooking,
 } from "@/hooks/pwa/usePwaBookings";
@@ -32,6 +33,12 @@ import {
 
 type BookingsView = "day" | "calendar" | "list";
 type BookingsScope = "mine" | "venue";
+
+/**
+ * Nombre minimum de rendez-vous à venir que la vue Liste doit montrer, quitte à
+ * aller chercher au-delà de la fenêtre chargée. Aligné sur le tableau de bord.
+ */
+const MIN_UPCOMING = 3;
 
 const VIEW_STORAGE_KEY = "pwa-bookings-view";
 const SELECTED_DATE_STORAGE_KEY = "pwa-calendar-date";
@@ -104,6 +111,29 @@ const PwaBookings = () => {
   const active = venueScope ? venue : mine;
   const bookings: PwaBooking[] = useMemo(() => active.data ?? [], [active.data]);
 
+  const todayKey = format(new Date(), "yyyy-MM-dd");
+
+  // Rendez-vous à venir déjà présents dans la fenêtre chargée.
+  const upcomingInWindow = useMemo(
+    () => bookings.filter((b) => b.booking_date >= todayKey && b.status !== "cancelled").length,
+    [bookings, todayKey],
+  );
+
+  // Même filet que le tableau de bord : la fenêtre s'arrête à la fin du mois
+  // affiché, donc un thérapeute dont le prochain rendez-vous tombe plus loin
+  // voyait une liste vide. Ne part que sur « Mes RDV » (la requête est bornée à
+  // un thérapeute), quand la fenêtre atteint le futur et qu'elle ramène moins de
+  // MIN_UPCOMING rendez-vous.
+  const nextBeyondWindow = useMyNextBookings(therapist?.id, window_.to, MIN_UPCOMING, {
+    enabled:
+      view === "list" &&
+      !venueScope &&
+      window_.to >= todayKey &&
+      !active.isPending &&
+      upcomingInWindow < MIN_UPCOMING,
+  });
+  const beyondWindowBookings: PwaBooking[] = view === "list" ? nextBeyondWindow.data ?? [] : [];
+
   useEffect(() => {
     try {
       sessionStorage.setItem(VIEW_STORAGE_KEY, view);
@@ -173,9 +203,41 @@ const PwaBookings = () => {
 
   // Legend mirrors the admin/concierge planning: reservation-flow stages
   // (status + payment) shown in lifecycle order, deduped to what's on screen.
-  const legendSource = view === "list" ? bookings : scheduleBookings;
+  const legendSource = view === "list" ? [...bookings, ...beyondWindowBookings] : scheduleBookings;
   const legendStages = calendarFlowStageOrder.filter((key) =>
     legendSource.some((b) => getCalendarFlowStage(b.status, b.payment_status).key === key),
+  );
+
+  const renderBookingRow = (booking: PwaBooking) => (
+    <button
+      key={booking.id}
+      className="bk-row"
+      style={{ borderLeft: `3px solid ${getBookingStatusConfig(booking.status).hexColor}` }}
+      onClick={() => navigate(`/pwa/booking/${booking.id}`)}
+    >
+      <div className="bk-main">
+        <div className="who">
+          {booking.client_first_name} {booking.client_last_name}
+          {(booking.guest_count ?? 1) > 1 && (
+            <span className="status info"><span className="dot" />Duo</span>
+          )}
+        </div>
+        <div className="what">
+          {format(new Date(booking.booking_date), "PPP", { locale: fr })} · {booking.booking_time.substring(0, 5)}
+        </div>
+        <div className="meta">
+          {booking.hotel_name}
+          {booking.room_number ? ` · Ch. ${booking.room_number}` : ""}
+          {booking.room_name ? ` · ${booking.room_name}` : ""}
+          {booking.therapistName ? ` · ${booking.therapistName}` : ""}
+        </div>
+      </div>
+      <div className="bk-right">
+        <span className={cn("px-2 py-1 rounded text-[11px] font-medium", getBookingStatusConfig(booking.status).badgeClass)}>
+          {getBookingStatusConfig(booking.status).label}
+        </span>
+      </div>
+    </button>
   );
 
   if (active.isPending) {
@@ -274,37 +336,7 @@ const PwaBookings = () => {
                 <p>{t("bookings.empty", "Aucune réservation trouvée")}</p>
               </div>
             ) : (
-              bookings.map((booking) => (
-                <button
-                  key={booking.id}
-                  className="bk-row"
-                  style={{ borderLeft: `3px solid ${getBookingStatusConfig(booking.status).hexColor}` }}
-                  onClick={() => navigate(`/pwa/booking/${booking.id}`)}
-                >
-                  <div className="bk-main">
-                    <div className="who">
-                      {booking.client_first_name} {booking.client_last_name}
-                      {(booking.guest_count ?? 1) > 1 && (
-                        <span className="status info"><span className="dot" />Duo</span>
-                      )}
-                    </div>
-                    <div className="what">
-                      {format(new Date(booking.booking_date), "PPP", { locale: fr })} · {booking.booking_time.substring(0, 5)}
-                    </div>
-                    <div className="meta">
-                      {booking.hotel_name}
-                      {booking.room_number ? ` · Ch. ${booking.room_number}` : ""}
-                      {booking.room_name ? ` · ${booking.room_name}` : ""}
-                      {booking.therapistName ? ` · ${booking.therapistName}` : ""}
-                    </div>
-                  </div>
-                  <div className="bk-right">
-                    <span className={cn("px-2 py-1 rounded text-[11px] font-medium", getBookingStatusConfig(booking.status).badgeClass)}>
-                      {getBookingStatusConfig(booking.status).label}
-                    </span>
-                  </div>
-                </button>
-              ))
+              bookings.map(renderBookingRow)
             )}
 
             <div className="px-4 pt-3">
@@ -318,6 +350,16 @@ const PwaBookings = () => {
                 {t("bookings.loadOlder")}
               </Button>
             </div>
+
+            {/* Rendez-vous situés après la fenêtre chargée. Sous leur propre
+                titre : la légende de période ci-dessus serait contredite si on
+                les fondait dans les lignes de la période. */}
+            {beyondWindowBookings.length > 0 && (
+              <>
+                <div className="sec-label">{t("bookings.beyondPeriod")}</div>
+                {beyondWindowBookings.map(renderBookingRow)}
+              </>
+            )}
           </div>
         )}
       </div>
