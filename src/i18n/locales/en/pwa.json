@@ -453,6 +453,7 @@
     "editSchedule": "My availability",
     "scheduleIncomplete": "Update your availability for the next 2 weeks",
     "periodLabel": "Period shown: {{from}} → {{to}}",
+    "beyondPeriod": "Next bookings beyond this period",
     "loadOlder": "Show older"
   },
   "statistics": {

@@ -207,6 +207,65 @@ export async function fetchMyBookingsWindow(
   return sortByDateTime(mapRows(rows, await fetchDuoNames(rows), false));
 }
 
+/**
+ * Les `limit` prochaines réservations du thérapeute **après** une date, sans
+ * borne haute.
+ *
+ * Le tableau de bord ne charge que J-7 → J+30 : un thérapeute dont le prochain
+ * rendez-vous tombe dans deux mois voyait un onglet « À venir » vide. Ce filet
+ * ne part que dans ce cas-là, et ne ramène que le strict nécessaire — jamais
+ * toute la période intermédiaire.
+ */
+export async function fetchMyNextBookings(
+  therapistId: string,
+  after: string,
+  limit: number,
+): Promise<PwaBooking[]> {
+  const nextRows = () =>
+    supabase
+      .from("bookings")
+      .select(PWA_BOOKING_SELECT)
+      .neq("status", "cancelled")
+      .neq("status", "completed")
+      .gt("booking_date", after)
+      .order("booking_date", { ascending: true })
+      .order("booking_time", { ascending: true })
+      .limit(limit);
+
+  // 1. Réservations où je suis thérapeute principal.
+  const { data: primary, error } = await nextRows().eq("therapist_id", therapistId);
+  if (error) throw error;
+
+  let rows = (primary ?? []) as unknown as RawRow[];
+
+  // 2. Duos où je suis participant secondaire : le lien vit dans
+  //    booking_therapists. Borné aux liens acceptés postérieurs à la fenêtre,
+  //    donc à quelques lignes en pratique.
+  const { data: links } = await supabase
+    .from("booking_therapists")
+    .select("booking_id, bookings!inner(booking_date)")
+    .eq("therapist_id", therapistId)
+    .eq("status", "accepted")
+    .gt("bookings.booking_date", after)
+    .limit(PWA_BOOKING_ROW_LIMIT);
+
+  const primaryIds = new Set(rows.map((b) => b.id));
+  const secondaryIds = (links ?? [])
+    .map((l) => l.booking_id)
+    .filter((id) => !primaryIds.has(id));
+
+  if (secondaryIds.length > 0) {
+    const { data: secondary, error: secondaryError } = await nextRows().in("id", secondaryIds);
+    if (secondaryError) throw secondaryError;
+    rows = [...rows, ...((secondary ?? []) as unknown as RawRow[])];
+  }
+
+  // Les deux requêtes ramènent chacune `limit` lignes : on ne garde que les
+  // `limit` premières de leur fusion triée.
+  const next = sortByDateTime(rows as unknown as PwaBooking[]).slice(0, limit) as unknown as RawRow[];
+  return mapRows(next, await fetchDuoNames(next), false);
+}
+
 /** Demandes en attente ouvertes sur les lieux du thérapeute, plus leurs créneaux proposés. */
 export async function fetchPendingBookingsWindow(
   therapistId: string,
@@ -299,6 +358,20 @@ export function useMyBookingsWindow(
   return useQuery({
     queryKey: pwaBookingKeys.mine(therapistId ?? "", w),
     queryFn: () => fetchMyBookingsWindow(therapistId!, w),
+    enabled: (options?.enabled ?? true) && !!therapistId,
+    ...SHARED_QUERY_OPTIONS,
+  });
+}
+
+export function useMyNextBookings(
+  therapistId: string | null | undefined,
+  after: string,
+  limit: number,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: pwaBookingKeys.next(therapistId ?? "", after, limit),
+    queryFn: () => fetchMyNextBookings(therapistId!, after, limit),
     enabled: (options?.enabled ?? true) && !!therapistId,
     ...SHARED_QUERY_OPTIONS,
   });

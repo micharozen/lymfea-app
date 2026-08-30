@@ -6,7 +6,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, Loader2, RefreshCw, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import i18n from "@/i18n";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -22,6 +22,7 @@ import { useCurrentTherapist } from "@/hooks/pwa/useCurrentTherapist";
 import { useTherapistVenues } from "@/hooks/pwa/useTherapistVenues";
 import {
   useMyBookingsWindow,
+  useMyNextBookings,
   usePendingBookingsWindow,
   type PwaBooking,
 } from "@/hooks/pwa/usePwaBookings";
@@ -147,6 +148,44 @@ const acceptedCount = (b: { booking_therapists?: { status: string }[] }) =>
 
 const EMPTY_PRIORITIES: Record<string, number> = {};
 
+/**
+ * Nombre minimum de réservations que l'onglet « À venir » doit montrer, quitte
+ * à aller chercher au-delà de la fenêtre J+30 du tableau de bord.
+ */
+const MIN_UPCOMING = 3;
+
+/**
+ * Une réservation appartient-elle à l'onglet « À venir » de ce thérapeute ?
+ *
+ * Extrait du filtre de la page pour que le filet « au moins MIN_UPCOMING »
+ * compte exactement ce que l'onglet affiche, et pas une approximation.
+ */
+const isUpcomingForTherapist = (
+  b: Pick<Booking, "booking_date" | "status" | "therapist_id" | "guest_count" | "booking_therapists">,
+  therapistId: string | null | undefined,
+  todayKey: string,
+): boolean => {
+  if (!therapistId) return false;
+
+  const acceptedByMe = !!b.booking_therapists?.some(
+    (bt) => bt.therapist_id === therapistId && bt.status === "accepted",
+  );
+  if (b.therapist_id !== therapistId && !acceptedByMe) return false;
+
+  // Les demandes en attente vivent dans la section « demandes », pas ici.
+  // Exception : un duo (guest_count > 1) que CE thérapeute a déjà accepté reste
+  // 'pending' tant que l'équipe n'est pas complète, et il est justement exclu
+  // de la section demandes — sans quoi il ne serait visible que sur le planning.
+  const acceptedDuoPending =
+    b.status === "pending" && (b.guest_count ?? 1) > 1 && acceptedByMe;
+
+  return (
+    (b.status !== "pending" || acceptedDuoPending) &&
+    b.status !== "completed" &&
+    b.booking_date >= todayKey
+  );
+};
+
 const PwaDashboard = () => {
   const { t } = useTranslation('pwa');
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
@@ -188,6 +227,22 @@ const PwaDashboard = () => {
     enabled: activeTab === "history",
   });
 
+  // Combien de rendez-vous à venir la fenêtre J+30 ramène-t-elle réellement ?
+  const upcomingInWindow = useMemo(
+    () =>
+      (mine.data ?? []).filter((b) =>
+        isUpcomingForTherapist(b as unknown as Booking, therapist?.id, dayKey),
+      ).length,
+    [mine.data, therapist?.id, dayKey],
+  );
+
+  // Filet de sécurité : un thérapeute dont le prochain rendez-vous est dans deux
+  // mois tombe hors de la fenêtre J+30 et voyait un onglet « À venir » vide.
+  // La requête ne part que dans ce cas et ne ramène que MIN_UPCOMING lignes.
+  const nextBeyondWindow = useMyNextBookings(therapist?.id, window_.to, MIN_UPCOMING, {
+    enabled: activeTab === "upcoming" && !mine.isPending && upcomingInWindow < MIN_UPCOMING,
+  });
+
   const loading = identityPending || mine.isPending;
 
   /**
@@ -204,6 +259,7 @@ const PwaDashboard = () => {
       ...(mine.data ?? []),
       ...(pending.data?.bookings ?? []),
       ...(activeTab === "history" ? history.data ?? [] : []),
+      ...(activeTab === "upcoming" ? nextBeyondWindow.data ?? [] : []),
     ];
 
     const unique = Array.from(new Map(rows.map((b) => [b.id, b])).values());
@@ -218,7 +274,7 @@ const PwaDashboard = () => {
         const byDate = a.booking_date.localeCompare(b.booking_date);
         return byDate !== 0 ? byDate : a.booking_time.localeCompare(b.booking_time);
       }) as unknown as Booking[];
-  }, [mine.data, pending.data, history.data, venues?.settingsByHotel, activeTab]);
+  }, [mine.data, pending.data, history.data, nextBeyondWindow.data, venues?.settingsByHotel, activeTab]);
 
   const refreshBookings = useCallback(
     () => queryClient.invalidateQueries({ queryKey: pwaBookingKeys.all }),
@@ -381,10 +437,10 @@ const PwaDashboard = () => {
 
   const getFilteredBookings = () => {
     return allBookings.filter((booking) => {
-      const bookingDate = parseISO(booking.booking_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
+      if (activeTab === "upcoming") {
+        return isUpcomingForTherapist(booking, therapist?.id, dayKey);
+      }
+
       // Check if booking is assigned to this therapist (primary or secondary on a duo)
       const isAssignedToMe = therapist && (
         booking.therapist_id === therapist.id ||
@@ -392,31 +448,8 @@ const PwaDashboard = () => {
           (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
         )
       );
-      
-      // Active statuses that block a slot (must be visible in "upcoming")
-      const activeStatuses = ["confirmed", "ongoing"];
-      const isActiveStatus = activeStatuses.includes(booking.status);
-      
-      if (activeTab === "upcoming") {
-        // Pending bookings normally live in the pending requests section, not
-        // here. Exception: an open duo (guest_count > 1) that THIS therapist has
-        // already accepted stays 'pending' until the duo is fully staffed, but
-        // it's filtered out of the pending requests section (already accepted).
-        // Surface it here so it doesn't fall through the cracks (visible only in
-        // the planning otherwise).
-        const acceptedDuoPending =
-          booking.status === "pending" &&
-          (booking.guest_count ?? 1) > 1 &&
-          booking.booking_therapists?.some(
-            (bt) => bt.therapist_id === therapist?.id && bt.status === "accepted"
-          );
-        return isAssignedToMe &&
-               (booking.status !== "pending" || acceptedDuoPending) &&
-               booking.status !== "completed" &&
-               bookingDate >= today;
-      } else {
-        return booking.status === "completed" && isAssignedToMe;
-      }
+
+      return booking.status === "completed" && isAssignedToMe;
     });
   };
 
@@ -861,7 +894,8 @@ const PwaDashboard = () => {
         </button>
       </div>
 
-      {loading && allBookings.length === 0 ? (
+      {(loading && allBookings.length === 0) ||
+      (filteredBookings.length === 0 && nextBeyondWindow.isFetching) ? (
         <div className="placeholder" style={{ padding: '30px 40px' }}>
           <p>{t('dashboard.loading')}</p>
         </div>
