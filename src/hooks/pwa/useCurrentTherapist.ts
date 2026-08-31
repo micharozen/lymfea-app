@@ -11,6 +11,7 @@ export interface CurrentTherapist {
   gender: string | null;
   status: string | null;
   password_set: boolean | null;
+  rate_30: number | null;
   rate_45: number | null;
   rate_60: number | null;
   rate_75: number | null;
@@ -28,7 +29,7 @@ export interface CurrentTherapistResult {
 }
 
 const THERAPIST_COLUMNS =
-  "id, user_id, first_name, last_name, email, gender, status, password_set, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active";
+  "id, user_id, first_name, last_name, email, gender, status, password_set, rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active";
 
 export const currentTherapistKey = ["pwa", "therapist", "me"] as const;
 

@@ -59,6 +59,10 @@ const createFormSchema = (t: TFunction) =>
       .min(1, t("admin:therapists.rateRequired", "Tarif requis"))
       .refine((v) => parseFloat(v) > 0, t("admin:therapists.rateMustBePositive", "Le tarif doit être > 0")),
     // Extra brackets — optional, but must be > 0 when provided.
+    rate_30: z
+      .string()
+      .optional()
+      .refine((v) => !v || parseFloat(v) > 0, t("admin:therapists.rateMustBePositive", "Le tarif doit être > 0")),
     rate_45: z
       .string()
       .optional()
@@ -126,6 +130,7 @@ export default function TherapistDetail() {
       phone: "",
       status: "En attente",
       gender: "",
+      rate_30: "",
       rate_45: "",
       rate_105: "",
       rate_120: "",
@@ -168,6 +173,7 @@ export default function TherapistDetail() {
           rate_75: therapist.rate_75?.toString() || "",
           rate_60: therapist.rate_60?.toString() || "",
           rate_90: therapist.rate_90?.toString() || "",
+          rate_30: therapist.rate_30?.toString() || "",
           rate_45: therapist.rate_45?.toString() || "",
           rate_105: therapist.rate_105?.toString() || "",
           rate_120: therapist.rate_120?.toString() || "",
@@ -232,6 +238,7 @@ export default function TherapistDetail() {
         rate_75: parseFloat(values.rate_75),
         rate_60: parseFloat(values.rate_60),
         rate_90: parseFloat(values.rate_90),
+        rate_30: values.rate_30 ? parseFloat(values.rate_30) : null,
         rate_45: values.rate_45 ? parseFloat(values.rate_45) : null,
         rate_105: values.rate_105 ? parseFloat(values.rate_105) : null,
         rate_120: values.rate_120 ? parseFloat(values.rate_120) : null,
