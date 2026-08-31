@@ -98,7 +98,7 @@ async function withEarnings(rows: Booking[], therapistId: string): Promise<Booki
     supabase
       .from("therapists")
       .select(
-        "rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+        "rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
       )
       .eq("id", therapistId)
       .maybeSingle(),

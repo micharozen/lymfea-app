@@ -690,13 +690,14 @@ const generateForTherapistHotel = async (
   const { data: therapistRow } = await supabaseAdmin
     .from("therapists")
     .select(
-      "rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+      "rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
     )
     .eq("id", therapist.id)
     .maybeSingle();
 
   const rates = therapistRow
     ? {
+        rate_30: therapistRow.rate_30 ?? null,
         rate_45: therapistRow.rate_45 ?? null,
         rate_60: therapistRow.rate_60 ?? null,
         rate_75: therapistRow.rate_75 ?? null,

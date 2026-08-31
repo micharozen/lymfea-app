@@ -68,6 +68,25 @@ describe("computeTherapistEarnings — extra duration brackets", () => {
     expect(computeTherapistEarnings(extended, 30)).toBe(16);
   });
 
+  it("uses rate_30 exactly instead of the pro-rata from rate_45", () => {
+    // Sans rate_30, 30 min valaient (24/45)*30 = 16 ; le palier renseigné prime.
+    expect(computeTherapistEarnings({ ...extended, rate_30: 20 }, 30)).toBe(20);
+  });
+
+  it("interpolates between rate_30 and rate_45 (une durée intermédiaire)", () => {
+    // 30→20, 45→24 : 40 min = 20 + 4 × (10/15) ≈ 22.67
+    expect(computeTherapistEarnings({ ...extended, rate_30: 20 }, 40)).toBeCloseTo(22.67, 2);
+  });
+
+  it("pro-rata sous rate_30 quand c'est le plus petit palier (15 min)", () => {
+    // (20 / 30) * 15 = 10
+    expect(computeTherapistEarnings({ ...extended, rate_30: 20 }, 15)).toBe(10);
+  });
+
+  it("laisse le calcul inchangé tant que rate_30 est nul", () => {
+    expect(computeTherapistEarnings({ ...extended, rate_30: null }, 30)).toBe(16);
+  });
+
   it("keeps the legacy 60/75/90 behaviour when no extra brackets are set", () => {
     const legacy = { rate_60: 30, rate_75: 45, rate_90: 60 };
     // >90 extrapolates from rate_90: (60/90)*120 = 80

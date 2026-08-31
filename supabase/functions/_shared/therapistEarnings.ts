@@ -1,4 +1,5 @@
 export type TherapistRates = {
+  rate_30?: number | null;
   rate_45?: number | null;
   rate_60: number | null;
   rate_75: number | null;
@@ -10,6 +11,7 @@ export type TherapistRates = {
 
 // Canonical duration brackets (minutes) mapped to their rate column.
 const RATE_BRACKETS: ReadonlyArray<{ minutes: number; key: keyof TherapistRates }> = [
+  { minutes: 30, key: "rate_30" },
   { minutes: 45, key: "rate_45" },
   { minutes: 60, key: "rate_60" },
   { minutes: 75, key: "rate_75" },

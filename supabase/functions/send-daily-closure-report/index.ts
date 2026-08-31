@@ -254,7 +254,7 @@ serve(async (req: Request): Promise<Response> => {
       supabase
         .from("therapist_venues")
         .select(
-          "therapist_id, therapists ( id, first_name, last_name, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active )",
+          "therapist_id, therapists ( id, first_name, last_name, rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active )",
         )
         .eq("hotel_id", hotel_id),
     ]);
@@ -282,6 +282,7 @@ serve(async (req: Request): Promise<Response> => {
           id: string;
           first_name: string | null;
           last_name: string | null;
+          rate_30: number | null;
           rate_45: number | null;
           rate_60: number | null;
           rate_75: number | null;
@@ -295,6 +296,7 @@ serve(async (req: Request): Promise<Response> => {
       }).therapists;
       if (!t) continue;
       const rates: TherapistRates = {
+        rate_30: t.rate_30,
         rate_45: t.rate_45,
         rate_60: t.rate_60,
         rate_75: t.rate_75,
