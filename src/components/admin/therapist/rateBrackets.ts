@@ -5,6 +5,7 @@
  * surfaces n'ont pas le même mode de liaison, donc pas le même rendu de ligne.
  */
 export type RateName =
+  | "rate_30"
   | "rate_45"
   | "rate_60"
   | "rate_75"
@@ -23,6 +24,7 @@ export interface RateBracket {
 }
 
 export const RATE_BRACKETS: RateBracket[] = [
+  { name: "rate_30", minutes: 30, labelKey: "admin:therapists.rate30Label", fallback: "0h30", base: false },
   { name: "rate_45", minutes: 45, labelKey: "admin:therapists.rate45Label", fallback: "0h45", base: false },
   { name: "rate_60", minutes: 60, labelKey: "admin:therapists.rate60Label", fallback: "1h00", base: true },
   { name: "rate_75", minutes: 75, labelKey: "admin:therapists.rate75Label", fallback: "1h15", base: true },

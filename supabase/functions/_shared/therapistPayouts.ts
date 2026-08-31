@@ -108,12 +108,13 @@ export async function fetchPayoutTherapists(
   const { data: rows } = await supabase
     .from("therapists")
     .select(
-      "id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active, stripe_account_id",
+      "id, rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active, stripe_account_id",
     )
     .in("id", ids);
 
   type TherapistRateRow = {
     id: string;
+    rate_30: number | null;
     rate_45: number | null;
     rate_60: number | null;
     rate_75: number | null;
@@ -139,6 +140,7 @@ export async function fetchPayoutTherapists(
         therapist_id: id,
         assigned_at: assignedAt.get(id) ?? null,
         rates: {
+          rate_30: r.rate_30,
           rate_45: r.rate_45,
           rate_60: r.rate_60,
           rate_75: r.rate_75,
