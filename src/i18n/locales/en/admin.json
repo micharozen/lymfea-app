@@ -383,6 +383,7 @@
     "phoneRequired": "Phone is required",
     "finance": "Finance",
     "financeDesc": "Rate per treatment duration, used when the venue does not apply a global commission",
+    "rate30Label": "0h30",
     "rate45Label": "0h45",
     "rate60Label": "1h00",
     "rate75Label": "1h15",

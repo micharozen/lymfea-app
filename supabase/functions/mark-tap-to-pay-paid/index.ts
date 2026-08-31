@@ -91,6 +91,7 @@ serve(async (req) => {
         therapists(
           first_name,
           last_name,
+          rate_30,
           rate_45,
           rate_60,
           rate_75,

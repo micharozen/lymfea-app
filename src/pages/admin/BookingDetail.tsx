@@ -266,13 +266,13 @@ export default function BookingDetail() {
       const { data } = await supabase
         .from("therapists")
         .select(
-          "id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+          "id, rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
         )
         .in("id", rateTherapistIds);
       const map: Record<string, TherapistRates> = {};
       const treatmentMap: Record<string, TreatmentRateMap | null> = {};
       (data || []).forEach((t: any) => {
-        map[t.id] = { rate_45: t.rate_45, rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90, rate_105: t.rate_105, rate_120: t.rate_120, rate_150: t.rate_150 };
+        map[t.id] = { rate_30: t.rate_30, rate_45: t.rate_45, rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90, rate_105: t.rate_105, rate_120: t.rate_120, rate_150: t.rate_150 };
         // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
         treatmentMap[t.id] = t.treatment_rates_active ? t.treatment_rates ?? null : null;
       });

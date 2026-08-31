@@ -383,6 +383,7 @@
     "phoneRequired": "Le téléphone est requis",
     "finance": "Finance",
     "financeDesc": "Taux par durée de soin, utilisé quand le lieu n'applique pas de commission globale",
+    "rate30Label": "0h30",
     "rate45Label": "0h45",
     "rate60Label": "1h00",
     "rate75Label": "1h15",

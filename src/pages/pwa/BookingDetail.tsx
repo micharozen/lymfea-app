@@ -292,14 +292,14 @@ const PwaBookingDetail = () => {
         const { data: myT } = await supabase
           .from("therapists")
           .select(
-            "id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+            "id, rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
           )
           .eq("user_id", authUser.id)
           .single();
         if (myT) {
           myTherapistId = myT.id;
           if (isMountedRef.current) setMyTherapistId(myT.id);
-          therapistRates = { rate_45: myT.rate_45, rate_60: myT.rate_60, rate_75: myT.rate_75, rate_90: myT.rate_90, rate_105: myT.rate_105, rate_120: myT.rate_120, rate_150: myT.rate_150 };
+          therapistRates = { rate_30: myT.rate_30, rate_45: myT.rate_45, rate_60: myT.rate_60, rate_75: myT.rate_75, rate_90: myT.rate_90, rate_105: myT.rate_105, rate_120: myT.rate_120, rate_150: myT.rate_150 };
           // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
           myTreatmentRates = myT.treatment_rates_active
             ? ((myT.treatment_rates ?? null) as TreatmentRateMap | null)
