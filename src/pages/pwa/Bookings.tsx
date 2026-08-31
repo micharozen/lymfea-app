@@ -78,6 +78,7 @@ const PwaBookings = () => {
     () =>
       therapist
         ? {
+            rate_30: therapist.rate_30,
             rate_45: therapist.rate_45,
             rate_60: therapist.rate_60,
             rate_75: therapist.rate_75,

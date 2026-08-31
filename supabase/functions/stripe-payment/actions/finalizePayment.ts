@@ -135,6 +135,7 @@ export async function handleFinalizePayment(
           first_name,
           last_name,
           stripe_account_id,
+          rate_30,
           rate_45,
           rate_60,
           rate_75,
@@ -193,6 +194,7 @@ export async function handleFinalizePayment(
     const earned = therapist
       ? computeLegEarnings(
           {
+            rate_30: therapist.rate_30 ?? null,
             rate_45: therapist.rate_45 ?? null,
             rate_60: therapist.rate_60 ?? null,
             rate_75: therapist.rate_75 ?? null,

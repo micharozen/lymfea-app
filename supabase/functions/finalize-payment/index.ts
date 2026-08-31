@@ -150,6 +150,7 @@ serve(async (req) => {
           first_name,
           last_name,
           stripe_account_id,
+          rate_30,
           rate_45,
           rate_60,
           rate_75,

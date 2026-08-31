@@ -538,7 +538,7 @@ async function handleCheckoutCompleted(
     ? await supabaseAdmin
         .from("therapists")
         .select(
-          "rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+          "rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
         )
         .eq("id", booking.therapist_id)
         .maybeSingle()
@@ -576,6 +576,7 @@ async function handleCheckoutCompleted(
       computeLegEarnings(
         therapistRow
           ? {
+              rate_30: (therapistRow as any).rate_30 ?? null,
               rate_45: (therapistRow as any).rate_45 ?? null,
               rate_60: (therapistRow as any).rate_60 ?? null,
               rate_75: (therapistRow as any).rate_75 ?? null,
@@ -686,7 +687,7 @@ async function handleInvoicePaid(
       .select(
         `
           *,
-          therapist:therapists(id, stripe_account_id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active),
+          therapist:therapists(id, stripe_account_id, rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active),
           hotel:hotels(vat),
           booking_treatments(treatment_id, treatment_menus(duration))
         `,
@@ -718,6 +719,7 @@ async function handleInvoicePaid(
     const earnedAmount = computeLegEarnings(
       bookingAny.therapist
         ? {
+            rate_30: bookingAny.therapist.rate_30 ?? null,
             rate_45: bookingAny.therapist.rate_45 ?? null,
             rate_60: bookingAny.therapist.rate_60 ?? null,
             rate_75: bookingAny.therapist.rate_75 ?? null,

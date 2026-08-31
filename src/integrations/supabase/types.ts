@@ -2967,6 +2967,7 @@ export type Database = {
           rate_105: number | null
           rate_120: number | null
           rate_150: number | null
+          rate_30: number | null
           rate_45: number | null
           rate_60: number | null
           rate_75: number | null
@@ -3000,6 +3001,7 @@ export type Database = {
           rate_105?: number | null
           rate_120?: number | null
           rate_150?: number | null
+          rate_30?: number | null
           rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
@@ -3033,6 +3035,7 @@ export type Database = {
           rate_105?: number | null
           rate_120?: number | null
           rate_150?: number | null
+          rate_30?: number | null
           rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
