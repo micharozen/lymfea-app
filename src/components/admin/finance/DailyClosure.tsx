@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
-import type { TherapistRates } from "@/lib/therapistEarnings";
+import type { TherapistRates, TreatmentRateMap } from "@/lib/therapistEarnings";
 
 import {
   CLIENT_TYPE_COLORS,
@@ -50,6 +50,7 @@ import {
   type ClosureStats,
   type ClosureVenue,
   type TherapistRatesMap,
+  type TherapistTreatmentRatesMap,
 } from "@/lib/closureReport";
 import { orderRoster } from "@/lib/closureTherapistSplit";
 import { resolveTreatmentPrice } from "@/lib/treatmentPrice";
@@ -90,6 +91,7 @@ interface RawBookingRow {
   guest_count: number | null;
   booking_treatments?: Array<{
     therapist_id: string | null;
+    treatment_id: string | null;
     is_addon: boolean | null;
     price_override: number | null;
     treatment_menus: {
@@ -136,6 +138,8 @@ export function DailyClosure() {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [bookings, setBookings] = useState<RawBookingRow[]>([]);
   const [therapistRates, setTherapistRates] = useState<TherapistRatesMap>({});
+  const [therapistTreatmentRates, setTherapistTreatmentRates] =
+    useState<TherapistTreatmentRatesMap>({});
   const [therapistNames, setTherapistNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -182,7 +186,7 @@ export function DailyClosure() {
              client_type, room_number, therapist_id, therapist_name, duration, guest_count,
              total_price, is_out_of_hours, payment_method, payment_status, status, hotel_id,
              booking_treatments (
-               therapist_id, is_addon, price_override,
+               therapist_id, treatment_id, is_addon, price_override,
                treatment_menus ( name, category, duration, price ),
                treatment_variants ( duration, price )
              ),
@@ -194,7 +198,7 @@ export function DailyClosure() {
         supabase
           .from("therapist_venues")
           .select(
-            "therapist_id, therapists ( id, first_name, last_name, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150 )",
+            "therapist_id, therapists ( id, first_name, last_name, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active )",
           )
           .eq("hotel_id", selectedVenueId),
       ]);
@@ -205,6 +209,8 @@ export function DailyClosure() {
       setBookings((bookingsResult.data ?? []) as RawBookingRow[]);
 
       const ratesMap: TherapistRatesMap = {};
+      // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+      const treatmentRatesMap: TherapistTreatmentRatesMap = {};
       // Noms des thérapeutes du lieu : seule source pour nommer le binôme d'un
       // duo, `bookings.therapist_name` ne connaissant que le principal.
       const names: Record<string, string> = {};
@@ -221,6 +227,8 @@ export function DailyClosure() {
             rate_105: number | null;
             rate_120: number | null;
             rate_150: number | null;
+            treatment_rates: TreatmentRateMap | null;
+            treatment_rates_active: boolean | null;
           } | null;
         }).therapists;
         if (!t) continue;
@@ -238,10 +246,12 @@ export function DailyClosure() {
         } else {
           ratesMap[t.id] = rates;
         }
+        treatmentRatesMap[t.id] = t.treatment_rates_active ? t.treatment_rates ?? null : null;
         const fullName = `${t.first_name ?? ""} ${t.last_name ?? ""}`.trim();
         if (fullName) names[t.id] = fullName;
       }
       setTherapistRates(ratesMap);
+      setTherapistTreatmentRates(treatmentRatesMap);
       setTherapistNames(names);
     } catch (err) {
       console.error("[DailyClosure] fetch failed", err);
@@ -306,6 +316,7 @@ export function DailyClosure() {
             therapist_id: bt.therapist_id,
             is_addon: bt.is_addon,
             price: resolveTreatmentPrice(bt),
+            treatment_id: bt.treatment_id ?? null,
           })) ?? [],
       })),
     [bookings, therapistNames],
@@ -315,8 +326,9 @@ export function DailyClosure() {
     if (!closureVenue) return null;
     return computeClosureStats(closureBookings, closureVenue, therapistRates, {
       includeUnfinalized,
+      therapistTreatmentRates,
     });
-  }, [closureBookings, closureVenue, therapistRates, includeUnfinalized]);
+  }, [closureBookings, closureVenue, therapistRates, therapistTreatmentRates, includeUnfinalized]);
 
   const report: ClosureReport | null = useMemo(() => {
     if (!closureVenue || !stats) return null;

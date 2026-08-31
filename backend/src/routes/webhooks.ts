@@ -9,7 +9,7 @@ import {
   formatDateForWhatsApp,
 } from "../lib/whatsapp";
 import { brand } from "../lib/brand";
-import { computeTherapistEarnings } from "../lib/therapist-earnings";
+import { computeLegEarnings } from "../lib/therapist-earnings";
 
 /**
  * Stripe webhook routes — no auth (verified via Stripe signature).
@@ -537,7 +537,9 @@ async function handleCheckoutCompleted(
   const { data: therapistRow } = booking.therapist_id
     ? await supabaseAdmin
         .from("therapists")
-        .select("rate_60, rate_75, rate_90")
+        .select(
+          "rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+        )
         .eq("id", booking.therapist_id)
         .maybeSingle()
     : { data: null };
@@ -562,20 +564,32 @@ async function handleCheckoutCompleted(
     const vatRate = hotel?.vat || 20;
     const totalHT = totalPrice / (1 + vatRate / 100);
 
-    const bookingDuration = (bookingTreatments || []).reduce(
-      (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0),
+    const bookingLines = (bookingTreatments || []).map((bt: any) => ({
+      treatment_id: bt.treatment_id ?? null,
+      duration: bt.treatment_menus?.duration || 0,
+    }));
+    const bookingDuration = bookingLines.reduce(
+      (sum: number, line: { duration: number }) => sum + line.duration,
       0,
     );
     const therapistEarned =
-      computeTherapistEarnings(
+      computeLegEarnings(
         therapistRow
           ? {
-              rate_75: (therapistRow as any).rate_75 ?? null,
+              rate_45: (therapistRow as any).rate_45 ?? null,
               rate_60: (therapistRow as any).rate_60 ?? null,
+              rate_75: (therapistRow as any).rate_75 ?? null,
               rate_90: (therapistRow as any).rate_90 ?? null,
+              rate_105: (therapistRow as any).rate_105 ?? null,
+              rate_120: (therapistRow as any).rate_120 ?? null,
+              rate_150: (therapistRow as any).rate_150 ?? null,
             }
           : null,
-        bookingDuration,
+        // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+        (therapistRow as any)?.treatment_rates_active
+          ? (therapistRow as any).treatment_rates ?? null
+          : null,
+        { totalDuration: bookingDuration, lines: bookingLines },
       ) ?? 0;
 
     const hotelAmount = (totalHT * hotelCommissionPercent) / 100;
@@ -672,9 +686,9 @@ async function handleInvoicePaid(
       .select(
         `
           *,
-          therapist:therapists(id, stripe_account_id, rate_60, rate_75, rate_90),
+          therapist:therapists(id, stripe_account_id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active),
           hotel:hotels(vat),
-          booking_treatments(treatment_menus(duration))
+          booking_treatments(treatment_id, treatment_menus(duration))
         `,
       )
       .eq("id", bookingId)
@@ -693,19 +707,31 @@ async function handleInvoicePaid(
     }
 
     // Calculate therapist share via shared util
-    const bookingDur = (bookingAny.booking_treatments || []).reduce(
-      (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0),
+    const bookingLines = (bookingAny.booking_treatments || []).map((bt: any) => ({
+      treatment_id: bt.treatment_id ?? null,
+      duration: bt.treatment_menus?.duration || 0,
+    }));
+    const bookingDur = bookingLines.reduce(
+      (sum: number, line: { duration: number }) => sum + line.duration,
       0,
     );
-    const earnedAmount = computeTherapistEarnings(
+    const earnedAmount = computeLegEarnings(
       bookingAny.therapist
         ? {
-            rate_75: bookingAny.therapist.rate_75 ?? null,
+            rate_45: bookingAny.therapist.rate_45 ?? null,
             rate_60: bookingAny.therapist.rate_60 ?? null,
+            rate_75: bookingAny.therapist.rate_75 ?? null,
             rate_90: bookingAny.therapist.rate_90 ?? null,
+            rate_105: bookingAny.therapist.rate_105 ?? null,
+            rate_120: bookingAny.therapist.rate_120 ?? null,
+            rate_150: bookingAny.therapist.rate_150 ?? null,
           }
         : null,
-      bookingDur,
+      // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+      bookingAny.therapist?.treatment_rates_active
+        ? bookingAny.therapist.treatment_rates ?? null
+        : null,
+      { totalDuration: bookingDur, lines: bookingLines },
     );
     if (earnedAmount == null) {
       console.error(

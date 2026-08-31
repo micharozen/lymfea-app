@@ -2,7 +2,11 @@
 // Shared by the on-screen preview, the PDF export, and the recipient email body.
 
 import { brand } from "@/config/brand";
-import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
+import {
+  computeLegEarnings,
+  type TherapistRates,
+  type TreatmentRateMap,
+} from "@/lib/therapistEarnings";
 import { isBookingClientType, type BookingClientType } from "@/lib/clientTypeMeta";
 import { splitBookingByTherapist } from "@/lib/closureTherapistSplit";
 
@@ -15,6 +19,8 @@ export interface ClosureBookingTreatment {
   is_addon?: boolean | null;
   /** Prix résolu de la ligne (resolveTreatmentPrice), pour la répartition en duo. */
   price?: number | null;
+  /** `booking_treatments.treatment_id` — porte le barème spécifique éventuel du soin. */
+  treatment_id?: string | null;
 }
 
 export interface ClosureBooking {
@@ -81,6 +87,13 @@ export const CLIENT_TYPE_COLORS: Record<ClientTypeValue, string> = {
 };
 
 export type TherapistRatesMap = Record<string, TherapistRates | null>;
+
+/**
+ * Barèmes spécifiques par soin, par thérapeute. Une entrée absente ou nulle
+ * signifie « pas de barème spécifique applicable » — c'est notamment ce que
+ * l'appelant passe quand `treatment_rates_active` est false.
+ */
+export type TherapistTreatmentRatesMap = Record<string, TreatmentRateMap | null>;
 
 export interface ClosureBucket {
   key: string;
@@ -238,6 +251,8 @@ export interface ComputeClosureStatsOptions {
    * leur statut réel reste affiché tel quel dans le détail.
    */
   includeUnfinalized?: boolean;
+  /** Barèmes spécifiques par soin, par thérapeute. Vide = comportement historique. */
+  therapistTreatmentRates?: TherapistTreatmentRatesMap;
 }
 
 export function computeClosureStats(
@@ -246,7 +261,7 @@ export function computeClosureStats(
   therapistRates: TherapistRatesMap = {},
   options: ComputeClosureStatsOptions = {},
 ): ClosureStats {
-  const { includeUnfinalized = false } = options;
+  const { includeUnfinalized = false, therapistTreatmentRates = {} } = options;
   const stats: ClosureStats = {
     totalBookings: bookings.length,
     completedBookings: 0,
@@ -314,6 +329,7 @@ export function computeClosureStats(
         duration: t.duration,
         is_addon: t.is_addon ?? false,
         price: t.price ?? 0,
+        treatment_id: t.treatment_id ?? null,
       })),
       orderedTherapistIds: (booking.therapists ?? []).map((t) => t.id),
       guestCount: booking.guest_count ?? 1,
@@ -342,9 +358,17 @@ export function computeClosureStats(
     const namesById = new Map((booking.therapists ?? []).map((t) => [t.id, t.name]));
     for (const part of parts) {
       const rates = part.therapistId ? therapistRates[part.therapistId] ?? null : null;
+      const treatmentRates = part.therapistId
+        ? therapistTreatmentRates[part.therapistId] ?? null
+        : null;
       const earnings =
         part.therapistId && part.duration > 0
-          ? computeTherapistEarnings(rates, part.duration, { surchargePercent })
+          ? computeLegEarnings(
+              rates,
+              treatmentRates,
+              { totalDuration: part.duration, lines: part.lines },
+              { surchargePercent },
+            )
           : null;
       const partEarnings = earnings ?? 0;
       const hasRates = earnings !== null;

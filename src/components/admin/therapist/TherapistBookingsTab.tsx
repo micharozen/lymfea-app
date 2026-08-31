@@ -30,12 +30,17 @@ import { usePagination } from "@/hooks/usePagination";
 import { useTableSort } from "@/hooks/useTableSort";
 import { getBookingStatusConfig } from "@/utils/statusStyles";
 import { formatPrice } from "@/lib/formatPrice";
-import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
+import {
+  computeLegEarnings,
+  type TherapistRates,
+  type TreatmentRateMap,
+} from "@/lib/therapistEarnings";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 
 interface BookingTreatmentRow {
   therapist_id: string | null;
+  treatment_id: string | null;
   treatment_menus: { duration: number | null } | null;
   treatment_variants: { duration: number | null } | null;
 }
@@ -92,7 +97,9 @@ async function withEarnings(rows: Booking[], therapistId: string): Promise<Booki
       .in("booking_id", bookingIds),
     supabase
       .from("therapists")
-      .select("rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
+      .select(
+        "rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+      )
       .eq("id", therapistId)
       .maybeSingle(),
     supabase
@@ -108,6 +115,13 @@ async function withEarnings(rows: Booking[], therapistId: string): Promise<Booki
     (hotelsRes.data ?? []).map((h) => [h.id, Number(h.out_of_hours_surcharge_percent) || 0]),
   );
   const rates = (therapistRes.data ?? null) as TherapistRates | null;
+  // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+  const therapistRow = therapistRes.data as
+    | { treatment_rates: TreatmentRateMap | null; treatment_rates_active: boolean | null }
+    | null;
+  const treatmentRates = therapistRow?.treatment_rates_active
+    ? therapistRow.treatment_rates ?? null
+    : null;
 
   return rows.map((booking) => {
     if (UNPAID_STATUSES.includes(booking.status)) return { ...booking, earnings: null };
@@ -135,9 +149,21 @@ async function withEarnings(rows: Booking[], therapistId: string): Promise<Booki
 
     return {
       ...booking,
-      earnings: computeTherapistEarnings(
+      earnings: computeLegEarnings(
         rates,
-        duration,
+        treatmentRates,
+        {
+          totalDuration: duration,
+          // Les lignes du thérapeute quand le lien stable existe, sinon toutes :
+          // même périmètre que la durée calculée juste au-dessus.
+          lines: (linkedDuration > 0
+            ? treatments.filter((bt) => bt.therapist_id === therapistId)
+            : treatments
+          ).map((bt) => ({
+            treatment_id: bt.treatment_id ?? null,
+            duration: treatmentDuration(bt),
+          })),
+        },
         booking.is_out_of_hours ? { surchargePercent } : undefined,
       ),
     };
@@ -171,7 +197,7 @@ export function TherapistBookingsTab({ therapistId }: TherapistBookingsTabProps)
       let query = supabase
         .from("bookings")
         .select(
-          "id, booking_id, booking_date, booking_time, client_first_name, client_last_name, hotel_id, hotel_name, status, total_price, duration, is_out_of_hours, booking_treatments(therapist_id, treatment_menus(duration), treatment_variants(duration))",
+          "id, booking_id, booking_date, booking_time, client_first_name, client_last_name, hotel_id, hotel_name, status, total_price, duration, is_out_of_hours, booking_treatments(therapist_id, treatment_id, treatment_menus(duration), treatment_variants(duration))",
         )
         .order("booking_date", { ascending: false })
         .order("booking_time", { ascending: false });

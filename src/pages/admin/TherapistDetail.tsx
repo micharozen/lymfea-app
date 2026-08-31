@@ -15,10 +15,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Loader2, Save, Pencil, Send } from "lucide-react";
 import { TherapistGeneralTab } from "@/components/admin/therapist/TherapistGeneralTab";
 import { TherapistAssignmentsTab } from "@/components/admin/therapist/TherapistAssignmentsTab";
+import { RATE_BRACKETS } from "@/components/admin/therapist/rateBrackets";
+import type { TreatmentRateMap } from "@/lib/therapistEarnings";
 import { TherapistScheduleSection } from "@/components/admin/schedule/TherapistScheduleSection";
 import { TherapistActivityTab } from "@/components/admin/therapist/TherapistActivityTab";
 import { TherapistBillingTab } from "@/components/admin/therapist/TherapistBillingTab";
 import { TherapistBookingsTab } from "@/components/admin/therapist/TherapistBookingsTab";
+
+/**
+ * Écarte les barèmes de soin sans aucun palier exploitable. Un barème vidé dans
+ * l'UI doit valoir « pas de barème spécifique », pas « ce soin vaut 0 € ».
+ */
+function pruneTreatmentRates(rates: TreatmentRateMap): TreatmentRateMap {
+  const cleaned: TreatmentRateMap = {};
+  for (const [treatmentId, scale] of Object.entries(rates)) {
+    const kept = Object.entries(scale ?? {}).filter(
+      ([, amount]) => Number.isFinite(amount) && amount > 0,
+    );
+    if (kept.length > 0) cleaned[treatmentId] = Object.fromEntries(kept);
+  }
+  return cleaned;
+}
 
 const createFormSchema = (t: TFunction) =>
   z.object({
@@ -83,6 +100,8 @@ export default function TherapistDetail() {
   const [selectedTreatmentIds, setSelectedTreatmentIds] = useState<string[]>([]);
   const [minimumGuarantee, setMinimumGuarantee] = useState<Record<string, number>>({});
   const [minimumGuaranteeActive, setMinimumGuaranteeActive] = useState(false);
+  const [treatmentRates, setTreatmentRates] = useState<TreatmentRateMap>({});
+  const [treatmentRatesActive, setTreatmentRatesActive] = useState(false);
   const [resending, setResending] = useState(false);
 
   // Filled by the billing card so the page's "Enregistrer" saves it too.
@@ -164,6 +183,8 @@ export default function TherapistDetail() {
           (therapist.minimum_guarantee as Record<string, number>) || {}
         );
         setMinimumGuaranteeActive(therapist.minimum_guarantee_active || false);
+        setTreatmentRates((therapist.treatment_rates as TreatmentRateMap) || {});
+        setTreatmentRatesActive(therapist.treatment_rates_active || false);
       }
 
       // Load venue assignments
@@ -204,6 +225,10 @@ export default function TherapistDetail() {
         minimum_guarantee:
           Object.keys(minimumGuarantee).length > 0 ? minimumGuarantee : null,
         minimum_guarantee_active: minimumGuaranteeActive,
+        // Un barème vidé de tous ses paliers se comporterait comme un tarif à 0 € :
+        // on l'écarte plutôt que de le persister.
+        treatment_rates: pruneTreatmentRates(treatmentRates),
+        treatment_rates_active: treatmentRatesActive,
         rate_75: parseFloat(values.rate_75),
         rate_60: parseFloat(values.rate_60),
         rate_90: parseFloat(values.rate_90),
@@ -393,6 +418,18 @@ export default function TherapistDetail() {
   };
   const canAccessTabs = !!effectiveTherapistId;
 
+  // Barème par défaut saisi dans l'onglet Général, servant de point de départ à
+  // chaque barème de soin — on édite une grille cohérente au lieu du vide.
+  const watchedRates = form.watch(RATE_BRACKETS.map((b) => b.name));
+  const defaultRateScale = useMemo(() => {
+    const scale: Record<string, number> = {};
+    RATE_BRACKETS.forEach((bracket, i) => {
+      const amount = parseFloat(String(watchedRates[i] ?? ""));
+      if (Number.isFinite(amount) && amount > 0) scale[String(bracket.minutes)] = amount;
+    });
+    return scale;
+  }, [watchedRates]);
+
   const watchedStatus = form.watch("status");
   const isActive = watchedStatus === "active" || watchedStatus === "Actif";
   const showResendInvite = !isNewMode && !isActive && effectiveTherapistId;
@@ -571,6 +608,11 @@ export default function TherapistDetail() {
                     onHotelsChange={setSelectedHotels}
                     selectedTreatmentIds={selectedTreatmentIds}
                     onTreatmentsChange={setSelectedTreatmentIds}
+                    treatmentRates={treatmentRates}
+                    onTreatmentRatesChange={setTreatmentRates}
+                    treatmentRatesActive={treatmentRatesActive}
+                    onTreatmentRatesActiveChange={setTreatmentRatesActive}
+                    defaultRateScale={defaultRateScale}
                     minimumGuarantee={minimumGuarantee}
                     onMinimumGuaranteeChange={setMinimumGuarantee}
                     minimumGuaranteeActive={minimumGuaranteeActive}

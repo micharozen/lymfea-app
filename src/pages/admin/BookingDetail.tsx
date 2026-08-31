@@ -49,7 +49,7 @@ import { useActiveTherapists } from "@/hooks/booking/useActiveTherapists";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
-import { type TherapistRates } from "@/lib/therapistEarnings";
+import { type TherapistRates, type TreatmentRateMap } from "@/lib/therapistEarnings";
 import {
   CLIENT_TYPE_META, PARTNER_BILLED_CLIENT_TYPES, isPartnerBilledClientType,
   normalizeBookingClientType, type BookingClientType,
@@ -258,22 +258,30 @@ export default function BookingDetail() {
     return booking?.therapist_id ? [booking.therapist_id] : [];
   }, [bookingGuestCount, acceptedTherapists, booking?.therapist_id]);
 
-  const { data: therapistRatesMap = {} } = useQuery({
+  const { data: therapistRateData } = useQuery({
     queryKey: ["booking-therapist-rates", [...rateTherapistIds].sort()],
     enabled: rateTherapistIds.length > 0,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase
         .from("therapists")
-        .select("id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
+        .select(
+          "id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+        )
         .in("id", rateTherapistIds);
       const map: Record<string, TherapistRates> = {};
+      const treatmentMap: Record<string, TreatmentRateMap | null> = {};
       (data || []).forEach((t: any) => {
         map[t.id] = { rate_45: t.rate_45, rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90, rate_105: t.rate_105, rate_120: t.rate_120, rate_150: t.rate_150 };
+        // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+        treatmentMap[t.id] = t.treatment_rates_active ? t.treatment_rates ?? null : null;
       });
-      return map;
+      return { map, treatmentMap };
     },
   });
+
+  const therapistRatesMap = therapistRateData?.map ?? {};
+  const therapistTreatmentRatesMap = therapistRateData?.treatmentMap ?? {};
 
   // Spinner while loading OR while the query is still disabled (org scope not
   // resolved yet on a hard refresh) — only show "introuvable" once the fetch has
@@ -702,6 +710,7 @@ export default function BookingDetail() {
               secondaryRoomName={booking.secondary_room_name}
               currency={currency}
               therapistRatesMap={therapistRatesMap}
+              therapistTreatmentRatesMap={therapistTreatmentRatesMap}
               globalTherapistCommission={hotelCommission?.global_therapist_commission}
               therapistCommission={hotelCommission?.therapist_commission}
               surchargePercent={surchargePercent}

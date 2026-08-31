@@ -17,7 +17,12 @@ import { cn } from "@/lib/utils";
 import { fetchTherapistUnavailableDates } from "@/hooks/pwa/useScheduleCompleteness";
 import { useTherapistOrganizationName } from "@/hooks/pwa/useTherapistOrganizationName";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
-import { myLegDuration, bookingSlotDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
+import {
+  myLegDuration,
+  myLegTreatments,
+  bookingSlotDuration,
+  estimateTherapistShare,
+} from "@/lib/therapistLegDuration";
 import { useCurrentTherapist } from "@/hooks/pwa/useCurrentTherapist";
 import { useTherapistVenues } from "@/hooks/pwa/useTherapistVenues";
 import {
@@ -60,6 +65,7 @@ interface Booking {
   payment_method?: string | null;
   booking_treatments?: Array<{
     therapist_id?: string | null;
+    treatment_id?: string | null;
     is_addon?: boolean | null;
     treatment_menus: {
       name: string;
@@ -675,16 +681,24 @@ const PwaDashboard = () => {
     const count = todayBookings.length;
     // My share of a booking: only my own soin(s) in a duo (stable link when
     // present, positional fallback otherwise); the full duration for a solo.
-    const myLeg = (b: Booking): number => {
-      const gc = (b as { guest_count?: number }).guest_count ?? 1;
-      if (gc <= 1) return calculateTotalDuration(b);
-      const orderedIds = ((b.booking_therapists ?? []) as { therapist_id: string; status: string; assigned_at?: string | null }[])
+    const legLineInputs = (b: Booking) =>
+      ((b.booking_treatments ?? []) as { therapist_id?: string | null; treatment_id?: string | null; is_addon?: boolean | null; treatment_menus?: { duration?: number | null } | null }[])
+        .map((t) => ({ therapist_id: t.therapist_id ?? null, treatment_id: t.treatment_id ?? null, duration: t.treatment_menus?.duration ?? null, is_addon: t.is_addon ?? false }));
+    const orderedIdsOf = (b: Booking) =>
+      ((b.booking_therapists ?? []) as { therapist_id: string; status: string; assigned_at?: string | null }[])
         .filter((bt) => bt.status === "accepted")
         .sort((x, y) => (x.assigned_at || "").localeCompare(y.assigned_at || ""))
         .map((bt) => bt.therapist_id);
-      const legTreatments = ((b.booking_treatments ?? []) as { therapist_id?: string | null; is_addon?: boolean | null; treatment_menus?: { duration?: number | null } | null }[])
-        .map((t) => ({ therapist_id: t.therapist_id ?? null, duration: t.treatment_menus?.duration ?? null, is_addon: t.is_addon ?? false }));
-      return myLegDuration(therapist?.id ?? "", legTreatments, orderedIds, gc);
+    const myLeg = (b: Booking): number => {
+      const gc = (b as { guest_count?: number }).guest_count ?? 1;
+      if (gc <= 1) return calculateTotalDuration(b);
+      return myLegDuration(therapist?.id ?? "", legLineInputs(b), orderedIdsOf(b), gc);
+    };
+    // Lignes dont `myLeg` est la somme — un solo est payé sur toutes.
+    const myLegLines = (b: Booking) => {
+      const gc = (b as { guest_count?: number }).guest_count ?? 1;
+      const lines = legLineInputs(b);
+      return gc <= 1 ? lines : myLegTreatments(therapist?.id ?? "", lines, orderedIdsOf(b), gc);
     };
     const totalMinutes = todayBookings.reduce((sum, b) => sum + myLeg(b), 0);
     const hours = Math.floor(totalMinutes / 60);
@@ -700,11 +714,16 @@ const PwaDashboard = () => {
           globalTherapistCommission: hotel?.global_therapist_commission ?? false,
           guestCount: (b as { guest_count?: number }).guest_count ?? 1,
           legDuration: myLeg(b),
+          legLines: myLegLines(b),
           myRates: {
             rate_60: (therapist as { rate_60?: number | null } | null)?.rate_60 ?? null,
             rate_75: (therapist as { rate_75?: number | null } | null)?.rate_75 ?? null,
             rate_90: (therapist as { rate_90?: number | null } | null)?.rate_90 ?? null,
           },
+          // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+          myTreatmentRates: therapist?.treatment_rates_active
+            ? therapist.treatment_rates ?? null
+            : null,
           grossPrice: calculateTotalPrice(b),
           therapistCommissionPercent: hotel?.therapist_commission ?? null,
           surchargePercent,
