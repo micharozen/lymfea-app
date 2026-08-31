@@ -70,7 +70,35 @@ Attention : `vars.` et `secrets.` sont deux espaces de noms distincts, et `vars.
 voit rien de ce qui est rangé en Secret. Une clé posée dans le mauvais onglet sans ce
 fallback arriverait vide, sans autre message que `Variable d'environnement manquante`.
 
-### 3. Token GitHub pour la CI sur les PR draft
+### 3. Stockage des pièces jointes (aperçu des images dans l'issue)
+
+Les captures d'écran jointes aux tâches Asana sont recopiées dans un bucket Supabase
+public, puis intégrées en Markdown dans l'issue pour s'afficher en aperçu.
+
+Ce détour est nécessaire : le `download_url` d'Asana est une URL signée qui expire au
+bout d'environ une heure, et le dépôt étant privé, GitHub ne rend une image que si son
+proxy peut la récupérer sans authentification.
+
+Le bucket `asana-attachments` est créé par la migration
+`20260831090000_asana_attachments_storage_bucket.sql` — lecture publique, écriture
+réservée au service role.
+
+| Emplacement | Clé | Valeur |
+|---|---|---|
+| Variables (ou Secrets) | `SUPABASE_URL` | `https://<ref>.supabase.co` |
+| Secrets | `SUPABASE_SERVICE_ROLE_KEY` | clé service role du projet |
+
+Sans ces deux valeurs, la synchro continue de fonctionner : les pièces jointes
+apparaissent alors comme des liens vers Asana, sans aperçu.
+
+Les fichiers non-image (logs, PDF) ne sont jamais recopiés — ils restent des liens vers
+Asana. Plafonds : 5 pièces jointes par tâche, 10 Mo par fichier.
+
+> La service role key contourne RLS et donne un accès complet au projet. Elle n'est
+> utilisée ici que pour écrire dans ce bucket, mais garde ça en tête au moment de
+> décider qui peut lancer des workflows sur ce dépôt.
+
+### 4. Token GitHub pour la CI sur les PR draft
 
 GitHub bloque volontairement l'enchaînement de workflows : une PR ouverte avec le
 `GITHUB_TOKEN` par défaut **ne déclenche pas** la CI. Pour que les PR draft soient
@@ -145,5 +173,8 @@ garde-fou — le label manuel et la PR en draft.
 | `Asana GET /tasks → 401` | `ASANA_PAT` expiré ou absent |
 | `Asana GET /tasks → 404` | mauvais `ASANA_PROJECT_GID` (souvent le GID du workspace pris par erreur, voir §2), ou le token n'a pas accès au projet |
 | Des doublons apparaissent | une issue synchronisée a perdu son label `asana` — le script ne la voit plus |
-| La PR draft n'a pas de CI | `AUTOMATION_TOKEN` absent (voir §3) |
+| La PR draft n'a pas de CI | `AUTOMATION_TOKEN` absent (voir §4) |
+| Les images apparaissent en liens Asana, pas en aperçu | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` absents, ou la migration du bucket n'est pas appliquée (voir §3) |
+| `Upload Supabase échoué (400)` | bucket `asana-attachments` inexistant sur l'environnement ciblé |
+| Une pièce jointe manque à l'appel | plus de 5 pièces jointes sur la tâche, fichier au-delà de 10 Mo, ou fichier non-image |
 | Le label `claude:fix` ne déclenche rien | le label a été posé par un bot/token : GitHub n'émet pas l'événement |

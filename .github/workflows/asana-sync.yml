@@ -48,6 +48,10 @@ jobs:
           ASANA_TAG_FILTER: ${{ vars.ASANA_TAG_FILTER || secrets.ASANA_TAG_FILTER }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          # Destination des images recopiees depuis Asana. Absentes, la synchro tourne
+          # quand meme : les images deviennent de simples liens vers Asana.
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           ARGS="--limit ${{ github.event.inputs.limit || '10' }}"
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
