@@ -24,12 +24,12 @@ describe("splitBookingByTherapist", () => {
       totalPrice: 165,
       bookingDuration: 60,
     });
-    expect(parts).toEqual([{ therapistId: "t1", duration: 60, revenue: 165 }]);
+    expect(parts).toMatchObject([{ therapistId: "t1", duration: 60, revenue: 165 }]);
   });
 
   it("réservation sans thérapeute: une part « Non assigné »", () => {
     const parts = splitBookingByTherapist({ ...base, totalPrice: 90, bookingDuration: 60 });
-    expect(parts).toEqual([{ therapistId: null, duration: 60, revenue: 90 }]);
+    expect(parts).toMatchObject([{ therapistId: null, duration: 60, revenue: 90 }]);
   });
 
   it("combo-duo lié (cas #1575): chaque thérapeute reçoit son propre soin", () => {
@@ -45,7 +45,7 @@ describe("splitBookingByTherapist", () => {
       totalPrice: 380,
       bookingDuration: 75,
     });
-    expect(parts).toEqual([
+    expect(parts).toMatchObject([
       { therapistId: "marie", duration: 75, revenue: 190 },
       { therapistId: "anais", duration: 75, revenue: 190 },
     ]);
@@ -64,7 +64,7 @@ describe("splitBookingByTherapist", () => {
       totalPrice: 380,
       bookingDuration: 90,
     });
-    expect(parts).toEqual([
+    expect(parts).toMatchObject([
       { therapistId: "t1", duration: 90, revenue: 220 },
       { therapistId: "t2", duration: 60, revenue: 160 },
     ]);
@@ -97,7 +97,7 @@ describe("splitBookingByTherapist", () => {
       totalPrice: 380,
       bookingDuration: 90,
     });
-    expect(parts).toEqual([
+    expect(parts).toMatchObject([
       { therapistId: "t1", duration: 60, revenue: 160 },
       { therapistId: "t2", duration: 90, revenue: 220 },
     ]);
@@ -113,7 +113,7 @@ describe("splitBookingByTherapist", () => {
       totalPrice: 380,
       bookingDuration: 75,
     });
-    expect(parts).toEqual([{ therapistId: "marie", duration: 75, revenue: 380 }]);
+    expect(parts).toMatchObject([{ therapistId: "marie", duration: 75, revenue: 380 }]);
   });
 
   it("remise: les parts sont renormalisées sur le prix réellement facturé", () => {
@@ -179,10 +179,46 @@ describe("splitBookingByTherapist", () => {
       totalPrice: 360,
       bookingDuration: 75,
     });
-    expect(parts).toEqual([
+    expect(parts).toMatchObject([
       { therapistId: "t1", duration: 60, revenue: 160 },
       { therapistId: "t2", duration: 75, revenue: 200 },
     ]);
+  });
+
+  it("chaque part porte ses lignes, pour les barèmes spécifiques par soin", () => {
+    const parts = splitBookingByTherapist({
+      ...base,
+      lines: [
+        { therapist_id: "t1", duration: 60, price: 160, treatment_id: "massage" },
+        { therapist_id: "t2", duration: 60, price: 160, treatment_id: "manucure" },
+        { therapist_id: "t2", duration: 15, price: 40, is_addon: true, treatment_id: "gommage" },
+      ],
+      orderedTherapistIds: ["t1", "t2"],
+      guestCount: 2,
+      primaryTherapistId: "t1",
+      totalPrice: 360,
+      bookingDuration: 75,
+    });
+    expect(parts.map((p) => p.lines.map((l) => l.treatment_id))).toEqual([
+      ["massage"],
+      ["manucure", "gommage"],
+    ]);
+  });
+
+  it("solo: la part unique porte toutes les lignes", () => {
+    const parts = splitBookingByTherapist({
+      ...base,
+      lines: [
+        { therapist_id: null, duration: 60, price: 160, treatment_id: "massage" },
+        { therapist_id: null, duration: 15, price: 40, is_addon: true, treatment_id: "gommage" },
+      ],
+      orderedTherapistIds: ["t1"],
+      guestCount: 1,
+      primaryTherapistId: "t1",
+      totalPrice: 200,
+      bookingDuration: 75,
+    });
+    expect(parts[0].lines.map((l) => l.treatment_id)).toEqual(["massage", "gommage"]);
   });
 });
 

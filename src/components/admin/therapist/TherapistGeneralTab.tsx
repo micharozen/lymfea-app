@@ -24,6 +24,11 @@ import { PhoneNumberField, CountryOption } from "@/components/PhoneNumberField";
 import { User, Loader2, Wallet, Plus, X } from "lucide-react";
 import type { TherapistFormValues } from "@/pages/admin/TherapistDetail";
 import { BillingProfileForm } from "@/components/admin/billing/BillingProfileForm";
+import {
+  RATE_BRACKETS,
+  type RateBracket,
+  type RateName,
+} from "@/components/admin/therapist/rateBrackets";
 
 const countries: CountryOption[] = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -36,35 +41,6 @@ const countries: CountryOption[] = [
   { code: "+41", label: "Suisse", flag: "🇨🇭" },
   { code: "+32", label: "Belgique", flag: "🇧🇪" },
   { code: "+377", label: "Monaco", flag: "🇲🇨" },
-];
-
-// Rate brackets by treatment duration. The base brackets (1h/1h15/1h30) are
-// always shown and required; the extra ones are added on demand and optional.
-type RateName =
-  | "rate_45"
-  | "rate_60"
-  | "rate_75"
-  | "rate_90"
-  | "rate_105"
-  | "rate_120"
-  | "rate_150";
-
-interface RateBracket {
-  name: RateName;
-  minutes: number;
-  labelKey: string;
-  fallback: string;
-  base: boolean;
-}
-
-const RATE_BRACKETS: RateBracket[] = [
-  { name: "rate_45", minutes: 45, labelKey: "admin:therapists.rate45Label", fallback: "0h45", base: false },
-  { name: "rate_60", minutes: 60, labelKey: "admin:therapists.rate60Label", fallback: "1h00", base: true },
-  { name: "rate_75", minutes: 75, labelKey: "admin:therapists.rate75Label", fallback: "1h15", base: true },
-  { name: "rate_90", minutes: 90, labelKey: "admin:therapists.rate90Label", fallback: "1h30", base: true },
-  { name: "rate_105", minutes: 105, labelKey: "admin:therapists.rate105Label", fallback: "1h45", base: false },
-  { name: "rate_120", minutes: 120, labelKey: "admin:therapists.rate120Label", fallback: "2h00", base: false },
-  { name: "rate_150", minutes: 150, labelKey: "admin:therapists.rate150Label", fallback: "2h30", base: false },
 ];
 
 interface TherapistGeneralTabProps {

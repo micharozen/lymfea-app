@@ -80,6 +80,118 @@ function interpolateBracketRate(
   return last.rate;
 }
 
+/**
+ * Barèmes spécifiques à certains soins, par thérapeute (`therapists.treatment_rates`).
+ * Clé externe : `treatment_menus.id`. Clé interne : la durée en minutes.
+ * Le flag `treatment_rates_active` est honoré à la lecture — un appelant qui charge
+ * un thérapeute inactif passe `null` ici, jamais la map.
+ */
+export type TreatmentRateMap = Record<string, Record<string, number>>;
+
+export interface EarningLine {
+  treatment_id?: string | null;
+  duration: number | null;
+}
+
+export interface LegEarningsInput {
+  /** Minutes payées au thérapeute — la valeur déjà calculée par l'appelant. */
+  totalDuration: number;
+  /** Lignes de la jambe, pour repérer celles qui ont un barème propre. */
+  lines?: EarningLine[];
+}
+
+/**
+ * Gain d'une jambe, en tenant compte des barèmes spécifiques par soin.
+ *
+ * Les lignes dont le soin a son propre barème sont sorties du lot et payées une par
+ * une sur ce barème seul ; leurs minutes sont retirées de `totalDuration`, et le
+ * reste est payé au barème par défaut exactement comme avant. Sans barème
+ * spécifique applicable, le résultat est donc strictement celui de
+ * `computeTherapistEarnings(rates, totalDuration, options)` — y compris là où
+ * `totalDuration` ne vaut pas la somme des lignes (`bookings.duration` en clôture).
+ *
+ * `usedTreatmentRate` sert au badge « Taux spécifique » du récap admin.
+ */
+export function computeLegEarningsDetailed(
+  rates: TherapistRates | null | undefined,
+  treatmentRates: TreatmentRateMap | null | undefined,
+  leg: LegEarningsInput,
+  options?: { surchargePercent?: number },
+): { amount: number | null; usedTreatmentRate: boolean } {
+  const { totalDuration, lines } = leg;
+
+  let overrideBase = 0;
+  let overrideMinutes = 0;
+  let usedTreatmentRate = false;
+
+  if (treatmentRates && lines) {
+    for (const line of lines) {
+      const minutes = line.duration || 0;
+      if (minutes <= 0 || !line.treatment_id) continue;
+
+      const points = treatmentRatePoints(treatmentRates[line.treatment_id]);
+      if (points.length === 0) continue;
+
+      const base = interpolateBracketRate(points, minutes);
+      if (base == null) continue;
+
+      overrideBase += base;
+      overrideMinutes += minutes;
+      usedTreatmentRate = true;
+    }
+  }
+
+  if (!usedTreatmentRate) {
+    return {
+      amount: computeTherapistEarnings(rates, totalDuration, options),
+      usedTreatmentRate: false,
+    };
+  }
+
+  // Le reste peut être nul (toute la jambe est surchargée) : le barème par défaut
+  // n'est alors pas requis, ce qui permet de payer un thérapeute qui n'a QUE des
+  // barèmes par soin. Un reste négatif ne peut venir que d'un `totalDuration`
+  // incohérent avec les lignes — on le neutralise plutôt que de payer en négatif.
+  const remaining = Math.max(0, totalDuration - overrideMinutes);
+  let base = overrideBase;
+
+  if (remaining > 0) {
+    const rest = computeTherapistEarnings(rates, remaining);
+    if (rest == null) return { amount: null, usedTreatmentRate };
+    base += rest;
+  }
+
+  const factor = 1 + Math.max(0, options?.surchargePercent ?? 0) / 100;
+  return { amount: Math.round(base * factor * 100) / 100, usedTreatmentRate };
+}
+
+/** Emballage scalaire de `computeLegEarningsDetailed`, pour les appelants sans badge. */
+export function computeLegEarnings(
+  rates: TherapistRates | null | undefined,
+  treatmentRates: TreatmentRateMap | null | undefined,
+  leg: LegEarningsInput,
+  options?: { surchargePercent?: number },
+): number | null {
+  return computeLegEarningsDetailed(rates, treatmentRates, leg, options).amount;
+}
+
+/**
+ * Paliers exploitables d'un barème de soin, triés par durée croissante —
+ * `interpolateBracketRate` suppose l'ordre. Les valeurs nulles ou négatives sont
+ * ignorées : un barème vidé dans l'UI doit se comporter comme une absence de
+ * barème, pas comme un tarif à 0 €.
+ */
+function treatmentRatePoints(
+  scale: Record<string, number> | undefined,
+): Array<{ minutes: number; rate: number }> {
+  if (!scale) return [];
+
+  return Object.entries(scale)
+    .map(([minutes, rate]) => ({ minutes: Number(minutes), rate: Number(rate) }))
+    .filter((p) => Number.isFinite(p.minutes) && p.minutes > 0 && Number.isFinite(p.rate) && p.rate > 0)
+    .sort((a, b) => a.minutes - b.minutes);
+}
+
 export function hasCompleteRates(
   r: TherapistRates | null | undefined,
 ): boolean {

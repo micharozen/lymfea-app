@@ -23,8 +23,14 @@ export interface SplitLine extends LegTreatment {
 export interface SplitPart {
   /** null = « Non assigné » (aucun thérapeute connu sur la réservation). */
   therapistId: string | null;
-  /** Minutes attribuées — base de calcul de computeTherapistEarnings. */
+  /** Minutes attribuées — base de calcul de computeLegEarnings. */
   duration: number;
+  /**
+   * Lignes attribuées, pour repérer celles qui ont un barème spécifique par soin.
+   * `duration` reste la base du calcul : elle vient de `bookings.duration` sur un
+   * solo et peut différer de la somme de ces lignes.
+   */
+  lines: SplitLine[];
   /** Part du CA, arrondie au centime. La somme des parts vaut totalPrice. */
   revenue: number;
 }
@@ -87,6 +93,7 @@ export function splitBookingByTherapist(input: SplitBookingInput): SplitPart[] {
       {
         therapistId: roster[0] ?? primaryTherapistId ?? null,
         duration: bookingDuration,
+        lines,
         revenue: round2(totalPrice),
       },
     ];
@@ -97,6 +104,7 @@ export function splitBookingByTherapist(input: SplitBookingInput): SplitPart[] {
     return {
       therapistId,
       duration: mine.reduce((sum, t) => sum + (t.duration || 0), 0),
+      lines: mine,
       weight: mine.reduce((sum, t) => sum + (t.price || 0), 0),
     };
   });
@@ -109,6 +117,7 @@ export function splitBookingByTherapist(input: SplitBookingInput): SplitPart[] {
   const parts: SplitPart[] = raw.map((p) => ({
     therapistId: p.therapistId,
     duration: p.duration,
+    lines: p.lines,
     revenue: round2(totalWeight > 0 ? (p.weight / totalWeight) * totalPrice : totalPrice / roster.length),
   }));
 

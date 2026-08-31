@@ -17,13 +17,20 @@
  * In every duo branch the add-ons I carry are added on top.
  */
 
-import { computeTherapistEarnings, type TherapistRates } from "./therapistEarnings.ts";
+import {
+  computeLegEarnings,
+  type EarningLine,
+  type TherapistRates,
+  type TreatmentRateMap,
+} from "./therapistEarnings.ts";
 import { computeDuoLegs } from "./duoLegs.ts";
 
 export interface LegTreatment {
   therapist_id?: string | null;
   duration: number | null;
   is_addon?: boolean | null;
+  /** `booking_treatments.treatment_id` — porte le barème spécifique éventuel du soin. */
+  treatment_id?: string | null;
 }
 
 const sumDurations = (treatments: LegTreatment[]): number =>
@@ -122,8 +129,16 @@ export interface EstimateTherapistShareInput {
   guestCount: number;
   /** Minutes the therapist is paid for (from myLegDuration). */
   legDuration: number;
+  /**
+   * Lignes dont `legDuration` est la somme (from myLegTreatments). Optionnel :
+   * sans elles, aucun barème spécifique ne peut s'appliquer et le calcul reste
+   * celui du barème par défaut.
+   */
+  legLines?: EarningLine[];
   /** Rates of the CONNECTED therapist (never the booking's primary snapshot). */
   myRates: TherapistRates | null | undefined;
+  /** Barèmes par soin du thérapeute connecté, ou null s'il les a désactivés. */
+  myTreatmentRates?: TreatmentRateMap | null;
   /** Gross booking price (used only in commission-% mode). */
   grossPrice: number;
   /** booking.therapist_commission (%), only used in commission-% mode. */
@@ -142,14 +157,23 @@ export function estimateTherapistShare(input: EstimateTherapistShareInput): numb
     globalTherapistCommission,
     guestCount,
     legDuration,
+    legLines,
     myRates,
+    myTreatmentRates,
     grossPrice,
     therapistCommissionPercent,
     surchargePercent,
   } = input;
 
   if (globalTherapistCommission === false) {
-    return computeTherapistEarnings(myRates, legDuration, { surchargePercent }) ?? 0;
+    return (
+      computeLegEarnings(
+        myRates,
+        myTreatmentRates ?? null,
+        { totalDuration: legDuration, lines: legLines },
+        { surchargePercent },
+      ) ?? 0
+    );
   }
 
   const pricePerTherapist = grossPrice / Math.max(guestCount || 1, 1);

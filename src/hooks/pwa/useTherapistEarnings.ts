@@ -1,11 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, eachDayOfInterval, parseISO } from "date-fns";
-import { type TherapistRates } from "@/lib/therapistEarnings";
-import { myLegDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
+import { type TherapistRates, type TreatmentRateMap } from "@/lib/therapistEarnings";
+import {
+  myLegDuration,
+  myLegTreatments,
+  estimateTherapistShare,
+} from "@/lib/therapistLegDuration";
 
 interface BookingTreatment {
   therapist_id: string | null;
+  treatment_id: string | null;
   is_addon: boolean;
   treatment_menus: {
     name: string;
@@ -93,11 +98,17 @@ async function fetchTherapistEarnings(
 
   const { data: therapistData } = await supabase
     .from("therapists")
-    .select("rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
+    .select(
+      "rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+    )
     .eq("id", therapistId)
     .single();
 
   const therapistRates: TherapistRates | null = therapistData ?? null;
+  // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+  const therapistTreatmentRates: TreatmentRateMap | null = therapistData?.treatment_rates_active
+    ? ((therapistData.treatment_rates ?? null) as TreatmentRateMap | null)
+    : null;
 
   // Commission mode + out-of-hours surcharge live on the venue (hotels), not on
   // the booking — mirror BookingDetail so the estimate matches the payout.
@@ -118,7 +129,7 @@ async function fetchTherapistEarnings(
   );
 
   const bookingSelect =
-    `*, booking_treatments (therapist_id, is_addon, treatment_menus (name, price, duration)), booking_therapists (therapist_id, status, assigned_at)`;
+    `*, booking_treatments (therapist_id, treatment_id, is_addon, treatment_menus (name, price, duration)), booking_therapists (therapist_id, status, assigned_at)`;
 
   // Bookings where I'm the primary therapist.
   const { data: primaryData } = await supabase
@@ -186,9 +197,13 @@ async function fetchTherapistEarnings(
     const gc = b.guest_count ?? 1;
     const legTreatments = (b.booking_treatments ?? []).map((t) => ({
       therapist_id: t.therapist_id ?? null,
+      treatment_id: t.treatment_id ?? null,
       duration: t.treatment_menus?.duration ?? null,
       is_addon: t.is_addon ?? false,
     }));
+    // Les lignes dont `dur` est la somme : elles portent le treatment_id, donc le
+    // barème spécifique éventuel de chaque soin.
+    const myLines = myLegTreatments(therapistId, legTreatments, orderedIds, gc);
     let dur = myLegDuration(therapistId, legTreatments, orderedIds, gc);
     // Solo: preserve the previous behaviour — prefer the stored booking duration
     // (e.g. extended bookings), floor at 60 when no data. Duos use the leg above.
@@ -204,7 +219,9 @@ async function fetchTherapistEarnings(
       globalTherapistCommission: hotel?.globalTherapistCommission ?? false,
       guestCount: gc,
       legDuration: dur,
+      legLines: myLines,
       myRates: therapistRates,
+      myTreatmentRates: therapistTreatmentRates,
       grossPrice: total,
       therapistCommissionPercent: hotel?.therapistCommission ?? null,
       surchargePercent,

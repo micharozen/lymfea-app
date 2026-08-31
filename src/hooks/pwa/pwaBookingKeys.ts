@@ -68,6 +68,7 @@ const PWA_BOOKING_EMBEDS = `
   booking_therapists ( status, therapist_id, assigned_at ),
   booking_treatments (
     therapist_id,
+    treatment_id,
     is_addon,
     treatment_menus ( name, price, duration )
   )`;
