@@ -21,6 +21,7 @@
     "sup:stop": "supabase stop",
     "sup:push": "supabase db push --local 2>&1",
     "check:migrations": "bun scripts/check-migrations.mts",
+    "asana:sync": "bun scripts/asana-to-github.mts",
     "sup:status": "supabase status",
     "sup:restart": "supabase restart",
     "sup:logs": "supabase logs",
