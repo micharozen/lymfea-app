@@ -56,13 +56,19 @@ curl -s -H "Authorization: Bearer $ASANA_PAT" \
   | jq -r '.data[] | "\(.gid)  \(.name)"'
 ```
 
-Ajoute-le dans **Settings → Secrets and variables → Actions → Variables** (pas un
-secret, ce n'est pas sensible) :
+Ajoute-le dans **Settings → Secrets and variables → Actions**, onglet **Variables**
+de préférence — ce n'est pas une donnée sensible, et une valeur rangée en Secret est
+masquée en `***` dans les logs, ce qui gêne le diagnostic.
 
-| Variable | Valeur | Requis |
+| Clé | Valeur | Requis |
 |---|---|---|
 | `ASANA_PROJECT_GID` | le GID du projet | oui |
 | `ASANA_TAG_FILTER` | ex. `bug` — ne synchronise que les tâches portant ce tag | non |
+
+Le workflow lit `${{ vars.X || secrets.X }}`, donc les deux onglets fonctionnent.
+Attention : `vars.` et `secrets.` sont deux espaces de noms distincts, et `vars.` ne
+voit rien de ce qui est rangé en Secret. Une clé posée dans le mauvais onglet sans ce
+fallback arriverait vide, sans autre message que `Variable d'environnement manquante`.
 
 ### 3. Token GitHub pour la CI sur les PR draft
 
