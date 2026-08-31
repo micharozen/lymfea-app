@@ -1,0 +1,54 @@
+name: Asana → GitHub issues
+
+on:
+  schedule:
+    # Toutes les 15 minutes. La latence est sans impact pour du triage de bugs.
+    - cron: "*/15 * * * *"
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (n'écrit rien, log ce qui serait créé)"
+        type: boolean
+        required: false
+        default: false
+      limit:
+        description: "Nombre max d'issues créées sur ce run"
+        required: false
+        default: "10"
+
+permissions:
+  issues: write
+
+concurrency:
+  group: asana-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Synchroniser les tâches Asana
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Sync
+        env:
+          ASANA_PAT: ${{ secrets.ASANA_PAT }}
+          ASANA_PROJECT_GID: ${{ vars.ASANA_PROJECT_GID }}
+          ASANA_TAG_FILTER: ${{ vars.ASANA_TAG_FILTER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          ARGS="--limit ${{ github.event.inputs.limit || '10' }}"
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          bun scripts/asana-to-github.mts $ARGS
