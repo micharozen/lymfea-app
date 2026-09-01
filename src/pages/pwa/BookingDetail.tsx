@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
-import { Euro, MoreVertical, Trash2, X, User, MessageSquare, Wallet, Loader2, ShieldCheck, UserX, UserMinus, CalendarX, Hourglass, MapPin, DoorOpen, CreditCard, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { Euro, MoreVertical, Trash2, X, User, MessageSquare, Wallet, Loader2, ShieldCheck, UserX, UserMinus, CalendarX, Hourglass, MapPin, DoorOpen, CreditCard, ChevronLeft, ChevronRight, Check, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
@@ -14,6 +14,8 @@ import { ProposeAlternativeDialog } from "./ProposeAlternativeDialog";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
+import { RoomAssignmentDrawer } from "@/components/pwa/RoomAssignmentDrawer";
+import { useBookingRoomOptions } from "@/hooks/pwa/useBookingRoomOptions";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { useUser } from "@/contexts/UserContext";
@@ -86,6 +88,8 @@ interface Booking {
   hotel_currency?: string;
   room_id?: string | null;
   room_name?: string | null;
+  /** Salle supplémentaire d'un duo dont les 2 soins ne tiennent pas dans une seule salle. */
+  secondary_room_id?: string | null;
   duration?: number | null;
   therapist_checked_in_at?: string | null;
   guest_count?: number | null;
@@ -190,7 +194,8 @@ const PwaBookingDetail = () => {
   const [showExtendDialog, setShowExtendDialog] = useState(false);
   const [extendLoading, setExtendLoading] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
-  
+  const [showRoomDrawer, setShowRoomDrawer] = useState(false);
+
   const [bundleInfo, setBundleInfo] = useState<{
     bundleName: string;
     remainingSessions: number;
@@ -209,6 +214,15 @@ const PwaBookingDetail = () => {
   const isAcceptingRef = useRef(false);
   const isChargingRef = useRef(false);
   const isMountedRef = useIsMounted();
+
+  // La salle reste modifiable tant que la réservation n'est pas soldée. Le RPC sert
+  // aussi de source des noms de salles : la RLS de `treatment_rooms` n'expose rien
+  // au rôle thérapeute.
+  const canEditRooms = !!booking && !['Annulé', 'Terminé', 'cancelled', 'completed', 'noshow'].includes(booking.status);
+  const { data: roomOptions = [] } = useBookingRoomOptions(id, canEditRooms);
+  const roomNameById = new Map(roomOptions.map((r) => [r.id, r.name]));
+  const primaryRoomName = (booking?.room_id ? roomNameById.get(booking.room_id) : null) ?? booking?.room_name ?? null;
+  const secondaryRoomName = booking?.secondary_room_id ? roomNameById.get(booking.secondary_room_id) ?? null : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -848,11 +862,18 @@ const PwaBookingDetail = () => {
               <span className="val">{booking.room_number}</span>
             </div>
           )}
-          {booking.room_name && (
-            <div className="info-row">
+          {(primaryRoomName || canEditRooms) && (
+            <div
+              className="info-row"
+              onClick={canEditRooms ? () => setShowRoomDrawer(true) : undefined}
+              style={canEditRooms ? { cursor: 'pointer' } : undefined}
+            >
               <span className="ic"><MapPin size={18} /></span>
               <span className="lab">{t('bookingDetail.roomTreatment', 'Salle')}</span>
-              <span className="val">{booking.room_name}</span>
+              <span className="val" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {[primaryRoomName, secondaryRoomName].filter(Boolean).join(' + ') || t('bookingDetail.roomUnassigned', 'À définir')}
+                {canEditRooms && <Pencil size={14} style={{ color: 'var(--ink-mute)' }} />}
+              </span>
             </div>
           )}
           {['confirmed', 'ongoing'].includes(booking.status) && booking.room_id && (
@@ -1073,6 +1094,15 @@ const PwaBookingDetail = () => {
       </Drawer>
 
       <AddTreatmentDialog open={showAddTreatmentDialog} onOpenChange={setShowAddTreatmentDialog} bookingId={booking.id} hotelId={booking.hotel_id} onTreatmentsAdded={fetchBookingDetail} />
+      <RoomAssignmentDrawer
+        open={showRoomDrawer}
+        onOpenChange={setShowRoomDrawer}
+        bookingId={booking.id}
+        currentRoomId={booking.room_id ?? null}
+        currentSecondaryRoomId={booking.secondary_room_id ?? null}
+        guestCount={booking.guest_count ?? 1}
+        onRoomsUpdated={fetchBookingDetail}
+      />
       <InvoiceSignatureDialog
         open={showHealthFormDialog}
         onOpenChange={setShowHealthFormDialog}

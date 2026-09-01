@@ -23,6 +23,7 @@ import {
   useMyBookingsWindow,
   useMyNextBookings,
   useVenueBookingsWindow,
+  useVenueNextBookings,
   type PwaBooking,
 } from "@/hooks/pwa/usePwaBookings";
 import {
@@ -141,18 +142,23 @@ const PwaBookings = () => {
   );
 
   // Même filet que le tableau de bord : la fenêtre s'arrête à la fin du mois
-  // affiché, donc un thérapeute dont le prochain rendez-vous tombe plus loin
-  // voyait une liste vide. Ne part que sur « Mes RDV » (la requête est bornée à
-  // un thérapeute), quand la fenêtre atteint le futur et qu'elle ramène moins de
-  // MIN_UPCOMING rendez-vous.
-  const nextBeyondWindow = useMyNextBookings(therapist?.id, window_.to, MIN_UPCOMING, {
-    enabled:
-      view === "list" &&
-      !venueScope &&
-      window_.to >= todayKey &&
-      !active.isPending &&
-      upcomingInWindow < MIN_UPCOMING,
+  // affiché, donc un prochain rendez-vous plus lointain laissait une liste vide.
+  // Il vaut aussi pour l'agenda du lieu, à l'échelle du lieu : le gérant doit
+  // voir l'à-venir complet, ses propres rendez-vous s'y distinguant par leur
+  // badge comme partout ailleurs.
+  const needsNext =
+    view === "list" &&
+    window_.to >= todayKey &&
+    !active.isPending &&
+    upcomingInWindow < MIN_UPCOMING;
+
+  const myNext = useMyNextBookings(therapist?.id, window_.to, MIN_UPCOMING, {
+    enabled: needsNext && !venueScope,
   });
+  const venueNext = useVenueNextBookings(conciergeHotelIds, window_.to, MIN_UPCOMING, {
+    enabled: needsNext && venueScope,
+  });
+  const nextBeyondWindow = venueScope ? venueNext : myNext;
   const beyondWindowBookings: PwaBooking[] = view === "list" ? nextBeyondWindow.data ?? [] : [];
 
   useEffect(() => {
@@ -234,11 +240,16 @@ const PwaBookings = () => {
     legendSource.some((b) => getCalendarFlowStage(b.status, b.payment_status).key === key),
   );
 
-  const renderBookingRow = (booking: PwaBooking) => (
+  const renderBookingRow = (booking: PwaBooking) => {
+    const mine = venueScope && isMyBooking(booking, therapist?.id);
+    return (
     <button
       key={booking.id}
       className="bk-row"
-      style={{ borderLeft: `3px solid ${getBookingStatusConfig(booking.status).hexColor}` }}
+      // Le liseré ne signale plus le statut — le badge de droite le porte déjà —
+      // mais mes rendez-vous. Transparent sinon, pour que les lignes restent
+      // alignées.
+      style={{ borderLeft: `3px solid ${mine ? "var(--accent)" : "transparent"}` }}
       onClick={() => navigate(`/pwa/booking/${booking.id}`)}
     >
       <div className="bk-main">
@@ -246,14 +257,6 @@ const PwaBookings = () => {
           {booking.client_first_name} {booking.client_last_name}
           {(booking.guest_count ?? 1) > 1 && (
             <span className="status info"><span className="dot" />Duo</span>
-          )}
-          {venueScope && isMyBooking(booking, therapist?.id) && (
-            <span
-              className="ml-1.5 rounded-full px-1.5 py-px text-[9px] font-bold uppercase leading-none"
-              style={{ background: "var(--accent)", color: "var(--on-accent)" }}
-            >
-              {t("bookings.mineBadge", "Moi")}
-            </span>
           )}
         </div>
         <div className="what">
@@ -273,7 +276,8 @@ const PwaBookings = () => {
         </span>
       </div>
     </button>
-  );
+    );
+  };
 
   if (active.isPending) {
     return <PwaPageLoader title={t("bookings.title")} />;
@@ -359,15 +363,10 @@ const PwaBookings = () => {
               })}
             </p>
 
-            {bookings.length === 0 ? (
-              <div className="placeholder">
-                <p>{t("bookings.empty", "Aucune réservation trouvée")}</p>
-              </div>
-            ) : (
-              bookings.map(renderBookingRow)
-            )}
-
-            <div className="px-4 pt-3">
+            {/* En tête de liste, pas en pied : les réservations sont triées du
+                plus ancien au plus récent, remonter le temps se fait donc vers
+                le haut. */}
+            <div className="px-4 pb-3">
               <Button
                 variant="outline"
                 size="sm"
@@ -378,6 +377,14 @@ const PwaBookings = () => {
                 {t("bookings.loadOlder")}
               </Button>
             </div>
+
+            {bookings.length === 0 ? (
+              <div className="placeholder">
+                <p>{t("bookings.empty", "Aucune réservation trouvée")}</p>
+              </div>
+            ) : (
+              bookings.map(renderBookingRow)
+            )}
 
             {/* Rendez-vous situés après la fenêtre chargée. Sous leur propre
                 titre : la légende de période ci-dessus serait contredite si on

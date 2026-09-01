@@ -4042,6 +4042,10 @@ export type Database = {
         Args: { _booking_id: string; _target_therapist_id: string }
         Returns: boolean
       }
+      can_manage_booking_rooms: {
+        Args: { _booking_id: string; _user_id: string }
+        Returns: boolean
+      }
       claim_gift_card: {
         Args: { _code: string; _email?: string }
         Returns: string
@@ -4300,6 +4304,17 @@ export type Database = {
           hotel_name: string
           total_price: number
           treatment_name: string
+        }[]
+      }
+      get_booking_room_options: {
+        Args: { _booking_id: string }
+        Returns: {
+          capacity: number
+          id: string
+          is_occupied: boolean
+          name: string
+          room_number: string
+          turnover_conflict: boolean
         }[]
       }
       get_booking_summary: { Args: { _booking_id: string }; Returns: Json }
@@ -4729,6 +4744,17 @@ export type Database = {
           _stripe_refund_id?: string
         }
         Returns: undefined
+      }
+      set_booking_rooms: {
+        Args: {
+          _booking_id: string
+          _room_id: string
+          _secondary_room_id?: string
+        }
+        Returns: {
+          new_room_id: string
+          new_secondary_room_id: string
+        }[]
       }
       slugify: { Args: { _input: string }; Returns: string }
       submit_client_signature:
