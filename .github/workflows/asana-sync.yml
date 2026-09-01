@@ -42,8 +42,10 @@ jobs:
       - name: Sync
         env:
           ASANA_PAT: ${{ secrets.ASANA_PAT }}
-          ASANA_PROJECT_GID: ${{ vars.ASANA_PROJECT_GID }}
-          ASANA_TAG_FILTER: ${{ vars.ASANA_TAG_FILTER }}
+          # Accepte la cle qu'elle soit rangee en Variable ou en Secret : ce sont deux
+          # espaces de noms distincts et `vars.` ne voit rien de ce qui est dans `secrets.`.
+          ASANA_PROJECT_GID: ${{ vars.ASANA_PROJECT_GID || secrets.ASANA_PROJECT_GID }}
+          ASANA_TAG_FILTER: ${{ vars.ASANA_TAG_FILTER || secrets.ASANA_TAG_FILTER }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
