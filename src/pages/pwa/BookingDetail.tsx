@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
-import { Euro, MoreVertical, Trash2, X, User, MessageSquare, Wallet, Loader2, ShieldCheck, UserX, UserMinus, CalendarX, Hourglass, MapPin, DoorOpen, CreditCard, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { Euro, MoreVertical, Trash2, X, User, MessageSquare, Wallet, Loader2, ShieldCheck, UserX, UserMinus, CalendarX, Hourglass, MapPin, DoorOpen, CreditCard, ChevronLeft, ChevronRight, Check, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
@@ -14,10 +14,13 @@ import { ProposeAlternativeDialog } from "./ProposeAlternativeDialog";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
+import { RoomAssignmentDrawer } from "@/components/pwa/RoomAssignmentDrawer";
+import { useBookingRoomOptions } from "@/hooks/pwa/useBookingRoomOptions";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { useUser } from "@/contexts/UserContext";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
+import { shortTherapistName } from "@/hooks/pwa/usePwaBookings";
 import {
   myLegDuration,
   myLegTreatments,
@@ -85,6 +88,8 @@ interface Booking {
   hotel_currency?: string;
   room_id?: string | null;
   room_name?: string | null;
+  /** Salle supplémentaire d'un duo dont les 2 soins ne tiennent pas dans une seule salle. */
+  secondary_room_id?: string | null;
   duration?: number | null;
   therapist_checked_in_at?: string | null;
   guest_count?: number | null;
@@ -189,7 +194,8 @@ const PwaBookingDetail = () => {
   const [showExtendDialog, setShowExtendDialog] = useState(false);
   const [extendLoading, setExtendLoading] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
-  
+  const [showRoomDrawer, setShowRoomDrawer] = useState(false);
+
   const [bundleInfo, setBundleInfo] = useState<{
     bundleName: string;
     remainingSessions: number;
@@ -201,9 +207,22 @@ const PwaBookingDetail = () => {
   const [myTherapistId, setMyTherapistId] = useState<string | null>(null);
   // Accepted therapist ids ordered by assigned_at (stable positional fallback).
   const [orderedTherapistIds, setOrderedTherapistIds] = useState<string[]>([]);
+  // Noms courts des thérapeutes acceptés, pour attribuer chaque soin quand ils
+  // sont plusieurs sur la réservation. Passe par le RPC SECURITY DEFINER : la
+  // RLS de `therapists` n'expose que le profil de l'appelant.
+  const [therapistNamesById, setTherapistNamesById] = useState<Record<string, string>>({});
   const isAcceptingRef = useRef(false);
   const isChargingRef = useRef(false);
   const isMountedRef = useIsMounted();
+
+  // La salle reste modifiable tant que la réservation n'est pas soldée. Le RPC sert
+  // aussi de source des noms de salles : la RLS de `treatment_rooms` n'expose rien
+  // au rôle thérapeute.
+  const canEditRooms = !!booking && !['Annulé', 'Terminé', 'cancelled', 'completed', 'noshow'].includes(booking.status);
+  const { data: roomOptions = [] } = useBookingRoomOptions(id, canEditRooms);
+  const roomNameById = new Map(roomOptions.map((r) => [r.id, r.name]));
+  const primaryRoomName = (booking?.room_id ? roomNameById.get(booking.room_id) : null) ?? booking?.room_name ?? null;
+  const secondaryRoomName = booking?.secondary_room_id ? roomNameById.get(booking.secondary_room_id) ?? null : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -374,6 +393,22 @@ const PwaBookingDetail = () => {
           .sort((a, b) => (a.assigned_at || "").localeCompare(b.assigned_at || ""))
           .map((bt) => bt.therapist_id),
       );
+
+      // Un seul thérapeute : la fiche le nomme déjà, l'attribution par soin
+      // n'apprendrait rien et coûterait un appel.
+      if (acceptedRows.length > 1) {
+        const { data: names } = await supabase.rpc("get_booking_therapist_names", {
+          _booking_ids: [id],
+        });
+        if (!isMountedRef.current) return;
+        setTherapistNamesById(
+          Object.fromEntries(
+            (names ?? []).map((n) => [n.therapist_id, shortTherapistName(n.first_name, n.last_name)]),
+          ),
+        );
+      } else {
+        setTherapistNamesById({});
+      }
 
       // Booking no longer belongs to the connected therapist (e.g. reassigned by
       // an admin while the app was open / opened from a stale push notification).
@@ -827,11 +862,18 @@ const PwaBookingDetail = () => {
               <span className="val">{booking.room_number}</span>
             </div>
           )}
-          {booking.room_name && (
-            <div className="info-row">
+          {(primaryRoomName || canEditRooms) && (
+            <div
+              className="info-row"
+              onClick={canEditRooms ? () => setShowRoomDrawer(true) : undefined}
+              style={canEditRooms ? { cursor: 'pointer' } : undefined}
+            >
               <span className="ic"><MapPin size={18} /></span>
               <span className="lab">{t('bookingDetail.roomTreatment', 'Salle')}</span>
-              <span className="val">{booking.room_name}</span>
+              <span className="val" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {[primaryRoomName, secondaryRoomName].filter(Boolean).join(' + ') || t('bookingDetail.roomUnassigned', 'À définir')}
+                {canEditRooms && <Pencil size={14} style={{ color: 'var(--ink-mute)' }} />}
+              </span>
             </div>
           )}
           {['confirmed', 'ongoing'].includes(booking.status) && booking.room_id && (
@@ -925,12 +967,23 @@ const PwaBookingDetail = () => {
           {treatments.map((tr) => {
             const effectiveDuration = tr.treatment_variants?.duration ?? tr.treatment_menus?.duration;
             const variantLabel = tr.treatment_variants?.label;
+            // Seulement quand ils sont plusieurs, et seulement sur les lignes qui
+            // portent vraiment l'affectation : une ligne sans therapist_id reste
+            // muette plutôt que de nommer quelqu'un par déduction.
+            const lineTherapist = tr.therapist_id ? therapistNamesById[tr.therapist_id] : null;
             // La durée a déjà sa propre colonne : on n'affiche le label de variante
             // que s'il apporte une info autre qu'une durée (ex. « Dos », « Corps »).
             const showVariant = variantLabel && !/^\s*\d+\s*(min|minutes|mn|')?\s*$/i.test(variantLabel);
             return (
               <div key={tr.id} className="soin-row">
-                <span className="nm">{tr.treatment_menus?.name}{showVariant ? ` · ${variantLabel}` : ''}</span>
+                <span className="nm">
+                  {tr.treatment_menus?.name}{showVariant ? ` · ${variantLabel}` : ''}
+                  {lineTherapist && (
+                    <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-mute)', fontWeight: 400 }}>
+                      {lineTherapist}
+                    </span>
+                  )}
+                </span>
                 <span className="dur">{effectiveDuration} min</span>
                 <span className="pr">{formatPrice(treatmentLinePrice(tr), booking.hotel_currency)}</span>
                 {booking.status !== "completed" && (
@@ -1041,6 +1094,15 @@ const PwaBookingDetail = () => {
       </Drawer>
 
       <AddTreatmentDialog open={showAddTreatmentDialog} onOpenChange={setShowAddTreatmentDialog} bookingId={booking.id} hotelId={booking.hotel_id} onTreatmentsAdded={fetchBookingDetail} />
+      <RoomAssignmentDrawer
+        open={showRoomDrawer}
+        onOpenChange={setShowRoomDrawer}
+        bookingId={booking.id}
+        currentRoomId={booking.room_id ?? null}
+        currentSecondaryRoomId={booking.secondary_room_id ?? null}
+        guestCount={booking.guest_count ?? 1}
+        onRoomsUpdated={fetchBookingDetail}
+      />
       <InvoiceSignatureDialog
         open={showHealthFormDialog}
         onOpenChange={setShowHealthFormDialog}
