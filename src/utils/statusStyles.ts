@@ -276,7 +276,6 @@ export function getEntityStatusConfig(status: string): StatusConfig {
 // ─────────────────────────────────────────────────────────────────────────
 
 export type CalendarFlowStageKey =
-  | 'awaiting_therapist_payment'
   | 'awaiting_therapist'
   | 'payment_pending'
   | 'confirmed'
@@ -296,12 +295,6 @@ export interface CalendarFlowStage {
 
 // Ordered following the reservation lifecycle (used as-is by the legend).
 export const calendarFlowStages: Record<CalendarFlowStageKey, CalendarFlowStage> = {
-  awaiting_therapist_payment: {
-    key: 'awaiting_therapist_payment',
-    labelKey: 'calendarStage.awaitingTherapistPayment',
-    swatchClass: 'bg-amber-500',
-    cardClass: 'bg-amber-50 text-amber-900 dark:bg-amber-900/20 dark:text-amber-100',
-  },
   awaiting_therapist: {
     key: 'awaiting_therapist',
     labelKey: 'calendarStage.awaitingTherapist',
@@ -354,7 +347,6 @@ export const calendarFlowStages: Record<CalendarFlowStageKey, CalendarFlowStage>
 
 // Stages in lifecycle order — drives the calendar legend.
 export const calendarFlowStageOrder: CalendarFlowStageKey[] = [
-  'awaiting_therapist_payment',
   'awaiting_therapist',
   'payment_pending',
   'confirmed',
@@ -390,7 +382,9 @@ export function getCalendarFlowStage(
   const awaitingPayment = p === '' || AWAITING_PAYMENT_STATUSES.has(p);
   const awaitingTherapist = AWAITING_THERAPIST_STATUSES.has(s);
 
-  if (awaitingTherapist && awaitingPayment) return calendarFlowStages.awaiting_therapist_payment;
+  // L'attente de thérapeute prime sur l'attente de paiement : tant que personne
+  // n'est affecté, c'est l'affectation qu'il faut traiter, et une carte à double
+  // état ne dirait pas quoi faire en premier.
   if (awaitingTherapist) return calendarFlowStages.awaiting_therapist;
   if (s === 'ongoing') return calendarFlowStages.ongoing;
   if (awaitingPayment) return calendarFlowStages.payment_pending;
