@@ -257,6 +257,7 @@ const PwaBookings = () => {
           )}
         </div>
         <div className="what">
+          {booking.booking_id ? `#${booking.booking_id} · ` : ""}
           {format(new Date(booking.booking_date), "PPP", { locale: fr })} · {booking.booking_time.substring(0, 5)}
         </div>
         <div className="meta">

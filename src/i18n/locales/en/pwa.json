@@ -449,6 +449,7 @@
     "viewList": "List",
     "mineBadge": "Me",
     "mineLegend": "My appointments",
+    "mineCount": "{{n}} mine",
     "empty": "No bookings found",
     "editSchedule": "My availability",
     "scheduleIncomplete": "Update your availability for the next 2 weeks",

@@ -341,6 +341,11 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick, onVisib
                         <div className="p-1 h-full flex flex-col">
                           <div className="flex items-center gap-1 font-bold text-[11px] leading-tight">
                             {booking.booking_time?.substring(0, 5)}
+                            {booking.booking_id && (
+                              <span className="text-[9px] font-medium tabular-nums opacity-60 shrink-0">
+                                #{booking.booking_id}
+                              </span>
+                            )}
                             {(booking.guest_count ?? 1) > 1 && (
                               <span className="rounded-full bg-blue-600 px-1 py-px text-[8px] font-bold uppercase leading-none text-white shrink-0">
                                 Duo

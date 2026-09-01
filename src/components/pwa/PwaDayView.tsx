@@ -106,6 +106,18 @@ function formatEndTime(startTime: string, durationMin: number): string {
   return format(end, "HH:mm");
 }
 
+/**
+ * Numéro de réservation (`bookings.booking_id`), la référence que se donnent le
+ * lieu et les thérapeutes. Discret : il sert à retrouver une résa, pas à être lu
+ * en premier.
+ */
+function BookingNumber({ value }: { value?: number | null }) {
+  if (!value) return null;
+  return (
+    <span className="text-[10px] font-medium tabular-nums opacity-60 shrink-0">#{value}</span>
+  );
+}
+
 // Solid pill so it stands out on the pastel calendar card backgrounds.
 function DuoTag() {
   return (
@@ -236,6 +248,10 @@ export function PwaDayView({
 
   const daySummary = useMemo(() => {
     const count = dayBookings.length;
+    // `isMine` n'est renseigné que dans l'agenda du lieu : ailleurs tous les
+    // rendez-vous sont ceux du thérapeute, un décompte n'y apprendrait rien.
+    const venueScope = dayBookings.some((b) => b.isMine !== undefined);
+    const mineCount = dayBookings.filter((b) => b.isMine).length;
     const totalMinutes = dayBookings.reduce(
       (sum, b) => sum + calculateDuration(b),
       0
@@ -260,7 +276,7 @@ export function PwaDayView({
       return sum + (earned ?? 0);
     }, 0);
 
-    return { count, hoursLabel, totalEarnings };
+    return { count, mineCount: venueScope ? mineCount : null, hoursLabel, totalEarnings };
   }, [dayBookings, therapistRates, therapistTreatmentRates]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -310,7 +326,10 @@ export function PwaDayView({
           <div className="s">
             {daySummary.count > 0 ? (
               <>
-                <b>{daySummary.count} {t("calendar.appointments", "Rendez-vous")}</b> · {daySummary.hoursLabel}
+                <b>{daySummary.count} {t("calendar.appointments", "Rendez-vous")}</b>
+                {daySummary.mineCount !== null &&
+                  ` · ${t("bookings.mineCount", { n: daySummary.mineCount, defaultValue: "dont {{n}} pour moi" })}`}
+                {" · "}{daySummary.hoursLabel}
                 {daySummary.totalEarnings > 0 &&
                   ` · ${formatPrice(Math.round(daySummary.totalEarnings), "EUR", { decimals: 0 })}`}
               </>
@@ -412,9 +431,10 @@ export function PwaDayView({
                       <div className="flex-1 min-w-0 flex flex-col justify-center">
                         {height <= 44 ? (
                           <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="font-bold text-[12px] leading-none shrink-0">
+                            <span className="font-bold text-[12px] leading-none shrink-0 whitespace-nowrap">
                               {booking.booking_time?.substring(0, 5)} - {endTime}
                             </span>
+                            <BookingNumber value={booking.booking_id} />
                             {isDuo && <DuoTag />}
                             <span className="text-[11px] font-medium truncate">
                               {booking.isUnassigned
@@ -430,9 +450,10 @@ export function PwaDayView({
                         ) : height < 60 ? (
                           <>
                             <div className="flex items-center gap-2 min-w-0">
-                              <span className="font-bold text-[13px] leading-tight shrink-0">
+                              <span className="font-bold text-[13px] leading-tight shrink-0 whitespace-nowrap">
                                 {booking.booking_time?.substring(0, 5)} - {endTime}
                               </span>
+                              <BookingNumber value={booking.booking_id} />
                               {isDuo && <DuoTag />}
                               <span className="text-[12px] font-medium truncate opacity-90">
                                 {booking.isUnassigned
@@ -453,7 +474,10 @@ export function PwaDayView({
                           <div className="flex justify-between gap-1.5 min-w-0">
                             <div className="min-w-0 flex flex-col">
                               <div className="flex items-center gap-1.5 font-bold text-[13px] leading-tight">
-                                {booking.booking_time?.substring(0, 5)} - {endTime}
+                                <span className="whitespace-nowrap">
+                                  {booking.booking_time?.substring(0, 5)} - {endTime}
+                                </span>
+                                <BookingNumber value={booking.booking_id} />
                                 {isDuo && <DuoTag />}
                               </div>
                               <div className="font-medium text-[12px] truncate">
@@ -470,8 +494,10 @@ export function PwaDayView({
                                 </div>
                               ))}
                             </div>
+                            {/* min-w-0 : cette colonne cède la place avant la plage
+                                horaire, son contenu étant tronquable. */}
                             {((booking.therapistName && !hasPerTreatmentTherapists) || booking.room_name) && (
-                              <div className="flex flex-col items-end text-right shrink-0 max-w-[45%] gap-0.5">
+                              <div className="flex flex-col items-end text-right min-w-0 max-w-[45%] gap-0.5">
                                 {booking.therapistName && !hasPerTreatmentTherapists && (
                                   <span className="flex items-center gap-0.5 text-[10px] font-medium opacity-80 min-w-0 max-w-full">
                                     <User className="h-2.5 w-2.5 shrink-0" />

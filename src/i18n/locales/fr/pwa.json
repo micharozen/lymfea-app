@@ -449,6 +449,7 @@
     "viewList": "Liste",
     "mineBadge": "Moi",
     "mineLegend": "Mes rendez-vous",
+    "mineCount": "dont {{n}} pour moi",
     "empty": "Aucune réservation trouvée",
     "editSchedule": "Mes disponibilités",
     "scheduleIncomplete": "Mettez à jour vos dispos pour les 2 prochaines semaines",
