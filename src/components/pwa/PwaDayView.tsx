@@ -45,6 +45,11 @@ export interface DayViewBooking {
   guest_count?: number | null;
   booking_treatments?: BookingTreatment[];
   therapistName?: string | null;
+  /**
+   * Agenda du lieu (thérapeute également concierge) : true sur les rendez-vous
+   * où il intervient. Laissé indéfini quand l'agenda ne montre que les siens.
+   */
+  isMine?: boolean;
 }
 
 interface PwaDayViewProps {
@@ -57,7 +62,6 @@ interface PwaDayViewProps {
   therapistRates?: TherapistRates | null;
   /** Barèmes par soin du thérapeute, null quand il les a désactivés. */
   therapistTreatmentRates?: TreatmentRateMap | null;
-  hideEarnings?: boolean;
 }
 
 const HOUR_HEIGHT = 80;
@@ -121,7 +125,6 @@ export function PwaDayView({
   onAcceptBooking,
   therapistRates,
   therapistTreatmentRates,
-  hideEarnings,
 }: PwaDayViewProps) {
   const { t, i18n } = useTranslation("pwa");
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -241,7 +244,10 @@ export function PwaDayView({
     const mins = totalMinutes % 60;
     const hoursLabel = mins > 0 ? `${hours}h${mins.toString().padStart(2, "0")}` : `${hours}h`;
 
+    // Le total ne porte que sur les rendez-vous du thérapeute : dans l'agenda du
+    // lieu, ceux de ses collègues ne lui rapportent rien.
     const totalEarnings = dayBookings.reduce((sum, b) => {
+      if (b.isMine === false) return sum;
       const dur = calculateDuration(b);
       const lines = (b.booking_treatments ?? []).map((bt) => ({
         treatment_id: bt.treatment_id ?? null,
@@ -305,7 +311,8 @@ export function PwaDayView({
             {daySummary.count > 0 ? (
               <>
                 <b>{daySummary.count} {t("calendar.appointments", "Rendez-vous")}</b> · {daySummary.hoursLabel}
-                {!hideEarnings && ` · ${formatPrice(Math.round(daySummary.totalEarnings), "EUR", { decimals: 0 })}`}
+                {daySummary.totalEarnings > 0 &&
+                  ` · ${formatPrice(Math.round(daySummary.totalEarnings), "EUR", { decimals: 0 })}`}
               </>
             ) : (
               t("calendar.noBookings", "Aucun rendez-vous")
@@ -383,6 +390,14 @@ export function PwaDayView({
                       minHeight: "40px",
                       left: `calc(${column * widthPct}% + 4px)`,
                       width: `calc(${widthPct}% - 8px)`,
+                      // Marque « c'est mon rendez-vous » dans l'agenda du lieu.
+                      // Un liseré plutôt qu'un fond : la couleur de fond porte
+                      // déjà l'étape du flux (statut + paiement).
+                      ...(booking.isMine
+                        ? {
+                            boxShadow: "inset 4px 0 0 var(--accent), 0 0 0 1.5px var(--accent)",
+                          }
+                        : null),
                     }}
                     {...bind(() => setPreview(booking))}
                     onClick={() => {
