@@ -18,6 +18,7 @@ import PwaPageLoader from "@/components/pwa/PageLoader";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { useUser } from "@/contexts/UserContext";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
+import { shortTherapistName } from "@/hooks/pwa/usePwaBookings";
 import {
   myLegDuration,
   myLegTreatments,
@@ -201,6 +202,10 @@ const PwaBookingDetail = () => {
   const [myTherapistId, setMyTherapistId] = useState<string | null>(null);
   // Accepted therapist ids ordered by assigned_at (stable positional fallback).
   const [orderedTherapistIds, setOrderedTherapistIds] = useState<string[]>([]);
+  // Noms courts des thérapeutes acceptés, pour attribuer chaque soin quand ils
+  // sont plusieurs sur la réservation. Passe par le RPC SECURITY DEFINER : la
+  // RLS de `therapists` n'expose que le profil de l'appelant.
+  const [therapistNamesById, setTherapistNamesById] = useState<Record<string, string>>({});
   const isAcceptingRef = useRef(false);
   const isChargingRef = useRef(false);
   const isMountedRef = useIsMounted();
@@ -374,6 +379,22 @@ const PwaBookingDetail = () => {
           .sort((a, b) => (a.assigned_at || "").localeCompare(b.assigned_at || ""))
           .map((bt) => bt.therapist_id),
       );
+
+      // Un seul thérapeute : la fiche le nomme déjà, l'attribution par soin
+      // n'apprendrait rien et coûterait un appel.
+      if (acceptedRows.length > 1) {
+        const { data: names } = await supabase.rpc("get_booking_therapist_names", {
+          _booking_ids: [id],
+        });
+        if (!isMountedRef.current) return;
+        setTherapistNamesById(
+          Object.fromEntries(
+            (names ?? []).map((n) => [n.therapist_id, shortTherapistName(n.first_name, n.last_name)]),
+          ),
+        );
+      } else {
+        setTherapistNamesById({});
+      }
 
       // Booking no longer belongs to the connected therapist (e.g. reassigned by
       // an admin while the app was open / opened from a stale push notification).
@@ -925,12 +946,23 @@ const PwaBookingDetail = () => {
           {treatments.map((tr) => {
             const effectiveDuration = tr.treatment_variants?.duration ?? tr.treatment_menus?.duration;
             const variantLabel = tr.treatment_variants?.label;
+            // Seulement quand ils sont plusieurs, et seulement sur les lignes qui
+            // portent vraiment l'affectation : une ligne sans therapist_id reste
+            // muette plutôt que de nommer quelqu'un par déduction.
+            const lineTherapist = tr.therapist_id ? therapistNamesById[tr.therapist_id] : null;
             // La durée a déjà sa propre colonne : on n'affiche le label de variante
             // que s'il apporte une info autre qu'une durée (ex. « Dos », « Corps »).
             const showVariant = variantLabel && !/^\s*\d+\s*(min|minutes|mn|')?\s*$/i.test(variantLabel);
             return (
               <div key={tr.id} className="soin-row">
-                <span className="nm">{tr.treatment_menus?.name}{showVariant ? ` · ${variantLabel}` : ''}</span>
+                <span className="nm">
+                  {tr.treatment_menus?.name}{showVariant ? ` · ${variantLabel}` : ''}
+                  {lineTherapist && (
+                    <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-mute)', fontWeight: 400 }}>
+                      {lineTherapist}
+                    </span>
+                  )}
+                </span>
                 <span className="dur">{effectiveDuration} min</span>
                 <span className="pr">{formatPrice(treatmentLinePrice(tr), booking.hotel_currency)}</span>
                 {booking.status !== "completed" && (

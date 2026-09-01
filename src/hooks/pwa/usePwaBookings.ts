@@ -74,8 +74,8 @@ type RawRow = PwaBooking & {
   therapists?: { first_name: string; last_name: string } | null;
 };
 
-/** Nom compact pour le planning : "Prénom N." */
-function shortTherapistName(firstName: string, lastName: string): string {
+/** Nom compact pour le planning et la fiche : "Prénom N." */
+export function shortTherapistName(firstName: string, lastName: string): string {
   const initial = lastName.trim().charAt(0);
   return `${firstName.trim()}${initial ? ` ${initial.toUpperCase()}.` : ""}`;
 }
