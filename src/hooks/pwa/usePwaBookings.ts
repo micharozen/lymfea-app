@@ -74,8 +74,8 @@ type RawRow = PwaBooking & {
   therapists?: { first_name: string; last_name: string } | null;
 };
 
-/** Nom compact pour le planning : "Prénom N." */
-function shortTherapistName(firstName: string, lastName: string): string {
+/** Nom compact pour le planning et la fiche : "Prénom N." */
+export function shortTherapistName(firstName: string, lastName: string): string {
   const initial = lastName.trim().charAt(0);
   return `${firstName.trim()}${initial ? ` ${initial.toUpperCase()}.` : ""}`;
 }
@@ -344,6 +344,38 @@ export async function fetchVenueBookingsWindow(
   return sortByDateTime(mapRows(rows, await fetchDuoNames(rows), true));
 }
 
+/**
+ * Prochaines réservations du lieu au-delà de la fenêtre chargée.
+ *
+ * Pendant de `fetchMyNextBookings` pour l'agenda d'un thérapeute concierge :
+ * sans lui, sa vue Liste s'arrêterait au bord de la fenêtre alors que la version
+ * « mes RDV » va chercher les suivantes. Pas de recherche de duo ici — le scope
+ * lieu ramène déjà toutes les réservations, quel que soit le thérapeute.
+ */
+export async function fetchVenueNextBookings(
+  hotelIds: string[],
+  after: string,
+  limit: number,
+): Promise<PwaBooking[]> {
+  if (hotelIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(PWA_VENUE_BOOKING_SELECT)
+    .in("hotel_id", hotelIds)
+    .neq("status", "cancelled")
+    .neq("status", "completed")
+    .gt("booking_date", after)
+    .order("booking_date", { ascending: true })
+    .order("booking_time", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+
+  const rows = (data ?? []) as unknown as RawRow[];
+  return sortByDateTime(mapRows(rows, await fetchDuoNames(rows), true));
+}
+
 const SHARED_QUERY_OPTIONS = {
   staleTime: 30_000,
   gcTime: 5 * 60_000,
@@ -374,6 +406,21 @@ export function useMyNextBookings(
     queryKey: pwaBookingKeys.next(therapistId ?? "", after, limit),
     queryFn: () => fetchMyNextBookings(therapistId!, after, limit),
     enabled: (options?.enabled ?? true) && !!therapistId,
+    ...SHARED_QUERY_OPTIONS,
+  });
+}
+
+export function useVenueNextBookings(
+  hotelIds: string[] | undefined,
+  after: string,
+  limit: number,
+  options?: { enabled?: boolean },
+) {
+  const ids = hotelIds ?? [];
+  return useQuery({
+    queryKey: pwaBookingKeys.venueNext(hotelIdsKey(ids), after, limit),
+    queryFn: () => fetchVenueNextBookings(ids, after, limit),
+    enabled: (options?.enabled ?? true) && ids.length > 0,
     ...SHARED_QUERY_OPTIONS,
   });
 }

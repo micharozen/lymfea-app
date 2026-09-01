@@ -70,9 +70,17 @@ export function TherapistTreatmentRatesEditor({
   // Un soin décoché plus haut n'est plus proposé, mais son barème reste affiché
   // tant qu'il est configuré — le supprimer en douce ferait disparaître des
   // montants sans que personne ne l'ait demandé.
+  //
+  // Une prestation cochée peut appartenir à un lieu qui n'est plus assigné au
+  // thérapeute : elle n'a alors aucun libellé ici, et la carte « Prestations
+  // réalisables » ne la montre pas non plus. On l'écarte plutôt que d'afficher
+  // son UUID, qui ne veut rien dire pour un admin.
   const availableToAdd = selectedTreatmentIds
     .filter((id) => !configuredIds.includes(id))
-    .map((id) => ({ value: id, label: menuById.get(id)?.label ?? id }))
+    .flatMap((id) => {
+      const label = menuById.get(id)?.label;
+      return label ? [{ value: id, label }] : [];
+    })
     .sort((a, b) => a.label.localeCompare(b.label));
 
   const addTreatment = (treatmentId: string) => {

@@ -27,6 +27,11 @@ interface Booking {
   guest_count?: number | null;
   therapistName?: string | null;
   booking_treatments?: BookingTreatment[];
+  /**
+   * Agenda du lieu (thérapeute également concierge) : true sur les rendez-vous
+   * où il intervient. Laissé indéfini quand l'agenda ne montre que les siens.
+   */
+  isMine?: boolean;
 }
 
 interface PwaCalendarViewProps {
@@ -319,6 +324,13 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick, onVisib
                           top: `${top}px`,
                           height: `${height}px`,
                           minHeight: "24px",
+                          // Marque « c'est mon rendez-vous » dans l'agenda du
+                          // lieu, sans toucher au fond qui porte l'étape du flux.
+                          ...(booking.isMine
+                            ? {
+                                boxShadow: "inset 3px 0 0 var(--accent), 0 0 0 1.5px var(--accent)",
+                              }
+                            : null),
                         }}
                         {...bind(() => setPreview(booking))}
                         onClick={() => {
@@ -329,6 +341,11 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick, onVisib
                         <div className="p-1 h-full flex flex-col">
                           <div className="flex items-center gap-1 font-bold text-[11px] leading-tight">
                             {booking.booking_time?.substring(0, 5)}
+                            {booking.booking_id && (
+                              <span className="text-[9px] font-medium tabular-nums opacity-60 shrink-0">
+                                #{booking.booking_id}
+                              </span>
+                            )}
                             {(booking.guest_count ?? 1) > 1 && (
                               <span className="rounded-full bg-blue-600 px-1 py-px text-[8px] font-bold uppercase leading-none text-white shrink-0">
                                 Duo

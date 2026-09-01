@@ -23,6 +23,7 @@ import {
   useMyBookingsWindow,
   useMyNextBookings,
   useVenueBookingsWindow,
+  useVenueNextBookings,
   type PwaBooking,
 } from "@/hooks/pwa/usePwaBookings";
 import {
@@ -32,7 +33,6 @@ import {
 } from "@/lib/pwaBookingWindow";
 
 type BookingsView = "day" | "calendar" | "list";
-type BookingsScope = "mine" | "venue";
 
 /**
  * Nombre minimum de rendez-vous à venir que la vue Liste doit montrer, quitte à
@@ -43,11 +43,23 @@ const MIN_UPCOMING = 3;
 const VIEW_STORAGE_KEY = "pwa-bookings-view";
 const SELECTED_DATE_STORAGE_KEY = "pwa-calendar-date";
 
+/**
+ * Réservation « à moi » dans l'agenda du lieu : elle m'est affectée, je porte
+ * l'une de ses prestations (duo), ou j'ai accepté la demande de diffusion.
+ */
+function isMyBooking(b: PwaBooking, therapistId: string | null | undefined): boolean {
+  if (!therapistId) return false;
+  if (b.therapist_id === therapistId) return true;
+  if ((b.booking_treatments ?? []).some((bt) => bt.therapist_id === therapistId)) return true;
+  return (b.booking_therapists ?? []).some(
+    (bt) => bt.therapist_id === therapistId && bt.status === "accepted",
+  );
+}
+
 const PwaBookings = () => {
   const { t } = useTranslation("pwa");
   const navigate = useNavigate();
 
-  const [scope, setScope] = useState<BookingsScope>("mine");
   const [view, setView] = useState<BookingsView>(() => {
     const stored = typeof window !== "undefined" ? sessionStorage.getItem(VIEW_STORAGE_KEY) : null;
     if (stored === "day" || stored === "calendar" || stored === "list") return stored;
@@ -76,8 +88,11 @@ const PwaBookings = () => {
   const { data: me } = useCurrentTherapist();
   const therapist = me?.therapist ?? null;
 
-  // Le scope "tout le lieu" n'existe que pour les concierges : la requête ne
-  // part que depuis cette page, et court-circuite pour les autres.
+  // Un thérapeute qui gère aussi le lieu (concierge) voit directement l'agenda
+  // complet du lieu : plus de bascule « Mes RDV / Tout le lieu », qui l'obligeait
+  // à faire l'aller-retour pour suivre sa journée. Ses propres rendez-vous sont
+  // distingués dans la grille (`isMine`). La requête ne part que depuis cette
+  // page, et court-circuite pour les autres thérapeutes.
   const { data: conciergeHotelIds = [] } = useConciergeVenues(me?.userId);
   const isConcierge = conciergeHotelIds.length > 0;
 
@@ -110,7 +125,7 @@ const PwaBookings = () => {
     return extraMonths > 0 ? extendWindowBack(base, extraMonths) : base;
   }, [anchorKey, extraMonths]);
 
-  const venueScope = scope === "venue" && isConcierge;
+  const venueScope = isConcierge;
 
   const mine = useMyBookingsWindow(therapist?.id, window_, { enabled: !venueScope });
   const venue = useVenueBookingsWindow(conciergeHotelIds, window_, { enabled: venueScope });
@@ -127,18 +142,23 @@ const PwaBookings = () => {
   );
 
   // Même filet que le tableau de bord : la fenêtre s'arrête à la fin du mois
-  // affiché, donc un thérapeute dont le prochain rendez-vous tombe plus loin
-  // voyait une liste vide. Ne part que sur « Mes RDV » (la requête est bornée à
-  // un thérapeute), quand la fenêtre atteint le futur et qu'elle ramène moins de
-  // MIN_UPCOMING rendez-vous.
-  const nextBeyondWindow = useMyNextBookings(therapist?.id, window_.to, MIN_UPCOMING, {
-    enabled:
-      view === "list" &&
-      !venueScope &&
-      window_.to >= todayKey &&
-      !active.isPending &&
-      upcomingInWindow < MIN_UPCOMING,
+  // affiché, donc un prochain rendez-vous plus lointain laissait une liste vide.
+  // Il vaut aussi pour l'agenda du lieu, à l'échelle du lieu : le gérant doit
+  // voir l'à-venir complet, ses propres rendez-vous s'y distinguant par leur
+  // badge comme partout ailleurs.
+  const needsNext =
+    view === "list" &&
+    window_.to >= todayKey &&
+    !active.isPending &&
+    upcomingInWindow < MIN_UPCOMING;
+
+  const myNext = useMyNextBookings(therapist?.id, window_.to, MIN_UPCOMING, {
+    enabled: needsNext && !venueScope,
   });
+  const venueNext = useVenueNextBookings(conciergeHotelIds, window_.to, MIN_UPCOMING, {
+    enabled: needsNext && venueScope,
+  });
+  const nextBeyondWindow = venueScope ? venueNext : myNext;
   const beyondWindowBookings: PwaBooking[] = view === "list" ? nextBeyondWindow.data ?? [] : [];
 
   useEffect(() => {
@@ -169,10 +189,10 @@ const PwaBookings = () => {
     );
   }, []);
 
-  // Changer d'ancre ou de scope repart d'une fenêtre non élargie.
+  // Changer d'ancre repart d'une fenêtre non élargie.
   useEffect(() => {
     setExtraMonths(0);
-  }, [anchorKey, scope]);
+  }, [anchorKey]);
 
   // Pas de realtime sur bookings : c'est le retour au premier plan qui purge
   // les lignes devenues obsolètes (réservation réattribuée entre-temps).
@@ -204,22 +224,32 @@ const PwaBookings = () => {
     guest_count: b.guest_count,
     booking_treatments: b.booking_treatments,
     therapistName: b.therapistName,
+    // En agenda du lieu seulement : hors de ce mode toutes les lignes sont
+    // siennes, un marquage n'y distinguerait rien.
+    isMine: venueScope ? isMyBooking(b, therapist?.id) : undefined,
   }));
-
-  const venueMode = scope === "venue";
 
   // Legend mirrors the admin/concierge planning: reservation-flow stages
   // (status + payment) shown in lifecycle order, deduped to what's on screen.
+  const calendarBookings = venueScope
+    ? scheduleBookings.map((b) => ({ ...b, isMine: isMyBooking(b, therapist?.id) }))
+    : scheduleBookings;
+
   const legendSource = view === "list" ? [...bookings, ...beyondWindowBookings] : scheduleBookings;
   const legendStages = calendarFlowStageOrder.filter((key) =>
     legendSource.some((b) => getCalendarFlowStage(b.status, b.payment_status).key === key),
   );
 
-  const renderBookingRow = (booking: PwaBooking) => (
+  const renderBookingRow = (booking: PwaBooking) => {
+    const mine = venueScope && isMyBooking(booking, therapist?.id);
+    return (
     <button
       key={booking.id}
       className="bk-row"
-      style={{ borderLeft: `3px solid ${getBookingStatusConfig(booking.status).hexColor}` }}
+      // Le liseré ne signale plus le statut — le badge de droite le porte déjà —
+      // mais mes rendez-vous. Transparent sinon, pour que les lignes restent
+      // alignées.
+      style={{ borderLeft: `3px solid ${mine ? "var(--accent)" : "transparent"}` }}
       onClick={() => navigate(`/pwa/booking/${booking.id}`)}
     >
       <div className="bk-main">
@@ -230,6 +260,7 @@ const PwaBookings = () => {
           )}
         </div>
         <div className="what">
+          {booking.booking_id ? `#${booking.booking_id} · ` : ""}
           {format(new Date(booking.booking_date), "PPP", { locale: fr })} · {booking.booking_time.substring(0, 5)}
         </div>
         <div className="meta">
@@ -245,7 +276,8 @@ const PwaBookings = () => {
         </span>
       </div>
     </button>
-  );
+    );
+  };
 
   if (active.isPending) {
     return <PwaPageLoader title={t("bookings.title")} />;
@@ -273,35 +305,28 @@ const PwaBookings = () => {
       </header>
 
       <div className="flex-1 min-h-0 flex flex-col">
-        {(isConcierge || legendStages.length > 0) && (
-          <div className="px-4 pb-2 space-y-3">
-            {isConcierge && (
-              <div className="seg" style={{ width: "100%" }}>
-                {(["mine", "venue"] as const).map((s) => (
-                  <button
-                    key={s}
-                    className={scope === s ? "on" : ""}
-                    style={{ flex: 1 }}
-                    onClick={() => setScope(s)}
-                  >
-                    {s === "mine" ? t("bookings.scopeMine", "Mes RDV") : t("bookings.scopeVenue", "Tout le lieu")}
-                  </button>
-                ))}
-              </div>
-            )}
-            {legendStages.length > 0 && (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                {legendStages.map((key) => {
-                  const stage = calendarFlowStages[key];
-                  return (
-                    <span key={key} className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--ink-mute)" }}>
-                      <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", stage.swatchClass)} />
-                      {t(stage.labelKey, { ns: "common" })}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
+        {(venueScope || legendStages.length > 0) && (
+          <div className="px-4 pb-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              {venueScope && (
+                <span className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--ink-mute)" }}>
+                  <span
+                    className="h-2.5 w-2.5 rounded-full shrink-0"
+                    style={{ background: "var(--accent)" }}
+                  />
+                  {t("bookings.mineLegend", "Mes rendez-vous")}
+                </span>
+              )}
+              {legendStages.map((key) => {
+                const stage = calendarFlowStages[key];
+                return (
+                  <span key={key} className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--ink-mute)" }}>
+                    <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", stage.swatchClass)} />
+                    {t(stage.labelKey, { ns: "common" })}
+                  </span>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -313,15 +338,14 @@ const PwaBookings = () => {
               onDateChange={setSelectedDate}
               onBookingClick={(booking) => navigate(`/pwa/booking/${booking.id}`)}
               onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
-              therapistRates={venueMode ? null : therapistRates}
-              therapistTreatmentRates={venueMode ? null : therapistTreatmentRates}
-              hideEarnings={venueMode}
+              therapistRates={therapistRates}
+              therapistTreatmentRates={therapistTreatmentRates}
             />
           </div>
         ) : view === "calendar" ? (
           <div className="flex-1 min-h-0">
             <PwaCalendarView
-              bookings={scheduleBookings}
+              bookings={calendarBookings}
               onBookingClick={(booking) => navigate(`/pwa/booking/${booking.id}`)}
               onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
               onVisibleRangeChange={handleVisibleRangeChange}
@@ -339,15 +363,10 @@ const PwaBookings = () => {
               })}
             </p>
 
-            {bookings.length === 0 ? (
-              <div className="placeholder">
-                <p>{t("bookings.empty", "Aucune réservation trouvée")}</p>
-              </div>
-            ) : (
-              bookings.map(renderBookingRow)
-            )}
-
-            <div className="px-4 pt-3">
+            {/* En tête de liste, pas en pied : les réservations sont triées du
+                plus ancien au plus récent, remonter le temps se fait donc vers
+                le haut. */}
+            <div className="px-4 pb-3">
               <Button
                 variant="outline"
                 size="sm"
@@ -358,6 +377,14 @@ const PwaBookings = () => {
                 {t("bookings.loadOlder")}
               </Button>
             </div>
+
+            {bookings.length === 0 ? (
+              <div className="placeholder">
+                <p>{t("bookings.empty", "Aucune réservation trouvée")}</p>
+              </div>
+            ) : (
+              bookings.map(renderBookingRow)
+            )}
 
             {/* Rendez-vous situés après la fenêtre chargée. Sous leur propre
                 titre : la légende de période ci-dessus serait contredite si on

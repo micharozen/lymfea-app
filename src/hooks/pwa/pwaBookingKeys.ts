@@ -19,6 +19,9 @@ export const pwaBookingKeys = {
   /** Filet des prochaines réservations au-delà de la fenêtre du tableau de bord. */
   next: (therapistId: string, after: string, limit: number) =>
     [...pwaBookingKeys.all, "next", therapistId, after, limit] as const,
+  /** Même filet, à l'échelle du lieu — agenda d'un thérapeute concierge. */
+  venueNext: (hotelIds: string, after: string, limit: number) =>
+    [...pwaBookingKeys.all, "venue-next", hotelIds, after, limit] as const,
 };
 
 /** Identifiant stable d'un ensemble de lieux, pour servir de segment de clé. */
