@@ -148,10 +148,8 @@ interface Treatment {
   price_override?: number | null;
   treatment_menus: {
     name: string;
-    description: string;
     duration: number;
     price: number;
-    image?: string;
   } | null;
   treatment_variants?: {
     id: string;
@@ -374,7 +372,11 @@ const PwaBookingDetail = () => {
       // rien et l'heure affichée pourrait changer d'un chargement à l'autre.
       const { data: trData } = await supabase
         .from("booking_treatments")
-        .select("*, treatment_menus(*), treatment_variants(id, label, duration, price)")
+        .select(`
+          id, treatment_id, therapist_id, is_addon, variant_id, price_override,
+          treatment_menus ( name, duration, price ),
+          treatment_variants ( id, label, duration, price )
+        `)
         .eq("booking_id", id)
         .order("created_at", { ascending: true })
         .order("id", { ascending: true });
