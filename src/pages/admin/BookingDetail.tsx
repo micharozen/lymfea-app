@@ -241,13 +241,14 @@ export default function BookingDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from("hotels")
-        .select("therapist_commission, global_therapist_commission")
+        .select("therapist_commission, global_therapist_commission, out_of_hours_surcharge_percent")
         .eq("id", booking!.hotel_id)
         .single();
       if (!data) return null;
       return {
         therapist_commission: (data as any).therapist_commission ?? 70,
         global_therapist_commission: (data as any).global_therapist_commission !== false,
+        out_of_hours_surcharge_percent: Number(data.out_of_hours_surcharge_percent) || 0,
       };
     },
   });
@@ -318,13 +319,19 @@ export default function BookingDetail() {
       : booking.treatmentsTotalPrice);
 
   // Out-of-hours surcharge percent (derived from the stored amount, matches the
-  // client breakdown). Applied as an uplift on the therapist earning below.
+  // client breakdown).
   const surchargeAmount = booking.is_out_of_hours ? (booking.surcharge_amount ?? 0) : 0;
   const offertOriginalPrice = isOffert ? (booking.treatmentsTotalPrice || 0) : 0;
   const subtotal = isOffert
     ? offertOriginalPrice
     : Math.max(displayPrice - surchargeAmount, 0);
   const surchargePercent = subtotal > 0 ? Math.round((surchargeAmount / subtotal) * 100) : 0;
+  // Majoration du gain thérapeute : elle suit le taux du lieu, pas le montant
+  // facturé au client — une prestation offerte hors horaires ne facture rien mais
+  // reste majorée pour le thérapeute (même règle que la facture thérapeute).
+  const therapistSurchargePercent = booking.is_out_of_hours
+    ? (hotelCommission?.out_of_hours_surcharge_percent ?? 0)
+    : 0;
   const hasSurcharge = surchargeAmount > 0;
 
   const totalDuration = booking.totalDuration || booking.treatmentsTotalDuration || 0;
@@ -713,7 +720,7 @@ export default function BookingDetail() {
               therapistTreatmentRatesMap={therapistTreatmentRatesMap}
               globalTherapistCommission={hotelCommission?.global_therapist_commission}
               therapistCommission={hotelCommission?.therapist_commission}
-              surchargePercent={surchargePercent}
+              surchargePercent={therapistSurchargePercent}
               onReassigned={() => { refetch(); setTherapistRefreshKey((k) => k + 1); }}
             />
 
