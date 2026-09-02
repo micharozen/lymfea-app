@@ -22,10 +22,7 @@ import { useUser } from "@/contexts/UserContext";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import { shortTherapistName } from "@/hooks/pwa/usePwaBookings";
 import { useTherapistTreatments } from "@/hooks/useTherapistTreatments";
-import {
-  myLegTreatments,
-  estimateTherapistShare,
-} from "@/lib/therapistLegDuration";
+import { estimateTherapistShare } from "@/lib/therapistLegDuration";
 import type { TherapistRates, TreatmentRateMap } from "@/lib/therapistEarnings";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 // Aliasé : une variable locale s'appelle déjà effectivePaymentStatus plus bas.
@@ -783,21 +780,31 @@ const PwaBookingDetail = () => {
   /** Ce praticien réalise-t-il cette prestation ? Aucune association = polyvalent. */
   const canPerform = (treatmentId: string | null | undefined): boolean =>
     myTreatmentIds.length === 0 || (!!treatmentId && myTreatmentIds.includes(treatmentId));
-  const claimedLegLines = myLegTreatments(myTherapistId ?? "", legLineInputs, orderedTherapistIds, guestCount);
-  // Praticien qui n'a pas encore accepté : aucune ligne ne le nomme. Il regarde la
-  // réservation pour décider, on lui montre donc exactement ce qu'il prendrait —
-  // les prestations à pourvoir QU'IL RÉALISE, même prédicat que accept_booking
-  // (liste vide = polyvalent). Sans ce repli, une réservation dont un confrère a
-  // déjà pris une jambe s'afficherait vide, à 0 min ; sans le filtre de
-  // qualification, elle promettrait un soin que le RPC ne lui donnera pas.
+  // Prestations encore à pourvoir QUE JE RÉALISE — même prédicat que
+  // accept_booking (aucune association = polyvalent) : c'est exactement ce que le
+  // RPC m'attribuerait si j'acceptais maintenant.
   const openLegLines = legLineInputs.filter(
     (line) => !line.is_addon && line.therapist_id == null && canPerform(line.treatment_id),
   );
-  const myLegLines = claimedLegLines.length > 0
-    ? claimedLegLines
+  // Ce que la fiche doit montrer, dans l'ordre : les prestations qui me sont déjà
+  // attribuées ; sinon celles que je prendrais ; sinon la réservation entière.
+  //
+  // On ne passe PAS par myLegTreatments ici. Ce moteur arbitre la rémunération et
+  // exige donc « plusieurs praticiens acceptés » avant de découper, pour ne pas
+  // rogner la paie des réservations historiques dont une jambe est restée NULL.
+  // À l'écran la question est autre : tant que personne n'a accepté, il rendait
+  // TOUTE la réservation, et le praticien lisait 105 min / 81,67 € pour un soin
+  // de 45 min qu'il est le seul à pouvoir prendre.
+  const linkedToMe = legLineInputs.filter((line) => line.therapist_id === myTherapistId);
+  const myLegLines = linkedToMe.length > 0
+    ? linkedToMe
     : (openLegLines.length > 0 ? openLegLines : legLineInputs);
   const myLegLineIds = new Set(myLegLines.map((line) => line.id));
-  const isSharedBooking = myLegLines.length < legLineInputs.length || guestCount > 1;
+  // Comparaison sur les seuls soins de base : les add-ons ne sont pas répartis
+  // avant acceptation, leur absence ne signale pas un partage.
+  const myBaseLineCount = myLegLines.filter((line) => !line.is_addon).length;
+  const baseLineCount = legLineInputs.filter((line) => !line.is_addon).length;
+  const isSharedBooking = myBaseLineCount < baseLineCount || guestCount > 1;
   // Hors réservation partagée, on garde bookings.duration : elle absorbe les
   // prolongations de séance, qui n'ajoutent pas de ligne de soin. La somme porte
   // sur `myLegLines`, pas sur le lien seul : avant d'accepter, aucune ligne ne me
@@ -841,7 +848,6 @@ const PwaBookingDetail = () => {
   const acceptLabel = (() => {
     if (guestCount > 1) return t('bookingDetail.duoJoin');
     const takenNames = openLegLines.map((line) => line.name).filter(Boolean);
-    const baseLineCount = legLineInputs.filter((line) => !line.is_addon).length;
     if (takenNames.length === 0 || takenNames.length === baseLineCount) {
       return t('dashboard.accept');
     }
