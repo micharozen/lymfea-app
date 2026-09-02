@@ -28,6 +28,11 @@ interface BookingTreatment {
 
 export interface DayViewBooking {
   id: string;
+  /**
+   * Clé de rendu : une réservation partagée pose un bloc par praticien, donc
+   * plusieurs blocs portent le même `id`. Vaut `id` hors de ce cas.
+   */
+  legKey?: string;
   booking_id: number;
   booking_date: string;
   booking_time: string;
@@ -191,7 +196,7 @@ export function PwaDayView({
 
     const flushGroup = () => {
       group.forEach((b, index) => {
-        layout.set(b.id, { column: index, columns: group.length });
+        layout.set(b.legKey ?? b.id, { column: index, columns: group.length });
       });
       group = [];
       groupEnd = -1;
@@ -247,11 +252,13 @@ export function PwaDayView({
   }, [currentTime, selectedDate]);
 
   const daySummary = useMemo(() => {
-    const count = dayBookings.length;
+    // Une réservation partagée pose un bloc par praticien : on compte les
+    // réservations, pas les blocs, sans quoi elle serait annoncée deux fois.
+    const count = new Set(dayBookings.map((b) => b.id)).size;
     // `isMine` n'est renseigné que dans l'agenda du lieu : ailleurs tous les
     // rendez-vous sont ceux du thérapeute, un décompte n'y apprendrait rien.
     const venueScope = dayBookings.some((b) => b.isMine !== undefined);
-    const mineCount = dayBookings.filter((b) => b.isMine).length;
+    const mineCount = new Set(dayBookings.filter((b) => b.isMine).map((b) => b.id)).size;
     const totalMinutes = dayBookings.reduce(
       (sum, b) => sum + calculateDuration(b),
       0
@@ -386,7 +393,7 @@ export function PwaDayView({
 
               {dayBookings.map((booking) => {
                 const { top, height } = getBookingPosition(booking);
-                const { column, columns } = layoutByBookingId.get(booking.id) ?? { column: 0, columns: 1 };
+                const { column, columns } = layoutByBookingId.get(booking.legKey ?? booking.id) ?? { column: 0, columns: 1 };
                 const widthPct = 100 / columns;
                 const flowStage = getCalendarFlowStage(booking.status, booking.payment_status);
                 const duration = calculateDuration(booking);
@@ -397,7 +404,7 @@ export function PwaDayView({
 
                 return (
                   <div
-                    key={booking.id}
+                    key={booking.legKey ?? booking.id}
                     className={`absolute rounded-lg text-xs cursor-pointer overflow-hidden z-10 select-none ${flowStage.cardClass} ${
                       booking.isUnassigned
                         ? "opacity-75 border-2 border-dashed border-current/40"
