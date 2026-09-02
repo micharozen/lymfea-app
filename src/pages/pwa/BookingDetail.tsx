@@ -64,6 +64,8 @@ interface Booking {
   out_of_hours_surcharge_percent?: number | null;
   therapist_id: string | null;
   declined_by?: string[];
+  /** Groupe de praticiens actuellement sollicité, null quand le lieu n'en a qu'un. */
+  broadcast_wave?: number | null;
   hotel_image_url?: string;
   hotel_address?: string;
   hotel_city?: string;
@@ -207,6 +209,7 @@ const PwaBookingDetail = () => {
   const [acceptedTherapistCount, setAcceptedTherapistCount] = useState(0);
   const [hasAlreadyAccepted, setHasAlreadyAccepted] = useState(false);
   const [myTherapistId, setMyTherapistId] = useState<string | null>(null);
+  const [myVenuePriority, setMyVenuePriority] = useState<number | null>(null);
   // Accepted therapist ids ordered by assigned_at (stable positional fallback).
   const [orderedTherapistIds, setOrderedTherapistIds] = useState<string[]>([]);
   // Noms courts des thérapeutes acceptés, pour attribuer chaque soin quand ils
@@ -328,6 +331,17 @@ const PwaBookingDetail = () => {
           myTreatmentRates = myT.treatment_rates_active
             ? ((myT.treatment_rates ?? null) as TreatmentRateMap | null)
             : null;
+
+          // Mon groupe de sollicitation sur ce lieu. Comparé à `broadcast_wave`,
+          // il dit si la demande m'est déjà ouverte ou si elle est encore
+          // proposée à un groupe prioritaire.
+          const { data: myVenue } = await supabase
+            .from("therapist_venues")
+            .select("priority")
+            .eq("therapist_id", myT.id)
+            .eq("hotel_id", bookingData.hotel_id)
+            .maybeSingle();
+          if (isMountedRef.current) setMyVenuePriority(myVenue?.priority ?? null);
         }
       }
 
@@ -839,7 +853,21 @@ const PwaBookingDetail = () => {
   // `accept_booking` répondrait 'already_taken'.
   const claimedLegCount = legLineInputs.filter((l) => !l.is_addon && l.therapist_id != null).length;
   const joinsSharedBooking = openLegLines.length > 0 && claimedLegCount > 0;
-  const canJoinBooking = booking.status === "pending" && !hasAlreadyAccepted && (
+
+  // Vagues de sollicitation : tant que le broadcast n'a pas atteint mon groupe
+  // sur ce lieu, la demande ne m'est pas encore ouverte — miroir du filtrage du
+  // tableau de bord et du push. Rien à voir avec mes compétences : c'est une
+  // priorité dans le temps, et l'escalade me sollicitera si personne n'accepte.
+  // `broadcast_wave` reste null quand le lieu n'a qu'un seul groupe.
+  const awaitingMyWave =
+    booking.status === "pending" &&
+    booking.broadcast_wave != null &&
+    myVenuePriority != null &&
+    myVenuePriority > booking.broadcast_wave &&
+    !hasAlreadyAccepted &&
+    booking.therapist_id !== myTherapistId;
+
+  const canJoinBooking = booking.status === "pending" && !hasAlreadyAccepted && !awaitingMyWave && (
     guestCount > 1
       ? true
       : (!booking.therapist_id || booking.therapist_id === myTherapistId || joinsSharedBooking)
@@ -1100,7 +1128,11 @@ const PwaBookingDetail = () => {
             // cliente enchaîne bien les deux soins et la salle est occupée — mais
             // grisée et explicitée, pour qu'il soit clair qu'un confrère la prendra.
             // Sans objet en duo, où les soins sont exécutés en parallèle.
-            const outOfMyScope = guestCount <= 1 && !tr.is_addon && !canPerform(tr.treatment_id);
+            // Tant que la demande ne m'est pas ouverte, le motif de compétence
+            // n'a pas lieu d'être : ce n'est pas lui qui m'écarte, et l'afficher
+            // ferait croire à un refus définitif là où j'attends mon tour.
+            const outOfMyScope =
+              !awaitingMyWave && guestCount <= 1 && !tr.is_addon && !canPerform(tr.treatment_id);
             const lineTherapist = tr.therapist_id
               ? therapistNamesById[tr.therapist_id]
               : outOfMyScope
@@ -1162,7 +1194,12 @@ const PwaBookingDetail = () => {
         className="fiche-foot"
         style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, paddingBottom: 'calc(18px + env(safe-area-inset-bottom))' }}
       >
-        {booking.status === "pending" && (guestCount > 1 || joinsSharedBooking) && (
+        {awaitingMyWave ? (
+          <div className="wait-note">
+            <Hourglass size={16} />
+            <span>{t('bookingDetail.awaitingMyWave')}</span>
+          </div>
+        ) : booking.status === "pending" && (guestCount > 1 || joinsSharedBooking) ? (
           <div className="wait-note">
             <Hourglass size={16} />
             <span>
@@ -1171,8 +1208,10 @@ const PwaBookingDetail = () => {
                 : t('bookingDetail.legsToStaff', { count: openLegLines.length })}
             </span>
           </div>
-        )}
-        {canJoinBooking ? (
+        ) : null}
+        {awaitingMyWave ? (
+          <div className="wait-pill">{t('bookingDetail.awaitingMyWavePill')}</div>
+        ) : canJoinBooking ? (
           <>
             <button className="btn-primary-lg" onClick={handleAcceptBooking} disabled={updating}>
               {acceptLabel}

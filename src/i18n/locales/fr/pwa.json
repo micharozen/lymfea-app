@@ -212,6 +212,8 @@
     "duoJoin": "Rejoindre le soin",
     "duoWaiting": "En attente d'un autre thérapeute…",
     "legsToStaff": "Vous pouvez prendre {{count}} prestation(s) sur cette réservation",
+    "awaitingMyWave": "Cette demande est proposée en priorité à d'autres praticiens du lieu.",
+    "awaitingMyWavePill": "Vous serez sollicité s'ils ne répondent pas",
     "legUnstaffed": "À pourvoir",
     "manageBooking": "Gérer la réservation",
     "noShowRowHint": "Le client ne s'est pas présenté",
