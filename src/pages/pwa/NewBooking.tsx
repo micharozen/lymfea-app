@@ -411,7 +411,8 @@ const PwaNewBooking = () => {
       isAdmin: true,
       isOffert,
       clientType,
-      isOutOfHours: isOffert ? false : surcharge.isOutOfHours,
+      // Offert ne fait pas disparaître le hors-horaires : le gain thérapeute en dépend.
+      isOutOfHours: surcharge.isOutOfHours,
       surchargeAmount: isOffert ? 0 : surcharge.surchargeAmount,
     }, {
       // Le onError du hook passe par le toast shadcn (non monté sur la PWA) :

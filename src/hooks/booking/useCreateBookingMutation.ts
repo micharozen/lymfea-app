@@ -469,7 +469,10 @@ async function insertSingleBooking(
     status,
     assigned_at: finalTherapistId ? new Date().toISOString() : null,
     total_price: d.isOffert ? 0 : d.totalPrice,
-    is_out_of_hours: d.isOffert ? false : d.isOutOfHours,
+    // Une prestation offerte reste hors horaires si le créneau l'est : le client
+    // n'est pas facturé (surcharge_amount 0), mais le thérapeute doit toucher la
+    // majoration — la facture thérapeute lit ce drapeau.
+    is_out_of_hours: d.isOutOfHours,
     surcharge_amount: d.isOffert ? 0 : d.surchargeAmount,
     room_id: roomId,
     // Garde-fou : pas de salle secondaire identique à la principale.
