@@ -26,7 +26,7 @@ import {
   myLegTreatments,
   estimateTherapistShare,
 } from "@/lib/therapistLegDuration";
-import type { TreatmentRateMap } from "@/lib/therapistEarnings";
+import type { TherapistRates, TreatmentRateMap } from "@/lib/therapistEarnings";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 // Aliasé : une variable locale s'appelle déjà effectivePaymentStatus plus bas.
 import { effectivePaymentStatus as toDisplayPaymentStatus } from "@/lib/clientTypePayment";
@@ -80,9 +80,13 @@ interface Booking {
   payment_method?: string | null;
   therapist_commission?: number;
   global_therapist_commission?: boolean;
-  therapist_rate_75?: number | null;
-  therapist_rate_60?: number | null;
-  therapist_rate_90?: number | null;
+  /**
+   * Barèmes du praticien CONNECTÉ. Toutes les tranches, pas seulement 60/75/90 :
+   * une jambe de 45 min sur une réservation partagée tombe sous la plus petite
+   * tranche transmise et serait payée au prorata, alors que le praticien a un
+   * tarif 45 configuré (issue #547).
+   */
+  therapist_rates?: TherapistRates | null;
   /** Barèmes par soin du thérapeute connecté, null quand il les a désactivés. */
   therapist_treatment_rates?: TreatmentRateMap | null;
   hotel_currency?: string;
@@ -306,7 +310,7 @@ const PwaBookingDetail = () => {
       // Toujours charger les taux du thérapeute CONNECTÉ (pas du thérapeute primaire).
       // Pour un soin duo, chaque thérapeute doit voir ses propres revenus.
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      let therapistRates = { rate_60: null as number | null, rate_75: null as number | null, rate_90: null as number | null };
+      let therapistRates: TherapistRates = { rate_60: null, rate_75: null, rate_90: null };
       let myTherapistId: string | null = null;
       let myTreatmentRates: TreatmentRateMap | null = null;
       if (authUser) {
@@ -357,9 +361,7 @@ const PwaBookingDetail = () => {
         hotel_vat: hotelData?.vat || 20,
         therapist_commission: hotelData?.therapist_commission || 70,
         global_therapist_commission: hotelData?.global_therapist_commission === true,
-        therapist_rate_75: therapistRates.rate_75,
-        therapist_rate_60: therapistRates.rate_60,
-        therapist_rate_90: therapistRates.rate_90,
+        therapist_rates: therapistRates,
         therapist_treatment_rates: myTreatmentRates,
         hotel_currency: hotelData?.currency || 'EUR',
         out_of_hours_surcharge_percent: hotelData?.out_of_hours_surcharge_percent ?? null,
@@ -852,11 +854,7 @@ const PwaBookingDetail = () => {
       guestCount,
       legDuration: myLegDurationMinutes,
       legLines: myLegLines,
-      myRates: {
-        rate_60: booking.therapist_rate_60 ?? null,
-        rate_75: booking.therapist_rate_75 ?? null,
-        rate_90: booking.therapist_rate_90 ?? null,
-      },
+      myRates: booking.therapist_rates ?? null,
       myTreatmentRates: booking.therapist_treatment_rates ?? null,
       grossPrice,
       // Mode commission : ma commission porte sur MES prestations, pas sur le
