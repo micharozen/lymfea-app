@@ -14,6 +14,8 @@ import {
 import PwaCalendarView from "@/components/pwa/PwaCalendarView";
 import PwaDayView, { DayViewBooking } from "@/components/pwa/PwaDayView";
 import type { TherapistRates, TreatmentRateMap } from "@/lib/therapistEarnings";
+import { myLegSlot } from "@/lib/myLegSlot";
+import { splitSharedBookingLegs } from "@/lib/sharedBookingLegs";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { Button } from "@/components/ui/button";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
@@ -204,10 +206,27 @@ const PwaBookings = () => {
   // Cancelled bookings stay visible in the list (traceability) but never on the
   // Day / 3-day grids: in "venue" scope they aren't filtered server-side, so a
   // cancelled slot would overlay — and hide — the booking that replaced it.
-  const scheduleBookings = bookings.filter((b) => b.status !== "cancelled");
+  // Sur une réservation partagée, chaque praticien ne travaille que sa jambe :
+  // un bloc unique couvrant toute la réservation annonce à chacun une heure
+  // qu'il ne travaille pas. Mon agenda ne montre donc que ma jambe ; l'agenda du
+  // lieu les montre toutes, une par praticien, pour garder lisible l'occupation
+  // continue de la salle.
+  const scheduleBookings = bookings
+    .filter((b) => b.status !== "cancelled")
+    .flatMap((b) =>
+      venueScope
+        ? splitSharedBookingLegs(b)
+        : [{ ...b, ...myLegSlot(b, therapist?.id), legKey: b.id, legTherapistId: null }],
+    );
+
+  // Sur une jambe identifiée, l'appartenance se lit sur la jambe : une
+  // réservation partagée est « à moi » pour un bloc et pas pour l'autre.
+  const isMyLeg = (b: { legTherapistId: string | null } & PwaBooking) =>
+    b.legTherapistId ? b.legTherapistId === therapist?.id : isMyBooking(b, therapist?.id);
 
   const dayViewBookings: DayViewBooking[] = scheduleBookings.map((b) => ({
     id: b.id,
+    legKey: b.legKey,
     booking_id: b.booking_id,
     booking_date: b.booking_date,
     booking_time: b.booking_time,
@@ -226,13 +245,13 @@ const PwaBookings = () => {
     therapistName: b.therapistName,
     // En agenda du lieu seulement : hors de ce mode toutes les lignes sont
     // siennes, un marquage n'y distinguerait rien.
-    isMine: venueScope ? isMyBooking(b, therapist?.id) : undefined,
+    isMine: venueScope ? isMyLeg(b) : undefined,
   }));
 
   // Legend mirrors the admin/concierge planning: reservation-flow stages
   // (status + payment) shown in lifecycle order, deduped to what's on screen.
   const calendarBookings = venueScope
-    ? scheduleBookings.map((b) => ({ ...b, isMine: isMyBooking(b, therapist?.id) }))
+    ? scheduleBookings.map((b) => ({ ...b, isMine: isMyLeg(b) }))
     : scheduleBookings;
 
   const legendSource = view === "list" ? [...bookings, ...beyondWindowBookings] : scheduleBookings;

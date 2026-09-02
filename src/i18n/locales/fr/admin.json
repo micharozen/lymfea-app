@@ -2168,6 +2168,7 @@
     "endDate": "Au",
     "startTime": "De",
     "endTime": "À",
+    "allDay": "Toute la journée",
     "scope": "Portée",
     "wholeVenue": "Tout le lieu",
     "noRooms": "Aucune salle active sur ce lieu.",

@@ -21,12 +21,9 @@ import { useIsMounted } from "@/hooks/useIsMounted";
 import { useUser } from "@/contexts/UserContext";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import { shortTherapistName } from "@/hooks/pwa/usePwaBookings";
-import {
-  myLegDuration,
-  myLegTreatments,
-  estimateTherapistShare,
-} from "@/lib/therapistLegDuration";
-import type { TreatmentRateMap } from "@/lib/therapistEarnings";
+import { useTherapistTreatments } from "@/hooks/useTherapistTreatments";
+import { estimateTherapistShare } from "@/lib/therapistLegDuration";
+import type { TherapistRates, TreatmentRateMap } from "@/lib/therapistEarnings";
 import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 // Aliasé : une variable locale s'appelle déjà effectivePaymentStatus plus bas.
 import { effectivePaymentStatus as toDisplayPaymentStatus } from "@/lib/clientTypePayment";
@@ -67,6 +64,8 @@ interface Booking {
   out_of_hours_surcharge_percent?: number | null;
   therapist_id: string | null;
   declined_by?: string[];
+  /** Groupe de praticiens actuellement sollicité, null quand le lieu n'en a qu'un. */
+  broadcast_wave?: number | null;
   hotel_image_url?: string;
   hotel_address?: string;
   hotel_city?: string;
@@ -80,9 +79,13 @@ interface Booking {
   payment_method?: string | null;
   therapist_commission?: number;
   global_therapist_commission?: boolean;
-  therapist_rate_75?: number | null;
-  therapist_rate_60?: number | null;
-  therapist_rate_90?: number | null;
+  /**
+   * Barèmes du praticien CONNECTÉ. Toutes les tranches, pas seulement 60/75/90 :
+   * une jambe de 45 min sur une réservation partagée tombe sous la plus petite
+   * tranche transmise et serait payée au prorata, alors que le praticien a un
+   * tarif 45 configuré (issue #547).
+   */
+  therapist_rates?: TherapistRates | null;
   /** Barèmes par soin du thérapeute connecté, null quand il les a désactivés. */
   therapist_treatment_rates?: TreatmentRateMap | null;
   hotel_currency?: string;
@@ -143,14 +146,13 @@ interface Treatment {
   id: string;
   treatment_id: string;
   therapist_id?: string | null;
+  is_addon?: boolean | null;
   variant_id?: string | null;
   price_override?: number | null;
   treatment_menus: {
     name: string;
-    description: string;
     duration: number;
     price: number;
-    image?: string;
   } | null;
   treatment_variants?: {
     id: string;
@@ -176,6 +178,8 @@ const PwaBookingDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
   const [showContactDrawer, setShowContactDrawer] = useState(false);
+  // Demande partagée : les prestations des confrères sont repliées par défaut.
+  const [showOtherLegs, setShowOtherLegs] = useState(false);
   const [showUnassignDialog, setShowUnassignDialog] = useState(false);
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
@@ -205,6 +209,7 @@ const PwaBookingDetail = () => {
   const [acceptedTherapistCount, setAcceptedTherapistCount] = useState(0);
   const [hasAlreadyAccepted, setHasAlreadyAccepted] = useState(false);
   const [myTherapistId, setMyTherapistId] = useState<string | null>(null);
+  const [myVenuePriority, setMyVenuePriority] = useState<number | null>(null);
   // Accepted therapist ids ordered by assigned_at (stable positional fallback).
   const [orderedTherapistIds, setOrderedTherapistIds] = useState<string[]>([]);
   // Noms courts des thérapeutes acceptés, pour attribuer chaque soin quand ils
@@ -220,6 +225,9 @@ const PwaBookingDetail = () => {
   // au rôle thérapeute.
   const canEditRooms = !!booking && !['Annulé', 'Terminé', 'cancelled', 'completed', 'noshow'].includes(booking.status);
   const { data: roomOptions = [] } = useBookingRoomOptions(id, canEditRooms);
+  // Prestations que je réalise : sert à n'annoncer que les jambes que
+  // accept_booking m'attribuera réellement. Liste vide = polyvalent.
+  const { data: myTreatments } = useTherapistTreatments(myTherapistId);
   const roomNameById = new Map(roomOptions.map((r) => [r.id, r.name]));
   const primaryRoomName = (booking?.room_id ? roomNameById.get(booking.room_id) : null) ?? booking?.room_name ?? null;
   const secondaryRoomName = booking?.secondary_room_id ? roomNameById.get(booking.secondary_room_id) ?? null : null;
@@ -304,7 +312,7 @@ const PwaBookingDetail = () => {
       // Toujours charger les taux du thérapeute CONNECTÉ (pas du thérapeute primaire).
       // Pour un soin duo, chaque thérapeute doit voir ses propres revenus.
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      let therapistRates = { rate_60: null as number | null, rate_75: null as number | null, rate_90: null as number | null };
+      let therapistRates: TherapistRates = { rate_60: null, rate_75: null, rate_90: null };
       let myTherapistId: string | null = null;
       let myTreatmentRates: TreatmentRateMap | null = null;
       if (authUser) {
@@ -323,6 +331,17 @@ const PwaBookingDetail = () => {
           myTreatmentRates = myT.treatment_rates_active
             ? ((myT.treatment_rates ?? null) as TreatmentRateMap | null)
             : null;
+
+          // Mon groupe de sollicitation sur ce lieu. Comparé à `broadcast_wave`,
+          // il dit si la demande m'est déjà ouverte ou si elle est encore
+          // proposée à un groupe prioritaire.
+          const { data: myVenue } = await supabase
+            .from("therapist_venues")
+            .select("priority")
+            .eq("therapist_id", myT.id)
+            .eq("hotel_id", bookingData.hotel_id)
+            .maybeSingle();
+          if (isMountedRef.current) setMyVenuePriority(myVenue?.priority ?? null);
         }
       }
 
@@ -355,9 +374,7 @@ const PwaBookingDetail = () => {
         hotel_vat: hotelData?.vat || 20,
         therapist_commission: hotelData?.therapist_commission || 70,
         global_therapist_commission: hotelData?.global_therapist_commission === true,
-        therapist_rate_75: therapistRates.rate_75,
-        therapist_rate_60: therapistRates.rate_60,
-        therapist_rate_90: therapistRates.rate_90,
+        therapist_rates: therapistRates,
         therapist_treatment_rates: myTreatmentRates,
         hotel_currency: hotelData?.currency || 'EUR',
         out_of_hours_surcharge_percent: hotelData?.out_of_hours_surcharge_percent ?? null,
@@ -367,7 +384,20 @@ const PwaBookingDetail = () => {
         effective_payment_status: effectivePaymentStatus
       });
 
-      const { data: trData } = await supabase.from("booking_treatments").select("*, treatment_menus(*), treatment_variants(id, label, duration, price)").eq("booking_id", id);
+      // Ordre explicite : l'heure de début de chaque prestation est déduite de
+      // l'enchaînement, et doit suivre le même ordre que le claim en base
+      // (accept_booking : created_at, id). Sans ORDER BY, PostgREST ne garantit
+      // rien et l'heure affichée pourrait changer d'un chargement à l'autre.
+      const { data: trData } = await supabase
+        .from("booking_treatments")
+        .select(`
+          id, treatment_id, therapist_id, is_addon, variant_id, price_override,
+          treatment_menus ( name, duration, price ),
+          treatment_variants ( id, label, duration, price )
+        `)
+        .eq("booking_id", id)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
 
       if (!isMountedRef.current) return;
 
@@ -553,7 +583,20 @@ const PwaBookingDetail = () => {
       if (rpcResult?.data?.status === 'confirmed') {
         invokeEdgeFunction('notify-booking-confirmed', { body: { bookingId: booking.id } }).catch(() => {});
       }
-      
+
+      // Réservation partagée : j'ai pris les prestations que je réalise, il en
+      // reste. On relance le broadcast pour ces jambes-là — la dédup par
+      // prestation garantit que personne n'est resollicité sur la même.
+      if ((rpcResult?.data?.open_legs ?? 0) > 0) {
+        invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id, notifyAll: true, therapistsOnly: true } }).catch(() => {});
+      }
+
+      // Le staffing vient de changer : si la réservation est déjà payée, les
+      // rémunérations écrites au paiement ne reflètent plus les jambes réelles.
+      if (['paid', 'charged_to_room', 'offert'].includes(booking.payment_status ?? '')) {
+        invokeEdgeFunction('sync-booking-payouts', { body: { bookingId: booking.id } }).catch(() => {});
+      }
+
       toast.success(t('bookingDetail.accepted'));
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
 
@@ -736,37 +779,140 @@ const PwaBookingDetail = () => {
   const surchargePercent = booking.is_out_of_hours
     ? (Number(booking.out_of_hours_surcharge_percent) || 0)
     : 0;
+  const guestCount = Math.max(booking.guest_count || 1, 1);
+  const myTreatmentIds = myTreatments ?? [];
+  // Ma jambe : mes soins plus les add-ons qui en dépendent. C'est le lien stable
+  // (booking_treatments.therapist_id) qui tranche, pas guest_count — un booking
+  // simple enchaînant deux soins peut être partagé entre deux praticiens
+  // (issue #547), auquel cas je n'affiche et ne suis payé que sur ma part.
+  const legLineInputs = treatments.map((t) => ({
+    id: t.id,
+    therapist_id: t.therapist_id ?? null,
+    treatment_id: t.treatment_id ?? null,
+    duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? null,
+    is_addon: t.is_addon ?? false,
+    name: t.treatment_menus?.name ?? "",
+  }));
+  /** Ce praticien réalise-t-il cette prestation ? Aucune association = polyvalent. */
+  const canPerform = (treatmentId: string | null | undefined): boolean =>
+    myTreatmentIds.length === 0 || (!!treatmentId && myTreatmentIds.includes(treatmentId));
+  // Prestations encore à pourvoir QUE JE RÉALISE — même prédicat que
+  // accept_booking (aucune association = polyvalent) : c'est exactement ce que le
+  // RPC m'attribuerait si j'acceptais maintenant.
+  const openLegLines = legLineInputs.filter(
+    (line) => !line.is_addon && line.therapist_id == null && canPerform(line.treatment_id),
+  );
+  // Ce que la fiche doit montrer, dans l'ordre : les prestations qui me sont déjà
+  // attribuées ; sinon celles que je prendrais ; sinon la réservation entière.
+  //
+  // On ne passe PAS par myLegTreatments ici. Ce moteur arbitre la rémunération et
+  // exige donc « plusieurs praticiens acceptés » avant de découper, pour ne pas
+  // rogner la paie des réservations historiques dont une jambe est restée NULL.
+  // À l'écran la question est autre : tant que personne n'a accepté, il rendait
+  // TOUTE la réservation, et le praticien lisait 105 min / 81,67 € pour un soin
+  // de 45 min qu'il est le seul à pouvoir prendre.
+  const linkedToMe = legLineInputs.filter((line) => line.therapist_id === myTherapistId);
+  const myLegLines = linkedToMe.length > 0
+    ? linkedToMe
+    : (openLegLines.length > 0 ? openLegLines : legLineInputs);
+  const myLegLineIds = new Set(myLegLines.map((line) => line.id));
+  // Comparaison sur les seuls soins de base : les add-ons ne sont pas répartis
+  // avant acceptation, leur absence ne signale pas un partage.
+  const myBaseLineCount = myLegLines.filter((line) => !line.is_addon).length;
+  const baseLineCount = legLineInputs.filter((line) => !line.is_addon).length;
+  const isSharedBooking = myBaseLineCount < baseLineCount || guestCount > 1;
+  // Hors réservation partagée, on garde bookings.duration : elle absorbe les
+  // prolongations de séance, qui n'ajoutent pas de ligne de soin. La somme porte
+  // sur `myLegLines`, pas sur le lien seul : avant d'accepter, aucune ligne ne me
+  // nomme et le calcul direct renverrait 0 min.
+  const myLegDurationMinutes = isSharedBooking
+    ? myLegLines.reduce((sum, line) => sum + (line.duration || 0), 0)
+    : totalDuration;
+  // Sur un booking simple partagé, les soins s'enchaînent : celui qui n'assure
+  // que le second commence après le premier. Il n'existe pas d'heure par
+  // prestation — seule bookings.booking_time porte le début de la réservation —
+  // donc on cumule la durée des soins qui précèdent le premier qui m'est
+  // attribué, dans le même ordre (created_at) que le claim en base. En duo les
+  // soins sont exécutés en parallèle : tout le monde commence à l'heure du RDV.
+  const myStartTime = (() => {
+    if (!isSharedBooking || guestCount > 1) return booking.booking_time.substring(0, 5);
+    let offset = 0;
+    for (const line of legLineInputs.filter((l) => !l.is_addon)) {
+      if (myLegLineIds.has(line.id)) break;
+      offset += line.duration || 0;
+    }
+    const [h, m] = booking.booking_time.split(":");
+    const minutes = (Number(h) || 0) * 60 + (Number(m) || 0) + offset;
+    return `${String(Math.floor(minutes / 60) % 24).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+  })();
+
+  // Qui peut encore accepter ? Une prestation libre suffit — y compris sur un
+  // booking simple déjà pris en partie par un confrère (issue #547). Les
+  // réservations historiques, dont aucune ligne ne porte d'attribution, restent
+  // protégées : sans jambe déjà attribuée, le praticien principal assure tout et
+  // `accept_booking` répondrait 'already_taken'.
+  const claimedLegCount = legLineInputs.filter((l) => !l.is_addon && l.therapist_id != null).length;
+  const joinsSharedBooking = openLegLines.length > 0 && claimedLegCount > 0;
+
+  // Vagues de sollicitation : tant que le broadcast n'a pas atteint mon groupe
+  // sur ce lieu, la demande ne m'est pas encore ouverte — miroir du filtrage du
+  // tableau de bord et du push. Rien à voir avec mes compétences : c'est une
+  // priorité dans le temps, et l'escalade me sollicitera si personne n'accepte.
+  // `broadcast_wave` reste null quand le lieu n'a qu'un seul groupe.
+  const awaitingMyWave =
+    booking.status === "pending" &&
+    booking.broadcast_wave != null &&
+    myVenuePriority != null &&
+    myVenuePriority > booking.broadcast_wave &&
+    !hasAlreadyAccepted &&
+    booking.therapist_id !== myTherapistId;
+
+  const canJoinBooking = booking.status === "pending" && !hasAlreadyAccepted && !awaitingMyWave && (
+    guestCount > 1
+      ? true
+      : (!booking.therapist_id || booking.therapist_id === myTherapistId || joinsSharedBooking)
+  );
+
+  // Tant que je peux accepter, la fiche se recentre sur ce que j'accepterais :
+  // le soin prend la tête de page, les prestations des confrères se replient,
+  // le total client attend que toutes les lignes soient visibles, et la salle
+  // n'est pas éditable (la réservation n'est pas encore la mienne).
+  const roomEditable = canEditRooms && !canJoinBooking;
+  const visibleTreatments = canJoinBooking && !showOtherLegs
+    ? treatments.filter((tr) => myLegLineIds.has(tr.id))
+    : treatments;
+  const hiddenTreatmentCount = treatments.length - visibleTreatments.length;
+  const showClientTotal = hiddenTreatmentCount === 0;
+
+  // Le bouton reste court quand le praticien ne prend qu'une partie de la
+  // réservation : la prestation engagée est mise en évidence dans la liste
+  // (filet accent) plutôt que citée dans le label, qui wrapperait sur un nom long.
+  const acceptLabel = (() => {
+    if (guestCount > 1) return t('bookingDetail.duoJoin');
+    const takenNames = openLegLines.map((line) => line.name).filter(Boolean);
+    if (takenNames.length === 0 || takenNames.length === baseLineCount) {
+      return t('dashboard.accept');
+    }
+    return t('bookingDetail.acceptTreatmentShort', { count: takenNames.length });
+  })();
+
   const estimatedEarnings = (() => {
-    const gc = Math.max(booking.guest_count || 1, 1);
-    // Duo: pay on my own leg — my soin plus the add-ons hanging off it. Stable link
-    // (booking_treatments.therapist_id) when present, positional fallback otherwise.
-    // Solo: the full booking duration.
-    const legLineInputs = treatments.map((t) => ({
-      therapist_id: t.therapist_id ?? null,
-      treatment_id: t.treatment_id ?? null,
-      duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? null,
-      is_addon: t.is_addon ?? false,
-    }));
-    const legDuration = gc > 1
-      ? myLegDuration(myTherapistId ?? "", legLineInputs, orderedTherapistIds, gc)
-      : totalDuration;
-    // Les lignes dont `legDuration` est la somme — un solo est payé sur tout.
-    const legLines =
-      gc > 1
-        ? myLegTreatments(myTherapistId ?? "", legLineInputs, orderedTherapistIds, gc)
-        : legLineInputs;
     return estimateTherapistShare({
       globalTherapistCommission: booking.global_therapist_commission,
-      guestCount: gc,
-      legDuration,
-      legLines,
-      myRates: {
-        rate_60: booking.therapist_rate_60 ?? null,
-        rate_75: booking.therapist_rate_75 ?? null,
-        rate_90: booking.therapist_rate_90 ?? null,
-      },
+      guestCount,
+      legDuration: myLegDurationMinutes,
+      legLines: myLegLines,
+      myRates: booking.therapist_rates ?? null,
       myTreatmentRates: booking.therapist_treatment_rates ?? null,
       grossPrice,
+      // Mode commission : ma commission porte sur MES prestations, pas sur le
+      // panier entier divisé par le nombre d'invités — un booking simple partagé
+      // a un seul invité et deux praticiens.
+      legGrossPrice: isSharedBooking
+        ? treatments
+            .filter((tr) => myLegLineIds.has(tr.id))
+            .reduce((sum, tr) => sum + treatmentLinePrice(tr), 0)
+        : null,
       therapistCommissionPercent: booking.therapist_commission ?? null,
       surchargePercent,
     });
@@ -812,22 +958,26 @@ const PwaBookingDetail = () => {
         )}
       </div>
       <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 170 }}>
-        {/* En-tête lieu */}
+        {/* En-tête lieu. Le badge de paiement n'apparaît qu'une fois la
+            réservation acceptée : l'encaissement n'est pas le sujet du
+            praticien tant qu'il n'a pas dit oui. */}
         <div className="fiche-head">
           <div className="venue">{booking.hotel_name}</div>
           {(booking.hotel_address || booking.hotel_city) && (
             <div className="addr">{[booking.hotel_address, booking.hotel_city].filter(Boolean).join(', ')}</div>
           )}
-          <div className="statusline">
-            {payKind && <span className={'status ' + payKind.kind}><span className="dot" />{payKind.label}</span>}
-            {(booking.guest_count || 1) > 1 && (
-              <span className={'status ' + (acceptedTotal >= (booking.guest_count || 1) ? 'ok' : 'warn')}><span className="dot" />{t('bookingDetail.duoAccepted', { accepted: acceptedTotal, total: booking.guest_count })}</span>
-            )}
-            {bundleInfo && <span className="status due"><span className="dot" />{t('bundleSession')}</span>}
-          </div>
+          {((payKind && booking.status !== 'pending') || (booking.guest_count || 1) > 1 || bundleInfo) && (
+            <div className="statusline">
+              {payKind && booking.status !== 'pending' && <span className={'status ' + payKind.kind}><span className="dot" />{payKind.label}</span>}
+              {(booking.guest_count || 1) > 1 && (
+                <span className={'status ' + (acceptedTotal >= (booking.guest_count || 1) ? 'ok' : 'warn')}><span className="dot" />{t('bookingDetail.duoAccepted', { accepted: acceptedTotal, total: booking.guest_count })}</span>
+              )}
+              {bundleInfo && <span className="status due"><span className="dot" />{t('bundleSession')}</span>}
+            </div>
+          )}
           {bundleInfo && (
             <div className="addr" style={{ marginTop: 6 }}>
-              {bundleInfo.bundleName} — {t('bundleRemaining', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })}
+              {bundleInfo.bundleName} · {t('bundleRemaining', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })}
             </div>
           )}
         </div>
@@ -835,8 +985,8 @@ const PwaBookingDetail = () => {
         {/* Date / Heure / Durée */}
         <div className="fiche-when">
           <div className="cell"><div className="v">{format(new Date(booking.booking_date), "EEE d MMM", { locale })}</div><div className="l">{t('booking.date')}</div></div>
-          <div className="cell"><div className="v">{booking.booking_time.substring(0, 5)}</div><div className="l">{t('booking.time')}</div></div>
-          <div className="cell"><div className="v">{totalDuration} min</div><div className="l">{t('booking.duration')}</div></div>
+          <div className="cell"><div className="v">{myStartTime}</div><div className="l">{t('booking.time')}</div></div>
+          <div className="cell"><div className="v">{myLegDurationMinutes} min</div><div className="l">{t('booking.duration')}</div></div>
         </div>
 
         {/* Infos client */}
@@ -862,20 +1012,21 @@ const PwaBookingDetail = () => {
               <span className="val">{booking.room_number}</span>
             </div>
           )}
-          {(primaryRoomName || canEditRooms) && (
-            <div
-              className="info-row"
-              onClick={canEditRooms ? () => setShowRoomDrawer(true) : undefined}
-              style={canEditRooms ? { cursor: 'pointer' } : undefined}
-            >
-              <span className="ic"><MapPin size={18} /></span>
-              <span className="lab">{t('bookingDetail.roomTreatment', 'Salle')}</span>
-              <span className="val" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                {[primaryRoomName, secondaryRoomName].filter(Boolean).join(' + ') || t('bookingDetail.roomUnassigned', 'À définir')}
-                {canEditRooms && <Pencil size={14} style={{ color: 'var(--ink-mute)' }} />}
-              </span>
-            </div>
-          )}
+          {(primaryRoomName || roomEditable) && (() => {
+            // Un vrai <button> quand la ligne est actionnable : focusable et
+            // annoncée au clavier, là où le div+onClick ne l'était pas.
+            const RoomRowTag = roomEditable ? ('button' as const) : ('div' as const);
+            return (
+              <RoomRowTag className="info-row" onClick={roomEditable ? () => setShowRoomDrawer(true) : undefined}>
+                <span className="ic"><MapPin size={18} /></span>
+                <span className="lab">{t('bookingDetail.roomTreatment', 'Salle')}</span>
+                <span className="val" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {[primaryRoomName, secondaryRoomName].filter(Boolean).join(' + ') || t('bookingDetail.roomUnassigned', 'À définir')}
+                  {roomEditable && <Pencil size={14} style={{ color: 'var(--ink-mute)' }} />}
+                </span>
+              </RoomRowTag>
+            );
+          })()}
           {['confirmed', 'ongoing'].includes(booking.status) && booking.room_id && (
             <div className="info-row">
               <span className="ic"><Hourglass size={18} /></span>
@@ -915,8 +1066,8 @@ const PwaBookingDetail = () => {
                 {t('bookingDetail.savedCard', 'Carte pré-enregistrée')}
                 <small>
                   {booking.card_brand && booking.card_last4
-                    ? `${booking.card_brand.charAt(0).toUpperCase() + booking.card_brand.slice(1)} •••• ${booking.card_last4} — débitée à la finalisation`
-                    : 'Sera débitée à la finalisation de la prestation'}
+                    ? `${booking.card_brand.charAt(0).toUpperCase() + booking.card_brand.slice(1)} •••• ${booking.card_last4} · ${t('bookingDetail.savedCardCharge', 'débitée à la finalisation')}`
+                    : t('bookingDetail.savedCardChargeFallback', 'Sera débitée à la finalisation de la prestation')}
                 </small>
               </span>
             </div>
@@ -964,43 +1115,69 @@ const PwaBookingDetail = () => {
           {isConfirmed && <button className="sec-action" onClick={() => setShowAddTreatmentDialog(true)}>+ {t('bookingDetail.add', 'Ajouter')}</button>}
         </div>
         <div className="card">
-          {treatments.map((tr) => {
+          {visibleTreatments.map((tr) => {
             const effectiveDuration = tr.treatment_variants?.duration ?? tr.treatment_menus?.duration;
             const variantLabel = tr.treatment_variants?.label;
             // Seulement quand ils sont plusieurs, et seulement sur les lignes qui
             // portent vraiment l'affectation : une ligne sans therapist_id reste
             // muette plutôt que de nommer quelqu'un par déduction.
-            const lineTherapist = tr.therapist_id ? therapistNamesById[tr.therapist_id] : null;
+            // Une prestation encore libre sur une réservation partagée n'est pas
+            // muette : le praticien doit voir qu'elle attend un confrère, sans quoi
+            // il croirait la fiche incomplète.
+            // Prestation hors de mes compétences : elle reste affichée — la
+            // cliente enchaîne bien les deux soins et la salle est occupée — mais
+            // grisée et explicitée, pour qu'il soit clair qu'un confrère la prendra.
+            // Sans objet en duo, où les soins sont exécutés en parallèle.
+            // Tant que la demande ne m'est pas ouverte, le motif de compétence
+            // n'a pas lieu d'être : ce n'est pas lui qui m'écarte, et l'afficher
+            // ferait croire à un refus définitif là où j'attends mon tour.
+            const outOfMyScope =
+              !awaitingMyWave && guestCount <= 1 && !tr.is_addon && !canPerform(tr.treatment_id);
+            const lineTherapist = tr.therapist_id
+              ? therapistNamesById[tr.therapist_id]
+              : outOfMyScope
+                ? t('bookingDetail.legNotMySkill', 'Vous ne réalisez pas ce soin')
+                : (isSharedBooking ? t('bookingDetail.legUnstaffed', 'À pourvoir') : null);
             // La durée a déjà sa propre colonne : on n'affiche le label de variante
             // que s'il apporte une info autre qu'une durée (ex. « Dos », « Corps »).
             const showVariant = variantLabel && !/^\s*\d+\s*(min|minutes|mn|')?\s*$/i.test(variantLabel);
+            // `.other` grise par la couleur (contraste AA conservé), pas par l'opacité.
             return (
-              <div key={tr.id} className="soin-row">
+              <div key={tr.id} className={'soin-row' + (outOfMyScope ? ' other' : '')}>
                 <span className="nm">
                   {tr.treatment_menus?.name}{showVariant ? ` · ${variantLabel}` : ''}
-                  {lineTherapist && (
-                    <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-mute)', fontWeight: 400 }}>
-                      {lineTherapist}
-                    </span>
-                  )}
+                  {lineTherapist && <span className="who">{lineTherapist}</span>}
                 </span>
                 <span className="dur">{effectiveDuration} min</span>
                 <span className="pr">{formatPrice(treatmentLinePrice(tr), booking.hotel_currency)}</span>
-                {booking.status !== "completed" && (
-                  <button onClick={() => setTreatmentToDelete(tr.id)} aria-label={t('bookingDetail.deleteTreatment', 'Supprimer')} style={{ background: 'none', border: 'none', color: 'var(--clay)', padding: 0, display: 'flex' }}>
+                {/* Pas de suppression tant que la réservation n'est pas la mienne :
+                    en phase d'acceptation, retirer un soin du panier de la cliente
+                    n'a pas de sens. */}
+                {booking.status !== "completed" && !canJoinBooking && (
+                  <button className="del" onClick={() => setTreatmentToDelete(tr.id)} aria-label={t('bookingDetail.deleteTreatment', 'Supprimer')}>
                     <Trash2 size={14} />
                   </button>
                 )}
               </div>
             );
           })}
-          <div className="soin-row" style={{ background: 'var(--sand-100)' }}>
-            <span className="nm" style={{ fontWeight: 600 }}>{t('bookingDetail.clientTotal', 'Total client')}</span>
-            <span className="pr" style={{ fontSize: 17 }}>{formatPrice(totalPrice, booking.hotel_currency)}</span>
-          </div>
+          {hiddenTreatmentCount > 0 && (
+            <button className="soin-more" onClick={() => setShowOtherLegs(true)}>
+              + {t('bookingDetail.otherLegs', { count: hiddenTreatmentCount })}
+            </button>
+          )}
+          {/* Le total client n'aide pas à décider d'accepter : il n'apparaît
+              qu'avec toutes les lignes visibles, sinon le chiffre ne colle pas
+              à ce que la carte montre. */}
+          {showClientTotal && (
+            <div className="soin-row total">
+              <span className="nm">{t('bookingDetail.clientTotal', 'Total client')}</span>
+              <span className="pr">{formatPrice(totalPrice, booking.hotel_currency)}</span>
+            </div>
+          )}
         </div>
 
-        {((booking.is_out_of_hours && (booking.surcharge_amount ?? 0) > 0) || giftAppliedCents > 0) && (
+        {showClientTotal && ((booking.is_out_of_hours && (booking.surcharge_amount ?? 0) > 0) || giftAppliedCents > 0) && (
           <div style={{ margin: '8px 16px 0', fontSize: 12, color: 'var(--ink-mute)' }}>
             {booking.is_out_of_hours && (booking.surcharge_amount ?? 0) > 0 && (
               <div>
@@ -1017,26 +1194,34 @@ const PwaBookingDetail = () => {
         className="fiche-foot"
         style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, paddingBottom: 'calc(18px + env(safe-area-inset-bottom))' }}
       >
-        {booking.status === "pending" && (booking.guest_count ?? 1) > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, padding: '10px 14px', borderRadius: 14, background: 'var(--gold-soft)', color: 'var(--gold-deep)' }}>
+        {awaitingMyWave ? (
+          <div className="wait-note">
             <Hourglass size={16} />
-            <span style={{ fontSize: 12, fontWeight: 500 }}>
-              {t('bookingDetail.duoTherapistsJoined', { accepted: acceptedTherapistCount, total: booking.guest_count ?? 2 })}
+            <span>{t('bookingDetail.awaitingMyWave')}</span>
+          </div>
+        ) : booking.status === "pending" && (guestCount > 1 || joinsSharedBooking) ? (
+          <div className="wait-note">
+            <Hourglass size={16} />
+            <span>
+              {guestCount > 1
+                ? t('bookingDetail.duoTherapistsJoined', { accepted: acceptedTherapistCount, total: booking.guest_count ?? 2 })
+                : t('bookingDetail.legsToStaff', { count: openLegLines.length })}
             </span>
           </div>
-        )}
-        {(booking.status === "pending" && (booking.guest_count ?? 1) <= 1 && (!booking.therapist_id || booking.therapist_id === myTherapistId)) ||
-         (booking.status === "pending" && (booking.guest_count ?? 1) > 1 && !hasAlreadyAccepted) ? (
+        ) : null}
+        {awaitingMyWave ? (
+          <div className="wait-pill">{t('bookingDetail.awaitingMyWavePill')}</div>
+        ) : canJoinBooking ? (
           <>
             <button className="btn-primary-lg" onClick={handleAcceptBooking} disabled={updating}>
-              {(booking.guest_count ?? 1) > 1 ? t('bookingDetail.duoJoin') : t('dashboard.accept')}
+              {acceptLabel}
             </button>
             <button className="btn-ghost" onClick={() => setShowDeclineDialog(true)}>
               {t('bookingDetail.declineCta', 'Refuser cette demande')}
             </button>
           </>
-        ) : booking.status === "pending" && (booking.guest_count ?? 1) > 1 && hasAlreadyAccepted ? (
-          <div style={{ textAlign: 'center', padding: 12, borderRadius: 999, border: '1px solid var(--line)', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 500 }}>
+        ) : booking.status === "pending" && hasAlreadyAccepted ? (
+          <div className="wait-pill">
             {t('bookingDetail.duoWaiting')}
           </div>
         ) : ['confirmed', 'ongoing'].includes(booking.status) ? (
@@ -1141,7 +1326,7 @@ const PwaBookingDetail = () => {
       />
       <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} hotelId={booking.hotel_id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: (t.treatment_menus?.name || "") + (t.treatment_variants?.label ? ` · ${t.treatment_variants.label}` : ""), duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0, price: t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0 }))} vatRate={booking.hotel_vat || 20} venueType={booking.venue_type} roomNumber={booking.room_number} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} hasSavedCard={booking.effective_payment_status === 'card_saved'} />
       
-      <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Supprimer ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>Oui</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t('bookingDetail.deleteTreatmentTitle', 'Supprimer ce soin ?')}</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{t('common:buttons.cancel', 'Annuler')}</AlertDialogCancel><AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>{t('common:buttons.delete', 'Supprimer')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Désassigner ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={handleUnassignBooking}>Confirmer</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <Drawer open={showExtendDialog} onOpenChange={setShowExtendDialog}>
         <DrawerContent className="pb-safe">
@@ -1171,14 +1356,14 @@ const PwaBookingDetail = () => {
       <Drawer open={showDeclineDialog} onOpenChange={setShowDeclineDialog}>
         <DrawerContent className="pb-safe">
           <div className="p-4 space-y-3">
-            <p className="text-sm font-semibold text-center">Refuser cette réservation ?</p>
+            <p className="text-sm font-semibold text-center">{t('bookingDetail.declineTitle', 'Refuser cette réservation ?')}</p>
             <button
               onClick={() => { setShowDeclineDialog(false); handleDeclineBooking(); }}
               disabled={updating}
               className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium text-sm disabled:opacity-50"
             >
               <X className="w-5 h-5 shrink-0" />
-              Refuser
+              {t('bookingDetail.decline', 'Refuser')}
             </button>
           </div>
         </DrawerContent>

@@ -10,11 +10,12 @@ DECLARE
   _booking_guest_count integer;
   _accepted_count integer;
   _new_status text;
-  _claimed_treatment_id uuid;
-  _required_count integer;
-  _covered_count integer;
+  _has_associations boolean;
+  _open_legs integer;
+  _my_open_legs integer;
+  _claimed_legs integer;
+  _qualified boolean;
 BEGIN
-  -- SECURITY: Verify caller owns the therapist record
   IF NOT EXISTS (
     SELECT 1 FROM therapists
     WHERE id = _hairdresser_id AND user_id = auth.uid()
@@ -22,7 +23,6 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'unauthorized');
   END IF;
 
-  -- Lock the booking row
   SELECT therapist_id, guest_count
   INTO _current_therapist_id, _booking_guest_count
   FROM bookings
@@ -31,14 +31,49 @@ BEGIN
 
   _booking_guest_count := COALESCE(_booking_guest_count, 1);
 
-  -- For single-guest bookings: check if already taken (backward compat)
-  IF _booking_guest_count = 1 THEN
-    IF _current_therapist_id IS NOT NULL AND _current_therapist_id != _hairdresser_id THEN
-      RETURN jsonb_build_object('success', false, 'error', 'already_taken');
-    END IF;
+  _has_associations := EXISTS (
+    SELECT 1 FROM therapist_treatments WHERE therapist_id = _hairdresser_id
+  );
+
+  -- Jambes à pourvoir, jambes déjà attribuées, et parmi les libres celles que CE
+  -- praticien peut exécuter. Un praticien sans aucune association reste
+  -- polyvalent (héritage de skills).
+  SELECT COUNT(*) FILTER (WHERE bt.therapist_id IS NULL),
+         COUNT(*) FILTER (
+           WHERE bt.therapist_id IS NULL
+             AND (
+               NOT _has_associations
+               OR EXISTS (
+                    SELECT 1 FROM therapist_treatments tt
+                    WHERE tt.therapist_id = _hairdresser_id
+                      AND tt.treatment_menu_id = bt.treatment_id
+                  )
+             )
+         ),
+         COUNT(*) FILTER (WHERE bt.therapist_id IS NOT NULL)
+  INTO _open_legs, _my_open_legs, _claimed_legs
+  FROM booking_treatments bt
+  JOIN treatment_menus tm ON tm.id = bt.treatment_id
+  WHERE bt.booking_id = _booking_id
+    AND bt.is_addon = false
+    AND tm.amenity_id IS NULL;
+
+  -- L'état de la réservation prime sur la qualification : un praticien arrivé
+  -- sur une résa déjà complète doit lire 'already_taken' / 'fully_staffed', pas
+  -- un motif de refus trompeur (enquête #1439).
+  --
+  -- Sur un booking simple déjà pris par un confrère, un second praticien n'est
+  -- admis que si la réservation est réellement partagée : une jambe libre ET une
+  -- jambe déjà attribuée. Exiger `_claimed_legs > 0` protège les réservations
+  -- historiques, dont les lignes ne portent aucun therapist_id alors que le
+  -- praticien principal assure tout : sans ce garde-fou, elles passeraient pour
+  -- « entièrement à pourvoir » et un tiers pourrait s'y inviter.
+  IF _booking_guest_count = 1
+     AND _current_therapist_id IS NOT NULL AND _current_therapist_id != _hairdresser_id
+     AND (_open_legs = 0 OR _claimed_legs = 0) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'already_taken');
   END IF;
 
-  -- Check if this therapist already accepted this booking
   IF EXISTS (
     SELECT 1 FROM booking_therapists
     WHERE booking_id = _booking_id AND therapist_id = _hairdresser_id
@@ -46,63 +81,38 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'already_accepted');
   END IF;
 
-  -- Check if booking already has enough therapists
   SELECT COUNT(*) INTO _accepted_count
   FROM booking_therapists
   WHERE booking_id = _booking_id AND status = 'accepted';
 
-  IF _accepted_count >= _booking_guest_count THEN
+  IF _accepted_count >= _booking_guest_count AND _open_legs = 0 THEN
     RETURN jsonb_build_object('success', false, 'error', 'fully_staffed');
   END IF;
 
-  -- Qualification : un praticien sans aucune association reste polyvalent
-  -- (comportement hérité de skills). Dès qu'il en a au moins une, la règle
-  -- dépend du format : solo = couvrir toutes les prestations, duo = couvrir au
-  -- moins une des prestations encore libres (chacun n'exécute qu'une jambe).
-  IF EXISTS (SELECT 1 FROM therapist_treatments WHERE therapist_id = _hairdresser_id) THEN
-    IF _booking_guest_count > 1 THEN
-      SELECT COUNT(*),
-             COUNT(*) FILTER (
-               WHERE EXISTS (
-                 SELECT 1 FROM therapist_treatments tt
-                 WHERE tt.therapist_id = _hairdresser_id
-                   AND tt.treatment_menu_id = bt.treatment_id
-               )
-             )
-      INTO _required_count, _covered_count
+  -- Qualification. Cas courant : couvrir au moins une jambe libre. Cas du duo
+  -- partagé (un soin unique exécuté en parallèle : plus aucune jambe libre mais
+  -- une place invité à pourvoir), la qualification se lit sur les soins de base
+  -- de la réservation.
+  IF _open_legs = 0 THEN
+    _qualified := NOT _has_associations OR EXISTS (
+      SELECT 1
       FROM booking_treatments bt
       JOIN treatment_menus tm ON tm.id = bt.treatment_id
+      JOIN therapist_treatments tt
+        ON tt.treatment_menu_id = bt.treatment_id
+       AND tt.therapist_id = _hairdresser_id
       WHERE bt.booking_id = _booking_id
         AND bt.is_addon = false
         AND tm.amenity_id IS NULL
-        AND bt.therapist_id IS NULL;
-
-      IF _required_count > 0 AND _covered_count = 0 THEN
-        RETURN jsonb_build_object('success', false, 'error', 'not_qualified');
-      END IF;
-    ELSE
-      SELECT COUNT(DISTINCT bt.treatment_id),
-             COUNT(DISTINCT bt.treatment_id) FILTER (
-               WHERE EXISTS (
-                 SELECT 1 FROM therapist_treatments tt
-                 WHERE tt.therapist_id = _hairdresser_id
-                   AND tt.treatment_menu_id = bt.treatment_id
-               )
-             )
-      INTO _required_count, _covered_count
-      FROM booking_treatments bt
-      JOIN treatment_menus tm ON tm.id = bt.treatment_id
-      WHERE bt.booking_id = _booking_id
-        AND bt.is_addon = false
-        AND tm.amenity_id IS NULL;
-
-      IF _required_count > 0 AND _covered_count < _required_count THEN
-        RETURN jsonb_build_object('success', false, 'error', 'not_qualified');
-      END IF;
-    END IF;
+    );
+  ELSE
+    _qualified := _my_open_legs > 0;
   END IF;
 
-  -- Insert into bridge table
+  IF NOT _qualified THEN
+    RETURN jsonb_build_object('success', false, 'error', 'not_qualified');
+  END IF;
+
   INSERT INTO booking_therapists (booking_id, therapist_id, status, assigned_at)
   VALUES (_booking_id, _hairdresser_id, 'accepted', now())
   ON CONFLICT (booking_id, therapist_id) DO NOTHING;
@@ -113,36 +123,67 @@ BEGIN
 
   _accepted_count := _accepted_count + 1;
 
-  -- Claim d'une jambe : à égalité d'ancienneté, une prestation que le praticien
-  -- réalise passe devant. Sans association (polyvalent), l'EXISTS est faux
-  -- partout et l'ordre historique (created_at, id) s'applique tel quel.
-  UPDATE booking_treatments
-  SET therapist_id = _hairdresser_id
-  WHERE id = (
-    SELECT bt.id FROM booking_treatments bt
+  IF _booking_guest_count = 1 THEN
+    -- Booking simple : le praticien prend toutes les jambes qu'il réalise. Le cas
+    -- courant (un seul praticien pour les deux soins) reste donc complet en une
+    -- acceptation ; seules restent libres les jambes qu'il ne sait pas faire.
+    UPDATE booking_treatments bt
+    SET therapist_id = _hairdresser_id
     WHERE bt.booking_id = _booking_id
       AND bt.is_addon = false
       AND bt.therapist_id IS NULL
-    ORDER BY (
-      EXISTS (
-        SELECT 1 FROM therapist_treatments tt
-        WHERE tt.therapist_id = _hairdresser_id
-          AND tt.treatment_menu_id = bt.treatment_id
+      AND EXISTS (
+        SELECT 1 FROM treatment_menus tm
+        WHERE tm.id = bt.treatment_id AND tm.amenity_id IS NULL
       )
-    ) DESC, bt.created_at, bt.id
-    LIMIT 1
-    FOR UPDATE
-  )
-  RETURNING id INTO _claimed_treatment_id;
-
-  IF _claimed_treatment_id IS NOT NULL THEN
+      AND (
+        NOT _has_associations
+        OR EXISTS (
+          SELECT 1 FROM therapist_treatments tt
+          WHERE tt.therapist_id = _hairdresser_id
+            AND tt.treatment_menu_id = bt.treatment_id
+        )
+      );
+  ELSE
+    -- Duo : une jambe par praticien. À égalité d'ancienneté, une prestation que
+    -- le praticien réalise passe devant — sans quoi un praticien qualifié pour
+    -- une seule jambe pouvait se voir attribuer l'autre. Sans association
+    -- (polyvalent), l'EXISTS est faux partout et l'ordre historique s'applique.
     UPDATE booking_treatments
     SET therapist_id = _hairdresser_id
-    WHERE booking_id = _booking_id
-      AND is_addon = true
-      AND parent_booking_treatment_id = _claimed_treatment_id;
+    WHERE id = (
+      SELECT bt.id FROM booking_treatments bt
+      JOIN treatment_menus tm ON tm.id = bt.treatment_id
+      WHERE bt.booking_id = _booking_id
+        AND bt.is_addon = false
+        AND tm.amenity_id IS NULL
+        AND bt.therapist_id IS NULL
+      ORDER BY (
+        EXISTS (
+          SELECT 1 FROM therapist_treatments tt
+          WHERE tt.therapist_id = _hairdresser_id
+            AND tt.treatment_menu_id = bt.treatment_id
+        )
+      ) DESC, bt.created_at, bt.id
+      LIMIT 1
+      FOR UPDATE
+    );
   END IF;
 
+  -- Les add-ons suivent le soin auquel ils sont rattachés.
+  UPDATE booking_treatments a
+  SET therapist_id = _hairdresser_id
+  WHERE a.booking_id = _booking_id
+    AND a.is_addon = true
+    AND a.therapist_id IS NULL
+    AND EXISTS (
+      SELECT 1 FROM booking_treatments p
+      WHERE p.id = a.parent_booking_treatment_id
+        AND p.therapist_id = _hairdresser_id
+    );
+
+  -- Add-ons sans parent (ajoutés avant que le lien stable n'existe) : au premier
+  -- praticien arrivé.
   IF _accepted_count = 1 THEN
     UPDATE booking_treatments
     SET therapist_id = _hairdresser_id
@@ -152,15 +193,21 @@ BEGIN
       AND therapist_id IS NULL;
   END IF;
 
-  -- Determine new status
-  IF _accepted_count >= _booking_guest_count THEN
+  -- Complétude : assez de praticiens ET plus aucune jambe à pourvoir.
+  SELECT COUNT(*) INTO _open_legs
+  FROM booking_treatments bt
+  JOIN treatment_menus tm ON tm.id = bt.treatment_id
+  WHERE bt.booking_id = _booking_id
+    AND bt.is_addon = false
+    AND tm.amenity_id IS NULL
+    AND bt.therapist_id IS NULL;
+
+  IF _accepted_count >= _booking_guest_count AND _open_legs = 0 THEN
     _new_status := 'confirmed';
   ELSE
-    -- Duo still needing therapists stays 'pending' (pending + guest_count > 1).
     _new_status := 'pending';
   END IF;
 
-  -- Update booking: set first therapist as primary (backward compat), update status
   UPDATE bookings
   SET
     therapist_id = COALESCE(therapist_id, _hairdresser_id),
@@ -176,7 +223,8 @@ BEGIN
     'therapist_id', therapist_id,
     'status', status,
     'guest_count', guest_count,
-    'accepted_therapists', _accepted_count
+    'accepted_therapists', _accepted_count,
+    'open_legs', _open_legs
   ) INTO _result;
 
   RETURN jsonb_build_object('success', true, 'data', _result);
@@ -2103,6 +2151,25 @@ END;
 $$;
 
 ALTER FUNCTION "public"."hotels_autofill_slug"() OWNER TO "postgres";
+
+-- Réservation partagée : au moins une jambe libre ET une jambe déjà attribuée.
+-- Lit les jambes comme `accept_booking` les réclame — soins de base, hors
+-- add-ons et hors commodités. SECURITY DEFINER pour que les policies de lecture
+-- n'aient pas à traverser la RLS de booking_treatments.
+CREATE OR REPLACE FUNCTION "public"."booking_has_open_leg"("_booking_id" "uuid") RETURNS boolean
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+  SELECT COUNT(*) FILTER (WHERE bt.therapist_id IS NULL) > 0
+     AND COUNT(*) FILTER (WHERE bt.therapist_id IS NOT NULL) > 0
+  FROM booking_treatments bt
+  JOIN treatment_menus tm ON tm.id = bt.treatment_id
+  WHERE bt.booking_id = _booking_id
+    AND bt.is_addon = false
+    AND tm.amenity_id IS NULL;
+$$;
+
+ALTER FUNCTION "public"."booking_has_open_leg"("_booking_id" "uuid") OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."is_booking_participant"("_booking_id" "uuid", "_therapist_id" "uuid") RETURNS boolean
     LANGUAGE "sql" STABLE SECURITY DEFINER

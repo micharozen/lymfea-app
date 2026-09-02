@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { BookingWindow } from "@/lib/pwaBookingWindow";
+import { isOpenPendingRequest } from "@/lib/openPendingRequest";
 import {
   PWA_BOOKING_ROW_LIMIT,
   PWA_BOOKING_SELECT,
@@ -10,12 +11,19 @@ import {
 } from "./pwaBookingKeys";
 
 export interface PwaBookingTreatment {
+  /** `booking_treatments.id` — identifie ma jambe pour `legWindowForLines`. */
+  id?: string | null;
   therapist_id?: string | null;
   treatment_id?: string | null;
   is_addon?: boolean | null;
+  /** Départage à durée égale, comme `accept_booking`. */
+  created_at?: string | null;
+  /** L'add-on prolonge ce soin — il n'a pas d'heure propre. */
+  parent_booking_treatment_id?: string | null;
   /** Résolu côté client pour les duos : "Prénom N." du thérapeute affecté. */
   therapistShortName?: string | null;
-  treatment_menus: { name: string; price: number; duration: number } | null;
+  /** `amenity_id` non nul = commodité : elle ne mobilise aucun praticien. */
+  treatment_menus: { name: string; price: number; duration: number; amenity_id?: string | null } | null;
 }
 
 export interface ProposedSlots {
@@ -286,18 +294,9 @@ export async function fetchPendingBookingsWindow(
 
   if (error) throw error;
 
-  const open = ((data ?? []) as unknown as RawRow[]).filter((b) => {
-    // Duo encore ouvert : visible pour tous les thérapeutes du lieu qui n'ont
-    // pas déjà accepté. Un duo complet est passé en 'confirmed', donc tout duo
-    // encore 'pending' ici est ouvert.
-    if ((b.guest_count ?? 1) > 1) {
-      return !b.booking_therapists?.some(
-        (bt) => bt.therapist_id === therapistId && bt.status === "accepted",
-      );
-    }
-    // Solo : doit être non assigné, les assignés arrivent par mes réservations.
-    return b.therapist_id === null;
-  });
+  const open = ((data ?? []) as unknown as RawRow[]).filter((b) =>
+    isOpenPendingRequest(b, therapistId),
+  );
 
   const duoIds = open.filter((b) => (b.guest_count ?? 1) > 1).map((b) => b.id);
   const slotsByBooking = new Map<string, ProposedSlots>();

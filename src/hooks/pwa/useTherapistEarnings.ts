@@ -205,9 +205,12 @@ async function fetchTherapistEarnings(
     // barème spécifique éventuel de chaque soin.
     const myLines = myLegTreatments(therapistId, legTreatments, orderedIds, gc);
     let dur = myLegDuration(therapistId, legTreatments, orderedIds, gc);
-    // Solo: preserve the previous behaviour — prefer the stored booking duration
-    // (e.g. extended bookings), floor at 60 when no data. Duos use the leg above.
-    if (gc <= 1) {
+    // Praticien seul : on garde le comportement historique — bookings.duration
+    // fait foi (elle absorbe les prolongations de séance), plancher à 60 sans
+    // donnée. Dès que la réservation est partagée, c'est la jambe qui compte,
+    // sinon chacun verrait la durée totale au portefeuille (issue #547).
+    const isSharedBooking = myLines.length < legTreatments.length || gc > 1;
+    if (!isSharedBooking) {
       if ((b.duration ?? 0) > 0) dur = b.duration!;
       else if (dur <= 0) dur = 60;
     }

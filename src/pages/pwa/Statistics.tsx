@@ -13,7 +13,7 @@ import {
   subMonths,
 } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
-import { BarChart3, Clock, Euro, TrendingUp } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -23,16 +23,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import PwaHeader from "@/components/pwa/Header";
 import { formatPrice } from "@/lib/formatPrice";
 import { useTherapistEarnings } from "@/hooks/pwa/useTherapistEarnings";
 
@@ -113,6 +103,11 @@ const PwaStatistics = () => {
     { key: "lastMonth", label: t("statistics.lastMonth") },
   ];
 
+  // Rappel de la période sur le hero, en clair ("1 sept. - 30 sept.").
+  const rangeLabel = start === end
+    ? format(new Date(start + "T00:00:00"), "d MMM", { locale: dateLocale })
+    : `${format(new Date(start + "T00:00:00"), "d MMM", { locale: dateLocale })} - ${format(new Date(end + "T00:00:00"), "d MMM", { locale: dateLocale })}`;
+
   const formatHours = (hours: number) => {
     const h = Math.floor(hours);
     const m = Math.round((hours - h) * 60);
@@ -120,108 +115,81 @@ const PwaStatistics = () => {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col bg-background">
-      <PwaHeader
-        centerSlot={
-          <h1 className="text-base font-semibold text-foreground">{t("statistics.title")}</h1>
-        }
-      />
+    <div className="app-refonte flex h-full min-h-0 flex-col">
+      <header className="hdr" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
+        <button className="back-btn" onClick={() => navigate("/pwa/dashboard")} aria-label={t("common:buttons.back")}>
+          <ChevronLeft size={18} />
+        </button>
+        <span style={{ fontSize: 18, fontWeight: 400 }}>{t("statistics.title")}</span>
+        <div className="spacer" />
+      </header>
 
-      <div className="flex-1 flex flex-col min-h-0 overflow-auto">
-        <div className="px-4 pt-4 pb-2">
-            <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {periods.map((p) => (
-                  <SelectItem key={p.key} value={p.key}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="app-scroll" style={{ paddingBottom: 24 }}>
+        <div className="seg grow" style={{ marginBottom: "calc(12px * var(--sp))" }}>
+          {periods.map((p) => (
+            <button key={p.key} className={period === p.key ? "on" : ""} onClick={() => setPeriod(p.key)}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {isLoading ? (
+          <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="sk" style={{ height: 108, borderRadius: 20 }} />
+            <div className="sk" style={{ height: 64 }} />
+            <div className="sk" style={{ height: 200 }} />
+            <div className="sk" style={{ height: 140 }} />
           </div>
-
-          {isLoading ? (
-            <div className="px-4 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-20 rounded-xl" />
-                ))}
+        ) : (
+          <>
+            {/* Total de la période */}
+            <div className="hero-card">
+              <div className="glow" />
+              <div className="hero-inner">
+                <div className="hero-top">
+                  <span className="lbl">{t("statistics.totalEarned")}</span>
+                  <span className="in">{rangeLabel}</span>
+                </div>
+                <div className="hero-time">
+                  {formatPrice(earnings?.totalEarned ?? 0, "EUR", { decimals: 0 })}
+                </div>
               </div>
-              <Skeleton className="h-48 rounded-xl" />
-              <Skeleton className="h-32 rounded-xl" />
             </div>
-          ) : (
-            <div className="px-4 pb-4 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <Card className="p-3.5">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <Euro className="h-4 w-4 text-primary" />
-                    <span className="text-xs text-muted-foreground">
-                      {t("statistics.totalEarned")}
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold">
-                    {formatPrice(earnings?.totalEarned ?? 0, "EUR", { decimals: 0 })}
-                  </div>
-                </Card>
 
-                <Card className="p-3.5">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <BarChart3 className="h-4 w-4 text-primary" />
-                    <span className="text-xs text-muted-foreground">
-                      {t("statistics.bookingCount")}
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold">{earnings?.bookingCount ?? 0}</div>
-                </Card>
-
-                <Card className="p-3.5">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <Clock className="h-4 w-4 text-primary" />
-                    <span className="text-xs text-muted-foreground">
-                      {t("statistics.hoursWorked")}
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold">
-                    {formatHours(earnings?.hoursWorked ?? 0)}
-                  </div>
-                </Card>
-
-                <Card className="p-3.5">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                    <span className="text-xs text-muted-foreground">
-                      {t("statistics.averagePerBooking")}
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold">
-                    {formatPrice(earnings?.averagePerBooking ?? 0, "EUR", { decimals: 0 })}
-                  </div>
-                </Card>
+            {/* KPIs secondaires */}
+            <div className="fiche-when" style={{ margin: "calc(12px * var(--sp)) 16px 0" }}>
+              <div className="cell">
+                <div className="v">{earnings?.bookingCount ?? 0}</div>
+                <div className="l">{t("statistics.bookingCount")}</div>
               </div>
+              <div className="cell">
+                <div className="v">{formatHours(earnings?.hoursWorked ?? 0)}</div>
+                <div className="l">{t("statistics.hoursWorked")}</div>
+              </div>
+              <div className="cell">
+                <div className="v">{formatPrice(earnings?.averagePerBooking ?? 0, "EUR", { decimals: 0 })}</div>
+                <div className="l">{t("statistics.averagePerBooking")}</div>
+              </div>
+            </div>
 
-              {chartData.length > 1 && (
-                <Card className="p-4">
-                  <h3 className="text-sm font-semibold mb-3">
-                    {t("statistics.dailyEarnings")}
-                  </h3>
+            {chartData.length > 1 && (
+              <>
+                <div className="sec-label">{t("statistics.dailyEarnings")}</div>
+                <div className="card chart-card">
                   <ResponsiveContainer width="100%" height={180}>
                     <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <CartesianGrid vertical={false} stroke="var(--line-soft)" />
                       <XAxis
                         dataKey="label"
-                        tick={{ fontSize: 10 }}
+                        tick={{ fontSize: 10, fill: "var(--ink-mute)" }}
                         tickLine={false}
                         axisLine={false}
                       />
                       <YAxis
-                        tick={{ fontSize: 10 }}
+                        tick={{ fontSize: 10, fill: "var(--ink-mute)" }}
                         tickLine={false}
                         axisLine={false}
-                        width={40}
+                        width={36}
                       />
                       <Tooltip
                         formatter={(value: number) => [
@@ -229,57 +197,55 @@ const PwaStatistics = () => {
                           t("statistics.totalEarned"),
                         ]}
                         labelFormatter={(label) => label}
+                        cursor={{ fill: "var(--sand-200)", opacity: 0.5 }}
+                        contentStyle={{
+                          background: "var(--sand-50)",
+                          border: "1px solid var(--line)",
+                          borderRadius: 12,
+                          fontSize: 12,
+                          color: "var(--ink)",
+                        }}
                       />
                       <Bar
                         dataKey="earnings"
-                        fill="hsl(var(--primary))"
+                        fill="var(--accent)"
+                        maxBarSize={18}
                         radius={[4, 4, 0, 0]}
                       />
                     </BarChart>
                   </ResponsiveContainer>
-                </Card>
-              )}
+                </div>
+              </>
+            )}
 
-              <div>
-                <h3 className="text-sm font-semibold mb-3">
-                  {t("statistics.completedBookings")}
-                </h3>
-                {!earnings?.bookings.length ? (
-                  <Card className="p-6 text-center text-muted-foreground text-sm">
-                    {t("statistics.noData")}
-                  </Card>
-                ) : (
-                  <div className="space-y-2">
-                    {earnings.bookings.map((booking) => (
-                      <Card key={booking.id} className="p-3">
-                        <div className="flex items-start justify-between">
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium">
-                              {booking.client_first_name} {booking.client_last_name}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                              {format(new Date(booking.booking_date + "T00:00:00"), "d MMM", {
-                                locale: dateLocale,
-                              })}{" "}
-                              {booking.booking_time?.substring(0, 5)} — {booking.hotel_name}
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0 ml-3">
-                            <div className="text-sm font-bold text-primary">
-                              {formatPrice(booking.therapistShare, "EUR")}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground">
-                              / {formatPrice(booking.calculatedTotal, "EUR")}
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+            <div className="sec-label">{t("statistics.completedBookings")}</div>
+            {!earnings?.bookings.length ? (
+              <div className="card">
+                <div className="stat-empty">{t("statistics.noData")}</div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="card">
+                {earnings.bookings.map((booking) => (
+                  <div key={booking.id} className="stat-row">
+                    <div className="tx">
+                      <div className="t">
+                        {booking.client_first_name} {booking.client_last_name}
+                      </div>
+                      <div className="s">
+                        {format(new Date(booking.booking_date + "T00:00:00"), "d MMM", { locale: dateLocale })}{" "}
+                        {booking.booking_time?.substring(0, 5)} · {booking.hotel_name}
+                      </div>
+                    </div>
+                    <div className="amt">
+                      <div className="v">{formatPrice(booking.therapistShare, "EUR")}</div>
+                      <div className="of">/ {formatPrice(booking.calculatedTotal, "EUR")}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

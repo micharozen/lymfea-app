@@ -155,11 +155,13 @@
   margin:0 16px calc(10px*var(--sp)); padding:calc(14px*var(--sp)) 16px;
   box-shadow:0 1px 2px rgba(42,36,25,.04);
 }
-.app-refonte .req-when{font-size:12px; font-weight:500; color:var(--accent); letter-spacing:.02em;}
+.app-refonte .req-when{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; font-weight:500; color:var(--accent); letter-spacing:.02em;}
+.app-refonte .req-when .req-num{color:var(--ink-mute);}
 .app-refonte .req-head{display:flex; align-items:center; gap:10px; margin-top:calc(8px*var(--sp));}
 .app-refonte .req-head .who{font-size:15.5px; font-weight:500; flex:1; min-width:0;}
 .app-refonte .req-body{font-size:13.5px; color:var(--ink-soft); margin-top:3px;}
-.app-refonte .req-meta{font-size:12.5px; color:var(--ink-mute); margin-top:3px;}
+.app-refonte .req-meta{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-mute); margin-top:3px;}
+.app-refonte .req-meta .req-earn{margin-left:auto; color:var(--ink); font-weight:500; white-space:nowrap;}
 .app-refonte .req-actions{display:flex; gap:8px; margin-top:calc(12px*var(--sp));}
 .app-refonte .btn-accept{
   flex:1; height:40px; border-radius:999px; border:none;
@@ -185,6 +187,7 @@
 .app-refonte .bk-time .d{font-size:10.5px; color:var(--ink-mute); margin-top:2px;}
 .app-refonte .bk-main{flex:1; min-width:0;}
 .app-refonte .bk-main .who{font-size:14.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.app-refonte .bk-main .who .num{font-size:11.5px; font-weight:400; color:var(--ink-mute);}
 .app-refonte .bk-main .what{font-size:12.5px; color:var(--ink-soft); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .app-refonte .bk-main .meta{font-size:11.5px; color:var(--ink-mute); margin-top:2px;}
 .app-refonte .bk-right{text-align:right; flex-shrink:0;}
@@ -252,6 +255,8 @@
 .app-refonte .info-list{margin:0 16px; background:var(--sand-50); border:1px solid var(--line-soft); border-radius:16px; overflow:hidden;}
 .app-refonte .info-row{display:flex; align-items:center; gap:12px; padding:calc(12px*var(--sp)) 16px; font-size:14px;}
 .app-refonte .info-row+.info-row{border-top:1px solid var(--line-soft);}
+/* variante actionnable (ex. choix de salle) : un vrai <button>, focusable au clavier */
+.app-refonte button.info-row{width:100%; background:none; border:none; text-align:left; color:inherit;}
 .app-refonte .info-row .ic{color:var(--ink-mute); flex-shrink:0; display:flex;}
 .app-refonte .info-row .lab{color:var(--ink-mute); font-size:12px; width:74px; flex-shrink:0;}
 .app-refonte .info-row .val{flex:1; font-weight:500; min-width:0;}
@@ -284,6 +289,19 @@
 .app-refonte .soin-row .nm{flex:1; font-size:14px; font-weight:500;}
 .app-refonte .soin-row .dur{font-size:12px; color:var(--ink-mute); min-width:52px; text-align:right;}
 .app-refonte .soin-row .pr{font-family:var(--serif); font-size:15px; min-width:64px; text-align:right;}
+/* prestation d'un confrère : atténuée par la couleur (--ink-soft garde le contraste AA), jamais par l'opacité */
+.app-refonte .soin-row.other .nm,
+.app-refonte .soin-row.other .pr{color:var(--ink-soft); font-weight:400;}
+.app-refonte .soin-row .nm .who{display:block; font-size:11px; color:var(--ink-mute); font-weight:400;}
+.app-refonte .soin-row .del{background:none; border:none; color:var(--clay); padding:0; display:flex;}
+.app-refonte .soin-row.total{background:var(--sand-100);}
+.app-refonte .soin-row.total .nm{font-weight:600;}
+.app-refonte .soin-row.total .pr{font-size:17px;}
+.app-refonte .soin-more{
+  width:100%; display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:calc(11px*var(--sp)); border:none; border-top:1px solid var(--line-soft);
+  background:none; color:var(--ink-soft); font-size:13px;
+}
 .app-refonte .soin-add{
   width:100%; display:flex; align-items:center; justify-content:center; gap:7px;
   padding:calc(12px*var(--sp)); border:none; border-top:1px dashed var(--line);
@@ -294,6 +312,15 @@
 .app-refonte .fiche-foot{
   padding:12px 16px calc(28px*var(--sp)); display:flex; flex-direction:column; gap:8px;
   background:linear-gradient(to top, var(--sand-100) 70%, transparent);
+}
+.app-refonte .fiche-foot .wait-note{
+  display:flex; align-items:center; gap:8px; margin-bottom:4px; padding:10px 14px;
+  border-radius:14px; background:var(--gold-soft); color:var(--gold-deep);
+  font-size:12px; font-weight:500;
+}
+.app-refonte .fiche-foot .wait-pill{
+  text-align:center; padding:12px; border-radius:999px; border:1px solid var(--line);
+  color:var(--ink-soft); font-size:14px; font-weight:500;
 }
 .app-refonte .btn-primary-lg{
   height:52px; border-radius:999px; border:none; width:100%;
@@ -348,6 +375,25 @@
   font-size:12.5px; font-weight:500; color:var(--ink-soft);
 }
 .app-refonte .seg button.on{background:var(--sand-50); color:var(--ink); font-weight:600; box-shadow:0 1px 3px rgba(42,36,25,.12);}
+/* variante 4 segments pleine largeur (statistiques) */
+.app-refonte .seg.grow{margin:0 16px;}
+.app-refonte .seg.grow button{flex:1; padding:6px 0; text-align:center;}
+
+/* ── statistiques ──────────────────────── */
+.app-refonte .stat-row{display:flex; align-items:center; gap:12px; padding:calc(12px*var(--sp)) 16px;}
+.app-refonte .stat-row+.stat-row{border-top:1px solid var(--line-soft);}
+.app-refonte .stat-row .tx{flex:1; min-width:0;}
+.app-refonte .stat-row .tx .t{font-size:14px; font-weight:500;}
+.app-refonte .stat-row .tx .s{font-size:12px; color:var(--ink-mute); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.app-refonte .stat-row .amt{text-align:right; flex-shrink:0;}
+.app-refonte .stat-row .amt .v{font-family:var(--serif); font-size:16px; color:var(--accent);}
+.app-refonte .stat-row .amt .of{font-size:10.5px; color:var(--ink-mute); margin-top:1px;}
+.app-refonte .stat-empty{padding:calc(22px*var(--sp)) 20px; text-align:center; font-size:13px; color:var(--ink-mute);}
+.app-refonte .chart-card{padding:calc(14px*var(--sp)) 12px calc(6px*var(--sp)) 0;}
+/* placeholder de chargement on-brand (remplace le Skeleton shadcn) */
+.app-refonte .sk{background:var(--sand-200); border-radius:16px; animation:sk-pulse 1.4s ease-in-out infinite;}
+@keyframes sk-pulse{0%,100%{opacity:.55;} 50%{opacity:.9;}}
+@media (prefers-reduced-motion: reduce){ .app-refonte .sk{animation:none; opacity:.7;} }
 
 .app-refonte .ag-datenav{display:flex; align-items:center; gap:8px; padding:calc(10px*var(--sp)) 16px calc(4px*var(--sp));}
 .app-refonte .ag-datenav .cur{flex:1; text-align:center;}

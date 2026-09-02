@@ -12,6 +12,11 @@ interface BookingTreatment {
 
 interface Booking {
   id: string;
+  /**
+   * Clé de rendu : une réservation partagée pose un bloc par praticien, donc
+   * plusieurs blocs portent le même `id`. Vaut `id` hors de ce cas.
+   */
+  legKey?: string;
   booking_id: number;
   booking_date: string;
   booking_time: string;
@@ -318,7 +323,7 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick, onVisib
 
                     return (
                       <div
-                        key={booking.id}
+                        key={booking.legKey ?? booking.id}
                         className={`absolute left-0.5 right-0.5 rounded text-xs cursor-pointer overflow-hidden z-10 select-none ${flowStage.cardClass}`}
                         style={{
                           top: `${top}px`,
