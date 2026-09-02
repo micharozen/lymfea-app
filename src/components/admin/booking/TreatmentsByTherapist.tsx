@@ -154,8 +154,14 @@ export function TreatmentsByTherapist({
   // shown "Non assigné" until the second therapist accepts.
   const lineTherapistIds = useMemo<(string | null)[]>(() => {
     if (guestCount <= 1) {
-      // Solo: explicit link per line, else the single primary therapist.
-      const solo = primaryTherapistId ?? null;
+      // Solo : le lien explicite fait foi. Le repli sur `bookings.therapist_id`
+      // ne vaut que si AUCUNE ligne n'est liée — réservations antérieures au
+      // partage, dont le praticien unique assure pourtant tout. Dès qu'une ligne
+      // porte un lien, une ligne restée NULL signifie « pas encore pourvue »
+      // (issue #547) : l'attribuer au premier praticien arrivé lui prêterait un
+      // soin qu'il n'a pas accepté, et gonflerait son gain d'autant.
+      const anyLinked = serviceTreatments.some((t) => t.therapist_id);
+      const solo = anyLinked ? null : primaryTherapistId ?? null;
       return serviceTreatments.map((t) => t.therapist_id ?? solo);
     }
 
@@ -339,7 +345,10 @@ export function TreatmentsByTherapist({
                   </div>
                 </div>
 
-                {showEarnings && (
+                {/* Un groupe encore à pourvoir n'a pas de gain à montrer : sans
+                    praticien, « Tarifs incomplets » désignerait un problème de
+                    barème là où il n'y a qu'une prestation en attente. */}
+                {showEarnings && group.therapistId && (
                   <div className="text-right shrink-0">
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{translate("treatmentsByTherapist.earnings")}</p>
                     {group.earnings != null ? (
@@ -356,7 +365,7 @@ export function TreatmentsByTherapist({
                           </p>
                         )}
                       </>
-                    ) : group.therapistId ? (
+                    ) : (
                       <button
                         type="button"
                         className="text-[11px] text-amber-600 underline underline-offset-2 hover:text-amber-700"
@@ -365,8 +374,6 @@ export function TreatmentsByTherapist({
                       >
                         {translate("treatmentsByTherapist.completeRates")}
                       </button>
-                    ) : (
-                      <p className="text-[11px] text-amber-600">{translate("treatmentsByTherapist.incompleteRates")}</p>
                     )}
                   </div>
                 )}
