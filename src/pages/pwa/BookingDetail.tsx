@@ -176,6 +176,8 @@ const PwaBookingDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
   const [showContactDrawer, setShowContactDrawer] = useState(false);
+  // Demande partagée : les prestations des confrères sont repliées par défaut.
+  const [showOtherLegs, setShowOtherLegs] = useState(false);
   const [showUnassignDialog, setShowUnassignDialog] = useState(false);
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
@@ -843,15 +845,27 @@ const PwaBookingDetail = () => {
       : (!booking.therapist_id || booking.therapist_id === myTherapistId || joinsSharedBooking)
   );
 
-  // Le bouton nomme la prestation quand le praticien n'en prend qu'une partie :
-  // « Accepter » seul laisserait croire qu'il s'engage sur toute la réservation.
+  // Tant que je peux accepter, la fiche se recentre sur ce que j'accepterais :
+  // le soin prend la tête de page, les prestations des confrères se replient,
+  // le total client attend que toutes les lignes soient visibles, et la salle
+  // n'est pas éditable (la réservation n'est pas encore la mienne).
+  const roomEditable = canEditRooms && !canJoinBooking;
+  const visibleTreatments = canJoinBooking && !showOtherLegs
+    ? treatments.filter((tr) => myLegLineIds.has(tr.id))
+    : treatments;
+  const hiddenTreatmentCount = treatments.length - visibleTreatments.length;
+  const showClientTotal = hiddenTreatmentCount === 0;
+
+  // Le bouton reste court quand le praticien ne prend qu'une partie de la
+  // réservation : la prestation engagée est mise en évidence dans la liste
+  // (filet accent) plutôt que citée dans le label, qui wrapperait sur un nom long.
   const acceptLabel = (() => {
     if (guestCount > 1) return t('bookingDetail.duoJoin');
     const takenNames = openLegLines.map((line) => line.name).filter(Boolean);
     if (takenNames.length === 0 || takenNames.length === baseLineCount) {
       return t('dashboard.accept');
     }
-    return t('bookingDetail.acceptTreatment', { treatment: takenNames.join(' + ') });
+    return t('bookingDetail.acceptTreatmentShort', { count: takenNames.length });
   })();
 
   const estimatedEarnings = (() => {
@@ -916,22 +930,26 @@ const PwaBookingDetail = () => {
         )}
       </div>
       <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 170 }}>
-        {/* En-tête lieu */}
+        {/* En-tête lieu. Le badge de paiement n'apparaît qu'une fois la
+            réservation acceptée : l'encaissement n'est pas le sujet du
+            praticien tant qu'il n'a pas dit oui. */}
         <div className="fiche-head">
           <div className="venue">{booking.hotel_name}</div>
           {(booking.hotel_address || booking.hotel_city) && (
             <div className="addr">{[booking.hotel_address, booking.hotel_city].filter(Boolean).join(', ')}</div>
           )}
-          <div className="statusline">
-            {payKind && <span className={'status ' + payKind.kind}><span className="dot" />{payKind.label}</span>}
-            {(booking.guest_count || 1) > 1 && (
-              <span className={'status ' + (acceptedTotal >= (booking.guest_count || 1) ? 'ok' : 'warn')}><span className="dot" />{t('bookingDetail.duoAccepted', { accepted: acceptedTotal, total: booking.guest_count })}</span>
-            )}
-            {bundleInfo && <span className="status due"><span className="dot" />{t('bundleSession')}</span>}
-          </div>
+          {((payKind && booking.status !== 'pending') || (booking.guest_count || 1) > 1 || bundleInfo) && (
+            <div className="statusline">
+              {payKind && booking.status !== 'pending' && <span className={'status ' + payKind.kind}><span className="dot" />{payKind.label}</span>}
+              {(booking.guest_count || 1) > 1 && (
+                <span className={'status ' + (acceptedTotal >= (booking.guest_count || 1) ? 'ok' : 'warn')}><span className="dot" />{t('bookingDetail.duoAccepted', { accepted: acceptedTotal, total: booking.guest_count })}</span>
+              )}
+              {bundleInfo && <span className="status due"><span className="dot" />{t('bundleSession')}</span>}
+            </div>
+          )}
           {bundleInfo && (
             <div className="addr" style={{ marginTop: 6 }}>
-              {bundleInfo.bundleName} — {t('bundleRemaining', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })}
+              {bundleInfo.bundleName} · {t('bundleRemaining', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })}
             </div>
           )}
         </div>
@@ -966,20 +984,21 @@ const PwaBookingDetail = () => {
               <span className="val">{booking.room_number}</span>
             </div>
           )}
-          {(primaryRoomName || canEditRooms) && (
-            <div
-              className="info-row"
-              onClick={canEditRooms ? () => setShowRoomDrawer(true) : undefined}
-              style={canEditRooms ? { cursor: 'pointer' } : undefined}
-            >
-              <span className="ic"><MapPin size={18} /></span>
-              <span className="lab">{t('bookingDetail.roomTreatment', 'Salle')}</span>
-              <span className="val" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                {[primaryRoomName, secondaryRoomName].filter(Boolean).join(' + ') || t('bookingDetail.roomUnassigned', 'À définir')}
-                {canEditRooms && <Pencil size={14} style={{ color: 'var(--ink-mute)' }} />}
-              </span>
-            </div>
-          )}
+          {(primaryRoomName || roomEditable) && (() => {
+            // Un vrai <button> quand la ligne est actionnable : focusable et
+            // annoncée au clavier, là où le div+onClick ne l'était pas.
+            const RoomRowTag = roomEditable ? ('button' as const) : ('div' as const);
+            return (
+              <RoomRowTag className="info-row" onClick={roomEditable ? () => setShowRoomDrawer(true) : undefined}>
+                <span className="ic"><MapPin size={18} /></span>
+                <span className="lab">{t('bookingDetail.roomTreatment', 'Salle')}</span>
+                <span className="val" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {[primaryRoomName, secondaryRoomName].filter(Boolean).join(' + ') || t('bookingDetail.roomUnassigned', 'À définir')}
+                  {roomEditable && <Pencil size={14} style={{ color: 'var(--ink-mute)' }} />}
+                </span>
+              </RoomRowTag>
+            );
+          })()}
           {['confirmed', 'ongoing'].includes(booking.status) && booking.room_id && (
             <div className="info-row">
               <span className="ic"><Hourglass size={18} /></span>
@@ -1019,8 +1038,8 @@ const PwaBookingDetail = () => {
                 {t('bookingDetail.savedCard', 'Carte pré-enregistrée')}
                 <small>
                   {booking.card_brand && booking.card_last4
-                    ? `${booking.card_brand.charAt(0).toUpperCase() + booking.card_brand.slice(1)} •••• ${booking.card_last4} — débitée à la finalisation`
-                    : 'Sera débitée à la finalisation de la prestation'}
+                    ? `${booking.card_brand.charAt(0).toUpperCase() + booking.card_brand.slice(1)} •••• ${booking.card_last4} · ${t('bookingDetail.savedCardCharge', 'débitée à la finalisation')}`
+                    : t('bookingDetail.savedCardChargeFallback', 'Sera débitée à la finalisation de la prestation')}
                 </small>
               </span>
             </div>
@@ -1068,7 +1087,7 @@ const PwaBookingDetail = () => {
           {isConfirmed && <button className="sec-action" onClick={() => setShowAddTreatmentDialog(true)}>+ {t('bookingDetail.add', 'Ajouter')}</button>}
         </div>
         <div className="card">
-          {treatments.map((tr) => {
+          {visibleTreatments.map((tr) => {
             const effectiveDuration = tr.treatment_variants?.duration ?? tr.treatment_menus?.duration;
             const variantLabel = tr.treatment_variants?.label;
             // Seulement quand ils sont plusieurs, et seulement sur les lignes qui
@@ -1090,15 +1109,12 @@ const PwaBookingDetail = () => {
             // La durée a déjà sa propre colonne : on n'affiche le label de variante
             // que s'il apporte une info autre qu'une durée (ex. « Dos », « Corps »).
             const showVariant = variantLabel && !/^\s*\d+\s*(min|minutes|mn|')?\s*$/i.test(variantLabel);
+            // `.other` grise par la couleur (contraste AA conservé), pas par l'opacité.
             return (
-              <div key={tr.id} className="soin-row" style={outOfMyScope ? { opacity: 0.5 } : undefined}>
+              <div key={tr.id} className={'soin-row' + (outOfMyScope ? ' other' : '')}>
                 <span className="nm">
                   {tr.treatment_menus?.name}{showVariant ? ` · ${variantLabel}` : ''}
-                  {lineTherapist && (
-                    <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-mute)', fontWeight: 400 }}>
-                      {lineTherapist}
-                    </span>
-                  )}
+                  {lineTherapist && <span className="who">{lineTherapist}</span>}
                 </span>
                 <span className="dur">{effectiveDuration} min</span>
                 <span className="pr">{formatPrice(treatmentLinePrice(tr), booking.hotel_currency)}</span>
@@ -1106,20 +1122,30 @@ const PwaBookingDetail = () => {
                     en phase d'acceptation, retirer un soin du panier de la cliente
                     n'a pas de sens. */}
                 {booking.status !== "completed" && !canJoinBooking && (
-                  <button onClick={() => setTreatmentToDelete(tr.id)} aria-label={t('bookingDetail.deleteTreatment', 'Supprimer')} style={{ background: 'none', border: 'none', color: 'var(--clay)', padding: 0, display: 'flex' }}>
+                  <button className="del" onClick={() => setTreatmentToDelete(tr.id)} aria-label={t('bookingDetail.deleteTreatment', 'Supprimer')}>
                     <Trash2 size={14} />
                   </button>
                 )}
               </div>
             );
           })}
-          <div className="soin-row" style={{ background: 'var(--sand-100)' }}>
-            <span className="nm" style={{ fontWeight: 600 }}>{t('bookingDetail.clientTotal', 'Total client')}</span>
-            <span className="pr" style={{ fontSize: 17 }}>{formatPrice(totalPrice, booking.hotel_currency)}</span>
-          </div>
+          {hiddenTreatmentCount > 0 && (
+            <button className="soin-more" onClick={() => setShowOtherLegs(true)}>
+              + {t('bookingDetail.otherLegs', { count: hiddenTreatmentCount })}
+            </button>
+          )}
+          {/* Le total client n'aide pas à décider d'accepter : il n'apparaît
+              qu'avec toutes les lignes visibles, sinon le chiffre ne colle pas
+              à ce que la carte montre. */}
+          {showClientTotal && (
+            <div className="soin-row total">
+              <span className="nm">{t('bookingDetail.clientTotal', 'Total client')}</span>
+              <span className="pr">{formatPrice(totalPrice, booking.hotel_currency)}</span>
+            </div>
+          )}
         </div>
 
-        {((booking.is_out_of_hours && (booking.surcharge_amount ?? 0) > 0) || giftAppliedCents > 0) && (
+        {showClientTotal && ((booking.is_out_of_hours && (booking.surcharge_amount ?? 0) > 0) || giftAppliedCents > 0) && (
           <div style={{ margin: '8px 16px 0', fontSize: 12, color: 'var(--ink-mute)' }}>
             {booking.is_out_of_hours && (booking.surcharge_amount ?? 0) > 0 && (
               <div>
@@ -1137,9 +1163,9 @@ const PwaBookingDetail = () => {
         style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, paddingBottom: 'calc(18px + env(safe-area-inset-bottom))' }}
       >
         {booking.status === "pending" && (guestCount > 1 || joinsSharedBooking) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, padding: '10px 14px', borderRadius: 14, background: 'var(--gold-soft)', color: 'var(--gold-deep)' }}>
+          <div className="wait-note">
             <Hourglass size={16} />
-            <span style={{ fontSize: 12, fontWeight: 500 }}>
+            <span>
               {guestCount > 1
                 ? t('bookingDetail.duoTherapistsJoined', { accepted: acceptedTherapistCount, total: booking.guest_count ?? 2 })
                 : t('bookingDetail.legsToStaff', { count: openLegLines.length })}
@@ -1156,7 +1182,7 @@ const PwaBookingDetail = () => {
             </button>
           </>
         ) : booking.status === "pending" && hasAlreadyAccepted ? (
-          <div style={{ textAlign: 'center', padding: 12, borderRadius: 999, border: '1px solid var(--line)', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 500 }}>
+          <div className="wait-pill">
             {t('bookingDetail.duoWaiting')}
           </div>
         ) : ['confirmed', 'ongoing'].includes(booking.status) ? (
@@ -1261,7 +1287,7 @@ const PwaBookingDetail = () => {
       />
       <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} hotelId={booking.hotel_id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: (t.treatment_menus?.name || "") + (t.treatment_variants?.label ? ` · ${t.treatment_variants.label}` : ""), duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? 0, price: t.treatment_variants?.price ?? t.treatment_menus?.price ?? 0 }))} vatRate={booking.hotel_vat || 20} venueType={booking.venue_type} roomNumber={booking.room_number} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} hasSavedCard={booking.effective_payment_status === 'card_saved'} />
       
-      <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Supprimer ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>Oui</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t('bookingDetail.deleteTreatmentTitle', 'Supprimer ce soin ?')}</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{t('common:buttons.cancel', 'Annuler')}</AlertDialogCancel><AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>{t('common:buttons.delete', 'Supprimer')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Désassigner ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={handleUnassignBooking}>Confirmer</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <Drawer open={showExtendDialog} onOpenChange={setShowExtendDialog}>
         <DrawerContent className="pb-safe">
@@ -1291,14 +1317,14 @@ const PwaBookingDetail = () => {
       <Drawer open={showDeclineDialog} onOpenChange={setShowDeclineDialog}>
         <DrawerContent className="pb-safe">
           <div className="p-4 space-y-3">
-            <p className="text-sm font-semibold text-center">Refuser cette réservation ?</p>
+            <p className="text-sm font-semibold text-center">{t('bookingDetail.declineTitle', 'Refuser cette réservation ?')}</p>
             <button
               onClick={() => { setShowDeclineDialog(false); handleDeclineBooking(); }}
               disabled={updating}
               className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium text-sm disabled:opacity-50"
             >
               <X className="w-5 h-5 shrink-0" />
-              Refuser
+              {t('bookingDetail.decline', 'Refuser')}
             </button>
           </div>
         </DrawerContent>

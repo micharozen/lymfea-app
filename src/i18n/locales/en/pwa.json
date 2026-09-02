@@ -100,6 +100,7 @@
     "todayAppointments": "Today's appointments",
     "todayHours": "Today's hours",
     "todayEarnings": "Today's earnings",
+    "yourEarnings": "Your earnings",
     "scheduleReminderTitle": "Declare your availability",
     "scheduleReminderDesc": "So the team knows who can accept your next booking requests."
   },
@@ -233,7 +234,15 @@
     "roomNotInVenue": "This room does not belong to this venue",
     "roomSecondaryWithoutPrimary": "Pick a main room first",
     "roomForbidden": "You are not allowed to edit this booking",
-    "acceptTreatment": "Accept the “{{treatment}}” treatment",
+    "acceptTreatmentShort_one": "Accept this treatment",
+    "acceptTreatmentShort_other": "Accept these {{count}} treatments",
+    "otherLegs_one": "{{count}} other treatment on this booking",
+    "otherLegs_other": "{{count}} other treatments on this booking",
+    "deleteTreatmentTitle": "Remove this treatment?",
+    "declineTitle": "Decline this booking?",
+    "decline": "Decline",
+    "savedCardCharge": "charged when the session is finalized",
+    "savedCardChargeFallback": "Will be charged when the session is finalized",
     "legNotMySkill": "You don't perform this treatment"
   },
   "hotels": {
