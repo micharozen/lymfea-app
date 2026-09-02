@@ -2152,6 +2152,25 @@ $$;
 
 ALTER FUNCTION "public"."hotels_autofill_slug"() OWNER TO "postgres";
 
+-- Réservation partagée : au moins une jambe libre ET une jambe déjà attribuée.
+-- Lit les jambes comme `accept_booking` les réclame — soins de base, hors
+-- add-ons et hors commodités. SECURITY DEFINER pour que les policies de lecture
+-- n'aient pas à traverser la RLS de booking_treatments.
+CREATE OR REPLACE FUNCTION "public"."booking_has_open_leg"("_booking_id" "uuid") RETURNS boolean
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+  SELECT COUNT(*) FILTER (WHERE bt.therapist_id IS NULL) > 0
+     AND COUNT(*) FILTER (WHERE bt.therapist_id IS NOT NULL) > 0
+  FROM booking_treatments bt
+  JOIN treatment_menus tm ON tm.id = bt.treatment_id
+  WHERE bt.booking_id = _booking_id
+    AND bt.is_addon = false
+    AND tm.amenity_id IS NULL;
+$$;
+
+ALTER FUNCTION "public"."booking_has_open_leg"("_booking_id" "uuid") OWNER TO "postgres";
+
 CREATE OR REPLACE FUNCTION "public"."is_booking_participant"("_booking_id" "uuid", "_therapist_id" "uuid") RETURNS boolean
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'

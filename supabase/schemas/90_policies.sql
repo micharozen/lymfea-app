@@ -470,7 +470,7 @@ CREATE POLICY "Therapists can view assignments for their bookings" ON "public"."
 CREATE POLICY "Therapists can view booking_therapists for awaiting bookings at" ON "public"."booking_therapists" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM ("public"."bookings" "b"
      JOIN "public"."therapist_venues" "tv" ON (("tv"."hotel_id" = "b"."hotel_id")))
-  WHERE (("b"."id" = "booking_therapists"."booking_id") AND ("b"."status" = 'pending'::"text") AND ("b"."guest_count" > 1) AND ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"())) AND (NOT ("public"."get_therapist_id"("auth"."uid"()) = ANY (COALESCE("b"."declined_by", ARRAY[]::"uuid"[]))))))));
+  WHERE (("b"."id" = "booking_therapists"."booking_id") AND ("b"."status" = 'pending'::"text") AND (("b"."guest_count" > 1) OR "public"."booking_has_open_leg"("b"."id")) AND ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"())) AND (NOT ("public"."get_therapist_id"("auth"."uid"()) = ANY (COALESCE("b"."declined_by", ARRAY[]::"uuid"[]))))))));
 
 CREATE POLICY "Therapists can view bookings they joined as secondary" ON "public"."bookings" FOR SELECT TO "authenticated" USING ("public"."is_booking_participant"("id", "public"."get_therapist_id"("auth"."uid"())));
 
@@ -502,7 +502,7 @@ CREATE POLICY "Therapists can view own invoices" ON "public"."invoices" FOR SELE
    FROM "public"."therapists"
   WHERE ("therapists"."user_id" = "auth"."uid"()))));
 
-CREATE POLICY "Therapists can view pending bookings from their hotels" ON "public"."bookings" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'therapist'::"public"."app_role") AND ("status" = 'pending'::"text") AND (("therapist_id" IS NULL) OR ("guest_count" > 1)) AND ("hotel_id" IN ( SELECT "tv"."hotel_id"
+CREATE POLICY "Therapists can view pending bookings from their hotels" ON "public"."bookings" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'therapist'::"public"."app_role") AND ("status" = 'pending'::"text") AND (("therapist_id" IS NULL) OR ("guest_count" > 1) OR "public"."booking_has_open_leg"("id")) AND ("hotel_id" IN ( SELECT "tv"."hotel_id"
    FROM "public"."therapist_venues" "tv"
   WHERE ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"())))) AND (NOT ("public"."get_therapist_id"("auth"."uid"()) = ANY (COALESCE("declined_by", ARRAY[]::"uuid"[]))))));
 
@@ -522,7 +522,7 @@ CREATE POLICY "Therapists can view treatments for bookings they joined" ON "publ
 
 CREATE POLICY "Therapists can view treatments for pending bookings" ON "public"."booking_treatments" FOR SELECT USING (("booking_id" IN ( SELECT "b"."id"
    FROM "public"."bookings" "b"
-  WHERE (("b"."status" = 'pending'::"text") AND (("b"."therapist_id" IS NULL) OR ("b"."guest_count" > 1)) AND ("b"."hotel_id" IN ( SELECT "tv"."hotel_id"
+  WHERE (("b"."status" = 'pending'::"text") AND (("b"."therapist_id" IS NULL) OR ("b"."guest_count" > 1) OR "public"."booking_has_open_leg"("b"."id")) AND ("b"."hotel_id" IN ( SELECT "tv"."hotel_id"
            FROM "public"."therapist_venues" "tv"
           WHERE ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"()))))))));
 
