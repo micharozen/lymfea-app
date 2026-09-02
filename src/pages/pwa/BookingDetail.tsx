@@ -368,7 +368,16 @@ const PwaBookingDetail = () => {
         effective_payment_status: effectivePaymentStatus
       });
 
-      const { data: trData } = await supabase.from("booking_treatments").select("*, treatment_menus(*), treatment_variants(id, label, duration, price)").eq("booking_id", id);
+      // Ordre explicite : l'heure de début de chaque prestation est déduite de
+      // l'enchaînement, et doit suivre le même ordre que le claim en base
+      // (accept_booking : created_at, id). Sans ORDER BY, PostgREST ne garantit
+      // rien et l'heure affichée pourrait changer d'un chargement à l'autre.
+      const { data: trData } = await supabase
+        .from("booking_treatments")
+        .select("*, treatment_menus(*), treatment_variants(id, label, duration, price)")
+        .eq("booking_id", id)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
 
       if (!isMountedRef.current) return;
 
