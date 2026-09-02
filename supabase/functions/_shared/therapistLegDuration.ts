@@ -165,6 +165,12 @@ export interface EstimateTherapistShareInput {
   myTreatmentRates?: TreatmentRateMap | null;
   /** Gross booking price (used only in commission-% mode). */
   grossPrice: number;
+  /**
+   * Prix des seules prestations attribuées à ce praticien (mode commission-%).
+   * Fourni dès que l'appelant connaît la jambe ; à défaut, la base reste
+   * `grossPrice / guestCount`.
+   */
+  legGrossPrice?: number | null;
   /** booking.therapist_commission (%), only used in commission-% mode. */
   therapistCommissionPercent: number | null;
   /** Out-of-hours uplift percent, or 0 when the booking is not out-of-hours. */
@@ -185,6 +191,7 @@ export function estimateTherapistShare(input: EstimateTherapistShareInput): numb
     myRates,
     myTreatmentRates,
     grossPrice,
+    legGrossPrice,
     therapistCommissionPercent,
     surchargePercent,
   } = input;
@@ -200,6 +207,12 @@ export function estimateTherapistShare(input: EstimateTherapistShareInput): numb
     );
   }
 
-  const pricePerTherapist = grossPrice / Math.max(guestCount || 1, 1);
+  // Mode commission : la base est la part du praticien dans la réservation.
+  // `legGrossPrice` la porte quand l'appelant sait quelles prestations lui
+  // reviennent — indispensable sur une réservation partagée entre praticiens de
+  // spécialités différentes, où les jambes n'ont ni le même prix ni la même
+  // durée (issue #547). Sans elle, on retombe sur le partage par invité, qui
+  // reste juste pour un duo de soins identiques.
+  const pricePerTherapist = legGrossPrice ?? grossPrice / Math.max(guestCount || 1, 1);
   return Math.round(pricePerTherapist * ((therapistCommissionPercent || 70) / 100) * 100) / 100;
 }

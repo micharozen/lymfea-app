@@ -232,7 +232,9 @@
     "roomAlreadyBooked": "This room has just been taken for this time slot",
     "roomNotInVenue": "This room does not belong to this venue",
     "roomSecondaryWithoutPrimary": "Pick a main room first",
-    "roomForbidden": "You are not allowed to edit this booking"
+    "roomForbidden": "You are not allowed to edit this booking",
+    "acceptTreatment": "Accept the “{{treatment}}” treatment",
+    "legNotMySkill": "You don't perform this treatment"
   },
   "hotels": {
     "title": "My Hotels",

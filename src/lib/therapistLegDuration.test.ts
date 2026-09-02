@@ -254,3 +254,25 @@ describe("estimateTherapistShare", () => {
     ).toBe(0);
   });
 });
+
+describe("estimateTherapistShare — mode commission", () => {
+  const base = {
+    globalTherapistCommission: true,
+    legDuration: 45,
+    myRates: null,
+    grossPrice: 165,
+    therapistCommissionPercent: 70,
+    surchargePercent: 0,
+  };
+
+  it("duo sans jambe connue: partage par invité", () => {
+    expect(estimateTherapistShare({ ...base, guestCount: 2 })).toBe(57.75);
+  });
+
+  // Issue #547 : un booking simple partagé n'a qu'un invité et deux praticiens.
+  // Diviser le panier par guestCount donnerait 70 % du total à CHACUN.
+  it("booking simple partagé: la commission porte sur mes seules prestations", () => {
+    expect(estimateTherapistShare({ ...base, guestCount: 1, legGrossPrice: 75 })).toBe(52.5);
+    expect(estimateTherapistShare({ ...base, guestCount: 1, legGrossPrice: 90 })).toBe(63);
+  });
+});

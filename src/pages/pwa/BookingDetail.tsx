@@ -23,7 +23,6 @@ import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import { shortTherapistName } from "@/hooks/pwa/usePwaBookings";
 import { useTherapistTreatments } from "@/hooks/useTherapistTreatments";
 import {
-  myLegDuration,
   myLegTreatments,
   estimateTherapistShare,
 } from "@/lib/therapistLegDuration";
@@ -777,7 +776,11 @@ const PwaBookingDetail = () => {
     treatment_id: t.treatment_id ?? null,
     duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? null,
     is_addon: t.is_addon ?? false,
+    name: t.treatment_menus?.name ?? "",
   }));
+  /** Ce praticien réalise-t-il cette prestation ? Aucune association = polyvalent. */
+  const canPerform = (treatmentId: string | null | undefined): boolean =>
+    myTreatmentIds.length === 0 || (!!treatmentId && myTreatmentIds.includes(treatmentId));
   const claimedLegLines = myLegTreatments(myTherapistId ?? "", legLineInputs, orderedTherapistIds, guestCount);
   // Praticien qui n'a pas encore accepté : aucune ligne ne le nomme. Il regarde la
   // réservation pour décider, on lui montre donc exactement ce qu'il prendrait —
@@ -785,20 +788,20 @@ const PwaBookingDetail = () => {
   // (liste vide = polyvalent). Sans ce repli, une réservation dont un confrère a
   // déjà pris une jambe s'afficherait vide, à 0 min ; sans le filtre de
   // qualification, elle promettrait un soin que le RPC ne lui donnera pas.
-  const openLegLines = legLineInputs.filter((line) => {
-    if (line.is_addon || line.therapist_id != null) return false;
-    if (myTreatmentIds.length === 0) return true;
-    return line.treatment_id != null && myTreatmentIds.includes(line.treatment_id);
-  });
+  const openLegLines = legLineInputs.filter(
+    (line) => !line.is_addon && line.therapist_id == null && canPerform(line.treatment_id),
+  );
   const myLegLines = claimedLegLines.length > 0
     ? claimedLegLines
     : (openLegLines.length > 0 ? openLegLines : legLineInputs);
   const myLegLineIds = new Set(myLegLines.map((line) => line.id));
   const isSharedBooking = myLegLines.length < legLineInputs.length || guestCount > 1;
   // Hors réservation partagée, on garde bookings.duration : elle absorbe les
-  // prolongations de séance, qui n'ajoutent pas de ligne de soin.
+  // prolongations de séance, qui n'ajoutent pas de ligne de soin. La somme porte
+  // sur `myLegLines`, pas sur le lien seul : avant d'accepter, aucune ligne ne me
+  // nomme et le calcul direct renverrait 0 min.
   const myLegDurationMinutes = isSharedBooking
-    ? myLegDuration(myTherapistId ?? "", legLineInputs, orderedTherapistIds, guestCount)
+    ? myLegLines.reduce((sum, line) => sum + (line.duration || 0), 0)
     : totalDuration;
   // Sur un booking simple partagé, les soins s'enchaînent : celui qui n'assure
   // que le second commence après le premier. Il n'existe pas d'heure par
@@ -831,6 +834,18 @@ const PwaBookingDetail = () => {
       : (!booking.therapist_id || booking.therapist_id === myTherapistId || joinsSharedBooking)
   );
 
+  // Le bouton nomme la prestation quand le praticien n'en prend qu'une partie :
+  // « Accepter » seul laisserait croire qu'il s'engage sur toute la réservation.
+  const acceptLabel = (() => {
+    if (guestCount > 1) return t('bookingDetail.duoJoin');
+    const takenNames = openLegLines.map((line) => line.name).filter(Boolean);
+    const baseLineCount = legLineInputs.filter((line) => !line.is_addon).length;
+    if (takenNames.length === 0 || takenNames.length === baseLineCount) {
+      return t('dashboard.accept');
+    }
+    return t('bookingDetail.acceptTreatment', { treatment: takenNames.join(' + ') });
+  })();
+
   const estimatedEarnings = (() => {
     return estimateTherapistShare({
       globalTherapistCommission: booking.global_therapist_commission,
@@ -844,6 +859,14 @@ const PwaBookingDetail = () => {
       },
       myTreatmentRates: booking.therapist_treatment_rates ?? null,
       grossPrice,
+      // Mode commission : ma commission porte sur MES prestations, pas sur le
+      // panier entier divisé par le nombre d'invités — un booking simple partagé
+      // a un seul invité et deux praticiens.
+      legGrossPrice: isSharedBooking
+        ? treatments
+            .filter((tr) => myLegLineIds.has(tr.id))
+            .reduce((sum, tr) => sum + treatmentLinePrice(tr), 0)
+        : null,
       therapistCommissionPercent: booking.therapist_commission ?? null,
       surchargePercent,
     });
@@ -1050,14 +1073,21 @@ const PwaBookingDetail = () => {
             // Une prestation encore libre sur une réservation partagée n'est pas
             // muette : le praticien doit voir qu'elle attend un confrère, sans quoi
             // il croirait la fiche incomplète.
+            // Prestation hors de mes compétences : elle reste affichée — la
+            // cliente enchaîne bien les deux soins et la salle est occupée — mais
+            // grisée et explicitée, pour qu'il soit clair qu'un confrère la prendra.
+            // Sans objet en duo, où les soins sont exécutés en parallèle.
+            const outOfMyScope = guestCount <= 1 && !tr.is_addon && !canPerform(tr.treatment_id);
             const lineTherapist = tr.therapist_id
               ? therapistNamesById[tr.therapist_id]
-              : (isSharedBooking ? t('bookingDetail.legUnstaffed', 'À pourvoir') : null);
+              : outOfMyScope
+                ? t('bookingDetail.legNotMySkill', 'Vous ne réalisez pas ce soin')
+                : (isSharedBooking ? t('bookingDetail.legUnstaffed', 'À pourvoir') : null);
             // La durée a déjà sa propre colonne : on n'affiche le label de variante
             // que s'il apporte une info autre qu'une durée (ex. « Dos », « Corps »).
             const showVariant = variantLabel && !/^\s*\d+\s*(min|minutes|mn|')?\s*$/i.test(variantLabel);
             return (
-              <div key={tr.id} className="soin-row">
+              <div key={tr.id} className="soin-row" style={outOfMyScope ? { opacity: 0.5 } : undefined}>
                 <span className="nm">
                   {tr.treatment_menus?.name}{showVariant ? ` · ${variantLabel}` : ''}
                   {lineTherapist && (
@@ -1068,7 +1098,10 @@ const PwaBookingDetail = () => {
                 </span>
                 <span className="dur">{effectiveDuration} min</span>
                 <span className="pr">{formatPrice(treatmentLinePrice(tr), booking.hotel_currency)}</span>
-                {booking.status !== "completed" && (
+                {/* Pas de suppression tant que la réservation n'est pas la mienne :
+                    en phase d'acceptation, retirer un soin du panier de la cliente
+                    n'a pas de sens. */}
+                {booking.status !== "completed" && !canJoinBooking && (
                   <button onClick={() => setTreatmentToDelete(tr.id)} aria-label={t('bookingDetail.deleteTreatment', 'Supprimer')} style={{ background: 'none', border: 'none', color: 'var(--clay)', padding: 0, display: 'flex' }}>
                     <Trash2 size={14} />
                   </button>
@@ -1112,7 +1145,7 @@ const PwaBookingDetail = () => {
         {canJoinBooking ? (
           <>
             <button className="btn-primary-lg" onClick={handleAcceptBooking} disabled={updating}>
-              {guestCount > 1 || joinsSharedBooking ? t('bookingDetail.duoJoin') : t('dashboard.accept')}
+              {acceptLabel}
             </button>
             <button className="btn-ghost" onClick={() => setShowDeclineDialog(true)}>
               {t('bookingDetail.declineCta', 'Refuser cette demande')}

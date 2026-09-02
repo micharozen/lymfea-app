@@ -232,7 +232,9 @@
     "roomAlreadyBooked": "Cette salle vient d'être prise sur ce créneau",
     "roomNotInVenue": "Cette salle n'appartient pas à ce lieu",
     "roomSecondaryWithoutPrimary": "Choisissez d'abord une salle principale",
-    "roomForbidden": "Vous n'êtes pas autorisé à modifier cette réservation"
+    "roomForbidden": "Vous n'êtes pas autorisé à modifier cette réservation",
+    "acceptTreatment": "Accepter le soin « {{treatment}} »",
+    "legNotMySkill": "Vous ne réalisez pas ce soin"
   },
   "hotels": {
     "title": "Mes Hôtels",
