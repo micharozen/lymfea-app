@@ -738,14 +738,6 @@ const generateForTherapistHotel = async (
     // retombe sur la durée du soin.
     const lineDuration = (bt: (typeof treatments)[number]): number =>
       bt.treatment_variants?.duration ?? bt.treatment_menus?.duration ?? 0;
-    // When the stable soin↔therapist link is present, this therapist is paid on
-    // the sum of THEIR soins; otherwise fall back to the booking duration (or the
-    // total treatment duration). Only used when no payout row exists (see below).
-    const linkedDuration = treatments.some((bt) => bt.therapist_id != null)
-      ? treatments
-          .filter((bt) => bt.therapist_id === therapist.id)
-          .reduce((sum, bt) => sum + lineDuration(bt), 0)
-      : 0;
     const treatmentsDuration = treatments.reduce((sum, bt) => sum + lineDuration(bt), 0);
     // bookings.duration peut rester sur la durée du menu alors que la variante
     // réservée est plus longue (résa #627 : 2 × variante 90 min, duration = 60),
@@ -757,28 +749,32 @@ const generateForTherapistHotel = async (
       .reduce((max, bt) => Math.max(max, lineDuration(bt)), 0);
     const bookingDuration = Math.max(Number((b as any).duration) || 0, longestBaseTreatment);
 
-    // Sur un duo, le thérapeute n'est facturé QUE sur son leg (son soin de base +
-    // les add-ons qu'il porte), jamais sur l'intégralité des prestations du
-    // booking — même échelle d'attribution que les payouts (myLegTreatments).
-    // Un thérapeute seul est payé sur tout, quoi qu'annonce guest_count.
+    // Le thérapeute n'est facturé QUE sur sa jambe (ses soins de base + les
+    // add-ons qu'il porte), jamais sur l'intégralité des prestations du booking —
+    // même échelle d'attribution que les payouts (myLegTreatments). Vaut pour le
+    // duo comme pour un booking simple enchaînant deux soins partagés entre deux
+    // praticiens (issue #547) : c'est le lien booking_treatments.therapist_id qui
+    // tranche, pas guest_count. Sans lien exploitable, un praticien seul est payé
+    // sur tout, et le libellé de la ligne liste bien les mêmes prestations.
     const orderedTherapistIds = therapistIdsByBooking.get(b.id) ??
       ((b as any).therapist_id ? [(b as any).therapist_id as string] : []);
-    const effectiveGuestCount = orderedTherapistIds.length > 1
-      ? Number((b as any).guest_count) || 1
-      : 1;
     const legTreatments = myLegTreatments(
       therapist.id,
       treatments.map((bt) => ({ ...bt, duration: lineDuration(bt) })),
       orderedTherapistIds,
-      effectiveGuestCount,
+      Number((b as any).guest_count) || 1,
     );
     const legDuration = legTreatments.reduce((sum, bt) => sum + bt.duration, 0);
 
-    const isDuo = effectiveGuestCount > 1;
-    const dur = isDuo && legDuration > 0
+    // Réservation partagée : duo, ou booking simple dont ce praticien ne porte
+    // qu'une partie des prestations. Sinon on garde le repli historique sur
+    // bookings.duration, qui absorbe les extensions de séance (durée prolongée
+    // sans ligne de soin supplémentaire) et le cas variante plus longue que le
+    // menu (résa #627).
+    const isSharedBooking =
+      legTreatments.length < treatments.length || (Number((b as any).guest_count) || 1) > 1;
+    const dur = isSharedBooking && legDuration > 0
       ? legDuration
-      : !isDuo && linkedDuration > 0
-      ? linkedDuration
       : bookingDuration > 0
       ? bookingDuration
       : treatmentsDuration;

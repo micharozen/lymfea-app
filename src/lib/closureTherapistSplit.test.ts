@@ -220,6 +220,28 @@ describe("splitBookingByTherapist", () => {
     });
     expect(parts[0].lines.map((l) => l.treatment_id)).toEqual(["massage", "gommage"]);
   });
+
+  // Issue #547 : deux praticiens sur un booking simple enchaînant deux soins.
+  // La clôture doit créditer chacun de sa prestation, comme le payout.
+  it("booking simple partagé: une part par praticien malgré guestCount 1", () => {
+    const parts = splitBookingByTherapist({
+      ...base,
+      lines: [
+        { therapist_id: "t1", duration: 60, price: 120, treatment_id: "corps" },
+        { therapist_id: "t2", duration: 30, price: 80, treatment_id: "visage" },
+      ],
+      orderedTherapistIds: ["t1", "t2"],
+      guestCount: 1,
+      primaryTherapistId: "t1",
+      totalPrice: 200,
+      bookingDuration: 90,
+    });
+
+    expect(parts).toHaveLength(2);
+    expect(parts.find((p) => p.therapistId === "t1")?.duration).toBe(60);
+    expect(parts.find((p) => p.therapistId === "t2")?.duration).toBe(30);
+    expect(sumRevenue(parts)).toBe(200);
+  });
 });
 
 describe("orderRoster", () => {

@@ -87,8 +87,11 @@ export function splitBookingByTherapist(input: SplitBookingInput): SplitPart[] {
       ? [primaryTherapistId]
       : [];
 
-  // Solo, ou réservation sans roster exploitable : une seule part.
-  if (roster.length <= 1 || guestCount <= 1) {
+  // Un seul praticien, ou réservation sans roster exploitable : une seule part.
+  // Le test ne porte plus sur `guest_count` : un booking simple enchaînant deux
+  // soins peut être partagé entre deux praticiens (issue #547), et la clôture
+  // doit alors créditer chacun de sa prestation — comme le fait déjà le payout.
+  if (roster.length <= 1) {
     return [
       {
         therapistId: roster[0] ?? primaryTherapistId ?? null,

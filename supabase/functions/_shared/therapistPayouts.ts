@@ -187,15 +187,21 @@ export function buildTherapistPayoutLegs(
   // Duration per therapist — same ladder the PWA displays (myLegDuration): stable
   // soin↔therapist link first, positional mapping for legacy/broadcast rows, and
   // in every case the add-ons this therapist carries on top of their soin.
-  // A lone therapist is paid on everything, whatever guest_count claims.
+  //
+  // `guest_count` est passé tel quel : il ne sert plus qu'aux replis legacy. La
+  // question « cette réservation est-elle partagée ? » se lit sur le lien
+  // booking_treatments.therapist_id (issue #547) — un booking simple enchaînant
+  // deux soins peut être partagé entre deux praticiens, et chacun ne doit être
+  // payé que sur sa jambe. Le rabotage historique (ordered.length > 1 ? … : 1)
+  // rendait TOUTES les prestations à CHAQUE praticien dans ce cas : les deux
+  // étaient payés sur la durée totale, puis ramenés sous le plafond agrégé.
   const orderedIds = ordered.map((t) => t.therapist_id);
-  const effectiveGuestCount = ordered.length > 1 ? guestCount : 1;
 
   const raw = ordered.map((t) => {
-    const duration = myLegDuration(t.therapist_id, treatments, orderedIds, effectiveGuestCount);
+    const duration = myLegDuration(t.therapist_id, treatments, orderedIds, guestCount);
     // Les mêmes lignes que celles dont `myLegDuration` est la somme : elles portent
     // le treatment_id, donc le barème spécifique éventuel de chaque soin.
-    const lines = myLegTreatments(t.therapist_id, treatments, orderedIds, effectiveGuestCount);
+    const lines = myLegTreatments(t.therapist_id, treatments, orderedIds, guestCount);
     const earned =
       computeLegEarnings(t.rates, t.treatmentRates, { totalDuration: duration, lines }, {
         surchargePercent: pct,

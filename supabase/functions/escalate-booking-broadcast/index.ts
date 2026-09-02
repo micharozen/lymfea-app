@@ -95,6 +95,24 @@ serve(async (_req: Request) => {
       }
     }
 
+    // …mais « assez de praticiens » ne suffit pas : sur une réservation partagée
+    // entre plusieurs praticiens (issue #547), un seul a pu accepter et ne couvrir
+    // qu'une des prestations. Tant qu'une jambe reste à pourvoir, l'escalade doit
+    // continuer. Même prédicat que accept_booking : soins de base, hors amenity.
+    const openLegCount = new Map<string, number>();
+    if (candidates.length > 0) {
+      const { data: openLegs } = await supabase
+        .from("booking_treatments")
+        .select("booking_id, treatment_menus!inner(amenity_id)")
+        .in("booking_id", candidates.map(b => b.id))
+        .eq("is_addon", false)
+        .is("therapist_id", null)
+        .is("treatment_menus.amenity_id", null);
+      for (const row of openLegs ?? []) {
+        openLegCount.set(row.booking_id, (openLegCount.get(row.booking_id) ?? 0) + 1);
+      }
+    }
+
     for (const booking of candidates) {
       const delayMinutes = booking.hotels?.therapist_escalation_delay_minutes ?? DEFAULT_DELAY_MINUTES;
       const dueAt = new Date(booking.broadcast_wave_sent_at).getTime() + delayMinutes * MINUTE_MS;
@@ -103,7 +121,10 @@ serve(async (_req: Request) => {
         continue;
       }
 
-      if ((staffedCount.get(booking.id) ?? 0) >= (booking.guest_count ?? 1)) {
+      if (
+        (staffedCount.get(booking.id) ?? 0) >= (booking.guest_count ?? 1) &&
+        (openLegCount.get(booking.id) ?? 0) === 0
+      ) {
         skipped.fully_staffed++;
         continue;
       }

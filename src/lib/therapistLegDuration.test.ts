@@ -86,6 +86,46 @@ describe("myLegDuration", () => {
     expect(myLegDuration("me", treatments, ["me"], 1)).toBe(135);
   });
 
+  // Issue #547 : un booking simple (guest_count = 1) enchaînant corps + visage
+  // qu'aucun praticien ne réalise en entier se partage entre deux praticiens.
+  it("booking simple partagé: chacun sur sa prestation malgré guestCount 1", () => {
+    const treatments = [
+      { therapist_id: "me", duration: 60 },
+      { therapist_id: "other", duration: 30 },
+    ];
+    expect(myLegDuration("me", treatments, ["me", "other"], 1)).toBe(60);
+    expect(myLegDuration("other", treatments, ["me", "other"], 1)).toBe(30);
+  });
+
+  it("booking simple partagé: la jambe encore libre n'est due à personne", () => {
+    const treatments = [
+      { therapist_id: "me", duration: 60 },
+      { therapist_id: null, duration: 30 },
+    ];
+    expect(myLegDuration("me", treatments, ["me", "other"], 1)).toBe(60);
+  });
+
+  it("booking simple partagé: mes add-ons suivent ma prestation", () => {
+    const treatments = [
+      { therapist_id: "me", duration: 60 },
+      { therapist_id: "other", duration: 30 },
+      { therapist_id: "me", duration: 15, is_addon: true },
+    ];
+    expect(myLegDuration("me", treatments, ["me", "other"], 1)).toBe(75);
+    expect(myLegDuration("other", treatments, ["me", "other"], 1)).toBe(30);
+  });
+
+  // Garde-fou de non-régression : jusqu'au partage, le claim d'un booking simple
+  // ne prenait QUE la première ligne (LIMIT 1). Ces réservations existent en base
+  // avec une jambe NULL et un seul praticien, qui doit rester payé sur tout.
+  it("praticien seul avec claim partiel historique: payé sur toutes les prestations", () => {
+    const treatments = [
+      { therapist_id: "me", duration: 60 },
+      { therapist_id: null, duration: 45 },
+    ];
+    expect(myLegDuration("me", treatments, ["me"], 1)).toBe(105);
+  });
+
   it("old duo with add-ons but no stable link: positional on soins, add-ons unpaid", () => {
     const treatments = [
       { therapist_id: null, duration: 60 },

@@ -179,14 +179,14 @@ const isUpcomingForTherapist = (
   if (b.therapist_id !== therapistId && !acceptedByMe) return false;
 
   // Les demandes en attente vivent dans la section « demandes », pas ici.
-  // Exception : un duo (guest_count > 1) que CE thérapeute a déjà accepté reste
-  // 'pending' tant que l'équipe n'est pas complète, et il est justement exclu
-  // de la section demandes — sans quoi il ne serait visible que sur le planning.
-  const acceptedDuoPending =
-    b.status === "pending" && (b.guest_count ?? 1) > 1 && acceptedByMe;
+  // Exception : une réservation que CE thérapeute a déjà acceptée reste 'pending'
+  // tant que l'équipe n'est pas complète — duo, ou booking simple dont une autre
+  // prestation attend encore un confrère (issue #547). Elle est justement exclue
+  // de la section demandes : sans ça, elle ne serait visible que sur le planning.
+  const acceptedStillPending = b.status === "pending" && acceptedByMe;
 
   return (
-    (b.status !== "pending" || acceptedDuoPending) &&
+    (b.status !== "pending" || acceptedStillPending) &&
     b.status !== "completed" &&
     b.booking_date >= todayKey
   );
@@ -625,10 +625,19 @@ const PwaDashboard = () => {
         const genderPref = b.therapist_gender_preference ?? null;
         const iDeclined = (b.declined_by ?? []).includes(myId);
 
+        // Réservation partagée : un confrère a pris une prestation, une autre
+        // attend encore (issue #547). Elle reste une demande ouverte bien que
+        // bookings.therapist_id nomme déjà quelqu'un. Exiger une jambe DÉJÀ
+        // attribuée écarte les réservations historiques, dont aucune ligne ne
+        // porte d'affectation alors que le praticien principal assure tout.
+        const baseLegs = (b.booking_treatments ?? []).filter(bt => !bt.is_addon);
+        const openLegCount = baseLegs.filter(bt => !bt.therapist_id).length;
+        const hasOpenSharedLeg = openLegCount > 0 && openLegCount < baseLegs.length;
+
         // Assigned to me specifically
         if (b.therapist_id === myId) return true;
         // Assigned to someone else
-        if (b.therapist_id !== null) return false;
+        if (b.therapist_id !== null) return hasOpenSharedLeg && !alreadyMine;
 
         // Unassigned — I already declined, never show again
         if (iDeclined) return false;

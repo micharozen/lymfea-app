@@ -8,13 +8,21 @@
  * parent soin in accept_booking), never positionally.
  *
  * Duration attribution priority (see myLegDuration):
- *  1. Solo (guestCount ≤ 1)            → every treatment, add-ons included.
- *  2. Combo-duo with a stable link     → the base soins carrying my therapist_id.
- *  3. Shared-duo (fewer base soins     → the lone soin, worked in parallel by
+ *  1. Shared-duo (fewer base soins     → the lone soin, worked in parallel by
  *     than guests)                       every therapist.
+ *  2. Plusieurs praticiens + lien posé → the base soins carrying my therapist_id.
+ *  3. Praticien seul (ou guestCount≤1) → every treatment, add-ons included.
  *  4. Positional fallback              → computeDuoLegs (older bookings where no
  *     line carries a therapist_id yet — no retroactive migration).
- * In every duo branch the add-ons I carry are added on top.
+ * In every split branch the add-ons I carry are added on top.
+ *
+ * La branche 2 est le critère structurant depuis le partage d'un booking simple
+ * (issue #547) : ce n'est PAS `guest_count` qui dit si une réservation est
+ * partagée — un solo enchaînant corps + visage peut mobiliser deux praticiens —
+ * mais la conjonction « plusieurs praticiens » ET « lien posé ». Le seul lien ne
+ * suffit pas : une jambe restée NULL signifie « pas encore pourvue » sur une
+ * réservation partagée, mais « claim partiel » sur les réservations antérieures,
+ * où le praticien unique assurait pourtant tout.
  */
 
 import {
@@ -50,21 +58,37 @@ export function myLegTreatments<T extends LegTreatment>(
   orderedTherapistIds: string[],
   guestCount: number,
 ): T[] {
-  if (guestCount <= 1) return treatments;
-
   const bases = treatments.filter((t) => !t.is_addon);
   const myAddons = treatments.filter((t) => t.is_addon && t.therapist_id === myTherapistId);
 
-  // Combo-duo with the stable link set: one base soin per guest.
-  if (bases.length === guestCount && bases.some((t) => t.therapist_id != null)) {
+  // Shared-duo: fewer base soins than guests → the lone soin is worked in
+  // parallel by everyone, whether or not it already names one of them. Testé
+  // avant le lien : la ligne unique peut nommer un seul des deux praticiens.
+  if (bases.length > 0 && bases.length < guestCount) {
+    return [...bases.slice(0, 1), ...myAddons];
+  }
+
+  // Réservation partagée : PLUSIEURS praticiens y participent, le lien est posé,
+  // et les soins de base ne pointent pas tous vers moi — chacun n'est alors payé
+  // que sur les lignes qu'il porte. Couvre le combo-duo et le booking simple
+  // enchaînant plusieurs soins (issue #547).
+  //
+  // La condition « plusieurs praticiens » n'est pas décorative : jusqu'ici un
+  // praticien seul sur un booking simple à deux soins ne réclamait QUE la
+  // première ligne (claim LIMIT 1), la seconde restant NULL. Ces réservations
+  // existent en base. Sans ce garde-fou, elles seraient relues comme partagées et
+  // leur unique praticien perdrait la moitié de sa rémunération — y compris sur
+  // des factures régénérées après coup.
+  if (
+    orderedTherapistIds.length > 1 &&
+    bases.some((t) => t.therapist_id != null) &&
+    !bases.every((t) => t.therapist_id === myTherapistId)
+  ) {
     return [...bases.filter((t) => t.therapist_id === myTherapistId), ...myAddons];
   }
 
-  // Shared-duo: fewer base soins than guests → the lone soin is worked in
-  // parallel by everyone, whether or not it already names one of them.
-  if (bases.length < guestCount) {
-    return [...(bases[0] ? [bases[0]] : []), ...myAddons];
-  }
+  // Aucun lien exploitable : un praticien seul est payé sur tout.
+  if (guestCount <= 1) return treatments;
 
   // Positional fallback (older bookings, no line carries a therapist_id).
   const legs = computeDuoLegs(orderedTherapistIds, bases, guestCount);

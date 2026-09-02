@@ -143,6 +143,7 @@ interface Treatment {
   id: string;
   treatment_id: string;
   therapist_id?: string | null;
+  is_addon?: boolean | null;
   variant_id?: string | null;
   price_override?: number | null;
   treatment_menus: {
@@ -553,7 +554,20 @@ const PwaBookingDetail = () => {
       if (rpcResult?.data?.status === 'confirmed') {
         invokeEdgeFunction('notify-booking-confirmed', { body: { bookingId: booking.id } }).catch(() => {});
       }
-      
+
+      // Réservation partagée : j'ai pris les prestations que je réalise, il en
+      // reste. On relance le broadcast pour ces jambes-là — la dédup par
+      // prestation garantit que personne n'est resollicité sur la même.
+      if ((rpcResult?.data?.open_legs ?? 0) > 0) {
+        invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id, notifyAll: true, therapistsOnly: true } }).catch(() => {});
+      }
+
+      // Le staffing vient de changer : si la réservation est déjà payée, les
+      // rémunérations écrites au paiement ne reflètent plus les jambes réelles.
+      if (['paid', 'charged_to_room', 'offert'].includes(booking.payment_status ?? '')) {
+        invokeEdgeFunction('sync-booking-payouts', { body: { bookingId: booking.id } }).catch(() => {});
+      }
+
       toast.success(t('bookingDetail.accepted'));
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
 
@@ -736,30 +750,71 @@ const PwaBookingDetail = () => {
   const surchargePercent = booking.is_out_of_hours
     ? (Number(booking.out_of_hours_surcharge_percent) || 0)
     : 0;
+  const guestCount = Math.max(booking.guest_count || 1, 1);
+  // Ma jambe : mes soins plus les add-ons qui en dépendent. C'est le lien stable
+  // (booking_treatments.therapist_id) qui tranche, pas guest_count — un booking
+  // simple enchaînant deux soins peut être partagé entre deux praticiens
+  // (issue #547), auquel cas je n'affiche et ne suis payé que sur ma part.
+  const legLineInputs = treatments.map((t) => ({
+    id: t.id,
+    therapist_id: t.therapist_id ?? null,
+    treatment_id: t.treatment_id ?? null,
+    duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? null,
+    is_addon: t.is_addon ?? false,
+  }));
+  const claimedLegLines = myLegTreatments(myTherapistId ?? "", legLineInputs, orderedTherapistIds, guestCount);
+  // Praticien qui n'a pas encore accepté : aucune ligne ne le nomme. Il regarde la
+  // réservation pour décider, on lui montre donc ce qu'il prendrait — les
+  // prestations encore à pourvoir. Sans ce repli, une réservation dont un confrère
+  // a déjà pris une jambe s'afficherait vide, à 0 min.
+  const openLegLines = legLineInputs.filter((line) => !line.is_addon && line.therapist_id == null);
+  const myLegLines = claimedLegLines.length > 0
+    ? claimedLegLines
+    : (openLegLines.length > 0 ? openLegLines : legLineInputs);
+  const myLegLineIds = new Set(myLegLines.map((line) => line.id));
+  const isSharedBooking = myLegLines.length < legLineInputs.length || guestCount > 1;
+  // Hors réservation partagée, on garde bookings.duration : elle absorbe les
+  // prolongations de séance, qui n'ajoutent pas de ligne de soin.
+  const myLegDurationMinutes = isSharedBooking
+    ? myLegDuration(myTherapistId ?? "", legLineInputs, orderedTherapistIds, guestCount)
+    : totalDuration;
+  // Sur un booking simple partagé, les soins s'enchaînent : celui qui n'assure
+  // que le second commence après le premier. Il n'existe pas d'heure par
+  // prestation — seule bookings.booking_time porte le début de la réservation —
+  // donc on cumule la durée des soins qui précèdent le premier qui m'est
+  // attribué, dans le même ordre (created_at) que le claim en base. En duo les
+  // soins sont exécutés en parallèle : tout le monde commence à l'heure du RDV.
+  const myStartTime = (() => {
+    if (!isSharedBooking || guestCount > 1) return booking.booking_time.substring(0, 5);
+    let offset = 0;
+    for (const line of legLineInputs.filter((l) => !l.is_addon)) {
+      if (myLegLineIds.has(line.id)) break;
+      offset += line.duration || 0;
+    }
+    const [h, m] = booking.booking_time.split(":");
+    const minutes = (Number(h) || 0) * 60 + (Number(m) || 0) + offset;
+    return `${String(Math.floor(minutes / 60) % 24).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+  })();
+
+  // Qui peut encore accepter ? Une prestation libre suffit — y compris sur un
+  // booking simple déjà pris en partie par un confrère (issue #547). Les
+  // réservations historiques, dont aucune ligne ne porte d'attribution, restent
+  // protégées : sans jambe déjà attribuée, le praticien principal assure tout et
+  // `accept_booking` répondrait 'already_taken'.
+  const claimedLegCount = legLineInputs.filter((l) => !l.is_addon && l.therapist_id != null).length;
+  const joinsSharedBooking = openLegLines.length > 0 && claimedLegCount > 0;
+  const canJoinBooking = booking.status === "pending" && !hasAlreadyAccepted && (
+    guestCount > 1
+      ? true
+      : (!booking.therapist_id || booking.therapist_id === myTherapistId || joinsSharedBooking)
+  );
+
   const estimatedEarnings = (() => {
-    const gc = Math.max(booking.guest_count || 1, 1);
-    // Duo: pay on my own leg — my soin plus the add-ons hanging off it. Stable link
-    // (booking_treatments.therapist_id) when present, positional fallback otherwise.
-    // Solo: the full booking duration.
-    const legLineInputs = treatments.map((t) => ({
-      therapist_id: t.therapist_id ?? null,
-      treatment_id: t.treatment_id ?? null,
-      duration: t.treatment_variants?.duration ?? t.treatment_menus?.duration ?? null,
-      is_addon: t.is_addon ?? false,
-    }));
-    const legDuration = gc > 1
-      ? myLegDuration(myTherapistId ?? "", legLineInputs, orderedTherapistIds, gc)
-      : totalDuration;
-    // Les lignes dont `legDuration` est la somme — un solo est payé sur tout.
-    const legLines =
-      gc > 1
-        ? myLegTreatments(myTherapistId ?? "", legLineInputs, orderedTherapistIds, gc)
-        : legLineInputs;
     return estimateTherapistShare({
       globalTherapistCommission: booking.global_therapist_commission,
-      guestCount: gc,
-      legDuration,
-      legLines,
+      guestCount,
+      legDuration: myLegDurationMinutes,
+      legLines: myLegLines,
       myRates: {
         rate_60: booking.therapist_rate_60 ?? null,
         rate_75: booking.therapist_rate_75 ?? null,
@@ -835,8 +890,8 @@ const PwaBookingDetail = () => {
         {/* Date / Heure / Durée */}
         <div className="fiche-when">
           <div className="cell"><div className="v">{format(new Date(booking.booking_date), "EEE d MMM", { locale })}</div><div className="l">{t('booking.date')}</div></div>
-          <div className="cell"><div className="v">{booking.booking_time.substring(0, 5)}</div><div className="l">{t('booking.time')}</div></div>
-          <div className="cell"><div className="v">{totalDuration} min</div><div className="l">{t('booking.duration')}</div></div>
+          <div className="cell"><div className="v">{myStartTime}</div><div className="l">{t('booking.time')}</div></div>
+          <div className="cell"><div className="v">{myLegDurationMinutes} min</div><div className="l">{t('booking.duration')}</div></div>
         </div>
 
         {/* Infos client */}
@@ -970,7 +1025,12 @@ const PwaBookingDetail = () => {
             // Seulement quand ils sont plusieurs, et seulement sur les lignes qui
             // portent vraiment l'affectation : une ligne sans therapist_id reste
             // muette plutôt que de nommer quelqu'un par déduction.
-            const lineTherapist = tr.therapist_id ? therapistNamesById[tr.therapist_id] : null;
+            // Une prestation encore libre sur une réservation partagée n'est pas
+            // muette : le praticien doit voir qu'elle attend un confrère, sans quoi
+            // il croirait la fiche incomplète.
+            const lineTherapist = tr.therapist_id
+              ? therapistNamesById[tr.therapist_id]
+              : (isSharedBooking ? t('bookingDetail.legUnstaffed', 'À pourvoir') : null);
             // La durée a déjà sa propre colonne : on n'affiche le label de variante
             // que s'il apporte une info autre qu'une durée (ex. « Dos », « Corps »).
             const showVariant = variantLabel && !/^\s*\d+\s*(min|minutes|mn|')?\s*$/i.test(variantLabel);
@@ -1017,25 +1077,26 @@ const PwaBookingDetail = () => {
         className="fiche-foot"
         style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, paddingBottom: 'calc(18px + env(safe-area-inset-bottom))' }}
       >
-        {booking.status === "pending" && (booking.guest_count ?? 1) > 1 && (
+        {booking.status === "pending" && (guestCount > 1 || joinsSharedBooking) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, padding: '10px 14px', borderRadius: 14, background: 'var(--gold-soft)', color: 'var(--gold-deep)' }}>
             <Hourglass size={16} />
             <span style={{ fontSize: 12, fontWeight: 500 }}>
-              {t('bookingDetail.duoTherapistsJoined', { accepted: acceptedTherapistCount, total: booking.guest_count ?? 2 })}
+              {guestCount > 1
+                ? t('bookingDetail.duoTherapistsJoined', { accepted: acceptedTherapistCount, total: booking.guest_count ?? 2 })
+                : t('bookingDetail.legsToStaff', { count: openLegLines.length })}
             </span>
           </div>
         )}
-        {(booking.status === "pending" && (booking.guest_count ?? 1) <= 1 && (!booking.therapist_id || booking.therapist_id === myTherapistId)) ||
-         (booking.status === "pending" && (booking.guest_count ?? 1) > 1 && !hasAlreadyAccepted) ? (
+        {canJoinBooking ? (
           <>
             <button className="btn-primary-lg" onClick={handleAcceptBooking} disabled={updating}>
-              {(booking.guest_count ?? 1) > 1 ? t('bookingDetail.duoJoin') : t('dashboard.accept')}
+              {guestCount > 1 || joinsSharedBooking ? t('bookingDetail.duoJoin') : t('dashboard.accept')}
             </button>
             <button className="btn-ghost" onClick={() => setShowDeclineDialog(true)}>
               {t('bookingDetail.declineCta', 'Refuser cette demande')}
             </button>
           </>
-        ) : booking.status === "pending" && (booking.guest_count ?? 1) > 1 && hasAlreadyAccepted ? (
+        ) : booking.status === "pending" && hasAlreadyAccepted ? (
           <div style={{ textAlign: 'center', padding: 12, borderRadius: 999, border: '1px solid var(--line)', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 500 }}>
             {t('bookingDetail.duoWaiting')}
           </div>
