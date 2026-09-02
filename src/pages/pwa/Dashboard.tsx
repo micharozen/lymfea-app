@@ -698,16 +698,21 @@ const PwaDashboard = () => {
         .filter((bt) => bt.status === "accepted")
         .sort((x, y) => (x.assigned_at || "").localeCompare(y.assigned_at || ""))
         .map((bt) => bt.therapist_id);
-    const myLeg = (b: Booking): number => {
-      const gc = (b as { guest_count?: number }).guest_count ?? 1;
-      if (gc <= 1) return calculateTotalDuration(b);
-      return myLegDuration(therapist?.id ?? "", legLineInputs(b), orderedIdsOf(b), gc);
-    };
-    // Lignes dont `myLeg` est la somme — un solo est payé sur toutes.
+    // Lignes dont `myLeg` est la somme. Un praticien seul les porte toutes ; sur
+    // une réservation partagée — duo, ou booking simple à deux soins pris par
+    // deux praticiens (issue #547) — chacun ne compte que la sienne.
     const myLegLines = (b: Booking) => {
       const gc = (b as { guest_count?: number }).guest_count ?? 1;
+      return myLegTreatments(therapist?.id ?? "", legLineInputs(b), orderedIdsOf(b), gc);
+    };
+    const myLeg = (b: Booking): number => {
+      const gc = (b as { guest_count?: number }).guest_count ?? 1;
       const lines = legLineInputs(b);
-      return gc <= 1 ? lines : myLegTreatments(therapist?.id ?? "", lines, orderedIdsOf(b), gc);
+      const mine = myLegLines(b);
+      // Hors partage, bookings.duration fait foi : elle absorbe les prolongations
+      // de séance, qui n'ajoutent aucune ligne de soin.
+      if (mine.length === lines.length && gc <= 1) return calculateTotalDuration(b);
+      return myLegDuration(therapist?.id ?? "", lines, orderedIdsOf(b), gc);
     };
     const totalMinutes = todayBookings.reduce((sum, b) => sum + myLeg(b), 0);
     const hours = Math.floor(totalMinutes / 60);
