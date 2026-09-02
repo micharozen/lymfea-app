@@ -22,7 +22,10 @@ import {
   myLegTreatments,
   bookingSlotDuration,
   estimateTherapistShare,
+  displayLegTreatments,
+  scheduleTreatments,
 } from "@/lib/therapistLegDuration";
+import { toScheduledLines } from "@/lib/pwaScheduledLines";
 import { useCurrentTherapist } from "@/hooks/pwa/useCurrentTherapist";
 import { useTherapistVenues } from "@/hooks/pwa/useTherapistVenues";
 import {
@@ -71,6 +74,8 @@ interface Booking {
       name: string;
       price: number;
       duration: number;
+      /** Non nul = commodité : elle ne mobilise aucun praticien. */
+      amenity_id?: string | null;
     } | null;
   }>;
   hotels?: { image: string | null; currency: string | null } | { image: string | null; currency: string | null }[] | null;
@@ -179,14 +184,14 @@ const isUpcomingForTherapist = (
   if (b.therapist_id !== therapistId && !acceptedByMe) return false;
 
   // Les demandes en attente vivent dans la section « demandes », pas ici.
-  // Exception : un duo (guest_count > 1) que CE thérapeute a déjà accepté reste
-  // 'pending' tant que l'équipe n'est pas complète, et il est justement exclu
-  // de la section demandes — sans quoi il ne serait visible que sur le planning.
-  const acceptedDuoPending =
-    b.status === "pending" && (b.guest_count ?? 1) > 1 && acceptedByMe;
+  // Exception : une réservation que CE thérapeute a déjà acceptée reste 'pending'
+  // tant que l'équipe n'est pas complète — duo, ou booking simple dont une autre
+  // prestation attend encore un confrère (issue #547). Elle est justement exclue
+  // de la section demandes : sans ça, elle ne serait visible que sur le planning.
+  const acceptedStillPending = b.status === "pending" && acceptedByMe;
 
   return (
-    (b.status !== "pending" || acceptedDuoPending) &&
+    (b.status !== "pending" || acceptedStillPending) &&
     b.status !== "completed" &&
     b.booking_date >= todayKey
   );
@@ -478,7 +483,11 @@ const PwaDashboard = () => {
 
       if (error) throw error;
 
-      const result = data as { success: boolean; error?: string; data?: { status?: string } } | null;
+      const result = data as {
+        success: boolean;
+        error?: string;
+        data?: { status?: string; open_legs?: number };
+      } | null;
 
       if (result && !result.success) {
         const errCode = result.error;
@@ -500,6 +509,23 @@ const PwaDashboard = () => {
         } catch (notifError) {
           console.error("Email notification error (non-blocking):", notifError);
         }
+      }
+
+      // Réservation partagée : je viens de prendre les prestations que je réalise,
+      // il en reste. On relance le broadcast pour ces jambes-là — la dédup par
+      // prestation garantit que personne n'est resollicité sur la même. Miroir de
+      // la fiche détail : accepter depuis la carte doit avoir les mêmes effets.
+      if ((result?.data?.open_legs ?? 0) > 0) {
+        invokeEdgeFunction('trigger-new-booking-notifications', {
+          body: { bookingId, notifyAll: true, therapistsOnly: true },
+        }).catch(() => {});
+      }
+
+      // Le staffing vient de changer : si la réservation est déjà payée, les
+      // rémunérations écrites au paiement ne reflètent plus les jambes réelles.
+      const acceptedBooking = allBookings.find(b => b.id === bookingId);
+      if (['paid', 'charged_to_room', 'offert'].includes(acceptedBooking?.payment_status ?? '')) {
+        invokeEdgeFunction('sync-booking-payouts', { body: { bookingId } }).catch(() => {});
       }
 
       if (!isMountedRef.current) return;
@@ -591,6 +617,69 @@ const PwaDashboard = () => {
     return duration > 0 ? duration : 60; // fallback if all are 0
   };
 
+  /**
+   * Ce qu'une demande représente pour le praticien connecté : les prestations
+   * encore à pourvoir, leur durée, leur prix client et son gain estimé. Sur une
+   * réservation partagée dont un confrère a déjà pris une jambe, la carte ne
+   * doit annoncer que le reste — pas la durée et le prix du panier entier.
+   */
+  const pendingLeg = (b: Booking) => {
+    const all = b.booking_treatments ?? [];
+    const guestCount = b.guest_count ?? 1;
+    // Ce que je prendrais en acceptant. En duo les jambes tournent en parallèle
+    // et je n'en prends qu'une : le premier bloc de l'ordonnancement, jamais la
+    // somme des soins libres.
+    const shown = displayLegTreatments(therapist?.id, toScheduledLines(all));
+    const open =
+      guestCount > 1 ? scheduleTreatments(shown, guestCount)[0]?.lines ?? shown : shown;
+    // Toutes les prestations restent à pourvoir : on garde les totaux de la
+    // réservation, qui honorent bookings.duration / total_price (soins sur devis
+    // et prolongations de séance n'ont pas de ligne dédiée).
+    const isPartial = open.length < all.length;
+
+    const duration = isPartial
+      ? open.reduce((sum, bt) => sum + (bt.treatment_menus?.duration ?? 0), 0)
+      : calculateTotalDuration(b);
+    const price = isPartial
+      ? open.reduce((sum, bt) => sum + (bt.treatment_menus?.price ?? 0), 0)
+      : calculateTotalPrice(b);
+
+    const hotel = (b as { hotels?: { global_therapist_commission?: boolean; therapist_commission?: number | null; out_of_hours_surcharge_percent?: number | null } }).hotels;
+    const surchargePercent = (b as { is_out_of_hours?: boolean | null }).is_out_of_hours
+      ? Number(hotel?.out_of_hours_surcharge_percent) || 0
+      : 0;
+
+    const earnings = Math.round(
+      estimateTherapistShare({
+        globalTherapistCommission: hotel?.global_therapist_commission ?? false,
+        guestCount,
+        legDuration: duration,
+        legLines: open.map((bt) => ({
+          treatment_id: bt.treatment_id ?? null,
+          duration: bt.treatment_menus?.duration ?? null,
+        })),
+        myRates: {
+          rate_60: (therapist as { rate_60?: number | null } | null)?.rate_60 ?? null,
+          rate_75: (therapist as { rate_75?: number | null } | null)?.rate_75 ?? null,
+          rate_90: (therapist as { rate_90?: number | null } | null)?.rate_90 ?? null,
+        },
+        myTreatmentRates: therapist?.treatment_rates_active
+          ? therapist.treatment_rates ?? null
+          : null,
+        grossPrice: calculateTotalPrice(b),
+        // Mode commission : elle porte sur les seules prestations que je prends.
+        legGrossPrice: isPartial ? price : null,
+        therapistCommissionPercent: hotel?.therapist_commission ?? null,
+        surchargePercent,
+      }),
+    );
+
+    const label =
+      open.map((bt) => bt.treatment_menus?.name).filter(Boolean).join(', ') || treatmentsLabel(b);
+
+    return { duration, price, earnings, label };
+  };
+
 
   const getPendingRequests = () => {
     return allBookings.filter(b => {
@@ -625,10 +714,30 @@ const PwaDashboard = () => {
         const genderPref = b.therapist_gender_preference ?? null;
         const iDeclined = (b.declined_by ?? []).includes(myId);
 
+        // Réservation partagée : un confrère a pris une prestation, une autre
+        // attend encore (issue #547). Elle reste une demande ouverte bien que
+        // bookings.therapist_id nomme déjà quelqu'un. Exiger une jambe DÉJÀ
+        // attribuée écarte les réservations historiques, dont aucune ligne ne
+        // porte d'affectation alors que le praticien principal assure tout.
+        const baseLegs = (b.booking_treatments ?? []).filter(
+          bt => !bt.is_addon && !bt.treatment_menus?.amenity_id
+        );
+        const openLegCount = baseLegs.filter(bt => !bt.therapist_id).length;
+        const hasOpenSharedLeg = openLegCount > 0 && openLegCount < baseLegs.length;
+
+        // J'ai déjà accepté : la jambe restante ne m'est plus réclamable
+        // (accept_booking rendrait 'already_accepted'). Ma part vit dans « mes
+        // réservations », où elle reste 'pending' tant que l'équipe est
+        // incomplète — sans ce garde-fou la réservation s'affiche deux fois.
+        const acceptedByMe = b.booking_therapists?.some(
+          bt => bt.therapist_id === myId && bt.status === 'accepted'
+        );
+        if (acceptedByMe) return false;
+
         // Assigned to me specifically
         if (b.therapist_id === myId) return true;
         // Assigned to someone else
-        if (b.therapist_id !== null) return false;
+        if (b.therapist_id !== null) return hasOpenSharedLeg && !alreadyMine;
 
         // Unassigned — I already declined, never show again
         if (iDeclined) return false;
@@ -689,16 +798,21 @@ const PwaDashboard = () => {
         .filter((bt) => bt.status === "accepted")
         .sort((x, y) => (x.assigned_at || "").localeCompare(y.assigned_at || ""))
         .map((bt) => bt.therapist_id);
-    const myLeg = (b: Booking): number => {
-      const gc = (b as { guest_count?: number }).guest_count ?? 1;
-      if (gc <= 1) return calculateTotalDuration(b);
-      return myLegDuration(therapist?.id ?? "", legLineInputs(b), orderedIdsOf(b), gc);
-    };
-    // Lignes dont `myLeg` est la somme — un solo est payé sur toutes.
+    // Lignes dont `myLeg` est la somme. Un praticien seul les porte toutes ; sur
+    // une réservation partagée — duo, ou booking simple à deux soins pris par
+    // deux praticiens (issue #547) — chacun ne compte que la sienne.
     const myLegLines = (b: Booking) => {
       const gc = (b as { guest_count?: number }).guest_count ?? 1;
+      return myLegTreatments(therapist?.id ?? "", legLineInputs(b), orderedIdsOf(b), gc);
+    };
+    const myLeg = (b: Booking): number => {
+      const gc = (b as { guest_count?: number }).guest_count ?? 1;
       const lines = legLineInputs(b);
-      return gc <= 1 ? lines : myLegTreatments(therapist?.id ?? "", lines, orderedIdsOf(b), gc);
+      const mine = myLegLines(b);
+      // Hors partage, bookings.duration fait foi : elle absorbe les prolongations
+      // de séance, qui n'ajoutent aucune ligne de soin.
+      if (mine.length === lines.length && gc <= 1) return calculateTotalDuration(b);
+      return myLegDuration(therapist?.id ?? "", lines, orderedIdsOf(b), gc);
     };
     const totalMinutes = todayBookings.reduce((sum, b) => sum + myLeg(b), 0);
     const hours = Math.floor(totalMinutes / 60);
@@ -859,6 +973,7 @@ const PwaDashboard = () => {
               ? `${format(new Date(r.proposed_slots.slot_1_date + 'T00:00:00'), 'EEE d MMM', { locale })} · ${r.proposed_slots.slot_1_time.substring(0, 5)}`
               : `${format(new Date(r.booking_date), 'EEE d MMM', { locale })} · ${r.booking_time.substring(0, 5)}`;
             const isProcessing = processing?.id === r.id;
+            const leg = pendingLeg(r);
             return (
               <div
                 className="req-card"
@@ -867,17 +982,22 @@ const PwaDashboard = () => {
                 role="button"
                 tabIndex={0}
               >
-                <div className="req-when">{when}</div>
+                <div className="req-when">
+                  <span>{when}</span>
+                  <span className="req-num">#{r.booking_id}</span>
+                </div>
                 <div className="req-head">
                   <span className="who">{r.hotel_name}</span>
                   {(r.guest_count || 1) > 1 && (
                     <span className="status info"><span className="dot" />{acceptedCount(r)}/{r.guest_count}</span>
                   )}
-                  <PaymentStatus status={getPaymentDesignStatus(r.payment_status, t)} />
                 </div>
-                <div className="req-body">{treatmentsLabel(r)}</div>
+                <div className="req-body">{leg.label}</div>
                 <div className="req-meta">
-                  {calculateTotalDuration(r)} min &nbsp;·&nbsp; {formatPrice(calculateTotalPrice(r), getHotelCurrency(r))}
+                  <span>{leg.duration} min &nbsp;·&nbsp; {formatPrice(leg.price, getHotelCurrency(r))}</span>
+                  <span className="req-earn">
+                    {t('dashboard.yourEarnings')} {formatPrice(leg.earnings, getHotelCurrency(r))}
+                  </span>
                 </div>
                 <div className="req-actions" onClick={(e) => e.stopPropagation()}>
                   <button
@@ -936,7 +1056,7 @@ const PwaDashboard = () => {
                       <div className="d">{calculateTotalDuration(b)} min</div>
                     </div>
                     <div className="bk-main">
-                      <div className="who">{b.hotel_name}</div>
+                      <div className="who">{b.hotel_name} <span className="num">#{b.booking_id}</span></div>
                       <div className="what">{treatmentsLabel(b, therapist?.id)}</div>
                       {(b.room_name || toConfirm) && (
                         <div className="meta">

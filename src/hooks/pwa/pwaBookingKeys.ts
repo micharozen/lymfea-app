@@ -70,10 +70,13 @@ const PWA_BOOKING_EMBEDS = `
   treatment_rooms!bookings_trunk_id_fkey ( name ),
   booking_therapists ( status, therapist_id, assigned_at ),
   booking_treatments (
+    id,
     therapist_id,
     treatment_id,
     is_addon,
-    treatment_menus ( name, price, duration )
+    created_at,
+    parent_booking_treatment_id,
+    treatment_menus ( name, price, duration, amenity_id )
   )`;
 
 export const PWA_BOOKING_SELECT = `${PWA_BOOKING_COLUMNS},${PWA_BOOKING_EMBEDS}`;

@@ -86,6 +86,46 @@ describe("myLegDuration", () => {
     expect(myLegDuration("me", treatments, ["me"], 1)).toBe(135);
   });
 
+  // Issue #547 : un booking simple (guest_count = 1) enchaînant corps + visage
+  // qu'aucun praticien ne réalise en entier se partage entre deux praticiens.
+  it("booking simple partagé: chacun sur sa prestation malgré guestCount 1", () => {
+    const treatments = [
+      { therapist_id: "me", duration: 60 },
+      { therapist_id: "other", duration: 30 },
+    ];
+    expect(myLegDuration("me", treatments, ["me", "other"], 1)).toBe(60);
+    expect(myLegDuration("other", treatments, ["me", "other"], 1)).toBe(30);
+  });
+
+  it("booking simple partagé: la jambe encore libre n'est due à personne", () => {
+    const treatments = [
+      { therapist_id: "me", duration: 60 },
+      { therapist_id: null, duration: 30 },
+    ];
+    expect(myLegDuration("me", treatments, ["me", "other"], 1)).toBe(60);
+  });
+
+  it("booking simple partagé: mes add-ons suivent ma prestation", () => {
+    const treatments = [
+      { therapist_id: "me", duration: 60 },
+      { therapist_id: "other", duration: 30 },
+      { therapist_id: "me", duration: 15, is_addon: true },
+    ];
+    expect(myLegDuration("me", treatments, ["me", "other"], 1)).toBe(75);
+    expect(myLegDuration("other", treatments, ["me", "other"], 1)).toBe(30);
+  });
+
+  // Garde-fou de non-régression : jusqu'au partage, le claim d'un booking simple
+  // ne prenait QUE la première ligne (LIMIT 1). Ces réservations existent en base
+  // avec une jambe NULL et un seul praticien, qui doit rester payé sur tout.
+  it("praticien seul avec claim partiel historique: payé sur toutes les prestations", () => {
+    const treatments = [
+      { therapist_id: "me", duration: 60 },
+      { therapist_id: null, duration: 45 },
+    ];
+    expect(myLegDuration("me", treatments, ["me"], 1)).toBe(105);
+  });
+
   it("old duo with add-ons but no stable link: positional on soins, add-ons unpaid", () => {
     const treatments = [
       { therapist_id: null, duration: 60 },
@@ -212,5 +252,27 @@ describe("estimateTherapistShare", () => {
         surchargePercent: 0,
       }),
     ).toBe(0);
+  });
+});
+
+describe("estimateTherapistShare — mode commission", () => {
+  const base = {
+    globalTherapistCommission: true,
+    legDuration: 45,
+    myRates: null,
+    grossPrice: 165,
+    therapistCommissionPercent: 70,
+    surchargePercent: 0,
+  };
+
+  it("duo sans jambe connue: partage par invité", () => {
+    expect(estimateTherapistShare({ ...base, guestCount: 2 })).toBe(57.75);
+  });
+
+  // Issue #547 : un booking simple partagé n'a qu'un invité et deux praticiens.
+  // Diviser le panier par guestCount donnerait 70 % du total à CHACUN.
+  it("booking simple partagé: la commission porte sur mes seules prestations", () => {
+    expect(estimateTherapistShare({ ...base, guestCount: 1, legGrossPrice: 75 })).toBe(52.5);
+    expect(estimateTherapistShare({ ...base, guestCount: 1, legGrossPrice: 90 })).toBe(63);
   });
 });

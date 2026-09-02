@@ -374,7 +374,10 @@ export async function getVenueAvailability(
   const isSlotInBlockedRange = (slot: string, dow: number): boolean => {
     if (recurringBlocks.length === 0) return false;
     const s = timeToMinutes(slot);
-    const e = s + slotInterval;
+    // Le soin entier doit tenir hors du blocage : borner sur slotInterval
+    // laissait passer un 90 min démarré avant une pause déjeuner, que
+    // `isInBlockedSlot` (garde de create-client-booking) refusait ensuite.
+    const e = s + requestedDuration;
     return recurringBlocks.some((b: any) => {
       if (b.days_of_week !== null && !b.days_of_week.includes(dow)) return false;
       return s < timeToMinutes(b.end_time) && e > timeToMinutes(b.start_time);
