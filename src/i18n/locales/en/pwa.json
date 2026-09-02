@@ -212,6 +212,8 @@
     "duoJoin": "Join the treatment",
     "duoWaiting": "Waiting for another therapist…",
     "legsToStaff": "You can take {{count}} treatment(s) on this booking",
+    "awaitingMyWave": "This request goes first to other therapists at this venue.",
+    "awaitingMyWavePill": "You'll be asked if they don't respond",
     "legUnstaffed": "To staff",
     "manageBooking": "Manage booking",
     "noShowRowHint": "The client did not show up",
