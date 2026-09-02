@@ -2168,6 +2168,7 @@
     "endDate": "To",
     "startTime": "Start",
     "endTime": "End",
+    "allDay": "All day",
     "scope": "Scope",
     "wholeVenue": "Whole venue",
     "noRooms": "No active treatment room in this venue.",

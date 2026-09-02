@@ -42,6 +42,16 @@ const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 /**
+ * « Toute la journée » couvre le jour entier, pas les horaires d'ouverture : un
+ * lieu qui autorise les créneaux hors horaires élargit la fenêtre réservable de
+ * ±2 h, et un blocage calé sur l'ouverture y laissait passer des réservations.
+ */
+const ALL_DAY_START = "00:00";
+const ALL_DAY_END = "23:59";
+const isAllDayRange = (start: string, end: string) =>
+  start === ALL_DAY_START && end >= ALL_DAY_END;
+
+/**
  * Création d'un blocage ponctuel daté : une plage horaire neutralisée sur une
  * ou plusieurs salles (ou tout le lieu), sans booking associé.
  */
@@ -64,6 +74,7 @@ export function RoomBlockDialog({
   const [endDate, setEndDate] = useState(initialDate);
   const [startTime, setStartTime] = useState(block?.start_time.substring(0, 5) ?? "08:00");
   const [endTime, setEndTime] = useState(block?.end_time.substring(0, 5) ?? "12:00");
+  const allDay = isAllDayRange(startTime, endTime);
   const [wholeVenue, setWholeVenue] = useState(block ? block.room_id === null : true);
   const [roomIds, setRoomIds] = useState<string[]>(block?.room_id ? [block.room_id] : []);
 
@@ -109,6 +120,11 @@ export function RoomBlockDialog({
   });
 
   const roomOptions = useMemo(() => rooms || [], [rooms]);
+
+  const toggleAllDay = (checked: boolean) => {
+    setStartTime(checked ? ALL_DAY_START : "08:00");
+    setEndTime(checked ? ALL_DAY_END : "12:00");
+  };
 
   const toggleRoom = (roomId: string, checked: boolean) => {
     setRoomIds((prev) => (checked ? [...prev, roomId] : prev.filter((id) => id !== roomId)));
@@ -201,29 +217,44 @@ export function RoomBlockDialog({
             </div>
           </div>
 
-          <div className="rb-grid">
-            <div className="rb-field">
-              <span className="rb-lbl">{t("roomBlocks.startTime")}</span>
-              <SelectField
-                options={TIME_OPTIONS}
-                value={startTime}
-                onChange={setStartTime}
-                searchable={false}
-                aria-label={t("roomBlocks.startTime")}
+          <div className="rb-field">
+            <div className="rb-check">
+              <Checkbox
+                id="room-block-all-day"
+                checked={allDay}
+                onCheckedChange={(checked) => toggleAllDay(checked === true)}
               />
-            </div>
-            <div className="rb-field">
-              <span className="rb-lbl">{t("roomBlocks.endTime")}</span>
-              <SelectField
-                options={TIME_OPTIONS}
-                value={endTime}
-                onChange={setEndTime}
-                searchable={false}
-                aria-label={t("roomBlocks.endTime")}
-              />
+              <label htmlFor="room-block-all-day">{t("roomBlocks.allDay")}</label>
             </div>
           </div>
-          {!timesValid && <p className="rb-err">{t("roomBlocks.invalidTimeRange")}</p>}
+
+          {!allDay && (
+            <>
+              <div className="rb-grid">
+                <div className="rb-field">
+                  <span className="rb-lbl">{t("roomBlocks.startTime")}</span>
+                  <SelectField
+                    options={TIME_OPTIONS}
+                    value={startTime}
+                    onChange={setStartTime}
+                    searchable={false}
+                    aria-label={t("roomBlocks.startTime")}
+                  />
+                </div>
+                <div className="rb-field">
+                  <span className="rb-lbl">{t("roomBlocks.endTime")}</span>
+                  <SelectField
+                    options={TIME_OPTIONS}
+                    value={endTime}
+                    onChange={setEndTime}
+                    searchable={false}
+                    aria-label={t("roomBlocks.endTime")}
+                  />
+                </div>
+              </div>
+              {!timesValid && <p className="rb-err">{t("roomBlocks.invalidTimeRange")}</p>}
+            </>
+          )}
 
           <div className="rb-field">
             <span className="rb-lbl">{t("roomBlocks.scope")}</span>
