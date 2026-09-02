@@ -155,7 +155,8 @@
   margin:0 16px calc(10px*var(--sp)); padding:calc(14px*var(--sp)) 16px;
   box-shadow:0 1px 2px rgba(42,36,25,.04);
 }
-.app-refonte .req-when{font-size:12px; font-weight:500; color:var(--accent); letter-spacing:.02em;}
+.app-refonte .req-when{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; font-weight:500; color:var(--accent); letter-spacing:.02em;}
+.app-refonte .req-when .req-num{color:var(--ink-mute);}
 .app-refonte .req-head{display:flex; align-items:center; gap:10px; margin-top:calc(8px*var(--sp));}
 .app-refonte .req-head .who{font-size:15.5px; font-weight:500; flex:1; min-width:0;}
 .app-refonte .req-body{font-size:13.5px; color:var(--ink-soft); margin-top:3px;}

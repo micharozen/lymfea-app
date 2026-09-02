@@ -478,7 +478,11 @@ const PwaDashboard = () => {
 
       if (error) throw error;
 
-      const result = data as { success: boolean; error?: string; data?: { status?: string } } | null;
+      const result = data as {
+        success: boolean;
+        error?: string;
+        data?: { status?: string; open_legs?: number };
+      } | null;
 
       if (result && !result.success) {
         const errCode = result.error;
@@ -500,6 +504,23 @@ const PwaDashboard = () => {
         } catch (notifError) {
           console.error("Email notification error (non-blocking):", notifError);
         }
+      }
+
+      // Réservation partagée : je viens de prendre les prestations que je réalise,
+      // il en reste. On relance le broadcast pour ces jambes-là — la dédup par
+      // prestation garantit que personne n'est resollicité sur la même. Miroir de
+      // la fiche détail : accepter depuis la carte doit avoir les mêmes effets.
+      if ((result?.data?.open_legs ?? 0) > 0) {
+        invokeEdgeFunction('trigger-new-booking-notifications', {
+          body: { bookingId, notifyAll: true, therapistsOnly: true },
+        }).catch(() => {});
+      }
+
+      // Le staffing vient de changer : si la réservation est déjà payée, les
+      // rémunérations écrites au paiement ne reflètent plus les jambes réelles.
+      const acceptedBooking = allBookings.find(b => b.id === bookingId);
+      if (['paid', 'charged_to_room', 'offert'].includes(acceptedBooking?.payment_status ?? '')) {
+        invokeEdgeFunction('sync-booking-payouts', { body: { bookingId } }).catch(() => {});
       }
 
       if (!isMountedRef.current) return;
@@ -881,13 +902,15 @@ const PwaDashboard = () => {
                 role="button"
                 tabIndex={0}
               >
-                <div className="req-when">{when}</div>
+                <div className="req-when">
+                  <span>{when}</span>
+                  <span className="req-num">#{r.booking_id}</span>
+                </div>
                 <div className="req-head">
                   <span className="who">{r.hotel_name}</span>
                   {(r.guest_count || 1) > 1 && (
                     <span className="status info"><span className="dot" />{acceptedCount(r)}/{r.guest_count}</span>
                   )}
-                  <PaymentStatus status={getPaymentDesignStatus(r.payment_status, t)} />
                 </div>
                 <div className="req-body">{treatmentsLabel(r)}</div>
                 <div className="req-meta">

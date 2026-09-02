@@ -21,6 +21,7 @@ import { useIsMounted } from "@/hooks/useIsMounted";
 import { useUser } from "@/contexts/UserContext";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import { shortTherapistName } from "@/hooks/pwa/usePwaBookings";
+import { useTherapistTreatments } from "@/hooks/useTherapistTreatments";
 import {
   myLegDuration,
   myLegTreatments,
@@ -219,6 +220,9 @@ const PwaBookingDetail = () => {
   // au rôle thérapeute.
   const canEditRooms = !!booking && !['Annulé', 'Terminé', 'cancelled', 'completed', 'noshow'].includes(booking.status);
   const { data: roomOptions = [] } = useBookingRoomOptions(id, canEditRooms);
+  // Prestations que je réalise : sert à n'annoncer que les jambes que
+  // accept_booking m'attribuera réellement. Liste vide = polyvalent.
+  const { data: myTreatments } = useTherapistTreatments(myTherapistId);
   const roomNameById = new Map(roomOptions.map((r) => [r.id, r.name]));
   const primaryRoomName = (booking?.room_id ? roomNameById.get(booking.room_id) : null) ?? booking?.room_name ?? null;
   const secondaryRoomName = booking?.secondary_room_id ? roomNameById.get(booking.secondary_room_id) ?? null : null;
@@ -762,6 +766,7 @@ const PwaBookingDetail = () => {
     ? (Number(booking.out_of_hours_surcharge_percent) || 0)
     : 0;
   const guestCount = Math.max(booking.guest_count || 1, 1);
+  const myTreatmentIds = myTreatments ?? [];
   // Ma jambe : mes soins plus les add-ons qui en dépendent. C'est le lien stable
   // (booking_treatments.therapist_id) qui tranche, pas guest_count — un booking
   // simple enchaînant deux soins peut être partagé entre deux praticiens
@@ -775,10 +780,16 @@ const PwaBookingDetail = () => {
   }));
   const claimedLegLines = myLegTreatments(myTherapistId ?? "", legLineInputs, orderedTherapistIds, guestCount);
   // Praticien qui n'a pas encore accepté : aucune ligne ne le nomme. Il regarde la
-  // réservation pour décider, on lui montre donc ce qu'il prendrait — les
-  // prestations encore à pourvoir. Sans ce repli, une réservation dont un confrère
-  // a déjà pris une jambe s'afficherait vide, à 0 min.
-  const openLegLines = legLineInputs.filter((line) => !line.is_addon && line.therapist_id == null);
+  // réservation pour décider, on lui montre donc exactement ce qu'il prendrait —
+  // les prestations à pourvoir QU'IL RÉALISE, même prédicat que accept_booking
+  // (liste vide = polyvalent). Sans ce repli, une réservation dont un confrère a
+  // déjà pris une jambe s'afficherait vide, à 0 min ; sans le filtre de
+  // qualification, elle promettrait un soin que le RPC ne lui donnera pas.
+  const openLegLines = legLineInputs.filter((line) => {
+    if (line.is_addon || line.therapist_id != null) return false;
+    if (myTreatmentIds.length === 0) return true;
+    return line.treatment_id != null && myTreatmentIds.includes(line.treatment_id);
+  });
   const myLegLines = claimedLegLines.length > 0
     ? claimedLegLines
     : (openLegLines.length > 0 ? openLegLines : legLineInputs);

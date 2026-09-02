@@ -210,7 +210,7 @@
     "duoTherapistsJoined": "{{accepted}}/{{total}} therapist(s) joined the treatment",
     "duoJoin": "Join the treatment",
     "duoWaiting": "Waiting for another therapist…",
-    "legsToStaff": "{{count}} treatment(s) still to staff",
+    "legsToStaff": "You can take {{count}} treatment(s) on this booking",
     "legUnstaffed": "To staff",
     "manageBooking": "Manage booking",
     "noShowRowHint": "The client did not show up",

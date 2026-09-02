@@ -210,7 +210,7 @@
     "duoTherapistsJoined": "{{accepted}}/{{total}} thérapeute(s) ont rejoint le soin",
     "duoJoin": "Rejoindre le soin",
     "duoWaiting": "En attente d'un autre thérapeute…",
-    "legsToStaff": "{{count}} prestation(s) encore à pourvoir",
+    "legsToStaff": "Vous pouvez prendre {{count}} prestation(s) sur cette réservation",
     "legUnstaffed": "À pourvoir",
     "manageBooking": "Gérer la réservation",
     "noShowRowHint": "Le client ne s'est pas présenté",
