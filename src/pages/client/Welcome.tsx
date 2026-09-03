@@ -19,6 +19,7 @@ import { useBasket } from './context/CartContext';
 import { useClientVenue } from './context/ClientVenueContext';
 import { cn } from '@/lib/utils';
 import { useLocalizedField } from '@/hooks/useLocalizedField';
+import { useTreatmentCountLabel } from '@/hooks/client/useTreatmentCountLabel';
 import { ShoppingBag, Minus, Plus, Sparkles, ChevronDown, CalendarDays } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
@@ -45,10 +46,13 @@ interface Treatment {
   currency: string | null;
   amenity_id?: string | null;
   available_days?: number[] | null;
+  is_bundle?: boolean | null;
+  bundle_id?: string | null;
 }
 
 export default function Welcome() {
   const { slug, hotelId } = useClientVenue();
+  const countLabel = useTreatmentCountLabel(hotelId);
   const navigate = useNavigate();
   const { t, i18n } = useTranslation('client');
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
@@ -481,7 +485,7 @@ export default function Welcome() {
         <div className="flex flex-col items-start gap-1">
           <span className="font-serif text-xl tracking-wide text-gray-900">{section.displayName}</span>
           <span className="text-[11px] uppercase tracking-[0.15em] text-gray-400">
-            {section.treatments.length} {section.treatments.length === 1 ? t('menu.item') : t('menu.items')}
+            {countLabel(section.treatments, section.treatments.length)}
           </span>
         </div>
         <ChevronDown

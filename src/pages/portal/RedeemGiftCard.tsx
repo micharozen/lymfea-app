@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Gift, Loader2, ArrowLeft, Calendar, Sparkles, CheckCircle, Clock, ShoppingBag, PartyPopper, Mail, User, Lock, Phone } from 'lucide-react';
+import { Gift, Loader2, ArrowLeft, Calendar, Sparkles, CheckCircle, Clock, ShoppingBag, PartyPopper, Mail, User, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
 import { brand, brandLogos } from '@/config/brand';
 import { cn } from '@/lib/utils';
+import { ClientPhoneField } from '@/components/client/ClientPhoneField';
 
 interface GiftCardData {
   bundle_type: string;
@@ -28,6 +29,8 @@ interface GiftCardData {
   is_active: boolean;
   hotel_image: string | null;
   hotel_cover_image: string | null;
+  recipient_name: string | null;
+  recipient_email: string | null;
 }
 
 export default function RedeemGiftCard() {
@@ -49,9 +52,11 @@ export default function RedeemGiftCard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [autoLookedUp, setAutoLookedUp] = useState(false);
 
-  // Claim form state
-  const [claimEmail, setClaimEmail] = useState('');
-  const [claimName, setClaimName] = useState('');
+  // Claim form state — `null` signifie « pas encore saisi » : le champ affiche
+  // alors la valeur déjà connue de l'achat plutôt que de la redemander.
+  const [claimEmailInput, setClaimEmailInput] = useState<string | null>(null);
+  const [claimNameInput, setClaimNameInput] = useState<string | null>(null);
+  const [claimCountryCode, setClaimCountryCode] = useState('+33');
   const [claimPhone, setClaimPhone] = useState('');
   const [claimPassword, setClaimPassword] = useState('');
   const [claimPasswordConfirm, setClaimPasswordConfirm] = useState('');
@@ -104,7 +109,13 @@ export default function RedeemGiftCard() {
     }
   }, [tokenFromUrl]);
 
-  const normalizedClaimPhone = claimPhone.trim().replace(/\s/g, '');
+  // Prérempli avec ce que l'acheteur a déjà renseigné pour le bénéficiaire,
+  // tant que celui-ci n'a rien modifié.
+  const claimEmail = claimEmailInput ?? cardData?.recipient_email ?? '';
+  const claimName = claimNameInput ?? cardData?.recipient_name ?? '';
+  const normalizedClaimPhone = claimPhone.replace(/\s/g, '')
+    ? `${claimCountryCode}${claimPhone.replace(/\s/g, '')}`
+    : '';
 
   const handleClaim = async () => {
     if (!claimEmail.trim() || !claimEmail.includes('@')) return;
@@ -126,7 +137,7 @@ export default function RedeemGiftCard() {
 
     try {
       const { data: result, error: fnError } = await invokeEdgeFunction<
-        { code: string; email: string; password: string; firstName: string | null },
+        { code: string; email: string; password: string; firstName: string | null; phone: string },
         { success: boolean; existingAccount?: boolean; error?: string }
       >('create-portal-account', {
         body: {
@@ -184,8 +195,9 @@ export default function RedeemGiftCard() {
     setCardData(null);
     setError(null);
     setCode('');
-    setClaimEmail('');
-    setClaimName('');
+    setClaimEmailInput(null);
+    setClaimNameInput(null);
+    setClaimCountryCode('+33');
     setClaimPhone('');
     setClaimPassword('');
     setClaimPasswordConfirm('');
@@ -335,34 +347,38 @@ export default function RedeemGiftCard() {
                   <p className="text-xs text-gray-500">{t('portal.claimCreateAccount')}</p>
 
                   <div className="space-y-3">
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        type="email"
-                        value={claimEmail}
-                        onChange={(e) => { setClaimEmail(e.target.value); setClaimError(null); }}
-                        placeholder={t('portal.claimEmailPlaceholder')}
-                        className="h-12 pl-10 rounded-xl border-gray-200 focus:border-gray-400 focus:ring-gray-400/20"
-                      />
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-gray-500">{t('portal.claimName')}</label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          value={claimName}
+                          onChange={(e) => setClaimNameInput(e.target.value)}
+                          placeholder={t('portal.claimNamePlaceholder')}
+                          className="h-12 pl-10 rounded-xl border-gray-200 focus:border-gray-400 focus:ring-gray-400/20"
+                        />
+                      </div>
                     </div>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        value={claimName}
-                        onChange={(e) => setClaimName(e.target.value)}
-                        placeholder={t('portal.claimNamePlaceholder')}
-                        className="h-12 pl-10 rounded-xl border-gray-200 focus:border-gray-400 focus:ring-gray-400/20"
-                      />
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-gray-500">{t('portal.claimEmail')}</label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          type="email"
+                          value={claimEmail}
+                          onChange={(e) => { setClaimEmailInput(e.target.value); setClaimError(null); }}
+                          placeholder={t('portal.claimEmailPlaceholder')}
+                          className="h-12 pl-10 rounded-xl border-gray-200 focus:border-gray-400 focus:ring-gray-400/20"
+                        />
+                      </div>
                     </div>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        type="tel"
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-gray-500">{t('portal.claimPhone')}</label>
+                      <ClientPhoneField
+                        countryCode={claimCountryCode}
+                        onCountryCodeChange={setClaimCountryCode}
                         value={claimPhone}
-                        onChange={(e) => { setClaimPhone(e.target.value); setClaimError(null); }}
-                        placeholder={t('portal.claimPhonePlaceholder')}
-                        className="h-12 pl-10 rounded-xl border-gray-200 focus:border-gray-400 focus:ring-gray-400/20"
-                        autoComplete="tel"
+                        onChange={(v) => { setClaimPhone(v); setClaimError(null); }}
                       />
                     </div>
                     <div className="relative">

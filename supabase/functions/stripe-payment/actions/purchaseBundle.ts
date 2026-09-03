@@ -16,82 +16,117 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+/**
+ * Mail « vous avez reçu une carte cadeau », aligné sur le design des autres
+ * e-mails clients (getExternalClientPaymentEmailHtml) : fond blanc, serif,
+ * encart crème bordé d'or, bouton bleu nuit, signature de marque.
+ */
 function getGiftCardEmailHtml(opts: {
   lang: 'fr' | 'en';
   logoUrl: string;
+  venueImageUrl: string;
   venueName: string;
   recipientName: string;
   bundleName: string;
+  valueLabel: string;
   valueDisplay: string;
   expiryDate: string;
   activateUrl: string;
   senderName: string;
   giftMessage: string;
 }): string {
-  const t = opts.lang === 'en' ? {
-    greeting: opts.recipientName ? `Hello ${opts.recipientName},` : 'Hello,',
-    intro: `${opts.senderName || 'Someone'} has sent you a gift card for ${opts.venueName}.`,
-    value: 'Value',
-    validUntil: 'Valid until',
-    messageFrom: `A message from ${opts.senderName}`,
-    cta: 'Activate my gift card',
-    footer: 'Click the button above to create your account and use your gift card.',
-  } : {
-    greeting: opts.recipientName ? `Bonjour ${opts.recipientName},` : 'Bonjour,',
-    intro: `${opts.senderName || 'Quelqu\'un'} vous offre une carte cadeau pour ${opts.venueName}.`,
-    value: 'Valeur',
+  const isFr = opts.lang === 'fr';
+  const sender = opts.senderName || (isFr ? 'Quelqu\'un' : 'Someone');
+
+  const labels = isFr ? {
+    greeting: opts.recipientName ? `Chère ${opts.recipientName}` : 'Bonjour',
+    intro: `${sender} vous offre une carte cadeau à découvrir chez ${opts.venueName}.`,
+    detailsTitle: 'VOTRE CARTE CADEAU',
     validUntil: 'Valable jusqu\'au',
-    messageFrom: `Un message de ${opts.senderName}`,
-    cta: 'Activer ma carte cadeau',
-    footer: 'Cliquez sur le bouton ci-dessus pour créer votre espace et utiliser votre carte cadeau.',
+    messageFrom: `UN MOT DE ${sender.toUpperCase()}`,
+    cta: 'ACTIVER MA CARTE CADEAU',
+    hint: 'Le bouton ci-dessus vous permet de créer votre espace personnel et de réserver le soin de votre choix.',
+  } : {
+    greeting: opts.recipientName ? `Dear ${opts.recipientName}` : 'Hello',
+    intro: `${sender} has offered you a gift card to enjoy at ${opts.venueName}.`,
+    detailsTitle: 'YOUR GIFT CARD',
+    validUntil: 'Valid until',
+    messageFrom: `A WORD FROM ${sender.toUpperCase()}`,
+    cta: 'ACTIVATE MY GIFT CARD',
+    hint: 'The button above lets you create your personal space and book the treatment of your choice.',
   };
 
-  const fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+  const styles = {
+    card: 'background-color:#FEFBF7;border:1px solid #C5B197;padding:30px;border-radius:4px;',
+    button: 'background-color:#000351;color:#ffffff;padding:16px 32px;text-decoration:none;display:inline-block;font-family:Georgia,serif;font-size:14px;letter-spacing:1px;border-radius:2px;',
+    messageCard: 'background-color:#FEFBF7;padding:20px;font-size:13px;color:#555;font-style:italic;text-align:left;',
+  };
 
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;font-family:${fontFamily};background:#f5f5f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 20px;">
-    <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-        <tr><td style="background:#000;padding:32px;text-align:center;">
-          ${opts.logoUrl ? `<img src="${opts.logoUrl}" alt="${opts.venueName}" style="max-height:48px;max-width:160px;object-fit:contain;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">` : ''}
-          <p style="margin:0;color:#fff;font-size:18px;font-weight:600;">${opts.venueName}</p>
-        </td></tr>
-        <tr><td style="padding:32px 32px 0;text-align:center;">
-          <span style="display:inline-block;background:#fef3c7;color:#92400e;padding:8px 20px;border-radius:24px;font-size:13px;font-weight:600;">🎁 ${opts.bundleName}</span>
-        </td></tr>
-        <tr><td style="padding:24px 32px 0;">
-          <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#111;">${t.greeting}</p>
-          <p style="margin:0;font-size:15px;color:#6b7280;">${t.intro}</p>
-        </td></tr>
-        <tr><td style="padding:24px 32px 0;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:12px;padding:20px;">
-            <tr>
-              <td style="font-size:13px;color:#6b7280;">${t.value}</td>
-              <td align="right" style="font-size:20px;font-weight:700;color:#111;">${opts.valueDisplay}</td>
-            </tr>
-            ${opts.expiryDate ? `<tr><td style="font-size:13px;color:#6b7280;padding-top:8px;">${t.validUntil}</td><td align="right" style="font-size:14px;color:#374151;padding-top:8px;">${opts.expiryDate}</td></tr>` : ''}
-          </table>
-        </td></tr>
-        ${opts.giftMessage ? `<tr><td style="padding:24px 32px 0;">
-          <div style="background:#fffbeb;border-left:3px solid #f59e0b;padding:16px;border-radius:0 8px 8px 0;">
-            <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#92400e;text-transform:uppercase;">${t.messageFrom}</p>
-            <p style="margin:0;font-size:14px;color:#374151;font-style:italic;">"${opts.giftMessage}"</p>
-          </div>
-        </td></tr>` : ''}
-        <tr><td style="padding:32px;text-align:center;">
-          <a href="${opts.activateUrl}" style="display:inline-block;background:#000;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;">${t.cta}</a>
-        </td></tr>
-        <tr><td style="padding:0 32px 32px;text-align:center;">
-          <p style="margin:0;font-size:13px;color:#9ca3af;">${t.footer}</p>
-        </td></tr>
+  return `
+    <!DOCTYPE html>
+    <html lang="${opts.lang}">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin:0;padding:0;background-color:#ffffff;color:#000000;-webkit-font-smoothing:antialiased;">
+      <table width="100%" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+          <td align="center" style="padding:40px 0;">
+            <img src="${opts.logoUrl}" alt="${brand.name}" width="140" style="display:block;margin-bottom:40px;">
+            ${opts.venueImageUrl ? `
+            <img src="${opts.venueImageUrl}" alt="${opts.venueName}" style="display:block;width:100%;max-width:600px;height:auto;margin-bottom:40px;border-radius:4px;">
+            ` : ''}
+
+            <table width="600" border="0" cellspacing="0" cellpadding="0" style="width:600px;max-width:600px;">
+              <tr>
+                <td align="center" style="font-family:Georgia,'Times New Roman',serif;">
+                  <h1 style="font-weight:normal;font-size:24px;margin-bottom:20px;">${labels.greeting},</h1>
+                  <p style="font-size:16px;line-height:1.6;margin-bottom:40px;padding:0 40px;">${labels.intro}</p>
+
+                  <div style="${styles.card}">
+                    <p style="font-size:11px;letter-spacing:2px;color:#C5B197;margin-bottom:20px;">${labels.detailsTitle}</p>
+                    <p style="font-size:18px;margin-bottom:10px;"><strong>${opts.bundleName}</strong></p>
+                    <p style="font-size:14px;margin-bottom:25px;color:#666;">${opts.venueName}</p>
+
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-top:1px solid #C5B197;padding-top:20px;">
+                      <tr>
+                        <td align="left" style="padding:5px 0;font-size:14px;color:#666;">${opts.valueLabel}</td>
+                        <td align="right" style="padding:5px 0;font-size:16px;color:#000351;"><strong>${opts.valueDisplay}</strong></td>
+                      </tr>
+                      ${opts.expiryDate ? `
+                      <tr>
+                        <td align="left" style="padding:5px 0;font-size:14px;color:#666;">${labels.validUntil}</td>
+                        <td align="right" style="padding:5px 0;font-size:14px;">${opts.expiryDate}</td>
+                      </tr>
+                      ` : ''}
+                    </table>
+                  </div>
+
+                  ${opts.giftMessage ? `
+                  <div style="${styles.messageCard}">
+                    <p style="margin:0 0 10px;font-weight:bold;font-style:normal;font-size:10px;letter-spacing:1px;">${labels.messageFrom}</p>
+                    « ${opts.giftMessage} »
+                  </div>
+                  ` : ''}
+
+                  <div style="padding:40px 0;text-align:center;">
+                    <a href="${opts.activateUrl}" style="${styles.button}">${labels.cta}</a>
+                    <p style="font-size:13px;margin-top:16px;line-height:1.6;color:#555;font-family:Georgia,serif;font-style:italic;padding:0 40px;">${labels.hint}</p>
+                  </div>
+
+                  <div style="padding:20px 0 40px;font-size:10px;letter-spacing:3px;color:#999;">
+                    ${brand.name.toUpperCase()}
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
       </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+    </body>
+    </html>
+  `;
 }
 
 export async function handlePurchaseBundle(
@@ -316,35 +351,58 @@ export async function handlePurchaseBundle(
   if (isGift && recipientEmail && giftDeliveryMode === "email") {
     try {
       const giftBundle = bundleDetails?.[0];
-      const bundleName = giftBundle?.treatment_bundles?.name ?? "Carte Cadeau";
+      // L'embed PostgREST d'un FK many-to-one est un objet, mais le typage
+      // généré l'annonce en tableau : on normalise avant de le lire.
+      const rawTemplate = giftBundle?.treatment_bundles as unknown;
+      const giftTemplate = (Array.isArray(rawTemplate) ? rawTemplate[0] : rawTemplate) as
+        | { name?: string; bundle_type?: string; amount_cents?: number }
+        | undefined;
+      const bundleName = giftTemplate?.name ?? "Carte Cadeau";
+      const lang = (recipientLanguage === 'en' || language === 'en') ? 'en' : 'fr';
+
+      // Une carte cadeau vaut soit un montant, soit un nombre de séances : ne
+      // jamais afficher « 0 EUR » sur une carte en séances.
+      const giftSessions = giftBundle?.total_sessions ?? 0;
       const amountCents =
         giftBundle?.total_amount_cents ??
-        giftBundle?.treatment_bundles?.amount_cents ??
+        giftTemplate?.amount_cents ??
         0;
-      const valueDisplay = `${(amountCents / 100).toFixed(0)} EUR`;
+      const isSessionGift =
+        giftTemplate?.bundle_type === "gift_treatments" && giftSessions > 0;
+      const valueLabel = isSessionGift
+        ? (lang === "en" ? "Sessions" : "Séances")
+        : (lang === "en" ? "Value" : "Valeur");
+      const valueDisplay = isSessionGift
+        ? `${giftSessions} ${lang === "en"
+            ? (giftSessions > 1 ? "sessions" : "session")
+            : (giftSessions > 1 ? "séances" : "séance")}`
+        : `${(amountCents / 100).toFixed(0)} €`;
+
       const expiryDate = giftBundle?.expires_at
-        ? new Date(giftBundle.expires_at).toLocaleDateString("en-US", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })
+        ? new Date(giftBundle.expires_at).toLocaleDateString(
+            lang === "en" ? "en-GB" : "fr-FR",
+            { day: "numeric", month: "long", year: "numeric" },
+          )
         : "";
 
-      const activateUrl = `https://apptest.eiaspa.fr/portal/redeem?token=${encodeURIComponent(
+      const siteUrl = (Deno.env.get("SITE_URL") || `https://${brand.appDomain}`)
+        .replace(/\/+$/, "");
+      const activateUrl = `${siteUrl}/portal/redeem?token=${encodeURIComponent(
         giftBundle?.redemption_code ?? "",
       )}`;
 
-      const lang = (recipientLanguage === 'en' || language === 'en') ? 'en' : 'fr';
       const subject = lang === 'en'
         ? `You've received a gift card — ${venueName}`
         : `Vous avez reçu une carte cadeau — ${venueName}`;
 
       const htmlBody = getGiftCardEmailHtml({
         lang,
-        logoUrl,
+        logoUrl: EMAIL_LOGO_URL,
+        venueImageUrl: venue?.image || "",
         venueName,
         recipientName: recipientName || "",
         bundleName,
+        valueLabel,
         valueDisplay,
         expiryDate,
         activateUrl,
