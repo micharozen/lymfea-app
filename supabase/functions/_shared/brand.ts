@@ -29,3 +29,20 @@ export function transactionalFrom(lang: 'fr' | 'en'): string {
   const address = raw.match(/<([^>]+)>/)?.[1] ?? raw;
   return `${TRANSACTIONAL_FROM_NAME[lang]} <${address}>`;
 }
+
+/**
+ * Expéditeur affiché au nom d'un lieu ou de son organisation, sur l'adresse du
+ * domaine vérifié chez Resend — seul le nom change, jamais l'adresse.
+ *
+ * Le nom est mis entre guillemets (RFC 5322) : sans cela une virgule dans une
+ * raison sociale (« LYMFA CENTER, SAS ») couperait l'en-tête en deux
+ * destinataires.
+ */
+export function emailSenderFor(displayName: string, kind: 'default' | 'transactional' = 'default'): string {
+  const raw = brand.emails.from[kind];
+  const address = raw.match(/<([^>]+)>/)?.[1] ?? raw;
+  const name = displayName.trim();
+  if (!name) return raw;
+  const escaped = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `"${escaped}" <${address}>`;
+}

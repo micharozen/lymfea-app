@@ -1,4 +1,4 @@
-import { brand, EMAIL_LOGO_URL } from "../../_shared/brand.ts";
+import { brand, emailSenderFor, EMAIL_LOGO_URL } from "../../_shared/brand.ts";
 import { sendEmail } from "../../_shared/send-email.ts";
 import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
 import type { ActionContext } from "../index.ts";
@@ -26,6 +26,8 @@ function getGiftCardEmailHtml(opts: {
   logoUrl: string;
   venueImageUrl: string;
   venueName: string;
+  /** Organisation exploitante, signée en pied de page sous le nom du lieu. */
+  organizationName: string;
   recipientName: string;
   bundleName: string;
   valueLabel: string;
@@ -73,7 +75,7 @@ function getGiftCardEmailHtml(opts: {
       <table width="100%" border="0" cellspacing="0" cellpadding="0">
         <tr>
           <td align="center" style="padding:40px 0;">
-            <img src="${opts.logoUrl}" alt="${brand.name}" width="140" style="display:block;margin-bottom:40px;">
+            <img src="${opts.logoUrl}" alt="${opts.organizationName || opts.venueName}" width="140" style="display:block;margin-bottom:40px;">
             ${opts.venueImageUrl ? `
             <img src="${opts.venueImageUrl}" alt="${opts.venueName}" style="display:block;width:100%;max-width:600px;height:auto;margin-bottom:40px;border-radius:4px;">
             ` : ''}
@@ -115,8 +117,9 @@ function getGiftCardEmailHtml(opts: {
                     <p style="font-size:13px;margin-top:16px;line-height:1.6;color:#555;font-family:Georgia,serif;font-style:italic;padding:0 40px;">${labels.hint}</p>
                   </div>
 
-                  <div style="padding:20px 0 40px;font-size:10px;letter-spacing:3px;color:#999;">
-                    ${brand.name.toUpperCase()}
+                  <div style="padding:20px 0 40px;color:#999;">
+                    <p style="margin:0;font-size:10px;letter-spacing:3px;">${opts.venueName.toUpperCase()}</p>
+                    ${opts.organizationName ? `<p style="margin:6px 0 0;font-size:9px;letter-spacing:2px;color:#bbb;">${opts.organizationName.toUpperCase()}</p>` : ''}
                   </div>
                 </td>
               </tr>
@@ -340,12 +343,30 @@ export async function handlePurchaseBundle(
 
   const { data: venue } = await supabase
     .from("hotels")
-    .select("slug, name, image")
+    .select("slug, name, image, cover_image, organization_id")
     .eq("id", hotelId)
     .single();
-  const venueName = venue?.name || "";
+  const venueName = venue?.name?.trim() || "";
   const venueSlug = venue?.slug || hotelId;
-  const logoUrl = venue?.image || EMAIL_LOGO_URL;
+
+  // Ces e-mails partent au nom du lieu et de son organisation, jamais au nom de
+  // la plateforme : le bénéficiaire d'une carte cadeau n'a aucune raison de
+  // lire « Eïa ». Le lieu porte l'expéditeur (c'est le nom qu'il reconnaît),
+  // l'organisation signe le pied de page.
+  const { data: organization } = venue?.organization_id
+    ? await supabase
+      .from("organizations")
+      .select("name, commercial_name, logo_url")
+      .eq("id", venue.organization_id)
+      .maybeSingle()
+    : { data: null };
+
+  const organizationName =
+    organization?.commercial_name?.trim() ||
+    organization?.name?.trim() ||
+    "";
+  const logoUrl = organization?.logo_url || venue?.image || EMAIL_LOGO_URL;
+  const senderFrom = emailSenderFor(venueName || organizationName || brand.name);
 
   const isGift = isGiftMeta === "true";
   if (isGift && recipientEmail && giftDeliveryMode === "email") {
@@ -397,9 +418,10 @@ export async function handlePurchaseBundle(
 
       const htmlBody = getGiftCardEmailHtml({
         lang,
-        logoUrl: EMAIL_LOGO_URL,
-        venueImageUrl: venue?.image || "",
+        logoUrl,
+        venueImageUrl: venue?.cover_image || venue?.image || "",
         venueName,
+        organizationName,
         recipientName: recipientName || "",
         bundleName,
         valueLabel,
@@ -412,6 +434,7 @@ export async function handlePurchaseBundle(
 
       const result = await sendEmail({
         to: recipientEmail,
+        from: senderFrom,
         subject,
         html: htmlBody,
       });
@@ -461,6 +484,7 @@ export async function handlePurchaseBundle(
 
       const result = await sendEmail({
         to: clientEmail,
+        from: senderFrom,
         subject: `Your treatment package is activated — ${venueName}`,
         templateId: "378deb7f-307f-40e9-8054-6bf0c29beef9",
         templateVariables: {
