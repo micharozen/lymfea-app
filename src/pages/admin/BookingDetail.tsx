@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, User, Users, Banknote, Gift, Ticket, Smartphone,
-  Calendar, Clock, Building2, MoreHorizontal, ChevronDown,
+  Calendar, Clock, Building2, ChevronDown,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
   FileText, CreditCard, ListTodo, Undo2, Radio, MailCheck, AlertTriangle
@@ -222,7 +222,7 @@ export default function BookingDetail() {
       if (!btData || btData.length === 0) return [];
       const { data: tData } = await supabase
         .from("therapists")
-        .select("id, first_name, last_name")
+        .select("id, first_name, last_name, profile_image")
         .in("id", btData.map((bt) => bt.therapist_id));
       // Preserve acceptance order (assigned_at) — the .in() result order is not guaranteed
       // and the positional treatment↔therapist mapping depends on a stable order.
@@ -628,15 +628,23 @@ export default function BookingDetail() {
             >
               {t('common:buttons.edit')} <Pencil />
             </Button>
-            {(canConvertToDuo || canSendConfirmation || (showInvoice && primaryAction !== "invoice") || (!isSigned && !isConcierge)) && (
+            {(canConvertToDuo || canSendConfirmation || (showInvoice && primaryAction !== "invoice") || (canSendPaymentLink && primaryAction !== "payment") || (!isSigned && !isConcierge)) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="px-2">
-                    <MoreHorizontal className="h-4 w-4" />
-                    <span className="sr-only">{t('bookingDetail.moreActions')}</span>
+                  <Button variant="outline" size="sm" className="px-2.5">
+                    {t('bookingDetail.actions')} <ChevronDown className="h-4 w-4 ml-1" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {/* Le paiement n'était proposé QUE comme action primaire : une résa
+                      terminée mais impayée bascule en « facture » et n'offrait alors
+                      plus aucun moyen d'envoyer le lien. Même règle que la facture
+                      ci-dessous — dans le menu dès qu'il n'est pas le bouton primaire. */}
+                  {canSendPaymentLink && primaryAction !== "payment" && (
+                    <DropdownMenuItem onClick={() => dialogs.setIsPaymentLinkOpen(true)}>
+                      <Send className="h-4 w-4 mr-2" /> {t('bookingDetail.sendPayment')}
+                    </DropdownMenuItem>
+                  )}
                   {canConvertToDuo && (
                     <DropdownMenuItem onClick={() => dialogs.setIsConvertToDuoOpen(true)}>
                       <Users className="h-4 w-4 mr-2" /> {t("booking.convertToDuo.button")}
