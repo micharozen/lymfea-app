@@ -43,6 +43,23 @@ import { cn } from "@/lib/utils";
 
 const NO_RESELLER = "__none__";
 
+/** Champs pouvant porter une erreur de saisie dans le dialogue d'enregistrement. */
+type FieldErrors = Partial<Record<"hotel" | "code" | "amount" | "expiresAt", string>>;
+
+/** Marque un champ obligatoire. Aucun équivalent partagé n'existe encore dans l'app. */
+function RequiredMark() {
+  return (
+    <span className="text-destructive ml-0.5" aria-hidden="true">
+      *
+    </span>
+  );
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p className="text-xs text-destructive">{message}</p>;
+}
+
 interface VoucherReseller {
   id: string;
   name: string;
@@ -279,6 +296,11 @@ function AddExternalVoucherDialog({
   // Sinon le bon sera rattaché tout seul à la première réservation qui l'utilise.
   const [customerSearch, setCustomerSearch] = useState("");
   const [beneficiaryId, setBeneficiaryId] = useState("");
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  /** Une erreur disparaît dès que l'utilisateur corrige le champ concerné. */
+  const clearError = (field: keyof FieldErrors) =>
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
 
   const { data: customers } = useQuery({
     queryKey: ["customer-search", customerSearch],
@@ -320,6 +342,7 @@ function AddExternalVoucherDialog({
     setNotes("");
     setCustomerSearch("");
     setBeneficiaryId("");
+    setErrors({});
   };
 
   /** Un revendeur peut porter une validité par défaut : on pré-remplit la date. */
@@ -333,26 +356,34 @@ function AddExternalVoucherDialog({
     }
   };
 
+  /** Erreurs par champ, affichées sous l'input concerné plutôt qu'en toast. */
+  const validate = (): FieldErrors => {
+    const next: FieldErrors = {};
+    if (!effectiveHotelId) {
+      next.hotel = t("externalVouchers.errors.venueRequired", "Choisissez un lieu");
+    }
+    if (normalizedCode.length < MIN_VOUCHER_CODE_LENGTH) {
+      next.code = t(
+        "externalVouchers.errors.codeTooShort",
+        "La référence doit faire au moins 4 caractères",
+      );
+    }
+    const amount = Number(amountEuros.replace(",", "."));
+    if (!amountEuros.trim() || !Number.isFinite(amount) || amount <= 0) {
+      next.amount = t("externalVouchers.errors.amountInvalid", "Montant invalide");
+    }
+    if (!expiresAt) {
+      next.expiresAt = t(
+        "externalVouchers.errors.expiryRequired",
+        "Renseignez une date d'expiration",
+      );
+    }
+    return next;
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const amount = Number(amountEuros.replace(",", "."));
-      if (!effectiveHotelId) {
-        throw new Error(t("externalVouchers.errors.venueRequired", "Choisissez un lieu"));
-      }
-      if (normalizedCode.length < MIN_VOUCHER_CODE_LENGTH) {
-        throw new Error(
-          t("externalVouchers.errors.codeTooShort", "La référence doit faire au moins 4 caractères"),
-        );
-      }
-      if (!Number.isFinite(amount) || amount <= 0) {
-        throw new Error(t("externalVouchers.errors.amountInvalid", "Montant invalide"));
-      }
-      if (!expiresAt) {
-        throw new Error(
-          t("externalVouchers.errors.expiryRequired", "Renseignez une date d'expiration"),
-        );
-      }
-
       const { data: auth } = await supabase.auth.getUser();
       const { error } = await supabase.from("customer_treatment_bundles").insert({
         origin: "external",
@@ -379,17 +410,24 @@ function AddExternalVoucherDialog({
       onSaved();
     },
     onError: (error: unknown) => {
-      // 23505 = uq_ctb_external_code : la référence existe déjà pour ce lieu.
-      const code = (error as { code?: string })?.code;
-      if (code === "23505") {
-        toast.error(
-          t("externalVouchers.errors.duplicate", "Cette référence existe déjà pour ce lieu"),
-        );
+      // 23505 = uq_ctb_external_code. C'est bien une erreur de champ : on
+      // l'affiche sous la référence plutôt qu'en toast, là où l'œil la cherche.
+      if ((error as { code?: string })?.code === "23505") {
+        setErrors({
+          code: t("externalVouchers.errors.duplicate", "Cette référence existe déjà pour ce lieu"),
+        });
         return;
       }
+      // Reste les échecs imprévus (réseau, RLS) : aucun champ à incriminer.
       toast.error(error instanceof Error ? error.message : String(error));
     },
   });
+
+  const handleSave = () => {
+    const found = validate();
+    setErrors(found);
+    if (Object.keys(found).length === 0) saveMutation.mutate();
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -409,13 +447,20 @@ function AddExternalVoucherDialog({
         <div className="space-y-4">
           {hotels && (
             <div className="space-y-1.5">
-              <Label>{t("giftCards.columns.venue", "Lieu")}</Label>
+              <Label>
+                {t("giftCards.columns.venue", "Lieu")}
+                <RequiredMark />
+              </Label>
               <SelectField
                 options={hotels.map((h) => ({ value: h.id, label: h.name }))}
                 value={selectedHotelId}
-                onChange={setSelectedHotelId}
+                onChange={(value) => {
+                  setSelectedHotelId(value);
+                  clearError("hotel");
+                }}
                 placeholder={t("externalVouchers.venuePlaceholder", "Choisir un lieu")}
               />
+              <FieldError message={errors.hotel} />
             </div>
           )}
 
@@ -435,13 +480,20 @@ function AddExternalVoucherDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>{t("externalVouchers.columns.code", "Référence du bon")}</Label>
+            <Label>
+              {t("externalVouchers.columns.code", "Référence du bon")}
+              <RequiredMark />
+            </Label>
             <Input
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => {
+                setCode(e.target.value);
+                clearError("code");
+              }}
               placeholder="WB-4471-9920"
-              className="font-mono"
+              className={cn("font-mono", errors.code && "border-destructive")}
             />
+            <FieldError message={errors.code} />
             {normalizedCode && (
               <p className="text-[11px] text-muted-foreground">
                 {t("externalVouchers.normalizedAs", "Recherché comme")}{" "}
@@ -460,21 +512,37 @@ function AddExternalVoucherDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>{t("externalVouchers.amount", "Montant (€)")}</Label>
+              <Label>
+                {t("externalVouchers.amount", "Montant (€)")}
+                <RequiredMark />
+              </Label>
               <Input
                 inputMode="decimal"
                 value={amountEuros}
-                onChange={(e) => setAmountEuros(e.target.value)}
+                onChange={(e) => {
+                  setAmountEuros(e.target.value);
+                  clearError("amount");
+                }}
                 placeholder="150"
+                className={cn(errors.amount && "border-destructive")}
               />
+              <FieldError message={errors.amount} />
             </div>
             <div className="space-y-1.5">
-              <Label>{t("giftCards.columns.expiresAt", "Expire le")}</Label>
+              <Label>
+                {t("giftCards.columns.expiresAt", "Expire le")}
+                <RequiredMark />
+              </Label>
               <Input
                 type="date"
                 value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
+                onChange={(e) => {
+                  setExpiresAt(e.target.value);
+                  clearError("expiresAt");
+                }}
+                className={cn(errors.expiresAt && "border-destructive")}
               />
+              <FieldError message={errors.expiresAt} />
             </div>
           </div>
 
@@ -547,7 +615,7 @@ function AddExternalVoucherDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t("common.cancel", "Annuler")}
           </Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <Button onClick={handleSave} disabled={saveMutation.isPending}>
             {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
             {t("common.save", "Enregistrer")}
           </Button>
