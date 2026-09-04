@@ -48,15 +48,15 @@ interface TreatmentsByTherapistProps {
   onReassigned: () => void;
 }
 
-// Accent par thérapeute (indexé sur l'ordre des groupes) : anneau d'avatar +
-// bordure gauche des lignes — lecture instantanée de « qui fait quoi » en duo.
+// Accent par thérapeute (indexé sur l'ordre des groupes) : anneau d'avatar,
+// lecture instantanée de « qui fait quoi » en duo.
 const GROUP_ACCENTS = [
-  { avatar: "bg-violet-50 text-violet-700 ring-violet-200", border: "border-l-violet-300" },
-  { avatar: "bg-sky-50 text-sky-700 ring-sky-200", border: "border-l-sky-300" },
-  { avatar: "bg-rose-50 text-rose-700 ring-rose-200", border: "border-l-rose-300" },
-  { avatar: "bg-emerald-50 text-emerald-700 ring-emerald-200", border: "border-l-emerald-300" },
+  { avatar: "bg-violet-50 text-violet-700 ring-violet-200" },
+  { avatar: "bg-sky-50 text-sky-700 ring-sky-200" },
+  { avatar: "bg-rose-50 text-rose-700 ring-rose-200" },
+  { avatar: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
 ] as const;
-const UNASSIGNED_ACCENT = { avatar: "bg-stone-100 text-stone-500 ring-stone-200", border: "border-l-stone-300" } as const;
+const UNASSIGNED_ACCENT = { avatar: "bg-stone-100 text-stone-500 ring-stone-200" } as const;
 
 interface TherapistGroup {
   /** Effective therapist id for the group. null = unassigned soins. */
@@ -327,7 +327,7 @@ export function TreatmentsByTherapist({
           return (
             <div
               key={group.therapistId ?? "unassigned"}
-              className={`rounded-lg border border-gray-100 border-l-2 ${accent.border} bg-gray-50/60 overflow-hidden`}
+              className="rounded-lg border border-gray-100 bg-gray-50/60 overflow-hidden"
             >
               {/* En-tête thérapeute */}
               <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/40 border-b border-gray-100">
@@ -456,7 +456,7 @@ export function TreatmentsByTherapist({
         {/* Accès / commodités : lignes amenity (piscine, sauna…), sans praticien
             ni cabine ni réassignation — la disponibilité dépend de la commodité. */}
         {amenityTreatments.length > 0 && (
-          <div className="rounded-lg border border-gray-100 border-l-2 border-l-cyan-300 bg-gray-50/60 overflow-hidden">
+          <div className="rounded-lg border border-gray-100 bg-gray-50/60 overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3 bg-muted/40 border-b border-gray-100">
               <div className="h-9 w-9 rounded-full ring-2 bg-cyan-50 text-cyan-700 ring-cyan-200 flex items-center justify-center shrink-0">
                 <Waves className="h-4 w-4" />
