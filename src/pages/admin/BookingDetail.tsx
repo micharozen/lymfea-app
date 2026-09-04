@@ -222,7 +222,7 @@ export default function BookingDetail() {
       if (!btData || btData.length === 0) return [];
       const { data: tData } = await supabase
         .from("therapists")
-        .select("id, first_name, last_name")
+        .select("id, first_name, last_name, profile_image")
         .in("id", btData.map((bt) => bt.therapist_id));
       // Preserve acceptance order (assigned_at) — the .in() result order is not guaranteed
       // and the positional treatment↔therapist mapping depends on a stable order.
