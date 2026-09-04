@@ -157,7 +157,7 @@ export function ConvertToDuoDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 font-normal">
             <Users className="h-5 w-5" /> {t("booking.convertToDuo.title")}
           </DialogTitle>
           <DialogDescription>

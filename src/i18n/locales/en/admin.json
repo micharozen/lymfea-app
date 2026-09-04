@@ -197,6 +197,11 @@
       "allDay": "All day",
       "absent": "Away",
       "notScheduled": "Not scheduled"
+    },
+    "loadError": {
+      "title": "The planning could not be loaded",
+      "body": "The connection to the server failed. The bookings shown may be incomplete.",
+      "retry": "Retry"
     }
   },
   "bookings": {
@@ -3493,7 +3498,9 @@
     "planningTitle": "Planning",
     "refresh": "Refresh",
     "newRequest": "New request",
-    "newBooking": "New booking"
+    "newBooking": "New booking",
+    "newAmenity": "Amenity",
+    "coverage": "Treatment coverage"
   },
   "organizationPicker": {
     "title": "Choose an organisation",

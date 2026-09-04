@@ -73,6 +73,7 @@ export function useBookingData(options: UseBookingDataOptions = {}) {
     data: bookings,
     refetch: refetchBookings,
     isLoading,
+    isError,
   } = useQuery({
     queryKey: scope ? bookingKeys.list(scope, filters) : ["bookings", "disabled"],
     enabled: !!scope,
@@ -106,5 +107,6 @@ export function useBookingData(options: UseBookingDataOptions = {}) {
     getHotelInfo,
     refetch: refetchBookings,
     isLoading,
+    isError,
   };
 }

@@ -197,6 +197,11 @@
       "allDay": "Journée",
       "absent": "Absent",
       "notScheduled": "Non planifié"
+    },
+    "loadError": {
+      "title": "Le planning n'a pas pu être chargé",
+      "body": "La connexion au serveur a échoué. Les réservations affichées peuvent être incomplètes.",
+      "retry": "Réessayer"
     }
   },
   "bookings": {
@@ -3493,7 +3498,9 @@
     "planningTitle": "Planning",
     "refresh": "Actualiser",
     "newRequest": "Nouvelle demande",
-    "newBooking": "Nouvelle réservation"
+    "newBooking": "Nouvelle réservation",
+    "newAmenity": "Commodité",
+    "coverage": "Couverture des prestations"
   },
   "organizationPicker": {
     "title": "Choisir une organisation",
