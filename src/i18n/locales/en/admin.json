@@ -1431,7 +1431,8 @@
     "sessionsValue": "{{count}} sessions",
     "tabs": {
       "templates": "Templates",
-      "sales": "Sales"
+      "sales": "Sales",
+      "external": "Partner vouchers"
     },
     "type": {
       "amount": "Amount",
@@ -1522,6 +1523,38 @@
       "eligibleTreatmentsRequired": "Select at least one eligible treatment",
       "amountRequired": "Amount is required"
     }
+  },
+  "externalVouchers": {
+    "add": "Record a voucher",
+    "empty": "No partner voucher recorded",
+    "emptyHint": "Record the vouchers you receive by email from your resellers so guests can redeem them online.",
+    "dialogTitle": "Record a partner voucher",
+    "dialogSubtitle": "Enter the voucher you received from your reseller. Guests will then be able to redeem it directly when booking online.",
+    "unknownReseller": "Unidentified",
+    "venuePlaceholder": "Select a venue",
+    "amount": "Amount (€)",
+    "holderPlaceholder": "Name shown on the voucher",
+    "notes": "Internal note",
+    "notesPlaceholder": "Received by email on…",
+    "normalizedAs": "Searched as",
+    "codePatternWarning": "This reference does not match this reseller's usual format. You can still record it.",
+    "saved": "Voucher recorded",
+    "columns": {
+      "code": "Reference",
+      "reseller": "Reseller",
+      "holder": "Holder"
+    },
+    "errors": {
+      "venueRequired": "Select a venue",
+      "codeTooShort": "The reference must be at least 4 characters long",
+      "amountInvalid": "Invalid amount",
+      "expiryRequired": "Enter an expiry date",
+      "duplicate": "This reference already exists for this venue"
+    },
+    "customer": "Customer",
+    "optional": "(optional)",
+    "customerPlaceholder": "Name or phone",
+    "customerHint": "Leave empty if you don't know yet who will use this voucher: it will be linked automatically on the first booking."
   },
   "booking": {
     "therapistSections": {

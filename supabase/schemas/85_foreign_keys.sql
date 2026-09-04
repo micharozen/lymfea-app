@@ -234,3 +234,21 @@ ALTER TABLE ONLY "public"."venue_blocked_slots"
 
 ALTER TABLE ONLY "public"."venue_deployment_schedules"
     ADD CONSTRAINT "venue_deployment_schedules_hotel_id_fkey" FOREIGN KEY ("hotel_id") REFERENCES "public"."hotels"("id") ON DELETE CASCADE;
+
+ALTER TABLE ONLY "public"."voucher_resellers"
+    ADD CONSTRAINT "voucher_resellers_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE CASCADE;
+
+ALTER TABLE ONLY "public"."customer_treatment_bundles"
+    ADD CONSTRAINT "customer_treatment_bundles_reseller_id_fkey" FOREIGN KEY ("reseller_id") REFERENCES "public"."voucher_resellers"("id") ON DELETE SET NULL;
+
+ALTER TABLE ONLY "public"."voucher_verification_requests"
+    ADD CONSTRAINT "voucher_verification_requests_booking_id_fkey" FOREIGN KEY ("booking_id") REFERENCES "public"."bookings"("id") ON DELETE CASCADE;
+
+ALTER TABLE ONLY "public"."voucher_verification_requests"
+    ADD CONSTRAINT "voucher_verification_requests_hotel_id_fkey" FOREIGN KEY ("hotel_id") REFERENCES "public"."hotels"("id");
+
+ALTER TABLE ONLY "public"."voucher_verification_requests"
+    ADD CONSTRAINT "voucher_verification_requests_claimed_reseller_id_fkey" FOREIGN KEY ("claimed_reseller_id") REFERENCES "public"."voucher_resellers"("id") ON DELETE SET NULL;
+
+ALTER TABLE ONLY "public"."voucher_verification_requests"
+    ADD CONSTRAINT "voucher_verification_requests_resolved_bundle_id_fkey" FOREIGN KEY ("resolved_bundle_id") REFERENCES "public"."customer_treatment_bundles"("id");
