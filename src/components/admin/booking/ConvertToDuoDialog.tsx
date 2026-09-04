@@ -58,14 +58,23 @@ export function ConvertToDuoDialog({
   const [secondaryRoomEnabled, setSecondaryRoomEnabled] = useState(false);
   const [secondaryRoomId, setSecondaryRoomId] = useState<string>("");
 
-  // Reset state each time the dialog opens: first soin pre-filled with the
-  // current primary therapist (if any).
+  // Reset state each time the dialog opens, seeded from what is already known.
+  // booking_treatments.therapist_id is the stable soin↔therapist link, so a
+  // booking whose soins were assigned one by one arrives fully pre-filled; the
+  // primary only backfills a line still unlinked (legacy rows).
   useEffect(() => {
     if (!open) return;
     setMode("assign");
     const initial: Record<string, string> = {};
+    treatments.forEach((tr) => {
+      if (tr.bookingTreatmentId && tr.therapist_id) {
+        initial[tr.bookingTreatmentId] = tr.therapist_id;
+      }
+    });
     const firstLineId = treatments[0]?.bookingTreatmentId;
-    if (firstLineId && booking.therapist_id) initial[firstLineId] = booking.therapist_id;
+    if (firstLineId && !initial[firstLineId] && booking.therapist_id) {
+      initial[firstLineId] = booking.therapist_id;
+    }
     setAssignments(initial);
     setSecondaryRoomEnabled(false);
     setSecondaryRoomId("");
