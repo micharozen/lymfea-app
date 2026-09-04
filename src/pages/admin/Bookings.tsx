@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addDays, subDays, startOfMonth, endOfMonth, format, parseISO, isValid } from "date-fns";
 import { Ban, ChevronDown, LayoutGrid, RefreshCw, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AppLoader } from "@/components/AppLoader";
+import { cn } from "@/lib/utils";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
@@ -65,6 +65,8 @@ import {
 import { useVenueAmenities } from "@/hooks/useVenueAmenities";
 import { CreateAmenityBookingDialog } from "@/components/booking/CreateAmenityBookingDialog";
 import { AmenityBookingDetailDialog } from "@/components/booking/AmenityBookingDetailDialog";
+import { PlanningSkeleton } from "@/components/booking/PlanningSkeleton";
+import { PlanningErrorState } from "@/components/booking/PlanningErrorState";
 
 export default function Booking() {
   const navigate = useNavigate();
@@ -130,7 +132,7 @@ export default function Booking() {
   }, [searchParams, dayCount]);
 
   // Data
-  const { bookings, hotels, therapists, getHotelInfo, refetch, isLoading } =
+  const { bookings, hotels, therapists, getHotelInfo, refetch, isLoading, isError } =
     useBookingData({ fromDate, toDate });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -146,24 +148,9 @@ export default function Booking() {
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
 
   // Blocage ponctuel de créneaux (shooting, maintenance), depuis le menu
-  // accolé au bouton "Nouvelle réservation".
+  // accolé au bouton "Nouvelle réservation". Ouverture au clic : le survol
+  // laissait le menu inatteignable au clavier et au tactile.
   const [isRoomBlockOpen, setIsRoomBlockOpen] = useState(false);
-  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
-  // Le menu s'ouvre au survol : on retarde la fermeture pour laisser le curseur
-  // traverser le vide entre le bouton et le panneau (rendu dans un portail,
-  // donc hors du conteneur qui porte les handlers de survol).
-  const createMenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openCreateMenu = useCallback(() => {
-    if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
-    setIsCreateMenuOpen(true);
-  }, []);
-  const scheduleCloseCreateMenu = useCallback(() => {
-    if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
-    createMenuCloseTimer.current = setTimeout(() => setIsCreateMenuOpen(false), 150);
-  }, []);
-  useEffect(() => () => {
-    if (createMenuCloseTimer.current) clearTimeout(createMenuCloseTimer.current);
-  }, []);
 
   // Commodités réservées sans booking : création depuis la barre d'actions,
   // fiche au clic, édition depuis la fiche.
@@ -353,29 +340,28 @@ useEffect(() => {
 
   // Layout calculation refs
   const headerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  const computeRows = useCallback(() => {
-    if (view !== 'list') return;
-
-    const rowHeight = 48;
-    const tableHeaderHeight = 32;
-    const paginationHeight = 48;
-    const sidebarOffset = 64;
-    const headerHeight = headerRef.current?.offsetHeight || 140;
-    const contentPadding = 48;
-
-    const usedHeight = headerHeight + tableHeaderHeight + paginationHeight + contentPadding + sidebarOffset;
-    const availableForRows = window.innerHeight - usedHeight;
-    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
-
-    setItemsPerPage(rows);
-  }, [view]);
-
+  // Nombre de lignes tenant dans la vue liste. On mesure la zone de contenu
+  // elle-même plutôt que de déduire sa hauteur de `window.innerHeight` moins
+  // une pile de constantes : la mesure reste juste quand la barre d'outils
+  // passe sur deux lignes, quand la sidebar change, ou dans un conteneur qui
+  // n'occupe pas toute la fenêtre.
   useEffect(() => {
-    computeRows();
-    window.addEventListener("resize", computeRows);
-    return () => window.removeEventListener("resize", computeRows);
-  }, [computeRows]);
+    const node = contentRef.current;
+    if (view !== "list" || !node) return;
+
+    const ROW_HEIGHT = 48;
+    const TABLE_HEADER_HEIGHT = 32;
+    const PAGINATION_HEIGHT = 48;
+
+    const observer = new ResizeObserver(([entry]) => {
+      const available = entry.contentRect.height - TABLE_HEADER_HEIGHT - PAGINATION_HEIGHT;
+      setItemsPerPage(Math.max(5, Math.floor(available / ROW_HEIGHT)));
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [view]);
 
   // Pagination calculations
   const paginatedBookings =
@@ -499,65 +485,68 @@ useEffect(() => {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-8 w-8 transition-transform duration-100 active:scale-[0.98]"
                 onClick={() => setIsCoverageOpen(true)}
                 title={t("planning.coverage.title")}
+                aria-label={t("planning.coverage.title")}
               >
-                <LayoutGrid className="h-3.5 w-3.5" />
+                <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-8 w-8 transition-transform duration-100 active:scale-[0.98]"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
                 title={t("bookingsPage.refresh")}
+                aria-label={t("bookingsPage.refresh")}
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={cn(
+                    "h-3.5 w-3.5",
+                    // La rotation est un retour d'action, pas un décor : elle
+                    // se fige sous prefers-reduced-motion, le bouton reste
+                    // désactivé pour signaler le chargement.
+                    isRefreshing && "animate-spin motion-reduce:animate-none",
+                  )}
+                  aria-hidden
+                />
               </Button>
+              {/* Action secondaire : une seule teinte primaire sur la barre. */}
               <Button
+                variant="secondary"
                 size="sm"
-                className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700 text-white transition-transform duration-100 active:scale-90"
+                className="h-8 text-xs transition-transform duration-100 active:scale-[0.98]"
                 onClick={() => setIsAmenityCreateOpen(true)}
               >
-                Commodité
-                <Waves className="h-3.5 w-3.5 ml-1" />
+                {t("bookingsPage.newAmenity")}
+                <Waves className="h-3.5 w-3.5 ml-1" aria-hidden />
               </Button>
-              {/* Split button : action principale + menu (ouvert au survol) */}
+              {/* Split button : action principale + menu des actions secondaires */}
               <div className="flex">
                 <Button
                   onClick={handleOpenCreateDialog}
                   size="sm"
-                  className="h-8 text-xs transition-transform duration-100 active:scale-90 rounded-r-none"
+                  className="h-8 text-xs transition-transform duration-100 active:scale-[0.98] rounded-r-none"
                 >
                   {isConcierge ? t("bookingsPage.newRequest") : t("bookingsPage.newBooking")}
                 </Button>
-                {/* modal={false} : en mode modal Radix pose pointer-events:none
-                    sur le body, le conteneur perdait le survol et le menu
-                    s'ouvrait/fermait en boucle. */}
-                <DropdownMenu modal={false} open={isCreateMenuOpen} onOpenChange={setIsCreateMenuOpen}>
+                <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       size="sm"
                       aria-label={t("planning.moreCreateActions")}
-                      className="h-8 w-7 rounded-l-none border-l border-background/30 px-0"
-                      onMouseEnter={openCreateMenu}
-                      onMouseLeave={scheduleCloseCreateMenu}
+                      className="h-8 w-7 rounded-l-none border-l border-background/30 px-0 transition-transform duration-100 active:scale-[0.98]"
                     >
-                      <ChevronDown className="h-3.5 w-3.5" />
+                      <ChevronDown className="h-3.5 w-3.5" aria-hidden />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="w-56"
-                    onMouseEnter={openCreateMenu}
-                    onMouseLeave={scheduleCloseCreateMenu}
-                  >
+                  <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuItem
                       disabled={!singleVenueId}
                       onSelect={() => setIsRoomBlockOpen(true)}
                     >
-                      <Ban className="mr-2 h-3.5 w-3.5" />
+                      <Ban className="mr-2 h-3.5 w-3.5" aria-hidden />
                       {singleVenueId
                         ? t("roomBlocks.dialogTitle")
                         : t("roomBlocks.selectVenueFirst")}
@@ -586,9 +575,15 @@ useEffect(() => {
               onToggleCancelled={() => setShowCancelled((v) => !v)}
             />
           )}
-          <div className="flex-1 flex flex-col overflow-hidden">
-          {isLoading && !bookings ? (
-            <AppLoader fullScreen={false} className="flex-1" />
+          <div ref={contentRef} className="flex-1 flex flex-col overflow-hidden">
+          {isError && !bookings ? (
+            <PlanningErrorState onRetry={handleRefresh} isRetrying={isRefreshing} />
+          ) : isLoading && !bookings ? (
+            <PlanningSkeleton
+              variant={view === "calendar" ? "calendar" : "list"}
+              dayCount={effectiveDayCount}
+              rowCount={itemsPerPage}
+            />
           ) : view === "calendar" && planningMode === "therapists" ? (
             <TherapistDayView
               date={calendar.currentWeekStart}

@@ -2340,7 +2340,8 @@
     "billedToPartnerGeneric": "Paiement géré par le partenaire (facturation mensuelle).",
     "method": "Méthode",
     "sendPayment": "Envoyer le paiement",
-    "requestSignature": "Demander la signature"
+    "requestSignature": "Demander la signature",
+    "actions": "Actions"
   },
   "finance": {
     "closure": {
@@ -3499,8 +3500,7 @@
     "refresh": "Actualiser",
     "newRequest": "Nouvelle demande",
     "newBooking": "Nouvelle réservation",
-    "newAmenity": "Commodité",
-    "coverage": "Couverture des prestations"
+    "newAmenity": "Commodité"
   },
   "organizationPicker": {
     "title": "Choisir une organisation",
