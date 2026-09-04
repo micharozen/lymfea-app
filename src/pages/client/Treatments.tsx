@@ -8,6 +8,7 @@ import { ArrowLeft, ShoppingBag, HandHeart, Minus, Plus, Sparkles, ChevronDown, 
 import { useBasket } from './context/CartContext';
 import { resolveAvailableDays } from '@/lib/availableDays';
 import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
+import { useTreatmentCountLabel } from '@/hooks/client/useTreatmentCountLabel';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
 import { CartDrawer } from '@/components/client/CartDrawer';
@@ -76,6 +77,7 @@ export default function Treatments() {
   const isCartGiftCard =
     cartBundleTemplate?.bundle_type === 'gift_amount' ||
     cartBundleTemplate?.bundle_type === 'gift_treatments';
+  const countLabel = useTreatmentCountLabel(hotelId);
   const { setIsBundleOnlyPurchase, bookingDateTime } = useClientFlow();
   const [bounceKey, setBounceKey] = useState(0);
   const { t } = useTranslation('client');
@@ -828,7 +830,7 @@ export default function Treatments() {
                               {section.displayName}
                             </span>
                             <span className="text-gray-300 text-[11px] uppercase tracking-[0.15em]">
-                              {section.treatments.length} {section.treatments.length === 1 ? t('menu.item') : t('menu.items')}
+                              {countLabel(section.treatments, section.treatments.length)}
                             </span>
                           </div>
                           <ChevronDown className="w-5 h-5 text-gray-300" />
@@ -850,7 +852,7 @@ export default function Treatments() {
                         {section.displayName}
                       </span>
                       <span className="text-gray-400 text-[11px] uppercase tracking-[0.15em]">
-                        {section.treatments.length} {section.treatments.length === 1 ? t('menu.item') : t('menu.items')}
+                        {countLabel(section.treatments, section.treatments.length)}
                       </span>
                     </div>
                     <ChevronDown
@@ -939,7 +941,10 @@ export default function Treatments() {
                 {isCartGiftCard
                   ? t('menu.purchaseGiftCard', 'Offrir cette carte cadeau')
                   : t('menu.purchaseBundle', 'Acheter cette cure')}{' '}
-                ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})
+                ({itemCount}{' '}
+                {isCartGiftCard
+                  ? (itemCount === 1 ? t('menu.giftCard') : t('menu.giftCards'))
+                  : (itemCount === 1 ? t('menu.cure') : t('menu.cures'))})
               </>
             ) : (
               <>
