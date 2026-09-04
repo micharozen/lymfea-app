@@ -10,6 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/formatPrice";
 import {
   computeLegEarningsDetailed,
@@ -24,6 +25,8 @@ interface RosterTherapist {
   id: string;
   first_name: string;
   last_name: string;
+  /** Photo de profil, quand le praticien en a déposé une. */
+  profile_image?: string | null;
 }
 
 interface TreatmentsByTherapistProps {
@@ -48,15 +51,15 @@ interface TreatmentsByTherapistProps {
   onReassigned: () => void;
 }
 
-// Accent par thérapeute (indexé sur l'ordre des groupes) : anneau d'avatar +
-// bordure gauche des lignes — lecture instantanée de « qui fait quoi » en duo.
+// Accent par thérapeute (indexé sur l'ordre des groupes) : anneau d'avatar,
+// lecture instantanée de « qui fait quoi » en duo.
 const GROUP_ACCENTS = [
-  { avatar: "bg-violet-50 text-violet-700 ring-violet-200", border: "border-l-violet-300" },
-  { avatar: "bg-sky-50 text-sky-700 ring-sky-200", border: "border-l-sky-300" },
-  { avatar: "bg-rose-50 text-rose-700 ring-rose-200", border: "border-l-rose-300" },
-  { avatar: "bg-emerald-50 text-emerald-700 ring-emerald-200", border: "border-l-emerald-300" },
+  { avatar: "bg-violet-50 text-violet-700 ring-violet-200" },
+  { avatar: "bg-sky-50 text-sky-700 ring-sky-200" },
+  { avatar: "bg-rose-50 text-rose-700 ring-rose-200" },
+  { avatar: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
 ] as const;
-const UNASSIGNED_ACCENT = { avatar: "bg-stone-100 text-stone-500 ring-stone-200", border: "border-l-stone-300" } as const;
+const UNASSIGNED_ACCENT = { avatar: "bg-stone-100 text-stone-500 ring-stone-200" } as const;
 
 interface TherapistGroup {
   /** Effective therapist id for the group. null = unassigned soins. */
@@ -122,7 +125,7 @@ export function TreatmentsByTherapist({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("therapist_venues")
-        .select("therapists(id, first_name, last_name, status)")
+        .select("therapists(id, first_name, last_name, status, profile_image)")
         .eq("hotel_id", hotelId!);
       if (error) throw error;
       type VenueRow = { therapists: (RosterTherapist & { status: string | null }) | (RosterTherapist & { status: string | null })[] | null };
@@ -141,6 +144,15 @@ export function TreatmentsByTherapist({
     const map = new Map<string, string>();
     for (const t of assignable) map.set(t.id, `${t.first_name} ${t.last_name}`.trim());
     for (const t of acceptedTherapists) map.set(t.id, `${t.first_name} ${t.last_name}`.trim());
+    return map;
+  }, [assignable, acceptedTherapists]);
+
+  // Photo de profil quand elle existe : l'avatar retombe sur l'initiale sinon.
+  const photoById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of [...assignable, ...acceptedTherapists]) {
+      if (t.profile_image) map.set(t.id, t.profile_image);
+    }
     return map;
   }, [assignable, acceptedTherapists]);
 
@@ -327,14 +339,19 @@ export function TreatmentsByTherapist({
           return (
             <div
               key={group.therapistId ?? "unassigned"}
-              className={`rounded-lg border border-gray-100 border-l-2 ${accent.border} bg-gray-50/60 overflow-hidden`}
+              className="rounded-lg border border-gray-100 bg-gray-50/60 overflow-hidden"
             >
               {/* En-tête thérapeute */}
               <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/40 border-b border-gray-100">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`h-9 w-9 rounded-full ring-2 ${accent.avatar} flex items-center justify-center font-medium shrink-0`}>
-                    {group.therapistName?.charAt(0) || "?"}
-                  </div>
+                  <Avatar className={`h-9 w-9 ring-2 ${accent.avatar} shrink-0`}>
+                    {group.therapistId && photoById.get(group.therapistId) && (
+                      <AvatarImage src={photoById.get(group.therapistId)} alt="" />
+                    )}
+                    <AvatarFallback className={`text-sm font-medium ${accent.avatar}`}>
+                      {group.therapistName?.charAt(0) || "?"}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{group.therapistName}</p>
                     {group.room && (
@@ -456,7 +473,7 @@ export function TreatmentsByTherapist({
         {/* Accès / commodités : lignes amenity (piscine, sauna…), sans praticien
             ni cabine ni réassignation — la disponibilité dépend de la commodité. */}
         {amenityTreatments.length > 0 && (
-          <div className="rounded-lg border border-gray-100 border-l-2 border-l-cyan-300 bg-gray-50/60 overflow-hidden">
+          <div className="rounded-lg border border-gray-100 bg-gray-50/60 overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3 bg-muted/40 border-b border-gray-100">
               <div className="h-9 w-9 rounded-full ring-2 bg-cyan-50 text-cyan-700 ring-cyan-200 flex items-center justify-center shrink-0">
                 <Waves className="h-4 w-4" />

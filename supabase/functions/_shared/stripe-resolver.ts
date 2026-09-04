@@ -25,6 +25,10 @@ const STRIPE_API_VERSION = "2025-08-27.basil" as const;
 /** Refresh this long before actual expiry, to absorb clock skew and latency. */
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
 
+/** How a caller that lost the refresh claim waits for the winner's token. */
+const REFRESH_WAIT_MS = 700;
+const REFRESH_WAIT_ATTEMPTS = 4;
+
 /**
  * A venue declares a Stripe credential but it cannot be used.
  *
@@ -109,15 +113,48 @@ async function readVaultSecrets(
 }
 
 /**
+ * Read the access token another caller may have just rotated in.
+ *
+ * Returns null when Vault still holds `staleToken`: reusing it would send an
+ * expired key to Stripe, which answers `platform_api_key_expired` — an error
+ * that reads like a revoked installation and hides the real cause.
+ */
+async function readRotatedToken(
+  supabase: SupabaseClient,
+  hotelId: string,
+  staleToken: string | null,
+): Promise<string | null> {
+  const fresh = await readVaultSecrets(supabase, hotelId);
+  const token = fresh?.stripe_access_token ?? null;
+  return token && token !== staleToken ? token : null;
+}
+
+/** A lease is short: poll a few times rather than fail while the winner writes. */
+async function awaitRotatedToken(
+  supabase: SupabaseClient,
+  hotelId: string,
+  staleToken: string | null,
+): Promise<string | null> {
+  for (let attempt = 0; attempt < REFRESH_WAIT_ATTEMPTS; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, REFRESH_WAIT_MS));
+    const token = await readRotatedToken(supabase, hotelId, staleToken);
+    if (token) return token;
+  }
+  return null;
+}
+
+/**
  * Return a usable access token, refreshing it if it is expired or close to it.
  *
- * Refresh tokens rotate, so two isolates refreshing at once means one of them
- * gets `invalid_grant`. That loser simply re-reads Vault, where the winner has
- * already stored a fresh token — no locking needed.
+ * Refresh tokens are single-use and rotate, and the pair belongs to the Stripe
+ * ACCOUNT — so every venue on that account refreshes the same credential. The
+ * claim serializes them: the winner exchanges the token and writes the new pair
+ * for all of them, the losers just wait for it to land in Vault.
  */
 async function resolveAccessToken(
   supabase: SupabaseClient,
   hotelId: string,
+  accountId: string | null,
   secrets: Record<string, string | null>,
   expiresAt: string | null,
 ): Promise<{ token: string; expiresAt: string } | null> {
@@ -134,27 +171,67 @@ async function resolveAccessToken(
     return null;
   }
 
+  const { data: claimed } = await supabase.rpc("claim_stripe_oauth_refresh", {
+    p_account_id: accountId ?? "",
+  });
+
+  if (claimed === false) {
+    const rotated = await awaitRotatedToken(supabase, hotelId, secrets.stripe_access_token);
+    if (rotated) {
+      console.log(`[stripe-resolver] hotel=${hotelId} used the token refreshed by a sibling`);
+      // Expiry is unknown here; a short lease forces a re-read soon.
+      return {
+        token: rotated,
+        expiresAt: new Date(Date.now() + REFRESH_MARGIN_MS).toISOString(),
+      };
+    }
+    console.error(
+      `[stripe-resolver] hotel=${hotelId} refresh claimed elsewhere but no fresh token appeared`,
+    );
+    return null;
+  }
+
   try {
     const tokens = await refreshAccessToken(refreshToken);
     await persistTokens(supabase, hotelId, tokens);
     console.log(`[stripe-resolver] hotel=${hotelId} token refreshed`);
     return { token: tokens.accessToken, expiresAt: tokens.expiresAt };
   } catch (err) {
+    // `invalid_grant` means the refresh token is gone for good — typically
+    // consumed by a rotation whose result was lost, or revoked by a later
+    // authorization of the same account. Only a token someone else just wrote
+    // can save the call; the stored one is expired and must never be resent.
     if (err instanceof StripeOAuthError && err.code === "invalid_grant") {
-      const fresh = await readVaultSecrets(supabase, hotelId);
-      if (fresh?.stripe_access_token) {
-        console.log(
-          `[stripe-resolver] hotel=${hotelId} lost the refresh race, using the stored token`,
-        );
-        // Expiry is unknown here; a short lease forces a re-read soon.
+      const rotated = await readRotatedToken(supabase, hotelId, secrets.stripe_access_token);
+      if (rotated) {
+        console.log(`[stripe-resolver] hotel=${hotelId} lost the refresh race, using the stored token`);
         return {
-          token: fresh.stripe_access_token,
+          token: rotated,
           expiresAt: new Date(Date.now() + REFRESH_MARGIN_MS).toISOString(),
         };
       }
     }
     console.error(`[stripe-resolver] hotel=${hotelId} token refresh failed:`, err);
     return null;
+  }
+}
+
+/**
+ * Surface a dead connection in the admin UI. Best effort: the caller is about to
+ * throw anyway, and a venue whose Stripe is broken must not also fail on this.
+ */
+async function markConnectionFailed(
+  supabase: SupabaseClient,
+  hotelId: string,
+  reason: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("hotel_payment_configs")
+    .update({ connection_status: "failed", connection_error: reason })
+    .eq("hotel_id", hotelId);
+
+  if (error) {
+    console.error(`[stripe-resolver] hotel=${hotelId} could not flag the failure:`, error);
   }
 }
 
@@ -186,6 +263,7 @@ export async function getStripeForVenue(
       const access = await resolveAccessToken(
         supabase,
         hotelId,
+        cfg.stripe_account_id ?? null,
         secrets,
         cfg.oauth_expires_at ?? null,
       );
@@ -207,10 +285,9 @@ export async function getStripeForVenue(
         );
       }
 
-      throw new VenueStripeCredentialError(
-        hotelId,
-        "OAuth token missing or refresh failed",
-      );
+      const reason = "OAuth token missing or refresh failed — reconnect Stripe";
+      await markConnectionFailed(supabase, hotelId, reason);
+      throw new VenueStripeCredentialError(hotelId, reason);
     } else if (secrets?.stripe_secret_key) {
       console.log(`[stripe-resolver] hotel=${hotelId} source=venue auth=keys`);
       return cache(
