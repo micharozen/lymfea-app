@@ -3952,7 +3952,8 @@
       "copied": "Copied",
       "copy": "Copy",
       "open": "Open"
-    }
+    },
+    "durationOverridden": "Manually set duration (computed: {{computed}} min). Changing a treatment recalculates it."
   },
   "therapistDialog": {
     "addTitle": "Add a therapist",

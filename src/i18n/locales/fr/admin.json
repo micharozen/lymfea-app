@@ -3952,7 +3952,8 @@
       "copied": "Copié",
       "copy": "Copier",
       "open": "Ouvrir"
-    }
+    },
+    "durationOverridden": "Durée saisie manuellement (calcul : {{computed}} min). Modifier une prestation la recalcule."
   },
   "therapistDialog": {
     "addTitle": "Ajouter un thérapeute",
