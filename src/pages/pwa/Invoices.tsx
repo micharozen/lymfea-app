@@ -1,9 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { format, parseISO } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
-import { ChevronLeft, Download, FileText, Loader2, Share2 } from "lucide-react";
+import {
+  ChevronLeft,
+  Download,
+  FileText,
+  Loader2,
+  Share2,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
 import { renderInvoicePdfBlob } from "@/lib/invoicePdf";
@@ -35,6 +43,89 @@ const canShareFiles = (() => {
     return false;
   }
 })();
+
+/**
+ * Largeur naturelle du document facture : `.document` fait 720px, le `body`
+ * ajoute 48px de padding de chaque côté.
+ */
+const DOC_WIDTH = 816;
+
+/**
+ * Aperçu de la facture ramené à la largeur de l'écran.
+ *
+ * Le gabarit est en `table-layout: fixed` avec des colonnes en pixels : rendu
+ * directement dans un iframe de 390px, les colonnes se chevauchent. On le rend
+ * donc à sa largeur réelle et on le réduit — comme une visionneuse PDF — avec
+ * un retour à 100% pour lire les lignes de détail.
+ */
+const ScaledInvoiceFrame = ({ html, title }: { html: string; title: string }) => {
+  const { t } = useTranslation("pwa");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [fitScale, setFitScale] = useState(1);
+  const [actualSize, setActualSize] = useState(false);
+  const [docHeight, setDocHeight] = useState(1200);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const measure = () => setFitScale(Math.min(1, container.clientWidth / DOC_WIDTH));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  /**
+   * Hauteur réelle du document. On mesure `body`, pas `documentElement` : ce
+   * dernier est étiré à la hauteur de l'iframe, donc il renverrait la hauteur
+   * qu'on vient de lui poser. Les polices distantes reflowent après le load,
+   * d'où la seconde mesure.
+   */
+  const handleLoad = (event: React.SyntheticEvent<HTMLIFrameElement>) => {
+    const doc = event.currentTarget.contentDocument;
+    if (!doc) return;
+    const measure = () => setDocHeight(doc.body.scrollHeight);
+    measure();
+    doc.fonts?.ready.then(measure).catch(() => {});
+  };
+
+  const scale = actualSize ? 1 : fitScale;
+
+  return (
+    <div className="relative flex-1 min-h-0">
+      <div ref={containerRef} className="h-full overflow-auto bg-white">
+        <div style={{ width: DOC_WIDTH * scale, height: docHeight * scale }}>
+          <iframe
+            title={title}
+            srcDoc={html}
+            sandbox="allow-same-origin"
+            scrolling="no"
+            style={{
+              width: DOC_WIDTH,
+              height: docHeight,
+              border: 0,
+              display: "block",
+              transform: `scale(${scale})`,
+              transformOrigin: "0 0",
+            }}
+            onLoad={handleLoad}
+          />
+        </div>
+      </div>
+
+      {fitScale < 1 && (
+        <button
+          onClick={() => setActualSize((v) => !v)}
+          aria-label={actualSize ? t("invoices.zoomFit") : t("invoices.zoomActual")}
+          className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full border shadow-md"
+          style={{ background: "var(--sand-50)", borderColor: "var(--line)", color: "var(--ink)" }}
+        >
+          {actualSize ? <ZoomOut size={18} /> : <ZoomIn size={18} />}
+        </button>
+      )}
+    </div>
+  );
+};
 
 const PwaInvoices = () => {
   const { t, i18n } = useTranslation("pwa");
@@ -187,21 +278,17 @@ const PwaInvoices = () => {
             <div className="spacer" />
           </header>
 
-          <div className="flex-1 min-h-0 bg-white">
-            {preview.html_snapshot ? (
-              <iframe
-                title={preview.invoice_number}
-                srcDoc={preview.html_snapshot}
-                sandbox="allow-same-origin"
-                className="w-full h-full border-0"
-              />
-            ) : (
-              <div className="stat-empty flex h-full items-center justify-center gap-2">
-                <FileText size={16} />
-                {t("invoices.noDocument")}
-              </div>
-            )}
-          </div>
+          {preview.html_snapshot ? (
+            <ScaledInvoiceFrame
+              html={preview.html_snapshot}
+              title={preview.invoice_number}
+            />
+          ) : (
+            <div className="stat-empty flex flex-1 items-center justify-center gap-2">
+              <FileText size={16} />
+              {t("invoices.noDocument")}
+            </div>
+          )}
 
           {preview.html_snapshot && (
             <div

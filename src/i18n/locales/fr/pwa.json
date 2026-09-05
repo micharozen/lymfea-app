@@ -261,6 +261,8 @@
     "noDocument": "Document indisponible",
     "download": "Télécharger le PDF",
     "share": "Partager",
+    "zoomActual": "Afficher en taille réelle",
+    "zoomFit": "Ajuster à l'écran",
     "status": {
       "issued": "Émise",
       "paid": "Payée",

@@ -261,6 +261,8 @@
     "noDocument": "Document unavailable",
     "download": "Download PDF",
     "share": "Share",
+    "zoomActual": "View at actual size",
+    "zoomFit": "Fit to screen",
     "status": {
       "issued": "Issued",
       "paid": "Paid",
