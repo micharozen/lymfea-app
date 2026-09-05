@@ -253,6 +253,19 @@
     "address": "Adresse",
     "city": "Ville"
   },
+  "invoices": {
+    "title": "Mes factures",
+    "sectionLabel": "Factures reçues",
+    "empty": "Aucune facture pour le moment",
+    "readOnlyHint": "Ces factures sont générées par le lieu. Elles sont consultables et téléchargeables, mais ne peuvent pas être modifiées ici.",
+    "noDocument": "Document indisponible",
+    "download": "Télécharger le PDF",
+    "status": {
+      "issued": "Émise",
+      "paid": "Payée",
+      "cancelled": "Annulée"
+    }
+  },
   "venues": {
     "title": "Mes Lieux",
     "noVenues": "Aucun lieu assigné",
