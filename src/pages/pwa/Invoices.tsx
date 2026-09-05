@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { format, parseISO } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
-import { ChevronLeft, Download, FileText, Loader2 } from "lucide-react";
+import { ChevronLeft, Download, FileText, Loader2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
-import { downloadInvoicePdf } from "@/lib/invoicePdf";
+import { renderInvoicePdfBlob } from "@/lib/invoicePdf";
 import { useCurrentTherapist } from "@/hooks/pwa/useCurrentTherapist";
 import {
   useTherapistInvoices,
@@ -20,6 +20,22 @@ const statusTone: Record<string, string> = {
   cancelled: "warn",
 };
 
+/**
+ * Partage natif de fichiers (feuille iOS / Android). Sondé une seule fois avec
+ * un PDF vide : `canShare` renvoie false pour les navigateurs qui exposent
+ * `share` sans accepter de fichiers (Safari desktop, Firefox).
+ */
+const canShareFiles = (() => {
+  if (typeof navigator === "undefined" || !navigator.canShare) return false;
+  try {
+    return navigator.canShare({
+      files: [new File([""], "probe.pdf", { type: "application/pdf" })],
+    });
+  } catch {
+    return false;
+  }
+})();
+
 const PwaInvoices = () => {
   const { t, i18n } = useTranslation("pwa");
   const navigate = useNavigate();
@@ -29,22 +45,59 @@ const PwaInvoices = () => {
   const { data: invoices, isLoading } = useTherapistInvoices(me?.therapist?.id);
 
   const [preview, setPreview] = useState<TherapistInvoice | null>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [pdf, setPdf] = useState<Blob | null>(null);
 
   const periodLabel = (invoice: TherapistInvoice) =>
     format(parseISO(invoice.period_start), "MMMM yyyy", { locale: dateLocale });
 
-  const handleDownload = async (invoice: TherapistInvoice) => {
-    if (!invoice.html_snapshot) return;
-    setDownloading(true);
-    try {
-      await downloadInvoicePdf(invoice.html_snapshot, `${invoice.invoice_number}.pdf`);
-    } catch (error) {
-      console.error("Error downloading invoice:", error);
-      toast.error(t("common:errors.generic"));
-    } finally {
-      setDownloading(false);
+  /**
+   * Le PDF est rendu dès l'ouverture de l'aperçu, pas au clic sur Partager :
+   * iOS exige que `navigator.share()` parte d'un geste utilisateur encore
+   * « frais », ce qu'un rendu html2canvas de plusieurs secondes ferait expirer.
+   */
+  useEffect(() => {
+    if (!preview?.html_snapshot) {
+      setPdf(null);
+      return;
     }
+    let cancelled = false;
+    setPdf(null);
+    renderInvoicePdfBlob(preview.html_snapshot, `${preview.invoice_number}.pdf`)
+      .then((blob) => {
+        if (!cancelled) setPdf(blob);
+      })
+      .catch((error) => {
+        console.error("Error rendering invoice PDF:", error);
+        if (!cancelled) toast.error(t("common:errors.generic"));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [preview, t]);
+
+  const handleShare = async () => {
+    if (!pdf || !preview) return;
+    const file = new File([pdf], `${preview.invoice_number}.pdf`, {
+      type: "application/pdf",
+    });
+    try {
+      await navigator.share({ files: [file], title: preview.invoice_number });
+    } catch (error) {
+      // L'utilisateur qui referme la feuille de partage n'est pas une erreur.
+      if ((error as Error)?.name === "AbortError") return;
+      console.error("Error sharing invoice:", error);
+      toast.error(t("common:errors.generic"));
+    }
+  };
+
+  const handleDownload = () => {
+    if (!pdf || !preview) return;
+    const url = URL.createObjectURL(pdf);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${preview.invoice_number}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -150,22 +203,38 @@ const PwaInvoices = () => {
             )}
           </div>
 
-          <div
-            style={{
-              padding: "12px 16px calc(12px + env(safe-area-inset-bottom))",
-              borderTop: "1px solid var(--line-soft)",
-            }}
-          >
-            <button
-              className="btn-primary-lg"
-              disabled={!preview.html_snapshot || downloading}
-              onClick={() => handleDownload(preview)}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+          {preview.html_snapshot && (
+            <div
+              style={{
+                padding: "12px 16px calc(12px + env(safe-area-inset-bottom))",
+                borderTop: "1px solid var(--line-soft)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
             >
-              {downloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-              {t("invoices.download")}
-            </button>
-          </div>
+              <button
+                className="btn-primary-lg"
+                disabled={!pdf}
+                onClick={canShareFiles ? handleShare : handleDownload}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                {!pdf ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : canShareFiles ? (
+                  <Share2 size={18} />
+                ) : (
+                  <Download size={18} />
+                )}
+                {canShareFiles ? t("invoices.share") : t("invoices.download")}
+              </button>
+              {canShareFiles && (
+                <button className="btn-ghost" disabled={!pdf} onClick={handleDownload}>
+                  {t("invoices.download")}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

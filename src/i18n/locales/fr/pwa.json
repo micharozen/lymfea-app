@@ -260,6 +260,7 @@
     "readOnlyHint": "Ces factures sont générées par le lieu. Elles sont consultables et téléchargeables, mais ne peuvent pas être modifiées ici.",
     "noDocument": "Document indisponible",
     "download": "Télécharger le PDF",
+    "share": "Partager",
     "status": {
       "issued": "Émise",
       "paid": "Payée",
