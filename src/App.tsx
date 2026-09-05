@@ -114,6 +114,7 @@ const PwaNotifications = lazy(() => import("./pages/pwa/Notifications"));
 const PwaInstall = lazy(() => import("./pages/pwa/Install"));
 const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"));
 const PwaStatistics = lazy(() => import("./pages/pwa/Statistics"));
+const PwaInvoices = lazy(() => import("./pages/pwa/Invoices"));
 const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
 const PwaNewBooking = lazy(() => import("./pages/pwa/NewBooking"));
 const PwaSchedule = lazy(() => import("./pages/pwa/Schedule"));
@@ -420,6 +421,7 @@ const App = () => {
               <Route path="notifications" element={<PwaNotifications />} />
               <Route path="hotels" element={<PwaHotels />} />
               <Route path="statistics" element={<PwaStatistics />} />
+              <Route path="invoices" element={<PwaInvoices />} />
               <Route path="new-booking" element={<PwaNewBooking />} />
               <Route path="profile" element={<PwaProfile />} />
               <Route path="profile/notifications" element={<PwaNotifications standalone />} />
