@@ -136,10 +136,13 @@ const PwaProfile = () => {
       );
 
       // Note réelle : moyenne des évaluations post-soin reçues.
+      // send-rating-email pré-crée la ligne avec rating=5 en attendant la
+      // réponse du client : seules les lignes soumises comptent.
       const { data: ratingRows } = await supabase
         .from("therapist_ratings")
         .select("rating")
-        .eq("therapist_id", data.id);
+        .eq("therapist_id", data.id)
+        .not("submitted_at", "is", null);
       if (ratingRows && ratingRows.length > 0) {
         const sum = ratingRows.reduce((acc, row) => acc + row.rating, 0);
         setRating({ average: sum / ratingRows.length, count: ratingRows.length });
