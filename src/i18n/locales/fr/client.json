@@ -561,7 +561,13 @@
     "bookingsTitle": "Mes soins",
     "noBookings": "Aucun soin pour le moment.",
     "upcomingBookings": "À venir",
-    "pastBookings": "Historique"
+    "pastBookings": "Historique",
+    "greetingPrefix": "Bonjour",
+    "noCreditSubtitle": "Activez une carte cadeau pour retrouver votre crédit ici.",
+    "chooseVenueTitle": "Choisissez un lieu",
+    "chooseVenueSubtitle": "Où souhaitez-vous réserver votre soin ?",
+    "activeCards": "Cartes actives",
+    "outOfTotal": "sur {{total}}"
   },
   "schedule": {
     "addons": {

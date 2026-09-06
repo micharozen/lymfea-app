@@ -561,7 +561,13 @@
     "bookingsTitle": "My treatments",
     "noBookings": "No treatments yet.",
     "upcomingBookings": "Upcoming",
-    "pastBookings": "History"
+    "pastBookings": "History",
+    "greetingPrefix": "Hello",
+    "noCreditSubtitle": "Activate a gift card to see your credit here.",
+    "chooseVenueTitle": "Choose a venue",
+    "chooseVenueSubtitle": "Where would you like to book your treatment?",
+    "activeCards": "Active cards",
+    "outOfTotal": "out of {{total}}"
   },
   "schedule": {
     "addons": {
