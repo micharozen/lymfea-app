@@ -38,6 +38,10 @@
     "purchaseGiftCard": "Offrir cette carte cadeau",
     "item": "soin",
     "items": "soins",
+    "giftCard": "carte cadeau",
+    "giftCards": "cartes cadeaux",
+    "cure": "cure",
+    "cures": "cures",
     "duration": "{{duration}} min",
     "bestsellers": "Incontournables",
     "bestsellersSubtitle": "Nos soins les plus populaires",
@@ -494,6 +498,8 @@
     "claimNamePlaceholder": "Prénom",
     "claimPhone": "Votre numéro de téléphone",
     "claimPhonePlaceholder": "+33 6 12 34 56 78",
+    "claimCountrySearch": "Rechercher un pays...",
+    "claimCountryNoResult": "Aucun résultat",
     "claimErrorPhoneRequired": "Le numéro de téléphone est obligatoire.",
     "claimButton": "Activer ma carte",
     "claimLoading": "Activation en cours...",
@@ -555,7 +561,13 @@
     "bookingsTitle": "Mes soins",
     "noBookings": "Aucun soin pour le moment.",
     "upcomingBookings": "À venir",
-    "pastBookings": "Historique"
+    "pastBookings": "Historique",
+    "greetingPrefix": "Bonjour",
+    "noCreditSubtitle": "Activez une carte cadeau pour retrouver votre crédit ici.",
+    "chooseVenueTitle": "Choisissez un lieu",
+    "chooseVenueSubtitle": "Où souhaitez-vous réserver votre soin ?",
+    "activeCards": "Cartes actives",
+    "outOfTotal": "sur {{total}}"
   },
   "schedule": {
     "addons": {

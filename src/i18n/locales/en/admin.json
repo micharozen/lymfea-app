@@ -197,6 +197,11 @@
       "allDay": "All day",
       "absent": "Away",
       "notScheduled": "Not scheduled"
+    },
+    "loadError": {
+      "title": "The planning could not be loaded",
+      "body": "The connection to the server failed. The bookings shown may be incomplete.",
+      "retry": "Retry"
     }
   },
   "bookings": {
@@ -2335,7 +2340,8 @@
     "billedToPartnerGeneric": "Payment handled by the partner (monthly billing).",
     "method": "Method",
     "sendPayment": "Send payment",
-    "requestSignature": "Request signature"
+    "requestSignature": "Request signature",
+    "actions": "Actions"
   },
   "finance": {
     "closure": {
@@ -3493,7 +3499,8 @@
     "planningTitle": "Planning",
     "refresh": "Refresh",
     "newRequest": "New request",
-    "newBooking": "New booking"
+    "newBooking": "New booking",
+    "newAmenity": "Amenity"
   },
   "organizationPicker": {
     "title": "Choose an organisation",
@@ -3952,7 +3959,8 @@
       "copied": "Copied",
       "copy": "Copy",
       "open": "Open"
-    }
+    },
+    "durationOverridden": "Manually set duration (computed: {{computed}} min). Changing a treatment recalculates it."
   },
   "therapistDialog": {
     "addTitle": "Add a therapist",

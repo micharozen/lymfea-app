@@ -4,17 +4,28 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Globe, CalendarDays, Star, FileText } from "lucide-react";
+import {
+  LogOut,
+  ChevronRight,
+  ChevronLeft,
+  User,
+  Bell,
+  Shield,
+  HelpCircle,
+  Hotel,
+  Camera,
+  Globe,
+  CalendarDays,
+  Star,
+  FileText,
+  X,
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import PwaHeader from "@/components/pwa/Header";
-import PwaPageLoader from "@/components/pwa/PageLoader";
 import VersionLine from "@/components/pwa/VersionLine";
-import { brand } from "@/config/brand";
 
 interface Therapist {
   id: string;
@@ -27,12 +38,26 @@ interface Therapist {
   profile_image: string | null;
 }
 
+interface TherapistTreatment {
+  name: string;
+  duration: number | null;
+}
+
+interface Rating {
+  average: number;
+  count: number;
+}
+
+/** Nombre de prestations montrées en aperçu avant la pastille « +N ». */
+const TREATMENT_PREVIEW_COUNT = 4;
+
 const PwaProfile = () => {
   const { t } = useTranslation('pwa');
   const [therapist, setTherapist] = useState<Therapist | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isLanguageDialogOpen, setIsLanguageDialogOpen] = useState(false);
+  const [isTreatmentsOpen, setIsTreatmentsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [editForm, setEditForm] = useState({
     first_name: "",
@@ -43,7 +68,8 @@ const PwaProfile = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [myTreatments, setMyTreatments] = useState<string[]>([]);
+  const [myTreatments, setMyTreatments] = useState<TherapistTreatment[]>([]);
+  const [rating, setRating] = useState<Rating | null>(null);
 
   // Fetch profile on mount - use cache first, refresh in background
   useEffect(() => {
@@ -78,7 +104,7 @@ const PwaProfile = () => {
   const fetchProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         navigate("/pwa/login");
         return;
@@ -86,23 +112,44 @@ const PwaProfile = () => {
 
       const { data, error } = await supabase
         .from("therapists")
-        .select("*")
+        .select("id, user_id, first_name, last_name, email, phone, country_code, profile_image")
         .eq("user_id", user.id)
         .single();
 
       if (error) throw error;
 
       // Prestations réalisables — policy SELECT self sur therapist_treatments.
+      // Un même soin peut exister dans plusieurs lieux : on dédoublonne par nom.
       const { data: treatmentRows } = await supabase
         .from("therapist_treatments")
-        .select("treatment_menus(name)")
+        .select("treatment_menus(name, duration)")
         .eq("therapist_id", data.id);
+      const byName = new Map<string, TherapistTreatment>();
+      for (const row of treatmentRows ?? []) {
+        const menu = row.treatment_menus;
+        if (menu?.name && !byName.has(menu.name)) {
+          byName.set(menu.name, { name: menu.name, duration: menu.duration });
+        }
+      }
       setMyTreatments(
-        (treatmentRows ?? [])
-          .map((row) => row.treatment_menus?.name)
-          .filter((name): name is string => !!name)
+        [...byName.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
       );
-      
+
+      // Note réelle : moyenne des évaluations post-soin reçues.
+      // send-rating-email pré-crée la ligne avec rating=5 en attendant la
+      // réponse du client : seules les lignes soumises comptent.
+      const { data: ratingRows } = await supabase
+        .from("therapist_ratings")
+        .select("rating")
+        .eq("therapist_id", data.id)
+        .not("submitted_at", "is", null);
+      if (ratingRows && ratingRows.length > 0) {
+        const sum = ratingRows.reduce((acc, row) => acc + row.rating, 0);
+        setRating({ average: sum / ratingRows.length, count: ratingRows.length });
+      } else {
+        setRating(null);
+      }
+
       // Cache the data
       queryClient.setQueryData(["therapist", user.id], data);
 
@@ -196,14 +243,36 @@ const PwaProfile = () => {
     navigate("/pwa/login");
   };
 
+  const header = (
+    <header
+      className="hdr"
+      style={{ paddingTop: "calc(env(safe-area-inset-top) + 8px)" }}
+    >
+      <button
+        className="back-btn"
+        onClick={() => navigate("/pwa/dashboard")}
+        aria-label={t('common:buttons.back', 'Retour')}
+      >
+        <ChevronLeft size={20} />
+      </button>
+      <div className="wordmark" style={{ flex: 1, textAlign: "center" }}>
+        {t('profile.title')}
+      </div>
+      <div style={{ width: 38, flex: "none" }} />
+    </header>
+  );
+
   // Only show loader on very first load
   if (loading && !therapist) {
     return (
-      <PwaPageLoader 
-        title={t('profile.title')} 
-        showBack 
-        backPath="/pwa/dashboard" 
-      />
+      <div className="app-refonte flex h-full min-h-0 flex-col">
+        {header}
+        <div className="app-scroll" style={{ padding: "8px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="sk" style={{ height: 128, borderRadius: 18 }} />
+          <div className="sk" style={{ height: 84, borderRadius: 18 }} />
+          <div className="sk" style={{ height: 148, borderRadius: 18 }} />
+        </div>
+      </div>
     );
   }
 
@@ -213,44 +282,55 @@ const PwaProfile = () => {
 
   const initials = `${therapist.first_name[0]}${therapist.last_name[0]}`.toUpperCase();
 
-  const menuItems = [
-    { icon: User, label: t('profile.editProfile'), onClick: () => setIsEditDialogOpen(true) },
-    { icon: Hotel, label: t('hotels.title'), onClick: () => navigate("/pwa/profile/hotels") },
-    { icon: CalendarDays, label: t('schedule.title'), onClick: () => navigate("/pwa/schedule") },
-    { icon: FileText, label: t('invoices.title'), onClick: () => navigate("/pwa/invoices") },
-    { icon: Package, label: `${brand.name} product`, onClick: () => {} },
-    { icon: Bell, label: t('profile.notifications'), onClick: () => navigate("/pwa/profile/notifications") },
-    { icon: Globe, label: t('profile.language'), onClick: () => setIsLanguageDialogOpen(true) },
-    { icon: Shield, label: t('profile.security'), onClick: () => navigate("/pwa/account-security") },
-    { icon: HelpCircle, label: t('support.title'), onClick: () => navigate("/pwa/support") },
+  const sections: { label: string; items: { icon: typeof User; label: string; onClick: () => void }[] }[] = [
+    {
+      label: t('profile.sectionActivity'),
+      items: [
+        { icon: Hotel, label: t('hotels.title'), onClick: () => navigate("/pwa/profile/hotels") },
+        { icon: CalendarDays, label: t('schedule.title'), onClick: () => navigate("/pwa/schedule") },
+        { icon: FileText, label: t('invoices.title'), onClick: () => navigate("/pwa/invoices") },
+      ],
+    },
+    {
+      label: t('profile.sectionAccount'),
+      items: [
+        { icon: User, label: t('profile.editProfile'), onClick: () => setIsEditDialogOpen(true) },
+        { icon: Bell, label: t('profile.notifications'), onClick: () => navigate("/pwa/profile/notifications") },
+        { icon: Globe, label: t('profile.language'), onClick: () => setIsLanguageDialogOpen(true) },
+        { icon: Shield, label: t('profile.security'), onClick: () => navigate("/pwa/account-security") },
+      ],
+    },
+    {
+      label: t('profile.sectionHelp'),
+      items: [
+        { icon: HelpCircle, label: t('support.title'), onClick: () => navigate("/pwa/support") },
+      ],
+    },
   ];
 
-  return (
-    <div className="flex flex-1 flex-col bg-background">
-      <PwaHeader
-        title={t('profile.title')}
-        showBack
-        backPath="/pwa/dashboard"
-      />
+  const previewTreatments = myTreatments.slice(0, TREATMENT_PREVIEW_COUNT);
+  const hiddenTreatmentCount = myTreatments.length - previewTreatments.length;
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col px-4 pt-4 pb-6">
-        {/* Profile Header - Centered */}
-        <div className="flex flex-col items-center text-center mb-4">
-          <div className="relative">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={therapist.profile_image || undefined} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+  return (
+    <div className="app-refonte flex h-full min-h-0 flex-col">
+      {header}
+
+      <div className="app-scroll" style={{ paddingBottom: 24 }}>
+        {/* Identité */}
+        <div className="prof-id">
+          <div className="prof-av-wrap">
+            {therapist.profile_image ? (
+              <img className="prof-av" src={therapist.profile_image} alt="" />
+            ) : (
+              <div className="prof-av prof-av-fallback">{initials}</div>
+            )}
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="absolute bottom-0 right-0 flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors rounded-full"
-              style={{ width: 28, height: 28, minWidth: 28, minHeight: 28 }}
+              className="prof-cam"
+              aria-label={t('profile.changePhoto')}
             >
-              <Camera className="h-3.5 w-3.5" />
+              <Camera size={14} />
             </button>
             <input
               ref={fileInputRef}
@@ -260,74 +340,109 @@ const PwaProfile = () => {
               className="hidden"
             />
           </div>
-          <h2 className="text-base font-semibold mt-2">
+          <div className="prof-nm">
             {therapist.first_name} {therapist.last_name}
-          </h2>
-          <div className="flex items-center gap-1 mt-0.5">
-            <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
-            <span className="text-sm text-muted-foreground">3.0</span>
           </div>
+          {rating && (
+            <div className="prof-rate">
+              <Star size={13} className="star" />
+              <span>{rating.average.toFixed(1)}</span>
+              <span className="cnt">{t('profile.ratingCount', { count: rating.count })}</span>
+            </div>
+          )}
         </div>
 
-        {/* Prestations réalisables (lecture seule) */}
+        {/* Prestations réalisables — aperçu, détail dans une feuille dédiée */}
         {myTreatments.length > 0 && (
-          <div className="mb-3">
-            <h3 className="text-xs font-medium text-muted-foreground mb-1.5">
-              {t('profile.myTreatments', 'Prestations réalisables')}
-            </h3>
-            <div className="flex flex-wrap gap-1.5">
-              {myTreatments.map((name) => (
-                <span
-                  key={name}
-                  className="rounded-full bg-muted px-2.5 py-1 text-xs"
-                >
-                  {name}
-                </span>
+          <>
+            <div className="sec-label">
+              {t('profile.myTreatments')}
+              <span className="count">{myTreatments.length}</span>
+              <button className="sec-action" onClick={() => setIsTreatmentsOpen(true)}>
+                {t('profile.seeAll')}
+              </button>
+            </div>
+            <button className="card prof-chips" onClick={() => setIsTreatmentsOpen(true)}>
+              {previewTreatments.map((treatment) => (
+                <span key={treatment.name} className="chip">{treatment.name}</span>
+              ))}
+              {hiddenTreatmentCount > 0 && (
+                <span className="chip more">+{hiddenTreatmentCount}</span>
+              )}
+            </button>
+          </>
+        )}
+
+        {/* Menu groupé */}
+        {sections.map((section) => (
+          <div key={section.label}>
+            <div className="sec-label">{section.label}</div>
+            <div className="card">
+              {section.items.map((item) => (
+                <button key={item.label} className="menu-row" onClick={item.onClick}>
+                  <item.icon size={17} className="ic" />
+                  <span className="lb">{item.label}</span>
+                  <ChevronRight size={17} className="chev" />
+                </button>
               ))}
             </div>
           </div>
-        )}
+        ))}
 
-        {/* Compact Menu Items */}
-        <div className="space-y-0.5 flex-1">
-          {menuItems.map((item, index) => (
-            <button
-              key={index}
-              onClick={item.onClick}
-              className="w-full flex items-center justify-between py-2.5 px-3 hover:bg-muted/50 rounded-lg transition-all active:scale-[0.98] active:bg-muted"
-            >
-              <div className="flex items-center gap-2.5">
-                <item.icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{item.label}</span>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </button>
-          ))}
+        <div style={{ padding: "18px 16px 0" }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all active:scale-[0.98]"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            {t('profile.logout')}
+          </Button>
         </div>
-
-        {/* Logout Button - pushed to bottom */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full mt-auto text-destructive hover:text-destructive hover:bg-destructive/10 transition-all active:scale-[0.98]"
-          onClick={handleLogout}
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          {t('profile.logout')}
-        </Button>
 
         <VersionLine therapistId={therapist.id} userId={therapist.user_id} />
       </div>
+
+      {/* Feuille « prestations réalisables » (lecture seule) */}
+      {isTreatmentsOpen && (
+        <div
+          className="sheet-veil"
+          onClick={() => setIsTreatmentsOpen(false)}
+          role="presentation"
+        >
+          <div className="sheet tall" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head">
+              <h3>{t('profile.myTreatments')}</h3>
+              <button
+                className="sheet-close"
+                onClick={() => setIsTreatmentsOpen(false)}
+                aria-label={t('common:buttons.close', 'Fermer')}
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <div className="sheet-body">
+              {myTreatments.map((treatment) => (
+                <div key={treatment.name} className="soin-row">
+                  <div className="nm">{treatment.name}</div>
+                  {treatment.duration && <div className="dur">{treatment.duration} min</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Profile Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('profile.editProfile')}</DialogTitle>
+            <DialogTitle className="font-normal">{t('profile.editProfile')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="first_name">{t('booking.client')} - {t('common:buttons.edit')}</Label>
+              <Label htmlFor="first_name">{t('profile.firstName')}</Label>
               <Input
                 id="first_name"
                 value={editForm.first_name}
@@ -335,7 +450,7 @@ const PwaProfile = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="last_name">Last name</Label>
+              <Label htmlFor="last_name">{t('profile.lastName')}</Label>
               <Input
                 id="last_name"
                 value={editForm.last_name}
@@ -343,7 +458,7 @@ const PwaProfile = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone number</Label>
+              <Label htmlFor="phone">{t('profile.phone')}</Label>
               <Input
                 id="phone"
                 value={editForm.phone}
@@ -352,7 +467,7 @@ const PwaProfile = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('profile.email')}</Label>
               <Input
                 id="email"
                 value={editForm.email}
@@ -383,7 +498,7 @@ const PwaProfile = () => {
       <Dialog open={isLanguageDialogOpen} onOpenChange={setIsLanguageDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('profile.language')}</DialogTitle>
+            <DialogTitle className="font-normal">{t('profile.language')}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-2">
             <LanguageSwitcher variant="list" persistToProfile onSelect={() => setIsLanguageDialogOpen(false)} />

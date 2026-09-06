@@ -65,7 +65,7 @@ import {
 import { canCancelBookingByStatus } from "@/lib/cancelBookingRules";
 import {
   expandCartToSessions,
-  isComboDuoEligible,
+  getBaseSessionCount,
   buildComboDuoBookingParams,
 } from "@/features/admin-combo-duo";
 import { BOOKING_CLIENT_TYPES, CLIENT_TYPE_META, type BookingClientType } from "@/lib/clientTypeMeta";
@@ -222,6 +222,10 @@ export default function EditBookingDialog({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
+  // Durée saisie à la main par l'admin. Prime sur la durée calculée depuis le
+  // panier, et retombe à null dès qu'une prestation change (le calcul reprend
+  // la main plutôt que de laisser une durée orpheline de son contenu).
+  const [durationOverride, setDurationOverride] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("info");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showNoShowDialog, setShowNoShowDialog] = useState(false);
@@ -269,6 +273,7 @@ export default function EditBookingDialog({
       setRoomId(booking.room_id || "");
       setSecondaryRoomId(booking.secondary_room_id || "");
       setSecondaryRoomEnabled(!!booking.secondary_room_id);
+      setDurationOverride(null);
 
       const guestCount = booking.guest_count ?? 1;
       setTherapistIds(guestCount > 1 ? Array(guestCount).fill('') : []);
@@ -376,6 +381,9 @@ export default function EditBookingDialog({
   const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
   const hotelTimezone = selectedHotel?.timezone || "Europe/Paris";
 
+  // Durée retenue partout : la saisie manuelle prime, sinon le calcul du panier.
+  const effectiveDuration = durationOverride ?? totalDuration;
+
   const queryHotelId = hotelId || booking?.hotel_id;
 
   // Salles de soin disponibles au créneau (la salle actuelle reste sélectionnable).
@@ -383,7 +391,7 @@ export default function EditBookingDialog({
     queryHotelId,
     date ? format(date, "yyyy-MM-dd") : undefined,
     time,
-    totalDuration || booking?.duration || 30,
+    effectiveDuration || booking?.duration || 30,
     booking?.id,
   );
 
@@ -603,14 +611,16 @@ export default function EditBookingDialog({
         }
       });
       // Duo bookings run their treatments in parallel (one therapist per treatment),
-      // so the booking duration is the longest treatment — not the sum. Mirror the
-      // creation flow (BookingModal → buildComboDuoBookingParams) which takes the max.
+      // so the booking duration is the longest leg — not the sum. Mirror the server's
+      // computeSlotDuration, which keys the max on isDuo alone: eligibility gates the
+      // STAFFING (who does what), never the slot length. Gating on it here summed the
+      // legs whenever a base carried a duo variant, over-inflating the block.
       const sessions = expandCartToSessions(
         cart
           .map(item => ({ ...item, treatment: treatments.find(tr => tr.id === item.treatmentId) }))
           .filter(item => item.treatment),
       );
-      if (therapistCount > 1 && isComboDuoEligible(sessions)) {
+      if (therapistCount > 1 && getBaseSessionCount(sessions) >= 2) {
         duration = buildComboDuoBookingParams(sessions).duration;
       }
       setTotalPrice(price);
@@ -1313,7 +1323,7 @@ export default function EditBookingDialog({
       booking_time: submittedTime,
       therapist_id: primaryTherapistId,
       total_price: surcharge.totalWithSurcharge,
-      duration: totalDuration,
+      duration: effectiveDuration,
       surcharge_amount: surcharge.surchargeAmount,
       is_out_of_hours: surcharge.isOutOfHours,
       treatments: submittedTreatments,
@@ -1345,6 +1355,7 @@ export default function EditBookingDialog({
       : (treatment?.treatment_variants?.find(v => v.is_default)
           ?? treatment?.treatment_variants?.[0])?.id ?? null;
 
+    setDurationOverride(null);
     setCart(prev => {
       const existing = prev.find(x => x.treatmentId === treatmentId && x.variantId === resolvedVariantId);
       if (existing) return prev.map(x =>
@@ -1357,6 +1368,7 @@ export default function EditBookingDialog({
   };
 
   const incrementCart = (treatmentId: string, variantId?: string | null) => {
+    setDurationOverride(null);
     setCart(prev => {
       const target = variantId !== undefined
         ? prev.find(x => x.treatmentId === treatmentId && x.variantId === variantId)
@@ -1367,6 +1379,7 @@ export default function EditBookingDialog({
   };
 
   const decrementCart = (treatmentId: string, variantId?: string | null) => {
+    setDurationOverride(null);
     setCart(prev => {
       const target = variantId !== undefined
         ? prev.find(x => x.treatmentId === treatmentId && x.variantId === variantId)
@@ -1379,6 +1392,7 @@ export default function EditBookingDialog({
 
   // Remove an entire cart line (exact treatment+variant pair), whatever its quantity.
   const removeCartLine = (treatmentId: string, variantId?: string | null) => {
+    setDurationOverride(null);
     setCart(prev => prev.filter(x =>
       !(x.treatmentId === treatmentId && (x.variantId ?? null) === (variantId ?? null))
     ));
@@ -2559,6 +2573,34 @@ export default function EditBookingDialog({
                   </div>
 
                   <div className="border-t border-border bg-background px-4 py-3 space-y-3 shrink-0">
+                    {isAdmin && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {t("editBooking.fields.duration")}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="5"
+                            value={effectiveDuration || ""}
+                            onChange={(e) =>
+                              setDurationOverride(
+                                e.target.value === "" ? null : Math.max(0, Number(e.target.value)),
+                              )
+                            }
+                            className="h-8 w-20 text-sm text-right"
+                            placeholder={String(totalDuration)}
+                          />
+                          <span className="text-xs text-muted-foreground shrink-0">min</span>
+                        </div>
+                      </div>
+                    )}
+                    {isAdmin && durationOverride !== null && durationOverride !== totalDuration && (
+                      <p className="text-[11px] text-muted-foreground -mt-1.5">
+                        {t("editBooking.durationOverridden", { computed: totalDuration })}
+                      </p>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Total</span>
                       <span className="text-lg font-bold">{totalPrice}€</span>

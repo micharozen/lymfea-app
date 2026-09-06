@@ -197,6 +197,11 @@
       "allDay": "Journée",
       "absent": "Absent",
       "notScheduled": "Non planifié"
+    },
+    "loadError": {
+      "title": "Le planning n'a pas pu être chargé",
+      "body": "La connexion au serveur a échoué. Les réservations affichées peuvent être incomplètes.",
+      "retry": "Réessayer"
     }
   },
   "bookings": {
@@ -2335,7 +2340,8 @@
     "billedToPartnerGeneric": "Paiement géré par le partenaire (facturation mensuelle).",
     "method": "Méthode",
     "sendPayment": "Envoyer le paiement",
-    "requestSignature": "Demander la signature"
+    "requestSignature": "Demander la signature",
+    "actions": "Actions"
   },
   "finance": {
     "closure": {
@@ -3493,7 +3499,8 @@
     "planningTitle": "Planning",
     "refresh": "Actualiser",
     "newRequest": "Nouvelle demande",
-    "newBooking": "Nouvelle réservation"
+    "newBooking": "Nouvelle réservation",
+    "newAmenity": "Commodité"
   },
   "organizationPicker": {
     "title": "Choisir une organisation",
@@ -3952,7 +3959,8 @@
       "copied": "Copié",
       "copy": "Copier",
       "open": "Ouvrir"
-    }
+    },
+    "durationOverridden": "Durée saisie manuellement (calcul : {{computed}} min). Modifier une prestation la recalcule."
   },
   "therapistDialog": {
     "addTitle": "Ajouter un thérapeute",
