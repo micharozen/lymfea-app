@@ -17,6 +17,7 @@ import { useBasket } from './context/CartContext';
 import { useClientVenue } from './context/ClientVenueContext';
 import { useCreateOffertBooking } from './hooks/useCreateOffertBooking';
 import { GiftCardLoginModal, type AuthCustomerInfo } from '@/components/client/GiftCardLoginModal';
+import { useAuthCustomerPrefill } from '@/hooks/client/useAuthCustomerPrefill';
 import { CartDrawer } from '@/components/client/CartDrawer';
 import { CheckoutPanel } from '@/components/client/CheckoutPanel';
 import { cn } from '@/lib/utils';
@@ -210,7 +211,7 @@ export default function GuestInfo() {
   });
 
   // Handle login success: pre-fill form with customer data
-  const handleLoginSuccess = useCallback((bundles: Parameters<typeof setAuthBundles>[0], customer: AuthCustomerInfo) => {
+  const handleLoginSuccess = useCallback((bundles: Parameters<typeof setAuthBundles>[0], customer: AuthCustomerInfo, options?: { silent?: boolean }) => {
     setAuthBundles(bundles);
     setIsLoggedIn(true);
 
@@ -235,8 +236,21 @@ export default function GuestInfo() {
     if (localPhone) form.setValue('phone', localPhone);
     form.setValue('countryCode', countryCode);
 
-    toast.success(t('giftCardLogin.loginSuccess'));
+    if (!options?.silent) toast.success(t('giftCardLogin.loginSuccess'));
   }, [form, setAuthBundles, t]);
+
+  // Client arrivant depuis son espace : sa session est encore ouverte, on
+  // pré-remplit sans lui redemander de se connecter.
+  useAuthCustomerPrefill({
+    hotelId,
+    treatmentIds,
+    enabled: !isBundleOnlyPurchase && !isLoggedIn,
+    onDetected: useCallback(
+      (bundles: Parameters<typeof setAuthBundles>[0], customer: AuthCustomerInfo) =>
+        handleLoginSuccess(bundles, customer, { silent: true }),
+      [handleLoginSuccess]
+    ),
+  });
 
   // PMS guest verification — room number + last name are checked server-side.
   // The browser only ever learns a yes/no; no guest PII is returned here.
