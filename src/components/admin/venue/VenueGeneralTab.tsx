@@ -328,13 +328,13 @@ export function VenueGeneralTab({
                         <SelectItem value="active">
                           <div className="flex items-center gap-1.5">
                             <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                            {t('status.active')}
+                            {t('common:status.active')}
                           </div>
                         </SelectItem>
                         <SelectItem value="pending">
                           <div className="flex items-center gap-1.5">
                             <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                            {t('status.pending')}
+                            {t('common:status.pending')}
                           </div>
                         </SelectItem>
                       </SelectContent>

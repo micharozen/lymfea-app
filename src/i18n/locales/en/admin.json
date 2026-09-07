@@ -661,6 +661,12 @@
         "label": "Hold duration",
         "description": "Between 1 and 15 minutes. The countdown is shown client-side and the hold is released automatically on expiry.",
         "suffix": "min"
+      },
+      "externalVouchersSectionTitle": "Partner vouchers",
+      "externalVouchersSectionDescription": "Vouchers bought from a reseller (Wonderbox, Smartbox…) are registered by the venue from the Gift cards tab, then used by the client as store credit.",
+      "externalVouchersEnabled": {
+        "label": "Voucher entry on the booking site",
+        "description": "When off, the code field does not appear at the Payment step and no code is accepted. Leave it off for a venue that works with no reseller."
       }
     },
     "backToList": "Back to venues",

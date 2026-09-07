@@ -661,6 +661,12 @@
         "label": "Durée du hold",
         "description": "Entre 1 et 15 minutes. Le compte à rebours s'affiche côté client et le hold est libéré automatiquement à l'expiration.",
         "suffix": "min"
+      },
+      "externalVouchersSectionTitle": "Bons revendeurs",
+      "externalVouchersSectionDescription": "Les bons achetés chez un revendeur (Wonderbox, Smartbox…) sont enregistrés par le lieu depuis l'onglet Bons cadeaux, puis utilisés par le client comme un avoir.",
+      "externalVouchersEnabled": {
+        "label": "Saisie du bon sur le site de réservation",
+        "description": "Si désactivé, le champ de saisie du code n'apparaît pas à l'étape Paiement et aucun code n'est accepté. À laisser désactivé pour un lieu qui ne travaille avec aucun revendeur."
       }
     },
     "backToList": "Retour aux lieux",

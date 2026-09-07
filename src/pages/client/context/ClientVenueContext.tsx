@@ -47,6 +47,7 @@ export interface PublicHotel {
   cancellation_policy_text_en: string | null;
   cancellation_tiers: unknown;
   client_cancellation_cutoff_hours: number | null;
+  external_vouchers_enabled: boolean | null;
 }
 
 interface ClientVenueContextValue {
