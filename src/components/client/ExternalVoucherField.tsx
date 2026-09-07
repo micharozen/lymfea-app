@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { isUsableVoucherCode, normalizeVoucherCode } from '@/lib/voucherCode';
+import { useClientVenueOptional } from '@/pages/client/context/ClientVenueContext';
 import type { SelectedBundle } from '@/pages/client/context/FlowContext';
 
 /**
@@ -60,6 +61,9 @@ export function ExternalVoucherField({
   disabled = false,
 }: ExternalVoucherFieldProps) {
   const { t } = useTranslation('client');
+  // Réglage du lieu : un établissement qui ne travaille avec aucun revendeur
+  // n'affiche pas le champ, et `lookup_external_voucher` refuse de son côté.
+  const venueContext = useClientVenueOptional();
   const [isOpen, setIsOpen] = useState(false);
   const [code, setCode] = useState('');
   const [isChecking, setIsChecking] = useState(false);
@@ -121,6 +125,11 @@ export function ExternalVoucherField({
       setIsChecking(false);
     }
   };
+
+  // Lieu sans bons revendeurs : rien à proposer, pas même l'amorce.
+  if (!venueContext?.venue.external_vouchers_enabled) {
+    return null;
+  }
 
   if (!isOpen) {
     return (

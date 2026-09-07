@@ -1886,6 +1886,7 @@ export type Database = {
           currency: string | null
           description: string | null
           description_en: string | null
+          external_vouchers_enabled: boolean
           global_therapist_commission: boolean | null
           hotel_commission: number | null
           id: string
@@ -1944,6 +1945,7 @@ export type Database = {
           currency?: string | null
           description?: string | null
           description_en?: string | null
+          external_vouchers_enabled?: boolean
           global_therapist_commission?: boolean | null
           hotel_commission?: number | null
           id?: string
@@ -2002,6 +2004,7 @@ export type Database = {
           currency?: string | null
           description?: string | null
           description_en?: string | null
+          external_vouchers_enabled?: boolean
           global_therapist_commission?: boolean | null
           hotel_commission?: number | null
           id?: string
@@ -4612,6 +4615,7 @@ export type Database = {
           cancellation_tiers: Json
           city: string
           client_cancellation_cutoff_hours: number
+          external_vouchers_enabled: boolean
           client_payment_mode: string
           closing_time: string
           company_offered: boolean
@@ -4667,6 +4671,7 @@ export type Database = {
           cancellation_tiers: Json
           city: string
           client_cancellation_cutoff_hours: number
+          external_vouchers_enabled: boolean
           client_payment_mode: string
           closing_time: string
           company_offered: boolean
@@ -4835,6 +4840,10 @@ export type Database = {
       issue_email_opt_out_token: {
         Args: { _email: string; _source?: string }
         Returns: string
+      }
+      lookup_external_voucher: {
+        Args: { _attempt_key: string; _code: string; _hotel_id: string }
+        Returns: Json
       }
       lookup_gift_card_by_code: {
         Args: { _attempt_key: string; _code: string }

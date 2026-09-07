@@ -32,7 +32,7 @@ import { validateCancellationTiers } from "@/lib/cancellationTiers";
 import { VenueBrandingTab } from "@/components/admin/venue/VenueBrandingTab";
 import { VenueInboundEmailTab } from "@/components/admin/venue/VenueInboundEmailTab";
 import { VenueGeneralTab, type VenueSectionId } from "@/components/admin/venue/VenueGeneralTab";
-import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
+import { VenueSectionNavBar, VenueSectionNavSidebar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
 import { VenueCatalogTab } from "@/components/admin/venue/VenueCatalogTab";
 import { VenueResourcesTab } from "@/components/admin/venue/VenueResourcesTab";
@@ -93,6 +93,7 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   min_booking_notice_minutes: z.number().min(0).max(10080).default(0),
   booking_hold_enabled: z.boolean().default(true),
   booking_hold_duration_minutes: z.coerce.number().int().min(1).max(15).default(5),
+  external_vouchers_enabled: z.boolean().default(false),
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
@@ -183,6 +184,15 @@ export default function VenueDetail({
   const { isSuperAdmin, organizationId, activeOrganizationId } = useUser();
 
   const isNewMode = !id;
+  const configSections = useMemo(
+    () =>
+      restrictedSections
+        ? VENUE_CONFIG_SECTIONS.filter((s) =>
+            restrictedSections.includes(s.id as VenueSectionId),
+          )
+        : VENUE_CONFIG_SECTIONS,
+    [restrictedSections],
+  );
   const requireOrganizationId = isSuperAdmin && isNewMode;
   const formSchema = useMemo(
     () =>
@@ -296,6 +306,7 @@ export default function VenueDetail({
       min_booking_notice_minutes: 0,
       booking_hold_enabled: true,
       booking_hold_duration_minutes: 5,
+      external_vouchers_enabled: false,
       offert: false,
       company_offered: false,
       landing_subtitle: "",
@@ -383,6 +394,7 @@ export default function VenueDetail({
           min_booking_notice_minutes: (hotel as any).min_booking_notice_minutes ?? 0,
           booking_hold_enabled: (hotel as any).booking_hold_enabled ?? true,
           booking_hold_duration_minutes: (hotel as any).booking_hold_duration_minutes ?? 5,
+          external_vouchers_enabled: (hotel as any).external_vouchers_enabled ?? false,
           offert: hotel.offert || false,
           company_offered: hotel.company_offered || false,
           landing_subtitle: (hotel as any).landing_subtitle || "",
@@ -662,6 +674,7 @@ export default function VenueDetail({
         min_booking_notice_minutes: values.min_booking_notice_minutes ?? 0,
         booking_hold_enabled: values.booking_hold_enabled,
         booking_hold_duration_minutes: values.booking_hold_duration_minutes,
+        external_vouchers_enabled: values.external_vouchers_enabled,
         offert: values.offert,
         company_offered: values.company_offered,
         landing_subtitle: values.landing_subtitle || null,
@@ -1001,19 +1014,20 @@ export default function VenueDetail({
                       items={completenessItems}
                     />
                   )}
-                  {/* Option 2: Horizontal sticky sub-nav */}
-                  <VenueSectionNavBar
-                    topOffset={restricted && !showTherapistTab && !showBillingTab ? 57 : 105}
-                    sections={
-                      restrictedSections
-                        ? VENUE_CONFIG_SECTIONS.filter((s) =>
-                            restrictedSections.includes(s.id as VenueSectionId),
-                          )
-                        : VENUE_CONFIG_SECTIONS
-                    }
-                  />
+                  {/* Sommaire des sections : colonne latérale sur grand écran,
+                      barre horizontale collante en dessous de xl. */}
+                  <div className="xl:hidden">
+                    <VenueSectionNavBar
+                      topOffset={restricted && !showTherapistTab && !showBillingTab ? 57 : 105}
+                      sections={configSections}
+                    />
+                  </div>
 
-                  <VenueGeneralTab
+                  <div className="xl:flex xl:items-start xl:gap-6">
+                    <VenueSectionNavSidebar sections={configSections} />
+
+                    <div className="min-w-0 flex-1">
+                      <VenueGeneralTab
                         restrictedSections={restrictedSections}
                         form={form}
                         mode={isNewMode ? 'add' : 'edit'}
@@ -1024,6 +1038,8 @@ export default function VenueDetail({
                         blockedSlots={blockedSlots}
                         onBlockedSlotsChange={setBlockedSlots}
                       />
+                    </div>
+                  </div>
                 </TabsContent>
               </form>
             </Form>
