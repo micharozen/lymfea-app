@@ -103,6 +103,7 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   cancellation_policy_text_fr: z.string().optional(),
   cancellation_policy_text_en: z.string().optional(),
   client_cancellation_cutoff_hours: z.coerce.number().min(0).max(168).default(2),
+  client_reschedule_cutoff_hours: z.coerce.number().min(0).max(168).default(24),
   cancellation_tiers: z.array(z.object({
     max_hours: z.coerce.number().min(0),
     min_hours: z.coerce.number().min(0),
@@ -310,6 +311,7 @@ export default function VenueDetail({
       cancellation_policy_text_fr: "",
       cancellation_policy_text_en: "",
       client_cancellation_cutoff_hours: 2,
+      client_reschedule_cutoff_hours: 24,
       cancellation_tiers: [],
     },
   });
@@ -401,6 +403,9 @@ export default function VenueDetail({
           cancellation_policy_text_en: (hotel as { cancellation_policy_text_en?: string }).cancellation_policy_text_en || "",
           client_cancellation_cutoff_hours: Number(
             (hotel as { client_cancellation_cutoff_hours?: number }).client_cancellation_cutoff_hours ?? 2,
+          ),
+          client_reschedule_cutoff_hours: Number(
+            (hotel as { client_reschedule_cutoff_hours?: number }).client_reschedule_cutoff_hours ?? 24,
           ),
           cancellation_tiers: Array.isArray((hotel as { cancellation_tiers?: unknown }).cancellation_tiers)
             ? ((hotel as { cancellation_tiers: { max_hours: number; min_hours: number; refund_percent: number }[] }).cancellation_tiers)
@@ -667,6 +672,7 @@ export default function VenueDetail({
         cancellation_policy_text_fr: values.cancellation_policy_text_fr?.trim() || null,
         cancellation_policy_text_en: values.cancellation_policy_text_en?.trim() || null,
         client_cancellation_cutoff_hours: values.client_cancellation_cutoff_hours ?? 2,
+        client_reschedule_cutoff_hours: values.client_reschedule_cutoff_hours ?? 24,
         cancellation_tiers: values.cancellation_tiers ?? [],
       };
 

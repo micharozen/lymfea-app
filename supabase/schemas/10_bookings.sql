@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS "public"."bookings" (
     "therapist_gender_preference" "text",
     "broadcast_wave" integer,
     "broadcast_wave_sent_at" timestamp with time zone,
+    "reconfirm_until" timestamp with time zone,
     "external_reference" "text",
     "external_id" "text",
     CONSTRAINT "bookings_client_type_check" CHECK (("client_type" = ANY (ARRAY['hotel'::"text", 'staycation'::"text", 'classpass'::"text", 'sezame'::"text", 'external'::"text"]))),
