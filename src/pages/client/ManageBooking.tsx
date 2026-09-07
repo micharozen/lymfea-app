@@ -82,8 +82,19 @@ interface BookingRow {
   card_last4: string | null;
   estimated_price: number | null;
   language: "fr" | "en" | null;
+  /** Délai minimum avant le soin en deçà duquel le déplacement en ligne est fermé. */
+  reschedule_cutoff_hours: number | null;
   booking_treatments: BookingTreatmentRow[] | null;
   hotels: HotelInfo | null;
+}
+
+/** Verdicts renvoyés par reschedule_booking_public. */
+interface RescheduleResult {
+  success: boolean;
+  error?: string;
+  cutoff_hours?: number;
+  was_confirmed?: boolean;
+  reconfirm_therapists?: number;
 }
 
 const ManageBooking = () => {
@@ -94,11 +105,15 @@ const ManageBooking = () => {
 
   const [showConfirmCancelDialog, setShowConfirmCancelDialog] = useState(false);
   const [showLateWarningDialog, setShowLateWarningDialog] = useState(false);
+  const [lateAction, setLateAction] = useState<"cancel" | "reschedule">("cancel");
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  // Incrémenté pour reprendre les disponibilités quand un créneau est parti sous
+  // nos pieds : la date sélectionnée ne change pas, l'effet doit rejouer quand même.
+  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
 
   const { data: booking, isLoading, error } = useQuery<BookingRow | null>({
     queryKey: ["client-booking", bookingId],
@@ -141,11 +156,16 @@ const ManageBooking = () => {
     enabled: !!bookingId,
   });
 
+  // Annuler et déplacer n'obéissent pas au même délai : le lieu peut laisser
+  // annuler tard (client_cancellation_cutoff_hours, 2h par défaut) tout en fermant
+  // le déplacement bien plus tôt (client_reschedule_cutoff_hours, 24h par défaut),
+  // parce qu'un créneau déplacé doit être re-staffé.
   const timeInfo = useMemo(() => {
     if (!booking) return null;
     const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
     const minutesUntilAppointment = differenceInMinutes(bookingDateTime, new Date());
-    const cutoffHours = Number(booking.hotels?.client_cancellation_cutoff_hours ?? 2);
+    const cancelCutoffHours = Number(booking.hotels?.client_cancellation_cutoff_hours ?? 2);
+    const rescheduleCutoffHours = Number(booking.reschedule_cutoff_hours ?? 24);
     const hoursUntil = hoursUntilBooking(
       booking.booking_date,
       booking.booking_time,
@@ -153,9 +173,11 @@ const ManageBooking = () => {
     );
     return {
       bookingDateTime,
-      canActFreely: hoursUntil != null && hoursUntil > cutoffHours,
+      canCancel: hoursUntil != null && hoursUntil > cancelCutoffHours,
+      canReschedule: hoursUntil != null && hoursUntil > rescheduleCutoffHours,
       isPast: minutesUntilAppointment < 0,
-      cutoffHours,
+      cancelCutoffHours,
+      rescheduleCutoffHours,
     };
   }, [booking]);
 
@@ -236,18 +258,32 @@ const ManageBooking = () => {
     return () => {
       cancelled = true;
     };
-  }, [rescheduleOpen, selectedDate, booking]);
+  }, [rescheduleOpen, selectedDate, booking, slotsRefreshKey]);
 
-  const rescheduleMutation = useMutation({
+  const rescheduleMutation = useMutation<RescheduleResult, Error>({
     mutationFn: async () => {
       if (!booking || !selectedDate || !selectedTime) throw new Error("Missing date/time");
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .rpc("reschedule_booking_public", {
           p_token: bookingId!,
           p_new_date: selectedDate,
           p_new_time: selectedTime,
         });
       if (updateError) throw updateError;
+
+      // Le serveur revérifie tout (délai, créneau passé, salle libre) et refuse
+      // sans lever d'erreur SQL : un refus arrive ici en data.success === false.
+      const result = (data ?? { success: false }) as unknown as RescheduleResult;
+      if (!result.success) throw new Error(result.error ?? "unknown");
+
+      // Un déplacement rouvre le staffing. La réservation qui était confirmée
+      // interroge d'abord ses praticiens ; les autres repartent au broadcast.
+      await invokeEdgeFunction("trigger-new-booking-notifications", {
+        skipAuth: true,
+        body: (result.reconfirm_therapists ?? 0) > 0
+          ? { bookingId: booking.id, reconfirmOnly: true }
+          : { bookingId: booking.id, notifyAll: true, therapistsOnly: true },
+      });
 
       await invokeEdgeFunction("send-booking-notification", {
         skipAuth: true,
@@ -259,17 +295,39 @@ const ManageBooking = () => {
           clientPhone: booking.phone ?? undefined,
         },
       });
+
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
       toast({
-        title: "Réservation modifiée",
-        description: "Un SMS de confirmation vient d'être envoyé.",
+        title: "Nouveau créneau enregistré",
+        description: result.was_confirmed
+          ? "Nous confirmons la disponibilité de votre praticien et revenons vers vous."
+          : "Votre demande est en cours de traitement, vous recevrez la confirmation sous peu.",
       });
       setRescheduleOpen(false);
       setSelectedTime("");
     },
-    onError: () => {
+    onError: (error) => {
+      // NO_ROOM_AVAILABLE : le créneau proposé vient d'être pris. Les
+      // disponibilités affichées sont périmées, on les recharge.
+      if (error.message === "NO_ROOM_AVAILABLE" || error.message === "past_slot") {
+        setSelectedTime("");
+        queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
+        setSlotsRefreshKey((key) => key + 1);
+        toast({
+          title: "Ce créneau vient d'être pris",
+          description: "Choisissez-en un autre parmi les disponibilités mises à jour.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (error.message === "too_late") {
+        setRescheduleOpen(false);
+        setShowLateWarningDialog(true);
+        return;
+      }
       toast({
         title: "Erreur",
         description: "Impossible de modifier la réservation. Veuillez réessayer.",
@@ -280,7 +338,8 @@ const ManageBooking = () => {
 
   const openReschedule = () => {
     if (!timeInfo) return;
-    if (!timeInfo.canActFreely) {
+    if (!timeInfo.canReschedule) {
+      setLateAction("reschedule");
       setShowLateWarningDialog(true);
       return;
     }
@@ -291,9 +350,10 @@ const ManageBooking = () => {
 
   const handleCancelClick = () => {
     if (!timeInfo) return;
-    if (timeInfo.canActFreely) {
+    if (timeInfo.canCancel) {
       setShowConfirmCancelDialog(true);
     } else {
+      setLateAction("cancel");
       setShowLateWarningDialog(true);
     }
   };
@@ -323,6 +383,9 @@ const ManageBooking = () => {
     );
   }
 
+  const lateCutoffHours = lateAction === "reschedule"
+    ? (timeInfo?.rescheduleCutoffHours ?? 24)
+    : (timeInfo?.cancelCutoffHours ?? 2);
   const isCancelled = booking.status === "cancelled";
   const isCompleted = booking.status === "completed";
   const hotelName = hotel?.name ?? booking.hotel_name ?? "";
@@ -570,9 +633,9 @@ const ManageBooking = () => {
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p>
-                Il est trop tard pour modifier ou annuler en ligne (moins de{" "}
-                {timeInfo?.cutoffHours ?? 2} heure
-                {(timeInfo?.cutoffHours ?? 2) > 1 ? "s" : ""} avant le soin).
+                {lateAction === "reschedule"
+                  ? `Il est trop tard pour modifier votre créneau en ligne (moins de ${lateCutoffHours} heure${lateCutoffHours > 1 ? "s" : ""} avant le soin).`
+                  : `Il est trop tard pour annuler en ligne (moins de ${lateCutoffHours} heure${lateCutoffHours > 1 ? "s" : ""} avant le soin).`}
               </p>
               <p>Veuillez contacter directement la conciergerie de l'hôtel.</p>
               {hotel?.contact_phone && (

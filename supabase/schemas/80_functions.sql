@@ -1,9 +1,16 @@
 SET check_function_bodies = false;
 
-CREATE OR REPLACE FUNCTION "public"."accept_booking"("_booking_id" "uuid", "_hairdresser_id" "uuid", "_hairdresser_name" "text", "_total_price" numeric) RETURNS "jsonb"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
+CREATE OR REPLACE FUNCTION public.accept_booking(
+  _booking_id uuid,
+  _hairdresser_id uuid,
+  _hairdresser_name text,
+  _total_price numeric
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
 DECLARE
   _result jsonb;
   _current_therapist_id uuid;
@@ -15,6 +22,7 @@ DECLARE
   _my_open_legs integer;
   _claimed_legs integer;
   _qualified boolean;
+  _existing_status text;
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM therapists
@@ -74,10 +82,14 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'already_taken');
   END IF;
 
-  IF EXISTS (
-    SELECT 1 FROM booking_therapists
-    WHERE booking_id = _booking_id AND therapist_id = _hairdresser_id
-  ) THEN
+  -- Seule une acceptation ferme fait doublon. 'reconfirm_pending' est au
+  -- contraire l'état d'un praticien à qui l'on demande de se prononcer sur un
+  -- créneau déplacé : sa réponse doit être reçue.
+  SELECT status INTO _existing_status
+  FROM booking_therapists
+  WHERE booking_id = _booking_id AND therapist_id = _hairdresser_id;
+
+  IF _existing_status = 'accepted' THEN
     RETURN jsonb_build_object('success', false, 'error', 'already_accepted');
   END IF;
 
@@ -115,11 +127,8 @@ BEGIN
 
   INSERT INTO booking_therapists (booking_id, therapist_id, status, assigned_at)
   VALUES (_booking_id, _hairdresser_id, 'accepted', now())
-  ON CONFLICT (booking_id, therapist_id) DO NOTHING;
-
-  IF NOT FOUND THEN
-    RETURN jsonb_build_object('success', false, 'error', 'already_accepted');
-  END IF;
+  ON CONFLICT (booking_id, therapist_id)
+  DO UPDATE SET status = 'accepted', assigned_at = now();
 
   _accepted_count := _accepted_count + 1;
 
@@ -215,6 +224,15 @@ BEGIN
     status = _new_status,
     assigned_at = CASE WHEN _new_status = 'confirmed' THEN now() ELSE assigned_at END,
     total_price = _total_price,
+    -- Plus personne à relancer : la fenêtre d'exclusivité n'a plus d'objet et la
+    -- réservation redevient une demande ordinaire pour le cron d'escalade.
+    reconfirm_until = CASE
+      WHEN EXISTS (
+        SELECT 1 FROM booking_therapists
+        WHERE booking_id = _booking_id AND status = 'reconfirm_pending'
+      ) THEN reconfirm_until
+      ELSE NULL
+    END,
     updated_at = now()
   WHERE id = _booking_id
   RETURNING jsonb_build_object(
@@ -229,7 +247,7 @@ BEGIN
 
   RETURN jsonb_build_object('success', true, 'data', _result);
 END;
-$$;
+$function$;
 
 ALTER FUNCTION "public"."accept_booking"("_booking_id" "uuid", "_hairdresser_id" "uuid", "_hairdresser_name" "text", "_total_price" numeric) OWNER TO "postgres";
 
@@ -793,10 +811,12 @@ $$;
 
 ALTER FUNCTION "public"."create_treatment_request"("_client_first_name" "text", "_client_phone" "text", "_hotel_id" "text", "_client_last_name" "text", "_client_email" "text", "_room_number" "text", "_description" "text", "_treatment_id" "uuid", "_preferred_date" "date", "_preferred_time" time without time zone) OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."decline_booking"("_booking_id" "uuid") RETURNS "void"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
+CREATE OR REPLACE FUNCTION public.decline_booking(_booking_id UUID)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   _therapist_id UUID;
   _booking_hotel_id TEXT;
@@ -842,6 +862,22 @@ BEGIN
   WHERE id = _booking_id
     AND NOT (COALESCE(declined_by, ARRAY[]::uuid[]) @> ARRAY[_therapist_id]);
 
+  -- 5. Rendre la place : la ligne de jonction et les prestations attribuées à ce
+  --    praticien repartent au pot commun. Sans effet sur le flux d'origine (un
+  --    praticien qui refuse une demande n'a jamais rien de tout ça), décisif sur
+  --    une réservation déplacée.
+  DELETE FROM public.booking_therapists
+  WHERE booking_id = _booking_id AND therapist_id = _therapist_id;
+
+  UPDATE public.booking_treatments
+  SET therapist_id = NULL
+  WHERE booking_id = _booking_id AND therapist_id = _therapist_id;
+
+  -- 6. Un refus pendant la re-confirmation vaut ouverture immédiate : inutile
+  --    d'attendre la fin de la fenêtre pour solliciter le reste du vivier.
+  UPDATE public.bookings
+  SET reconfirm_until = NULL
+  WHERE id = _booking_id AND reconfirm_until IS NOT NULL;
 END;
 $$;
 

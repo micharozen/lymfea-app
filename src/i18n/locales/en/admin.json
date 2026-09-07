@@ -873,6 +873,8 @@
       "onlineCancellation": "Online client cancellation",
       "onlineCancellationDesc": "Refund tiers based on how long before the appointment the cancellation occurs.",
       "cancellationCutoff": "Minimum notice before the appointment (hours)",
+      "rescheduleCutoff": "Minimum notice to reschedule (hours)",
+      "rescheduleCutoffHelp": "Below this notice, the client can no longer change their slot online. Rescheduling sends the booking back to pending and asks the therapist to confirm their availability.",
       "cancellationTextHelp": "Text displayed in the cancellation modal (client and staff). Leave empty for an automatic summary based on the tiers.",
       "cancellationPolicyFr": "Cancellation policy (FR)",
       "cancellationPolicyEn": "Cancellation policy (EN)",
