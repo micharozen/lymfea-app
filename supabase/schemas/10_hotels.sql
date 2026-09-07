@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS "public"."hotels" (
     "inter_venue_buffer_minutes" integer DEFAULT 0,
     "slug" "text" NOT NULL,
     "room_turnover_buffer_minutes" integer DEFAULT 0,
+    "client_reschedule_cutoff_hours" numeric DEFAULT 24 NOT NULL,
     "therapist_escalation_delay_minutes" integer,
     "booking_hold_enabled" boolean DEFAULT true NOT NULL,
     "booking_hold_duration_minutes" integer DEFAULT 5 NOT NULL,
