@@ -47,6 +47,18 @@ export async function downloadInvoicePdf(
   );
 }
 
+/** Génère le PDF et renvoie son blob, pour le partage natif ou un lien objet. */
+export async function renderInvoicePdfBlob(
+  html: string,
+  filename: string,
+  options?: PdfOptions,
+): Promise<Blob> {
+  const html2pdf = (await import("html2pdf.js")).default;
+  return withMountedHtml(html, (element) =>
+    html2pdf().set(pdfConfig(filename, options)).from(element).outputPdf("blob"),
+  );
+}
+
 /** Génère le PDF et renvoie son base64 (sans le préfixe data-URI). */
 export async function renderInvoicePdfBase64(
   html: string,

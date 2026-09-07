@@ -80,15 +80,58 @@ export async function refreshAccessToken(
   return {
     accessToken: payload.access_token,
     refreshToken: payload.refresh_token,
-    accountId: payload.stripe_user_id ?? "",
+    // The code exchange answers `stripe_user_id`, a refresh answers `account_id`.
+    accountId: payload.stripe_user_id ?? payload.account_id ?? "",
     publishableKey: payload.stripe_publishable_key ?? null,
     livemode: payload.livemode === true,
     expiresAt: new Date(Date.now() + ttl * 1000).toISOString(),
   };
 }
 
+/** Mirror of the Deno `installationHotelIds`; see it for the rationale. */
+async function installationHotelIds(
+  supabase: SupabaseClient,
+  hotelId: string,
+  accountId: string,
+): Promise<string[]> {
+  let account = accountId;
+
+  if (!account) {
+    const { data } = await supabase
+      .from("hotel_payment_configs")
+      .select("stripe_account_id")
+      .eq("hotel_id", hotelId)
+      .maybeSingle();
+    account = data?.stripe_account_id ?? "";
+  }
+
+  if (!account) return [hotelId];
+
+  const { data: siblings } = await supabase
+    .from("hotel_payment_configs")
+    .select("hotel_id")
+    .eq("stripe_account_id", account)
+    .eq("auth_method", "oauth");
+
+  return [
+    ...new Set([hotelId, ...(siblings ?? []).map((row) => row.hotel_id as string)]),
+  ];
+}
+
 /** Mirror of the Deno `persistTokens`; see it for the rationale. */
 export async function persistTokens(
+  supabase: SupabaseClient,
+  hotelId: string,
+  tokens: StripeOAuthTokens,
+): Promise<void> {
+  const targets = await installationHotelIds(supabase, hotelId, tokens.accountId);
+
+  for (const target of targets) {
+    await persistTokensForHotel(supabase, target, tokens);
+  }
+}
+
+async function persistTokensForHotel(
   supabase: SupabaseClient,
   hotelId: string,
   tokens: StripeOAuthTokens,

@@ -26,7 +26,9 @@ const ForgotPassword = () => {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/set-password`,
+        // Le marqueur `flow` survit au nettoyage du hash par detectSessionInUrl,
+        // qui sinon fait tomber SetPassword dans le fallback « déjà connecté ».
+        redirectTo: `${window.location.origin}/set-password?flow=recovery`,
       });
 
       if (error) {

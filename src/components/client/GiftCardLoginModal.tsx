@@ -90,6 +90,12 @@ export function GiftCardLoginModal({
     setIsLoading(true);
     setError(null);
 
+    // Un client venu de son espace (/portal) a déjà une session ouverte : on ne
+    // doit pas la fermer en sortant de la modale, sinon il se retrouve
+    // déconnecté du portail en revenant.
+    const { data: existingSession } = await supabase.auth.getSession();
+    const hadSession = !!existingSession.session;
+
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
@@ -142,8 +148,9 @@ export function GiftCardLoginModal({
     } catch {
       setError(t('giftCardLogin.loginError'));
     } finally {
-      // Always sign out to keep client flow anonymous
-      await supabase.auth.signOut();
+      // Sign out to keep the client flow anonymous — sauf si une session
+      // existait déjà avant (client connecté à son espace).
+      if (!hadSession) await supabase.auth.signOut();
       setIsLoading(false);
     }
   };

@@ -1,57 +1,20 @@
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
-import { Gift, Calendar, Sparkles } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Gift, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
-
-interface GiftCard {
-  id: string;
-  bundle_type: string;
-  bundle_name: string;
-  bundle_name_en: string | null;
-  cover_image_url: string | null;
-  total_sessions: number | null;
-  used_sessions: number;
-  total_amount_cents: number | null;
-  used_amount_cents: number;
-  status: string;
-  expires_at: string;
-  is_gift: boolean;
-  sender_name: string | null;
-  gift_message: string | null;
-  hotel_name: string | null;
-  claimed_at: string | null;
-  created_at: string;
-}
-
-interface PortalData {
-  gift_cards: GiftCard[];
-  customer: { id: string };
-  upcoming_bookings: unknown[];
-  past_bookings: unknown[];
-}
+import { usePortalData, type PortalGiftCard } from '@/hooks/portal/usePortalData';
 
 export default function PortalGiftCards() {
   const { t, i18n } = useTranslation('client');
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
-
-  const { data, isLoading } = useQuery<PortalData>({
-    queryKey: ['portal-data'],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_customer_portal_data');
-      if (error) throw error;
-      return data as unknown as PortalData;
-    },
-  });
+  const { data, isLoading } = usePortalData();
 
   if (isLoading) {
     return (
-      <div className="space-y-4 animate-pulse py-2">
-        <div className="h-8 bg-gray-200 rounded-lg w-40" />
-        <div className="h-40 bg-gray-200 rounded-xl" />
-        <div className="h-40 bg-gray-200 rounded-xl" />
+      <div className="flex flex-col gap-3 px-4 pt-2">
+        <div className="sk h-8 w-40" />
+        <div className="sk h-44" />
+        <div className="sk h-44" />
       </div>
     );
   }
@@ -60,7 +23,7 @@ export default function PortalGiftCards() {
   const active = cards.filter((c) => c.status === 'active');
   const inactive = cards.filter((c) => c.status !== 'active');
 
-  const renderCard = (card: GiftCard) => {
+  const renderCard = (card: PortalGiftCard) => {
     const isAmount = card.bundle_type === 'gift_amount';
     const isExpired = new Date(card.expires_at) < new Date();
     const title = i18n.language === 'en' && card.bundle_name_en ? card.bundle_name_en : card.bundle_name;
@@ -68,86 +31,72 @@ export default function PortalGiftCards() {
     const remaining = isAmount
       ? (card.total_amount_cents ?? 0) - card.used_amount_cents
       : (card.total_sessions ?? 0) - card.used_sessions;
-
     const total = isAmount ? (card.total_amount_cents ?? 0) : (card.total_sessions ?? 0);
     const progress = total > 0 ? ((total - remaining) / total) * 100 : 0;
 
+    const statusKind = isExpired ? 'warn' : card.status === 'active' ? 'ok' : 'info';
+
     return (
-      <div
-        key={card.id}
-        className={cn(
-          "bg-white rounded-2xl border overflow-hidden shadow-sm",
-          card.status === 'active' ? "border-gray-100" : "border-gray-100 opacity-60"
-        )}
-      >
+      <div className="card" key={card.id} style={{ marginBottom: 'calc(10px * var(--sp))', opacity: card.status === 'active' ? 1 : 0.6 }}>
         {card.cover_image_url && (
-          <div className="h-28 overflow-hidden">
-            <img src={card.cover_image_url} className="w-full h-full object-cover" alt="" />
+          <div style={{ height: 108, overflow: 'hidden' }}>
+            <img src={card.cover_image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
         )}
-        <div className="p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Gift className="w-4 h-4 text-gray-400" />
-              <span className="text-sm font-medium text-gray-900">{title}</span>
-            </div>
-            <span className={cn(
-              "text-[10px] font-medium px-2 py-0.5 rounded-full",
-              isExpired ? "bg-red-50 text-red-600" :
-              card.status === 'active' ? "bg-green-50 text-green-700" :
-              card.status === 'completed' ? "bg-blue-50 text-blue-600" :
-              "bg-gray-100 text-gray-500"
-            )}>
-              {isExpired
-                ? t('portal.cardExpired')
-                : t(`portal.cardStatus.${card.status}`, card.status)
-              }
+        <div style={{ padding: 'calc(16px * var(--sp)) 18px', display: 'flex', flexDirection: 'column', gap: 'calc(12px * var(--sp))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Gift size={16} style={{ color: 'var(--ink-mute)', flexShrink: 0 }} />
+            <span style={{ fontSize: 14.5, fontWeight: 500, flex: 1, minWidth: 0 }}>{title}</span>
+            <span className={`status ${statusKind}`}>
+              <span className="dot" />
+              {isExpired ? t('portal.cardExpired') : t(`portal.cardStatus.${card.status}`, card.status)}
             </span>
           </div>
 
-          {/* Balance */}
-          <div className="text-center py-3 border-y border-gray-50">
-            {isAmount ? (
-              <p className="text-3xl font-serif font-light text-gray-900">
-                {Math.round(remaining / 100)} <span className="text-xl text-gray-400">€</span>
-                <span className="text-sm text-gray-300 ml-1">/ {Math.round(total / 100)} €</span>
-              </p>
-            ) : (
-              <p className="text-3xl font-serif font-light text-gray-900">
-                {remaining} <span className="text-sm text-gray-400">{t('portal.sessionsLeft')}</span>
-                <span className="text-sm text-gray-300 ml-1">/ {total}</span>
-              </p>
-            )}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 34, lineHeight: 1 }}>
+              {isAmount ? Math.round(remaining / 100) : remaining}
+              <span style={{ fontSize: 16, color: 'var(--ink-mute)', marginLeft: 4 }}>
+                {isAmount ? '€' : t('portal.sessionsLeft')}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 4 }}>
+              {t('portal.outOfTotal', {
+                total: isAmount ? `${Math.round(total / 100)} €` : total,
+              })}
+            </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div style={{ height: 5, background: 'var(--sand-200)', borderRadius: 999, overflow: 'hidden' }}>
             <div
-              className="h-full bg-gray-900 rounded-full transition-all"
-              style={{ width: `${Math.min(progress, 100)}%` }}
+              style={{
+                height: '100%',
+                width: `${Math.min(progress, 100)}%`,
+                background: 'var(--accent)',
+                borderRadius: 999,
+              }}
             />
           </div>
 
-          {/* Meta */}
-          <div className="flex items-center justify-between text-xs text-gray-400">
-            <div className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              <span>
-                {t('portal.validUntil', { date: format(new Date(card.expires_at), 'd MMM yyyy', { locale: dateLocale }) })}
-              </span>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 11.5, color: 'var(--ink-mute)' }}>
+            <span>
+              {t('portal.validUntil', {
+                date: format(new Date(card.expires_at), 'd MMM yyyy', { locale: dateLocale }),
+              })}
+            </span>
             {card.hotel_name && <span>{card.hotel_name}</span>}
           </div>
 
-          {/* Gift message */}
           {card.is_gift && card.sender_name && (
-            <div className="p-3 bg-gray-50 rounded-xl">
-              <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
-                <Sparkles className="w-3 h-3" />
-                <span>{t('portal.fromSender', { name: card.sender_name })}</span>
+            <div style={{ background: 'var(--sand-100)', borderRadius: 12, padding: '10px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--ink-soft)' }}>
+                <Sparkles size={12} />
+                {t('portal.fromSender', { name: card.sender_name })}
               </div>
               {card.gift_message && (
-                <p className="text-xs text-gray-500 italic">"{card.gift_message}"</p>
+                <p style={{ margin: '4px 0 0', fontSize: 12.5, fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+                  « {card.gift_message} »
+                </p>
               )}
             </div>
           )}
@@ -157,27 +106,32 @@ export default function PortalGiftCards() {
   };
 
   return (
-    <div className="space-y-6 py-2">
-      <h1 className="text-xl font-serif text-gray-900">{t('portal.giftCardsTitle')}</h1>
+    <div className="pb-6">
+      <div className="greeting">
+        <h1>{t('portal.giftCardsTitle')}</h1>
+      </div>
 
       {cards.length === 0 && (
-        <div className="text-center py-12">
-          <Gift className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-400">{t('portal.noGiftCards')}</p>
+        <div className="placeholder">
+          <Gift size={28} />
+          <p>{t('portal.noGiftCards')}</p>
         </div>
       )}
 
       {active.length > 0 && (
-        <div className="space-y-3">
+        <>
+          <div className="sec-label">
+            {t('portal.activeCards')} <span className="count">{active.length}</span>
+          </div>
           {active.map(renderCard)}
-        </div>
+        </>
       )}
 
       {inactive.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-sm font-medium text-gray-400">{t('portal.pastCards')}</h2>
+        <>
+          <div className="sec-label">{t('portal.pastCards')}</div>
           {inactive.map(renderCard)}
-        </div>
+        </>
       )}
     </div>
   );

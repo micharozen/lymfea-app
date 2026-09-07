@@ -659,6 +659,64 @@
 .app-refonte .lang-row{display:flex; align-items:center; gap:10px; padding:calc(11px*var(--sp)) 16px; border-top:1px solid var(--line-soft);}
 .app-refonte .lang-row .lab{font-size:13px; color:var(--ink-soft); font-weight:500;}
 
+/* ── profil ────────────────────────────── */
+.app-refonte .prof-id{display:flex; flex-direction:column; align-items:center; padding:calc(6px*var(--sp)) 20px calc(4px*var(--sp));}
+.app-refonte .prof-av-wrap{position:relative;}
+.app-refonte .prof-av{
+  width:82px; height:82px; border-radius:50%; object-fit:cover;
+  border:1px solid var(--line); background:var(--sand-200); display:block;
+}
+.app-refonte .prof-av-fallback{
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif); font-size:28px; color:var(--ink-soft);
+}
+.app-refonte .prof-cam{
+  position:absolute; bottom:0; right:0; width:28px; height:28px; min-height:28px;
+  border-radius:50%; border:2px solid var(--sand-100); padding:0;
+  background:var(--accent); color:var(--on-accent);
+  display:flex; align-items:center; justify-content:center;
+}
+.app-refonte .prof-cam:disabled{opacity:.5;}
+.app-refonte .prof-nm{font-family:var(--serif); font-size:24px; letter-spacing:-.01em; margin-top:calc(10px*var(--sp));}
+.app-refonte .prof-rate{display:flex; align-items:center; gap:5px; margin-top:4px; font-size:13px; color:var(--ink-soft);}
+.app-refonte .prof-rate .star{color:var(--gold); fill:currentColor;}
+.app-refonte .prof-rate .cnt{color:var(--ink-mute);}
+
+.app-refonte .prof-chips{
+  display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+  width:calc(100% - 32px); padding:calc(13px*var(--sp)) 14px;
+  border:1px solid var(--line-soft); text-align:left; color:var(--ink);
+}
+.app-refonte .chip{
+  font-size:12px; line-height:1.2; padding:6px 11px; border-radius:999px;
+  background:var(--sand-100); color:var(--ink-soft); border:1px solid var(--line-soft);
+}
+.app-refonte .chip.more{background:var(--sand-200); color:var(--ink); font-weight:500;}
+
+/* rangée de menu (profil) */
+.app-refonte .menu-row{
+  display:flex; align-items:center; gap:13px; width:100%;
+  padding:calc(13px*var(--sp)) 16px; background:none; border:none;
+  text-align:left; color:var(--ink);
+}
+.app-refonte .menu-row+.menu-row{border-top:1px solid var(--line-soft);}
+.app-refonte .menu-row .ic{color:var(--ink-mute); flex-shrink:0;}
+.app-refonte .menu-row .lb{flex:1; min-width:0; font-size:14.5px; font-weight:500;}
+.app-refonte .menu-row .chev{color:var(--ink-mute); flex-shrink:0;}
+.app-refonte .menu-row:active{background:var(--sand-100);}
+
+/* feuille haute et scrollable (liste des prestations) */
+.app-refonte .sheet.tall{display:flex; flex-direction:column; max-height:82vh; padding:18px 0 calc(16px + env(safe-area-inset-bottom));}
+.app-refonte .sheet.tall .sheet-head{display:flex; align-items:center; gap:10px; padding:0 20px 12px;}
+.app-refonte .sheet.tall .sheet-head h3{flex:1; margin:0;}
+.app-refonte .sheet-close{
+  width:30px; height:30px; min-height:30px; border-radius:50%; padding:0; flex-shrink:0;
+  border:1px solid var(--line); background:var(--sand-100); color:var(--ink-soft);
+  display:flex; align-items:center; justify-content:center;
+}
+.app-refonte .sheet.tall .sheet-body{flex:1; overflow-y:auto; scrollbar-width:none; border-top:1px solid var(--line-soft);}
+.app-refonte .sheet.tall .sheet-body::-webkit-scrollbar{display:none;}
+
 /* ────────────────────────────────────────────────────────────
    Dark mode — variante sombre cohérente (le design d'origine est
    light-only). On garde l'accent clay ; les surfaces sombres
