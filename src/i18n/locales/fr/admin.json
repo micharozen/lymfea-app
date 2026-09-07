@@ -2999,7 +2999,8 @@
       "sms": "SMS",
       "smsTo": "SMS au {{phone}}",
       "joiner": " et "
-    }
+    },
+    "byClient": "par le client"
   },
   "venueBookingCalendar": {
     "refresh": "Actualiser",

@@ -4391,6 +4391,7 @@ export type Database = {
           hotel_name: string
           id: string
           language: string
+          customer_language: string
           payment_method: string
           payment_status: string
           phone: string

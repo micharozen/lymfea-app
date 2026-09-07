@@ -124,7 +124,13 @@ serve(async (req) => {
     // répondu, le reste du vivier n'est pas dérangé : accepter les maintient sur la
     // réservation. L'ouverture à tous vient du refus (decline_booking) ou de
     // l'expiration de bookings.reconfirm_until (escalate-booking-broadcast).
-    const { bookingId, notifyAll, sendPaymentLink, notifyClient, wave, therapistsOnly, reconfirmOnly } =
+    //
+    // rescheduled : déplacement client. Le staffing se comporte comme une
+    // re-sollicitation interne (therapistsOnly / reconfirmOnly), mais le client
+    // doit tout de même recevoir l'e-mail « Demande de réservation » : sa
+    // réservation est repassée en 'pending' et attend une acceptation. Slack
+    // reste muet — ce n'est pas une nouvelle réservation.
+    const { bookingId, notifyAll, sendPaymentLink, notifyClient, wave, therapistsOnly, reconfirmOnly, rescheduled } =
       await req.json();
 
     if (!bookingId) {
@@ -626,7 +632,7 @@ serve(async (req) => {
     // Re-sollicitation interne : on s'arrête au push praticien. Tout ce qui suit
     // (email/SMS client, Slack) annonce une NOUVELLE réservation et n'a aucun sens
     // sur une vague d'escalade ou un re-broadcast après refus.
-    if (therapistsOnly || reconfirmOnly) {
+    if ((therapistsOnly || reconfirmOnly) && !rescheduled) {
       console.log(`[THERAPISTS-ONLY] Push praticien seul : ni email/SMS client, ni Slack`);
       return new Response(
         JSON.stringify({
@@ -947,7 +953,10 @@ serve(async (req) => {
             .eq('new_values->>action', 'email_sent')
             .in('new_values->>email_type', dedupEmailTypes)
             .limit(1);
-          const alreadySentByEmail = !!(sentRows && sentRows.length > 0);
+          // Un déplacement rouvre légitimement l'envoi : le client doit être
+          // averti que sa réservation est repassée en attente, même s'il avait
+          // déjà reçu ce template à la création.
+          const alreadySentByEmail = !rescheduled && !!(sentRows && sentRows.length > 0);
 
           if (!isPending && !isPaidEnough) {
             console.log('[trigger-new-booking-notifications] Confirmed booking not paid yet → skipping client email:', bookingId);
@@ -1033,6 +1042,22 @@ serve(async (req) => {
       }
     } catch (emailError) {
       console.error('[trigger-new-booking-notifications] Error sending client email:', emailError);
+    }
+
+    // Un déplacement s'arrête ici : l'e-mail client est parti, mais Slack
+    // annoncerait une nouvelle réservation qui n'en est pas une.
+    if (rescheduled) {
+      console.log('[RESCHEDULED] E-mail client envoyé, pas de notification Slack');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          notificationsSent,
+          skippedDuplicates,
+          totalEligible: eligibleTherapists.length,
+          rescheduled: true,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Send Slack notification for new booking

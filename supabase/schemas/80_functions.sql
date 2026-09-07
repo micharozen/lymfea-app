@@ -2305,6 +2305,9 @@ DECLARE
   _old JSONB := '{}'::jsonb;
   _new JSONB := '{}'::jsonb;
   _changed BOOLEAN := false;
+  -- Posé par les fonctions publiques appelées sans session authentifiée
+  -- (déplacement/annulation client). Absent → 'admin', la valeur historique.
+  _source TEXT := COALESCE(NULLIF(current_setting('app.audit_source', true), ''), 'admin');
 BEGIN
   -- On INSERT: log the initial creation
   IF TG_OP = 'INSERT' THEN
@@ -2325,7 +2328,7 @@ BEGIN
         'booking_time', NEW.booking_time,
         'total_price', NEW.total_price
       ),
-      'admin',
+      _source,
       jsonb_build_object(
         'booking_id', NEW.booking_id,
         'therapist_id', COALESCE(NEW.therapist_id::text, '')
@@ -2404,7 +2407,7 @@ BEGIN
     'update',
     _old,
     _new,
-    'admin',
+    _source,
     jsonb_build_object(
       'booking_id', NEW.booking_id,
       'therapist_id', COALESCE(NEW.therapist_id::text, '')

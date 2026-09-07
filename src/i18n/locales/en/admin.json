@@ -2999,7 +2999,8 @@
       "sms": "SMS",
       "smsTo": "SMS to {{phone}}",
       "joiner": " and "
-    }
+    },
+    "byClient": "by the client"
   },
   "venueBookingCalendar": {
     "refresh": "Refresh",
