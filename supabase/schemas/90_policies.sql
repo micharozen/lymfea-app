@@ -652,3 +652,17 @@ CREATE POLICY "treatment_addons_admin_write" ON "public"."treatment_addons" USIN
 CREATE POLICY "treatment_addons_public_read" ON "public"."treatment_addons" FOR SELECT USING (true);
 
 CREATE POLICY "users_select_own_tickets" ON "public"."tickets" FOR SELECT USING (("created_by" = "auth"."uid"()));
+
+CREATE POLICY "Block anonymous access to voucher resellers" ON "public"."voucher_resellers" AS RESTRICTIVE TO "anon" USING (false);
+
+CREATE POLICY "Admins can manage voucher resellers" ON "public"."voucher_resellers" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
+
+CREATE POLICY "Concierges can view voucher resellers" ON "public"."voucher_resellers" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));
+
+CREATE POLICY "Concierges can insert voucher resellers" ON "public"."voucher_resellers" FOR INSERT WITH CHECK ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));
+
+CREATE POLICY "Block anonymous access to voucher verifications" ON "public"."voucher_verification_requests" AS RESTRICTIVE TO "anon" USING (false);
+
+CREATE POLICY "Admins can manage voucher verifications" ON "public"."voucher_verification_requests" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
+
+CREATE POLICY "Concierges can view voucher verifications" ON "public"."voucher_verification_requests" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));

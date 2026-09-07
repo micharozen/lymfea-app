@@ -1433,7 +1433,8 @@
     "sessionsValue": "{{count}} séances",
     "tabs": {
       "templates": "Modèles",
-      "sales": "Ventes"
+      "sales": "Ventes",
+      "external": "Bons partenaires"
     },
     "type": {
       "amount": "Montant",
@@ -1524,6 +1525,38 @@
       "eligibleTreatmentsRequired": "Sélectionnez au moins un soin éligible",
       "amountRequired": "Montant requis"
     }
+  },
+  "externalVouchers": {
+    "add": "Enregistrer un bon",
+    "empty": "Aucun bon partenaire enregistré",
+    "emptyHint": "Enregistrez ici les bons reçus par mail de vos revendeurs pour que vos clients puissent les utiliser en ligne.",
+    "dialogTitle": "Enregistrer un bon partenaire",
+    "dialogSubtitle": "Saisissez le bon reçu par mail de votre revendeur. Le client pourra ensuite l'utiliser directement lors de sa réservation en ligne.",
+    "unknownReseller": "Non identifié",
+    "venuePlaceholder": "Choisir un lieu",
+    "amount": "Montant (€)",
+    "holderPlaceholder": "Nom figurant sur le bon",
+    "notes": "Note interne",
+    "notesPlaceholder": "Reçu par mail le…",
+    "normalizedAs": "Recherché comme",
+    "codePatternWarning": "Cette référence ne ressemble pas au format habituel de ce revendeur. Vous pouvez tout de même l'enregistrer.",
+    "saved": "Bon enregistré",
+    "columns": {
+      "code": "Référence",
+      "reseller": "Revendeur",
+      "holder": "Bénéficiaire"
+    },
+    "errors": {
+      "venueRequired": "Choisissez un lieu",
+      "codeTooShort": "La référence doit faire au moins 4 caractères",
+      "amountInvalid": "Montant invalide",
+      "expiryRequired": "Renseignez une date d'expiration",
+      "duplicate": "Cette référence existe déjà pour ce lieu"
+    },
+    "customer": "Client",
+    "optional": "(facultatif)",
+    "customerPlaceholder": "Nom ou téléphone",
+    "customerHint": "Laissez vide si vous ne savez pas encore qui utilisera ce bon : il sera rattaché automatiquement à la première réservation."
   },
   "booking": {
     "therapistSections": {
@@ -3643,6 +3676,21 @@
     "tabs": {
       "dashboard": "Tableau de bord",
       "overview": "Vue d'ensemble"
+    },
+    "quickActions": {
+      "title": "Que voulez-vous faire ?",
+      "booking": {
+        "label": "Créer une réservation",
+        "hint": "Nouvelle réservation pour un client"
+      },
+      "treatment": {
+        "label": "Créer un soin",
+        "hint": "Ajouter un soin au menu"
+      },
+      "voucher": {
+        "label": "Enregistrer un bon",
+        "hint": "Bon partenaire Wonderbox, Smartbox…"
+      }
     }
   },
   "dashboardAlerts": {

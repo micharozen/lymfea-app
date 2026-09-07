@@ -26,6 +26,7 @@ import { DashboardKpiRow } from "@/components/admin/dashboard/DashboardKpiRow";
 import { DashboardClientMix } from "@/components/admin/dashboard/DashboardClientMix";
 import { DashboardTodayStats } from "@/components/admin/dashboard/DashboardTodayStats";
 import { MonthlyOutlookChart } from "@/components/admin/dashboard/MonthlyOutlookChart";
+import { DashboardQuickActions } from "@/components/admin/dashboard/DashboardQuickActions";
 
 export default function Dashboard() {
   const { t } = useTranslation(["admin", "common"]);
@@ -120,6 +121,8 @@ export default function Dashboard() {
             </Select>
           </div>
         </div>
+
+        <DashboardQuickActions selectedHotel={selectedHotel} />
 
         <Tabs defaultValue="dashboard">
           {!isConcierge && (
