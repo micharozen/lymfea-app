@@ -270,6 +270,18 @@ serve(async (req) => {
              !(booking.declined_by || []).includes(t.id);
     });
 
+    // Panier 100% amenity (privatisation bassin, piscine…) : aucune prestation ne
+    // requiert de praticien. Le test doit précéder la branche notifyAll : sans lui,
+    // une privatisation créée hors broadcast n'a aucun praticien assigné, la garde
+    // `!notifyAll && assignedTherapistIds.length > 0` plus bas est donc fausse et
+    // le `else` diffusait à TOUTE l'équipe du lieu (issue Buci : ~20 push par
+    // privatisation, sur une réservation que personne ne peut ni ne doit accepter).
+    const isAmenityOnly = treatments.length > 0 && treatments.every(t => t.is_amenity);
+    if (isAmenityOnly) {
+      eligibleTherapists = [];
+      console.log("Amenity-only booking: no therapist notification (notifyAll:", !!notifyAll, ")");
+    }
+
     // Broadcast : n'alerter que les praticiens qui peuvent réaliser AU MOINS UNE
     // des prestations encore à pourvoir. Exiger la couverture de TOUTES les
     // prestations laissait sans praticien un booking corps + visage qu'aucun ne
