@@ -3676,6 +3676,21 @@
     "tabs": {
       "dashboard": "Tableau de bord",
       "overview": "Vue d'ensemble"
+    },
+    "quickActions": {
+      "title": "Que voulez-vous faire ?",
+      "booking": {
+        "label": "Créer une réservation",
+        "hint": "Nouvelle réservation pour un client"
+      },
+      "treatment": {
+        "label": "Créer un soin",
+        "hint": "Ajouter un soin au menu"
+      },
+      "voucher": {
+        "label": "Enregistrer un bon",
+        "hint": "Bon partenaire Wonderbox, Smartbox…"
+      }
     }
   },
   "dashboardAlerts": {

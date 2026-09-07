@@ -156,6 +156,19 @@
 .bo-refonte .alert .n{font-family:var(--mono);font-size:12px;}
 .bo-refonte .alert svg{flex:none;}
 
+/* —— Raccourcis de création (« Que voulez-vous faire ? ») —— */
+/* La graisse étant neutralisée plus haut, la hiérarchie tient à la taille et
+   à la couleur : intitulé en --ink, sous-titre en --ink-mute. */
+.bo-refonte .qa{margin-top:20px;}
+.bo-refonte .qa-title{font-size:14px;line-height:1.3;color:var(--ink-soft);margin:0 0 10px;}
+.bo-refonte .qa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
+.bo-refonte .qa-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;width:100%;padding:14px 16px;background:var(--bo-surface);border:1px solid var(--line);border-radius:var(--r-m);transition:box-shadow .13s,border-color .13s;}
+.bo-refonte .qa-card:hover{box-shadow:var(--shadow-1);border-color:var(--ink-soft);}
+.bo-refonte .qa-card:focus-visible{outline:2px solid var(--clay);outline-offset:2px;}
+.bo-refonte .qa-icon{width:18px;height:18px;color:var(--clay);margin-bottom:8px;flex:none;}
+.bo-refonte .qa-label{font-size:13.5px;color:var(--ink);}
+.bo-refonte .qa-hint{font-size:11.5px;color:var(--ink-mute);}
+
 /* —— Grilles —— */
 .bo-refonte .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px;}
 .bo-refonte .kpis.cols-2{grid-template-columns:repeat(2,1fr);}

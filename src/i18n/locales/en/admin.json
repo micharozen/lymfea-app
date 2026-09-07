@@ -3676,6 +3676,21 @@
     "tabs": {
       "dashboard": "Dashboard",
       "overview": "Overview"
+    },
+    "quickActions": {
+      "title": "What would you like to do?",
+      "booking": {
+        "label": "Create a booking",
+        "hint": "New booking for a client"
+      },
+      "treatment": {
+        "label": "Create a treatment",
+        "hint": "Add a treatment to the menu"
+      },
+      "voucher": {
+        "label": "Register a voucher",
+        "hint": "Partner voucher — Wonderbox, Smartbox…"
+      }
     }
   },
   "dashboardAlerts": {
