@@ -771,6 +771,7 @@ export type Database = {
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
           quote_token: string | null
+          reconfirm_until: string | null
           room_id: string | null
           room_number: string | null
           secondary_room_id: string | null
@@ -838,6 +839,7 @@ export type Database = {
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
           quote_token?: string | null
+          reconfirm_until?: string | null
           room_id?: string | null
           room_number?: string | null
           secondary_room_id?: string | null
@@ -905,6 +907,7 @@ export type Database = {
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
           quote_token?: string | null
+          reconfirm_until?: string | null
           room_id?: string | null
           room_number?: string | null
           secondary_room_id?: string | null
@@ -1871,6 +1874,7 @@ export type Database = {
           cancellation_tiers: Json | null
           city: string | null
           client_cancellation_cutoff_hours: number | null
+          client_reschedule_cutoff_hours: number
           client_payment_mode: string
           closing_time: string | null
           company_offered: boolean | null
@@ -1928,6 +1932,7 @@ export type Database = {
           cancellation_tiers?: Json | null
           city?: string | null
           client_cancellation_cutoff_hours?: number | null
+          client_reschedule_cutoff_hours?: number
           client_payment_mode?: string
           closing_time?: string | null
           company_offered?: boolean | null
@@ -1985,6 +1990,7 @@ export type Database = {
           cancellation_tiers?: Json | null
           city?: string | null
           client_cancellation_cutoff_hours?: number | null
+          client_reschedule_cutoff_hours?: number
           client_payment_mode?: string
           closing_time?: string | null
           company_offered?: boolean | null
@@ -4573,9 +4579,11 @@ export type Database = {
           hotel_name: string
           id: string
           language: string
+          customer_language: string
           payment_method: string
           payment_status: string
           phone: string
+          reschedule_cutoff_hours: number
           room_number: string
           short_token: string
           status: string
@@ -4874,7 +4882,7 @@ export type Database = {
       }
       reschedule_booking_public: {
         Args: { p_new_date: string; p_new_time: string; p_token: string }
-        Returns: boolean
+        Returns: Json
       }
       reserve_trunk_atomically: {
         Args: {

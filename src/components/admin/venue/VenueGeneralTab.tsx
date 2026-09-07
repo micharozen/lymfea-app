@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { VENUE_ROLES } from "@/lib/venueRoles";
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -896,6 +897,28 @@ export function VenueGeneralTab({
                       disabled={disabled}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={"client_reschedule_cutoff_hours" as keyof VenueWizardFormValues}
+              render={({ field }) => (
+                <FormItem className="mb-4 max-w-xs">
+                  <FormLabel>{t('venue.general.rescheduleCutoff')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      {...field}
+                      value={String(field.value ?? 24)}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      disabled={disabled}
+                    />
+                  </FormControl>
+                  <FormDescription>{t('venue.general.rescheduleCutoffHelp')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

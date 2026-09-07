@@ -38,6 +38,16 @@ function formatPrice(amount: number, currency = "EUR") {
   }
 }
 
+/** Date compacte pour le SMS : « jeu. 10 sept. » plutôt que « jeudi 10 septembre 2026 ». */
+function formatShortDate(dateIso: string, language: "fr" | "en") {
+  const locale = language === "fr" ? "fr-FR" : "en-US";
+  return new Date(dateIso).toLocaleDateString(locale, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 function formatLongDate(dateIso: string, language: "fr" | "en") {
   const locale = language === "fr" ? "fr-FR" : "en-US";
   return new Date(dateIso).toLocaleDateString(locale, {
@@ -127,6 +137,8 @@ function buildSmsBody(params: {
   rebookUrl: string;
   language: "fr" | "en";
   type: NotificationType;
+  /** La réservation attend une acceptation praticien (statut 'pending'). */
+  isPending: boolean;
 }) {
   const {
     clientName,
@@ -139,13 +151,26 @@ function buildSmsBody(params: {
     rebookUrl,
     language,
     type,
+    isPending,
   } = params;
 
+  // Un SMS de déplacement n'annonce qu'une chose : la nouvelle date. Salutation
+  // et formule de politesse faisaient basculer le message sur un second segment
+  // sans rien apporter — le détail complet part par e-mail.
   if (type === "reschedule") {
-    if (language === "fr") {
-      return `Bonjour ${clientName},\n\nVotre soin à ${hotelName} a été modifié : ${dateLong} à ${bookingTime}.\n\nGérer ma réservation : ${manageUrl}\n\nÀ très vite !`;
+    // Un déplacement client renvoie la réservation en 'pending' : le créneau
+    // n'est pas acquis tant qu'un praticien ne l'a pas accepté. Annoncer un fait
+    // accompli ferait venir le client sur un rendez-vous non pourvu.
+    if (isPending) {
+      if (language === "fr") {
+        return `Demande enregistrée pour le ${dateLong} à ${bookingTime} (${hotelName}). Confirmation à suivre : ${manageUrl}`;
+      }
+      return `Request received for ${dateLong} at ${bookingTime} (${hotelName}). Confirmation to follow: ${manageUrl}`;
     }
-    return `Hello ${clientName},\n\nYour treatment at ${hotelName} has been rescheduled to ${dateLong} at ${bookingTime}.\n\nManage my booking: ${manageUrl}\n\nSee you soon!`;
+    if (language === "fr") {
+      return `Votre soin à ${hotelName} est déplacé au ${dateLong} à ${bookingTime}. Gérer : ${manageUrl}`;
+    }
+    return `Your treatment at ${hotelName} is moved to ${dateLong} at ${bookingTime}. Manage: ${manageUrl}`;
   }
 
   if (type === "cancellation") {
@@ -207,7 +232,7 @@ serve(async (req: Request) => {
       .select(
         `id, booking_id, client_first_name, client_last_name, client_email, phone,
          booking_date, booking_time, room_number, total_price, hotel_id, client_type,
-         status, payment_status, payment_method,
+         status, payment_status, payment_method, short_token,
          hotels(name, currency)`
       )
       .eq("id", bookingId)
@@ -303,12 +328,21 @@ serve(async (req: Request) => {
         errors.push("No phone number for recipient");
       } else {
         const siteUrl = Deno.env.get("SITE_URL") ?? "https://lymfea.fr";
-        const manageUrl = `${siteUrl}/booking/manage/${booking.id}`;
+        // Lien court /m/<token> : l'URL en UUID pesait à elle seule ~55
+        // caractères, soit un tiers d'un segment SMS.
+        const shortToken = (booking as any).short_token;
+        const manageUrl = shortToken
+          ? `${siteUrl}/m/${shortToken}`
+          : `${siteUrl}/booking/manage/${booking.id}`;
         const rebookUrl = `${siteUrl}/client/${(booking as any).hotel_id}/treatments`;
         const smsBody = buildSmsBody({
           clientName,
           hotelName,
-          dateLong,
+          // Le déplacement se contente d'une date compacte ; les autres SMS
+          // gardent la date longue, déjà validée côté produit.
+          dateLong: body.type === "reschedule"
+            ? formatShortDate(booking.booking_date, language)
+            : dateLong,
           bookingTime: booking.booking_time.substring(0, 5),
           roomNumber: booking.room_number ?? null,
           isRoomCharged: isRoomChargedBooking(bookingClientType, {
@@ -319,6 +353,7 @@ serve(async (req: Request) => {
           rebookUrl,
           language,
           type: body.type ?? "confirmation",
+          isPending: booking.status === "pending",
         });
         console.log("[send-booking-notification] Calling sendSms", { to, bodyLength: smsBody.length });
         const result = await sendSms({ to, body: smsBody });

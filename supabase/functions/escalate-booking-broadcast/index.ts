@@ -22,6 +22,89 @@ interface WaveBooking {
 }
 
 /**
+ * Réservations déplacées par le client dont la fenêtre d'exclusivité est écoulée.
+ *
+ * reschedule_booking_public laisse aux praticiens déjà engagés 90 minutes pour se
+ * prononcer sur le nouveau créneau (booking_therapists = 'reconfirm_pending'). Sans
+ * réponse, ils perdent leur place : la ligne de jonction saute, les prestations
+ * qu'ils tenaient repartent au pot commun et la réservation s'ouvre à tout le vivier
+ * éligible. Un refus explicite produit le même effet immédiatement, côté PWA.
+ *
+ * Les praticiens sortis ici ne rejoignent pas declined_by : ils n'ont rien refusé,
+ * et le broadcast général peut encore les solliciter.
+ */
+async function reopenExpiredReconfirmations(
+  supabase: ReturnType<typeof createClient>,
+  now: Date,
+): Promise<number> {
+  const { data: expired, error } = await supabase
+    .from("bookings")
+    .select("id, booking_id")
+    .eq("status", "pending")
+    .not("reconfirm_until", "is", null)
+    .lte("reconfirm_until", now.toISOString())
+    .limit(MAX_BOOKINGS_PER_RUN);
+
+  if (error) {
+    console.error("[RECONFIRM] Lecture des re-confirmations expirées impossible", error);
+    return 0;
+  }
+
+  let reopened = 0;
+  for (const booking of (expired ?? []) as { id: string; booking_id: number }[]) {
+    const { data: pendingRows } = await supabase
+      .from("booking_therapists")
+      .select("therapist_id")
+      .eq("booking_id", booking.id)
+      .eq("status", "reconfirm_pending");
+
+    const silentIds = (pendingRows ?? []).map((r: { therapist_id: string }) => r.therapist_id);
+
+    if (silentIds.length > 0) {
+      await supabase
+        .from("booking_therapists")
+        .delete()
+        .eq("booking_id", booking.id)
+        .eq("status", "reconfirm_pending");
+
+      await supabase
+        .from("booking_treatments")
+        .update({ therapist_id: null })
+        .eq("booking_id", booking.id)
+        .in("therapist_id", silentIds);
+    }
+
+    // Fermer la fenêtre AVANT le broadcast : si l'invoke échoue, la réservation est
+    // déjà rouverte et le cron suivant la reprendra par la voie ordinaire plutôt que
+    // de rejouer indéfiniment cette branche.
+    await supabase
+      .from("bookings")
+      .update({ reconfirm_until: null })
+      .eq("id", booking.id);
+
+    const { error: invokeError } = await supabase.functions.invoke(
+      "trigger-new-booking-notifications",
+      {
+        body: { bookingId: booking.id, notifyAll: true, therapistsOnly: true },
+        headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+      },
+    );
+
+    if (invokeError) {
+      console.error(`[RECONFIRM] Réservation #${booking.booking_id} : échec du broadcast`, invokeError);
+      continue;
+    }
+
+    reopened++;
+    console.log(
+      `[RECONFIRM] Réservation #${booking.booking_id} : ${silentIds.length} praticien(s) sans réponse, ouverture au vivier`,
+    );
+  }
+
+  return reopened;
+}
+
+/**
  * Cron-only. Fait avancer les réservations en attente vers le groupe de
  * thérapeutes suivant lorsque le groupe courant n'a pas répondu dans le délai
  * du lieu. Le volet « escalade sur refus » n'est pas géré ici : il est immédiat
@@ -41,6 +124,9 @@ serve(async (_req: Request) => {
     );
 
     const now = new Date();
+
+    const reopened = await reopenExpiredReconfirmations(supabase, now);
+
     // Pré-filtre grossier : le délai exact est propre à chaque lieu, on ne peut
     // pas le mettre dans le WHERE. On borne sur la latence minimale possible
     // (1 min) puis on vérifie ligne à ligne.
@@ -163,7 +249,7 @@ serve(async (_req: Request) => {
     console.log(`[ESCALATE] ${candidates.length} candidate(s), ${escalated} escaladée(s), ignorées:`, skipped);
 
     return new Response(
-      JSON.stringify({ success: true, candidates: candidates.length, escalated, skipped }),
+      JSON.stringify({ success: true, candidates: candidates.length, escalated, reopened, skipped }),
       { headers: { "Content-Type": "application/json" } },
     );
   } catch (error) {
