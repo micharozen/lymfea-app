@@ -1863,6 +1863,8 @@ export type Database = {
       }
       hotels: {
         Row: {
+          access_instructions: string | null
+          access_instructions_en: string | null
           address: string | null
           allow_out_of_hours_booking: boolean | null
           auto_validate_bookings: boolean | null
@@ -1922,6 +1924,8 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
+          access_instructions?: string | null
+          access_instructions_en?: string | null
           address?: string | null
           allow_out_of_hours_booking?: boolean | null
           auto_validate_bookings?: boolean | null
@@ -1981,6 +1985,8 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
+          access_instructions?: string | null
+          access_instructions_en?: string | null
           address?: string | null
           allow_out_of_hours_booking?: boolean | null
           auto_validate_bookings?: boolean | null

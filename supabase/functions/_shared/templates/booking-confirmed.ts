@@ -62,6 +62,7 @@ function clientTemplate(copy: ConfirmedCopy): string {
     detailsBox(copy, "{{{therapist_row_html}}}") +
     treatmentsSection(copy) +
     buttons +
+    "{{{access_html}}}" +
     arrivalNote(copy) +
     "{{{cancellation_html}}}" +
     footer(copy);

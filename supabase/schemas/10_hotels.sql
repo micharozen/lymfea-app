@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS "public"."hotels" (
     "booking_hold_duration_minutes" integer DEFAULT 5 NOT NULL,
     "min_booking_notice_minutes" integer DEFAULT 0,
     "external_vouchers_enabled" boolean DEFAULT false NOT NULL,
+    "access_instructions" "text",
+    "access_instructions_en" "text",
     CONSTRAINT "check_venue_hours" CHECK (("opening_time" < "closing_time")),
     CONSTRAINT "hotels_booking_hold_duration_range" CHECK ((("booking_hold_duration_minutes" >= 1) AND ("booking_hold_duration_minutes" <= 15))),
     CONSTRAINT "hotels_slug_pattern_check" CHECK ((("slug" ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'::"text") AND (("length"("slug") >= 2) AND ("length"("slug") <= 60)))),
@@ -57,6 +59,10 @@ COMMENT ON COLUMN "public"."hotels"."opening_time" IS 'Venue opening time for bo
 COMMENT ON COLUMN "public"."hotels"."closing_time" IS 'Venue closing time for bookings (24h format)';
 
 COMMENT ON COLUMN "public"."hotels"."auto_validate_bookings" IS 'When true and only 1 active hairdresser is assigned to the venue, bookings are automatically confirmed without manual hairdresser validation';
+
+COMMENT ON COLUMN "public"."hotels"."access_instructions" IS 'Instructions d''accès (FR) affichées dans l''e-mail de confirmation client : code porte, étage, chemin depuis l''entrée.';
+
+COMMENT ON COLUMN "public"."hotels"."access_instructions_en" IS 'Instructions d''accès (EN). Repli sur access_instructions quand vide.';
 
 COMMENT ON COLUMN "public"."hotels"."min_booking_notice_minutes" IS 'Délai minimum (en minutes) entre maintenant et l''heure du créneau réservable. 0 = pas de délai.';
 

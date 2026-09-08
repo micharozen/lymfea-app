@@ -658,6 +658,54 @@ export function VenueGeneralTab({
             />
           </div>
 
+          <FormField
+            control={form.control}
+            name={"access_instructions" as keyof VenueWizardFormValues}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t('venue.general.accessInstructions')}
+                </FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    value={String(field.value ?? "")}
+                    rows={3}
+                    placeholder={t('venue.general.accessInstructionsPlaceholder')}
+                    disabled={disabled}
+                  />
+                </FormControl>
+                <FormDescription>{t('venue.general.accessInstructionsHelp')}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name={"access_instructions_en" as keyof VenueWizardFormValues}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t('venue.general.accessInstructionsEn')}
+                </FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    value={String(field.value ?? "")}
+                    rows={3}
+                    placeholder={t('venue.general.accessInstructionsEnPlaceholder')}
+                    disabled={disabled}
+                  />
+                </FormControl>
+                <FormDescription>{t('venue.general.accessInstructionsEnHelp')}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
