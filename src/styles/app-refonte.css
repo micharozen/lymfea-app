@@ -52,6 +52,7 @@
   background:var(--sand-100);
 }
 .app-refonte .hdr .wordmark{font-family:var(--wordmark); font-weight:500; font-size:20px; letter-spacing:.005em; line-height:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.app-refonte .hdr .brand-logo{height:30px; width:auto; max-width:150px; object-fit:contain; border-radius:8px; flex:none;}
 .app-refonte .hdr .spacer{flex:1;}
 .app-refonte .hdr .avatar{
   width:32px; height:32px; min-width:32px; max-width:32px; min-height:32px; max-height:32px;
