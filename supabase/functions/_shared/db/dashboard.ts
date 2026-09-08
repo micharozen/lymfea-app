@@ -4,13 +4,32 @@ import { resolveHotelIdsForOrg } from "./scope.ts";
 type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
 type HotelRow = Database["public"]["Tables"]["hotels"]["Row"];
 
-export type DashboardBooking = Pick<
+// ── Types ───────────────────────────────────────────────────────────
+//
+// Chaque requête a son propre type de ligne : elles ne lisent ni la même
+// fenêtre ni les mêmes colonnes. La règle du hook qui les consomme est qu'une
+// métrique dérive d'exactement UNE de ces sources — elles se recouvrent dans
+// le temps (la période courante et le carnet futur partagent aujourd'hui),
+// donc les concaténer produirait des doubles comptages.
+
+export type DashboardHotel = Pick<
+  HotelRow,
+  "id" | "name" | "currency" | "opening_time" | "closing_time"
+>;
+
+export type DashboardRoom = {
+  id: string;
+  hotel_id: string | null;
+  name: string | null;
+  capacity: number | null;
+};
+
+/** Réservations de la période affichée + période précédente (tendances). */
+export type PeriodBooking = Pick<
   BookingRow,
   | "id"
-  | "booking_id"
   | "booking_date"
   | "booking_time"
-  | "created_at"
   | "total_price"
   | "hotel_id"
   | "hotel_name"
@@ -18,73 +37,134 @@ export type DashboardBooking = Pick<
   | "payment_status"
   | "therapist_id"
   | "therapist_name"
-  | "room_id"
-  | "duration"
   | "client_type"
-  | "room_number"
-  | "guest_count"
   | "source"
->;
-
-export type DashboardHotel = Pick<HotelRow, "id" | "name" | "currency" | "opening_time" | "closing_time">;
-
-/** Fenêtre de dates (ISO YYYY-MM-DD) hors de laquelle le dashboard ne lit rien. */
-export type DashboardWindow = { fromDate: string; toDate: string };
-
-export type DashboardBookingWithTreatments = DashboardBooking & {
+> & {
   booking_treatments: Array<{ treatment_menus: { name: string | null } | null }>;
 };
 
-export type DashboardData = {
-  bookings: DashboardBookingWithTreatments[];
-  hotels: DashboardHotel[];
-  treatmentRooms: Array<{ id: string; hotel_id: string | null; name: string | null; capacity: number | null }>;
-  todayAvailableTherapistIds: string[];
-  therapistVenues: Array<{ therapist_id: string; hotel_id: string }>;
+/** Carnet à venir : aujourd'hui inclus, jusqu'à un an. Sans jointure. */
+export type UpcomingBooking = Pick<
+  BookingRow,
+  | "id"
+  | "booking_id"
+  | "booking_date"
+  | "booking_time"
+  | "total_price"
+  | "hotel_id"
+  | "hotel_name"
+  | "status"
+  | "payment_status"
+  | "room_id"
+  | "room_number"
+  | "client_type"
+  | "duration"
+  | "guest_count"
+>;
+
+/** Réservations *créées* dans la période, quelle que soit leur date de soin. */
+export type LeadTimeBooking = Pick<
+  BookingRow,
+  "created_at" | "booking_date" | "hotel_id"
+> & {
+  booking_treatments: Array<{ treatment_menus: { name: string | null } | null }>;
 };
+
+/** Réservations en attente ou en échec de paiement, sur toute la fenêtre. */
+export type PaymentAlertBooking = Pick<
+  BookingRow,
+  | "id"
+  | "booking_id"
+  | "booking_date"
+  | "booking_time"
+  | "total_price"
+  | "hotel_id"
+  | "hotel_name"
+  | "status"
+  | "payment_status"
+>;
+
+export type DashboardReference = {
+  hotels: DashboardHotel[];
+  treatmentRooms: DashboardRoom[];
+  therapistVenues: Array<{ therapist_id: string; hotel_id: string }>;
+  todayAvailableTherapistIds: string[];
+};
+
+/** Une ligne d'agrégat mensuel renvoyée par get_dashboard_monthly_outlook. */
+export type OutlookAggregateRow = {
+  monthKey: string;
+  hotelId: string;
+  bucket: "pending" | "confirmed";
+  /** Montant dans la devise du lieu — la conversion EUR est faite côté client. */
+  revenue: number;
+  bookingCount: number;
+};
+
+/** Fenêtre de dates (ISO YYYY-MM-DD). */
+export type DateWindow = { fromDate: string; toDate: string };
 
 /** Plafond de lignes de PostgREST : une réponse plus longue est tronquée en silence. */
 const POSTGREST_PAGE_SIZE = 1000;
 
-export async function getDashboardDataForOrg(
+/** Colonnes des jointures de soins — le nom sert aux classements et au lead time. */
+const TREATMENTS_JOIN = "booking_treatments(treatment_menus(name))";
+
+// ── Q0 — scope → hotel_ids ──────────────────────────────────────────
+//
+// Résolu une fois et mis en cache, au lieu d'être un aller-retour bloquant
+// répété à chaque lecture. Null = pas de restriction (super-admin).
+
+export function fetchScopedHotelIds(
   client: TClient,
   scope: OrgScope,
-  window: DashboardWindow,
-): Promise<DashboardData> {
-  const hotelIds = await resolveHotelIdsForOrg(client, scope);
-  if (hotelIds !== null && hotelIds.length === 0) {
-    return {
-      bookings: [],
-      hotels: [],
-      treatmentRooms: [],
-      todayAvailableTherapistIds: [],
-      therapistVenues: [],
-    };
+): Promise<string[] | null> {
+  return resolveHotelIdsForOrg(client, scope);
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Lit toutes les pages d'une requête paginée. Au-delà du plafond PostgREST,
+ * une page pleine ne signifie pas la fin des données, elle signifie qu'il en
+ * reste.
+ */
+async function fetchAllPages<T>(
+  page: (offset: number) => PromiseLike<{ data: unknown; error: unknown }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let offset = 0; ; offset += POSTGREST_PAGE_SIZE) {
+    const { data, error } = await page(offset);
+    if (error) throw error;
+    const batch = (data ?? []) as T[];
+    rows.push(...batch);
+    if (batch.length < POSTGREST_PAGE_SIZE) return rows;
+  }
+}
+
+/** Réservations vides ⇒ requête inutile : un scope sans lieu ne peut rien avoir. */
+const isEmptyScope = (hotelIds: string[] | null): boolean =>
+  hotelIds !== null && hotelIds.length === 0;
+
+// ── Q1 — référentiel ────────────────────────────────────────────────
+//
+// Ne dépend d'aucune réservation : c'est ce qui permet d'afficher tout de
+// suite le sélecteur de lieu, la carte « thérapeutes actifs » et le bon
+// nombre de lignes du heatmap, avant même que les réservations n'arrivent.
+
+export async function fetchDashboardReference(
+  client: TClient,
+  hotelIds: string[] | null,
+  today: string,
+): Promise<DashboardReference> {
+  if (isEmptyScope(hotelIds)) {
+    return { hotels: [], treatmentRooms: [], therapistVenues: [], todayAvailableTherapistIds: [] };
   }
 
-  const today = new Date().toISOString().split("T")[0];
-
-  // Les noms de prestations viennent d'une jointure imbriquée : une seconde
-  // requête `booking_id=in.(<un uuid par réservation>)` produirait une URL de
-  // plusieurs dizaines de Ko, rejetée par le proxy.
-  const bookingsPage = (offset: number) => {
-    const q = client
-      .from("bookings")
-      .select(
-        "id, booking_id, booking_date, booking_time, created_at, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, room_id, duration, client_type, room_number, guest_count, source, booking_treatments(treatment_menus(name))",
-      )
-      .gte("booking_date", window.fromDate)
-      .lte("booking_date", window.toDate)
-      .order("booking_date", { ascending: true })
-      // Départage stable : sans ça, une même ligne peut apparaître dans deux lots.
-      .order("id", { ascending: true })
-      .range(offset, offset + POSTGREST_PAGE_SIZE - 1);
-    return hotelIds !== null ? q.in("hotel_id", hotelIds) : q;
-  };
-
-  let hotelsQ = client.from("hotels").select("id, name, currency, opening_time, closing_time").order("created_at", {
-    ascending: false,
-  });
+  let hotelsQ = client
+    .from("hotels")
+    .select("id, name, currency, opening_time, closing_time")
+    .order("created_at", { ascending: false });
   let roomsQ = client
     .from("treatment_rooms")
     .select("id, hotel_id, name, capacity")
@@ -103,21 +183,7 @@ export async function getDashboardDataForOrg(
     .eq("date", today)
     .eq("is_available", true);
 
-  // Les réservations sont lues par lots : au-delà du plafond PostgREST, une
-  // page pleine ne signifie pas la fin des données, elle signifie qu'il en reste.
-  const fetchAllBookings = async (): Promise<DashboardBookingWithTreatments[]> => {
-    const rows: DashboardBookingWithTreatments[] = [];
-    for (let offset = 0; ; offset += POSTGREST_PAGE_SIZE) {
-      const { data, error } = await bookingsPage(offset);
-      if (error) throw error;
-      const batch = (data ?? []) as unknown as DashboardBookingWithTreatments[];
-      rows.push(...batch);
-      if (batch.length < POSTGREST_PAGE_SIZE) return rows;
-    }
-  };
-
-  const [bookings, hotelsRes, roomsRes, venuesRes, availabilityRes] = await Promise.all([
-    fetchAllBookings(),
+  const [hotelsRes, roomsRes, venuesRes, availabilityRes] = await Promise.all([
     hotelsQ,
     roomsQ,
     venuesQ,
@@ -129,32 +195,179 @@ export async function getDashboardDataForOrg(
   if (venuesRes.error) throw venuesRes.error;
   if (availabilityRes.error) throw availabilityRes.error;
 
-  const venues = (venuesRes.data ?? []) as Array<{
+  const therapistVenues = (venuesRes.data ?? []) as Array<{
     therapist_id: string;
     hotel_id: string;
   }>;
 
-  // If scoped, restrict the "available therapists today" to those assigned to
-  // venues in scoped hotels (defense in depth — therapist_availability has no
-  // hotel column).
+  // Défense en profondeur : therapist_availability n'a pas de colonne lieu, on
+  // restreint aux thérapeutes rattachés à un lieu du scope.
   let availableIds = ((availabilityRes.data ?? []) as Array<{ therapist_id: string }>).map(
     (r) => r.therapist_id,
   );
   if (hotelIds !== null) {
-    const scopedTherapistIds = new Set(venues.map((v) => v.therapist_id));
+    const scopedTherapistIds = new Set(therapistVenues.map((v) => v.therapist_id));
     availableIds = availableIds.filter((id) => scopedTherapistIds.has(id));
   }
 
   return {
-    bookings,
     hotels: (hotelsRes.data ?? []) as DashboardHotel[],
-    treatmentRooms: (roomsRes.data ?? []) as Array<{
-      id: string;
-      hotel_id: string | null;
-      name: string | null;
-      capacity: number | null;
-    }>,
+    treatmentRooms: (roomsRes.data ?? []) as DashboardRoom[],
+    therapistVenues,
     todayAvailableTherapistIds: availableIds,
-    therapistVenues: venues,
   };
+}
+
+// ── Q2 — réservations de la période ─────────────────────────────────
+//
+// La fenêtre couvre la période affichée ET la période précédente, celle-ci
+// servant au calcul des tendances. C'est la seule requête volumineuse, et la
+// seule (avec Q5) à porter la jointure sur les soins.
+
+export function fetchPeriodBookings(
+  client: TClient,
+  hotelIds: string[] | null,
+  window: DateWindow,
+): Promise<PeriodBooking[]> {
+  if (isEmptyScope(hotelIds)) return Promise.resolve([]);
+
+  return fetchAllPages<PeriodBooking>((offset) => {
+    const q = client
+      .from("bookings")
+      .select(
+        `id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, client_type, source, ${TREATMENTS_JOIN}`,
+      )
+      .gte("booking_date", window.fromDate)
+      .lte("booking_date", window.toDate)
+      .order("booking_date", { ascending: true })
+      // Départage stable : sans ça, une même ligne peut apparaître dans deux lots.
+      .order("id", { ascending: true })
+      .range(offset, offset + POSTGREST_PAGE_SIZE - 1);
+    return hotelIds !== null ? q.in("hotel_id", hotelIds) : q;
+  });
+}
+
+// ── Q3 — carnet à venir ─────────────────────────────────────────────
+//
+// D'aujourd'hui jusqu'à un an : alimente les compteurs du jour, l'occupation
+// des salles, la prévision à 7 jours et les réservations sans thérapeute.
+// Pas de jointure sur les soins — aucune de ces métriques n'en a besoin.
+
+export function fetchUpcomingBookings(
+  client: TClient,
+  hotelIds: string[] | null,
+  window: DateWindow,
+): Promise<UpcomingBooking[]> {
+  if (isEmptyScope(hotelIds)) return Promise.resolve([]);
+
+  return fetchAllPages<UpcomingBooking>((offset) => {
+    const q = client
+      .from("bookings")
+      .select(
+        "id, booking_id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status, room_id, room_number, client_type, duration, guest_count",
+      )
+      .gte("booking_date", window.fromDate)
+      .lte("booking_date", window.toDate)
+      .order("booking_date", { ascending: true })
+      .order("id", { ascending: true })
+      .range(offset, offset + POSTGREST_PAGE_SIZE - 1);
+    return hotelIds !== null ? q.in("hotel_id", hotelIds) : q;
+  });
+}
+
+// ── Q4 — agrégat mensuel (RPC) ──────────────────────────────────────
+//
+// Le graphe mensuel n'a besoin que de sommes par (mois × lieu × statut) :
+// Postgres les calcule, on ne transfère plus les lignes.
+
+export async function fetchMonthlyOutlook(
+  client: TClient,
+  hotelIds: string[] | null,
+  window: DateWindow,
+): Promise<OutlookAggregateRow[]> {
+  if (isEmptyScope(hotelIds)) return [];
+
+  // Cast : la fonction est créée par 20260908090000_dashboard_monthly_outlook,
+  // elle n'apparaîtra dans les types générés qu'après le prochain
+  // `supabase gen types`.
+  const { data, error } = await (client.rpc as unknown as (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => PromiseLike<{ data: unknown; error: unknown }>)("get_dashboard_monthly_outlook", {
+    _hotel_ids: hotelIds,
+    _from_month: window.fromDate,
+    _to_month: window.toDate,
+  });
+  if (error) throw error;
+
+  // PostgREST sérialise `numeric` en chaîne : sans Number(), les sommes
+  // deviendraient des concaténations.
+  return ((data ?? []) as Array<{
+    month_key: string;
+    hotel_id: string;
+    bucket: string;
+    revenue: number | string;
+    booking_count: number;
+  }>).map((r) => ({
+    monthKey: r.month_key,
+    hotelId: r.hotel_id,
+    bucket: r.bucket === "pending" ? "pending" : "confirmed",
+    revenue: Number(r.revenue) || 0,
+    bookingCount: Number(r.booking_count) || 0,
+  }));
+}
+
+// ── Q5 — délai d'anticipation ───────────────────────────────────────
+//
+// Filtré sur created_at (réservations FAITES dans la période) et sans borne
+// sur booking_date : une réservation prise hier pour dans un an est
+// précisément ce que la métrique mesure.
+
+export function fetchLeadTimeBookings(
+  client: TClient,
+  hotelIds: string[] | null,
+  window: DateWindow,
+): Promise<LeadTimeBooking[]> {
+  if (isEmptyScope(hotelIds)) return Promise.resolve([]);
+
+  return fetchAllPages<LeadTimeBooking>((offset) => {
+    const q = client
+      .from("bookings")
+      .select(`created_at, booking_date, hotel_id, ${TREATMENTS_JOIN}`)
+      // Borne haute exclusive au lendemain : created_at est un timestamp, un
+      // lte sur la date seule couperait la dernière journée à minuit.
+      .gte("created_at", window.fromDate)
+      .lt("created_at", window.toDate)
+      .order("created_at", { ascending: true })
+      .range(offset, offset + POSTGREST_PAGE_SIZE - 1);
+    return hotelIds !== null ? q.in("hotel_id", hotelIds) : q;
+  });
+}
+
+// ── Q6 — alertes de paiement ────────────────────────────────────────
+//
+// Le filtre payment_status étant appliqué par Postgres, la fenêtre large ne
+// coûte rien : on préserve le périmètre historique des alertes.
+
+export function fetchPaymentAlerts(
+  client: TClient,
+  hotelIds: string[] | null,
+  window: DateWindow,
+): Promise<PaymentAlertBooking[]> {
+  if (isEmptyScope(hotelIds)) return Promise.resolve([]);
+
+  return fetchAllPages<PaymentAlertBooking>((offset) => {
+    const q = client
+      .from("bookings")
+      .select(
+        "id, booking_id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status",
+      )
+      .in("payment_status", ["pending", "failed"])
+      .gte("booking_date", window.fromDate)
+      .lte("booking_date", window.toDate)
+      .order("booking_date", { ascending: true })
+      .order("id", { ascending: true })
+      .range(offset, offset + POSTGREST_PAGE_SIZE - 1);
+    return hotelIds !== null ? q.in("hotel_id", hotelIds) : q;
+  });
 }

@@ -27,6 +27,48 @@ const EXCLUDED_STATUSES = new Set(["cancelled", "noshow"]);
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+// ── Agrégats serveur ────────────────────────────────────────────────
+//
+// La RPC get_dashboard_monthly_outlook fait en SQL le regroupement que les
+// deux builders ci-dessous faisaient ligne à ligne. Le regroupement par lieu
+// est ce qui rend l'agrégation exacte : la conversion EUR étant un facteur
+// par devise de lieu, convertir la somme du groupe équivaut à sommer les
+// conversions individuelles.
+
+/** Une ligne d'agrégat : un (mois × lieu × confirmé|en attente). */
+export interface OutlookAggregate {
+  monthKey: string;
+  hotelId: string;
+  bucket: "pending" | "confirmed";
+  /** Montant dans la devise du lieu. */
+  revenue: number;
+  bookingCount: number;
+}
+
+interface AggregateOpts {
+  toEUR: (price: number | null, hotelId: string) => number;
+  now?: Date;
+}
+
+/** Grille de mois de la fenêtre, dans l'ordre, du plus ancien au plus lointain. */
+function outlookMonths(now: Date | undefined): Array<{
+  monthKey: string;
+  isCurrent: boolean;
+  isFuture: boolean;
+}> {
+  const current = startOfMonth(now ?? new Date());
+  const months = [];
+  for (let i = -OUTLOOK_PAST_MONTHS; i <= OUTLOOK_FUTURE_MONTHS; i++) {
+    const month = i < 0 ? subMonths(current, -i) : addMonths(current, i);
+    months.push({
+      monthKey: format(month, "yyyy-MM"),
+      isCurrent: i === 0,
+      isFuture: i > 0,
+    });
+  }
+  return months;
+}
+
 // ── Décomposition par lieu (une série par lieu sur la même fenêtre) ──
 
 export interface VenueMonthlyValues {
@@ -172,4 +214,100 @@ export function buildMonthlyOutlook(
       averageBasket: totalCount > 0 ? Math.round((totalRevenue / totalCount) * 100) / 100 : 0,
     };
   });
+}
+
+/**
+ * Équivalent de buildMonthlyOutlook à partir des agrégats serveur.
+ * `venueId` reste un filtre appliqué ici : la RPC renvoie tous les lieux du
+ * scope, ce dont buildMonthlyOutlookByVenueFromAggregates a besoin.
+ */
+export function buildMonthlyOutlookFromAggregates(
+  rows: readonly OutlookAggregate[],
+  opts: AggregateOpts & { venueId: string },
+): MonthlyOutlookPoint[] {
+  const points = new Map<string, MonthlyOutlookPoint>();
+  for (const { monthKey, isCurrent, isFuture } of outlookMonths(opts.now)) {
+    points.set(monthKey, {
+      monthKey,
+      isCurrent,
+      isFuture,
+      confirmedRevenue: 0,
+      pendingRevenue: 0,
+      confirmedCount: 0,
+      pendingCount: 0,
+      totalRevenue: 0,
+      totalCount: 0,
+      averageBasket: 0,
+    });
+  }
+
+  for (const row of rows) {
+    if (opts.venueId !== "all" && row.hotelId !== opts.venueId) continue;
+    const point = points.get(row.monthKey);
+    if (!point) continue;
+
+    const amount = opts.toEUR(row.revenue, row.hotelId);
+    if (row.bucket === "pending") {
+      point.pendingRevenue += amount;
+      point.pendingCount += row.bookingCount;
+    } else {
+      point.confirmedRevenue += amount;
+      point.confirmedCount += row.bookingCount;
+    }
+  }
+
+  return Array.from(points.values()).map((p) => {
+    const totalRevenue = p.confirmedRevenue + p.pendingRevenue;
+    const totalCount = p.confirmedCount + p.pendingCount;
+    return {
+      ...p,
+      confirmedRevenue: round2(p.confirmedRevenue),
+      pendingRevenue: round2(p.pendingRevenue),
+      totalRevenue: round2(totalRevenue),
+      totalCount,
+      averageBasket: totalCount > 0 ? round2(totalRevenue / totalCount) : 0,
+    };
+  });
+}
+
+/** Équivalent de buildMonthlyOutlookByVenue à partir des agrégats serveur. */
+export function buildMonthlyOutlookByVenueFromAggregates(
+  rows: readonly OutlookAggregate[],
+  opts: AggregateOpts & { venues: ReadonlyArray<{ id: string; name: string }> },
+): MonthlyOutlookByVenue {
+  const months: MonthlyOutlookByVenueMonth[] = [];
+  const byMonth = new Map<string, MonthlyOutlookByVenueMonth>();
+  for (const { monthKey, isCurrent, isFuture } of outlookMonths(opts.now)) {
+    const entry: MonthlyOutlookByVenueMonth = { monthKey, isCurrent, isFuture, byVenue: {} };
+    months.push(entry);
+    byMonth.set(monthKey, entry);
+  }
+
+  const venueTotals = new Map<string, number>(); // hotel_id → CA total (pour tri)
+  for (const row of rows) {
+    const month = byMonth.get(row.monthKey);
+    if (!month) continue;
+
+    const amount = opts.toEUR(row.revenue, row.hotelId);
+    const cell = month.byVenue[row.hotelId] ?? { revenue: 0, count: 0, averageBasket: 0 };
+    cell.revenue += amount;
+    cell.count += row.bookingCount;
+    month.byVenue[row.hotelId] = cell;
+    venueTotals.set(row.hotelId, (venueTotals.get(row.hotelId) ?? 0) + amount);
+  }
+
+  for (const month of months) {
+    for (const id of Object.keys(month.byVenue)) {
+      const cell = month.byVenue[id];
+      cell.averageBasket = cell.count > 0 ? round2(cell.revenue / cell.count) : 0;
+      cell.revenue = round2(cell.revenue);
+    }
+  }
+
+  const nameById = new Map(opts.venues.map((v) => [v.id, v.name]));
+  const venues = Array.from(venueTotals.keys())
+    .sort((a, b) => (venueTotals.get(b) ?? 0) - (venueTotals.get(a) ?? 0))
+    .map((id) => ({ id, name: nameById.get(id) ?? "—" }));
+
+  return { venues, months };
 }
