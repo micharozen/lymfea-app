@@ -289,14 +289,15 @@ function footerWebsiteHtml(url: string | null | undefined): string {
 }
 
 /**
- * Access encart (framed sand-100 with a gold info icon): door code, floor, way
- * in. '' when the venue set no access notes, so the block collapses. Line
- * breaks typed by the venue are kept as <br>.
+ * Access paragraph (door code, floor, way in) rendered inside the shared
+ * "practical info" encart, above the arrival note — see arrivalNote() in
+ * email-layout.ts. '' when the venue set no access notes, leaving that encart
+ * exactly as it was before. Line breaks typed by the venue are kept as <br>.
  */
-function accessNote(text: string, lang: Lang): string {
+function accessBody(text: string, lang: Lang): string {
   if (!text) return '';
   const body = escapeHtml(text).replace(/\r?\n/g, '<br>');
-  return `<tr><td class="eia-sect" style="padding:24px 40px 0"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:${SAND_100};border:1px solid ${LINE_SOFT};border-radius:12px"><tbody><tr><td width="40" style="width:40px;vertical-align:top;padding:16px 0 16px 18px">${ICON_INFO}</td><td style="padding:16px 18px 16px 12px;font-family:${FONT_SANS};font-size:13px;line-height:1.6;color:${INK_SOFT}"><strong style="font-weight:500;color:${INK}">${escapeHtml(FRAG_LABELS[lang].access)}</strong><br>${body}</td></tr></tbody></table></td></tr>`;
+  return `<p style="margin:0 0 12px"><strong style="font-weight:500;color:${INK}">${escapeHtml(FRAG_LABELS[lang].access)}</strong><br>${body}</p>`;
 }
 
 /** Cancellation-policy line + "modify/cancel" link; '' when no policy text. */
@@ -430,7 +431,7 @@ export function buildConfirmedVars(ctx: BookingEmailContext): Record<string, str
     ),
     room_row_html: keyRowFragment(ICON_ROOM, FRAG_LABELS[ctx.lang].room, roomNumber, ''),
     // Access notes are for the client only — the admin template never renders it.
-    access_html: isAdmin ? '' : accessNote(venueAccessInstructions(ctx.venue, ctx.lang), ctx.lang),
+    access_body_html: isAdmin ? '' : accessBody(venueAccessInstructions(ctx.venue, ctx.lang), ctx.lang),
     maps_url: venueMapsUrl(ctx.venue),
   };
 }
@@ -560,7 +561,7 @@ export function buildPendingVars(ctx: BookingEmailContext): Record<string, strin
     treatments_html: treatmentsHtml(ctx.treatments, sym, ctx.lang)
       + surchargeRow(ctx.booking.is_out_of_hours, ctx.booking.surcharge_amount, sym, ctx.lang),
     therapist_row_html: '',
-    access_html: accessNote(venueAccessInstructions(ctx.venue, ctx.lang), ctx.lang),
+    access_body_html: accessBody(venueAccessInstructions(ctx.venue, ctx.lang), ctx.lang),
     footer_website_html: footerWebsiteHtml(ctx.venue?.website_url),
     maps_url: venueMapsUrl(ctx.venue),
   };

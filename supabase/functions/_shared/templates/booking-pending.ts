@@ -43,7 +43,6 @@ function clientTemplate(copy: PendingCopy): string {
     detailsBox(copy, "") +
     treatmentsSection(copy) +
     buttons +
-    "{{{access_html}}}" +
     arrivalNote(copy) +
     footer(copy);
   return shell(copy, body);
