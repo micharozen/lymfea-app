@@ -59,11 +59,12 @@ CREATE TABLE IF NOT EXISTS "public"."bookings" (
     "reconfirm_until" timestamp with time zone,
     "external_reference" "text",
     "external_id" "text",
+    "external_voucher_reference" "text",
     CONSTRAINT "bookings_client_type_check" CHECK (("client_type" = ANY (ARRAY['hotel'::"text", 'staycation'::"text", 'classpass'::"text", 'sezame'::"text", 'external'::"text"]))),
     CONSTRAINT "bookings_gift_amount_applied_cents_check" CHECK (("gift_amount_applied_cents" >= 0)),
     CONSTRAINT "bookings_payment_link_language_check" CHECK (("payment_link_language" = ANY (ARRAY['fr'::"text", 'en'::"text"]))),
-    CONSTRAINT "bookings_payment_method_check" CHECK (("payment_method" = ANY (ARRAY['room'::"text", 'card'::"text", 'card_on_site'::"text", 'offert'::"text", 'gift_amount'::"text", 'voucher'::"text", 'partner_billed'::"text", 'cash'::"text", 'cure_fresha'::"text"]))),
-    CONSTRAINT "bookings_payment_status_check" CHECK (("payment_status" = ANY (ARRAY['pending'::"text", 'awaiting_payment'::"text", 'paid'::"text", 'failed'::"text", 'refunded'::"text", 'charged'::"text", 'charged_to_room'::"text", 'card_saved'::"text", 'expired'::"text", 'pending_partner_billing'::"text", 'pending_room_charge'::"text"]))),
+    CONSTRAINT "bookings_payment_method_check" CHECK (("payment_method" = ANY (ARRAY['room'::"text", 'card'::"text", 'card_on_site'::"text", 'offert'::"text", 'gift_amount'::"text", 'voucher'::"text", 'partner_billed'::"text", 'cash'::"text", 'cure_fresha'::"text", 'external_voucher'::"text"]))),
+    CONSTRAINT "bookings_payment_status_check" CHECK (("payment_status" = ANY (ARRAY['pending'::"text", 'awaiting_payment'::"text", 'paid'::"text", 'failed'::"text", 'refunded'::"text", 'charged'::"text", 'charged_to_room'::"text", 'card_saved'::"text", 'expired'::"text", 'pending_partner_billing'::"text", 'pending_room_charge'::"text", 'offert'::"text", 'pending_voucher_check'::"text"]))),
     CONSTRAINT "bookings_therapist_gender_preference_check" CHECK (("therapist_gender_preference" = ANY (ARRAY['female'::"text", 'male'::"text"])))
 );
 
@@ -91,7 +92,9 @@ COMMENT ON COLUMN "public"."bookings"."customer_id" IS 'Reference to persistent 
 
 COMMENT ON COLUMN "public"."bookings"."bundle_usage_id" IS 'Reference to bundle session usage if this booking consumed a cure credit';
 
-COMMENT ON COLUMN "public"."bookings"."gift_amount_applied_cents" IS 'Portion of the booking price paid via a gift_amount card redemption';
+COMMENT ON COLUMN "public"."bookings"."gift_amount_applied_cents" IS 'Portion de la réservation couverte par un avoir — carte cadeau Saoma ou bon revendeur externe.';
+
+COMMENT ON COLUMN "public"."bookings"."external_voucher_reference" IS 'Référence du bon revendeur telle que saisie par le client, y compris lorsqu''elle est introuvable.';
 
 ALTER TABLE ONLY "public"."bookings"
     ADD CONSTRAINT "bookings_pkey" PRIMARY KEY ("id");
@@ -126,6 +129,8 @@ CREATE INDEX "idx_bookings_quote_token" ON "public"."bookings" USING "btree" ("q
 CREATE INDEX "idx_bookings_room_id" ON "public"."bookings" USING "btree" ("room_id");
 
 CREATE INDEX "idx_bookings_signature_token" ON "public"."bookings" USING "btree" ("signature_token") WHERE ("signature_token" IS NOT NULL);
+
+CREATE INDEX "idx_bookings_pending_voucher_check" ON "public"."bookings" USING "btree" ("hotel_id", "created_at" DESC) WHERE ("payment_status" = 'pending_voucher_check'::"text");
 
 ALTER TABLE "public"."bookings" ENABLE ROW LEVEL SECURITY;
 

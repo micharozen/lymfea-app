@@ -661,6 +661,12 @@
         "label": "Hold duration",
         "description": "Between 1 and 15 minutes. The countdown is shown client-side and the hold is released automatically on expiry.",
         "suffix": "min"
+      },
+      "externalVouchersSectionTitle": "Partner vouchers",
+      "externalVouchersSectionDescription": "Vouchers bought from a reseller (Wonderbox, Smartbox…) are registered by the venue from the Gift cards tab, then used by the client as store credit.",
+      "externalVouchersEnabled": {
+        "label": "Voucher entry on the booking site",
+        "description": "When off, the code field does not appear at the Payment step and no code is accepted. Leave it off for a venue that works with no reseller."
       }
     },
     "backToList": "Back to venues",
@@ -1016,7 +1022,8 @@
     "tabs": {
       "general": "General",
       "notes": "Notes & Preferences",
-      "bookings": "History"
+      "bookings": "History",
+      "tasks": "Tasks"
     },
     "preferences": "Preferences",
     "preferencesDesc": "Preferred therapist and treatment",
@@ -1097,7 +1104,25 @@
       "noCustomer": "No customer",
       "searchBooking": "Search (number or name)...",
       "searchCustomer": "Search a customer...",
-      "noResults": "No results"
+      "noResults": "No results",
+      "taskType": "Task type",
+      "taskTypeOther": "Specify the type",
+      "taskTypeOtherPlaceholder": "e.g. Special request",
+      "venue": "Venue",
+      "selectVenue": "Select a venue",
+      "selectVenueFirst": "Pick a venue first",
+      "treatments": "Related treatments",
+      "noTreatment": "No treatment",
+      "therapists": "Related therapists",
+      "noTherapist": "No therapist",
+      "checklist": "Actions to complete",
+      "checklistItemPlaceholder": "e.g. Call the hotel",
+      "addChecklistItem": "Add an action",
+      "attachments": "Screenshots",
+      "addAttachment": "Add an image",
+      "attachmentHint": "You can also paste a screenshot (Cmd/Ctrl+V).",
+      "attachmentImageOnly": "The file must be an image",
+      "attachmentTooLarge": "The image must not exceed {{size}} MB"
     },
     "dueDatePresets": {
       "today": "Today",
@@ -1105,9 +1130,23 @@
       "in3days": "In 3 days",
       "in7days": "In 7 days"
     },
-    "expand": "Fullscreen",
-    "collapse": "Collapse",
-    "openLink": "View"
+    "openLink": "View",
+    "allVenues": "All venues",
+    "allTypes": "All types",
+    "type": {
+      "booking_followup": "Booking follow-up",
+      "payment_followup": "Payment follow-up",
+      "gift_followup": "Gift follow-up",
+      "loyalty": "Loyalty / package",
+      "bug": "Bug",
+      "other": "Other"
+    },
+    "customerTab": {
+      "label": "Tasks",
+      "count_one": "{{count}} task linked to this customer",
+      "count_other": "{{count}} tasks linked to this customer",
+      "empty": "No task linked to this customer."
+    }
   },
   "scheduleAlerts": {
     "title": "Schedule Alerts",
@@ -1433,7 +1472,8 @@
     "sessionsValue": "{{count}} sessions",
     "tabs": {
       "templates": "Templates",
-      "sales": "Sales"
+      "sales": "Sales",
+      "external": "Partner vouchers"
     },
     "type": {
       "amount": "Amount",
@@ -1524,6 +1564,38 @@
       "eligibleTreatmentsRequired": "Select at least one eligible treatment",
       "amountRequired": "Amount is required"
     }
+  },
+  "externalVouchers": {
+    "add": "Record a voucher",
+    "empty": "No partner voucher recorded",
+    "emptyHint": "Record the vouchers you receive by email from your resellers so guests can redeem them online.",
+    "dialogTitle": "Record a partner voucher",
+    "dialogSubtitle": "Enter the voucher you received from your reseller. Guests will then be able to redeem it directly when booking online.",
+    "unknownReseller": "Unidentified",
+    "venuePlaceholder": "Select a venue",
+    "amount": "Amount (€)",
+    "holderPlaceholder": "Name shown on the voucher",
+    "notes": "Internal note",
+    "notesPlaceholder": "Received by email on…",
+    "normalizedAs": "Searched as",
+    "codePatternWarning": "This reference does not match this reseller's usual format. You can still record it.",
+    "saved": "Voucher recorded",
+    "columns": {
+      "code": "Reference",
+      "reseller": "Reseller",
+      "holder": "Holder"
+    },
+    "errors": {
+      "venueRequired": "Select a venue",
+      "codeTooShort": "The reference must be at least 4 characters long",
+      "amountInvalid": "Invalid amount",
+      "expiryRequired": "Enter an expiry date",
+      "duplicate": "This reference already exists for this venue"
+    },
+    "customer": "Customer",
+    "optional": "(optional)",
+    "customerPlaceholder": "Name or phone",
+    "customerHint": "Leave empty if you don't know yet who will use this voucher: it will be linked automatically on the first booking."
   },
   "booking": {
     "therapistSections": {
@@ -3640,9 +3712,26 @@
     "period": "Period",
     "selectVenue": "Select a venue",
     "allVenues": "All venues",
+    "noOrganization": "Pick an organization to see its dashboard.",
+    "loadError": "Some data could not be loaded. Refresh the page to try again.",
     "tabs": {
       "dashboard": "Dashboard",
       "overview": "Overview"
+    },
+    "quickActions": {
+      "title": "What would you like to do?",
+      "booking": {
+        "label": "Create a booking",
+        "hint": "New booking for a client"
+      },
+      "treatment": {
+        "label": "Create a treatment",
+        "hint": "Add a treatment to the menu"
+      },
+      "voucher": {
+        "label": "Register a voucher",
+        "hint": "Partner voucher — Wonderbox, Smartbox…"
+      }
     }
   },
   "dashboardAlerts": {

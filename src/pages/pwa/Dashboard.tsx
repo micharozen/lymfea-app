@@ -15,7 +15,7 @@ import { useIsMounted } from "@/hooks/useIsMounted";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
 import { fetchTherapistUnavailableDates } from "@/hooks/pwa/useScheduleCompleteness";
-import { useTherapistOrganizationName } from "@/hooks/pwa/useTherapistOrganizationName";
+import { useTherapistOrganizationBrand, ORG_LOGO_FALLBACK } from "@/hooks/pwa/useTherapistOrganizationBrand";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
 import {
   myLegDuration,
@@ -214,7 +214,11 @@ const PwaDashboard = () => {
 
   const { data: me, isPending: identityPending } = useCurrentTherapist();
   const therapist = me?.therapist ?? null;
-  const orgName = useTherapistOrganizationName(therapist?.id);
+  const { name: orgName, logoUrl: orgLogoUrl } = useTherapistOrganizationBrand(therapist?.id);
+  // Un logo d'organisation cassé ne doit pas laisser un trou dans l'en-tête :
+  // on mémorise l'URL fautive pour retomber sur le logo de la plateforme.
+  const [brokenLogoUrl, setBrokenLogoUrl] = useState<string | null>(null);
+  const headerLogoSrc = orgLogoUrl === brokenLogoUrl ? ORG_LOGO_FALLBACK : orgLogoUrl;
 
   // Mon groupe de priorité sur chaque lieu (therapist_venues.priority). Sert à
   // masquer les demandes dont la vague de broadcast n'est pas encore arrivée
@@ -887,7 +891,12 @@ const PwaDashboard = () => {
       onTouchEnd={handleTouchEnd}
     >
       <header className="hdr" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 14px)' }}>
-        <span className="wordmark">{orgName}</span>
+        <img
+          className="brand-logo"
+          src={headerLogoSrc}
+          alt={orgName}
+          onError={() => setBrokenLogoUrl(orgLogoUrl)}
+        />
         <div className="spacer" />
         <button
           type="button"

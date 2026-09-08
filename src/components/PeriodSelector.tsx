@@ -47,10 +47,8 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
   // Initialiser avec la période par défaut au montage
   useEffect(() => {
     const today = new Date();
-    const startDate = subDays(today, 30);
-    const endDate = today;
     if (onPeriodChange) {
-      onPeriodChange(startDate, endDate);
+      onPeriodChange(startOfDay(subDays(today, 30)), endOfDay(today));
     }
   }, []);
 
@@ -90,24 +88,20 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
 
     switch (value) {
       case "today":
-        startDate = startOfDay(today);
-        endDate = endOfDay(today);
+        startDate = today;
+        endDate = today;
         break;
       case "last-week":
-        const lastWeekStart = startOfWeek(subDays(today, 7), { weekStartsOn: 1 });
-        const lastWeekEnd = endOfWeek(subDays(today, 7), { weekStartsOn: 1 });
-        startDate = lastWeekStart;
-        endDate = lastWeekEnd;
+        startDate = startOfWeek(subDays(today, 7), { weekStartsOn: 1 });
+        endDate = endOfWeek(subDays(today, 7), { weekStartsOn: 1 });
         break;
       case "last-30-days":
         startDate = subDays(today, 30);
         endDate = today;
         break;
       case "next-week":
-        const nextWeekStart = startOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
-        const nextWeekEnd = endOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
-        startDate = nextWeekStart;
-        endDate = nextWeekEnd;
+        startDate = startOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
+        endDate = endOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
         break;
       default:
         startDate = subDays(today, 30);
@@ -115,7 +109,10 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
     }
 
     if (onPeriodChange) {
-      onPeriodChange(startDate, endDate);
+      // Bornes normalisées sur la journée entière : une date horodatée exclurait
+      // les réservations du premier jour (comparaison à minuit côté filtre) et
+      // ferait changer les clés de cache à chaque montage.
+      onPeriodChange(startOfDay(startDate), endOfDay(endDate));
     }
     
     setIsOpen(false);
@@ -123,16 +120,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
 
   const handleCustomDateConfirm = () => {
     if (customDateRange?.from && customDateRange?.to && onPeriodChange) {
-      // Si même jour, appliquer startOfDay et endOfDay
-      let start = customDateRange.from;
-      let end = customDateRange.to;
-      
-      if (format(start, 'yyyy-MM-dd') === format(end, 'yyyy-MM-dd')) {
-        start = startOfDay(start);
-        end = endOfDay(end);
-      }
-      
-      onPeriodChange(start, end);
+      onPeriodChange(startOfDay(customDateRange.from), endOfDay(customDateRange.to));
       setIsOpen(false);
       setShowCustomCalendar(false);
     }

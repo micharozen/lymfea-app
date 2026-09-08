@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
   format,
   differenceInCalendarDays,
@@ -6,7 +7,6 @@ import {
   addDays,
   addMonths,
   endOfMonth,
-  isWithinInterval,
   parseISO,
   startOfMonth,
   subDays,
@@ -14,16 +14,33 @@ import {
 } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { useUser } from "@/contexts/UserContext";
 import { useExchangeRates } from "@/hooks/useExchangeRates";
 import { convertToEUR } from "@/lib/currencyConversion";
 import { formatPrice } from "@/lib/formatPrice";
 import { getBookingStatusConfig } from "@/utils/statusStyles";
 import { normalizeBookingClientType } from "@/lib/clientTypeMeta";
-import { useOrgScope, orgScopeKey } from "@/hooks/useOrgScope";
-import { getDashboardDataForOrg, type DashboardBooking } from "@shared/db";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import {
-  buildMonthlyOutlook,
-  buildMonthlyOutlookByVenue,
+  dashboardKeys,
+  fetchScopedHotelIds,
+  fetchDashboardReference,
+  fetchPeriodBookings,
+  fetchUpcomingBookings,
+  fetchMonthlyOutlook,
+  fetchLeadTimeBookings,
+  fetchPaymentAlerts,
+  type DashboardReference,
+  type PeriodBooking,
+  type UpcomingBooking,
+  type PaymentAlertBooking,
+  type LeadTimeBooking,
+  type OutlookAggregateRow,
+} from "@shared/db";
+import {
+  buildMonthlyOutlookFromAggregates,
+  buildMonthlyOutlookByVenueFromAggregates,
+  OUTLOOK_FUTURE_MONTHS,
   OUTLOOK_PAST_MONTHS,
   type MonthlyOutlookByVenue,
   type MonthlyOutlookPoint,
@@ -33,25 +50,12 @@ export type { MonthlyOutlookPoint, MonthlyOutlookByVenue } from "@/lib/monthlyOu
 
 // ── Types ───────────────────────────────────────────────────────────
 
-type BookingRow = DashboardBooking & {
-  client_type?: string | null;
-  room_number?: string | null;
-  booking_treatments: { treatment_menus: { name: string } | null }[];
-};
-
 interface HotelRow {
   id: string;
   name: string;
   currency: string | null;
   opening_time: string | null;
   closing_time: string | null;
-}
-
-interface RoomRow {
-  id: string;
-  hotel_id: string | null;
-  name: string | null;
-  capacity: number | null;
 }
 
 export interface AlertsData {
@@ -189,8 +193,29 @@ export interface DashboardStats {
   bookingsTrend: number;
 }
 
+/**
+ * État de chargement par section. La page n'attend plus la donnée la plus
+ * lente : chaque bloc affiche son squelette jusqu'à l'arrivée de SA source.
+ */
+export interface DashboardPending {
+  reference: boolean;
+  period: boolean;
+  upcoming: boolean;
+  outlook: boolean;
+  leadTime: boolean;
+  alerts: boolean;
+}
+
 export interface DashboardData {
-  loading: boolean;
+  /**
+   * Aucune organisation active : état terminal, pas un chargement. C'est le
+   * cas du super-admin qui n'a pas encore choisi d'organisation — il ne faut
+   * surtout pas lui afficher un squelette perpétuel.
+   */
+  scopeMissing: boolean;
+  pending: DashboardPending;
+  /** Au moins une requête a échoué : de quoi afficher un bandeau d'erreur. */
+  hasError: boolean;
   hotels: HotelRow[];
   stats: DashboardStats;
   clientMix: ClientMixData;
@@ -230,83 +255,202 @@ const ONLINE_BOOKING_SOURCES = new Set(["client", "api"]);
 const isOnlineSource = (source: string | null | undefined): boolean =>
   ONLINE_BOOKING_SOURCES.has(source ?? "");
 
+const iso = (d: Date) => format(d, "yyyy-MM-dd");
+
+// Tableaux vides stables : une nouvelle référence à chaque rendu invaliderait
+// tous les useMemo qui en dépendent.
+const EMPTY_ROOMS: DashboardReference["treatmentRooms"] = [];
+const EMPTY_ASSIGNMENTS: DashboardReference["therapistVenues"] = [];
+const EMPTY_IDS: string[] = [];
+const EMPTY_PERIOD: PeriodBooking[] = [];
+const EMPTY_UPCOMING: UpcomingBooking[] = [];
+const EMPTY_ALERTS: PaymentAlertBooking[] = [];
+const EMPTY_OUTLOOK: OutlookAggregateRow[] = [];
+const EMPTY_LEAD_TIME: LeadTimeBooking[] = [];
+
 // ── Hook ────────────────────────────────────────────────────────────
 
+/**
+ * Données du dashboard admin.
+ *
+ * Le fetch est découpé en sources indépendantes, chacune ciblée sur sa propre
+ * fenêtre et ses propres colonnes, au lieu d'un unique balayage de ~18 mois
+ * de réservations agrégé en mémoire.
+ *
+ * RÈGLE À NE PAS ENFREINDRE : chaque métrique dérive d'exactement UNE source.
+ * Les fenêtres se recouvrent (la période courante et le carnet à venir
+ * partagent aujourd'hui, les alertes de paiement couvrent les deux) — les
+ * concaténer produirait des doubles comptages silencieux.
+ */
 export function useDashboardData(
   startDate: Date,
   endDate: Date,
   selectedHotel: string
 ): DashboardData {
   const scope = useOrgScope();
-  const [bookings, setBookings] = useState<BookingRow[]>([]);
-  const [hotels, setHotels] = useState<HotelRow[]>([]);
-  const [rooms, setRooms] = useState<RoomRow[]>([]);
-  const [availabilityIds, setAvailabilityIds] = useState<string[]>([]);
-  const [assignments, setAssignments] = useState<Array<{ therapist_id: string; hotel_id: string }>>([]);
-  const [loading, setLoading] = useState(true);
+  const { loading: userLoading } = useUser();
   const { rates } = useExchangeRates();
 
-  // Fenêtre de lecture : le dashboard ne charge plus toute la table.
-  // Borne basse = la plus ancienne des deux lectures qui remontent dans le passé
-  // (période précédente pour les tendances, historique de l'outlook mensuel).
-  // Borne haute = un an, pour que le compteur « n° de chambre manquant » et
-  // l'outlook restent exacts sur les réservations futures.
-  // Bornes exprimées en chaînes ISO : l'effet ci-dessous doit dépendre de
-  // valeurs comparables, pas d'objets dont l'identité change à chaque rendu —
-  // sinon chaque chargement en déclenche un autre.
-  const { fromDate, toDate } = useMemo(() => {
+  // ── Fenêtres ──────────────────────────────────────────────────────
+  // Exprimées en chaînes ISO : les clés de cache doivent être comparables,
+  // pas des objets dont l'identité change à chaque rendu.
+
+  const windows = useMemo(() => {
     const now = new Date();
     const periodDays = Math.max(0, differenceInDays(endDate, startDate));
-    const from = subDays(startDate, periodDays + 1);
+    const prevStart = subDays(startDate, periodDays + 1);
+    const prevEnd = subDays(startDate, 1);
     const outlookFrom = startOfMonth(subMonths(now, OUTLOOK_PAST_MONTHS));
-    const to = endOfMonth(addMonths(now, 12));
+    const outlookTo = startOfMonth(addMonths(now, OUTLOOK_FUTURE_MONTHS));
+    // Le carnet à venir va jusqu'à un an : les compteurs « n° de chambre
+    // manquant » et « sans thérapeute » doivent rester exacts sur les
+    // réservations lointaines.
+    const upcomingTo = endOfMonth(addMonths(now, 12));
+
     return {
-      fromDate: format(from < outlookFrom ? from : outlookFrom, "yyyy-MM-dd"),
-      toDate: format(endDate > to ? endDate : to, "yyyy-MM-dd"),
+      today: iso(now),
+      start: iso(startDate),
+      end: iso(endDate),
+      prevStart: iso(prevStart),
+      prevEnd: iso(prevEnd),
+      outlookFrom: iso(outlookFrom),
+      outlookTo: iso(outlookTo),
+      upcomingTo: iso(upcomingTo),
+      // Borne haute exclusive : created_at est un timestamp, s'arrêter à la
+      // date de fin couperait sa dernière journée à minuit.
+      leadTimeTo: iso(addDays(endDate, 1)),
+      // Les alertes de paiement conservent leur périmètre historique — le
+      // filtre payment_status est appliqué par Postgres, la largeur ne coûte
+      // rien.
+      alertsFrom: iso(prevStart < outlookFrom ? prevStart : outlookFrom),
     };
   }, [startDate, endDate]);
 
-  // Même raison pour le scope : c'est un objet, on ne garde que sa clé dans les
-  // dépendances et on lit la valeur courante au moment de l'appel.
-  const scopeKey = orgScopeKey(scope);
-  const scopeRef = useRef(scope);
-  scopeRef.current = scope;
+  // ── Requêtes ──────────────────────────────────────────────────────
+  // Q0 résout le scope en identifiants de lieux, une fois, et débloque les
+  // six autres — qui partent alors en parallèle.
 
-  useEffect(() => {
-    const currentScope = scopeRef.current;
-    if (!currentScope) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const data = await getDashboardDataForOrg(supabase, currentScope, {
-          fromDate,
-          toDate,
-        });
+  const hotelIdsQ = useQuery({
+    queryKey: dashboardKeys.hotelIds(scope),
+    enabled: scope !== null,
+    queryFn: () => fetchScopedHotelIds(supabase, scope!),
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+  });
 
-        if (cancelled) return;
-        setBookings(
-          data.bookings.map((b) => ({
-            ...b,
-            booking_treatments: b.booking_treatments.filter(
-              (bt): bt is { treatment_menus: { name: string } } => !!bt.treatment_menus?.name,
-            ),
-          })),
-        );
-        setHotels(data.hotels);
-        setRooms(data.treatmentRooms);
-        setAvailabilityIds(data.todayAvailableTherapistIds);
-        setAssignments(data.therapistVenues);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [scopeKey, fromDate, toDate]);
+  const hotelIds = hotelIdsQ.data ?? null;
+  const ready = scope !== null && hotelIdsQ.isSuccess;
+
+  const referenceQ = useQuery({
+    queryKey: dashboardKeys.reference(scope, windows.today),
+    enabled: ready,
+    queryFn: () => fetchDashboardReference(supabase, hotelIds, windows.today),
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+  });
+
+  const periodQ = useQuery({
+    queryKey: dashboardKeys.period(scope, windows.prevStart, windows.end),
+    enabled: ready,
+    queryFn: () =>
+      fetchPeriodBookings(supabase, hotelIds, {
+        fromDate: windows.prevStart,
+        toDate: windows.end,
+      }),
+    staleTime: 60_000,
+    gcTime: 10 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+
+  const upcomingQ = useQuery({
+    queryKey: dashboardKeys.upcoming(scope, windows.today, windows.upcomingTo),
+    enabled: ready,
+    queryFn: () =>
+      fetchUpcomingBookings(supabase, hotelIds, {
+        fromDate: windows.today,
+        toDate: windows.upcomingTo,
+      }),
+    staleTime: 30_000,
+    gcTime: 10 * 60_000,
+  });
+
+  const outlookQ = useQuery({
+    queryKey: dashboardKeys.outlook(scope, windows.outlookFrom, windows.outlookTo),
+    enabled: ready,
+    queryFn: () =>
+      fetchMonthlyOutlook(supabase, hotelIds, {
+        fromDate: windows.outlookFrom,
+        toDate: windows.outlookTo,
+      }),
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+
+  const leadTimeQ = useQuery({
+    queryKey: dashboardKeys.leadTime(scope, windows.start, windows.leadTimeTo),
+    enabled: ready,
+    queryFn: () =>
+      fetchLeadTimeBookings(supabase, hotelIds, {
+        fromDate: windows.start,
+        toDate: windows.leadTimeTo,
+      }),
+    staleTime: 60_000,
+    gcTime: 10 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+
+  const paymentAlertsQ = useQuery({
+    queryKey: dashboardKeys.paymentAlerts(scope, windows.alertsFrom, windows.upcomingTo),
+    enabled: ready,
+    queryFn: () =>
+      fetchPaymentAlerts(supabase, hotelIds, {
+        fromDate: windows.alertsFrom,
+        toDate: windows.upcomingTo,
+      }),
+    staleTime: 30_000,
+    gcTime: 10 * 60_000,
+  });
+
+  // ── État de chargement ────────────────────────────────────────────
+  // Trois situations à ne jamais confondre : le contexte utilisateur qui se
+  // résout (chargement), l'absence d'organisation active (état terminal), et
+  // une requête en vol (squelette de sa section).
+
+  const scopePending = scope === null && userLoading;
+  const scopeMissing = scope === null && !userLoading;
+  const basePending = scopePending || (scope !== null && hotelIdsQ.isPending);
+
+  const pending: DashboardPending = {
+    reference: basePending || referenceQ.isPending,
+    period: basePending || periodQ.isPending,
+    upcoming: basePending || upcomingQ.isPending,
+    outlook: basePending || outlookQ.isPending,
+    leadTime: basePending || leadTimeQ.isPending,
+    alerts: basePending || upcomingQ.isPending || paymentAlertsQ.isPending,
+  };
+
+  const hasError =
+    hotelIdsQ.isError ||
+    referenceQ.isError ||
+    periodQ.isError ||
+    upcomingQ.isError ||
+    outlookQ.isError ||
+    leadTimeQ.isError ||
+    paymentAlertsQ.isError;
+
+  // ── Sources ───────────────────────────────────────────────────────
+
+  const hotels = useMemo<HotelRow[]>(
+    () => (referenceQ.data?.hotels ?? []) as HotelRow[],
+    [referenceQ.data]
+  );
+  const rooms = referenceQ.data?.treatmentRooms ?? EMPTY_ROOMS;
+  const assignments = referenceQ.data?.therapistVenues ?? EMPTY_ASSIGNMENTS;
+  const availabilityIds = referenceQ.data?.todayAvailableTherapistIds ?? EMPTY_IDS;
+  const periodRows = periodQ.data ?? EMPTY_PERIOD;
+  const upcomingRows = upcomingQ.data ?? EMPTY_UPCOMING;
+  const alertRows = paymentAlertsQ.data ?? EMPTY_ALERTS;
 
   // ── Currency map ──────────────────────────────────────────────────
 
@@ -327,32 +471,41 @@ export function useDashboardData(
   const generatesRevenue = (b: { status: string }) =>
     b.status !== "cancelled" && b.status !== "noshow";
 
-  // ── Filtered bookings (by period + venue) ─────────────────────────
+  const matchesHotel = (hotelId: string) =>
+    selectedHotel === "all" || hotelId === selectedHotel;
+
+  // ── Découpage de la période ───────────────────────────────────────
+  // La requête ramène période courante ET précédente : on les sépare ici, sur
+  // des chaînes `yyyy-MM-dd` — comparer des chaînes de date est exact, là où
+  // un intervalle de Date dépend de l'heure portée par les bornes.
 
   const filteredBookings = useMemo(
     () =>
-      bookings.filter((b) => {
-        const d = parseISO(b.booking_date);
-        const matchDate = isWithinInterval(d, { start: startDate, end: endDate });
-        const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
-        return matchDate && matchHotel;
-      }),
-    [bookings, startDate, endDate, selectedHotel]
+      periodRows.filter(
+        (b) =>
+          b.booking_date >= windows.start &&
+          b.booking_date <= windows.end &&
+          matchesHotel(b.hotel_id)
+      ),
+    [periodRows, windows.start, windows.end, selectedHotel]
   );
 
-  // ── Previous period bookings (for trends) ─────────────────────────
+  const prevFilteredBookings = useMemo(
+    () =>
+      periodRows.filter(
+        (b) =>
+          b.booking_date >= windows.prevStart &&
+          b.booking_date <= windows.prevEnd &&
+          matchesHotel(b.hotel_id)
+      ),
+    [periodRows, windows.prevStart, windows.prevEnd, selectedHotel]
+  );
 
-  const prevFilteredBookings = useMemo(() => {
-    const daysDiff = differenceInDays(endDate, startDate);
-    const prevEnd = subDays(startDate, 1);
-    const prevStart = subDays(startDate, daysDiff + 1);
-    return bookings.filter((b) => {
-      const d = parseISO(b.booking_date);
-      const matchDate = isWithinInterval(d, { start: prevStart, end: prevEnd });
-      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
-      return matchDate && matchHotel;
-    });
-  }, [bookings, startDate, endDate, selectedHotel]);
+  /** Carnet à venir restreint au lieu sélectionné. */
+  const scopedUpcoming = useMemo(
+    () => upcomingRows.filter((b) => matchesHotel(b.hotel_id)),
+    [upcomingRows, selectedHotel]
+  );
 
   // ── Stats ─────────────────────────────────────────────────────────
 
@@ -361,12 +514,7 @@ export function useDashboardData(
     const totalSales = revenueBookings.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
     const totalBookings = filteredBookings.length;
 
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    const todayRows = bookings.filter((b) => {
-      const matchDate = b.booking_date === todayStr;
-      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
-      return matchDate && matchHotel;
-    });
+    const todayRows = scopedUpcoming.filter((b) => b.booking_date === windows.today);
     const todayBookings = todayRows.length;
     const todayConfirmed = todayRows.filter((b) => b.status === "confirmed").length;
 
@@ -374,14 +522,13 @@ export function useDashboardData(
       (b) => b.payment_status === "pending"
     ).length;
 
-    // Hotel bookings (today or future, not cancelled) without a room number assigned
-    const missingRoomNumber = bookings.filter((b) => {
-      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
-      if (!matchHotel) return false;
+    // Réservations hôtel à venir (aujourd'hui compris), non annulées, sans
+    // numéro de chambre renseigné.
+    const missingRoomNumber = scopedUpcoming.filter((b) => {
       if (b.client_type !== "hotel") return false;
       if (b.status === "cancelled") return false;
       if (b.room_number && b.room_number.trim() !== "") return false;
-      return b.booking_date >= todayStr;
+      return true;
     }).length;
 
     const cancelled = filteredBookings.filter((b) => b.status === "cancelled").length;
@@ -410,7 +557,7 @@ export function useDashboardData(
       salesTrend,
       bookingsTrend,
     };
-  }, [filteredBookings, prevFilteredBookings, bookings, selectedHotel, rates]);
+  }, [filteredBookings, prevFilteredBookings, scopedUpcoming, windows.today, rates]);
 
   // ── Mix clients (hôtel vs externes) ───────────────────────────────
   //
@@ -418,7 +565,7 @@ export function useDashboardData(
   // les partenaires staycation / classpass / sezame) compte comme externe.
 
   const clientMix = useMemo<ClientMixData>(() => {
-    const countHotel = (rows: BookingRow[]) =>
+    const countHotel = (rows: PeriodBooking[]) =>
       rows.filter((b) => normalizeBookingClientType(b.client_type) === "hotel").length;
 
     const total = filteredBookings.length;
@@ -443,7 +590,8 @@ export function useDashboardData(
   // ── Canal de réservation (en ligne vs manuel) ─────────────────────
 
   const bookingChannel = useMemo<BookingChannelData>(() => {
-    const countOnline = (rows: BookingRow[]) => rows.filter((b) => isOnlineSource(b.source)).length;
+    const countOnline = (rows: PeriodBooking[]) =>
+      rows.filter((b) => isOnlineSource(b.source)).length;
 
     const total = filteredBookings.length;
     const online = countOnline(filteredBookings);
@@ -462,14 +610,8 @@ export function useDashboardData(
   }, [filteredBookings, prevFilteredBookings]);
 
   const alerts = useMemo<AlertsData>(() => {
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    const relevant = selectedHotel === "all"
-      ? bookings
-      : bookings.filter((b) => b.hotel_id === selectedHotel);
-
-    const toAlertBooking = (b: (typeof relevant)[number]): AlertBooking => {
+    const toAlertBooking = (b: UpcomingBooking | PaymentAlertBooking): AlertBooking => {
       const bookingDate = parseISO(b.booking_date);
-
       return {
         id: b.id,
         bookingNumber: b.booking_id,
@@ -481,12 +623,16 @@ export function useDashboardData(
       };
     };
 
-    const pendingPaymentBookings = relevant
+    const scopedAlerts = alertRows.filter((b) => matchesHotel(b.hotel_id));
+
+    const pendingPaymentBookings = scopedAlerts
       .filter((b) => b.payment_status === "pending" && b.status !== "cancelled")
       .map(toAlertBooking);
 
-    const unassignedBookings = relevant
-      .filter((b) => b.status === "pending" && b.booking_date >= todayStr)
+    // « Sans thérapeute » : réservations encore en attente d'attribution, à
+    // venir uniquement — le carnet passé n'est plus actionnable.
+    const unassignedBookings = scopedUpcoming
+      .filter((b) => b.status === "pending")
       .map(toAlertBooking);
 
     return {
@@ -494,21 +640,17 @@ export function useDashboardData(
       unassignedBookings,
       pendingPayments: pendingPaymentBookings.length,
       pendingPaymentBookings,
-      failedPayments: relevant.filter(
-        (b) => b.payment_status === "failed"
-      ).length,
+      failedPayments: scopedAlerts.filter((b) => b.payment_status === "failed").length,
     };
-  }, [bookings, selectedHotel, rates]);
+  }, [alertRows, scopedUpcoming, selectedHotel, rates]);
 
   const roomOccupancy = useMemo<OccupancyData>(() => {
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    const todayBookingsWithRoom = bookings.filter((b) => {
-      const matchDate = b.booking_date === todayStr;
-      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
-      const hasRoom = !!b.room_id;
-      const activeStatus = ["confirmed", "ongoing", "completed"].includes(b.status);
-      return matchDate && matchHotel && hasRoom && activeStatus;
-    });
+    const todayBookingsWithRoom = scopedUpcoming.filter(
+      (b) =>
+        b.booking_date === windows.today &&
+        !!b.room_id &&
+        ["confirmed", "ongoing", "completed"].includes(b.status)
+    );
     const usedRoomIds = new Set(todayBookingsWithRoom.map((b) => b.room_id));
 
     const totalRooms = selectedHotel === "all"
@@ -516,7 +658,7 @@ export function useDashboardData(
       : rooms.filter((r) => r.hotel_id === selectedHotel).length;
 
     return { used: usedRoomIds.size, total: totalRooms };
-  }, [bookings, rooms, selectedHotel]);
+  }, [scopedUpcoming, rooms, selectedHotel, windows.today]);
 
   // ── Room occupancy heatmap (today, per room) ──────────────────────
   // Une ligne par salle, une colonne par heure. L'occupation d'un créneau
@@ -524,8 +666,6 @@ export function useDashboardData(
   // (somme des guest_count des réservations qui chevauchent) / capacity.
 
   const roomOccupancyHeatmap = useMemo<RoomOccupancyHeatmap>(() => {
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-
     const scopedHotels =
       selectedHotel === "all" ? hotels : hotels.filter((h) => h.id === selectedHotel);
 
@@ -556,13 +696,12 @@ export function useDashboardData(
 
     const hotelNameById = new Map(hotels.map((h) => [h.id, h.name]));
 
-    const todaysBookings = bookings.filter((b) => {
-      const matchDate = b.booking_date === todayStr;
-      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
-      const hasRoom = !!b.room_id;
-      const activeStatus = ["pending", "confirmed", "ongoing", "completed"].includes(b.status);
-      return matchDate && matchHotel && hasRoom && activeStatus;
-    });
+    const todaysBookings = scopedUpcoming.filter(
+      (b) =>
+        b.booking_date === windows.today &&
+        !!b.room_id &&
+        ["pending", "confirmed", "ongoing", "completed"].includes(b.status)
+    );
 
     const openHoursCount = Math.max(1, closingHour - openingHour);
 
@@ -615,7 +754,7 @@ export function useDashboardData(
     );
 
     return { rooms: roomRows, hours, openingHour, closingHour };
-  }, [bookings, rooms, hotels, selectedHotel]);
+  }, [scopedUpcoming, rooms, hotels, selectedHotel, windows.today]);
 
   // ── Active therapists today ───────────────────────────────────────
 
@@ -637,8 +776,7 @@ export function useDashboardData(
     const revenueBookings = filteredBookings.filter(generatesRevenue);
     if (revenueBookings.length === 0) return [];
 
-    const prestationCount = (b: (typeof revenueBookings)[number]) =>
-      (b.booking_treatments || []).length;
+    const prestationCount = (b: PeriodBooking) => (b.booking_treatments || []).length;
 
     if (days === 0) {
       return Array.from({ length: 8 }, (_, i) => {
@@ -705,55 +843,49 @@ export function useDashboardData(
     return Array.from({ length: 7 }, (_, i) => {
       const d = addDays(today, i);
       const dateStr = format(d, "yyyy-MM-dd");
-      const dayBookings = bookings.filter((b) => {
-        const matchDate = b.booking_date === dateStr;
-        const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
-        return matchDate && matchHotel;
-      });
+      const dayBookings = scopedUpcoming.filter((b) => b.booking_date === dateStr);
       return {
         day: i === 0 ? "Auj." : format(d, "EEE", { locale: fr }),
         confirmed: dayBookings.filter((b) => b.status === "confirmed").length,
         pending: dayBookings.filter((b) => b.status === "pending").length,
       };
     });
-  }, [bookings, selectedHotel]);
+  }, [scopedUpcoming]);
 
   // ── Monthly outlook (fenêtre fixe, indépendante du filtre de période) ──
+  // Construit à partir des agrégats calculés par Postgres.
   // rates est une dépendance obligatoire : toEUR en dépend via closure.
+  const outlookRows = outlookQ.data ?? EMPTY_OUTLOOK;
+
   const monthlyOutlook = useMemo<MonthlyOutlookPoint[]>(
-    () => buildMonthlyOutlook(bookings, { venueId: selectedHotel, toEUR }),
-    [bookings, selectedHotel, rates]
+    () => buildMonthlyOutlookFromAggregates(outlookRows, { venueId: selectedHotel, toEUR }),
+    [outlookRows, selectedHotel, rates, hotelCurrencyMap]
   );
 
   // Décomposition par lieu — toujours sur tous les lieux (indépendante du
   // filtre de lieu), pour la vue « une ligne par lieu ».
   const monthlyOutlookByVenue = useMemo<MonthlyOutlookByVenue>(
     () =>
-      buildMonthlyOutlookByVenue(bookings, {
+      buildMonthlyOutlookByVenueFromAggregates(outlookRows, {
         venues: hotels.map((h) => ({ id: h.id, name: h.name })),
         toEUR,
       }),
-    [bookings, hotels, rates]
+    [outlookRows, hotels, rates, hotelCurrencyMap]
   );
 
   // ── Booking lead time (how far in advance clients book) ───────────
   // Délai = booking_date − created_at (jours calendaires), borné à 0.
-  // Filtré sur created_at (réservations FAITES dans la période), pas sur
-  // booking_date : sinon les réservations futures — celles qui portent
-  // justement l'anticipation — seraient exclues.
+  // La source est filtrée sur created_at (réservations FAITES dans la
+  // période) et sans borne sur booking_date : une réservation prise hier pour
+  // dans un an est justement ce que la métrique mesure.
 
   const leadTime = useMemo<LeadTimeData>(() => {
-    const withLead = bookings.filter((b) => {
-      if (!b.created_at || !b.booking_date) return false;
-      const created = parseISO(b.created_at);
-      const matchDate = isWithinInterval(created, { start: startDate, end: endDate });
-      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
-      return matchDate && matchHotel;
-    });
+    const rows = (leadTimeQ.data ?? EMPTY_LEAD_TIME).filter((b) => matchesHotel(b.hotel_id));
 
-    const leadDays = (b: BookingRow) =>
+    const leadDays = (b: { booking_date: string; created_at: string | null }) =>
       Math.max(0, differenceInCalendarDays(parseISO(b.booking_date), parseISO(b.created_at!)));
 
+    const withLead = rows.filter((b) => !!b.created_at && !!b.booking_date);
     const globalCount = withLead.length;
     const globalSum = withLead.reduce((s, b) => s + leadDays(b), 0);
 
@@ -782,7 +914,7 @@ export function useDashboardData(
       count: globalCount,
       byTreatment,
     };
-  }, [bookings, startDate, endDate, selectedHotel]);
+  }, [leadTimeQ.data, selectedHotel]);
 
   const topVenues = useMemo<RankingItem[]>(() => {
     const map: Record<string, RankingItem> = {};
@@ -853,7 +985,9 @@ export function useDashboardData(
   );
 
   return {
-    loading,
+    scopeMissing,
+    pending,
+    hasError,
     hotels,
     stats,
     clientMix,

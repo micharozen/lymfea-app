@@ -4,7 +4,15 @@ type TaskRow = Database["public"]["Tables"]["tasks"]["Row"];
 type TaskInsert = Database["public"]["Tables"]["tasks"]["Insert"];
 type TaskUpdate = Database["public"]["Tables"]["tasks"]["Update"];
 
-export type TaskWithLinks = TaskRow & {
+/** Sous-tâche cochable stockée dans la colonne jsonb `tasks.checklist`. */
+export interface TaskChecklistItem {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
+export type TaskWithLinks = Omit<TaskRow, "checklist"> & {
+  checklist: TaskChecklistItem[];
   hotel: { id: string; name: string } | null;
   booking:
     | {
@@ -18,7 +26,7 @@ export type TaskWithLinks = TaskRow & {
 };
 
 const TASK_SELECT =
-  "id, organization_id, hotel_id, booking_id, customer_id, assigned_to_user_id, created_by, title, description, status, priority, due_date, position, completed_at, created_at, updated_at, " +
+  "id, organization_id, hotel_id, booking_id, customer_id, assigned_to_user_id, created_by, title, description, status, priority, task_type, task_type_other, treatment_menu_ids, therapist_ids, checklist, attachments, due_date, position, completed_at, created_at, updated_at, " +
   "hotel:hotels(id, name), " +
   "booking:bookings(id, booking_id, client_first_name, client_last_name), " +
   "customer:customers(id, first_name, last_name)";

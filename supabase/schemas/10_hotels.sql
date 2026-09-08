@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS "public"."hotels" (
     "booking_hold_enabled" boolean DEFAULT true NOT NULL,
     "booking_hold_duration_minutes" integer DEFAULT 5 NOT NULL,
     "min_booking_notice_minutes" integer DEFAULT 0,
+    "external_vouchers_enabled" boolean DEFAULT false NOT NULL,
     CONSTRAINT "check_venue_hours" CHECK (("opening_time" < "closing_time")),
     CONSTRAINT "hotels_booking_hold_duration_range" CHECK ((("booking_hold_duration_minutes" >= 1) AND ("booking_hold_duration_minutes" <= 15))),
     CONSTRAINT "hotels_slug_pattern_check" CHECK ((("slug" ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'::"text") AND (("length"("slug") >= 2) AND ("length"("slug") <= 60)))),

@@ -104,7 +104,28 @@ export const payoutKeys = {
     [...payoutKeys.forOrg(scope), "list", limit ?? 100] as const,
 };
 
+// Dashboard admin : une clé par source de données, pour que chaque section de
+// la page se rafraîchisse indépendamment.
+//
+// Règle : uniquement des chaînes `yyyy-MM-dd` dans les clés, jamais un objet
+// Date — TanStack hache par JSON.stringify, un Date deviendrait un ISO à la
+// milliseconde et la clé changerait à chaque montage, annulant tout le cache.
+// Le `day` (= aujourd'hui) sert de borne de fraîcheur naturelle : à minuit la
+// clé change et les données du jour se renouvellent d'elles-mêmes.
 export const dashboardKeys = {
   all: ["dashboard"] as const,
   forOrg: (scope: ScopeLike) => [...dashboardKeys.all, "org", orgKey(scope)] as const,
+  hotelIds: (scope: ScopeLike) => [...dashboardKeys.forOrg(scope), "hotel-ids"] as const,
+  reference: (scope: ScopeLike, day: string) =>
+    [...dashboardKeys.forOrg(scope), "reference", day] as const,
+  period: (scope: ScopeLike, from: string, to: string) =>
+    [...dashboardKeys.forOrg(scope), "period", from, to] as const,
+  upcoming: (scope: ScopeLike, day: string, to: string) =>
+    [...dashboardKeys.forOrg(scope), "upcoming", day, to] as const,
+  outlook: (scope: ScopeLike, from: string, to: string) =>
+    [...dashboardKeys.forOrg(scope), "outlook", from, to] as const,
+  leadTime: (scope: ScopeLike, from: string, to: string) =>
+    [...dashboardKeys.forOrg(scope), "lead-time", from, to] as const,
+  paymentAlerts: (scope: ScopeLike, from: string, to: string) =>
+    [...dashboardKeys.forOrg(scope), "payment-alerts", from, to] as const,
 };
