@@ -81,7 +81,7 @@ serve(async (req) => {
         short_token,
         customer_id,
         language,
-        hotels(organization_id, name, address, postal_code, city, country, timezone, website_url, contact_email, image, currency, cancellation_policy_text_en, cancellation_policy_text_fr, organizations(name))
+        hotels(organization_id, name, address, access_instructions, access_instructions_en, postal_code, city, country, timezone, website_url, contact_email, image, currency, cancellation_policy_text_en, cancellation_policy_text_fr, organizations(name))
       `;
 
     let { data: booking, error: bookingError } = await supabase

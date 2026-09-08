@@ -31,6 +31,9 @@ export interface EmailVenue {
   currency?: string | null;
   contact_email?: string | null;
   address?: string | null;
+  /** Free-text access notes (door code, floor, way in) — never part of `address`. */
+  access_instructions?: string | null;
+  access_instructions_en?: string | null;
   postal_code?: string | null;
   city?: string | null;
   country?: string | null;
@@ -96,6 +99,20 @@ export function formatVenueAddress(venue?: EmailVenue | null): string {
   return [venue?.address, venue?.postal_code, venue?.city, venue?.country]
     .filter(Boolean)
     .join(', ');
+}
+
+/**
+ * Venue access notes (door code, floor, way in) for the given language.
+ * EN falls back to the FR text, so a venue that filled only one field still
+ * gets its access details out to English-speaking clients.
+ */
+export function venueAccessInstructions(
+  venue: EmailVenue | null | undefined,
+  lang: Lang,
+): string {
+  const en = venue?.access_instructions_en?.trim();
+  const fr = venue?.access_instructions?.trim();
+  return (lang === 'en' ? (en || fr) : fr) ?? '';
 }
 
 /** Google Maps directions URL for the venue address ('' when no address). */
@@ -204,8 +221,8 @@ function greetingFor(ctx: BookingEmailContext) {
 // keeps all optionality in TS (typed, testable) rather than in the HTML blob.
 
 const FRAG_LABELS = {
-  fr: { min: 'min', therapist: 'Praticien', room: 'Chambre', modify: 'Modifier ou annuler', policy: "Politique d'annulation", surcharge: 'Majoration hors horaires' },
-  en: { min: 'min', therapist: 'Therapist', room: 'Room', modify: 'Modify or cancel', policy: 'Cancellation policy', surcharge: 'Out-of-hours surcharge' },
+  fr: { min: 'min', therapist: 'Praticien', room: 'Chambre', modify: 'Modifier ou annuler', policy: "Politique d'annulation", surcharge: 'Majoration hors horaires', access: 'Accès' },
+  en: { min: 'min', therapist: 'Therapist', room: 'Room', modify: 'Modify or cancel', policy: 'Cancellation policy', surcharge: 'Out-of-hours surcharge', access: 'Access' },
 } as const;
 
 // Palette echoed from templates/booking-confirmed.ts (kept in sync).
@@ -269,6 +286,18 @@ function footerWebsiteHtml(url: string | null | undefined): string {
   const href = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   const label = raw.replace(/^https?:\/\//i, '').replace(/\/$/, '');
   return `<p style="margin:8px 0 0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_MUTE}"><a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer nofollow" style="color:${CLAY};text-decoration:underline">${escapeHtml(label)}</a></p>`;
+}
+
+/**
+ * Access paragraph (door code, floor, way in) rendered inside the shared
+ * "practical info" encart, above the arrival note — see arrivalNote() in
+ * email-layout.ts. '' when the venue set no access notes, leaving that encart
+ * exactly as it was before. Line breaks typed by the venue are kept as <br>.
+ */
+function accessBody(text: string, lang: Lang): string {
+  if (!text) return '';
+  const body = escapeHtml(text).replace(/\r?\n/g, '<br>');
+  return `<p style="margin:0 0 12px"><strong style="font-weight:500;color:${INK}">${escapeHtml(FRAG_LABELS[lang].access)}</strong><br>${body}</p>`;
 }
 
 /** Cancellation-policy line + "modify/cancel" link; '' when no policy text. */
@@ -401,6 +430,8 @@ export function buildConfirmedVars(ctx: BookingEmailContext): Record<string, str
       '',
     ),
     room_row_html: keyRowFragment(ICON_ROOM, FRAG_LABELS[ctx.lang].room, roomNumber, ''),
+    // Access notes are for the client only — the admin template never renders it.
+    access_body_html: isAdmin ? '' : accessBody(venueAccessInstructions(ctx.venue, ctx.lang), ctx.lang),
     maps_url: venueMapsUrl(ctx.venue),
   };
 }
@@ -530,6 +561,7 @@ export function buildPendingVars(ctx: BookingEmailContext): Record<string, strin
     treatments_html: treatmentsHtml(ctx.treatments, sym, ctx.lang)
       + surchargeRow(ctx.booking.is_out_of_hours, ctx.booking.surcharge_amount, sym, ctx.lang),
     therapist_row_html: '',
+    access_body_html: accessBody(venueAccessInstructions(ctx.venue, ctx.lang), ctx.lang),
     footer_website_html: footerWebsiteHtml(ctx.venue?.website_url),
     maps_url: venueMapsUrl(ctx.venue),
   };

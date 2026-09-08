@@ -173,7 +173,7 @@ serve(async (req) => {
         status,
         payment_status,
         short_token,
-        hotels(name, currency, image, contact_email, address, postal_code, city, country, timezone, website_url, cancellation_policy_text_en, cancellation_policy_text_fr, therapist_escalation_delay_minutes, organizations(name))
+        hotels(name, currency, image, contact_email, address, access_instructions, access_instructions_en, postal_code, city, country, timezone, website_url, cancellation_policy_text_en, cancellation_policy_text_fr, therapist_escalation_delay_minutes, organizations(name))
       `)
       .eq("id", bookingId)
       .single();
@@ -206,6 +206,8 @@ serve(async (req) => {
       image?: string | null;
       contact_email?: string | null;
       address?: string | null;
+      access_instructions?: string | null;
+      access_instructions_en?: string | null;
       postal_code?: string | null;
       city?: string | null;
       country?: string | null;
