@@ -3712,6 +3712,8 @@
     "period": "Période",
     "selectVenue": "Sélectionner un lieu",
     "allVenues": "Tous les lieux",
+    "noOrganization": "Choisissez une organisation pour afficher son tableau de bord.",
+    "loadError": "Certaines données n'ont pas pu être chargées. Actualisez la page pour réessayer.",
     "tabs": {
       "dashboard": "Tableau de bord",
       "overview": "Vue d'ensemble"
