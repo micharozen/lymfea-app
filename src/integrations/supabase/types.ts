@@ -2622,7 +2622,9 @@ export type Database = {
       tasks: {
         Row: {
           assigned_to_user_id: string | null
+          attachments: string[]
           booking_id: string | null
+          checklist: Json
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -2635,12 +2637,18 @@ export type Database = {
           position: number
           priority: string
           status: string
+          task_type: string
+          task_type_other: string | null
+          therapist_ids: string[]
           title: string
+          treatment_menu_ids: string[]
           updated_at: string
         }
         Insert: {
           assigned_to_user_id?: string | null
+          attachments?: string[]
           booking_id?: string | null
+          checklist?: Json
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -2653,12 +2661,18 @@ export type Database = {
           position?: number
           priority?: string
           status?: string
+          task_type?: string
+          task_type_other?: string | null
+          therapist_ids?: string[]
           title: string
+          treatment_menu_ids?: string[]
           updated_at?: string
         }
         Update: {
           assigned_to_user_id?: string | null
+          attachments?: string[]
           booking_id?: string | null
+          checklist?: Json
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -2671,7 +2685,11 @@ export type Database = {
           position?: number
           priority?: string
           status?: string
+          task_type?: string
+          task_type_other?: string | null
+          therapist_ids?: string[]
           title?: string
+          treatment_menu_ids?: string[]
           updated_at?: string
         }
         Relationships: [

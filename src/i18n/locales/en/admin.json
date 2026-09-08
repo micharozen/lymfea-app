@@ -1022,7 +1022,8 @@
     "tabs": {
       "general": "General",
       "notes": "Notes & Preferences",
-      "bookings": "History"
+      "bookings": "History",
+      "tasks": "Tasks"
     },
     "preferences": "Preferences",
     "preferencesDesc": "Preferred therapist and treatment",
@@ -1103,7 +1104,25 @@
       "noCustomer": "No customer",
       "searchBooking": "Search (number or name)...",
       "searchCustomer": "Search a customer...",
-      "noResults": "No results"
+      "noResults": "No results",
+      "taskType": "Task type",
+      "taskTypeOther": "Specify the type",
+      "taskTypeOtherPlaceholder": "e.g. Special request",
+      "venue": "Venue",
+      "selectVenue": "Select a venue",
+      "selectVenueFirst": "Pick a venue first",
+      "treatments": "Related treatments",
+      "noTreatment": "No treatment",
+      "therapists": "Related therapists",
+      "noTherapist": "No therapist",
+      "checklist": "Actions to complete",
+      "checklistItemPlaceholder": "e.g. Call the hotel",
+      "addChecklistItem": "Add an action",
+      "attachments": "Screenshots",
+      "addAttachment": "Add an image",
+      "attachmentHint": "You can also paste a screenshot (Cmd/Ctrl+V).",
+      "attachmentImageOnly": "The file must be an image",
+      "attachmentTooLarge": "The image must not exceed {{size}} MB"
     },
     "dueDatePresets": {
       "today": "Today",
@@ -1111,9 +1130,23 @@
       "in3days": "In 3 days",
       "in7days": "In 7 days"
     },
-    "expand": "Fullscreen",
-    "collapse": "Collapse",
-    "openLink": "View"
+    "openLink": "View",
+    "allVenues": "All venues",
+    "allTypes": "All types",
+    "type": {
+      "booking_followup": "Booking follow-up",
+      "payment_followup": "Payment follow-up",
+      "gift_followup": "Gift follow-up",
+      "loyalty": "Loyalty / package",
+      "bug": "Bug",
+      "other": "Other"
+    },
+    "customerTab": {
+      "label": "Tasks",
+      "count_one": "{{count}} task linked to this customer",
+      "count_other": "{{count}} tasks linked to this customer",
+      "empty": "No task linked to this customer."
+    }
   },
   "scheduleAlerts": {
     "title": "Schedule Alerts",

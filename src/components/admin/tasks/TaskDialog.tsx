@@ -1,28 +1,51 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import * as z from "zod";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Loader2, Trash2, Maximize2, Minimize2, ExternalLink } from "lucide-react";
+import { Loader2, Trash2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { searchCustomers, type CustomerSearchResult } from "@shared/db";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  searchCustomers,
+  listHotelsForOrgDropdown,
+  listActiveTherapistsForHotel,
+  hotelKeys,
+  therapistKeys,
+  type CustomerSearchResult,
+  type TaskChecklistItem,
+} from "@shared/db";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { useVenueTreatmentMenus } from "@/hooks/useVenueTreatmentMenus";
 import { useUser } from "@/contexts/UserContext";
 import { useTaskMutations } from "@/hooks/tasks/useTaskMutations";
 import { useOrgAdmins } from "@/hooks/tasks/useOrgAdmins";
-import type { Task, TaskPriority, TaskStatus } from "@/hooks/tasks/useTasks";
-import { PRIORITY_META, PRIORITY_ORDER, STATUS_META, TASK_STATUS_ORDER } from "./taskConstants";
+import type { Task, TaskPriority, TaskStatus, TaskType } from "@/hooks/tasks/useTasks";
+import {
+  PRIORITY_META,
+  PRIORITY_ORDER,
+  STATUS_META,
+  TASK_STATUS_ORDER,
+  TASK_TYPE_META,
+  TASK_TYPE_ORDER,
+} from "./taskConstants";
 import { EntitySearchCombobox } from "./EntitySearchCombobox";
+import { TaskChecklist } from "./TaskChecklist";
+import { TaskAttachments } from "./TaskAttachments";
+import { SelectField } from "@/components/ui/select-field";
+import { MultiSelectField } from "@/components/ui/multi-select-field";
 import { searchBookings, type BookingSearchResult } from "@/lib/bookingSearch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -42,14 +65,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const formSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().optional(),
-  priority: z.enum(["low", "medium", "high", "urgent"]),
-  status: z.enum(["todo", "in_progress", "done"]),
-  due_date: z.string().min(1),
-  assigned_to_user_id: z.string().min(1),
-});
+const formSchema = z
+  .object({
+    title: z.string().min(1),
+    description: z.string().optional(),
+    task_type: z.enum([
+      "booking_followup",
+      "payment_followup",
+      "gift_followup",
+      "loyalty",
+      "bug",
+      "other",
+    ]),
+    task_type_other: z.string().optional(),
+    priority: z.enum(["low", "medium", "high", "urgent"]),
+    status: z.enum(["todo", "in_progress", "done"]),
+    due_date: z.string().min(1),
+    assigned_to_user_id: z.string().min(1),
+    hotel_id: z.string().min(1),
+  })
+  // Le libellé libre n'est exigé que sur le type « Autre ».
+  .superRefine((values, ctx) => {
+    if (values.task_type === "other" && !values.task_type_other?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["task_type_other"],
+        message: "required",
+      });
+    }
+  });
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -60,6 +104,8 @@ interface TaskDialogProps {
   defaultStatus?: TaskStatus;
   /** Pré-remplit la réservation liée pour une nouvelle tâche (onglet Tâches d'une résa). */
   defaultBooking?: BookingSearchResult | null;
+  /** Pré-remplit le client lié pour une nouvelle tâche (onglet Tâches d'une fiche client). */
+  defaultCustomer?: CustomerSearchResult | null;
 }
 
 // Local date (yyyy-mm-dd) offset by `days`, for the due-date quick presets.
@@ -82,31 +128,57 @@ function Req() {
   return <span className="ml-0.5 text-red-500">*</span>;
 }
 
-export function TaskDialog({ open, onClose, task, defaultStatus, defaultBooking }: TaskDialogProps) {
-  const { t } = useTranslation("admin");
+export function TaskDialog({
+  open,
+  onClose,
+  task,
+  defaultStatus,
+  defaultBooking,
+  defaultCustomer,
+}: TaskDialogProps) {
+  const { t, i18n } = useTranslation("admin");
   const { userId } = useUser();
+  const scope = useOrgScope();
   const { create, update, remove } = useTaskMutations();
   const { data: admins = [] } = useOrgAdmins();
 
   const [booking, setBooking] = useState<BookingSearchResult | null>(null);
   const [customer, setCustomer] = useState<CustomerSearchResult | null>(null);
-  const [expanded, setExpanded] = useState(false);
-
-  // Always reopen the panel in its default (one-third) width.
-  useEffect(() => {
-    if (open) setExpanded(false);
-  }, [open]);
+  const [treatmentIds, setTreatmentIds] = useState<string[]>([]);
+  const [therapistIds, setTherapistIds] = useState<string[]>([]);
+  const [checklist, setChecklist] = useState<TaskChecklistItem[]>([]);
+  const [attachments, setAttachments] = useState<string[]>([]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
+      task_type: "booking_followup",
+      task_type_other: "",
       priority: "medium",
       status: defaultStatus ?? "todo",
       due_date: "",
       assigned_to_user_id: userId ?? "",
+      hotel_id: "",
     },
+  });
+
+  const taskType = form.watch("task_type");
+  const hotelId = form.watch("hotel_id");
+
+  const { data: hotels = [] } = useQuery({
+    queryKey: hotelKeys.dropdown(scope),
+    enabled: open && !!scope,
+    queryFn: () => listHotelsForOrgDropdown(supabase, scope!),
+  });
+
+  const { data: treatments = [] } = useVenueTreatmentMenus(open && hotelId ? hotelId : null);
+
+  const { data: therapists = [] } = useQuery({
+    queryKey: therapistKeys.forHotel(hotelId),
+    enabled: open && !!hotelId,
+    queryFn: () => listActiveTherapistsForHotel(supabase, hotelId),
   });
 
   // Seed the form whenever the dialog opens for a new/edited task.
@@ -116,11 +188,18 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultBooking 
       form.reset({
         title: task.title,
         description: task.description ?? "",
+        task_type: task.task_type as TaskType,
+        task_type_other: task.task_type_other ?? "",
         priority: task.priority as TaskPriority,
         status: task.status as TaskStatus,
         due_date: task.due_date ?? "",
         assigned_to_user_id: task.assigned_to_user_id ?? userId ?? "",
+        hotel_id: task.hotel_id ?? "",
       });
+      setTreatmentIds(task.treatment_menu_ids ?? []);
+      setTherapistIds(task.therapist_ids ?? []);
+      setChecklist(task.checklist ?? []);
+      setAttachments(task.attachments ?? []);
       setBooking(
         task.booking
           ? {
@@ -147,23 +226,37 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultBooking 
       form.reset({
         title: "",
         description: "",
+        task_type: "booking_followup",
+        task_type_other: "",
         priority: "medium",
         status: defaultStatus ?? "todo",
         due_date: "",
         assigned_to_user_id: userId ?? "",
+        hotel_id: "",
       });
+      setTreatmentIds([]);
+      setTherapistIds([]);
+      setChecklist([]);
+      setAttachments([]);
       setBooking(defaultBooking ?? null);
-      setCustomer(null);
+      setCustomer(defaultCustomer ?? null);
     }
-  }, [open, task, defaultStatus, userId, form, defaultBooking]);
+  }, [open, task, defaultStatus, userId, form, defaultBooking, defaultCustomer]);
 
   const onSubmit = async (values: FormValues) => {
     const shared = {
       title: values.title,
       description: values.description || null,
+      task_type: values.task_type,
+      task_type_other: values.task_type === "other" ? values.task_type_other?.trim() || null : null,
       priority: values.priority,
       status: values.status,
       due_date: values.due_date,
+      hotel_id: values.hotel_id,
+      treatment_menu_ids: treatmentIds,
+      therapist_ids: therapistIds,
+      checklist: checklist.filter((item) => item.label.trim() !== ""),
+      attachments,
       booking_id: booking?.id ?? null,
       customer_id: customer?.id ?? null,
       assigned_to_user_id: values.assigned_to_user_id,
@@ -212,44 +305,36 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultBooking 
     }
   };
 
+  // Changer de lieu change les soins et thérapeutes disponibles : les sélections
+  // faites pour le lieu précédent n'ont plus de sens.
+  const handleHotelChange = (nextHotelId: string) => {
+    if (nextHotelId === hotelId) return;
+    form.setValue("hotel_id", nextHotelId, { shouldValidate: true });
+    setTreatmentIds([]);
+    setTherapistIds([]);
+  };
+
+  const treatmentLabel = (treatment: { name: string; name_en: string | null }) =>
+    i18n.language.startsWith("en") ? (treatment.name_en ?? treatment.name) : treatment.name;
+
   const saving = create.isPending || update.isPending;
 
   return (
-    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent
-        side="right"
-        overlayClassName="bg-black/40 backdrop-blur-sm"
-        className={cn(
-          "flex flex-col gap-0 p-0 ease-out data-[state=open]:duration-300 data-[state=closed]:duration-200",
-          expanded ? "w-screen max-w-none sm:max-w-none" : "w-full sm:w-[32rem] sm:max-w-[34vw]",
-        )}
-      >
-        <SheetHeader className="shrink-0 flex-row items-center justify-between space-y-0 border-b px-6 py-4">
-          <SheetTitle>{task ? t("tasks.editTitle") : t("tasks.newTitle")}</SheetTitle>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="mr-8 h-8 w-8"
-            onClick={() => setExpanded((v) => !v)}
-            title={expanded ? t("tasks.collapse") : t("tasks.expand")}
-          >
-            {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </Button>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-3xl">
+        <DialogHeader className="shrink-0 border-b px-6 py-4">
+          <DialogTitle className="font-normal">
+            {task ? t("tasks.editTitle") : t("tasks.newTitle")}
+          </DialogTitle>
+        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
-            <div
-              className={cn(
-                "grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-6 py-4",
-                expanded && "lg:grid-cols-2",
-              )}
-            >
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-6 py-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="title"
                 render={({ field }) => (
-                  <FormItem className={cn(expanded && "lg:col-span-2")}>
+                  <FormItem className="sm:col-span-2">
                     <FormLabel>
                       {t("tasks.fields.title")}
                       <Req />
@@ -266,7 +351,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultBooking 
                 control={form.control}
                 name="description"
                 render={({ field }) => (
-                  <FormItem className={cn(expanded && "lg:col-span-2")}>
+                  <FormItem className="sm:col-span-2">
                     <FormLabel>{t("tasks.fields.description")}</FormLabel>
                     <FormControl>
                       <Textarea {...field} rows={3} placeholder={t("tasks.fields.descriptionPlaceholder")} />
@@ -274,6 +359,58 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultBooking 
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="task_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("tasks.fields.taskType")}
+                      <Req />
+                    </FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {TASK_TYPE_ORDER.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            <Badge className={cn("font-medium", TASK_TYPE_META[type].badgeClass)}>
+                              {t(`tasks.type.${type}`)}
+                            </Badge>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {taskType === "other" && (
+                <FormField
+                  control={form.control}
+                  name="task_type_other"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {t("tasks.fields.taskTypeOther")}
+                        <Req />
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder={t("tasks.fields.taskTypeOtherPlaceholder")}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}
@@ -413,6 +550,69 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultBooking 
                 )}
               />
 
+              <FormField
+                control={form.control}
+                name="hotel_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("tasks.fields.venue")}
+                      <Req />
+                    </FormLabel>
+                    <FormControl>
+                      <SelectField
+                        options={hotels.map((hotel) => ({ value: hotel.id, label: hotel.name }))}
+                        value={field.value || undefined}
+                        onChange={handleHotelChange}
+                        placeholder={t("tasks.fields.selectVenue")}
+                        aria-label={t("tasks.fields.venue")}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormItem>
+                <FormLabel>{t("tasks.fields.treatments")}</FormLabel>
+                <MultiSelectField
+                  options={treatments.map((treatment) => ({
+                    value: treatment.id,
+                    label: treatmentLabel(treatment),
+                  }))}
+                  value={treatmentIds}
+                  onChange={setTreatmentIds}
+                  disabled={!hotelId}
+                  placeholder={hotelId ? t("tasks.fields.noTreatment") : t("tasks.fields.selectVenueFirst")}
+                  aria-label={t("tasks.fields.treatments")}
+                />
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>{t("tasks.fields.therapists")}</FormLabel>
+                <MultiSelectField
+                  options={therapists.map((therapist) => ({
+                    value: therapist.id,
+                    label: `${therapist.first_name ?? ""} ${therapist.last_name ?? ""}`.trim(),
+                  }))}
+                  value={therapistIds}
+                  onChange={setTherapistIds}
+                  disabled={!hotelId}
+                  placeholder={hotelId ? t("tasks.fields.noTherapist") : t("tasks.fields.selectVenueFirst")}
+                  aria-label={t("tasks.fields.therapists")}
+                />
+              </FormItem>
+
+              <FormItem className="sm:col-span-2">
+                <FormLabel>{t("tasks.fields.checklist")}</FormLabel>
+                <TaskChecklist value={checklist} onChange={setChecklist} />
+              </FormItem>
+
+              <FormItem className="sm:col-span-2">
+                <FormLabel>{t("tasks.fields.attachments")}</FormLabel>
+                <TaskAttachments value={attachments} onChange={setAttachments} />
+              </FormItem>
+
               <FormItem>
                 <div className="flex items-center justify-between">
                   <FormLabel>{t("tasks.fields.linkedBooking")}</FormLabel>
@@ -470,7 +670,7 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultBooking 
               </FormItem>
             </div>
 
-            <SheetFooter className="shrink-0 flex-row gap-2 border-t px-6 py-4 sm:justify-between">
+            <DialogFooter className="shrink-0 flex-row gap-2 border-t px-6 py-4 sm:justify-between">
               {task ? (
                 <Button
                   type="button"
@@ -494,10 +694,10 @@ export function TaskDialog({ open, onClose, task, defaultStatus, defaultBooking 
                   {task ? t("common.save") : t("tasks.create")}
                 </Button>
               </div>
-            </SheetFooter>
+            </DialogFooter>
           </form>
         </Form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
