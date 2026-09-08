@@ -561,7 +561,9 @@ export function buildPendingVars(ctx: BookingEmailContext): Record<string, strin
     treatments_html: treatmentsHtml(ctx.treatments, sym, ctx.lang)
       + surchargeRow(ctx.booking.is_out_of_hours, ctx.booking.surcharge_amount, sym, ctx.lang),
     therapist_row_html: '',
-    access_body_html: accessBody(venueAccessInstructions(ctx.venue, ctx.lang), ctx.lang),
+    // Pas d'infos d'accès ici : le créneau n'est pas encore acquis, le code
+    // porte ne part qu'avec la confirmation.
+    access_body_html: '',
     footer_website_html: footerWebsiteHtml(ctx.venue?.website_url),
     maps_url: venueMapsUrl(ctx.venue),
   };
