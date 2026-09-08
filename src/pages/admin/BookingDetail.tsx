@@ -14,7 +14,7 @@ import {
   Calendar, Clock, Building2, ChevronDown,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
-  FileText, CreditCard, ListTodo, Undo2, Radio, MailCheck, AlertTriangle
+  FileText, CreditCard, ListTodo, Undo2, Radio, MailCheck, AlertTriangle, Ban
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingTasksTab } from "@/components/admin/tasks/BookingTasksTab";
@@ -39,6 +39,7 @@ import {
 import { formatPrice } from "@/lib/formatPrice";
 import { getBookingStatusConfig, getBookingPaymentDisplay } from "@/utils/statusStyles";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { CancelPaymentLinkDialog } from "@/components/booking/CancelPaymentLinkDialog";
 import { SendConfirmationDialog } from "@/components/booking/SendConfirmationDialog";
 import { useConfirmationEmailSent } from "@/hooks/booking/useConfirmationEmailSent";
 import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
@@ -100,6 +101,7 @@ function StatusDot({ hexColor, label, pulse, muted }: { hexColor: string; label:
 function useBookingDetailDialogs() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
+  const [isCancelPaymentLinkOpen, setIsCancelPaymentLinkOpen] = useState(false);
   const [isMarkPaidOpen, setIsMarkPaidOpen] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
@@ -109,6 +111,7 @@ function useBookingDetailDialogs() {
     isSendConfirmationOpen, setIsSendConfirmationOpen,
     isEditOpen, setIsEditOpen,
     isPaymentLinkOpen, setIsPaymentLinkOpen,
+    isCancelPaymentLinkOpen, setIsCancelPaymentLinkOpen,
     isMarkPaidOpen, setIsMarkPaidOpen,
     isSignatureOpen, setIsSignatureOpen,
     isInvoicePreviewOpen, setIsInvoicePreviewOpen,
@@ -194,13 +197,13 @@ export default function BookingDetail() {
   // Payment metadata from booking_payment_infos: when it was paid (payment_at) and,
   // for cancellations, the time + who cancelled (cancelled_by = staff user id;
   // NULL means the client cancelled via the public flow).
-  const { data: paymentMeta } = useQuery({
+  const { data: paymentMeta, refetch: refetchPaymentMeta } = useQuery({
     queryKey: ["booking-payment-meta", booking?.id],
     enabled: !!booking?.id,
     queryFn: async () => {
       const { data } = await supabase
         .from("booking_payment_infos")
-        .select("payment_at, cancelled_at, cancelled_by, refund_amount, stripe_refund_id")
+        .select("payment_at, cancelled_at, cancelled_by, refund_amount, stripe_refund_id, payment_link_cancelled_at")
         .eq("booking_id", booking!.id)
         .maybeSingle();
       return data ?? null;
@@ -403,6 +406,12 @@ export default function BookingDetail() {
   const bookingStatusConfig = getBookingStatusConfig(booking.status);
 
   const canSendPaymentLink = !isConcierge && !isPartnerBilled && !cardSavedToCharge && !isPaid && !isOffert;
+
+  // Lien de paiement encore vivant : envoyé, non réglé et non désactivé par une
+  // équipe. Tant qu'il vit, le client peut payer dessus et reçoit des relances.
+  const paymentLinkCancelledAt = paymentMeta?.payment_link_cancelled_at ?? null;
+  const canCancelPaymentLink =
+    !isConcierge && !!booking.payment_link_url && !paymentLinkCancelledAt && !isPaid;
   const showInvoice = booking.status === "completed";
   const invoiceLabel = booking.stripe_invoice_url
     ? "Facture"
@@ -959,6 +968,33 @@ export default function BookingDetail() {
                 </CollapsibleContent>
               </Collapsible>
 
+              {booking.payment_link_url && !isPaid && (
+                <div className="mt-4 border-t border-stone-100 pt-3">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-gray-500 flex items-center gap-2">
+                      <Send className="h-4 w-4 shrink-0" /> {t('bookingDetail.cancelPaymentLink.label')}
+                    </span>
+                    <span className={paymentLinkCancelledAt ? "text-gray-400" : "text-amber-600"}>
+                      {paymentLinkCancelledAt
+                        ? t('bookingDetail.cancelPaymentLink.cancelledOn', {
+                            date: format(new Date(paymentLinkCancelledAt), t('bookingDetail.dateTimeFormat'), { locale: dateLocale }),
+                          })
+                        : t('bookingDetail.cancelPaymentLink.active')}
+                    </span>
+                  </div>
+                  {canCancelPaymentLink && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2 w-full text-red-600 hover:bg-red-50 hover:text-red-700"
+                      onClick={() => dialogs.setIsCancelPaymentLinkOpen(true)}
+                    >
+                      <Ban className="h-4 w-4 mr-2" /> {t('bookingDetail.cancelPaymentLink.action')}
+                    </Button>
+                  )}
+                </div>
+              )}
+
               {!isPaid && (
                 <Button
                   variant="outline"
@@ -1030,6 +1066,13 @@ export default function BookingDetail() {
         open={dialogs.isPaymentLinkOpen}
         onOpenChange={dialogs.setIsPaymentLinkOpen}
         booking={booking}
+      />
+
+      <CancelPaymentLinkDialog
+        open={dialogs.isCancelPaymentLinkOpen}
+        onOpenChange={dialogs.setIsCancelPaymentLinkOpen}
+        booking={booking}
+        onSuccess={() => { refetch(); refetchPaymentMeta(); }}
       />
 
       <SendConfirmationDialog

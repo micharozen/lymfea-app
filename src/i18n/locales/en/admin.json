@@ -2420,6 +2420,19 @@
     "billedToPartnerGeneric": "Payment handled by the partner (monthly billing).",
     "method": "Method",
     "sendPayment": "Send payment",
+    "cancelPaymentLink": {
+      "label": "Payment link",
+      "active": "Active",
+      "cancelledOn": "Deactivated on {{date}}",
+      "action": "Deactivate the payment link",
+      "title": "Deactivate the payment link",
+      "description": "The client will no longer be able to pay through this link and will stop receiving reminders. The booking and its history are kept.",
+      "newMethod": "New payment method",
+      "methodUnchanged": "Unchanged",
+      "confirm": "Deactivate",
+      "success": "Payment link deactivated.",
+      "error": "Could not deactivate the payment link."
+    },
     "requestSignature": "Request signature",
     "actions": "Actions"
   },
@@ -3069,7 +3082,9 @@
       "refundWithAmount": "Refund of {{amount}}",
       "partialSuffix": "{{label}} (partial)",
       "paymentLinkSent": "Payment link sent",
-      "paymentLinkSentVia": "Payment link sent by {{channels}}"
+      "paymentLinkSentVia": "Payment link sent by {{channels}}",
+      "paymentLinkCancelled": "Payment link deactivated",
+      "paymentLinkCancelledWithMethod": "Payment link deactivated — payment: {{method}}"
     },
     "channels": {
       "email": "email",

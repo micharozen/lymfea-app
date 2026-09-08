@@ -2420,6 +2420,19 @@
     "billedToPartnerGeneric": "Paiement géré par le partenaire (facturation mensuelle).",
     "method": "Méthode",
     "sendPayment": "Envoyer le paiement",
+    "cancelPaymentLink": {
+      "label": "Lien de paiement",
+      "active": "Actif",
+      "cancelledOn": "Désactivé le {{date}}",
+      "action": "Désactiver le lien de paiement",
+      "title": "Désactiver le lien de paiement",
+      "description": "Le client ne pourra plus payer via ce lien et ne recevra plus de relance. La réservation et son historique sont conservés.",
+      "newMethod": "Nouveau mode de règlement",
+      "methodUnchanged": "Inchangé",
+      "confirm": "Désactiver",
+      "success": "Lien de paiement désactivé.",
+      "error": "Impossible de désactiver le lien de paiement."
+    },
     "requestSignature": "Demander la signature",
     "actions": "Actions"
   },
@@ -3069,7 +3082,9 @@
       "refundWithAmount": "Remboursement de {{amount}}",
       "partialSuffix": "{{label}} (partiel)",
       "paymentLinkSent": "Lien de paiement envoyé",
-      "paymentLinkSentVia": "Lien de paiement envoyé par {{channels}}"
+      "paymentLinkSentVia": "Lien de paiement envoyé par {{channels}}",
+      "paymentLinkCancelled": "Lien de paiement désactivé",
+      "paymentLinkCancelledWithMethod": "Lien de paiement désactivé — règlement : {{method}}"
     },
     "channels": {
       "email": "email",
