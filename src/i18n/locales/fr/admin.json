@@ -1022,7 +1022,8 @@
     "tabs": {
       "general": "Général",
       "notes": "Notes & Préférences",
-      "bookings": "Historique"
+      "bookings": "Historique",
+      "tasks": "Tâches"
     },
     "preferences": "Préférences",
     "preferencesDesc": "Thérapeute et soin préférés",
@@ -1103,7 +1104,25 @@
       "noCustomer": "Aucun client",
       "searchBooking": "Rechercher (n° ou nom)...",
       "searchCustomer": "Rechercher un client...",
-      "noResults": "Aucun résultat"
+      "noResults": "Aucun résultat",
+      "taskType": "Type de tâche",
+      "taskTypeOther": "Préciser le type",
+      "taskTypeOtherPlaceholder": "Ex. Demande spéciale",
+      "venue": "Lieu",
+      "selectVenue": "Sélectionner un lieu",
+      "selectVenueFirst": "Choisissez d'abord un lieu",
+      "treatments": "Soins concernés",
+      "noTreatment": "Aucun soin",
+      "therapists": "Thérapeutes concernés",
+      "noTherapist": "Aucun thérapeute",
+      "checklist": "Actions à réaliser",
+      "checklistItemPlaceholder": "Ex. Appeler l'hôtel",
+      "addChecklistItem": "Ajouter une action",
+      "attachments": "Captures d'écran",
+      "addAttachment": "Ajouter une image",
+      "attachmentHint": "Vous pouvez aussi coller une capture (Cmd/Ctrl+V).",
+      "attachmentImageOnly": "Le fichier doit être une image",
+      "attachmentTooLarge": "L'image ne doit pas dépasser {{size}} Mo"
     },
     "dueDatePresets": {
       "today": "Aujourd'hui",
@@ -1111,9 +1130,23 @@
       "in3days": "Dans 3 jours",
       "in7days": "Dans 7 jours"
     },
-    "expand": "Plein écran",
-    "collapse": "Réduire",
-    "openLink": "Voir"
+    "openLink": "Voir",
+    "allVenues": "Tous les lieux",
+    "allTypes": "Tous les types",
+    "type": {
+      "booking_followup": "Suivi résa",
+      "payment_followup": "Suivi paiement",
+      "gift_followup": "Relance offert",
+      "loyalty": "Fidélisation / cure",
+      "bug": "Bug",
+      "other": "Autre"
+    },
+    "customerTab": {
+      "label": "Tâches",
+      "count_one": "{{count}} tâche liée à ce client",
+      "count_other": "{{count}} tâches liées à ce client",
+      "empty": "Aucune tâche liée à ce client."
+    }
   },
   "scheduleAlerts": {
     "title": "Alertes Planning",

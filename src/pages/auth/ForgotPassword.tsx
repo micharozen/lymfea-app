@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Mail } from "lucide-react";
-import { brand, brandLogos } from "@/config/brand";
+import { Wordmark } from "@/components/landing/Wordmark";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -61,7 +61,7 @@ const ForgotPassword = () => {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="flex justify-center">
-          <img src={brandLogos.primary} alt={brand.name} className="h-24 w-auto" />
+          <Wordmark className="text-3xl md:text-4xl" />
         </div>
 
         {/* Title */}

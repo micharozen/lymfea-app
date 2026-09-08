@@ -15,6 +15,7 @@ import { CustomerGeneralTab } from "@/components/admin/customer/CustomerGeneralT
 import { CustomerNotesTab } from "@/components/admin/customer/CustomerNotesTab";
 import { CustomerBookingsTab } from "@/components/admin/customer/CustomerBookingsTab";
 import { CustomerCuresSection } from "@/components/admin/customer/CustomerCuresSection";
+import { CustomerTasksTab } from "@/components/admin/tasks/CustomerTasksTab";
 
 const createFormSchema = (t: TFunction) =>
   z.object({
@@ -181,6 +182,22 @@ export default function CustomerDetail() {
       ? `${watchedFirstName} ${watchedLastName}`.trim()
       : "";
 
+  // Identité passée à l'onglet Tâches, pour pré-remplir le client lié d'une
+  // nouvelle tâche. Stable tant que les champs du formulaire ne changent pas.
+  const linkedCustomer = useMemo(
+    () =>
+      effectiveCustomerId
+        ? {
+            id: effectiveCustomerId,
+            first_name: watchedFirstName,
+            last_name: watchedLastName,
+            email: form.getValues("email"),
+            phone: form.getValues("phone"),
+          }
+        : null,
+    [effectiveCustomerId, watchedFirstName, watchedLastName, form],
+  );
+
   return (
     <div className="bg-background">
       {/* Header — sticky */}
@@ -281,6 +298,13 @@ export default function CustomerDetail() {
               >
                 {t("admin:customers.tabs.bookings", "Historique")}
               </TabsTrigger>
+              <TabsTrigger
+                value="tasks"
+                disabled={!canAccessTabs}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
+              >
+                {t("admin:customers.tabs.tasks", "Tâches")}
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -318,6 +342,10 @@ export default function CustomerDetail() {
                       customerName={customerName}
                     />
                   </div>
+                </TabsContent>
+
+                <TabsContent value="tasks" className="mt-0">
+                  <CustomerTasksTab customer={linkedCustomer!} />
                 </TabsContent>
               </>
             )}
