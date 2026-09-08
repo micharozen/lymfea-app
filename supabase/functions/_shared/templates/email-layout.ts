@@ -158,7 +158,10 @@ export function treatmentsSection(copy: EmailCopy): string {
 
 /** Arrival note: framed sand-100 encart with a gold info icon. */
 export function arrivalNote(copy: EmailCopy): string {
-  return `<tr><td class="eia-sect" style="padding:24px 40px 0"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:${SAND_100};border:1px solid ${LINE_SOFT};border-radius:12px"><tbody><tr><td width="40" style="width:40px;vertical-align:top;padding:16px 0 16px 18px">${ICON_INFO}</td><td style="padding:16px 18px 16px 12px;font-family:${FONT_SANS};font-size:13px;line-height:1.6;color:${INK_SOFT}">${copy.arriveNote}</td></tr></tbody></table></td></tr>`;
+  // Single "practical info" encart: the venue's access notes (door code, way in
+  // — injected as `access_body_html`, empty when the venue set none) sit above
+  // the arrival note rather than in a second box of their own.
+  return `<tr><td class="eia-sect" style="padding:24px 40px 0"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:${SAND_100};border:1px solid ${LINE_SOFT};border-radius:12px"><tbody><tr><td width="40" style="width:40px;vertical-align:top;padding:16px 0 16px 18px">${ICON_INFO}</td><td style="padding:16px 18px 16px 12px;font-family:${FONT_SANS};font-size:13px;line-height:1.6;color:${INK_SOFT}">{{{access_body_html}}}${copy.arriveNote}</td></tr></tbody></table></td></tr>`;
 }
 
 /** Footer (centered): top border, mono address, contact line, website. */
