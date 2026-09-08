@@ -14,7 +14,8 @@ import {
   Calendar, Clock, Building2, ChevronDown,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
-  FileText, CreditCard, ListTodo, Undo2, Radio, MailCheck, AlertTriangle, Ban
+  FileText, CreditCard, ListTodo, Undo2, Radio, MailCheck, AlertTriangle, Ban,
+  Copy, Check, Eye
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingTasksTab } from "@/components/admin/tasks/BookingTasksTab";
@@ -149,6 +150,7 @@ export default function BookingDetail() {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
   const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
+  const [paymentLinkCopied, setPaymentLinkCopied] = useState(false);
   const [therapistRefreshKey, setTherapistRefreshKey] = useState(0);
 
   const { data: booking, isLoading, isFetched, refetch } = useBooking(id);
@@ -424,6 +426,18 @@ export default function BookingDetail() {
       ? "payment"
       : "edit";
 
+  const handleCopyPaymentLink = async () => {
+    if (!booking.payment_link_url) return;
+    try {
+      await navigator.clipboard.writeText(booking.payment_link_url);
+      setPaymentLinkCopied(true);
+      toast.success(t('bookingDetail.cancelPaymentLink.urlCopied'));
+      setTimeout(() => setPaymentLinkCopied(false), 2000);
+    } catch {
+      toast.error(t('bookingDetail.cancelPaymentLink.copyFailed'));
+    }
+  };
+
   const openPaymentMethodDialog = (mode: "pay" | "method") => {
     setMarkPaidMode(mode);
     setMarkPaidMethod(booking.payment_method ?? "");
@@ -450,6 +464,20 @@ export default function BookingDetail() {
     }
     setMarkPaidLoading(true);
     try {
+      // Encaisser sans couper le lien laisserait le client payer une seconde
+      // fois sur Stripe. On le désactive AVANT d'écrire le paiement (la fonction
+      // refuse d'agir sur une réservation déjà réglée). Une correction de
+      // méthode seule ne change rien au dû : le lien reste vivant.
+      if (!isMethodOnly && booking.payment_link_url && !paymentLinkCancelledAt) {
+        const { error: cancelLinkError } = await invokeEdgeFunction("cancel-payment-link", {
+          body: { bookingId: booking.id },
+          logContext: { flow: "mark-as-paid", bookingId: booking.id },
+        });
+        if (cancelLinkError) {
+          toast.warning(t('bookingDetail.cancelPaymentLink.autoCancelFailed'));
+        }
+      }
+
       let update: Record<string, string | null>;
       if (isPartner) {
         const derived = derivePaymentForClientType(markPaidPartner as BookingClientType);
@@ -505,6 +533,7 @@ export default function BookingDetail() {
       );
       dialogs.setIsMarkPaidOpen(false);
       refetch();
+      refetchPaymentMeta();
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Erreur lors de l'enregistrement du paiement.");
@@ -971,16 +1000,37 @@ export default function BookingDetail() {
               {booking.payment_link_url && !isPaid && (
                 <div className="mt-4 border-t border-stone-100 pt-3">
                   <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-gray-500 flex items-center gap-2">
-                      <Send className="h-4 w-4 shrink-0" /> {t('bookingDetail.cancelPaymentLink.label')}
-                    </span>
-                    <span className={paymentLinkCancelledAt ? "text-gray-400" : "text-amber-600"}>
-                      {paymentLinkCancelledAt
-                        ? t('bookingDetail.cancelPaymentLink.cancelledOn', {
-                            date: format(new Date(paymentLinkCancelledAt), t('bookingDetail.dateTimeFormat'), { locale: dateLocale }),
-                          })
-                        : t('bookingDetail.cancelPaymentLink.active')}
-                    </span>
+                    {/* Le libellé ouvre le lien tel que le client le reçoit —
+                        l'URL Stripe elle-même n'a pas à encombrer la carte. */}
+                    <a
+                      href={booking.payment_link_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={t('bookingDetail.cancelPaymentLink.openUrl')}
+                      className="flex min-w-0 items-center gap-2 text-gray-500 hover:text-primary"
+                    >
+                      <Send className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{t('bookingDetail.cancelPaymentLink.label')}</span>
+                      <Eye className="h-3.5 w-3.5 shrink-0" />
+                    </a>
+                    <div className="flex items-center gap-1">
+                      <span className={paymentLinkCancelledAt ? "text-gray-400" : "text-amber-600"}>
+                        {paymentLinkCancelledAt
+                          ? t('bookingDetail.cancelPaymentLink.cancelledOn', {
+                              date: format(new Date(paymentLinkCancelledAt), t('bookingDetail.dateTimeFormat'), { locale: dateLocale }),
+                            })
+                          : t('bookingDetail.cancelPaymentLink.active')}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 text-gray-400 hover:text-gray-900"
+                        title={t('bookingDetail.cancelPaymentLink.copyUrl')}
+                        onClick={handleCopyPaymentLink}
+                      >
+                        {paymentLinkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
                   </div>
                   {canCancelPaymentLink && (
                     <Button
