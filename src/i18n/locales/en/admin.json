@@ -3989,8 +3989,7 @@
       "noShow": "Client didn't show"
     },
     "conciergeNotice": {
-      "editable": "As a venue team member, you can only change the slot and the treatments.",
-      "slotLocked": "The slot can no longer be changed (booking confirmed by the therapist). Only the treatments can be adjusted."
+      "bookingClosed": "This booking is cancelled: it can no longer be edited."
     },
     "cart": {
       "title": "Basket",

@@ -332,9 +332,11 @@ export default function EditBookingDialog({
     (isAdmin || isConcierge) && canCancelBookingByStatus(booking?.status);
   const showCancelBookingAction =
     booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking;
+  // 'completed' inclus : un soin passé est auto-complété par le cron avant que
+  // l'équipe n'ait pu signaler l'absence du client.
   const canMarkNoShow =
     (isAdmin || isConcierge) &&
-    (booking?.status === "confirmed" || booking?.status === "ongoing");
+    ["confirmed", "ongoing", "completed"].includes(booking?.status || "");
 
   const handleNoShow = async () => {
     if (!booking || noShowLoading) return;
@@ -362,14 +364,16 @@ export default function EditBookingDialog({
   const isDuo = (booking?.guest_count ?? 1) > 1;
   const therapistCount = booking?.guest_count ?? 1;
 
-  const SLOT_LOCKED_STATUSES = ["confirmed", "ongoing", "completed", "cancelled"];
-  const TREATMENTS_LOCKED_STATUSES = ["ongoing", "completed", "cancelled"];
+  // L'équipe lieu édite une réservation comme un admin : chambre à renseigner sur
+  // une réservation déjà confirmée, soin à corriger sur un rendez-vous de la
+  // veille… Seule une réservation annulée reste figée. Les modifications
+  // structurantes (date, heure, soins) préviennent praticiens et client via
+  // notify-booking-modified ; une note ou un numéro de chambre n'envoie rien.
   const bookingStatus = booking?.status || "";
-  const conciergeCanEditSlot = !isConcierge || !SLOT_LOCKED_STATUSES.includes(bookingStatus);
-  const conciergeCanEditTreatments = !isConcierge || !TREATMENTS_LOCKED_STATUSES.includes(bookingStatus);
-  const slotDisabled = !conciergeCanEditSlot;
-  const clientFieldsDisabled = isConcierge;
-  const treatmentsDisabled = !conciergeCanEditTreatments;
+  const bookingClosed = isConcierge && bookingStatus === "cancelled";
+  const slotDisabled = bookingClosed;
+  const clientFieldsDisabled = bookingClosed;
+  const treatmentsDisabled = bookingClosed;
 
   const scope = useOrgScope();
   const { data: hotels } = useQuery({
@@ -793,62 +797,59 @@ export default function EditBookingDialog({
 
       // La fiche customer est la source de vérité des infos client (à terme les
       // colonnes client_* du booking seront supprimées). On y propage donc
-      // l'identité éditée par l'admin (prénom, nom, téléphone, civilité).
-      // Concierge : champs client non éditables → on ne touche pas la fiche.
+      // l'identité éditée (prénom, nom, téléphone, civilité).
       // Non bloquant : un échec de sync ne doit pas casser l'édition du booking.
-      if (!isConcierge) {
-        // Téléphone normalisé (sans espaces) — convention de la table customers
-        // et clé de déduplication (cf. find_or_create_customer). Un numéro
-        // bouche-trou (000000000…) est traité comme une absence de numéro :
-        // il agrégerait des clients distincts sur une même fiche.
-        const normalizedPhone =
-          bookingData.phone && !isPlaceholderPhone(String(bookingData.phone))
-            ? String(bookingData.phone).replace(/\s/g, "")
-            : null;
-        if (customerId) {
-          const { error: customerError } = await supabase
-            .from("customers")
-            .update({
-              first_name: bookingData.client_first_name || null,
-              last_name: bookingData.client_last_name || null,
-              phone: normalizedPhone,
-              civility: bookingData.civility ?? null,
-              // Note client persistante — undefined (concierge) = ne pas toucher.
-              ...(bookingData.customerNote !== undefined
-                ? { health_notes: bookingData.customerNote.trim() || null }
-                : {}),
-            })
-            .eq("id", customerId);
-          if (customerError) {
-            console.error("Error syncing customer record:", customerError);
-          }
-        } else if (normalizedPhone) {
-          // Pas encore de fiche customer (booking historique sans téléphone, ou
-          // téléphone ajouté à l'édition) → on crée/relie via la RPC de dédup,
-          // puis on rattache le booking.
-          const { data: newCustomerId, error: rpcError } = await supabase.rpc(
-            "find_or_create_customer",
-            {
-              _phone: normalizedPhone,
-              _first_name: bookingData.client_first_name,
-              _last_name: bookingData.client_last_name,
-              _civility: bookingData.civility ?? null,
-            },
-          );
-          if (rpcError) {
-            console.error("Error creating customer record:", rpcError);
-          } else if (newCustomerId) {
+      // Téléphone normalisé (sans espaces) — convention de la table customers
+      // et clé de déduplication (cf. find_or_create_customer). Un numéro
+      // bouche-trou (000000000…) est traité comme une absence de numéro :
+      // il agrégerait des clients distincts sur une même fiche.
+      const normalizedPhone =
+        bookingData.phone && !isPlaceholderPhone(String(bookingData.phone))
+          ? String(bookingData.phone).replace(/\s/g, "")
+          : null;
+      if (customerId) {
+        const { error: customerError } = await supabase
+          .from("customers")
+          .update({
+            first_name: bookingData.client_first_name || null,
+            last_name: bookingData.client_last_name || null,
+            phone: normalizedPhone,
+            civility: bookingData.civility ?? null,
+            // Note client persistante — undefined = ne pas toucher la fiche.
+            ...(bookingData.customerNote !== undefined
+              ? { health_notes: bookingData.customerNote.trim() || null }
+              : {}),
+          })
+          .eq("id", customerId);
+        if (customerError) {
+          console.error("Error syncing customer record:", customerError);
+        }
+      } else if (normalizedPhone) {
+        // Pas encore de fiche customer (booking historique sans téléphone, ou
+        // téléphone ajouté à l'édition) → on crée/relie via la RPC de dédup,
+        // puis on rattache le booking.
+        const { data: newCustomerId, error: rpcError } = await supabase.rpc(
+          "find_or_create_customer",
+          {
+            _phone: normalizedPhone,
+            _first_name: bookingData.client_first_name,
+            _last_name: bookingData.client_last_name,
+            _civility: bookingData.civility ?? null,
+          },
+        );
+        if (rpcError) {
+          console.error("Error creating customer record:", rpcError);
+        } else if (newCustomerId) {
+          await supabase
+            .from("bookings")
+            .update({ customer_id: newCustomerId })
+            .eq("id", booking.id);
+          // Note client sur la fiche fraîchement créée/reliée.
+          if (bookingData.customerNote?.trim()) {
             await supabase
-              .from("bookings")
-              .update({ customer_id: newCustomerId })
-              .eq("id", booking.id);
-            // Note client sur la fiche fraîchement créée/reliée.
-            if (bookingData.customerNote?.trim()) {
-              await supabase
-                .from("customers")
-                .update({ health_notes: bookingData.customerNote.trim() })
-                .eq("id", newCustomerId);
-            }
+              .from("customers")
+              .update({ health_notes: bookingData.customerNote.trim() })
+              .eq("id", newCustomerId);
           }
         }
       }
@@ -1338,32 +1339,19 @@ export default function EditBookingDialog({
       }
     }
 
-    const submittedDate = isConcierge && !conciergeCanEditSlot
-      ? (booking?.booking_date || "")
-      : (date ? format(date, "yyyy-MM-dd") : "");
-    const submittedTime = isConcierge && !conciergeCanEditSlot
-      ? (booking?.booking_time || "")
-      : time;
-    const submittedTreatments = isConcierge && !conciergeCanEditTreatments
-      ? (existingTreatments?.map(tr => ({
-          treatmentId: tr.treatment_id,
-          variantId: tr.variant_id ?? null,
-          priceOverride: (tr as { price_override?: number | null }).price_override ?? null,
-          isAddon: (tr as { is_addon?: boolean | null }).is_addon ?? false,
-        })) || [])
-      : cart.flatMap(item => {
-          const isAddon = treatments?.find(tr => tr.id === item.treatmentId)?.is_addon ?? false;
-          return Array.from({ length: item.quantity }, () => ({
-            treatmentId: item.treatmentId,
-            variantId: item.variantId ?? null,
-            priceOverride: item.priceOverride ?? null,
-            isAddon,
-          }));
-        });
+    const submittedDate = date ? format(date, "yyyy-MM-dd") : "";
+    const submittedTime = time;
+    const submittedTreatments = cart.flatMap(item => {
+      const isAddon = treatments?.find(tr => tr.id === item.treatmentId)?.is_addon ?? false;
+      return Array.from({ length: item.quantity }, () => ({
+        treatmentId: item.treatmentId,
+        variantId: item.variantId ?? null,
+        priceOverride: item.priceOverride ?? null,
+        isAddon,
+      }));
+    });
 
-    const primaryTherapistId = isConcierge
-      ? (booking?.therapist_id || null)
-      : isDuo
+    const primaryTherapistId = isDuo
         // Primaire = thérapeute de la 1re ligne de soin (parité stylet) pour que
         // bookings.therapist_name suive le 1er soin ; .find n'est qu'un fallback
         // si le slot 0 est vide.
@@ -1376,19 +1364,16 @@ export default function EditBookingDialog({
     const surcharge = computeOutOfHoursSurcharge(submittedTime, totalPrice, selectedHotel);
 
     updateMutation.mutate({
-      hotel_id: isConcierge ? (booking?.hotel_id || "") : hotelId,
-      client_first_name: isConcierge ? (booking?.client_first_name || "") : clientFirstName,
-      client_last_name: isConcierge ? (booking?.client_last_name || "") : clientLastName,
-      phone: isConcierge
-        ? (booking?.phone || null)
-        : (isPlaceholderPhone(phone) ? null : composePhoneNumber(countryCode, phone) || null),
-      room_number: isConcierge ? (booking?.room_number || "") : roomNumber,
-      room_id: isConcierge ? (booking?.room_id ?? null) : (roomId || null),
-      secondary_room_id: isConcierge
-        ? (booking?.secondary_room_id ?? null)
-        : (isDuo && secondaryRoomEnabled && secondaryRoomId && secondaryRoomId !== roomId
-            ? secondaryRoomId
-            : null),
+      hotel_id: hotelId,
+      client_first_name: clientFirstName,
+      client_last_name: clientLastName,
+      phone: isPlaceholderPhone(phone) ? null : composePhoneNumber(countryCode, phone) || null,
+      room_number: roomNumber,
+      room_id: roomId || null,
+      secondary_room_id:
+        isDuo && secondaryRoomEnabled && secondaryRoomId && secondaryRoomId !== roomId
+          ? secondaryRoomId
+          : null,
       booking_date: submittedDate,
       booking_time: submittedTime,
       therapist_id: primaryTherapistId,
@@ -1398,16 +1383,11 @@ export default function EditBookingDialog({
       is_out_of_hours: surcharge.isOutOfHours,
       treatments: submittedTreatments,
       status: status,
-      client_note: isConcierge
-        ? (booking?.client_note ?? null)
-        : (clientNote.trim() ? clientNote.trim() : null),
-      // Note client persistante — éditable par l'admin uniquement.
-      // undefined = ne pas toucher la fiche customer (concierge).
-      customerNote: isConcierge ? undefined : customerNote,
+      client_note: clientNote.trim() ? clientNote.trim() : null,
+      // Note client persistante, portée par la fiche customer.
+      customerNote: customerNote,
       client_type: clientType,
-      // Civilité éditable par l'admin uniquement (champs client désactivés pour
-      // le concierge). undefined = ne pas toucher la fiche customer.
-      civility: isConcierge ? undefined : (civility || null),
+      civility: civility || null,
       therapistIds: isDuo ? therapistIds : undefined,
     });
   };
@@ -1857,13 +1837,11 @@ export default function EditBookingDialog({
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <TabsContent value="info" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden overflow-hidden">
               <div className="flex-1 overflow-y-auto scrollbar-subtle px-4 py-3 space-y-2">
-              {isConcierge && (
+              {bookingClosed && (
                 <Alert className="py-2">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription className="text-xs">
-                    {conciergeCanEditSlot
-                      ? t("editBooking.conciergeNotice.editable")
-                      : t("editBooking.conciergeNotice.slotLocked")}
+                    {t("editBooking.conciergeNotice.bookingClosed")}
                   </AlertDescription>
                 </Alert>
               )}
@@ -2362,7 +2340,7 @@ export default function EditBookingDialog({
             </TabsContent>
 
             <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-0 pb-0 data-[state=inactive]:hidden max-h-[70vh]">
-              {isConcierge && treatmentsDisabled && (
+              {treatmentsDisabled && (
                 <Alert className="py-2 mx-6 mt-2 mb-0 shrink-0">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription className="text-xs">

@@ -3989,8 +3989,7 @@
       "noShow": "Client pas venu"
     },
     "conciergeNotice": {
-      "editable": "En tant que membre de l'équipe lieu, vous pouvez modifier uniquement le créneau et les prestations.",
-      "slotLocked": "Le créneau n'est plus modifiable (réservation confirmée par le thérapeute). Seules les prestations peuvent être ajustées."
+      "bookingClosed": "Cette réservation est annulée : elle n'est plus modifiable."
     },
     "cart": {
       "title": "Panier",
