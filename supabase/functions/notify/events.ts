@@ -1,3 +1,4 @@
+import { slotTransition } from "./format.ts";
 import type { EventDefinition, NotifyContext, NotifyEvent } from "./types.ts";
 
 /**
@@ -29,13 +30,10 @@ interface ChangeFlags {
   treatments?: boolean;
 }
 
-function changeSummary(context: Record<string, unknown>): string {
-  const changes = (context.changes ?? {}) as ChangeFlags;
-  const parts: string[] = [];
-  if (changes.date) parts.push("date");
-  if (changes.time) parts.push("horaire");
-  if (changes.treatments) parts.push("soins");
-  return parts.length > 0 ? parts.join(", ") : "détails";
+/** Créneau avant modification, quand l'appelant le connaît. */
+interface PreviousSlot {
+  date?: string;
+  time?: string;
 }
 
 /**
@@ -48,15 +46,26 @@ export function therapistMessage(
   event: NotifyEvent,
   ctx: NotifyContext,
 ): { title: string; body: string; long: string } {
-  const { booking, shortDate, time } = ctx;
+  const { booking } = ctx;
   const venue = booking.hotel_name ?? "";
 
   switch (event) {
     case "booking_modified": {
+      const changes = (ctx.context.changes ?? {}) as ChangeFlags;
+      const previous = (ctx.context.previous ?? null) as PreviousSlot | null;
+      // Le créneau porte déjà le déplacement (« 14:00 → 16:00 ») ; ne reste à
+      // signaler que ce qu'il ne montre pas.
+      const slot = slotTransition(changes.date || changes.time ? previous : null, {
+        date: booking.booking_date,
+        time: booking.booking_time,
+      });
+      const detail = changes.treatments ? " · soins modifiés" : "";
+      const line = `#${booking.booking_id} · ${slot}${detail} · ${venue}`;
+
       return {
         title: "🔄 Réservation modifiée",
-        body: `#${booking.booking_id} · ${shortDate} à ${time} · ${venue}`,
-        long: `🔄 Réservation #${booking.booking_id} modifiée (${changeSummary(ctx.context)}) · ${shortDate} à ${time} · ${venue}`,
+        body: line,
+        long: `🔄 Réservation ${line}`,
       };
     }
   }

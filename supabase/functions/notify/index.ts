@@ -4,6 +4,7 @@ import { resolveClientLanguage } from "../_shared/client-language.ts";
 import { EVENTS } from "./events.ts";
 import { notifyClient, notifyTherapists } from "./dispatch.ts";
 import { isBookingStarted } from "./schedule.ts";
+import { shortDate, shortTime } from "./format.ts";
 import type {
   Audience,
   Channel,
@@ -135,12 +136,8 @@ serve(async (req: Request) => {
       serviceKey,
       booking,
       language: body.language ?? resolveClientLanguage(customerLanguage, booking.language),
-      shortDate: new Date(booking.booking_date).toLocaleDateString("fr-FR", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-      }),
-      time: String(booking.booking_time ?? "").substring(0, 5),
+      shortDate: shortDate(booking.booking_date),
+      time: shortTime(booking.booking_time),
       context: body.context ?? {},
     };
 

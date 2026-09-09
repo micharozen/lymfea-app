@@ -994,6 +994,9 @@ export default function EditBookingDialog({
         becameHotelRoomCharge,
         becameConfirmed,
         changes: materialChanges,
+        // Créneau d'origine, lu avant l'écriture : il permet d'annoncer le
+        // déplacement (« 14:00 → 16:00 ») et pas seulement le résultat.
+        previousSlot: { date: booking.booking_date, time: booking.booking_time },
       };
     },
     onSuccess: async (result) => {
@@ -1058,7 +1061,7 @@ export default function EditBookingDialog({
               event: 'booking_modified',
               bookingId: booking.id,
               audiences,
-              context: { changes },
+              context: { changes, previous: result?.previousSlot },
             },
           });
         } catch (modifiedError) {
