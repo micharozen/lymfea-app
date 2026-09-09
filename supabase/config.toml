@@ -95,9 +95,9 @@ verify_jwt = false
 [functions.notify-booking-confirmed]
 verify_jwt = false
 
-# Modification d'une réservation existante : action d'équipe depuis l'admin,
-# jamais appelée par un webhook ou un parcours public.
-[functions.notify-booking-modified]
+# Point d'entrée unique des notifications : appelé par l'app authentifiée,
+# jamais par un webhook ni un parcours public.
+[functions.notify]
 verify_jwt = true
 
 [functions.send-rating-email]

@@ -1044,14 +1044,20 @@ export default function EditBookingDialog({
       // l'e-mail de confirmation le récapitule.
       const changes = result?.changes;
       const hasMaterialChange = !!changes && (changes.date || changes.time || changes.treatments);
-      if (hasMaterialChange && booking?.id) {
+      // `audiences` ne fait que restreindre le public de l'événement : on retire
+      // ceux que l'assignation ou la confirmation vient de servir.
+      const audiences: ("client" | "therapists")[] = [];
+      if (!assignmentNotified) audiences.push("therapists");
+      if (result?.becameConfirmed !== true) audiences.push("client");
+
+      if (hasMaterialChange && audiences.length > 0 && booking?.id) {
         try {
-          await invokeEdgeFunction('notify-booking-modified', {
+          await invokeEdgeFunction('notify', {
             body: {
+              event: 'booking_modified',
               bookingId: booking.id,
-              changes,
-              notifyTherapists: !assignmentNotified,
-              notifyClient: result?.becameConfirmed !== true,
+              audiences,
+              context: { changes },
             },
           });
         } catch (modifiedError) {
