@@ -916,6 +916,8 @@ serve(async (req) => {
                 booking_id: bookingId,
                 payment_link_stripe_id: paymentLink.id,
                 payment_link_expires_at: expiresAt.toISOString(),
+                // Un nouveau lien annule la désactivation manuelle du précédent.
+                payment_link_cancelled_at: null,
               }, { onConflict: 'booking_id' });
           }
         } else {

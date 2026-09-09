@@ -349,6 +349,11 @@ export async function handleFinalizePayment(
         })
         .eq("id", booking_id);
 
+      // Un nouveau lien annule la désactivation manuelle du précédent.
+      await supabase
+        .from("booking_payment_infos")
+        .upsert({ booking_id, payment_link_cancelled_at: null }, { onConflict: "booking_id" });
+
       result = {
         ...result,
         success: true,
