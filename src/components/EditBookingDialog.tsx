@@ -730,6 +730,33 @@ export default function EditBookingDialog({
           ? bookingData.treatments.length
           : prevGuestCount;
 
+      // Changements « matériels » : ceux qui invalident ce que le client et les
+      // praticiens ont en tête (issue #545). Le prix, la salle ou une note
+      // n'entrent pas dans ce périmètre — inutile d'envoyer un SMS pour ça.
+      // Comparé AVANT l'écriture, sinon `booking` reflète déjà la nouvelle valeur.
+      const treatmentSignature = (
+        lines: { treatmentId: string; variantId?: string | null; isAddon?: boolean | null }[],
+      ) =>
+        lines
+          .map((l) => `${l.treatmentId}|${l.variantId ?? ""}|${l.isAddon ? "1" : "0"}`)
+          .sort()
+          .join(",");
+      const materialChanges = {
+        date: bookingData.booking_date !== booking.booking_date,
+        time:
+          String(bookingData.booking_time ?? "").substring(0, 5) !==
+          String(booking.booking_time ?? "").substring(0, 5),
+        treatments:
+          treatmentSignature(bookingData.treatments ?? []) !==
+          treatmentSignature(
+            (existingTreatments ?? []).map((tr) => ({
+              treatmentId: tr.treatment_id,
+              variantId: tr.variant_id,
+              isAddon: (tr as { is_addon?: boolean | null }).is_addon ?? false,
+            })),
+          ),
+      };
+
       const { error: bookingError } = await supabase
         .from("bookings")
         .update({
@@ -960,7 +987,13 @@ export default function EditBookingDialog({
       // le passage à confirmed pour déclencher les notifications dans ce cas.
       const becameConfirmed = newStatus === "confirmed" && booking.status !== "confirmed";
 
-      return { wasAssigned, therapistChanged, becameHotelRoomCharge, becameConfirmed };
+      return {
+        wasAssigned,
+        therapistChanged,
+        becameHotelRoomCharge,
+        becameConfirmed,
+        changes: materialChanges,
+      };
     },
     onSuccess: async (result) => {
       // Passage en facturation chambre : pousser l'order vers le PMS si le lieu en a un.
@@ -975,9 +1008,14 @@ export default function EditBookingDialog({
         }
       }
 
+      // Les praticiens ont-ils réellement été prévenus par la notification
+      // d'assignation ? Si elle échoue, la notification de modification prend le
+      // relais : une réservation déplacée ne doit jamais rester silencieuse.
+      let assignmentNotified = false;
+
       if ((result?.wasAssigned || result?.therapistChanged || result?.becameConfirmed) && booking?.id) {
         try {
-          await invokeEdgeFunction('trigger-new-booking-notifications', {
+          const { error: notifyError } = await invokeEdgeFunction('trigger-new-booking-notifications', {
             body: {
               bookingId: booking.id,
               // Le push thérapeute part à chaque réassignation, mais le mail
@@ -990,8 +1028,34 @@ export default function EditBookingDialog({
               sendPaymentLink: false,
             }
           });
+          if (notifyError) {
+            console.error("Error sending push notification:", notifyError);
+          } else {
+            assignmentNotified = true;
+          }
         } catch (notifError) {
           console.error("Error sending push notification:", notifError);
+        }
+      }
+
+      // Date, heure ou soins modifiés : praticiens et client doivent être
+      // prévenus (issue #545). On ne double pas les publics déjà servis
+      // ci-dessus : le push d'assignation porte déjà le nouveau créneau, et
+      // l'e-mail de confirmation le récapitule.
+      const changes = result?.changes;
+      const hasMaterialChange = !!changes && (changes.date || changes.time || changes.treatments);
+      if (hasMaterialChange && booking?.id) {
+        try {
+          await invokeEdgeFunction('notify-booking-modified', {
+            body: {
+              bookingId: booking.id,
+              changes,
+              notifyTherapists: !assignmentNotified,
+              notifyClient: result?.becameConfirmed !== true,
+            },
+          });
+        } catch (modifiedError) {
+          console.error("Error sending modification notification:", modifiedError);
         }
       }
 

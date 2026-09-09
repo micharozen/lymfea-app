@@ -10,7 +10,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type NotificationType = "confirmation" | "reschedule" | "cancellation";
+type NotificationType = "confirmation" | "reschedule" | "cancellation" | "modification";
 
 interface SendBookingNotificationRequest {
   bookingId: string;
@@ -72,14 +72,27 @@ function buildEmailHtml(params: {
   /** Facturation différée (partenaire ou note de chambre) : aucune démarche
    *  de paiement côté client. Faux dès que le client a payé par carte. */
   isDeferredBilling: boolean;
+  /** Modification a posteriori (date, heure ou soins changés par le spa) :
+   *  même récapitulatif, mais annoncé comme une mise à jour et non comme une
+   *  première confirmation — sinon le client croit à un doublon. */
+  isModification?: boolean;
+  /** Réservation encore en attente d'un praticien : on annonce la mise à jour
+   *  sans la présenter comme un créneau acquis. */
+  isPending?: boolean;
 }) {
-  const { clientName, hotelName, bookingId, dateLong, bookingTime, roomNumber, treatments, totalPrice, currency, language, isDeferredBilling } = params;
+  const { clientName, hotelName, bookingId, dateLong, bookingTime, roomNumber, treatments, totalPrice, currency, language, isDeferredBilling, isModification, isPending } = params;
   const showPartnerNotice = isDeferredBilling;
   const labels = language === "fr"
     ? {
-        title: "Votre réservation bien-être est confirmée",
+        title: isModification
+          ? (isPending ? "Votre demande a été modifiée" : "Votre réservation a été modifiée")
+          : "Votre réservation bien-être est confirmée",
         greeting: `Bonjour ${clientName},`,
-        intro: `Votre réservation à ${hotelName} est confirmée.`,
+        intro: isModification
+          ? (isPending
+            ? `Votre demande à ${hotelName} a été modifiée. Voici les nouvelles informations, la confirmation vous sera envoyée dès qu'un praticien sera assigné :`
+            : `Votre réservation à ${hotelName} a été modifiée. Voici les nouvelles informations :`)
+          : `Votre réservation à ${hotelName} est confirmée.`,
         booking: `Réservation #${bookingId}`,
         roomLabel: "Chambre",
         totalLabel: "Total",
@@ -87,9 +100,15 @@ function buildEmailHtml(params: {
         footer: "À très vite !",
       }
     : {
-        title: "Your wellness booking is confirmed",
+        title: isModification
+          ? (isPending ? "Your request has been updated" : "Your booking has been updated")
+          : "Your wellness booking is confirmed",
         greeting: `Hello ${clientName},`,
-        intro: `Your booking at ${hotelName} is confirmed.`,
+        intro: isModification
+          ? (isPending
+            ? `Your request at ${hotelName} has been updated. Here are the new details — confirmation will follow as soon as a therapist is assigned:`
+            : `Your booking at ${hotelName} has been updated. Here are the new details:`)
+          : `Your booking at ${hotelName} is confirmed.`,
         booking: `Booking #${bookingId}`,
         roomLabel: "Room",
         totalLabel: "Total",
@@ -173,6 +192,25 @@ function buildSmsBody(params: {
     return `Your treatment at ${hotelName} is moved to ${dateLong} at ${bookingTime}. Manage: ${manageUrl}`;
   }
 
+  // Modification par le spa (date, heure ou soins) : on annonce le nouveau
+  // rendez-vous et on renvoie vers le détail, le récapitulatif complet part par
+  // e-mail. Comme le déplacement, le message tient sur un seul segment.
+  if (type === "modification") {
+    // Réservation encore en attente d'un praticien : le nouveau créneau n'est
+    // pas acquis. Annoncer un fait accompli ferait venir le client sur un
+    // rendez-vous non pourvu (même prudence que sur le déplacement client).
+    if (isPending) {
+      if (language === "fr") {
+        return `Votre demande à ${hotelName} a été modifiée : ${dateLong} à ${bookingTime}. Confirmation à suivre : ${manageUrl}`;
+      }
+      return `Your request at ${hotelName} has been updated: ${dateLong} at ${bookingTime}. Confirmation to follow: ${manageUrl}`;
+    }
+    if (language === "fr") {
+      return `Votre réservation à ${hotelName} a été modifiée : ${dateLong} à ${bookingTime}. Détail : ${manageUrl}`;
+    }
+    return `Your booking at ${hotelName} has been updated: ${dateLong} at ${bookingTime}. Details: ${manageUrl}`;
+  }
+
   if (type === "cancellation") {
     if (language === "fr") {
       return `Bonjour ${clientName},\n\nVotre soin à ${hotelName} du ${dateLong} à ${bookingTime} a été annulé.\n\nRéserver à nouveau : ${rebookUrl}\n\nÀ très vite !`;
@@ -254,7 +292,11 @@ serve(async (req: Request) => {
       paymentStatus: bookingPaymentStatus,
     });
     const isPaymentEngaged = bookingPaymentStatus === "paid" || bookingPaymentStatus === "authorized" || bookingPaymentStatus === "engaged";
-    const isReschedOrCancel = body.type === "reschedule" || body.type === "cancellation";
+    // Déplacement, annulation, modification : la réservation existe déjà et le
+    // client doit être informé du changement, indépendamment de l'état du
+    // paiement. Le gate ne protège que la PREMIÈRE confirmation.
+    const isReschedOrCancel =
+      body.type === "reschedule" || body.type === "cancellation" || body.type === "modification";
 
     if (!isReschedOrCancel && !isDeferredBilling && !isPaymentEngaged) {
       return new Response(
@@ -303,11 +345,26 @@ serve(async (req: Request) => {
           currency,
           language,
           isDeferredBilling,
+          isModification: body.type === "modification",
+          isPending: booking.status === "pending",
         });
-        const subject = language === "fr"
-          ? `Confirmation de votre réservation #${booking.booking_id}`
-          : `Your booking confirmation #${booking.booking_id}`;
-        const result = await sendEmail({ to, subject, html, audit: { bookingId, emailType: 'booking_notification', metadata: { booking_number: booking.booking_id } } });
+        const subject = body.type === "modification"
+          ? (language === "fr"
+            ? `Modification de votre réservation #${booking.booking_id}`
+            : `Your booking #${booking.booking_id} has been updated`)
+          : (language === "fr"
+            ? `Confirmation de votre réservation #${booking.booking_id}`
+            : `Your booking confirmation #${booking.booking_id}`);
+        const result = await sendEmail({
+          to,
+          subject,
+          html,
+          audit: {
+            bookingId,
+            emailType: body.type === "modification" ? 'booking_modified' : 'booking_notification',
+            metadata: { booking_number: booking.booking_id },
+          },
+        });
         if (result.error) {
           errors.push(`Email: ${result.error}`);
         } else {
@@ -338,9 +395,10 @@ serve(async (req: Request) => {
         const smsBody = buildSmsBody({
           clientName,
           hotelName,
-          // Le déplacement se contente d'une date compacte ; les autres SMS
-          // gardent la date longue, déjà validée côté produit.
-          dateLong: body.type === "reschedule"
+          // Déplacement et modification se contentent d'une date compacte (un
+          // seul segment SMS) ; les autres gardent la date longue, déjà validée
+          // côté produit.
+          dateLong: body.type === "reschedule" || body.type === "modification"
             ? formatShortDate(booking.booking_date, language)
             : dateLong,
           bookingTime: booking.booking_time.substring(0, 5),
