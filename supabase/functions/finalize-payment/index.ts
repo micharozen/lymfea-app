@@ -360,6 +360,13 @@ serve(async (req) => {
         })
         .eq('id', booking_id);
 
+      // Un nouveau lien annule la désactivation manuelle du précédent, sinon la
+      // fiche resterait sur « Désactivé le … » et l'équipe ne pourrait plus
+      // couper ce lien-ci.
+      await supabase
+        .from('booking_payment_infos')
+        .upsert({ booking_id, payment_link_cancelled_at: null }, { onConflict: 'booking_id' });
+
       result = {
         ...result,
         success: true,

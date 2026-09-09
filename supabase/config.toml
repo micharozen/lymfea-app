@@ -17,6 +17,10 @@ verify_jwt = false
 [functions.send-payment-link]
 verify_jwt = false
 
+# Désactivation du lien de paiement : action d'équipe, jamais appelée par Stripe.
+[functions.cancel-payment-link]
+verify_jwt = true
+
 [functions.get-therapist-earnings]
 verify_jwt = false
 

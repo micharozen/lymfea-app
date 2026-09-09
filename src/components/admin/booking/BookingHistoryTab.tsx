@@ -146,6 +146,15 @@ function renderActionLabel(entry: BookingAuditEntry): string | null {
       : i18n.t("admin:bookingHistory.actions.paymentLinkSent");
   }
 
+  if (action === "payment_link_cancelled") {
+    const method = typeof newVals.payment_method === "string" ? newVals.payment_method : null;
+    return method
+      ? i18n.t("admin:bookingHistory.actions.paymentLinkCancelledWithMethod", {
+          method: translateValue("paymentMethodLabels", method),
+        })
+      : i18n.t("admin:bookingHistory.actions.paymentLinkCancelled");
+  }
+
   return action ? i18n.t("admin:bookingHistory.actions.generic", { action }) : null;
 }
 
