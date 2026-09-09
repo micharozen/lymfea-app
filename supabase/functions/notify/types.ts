@@ -74,4 +74,8 @@ export interface EventDefinition {
   channels: Channel[];
   /** Statuts de réservation pour lesquels l'événement n'a aucun sens. */
   skipStatuses: string[];
+  /** Se taire quand le créneau a déjà commencé. Vrai pour tout ce qui annonce
+   *  un rendez-vous à venir ; faux pour ce qui porte sur un soin passé
+   *  (facture, demande d'avis…). */
+  skipWhenStarted: boolean;
 }

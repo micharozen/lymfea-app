@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { resolveClientLanguage } from "../_shared/client-language.ts";
 import { EVENTS } from "./events.ts";
 import { notifyClient, notifyTherapists } from "./dispatch.ts";
+import { isBookingStarted } from "./schedule.ts";
 import type {
   Audience,
   Channel,
@@ -85,6 +86,28 @@ serve(async (req: Request) => {
       console.log("[notify] Skipped status", booking.status);
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: `status=${booking.status}` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Fuseau du lieu : une réservation est « passée » à l'heure du spa, pas à
+    // celle du serveur.
+    const { data: hotel } = await supabase
+      .from("hotels")
+      .select("timezone")
+      .eq("id", booking.hotel_id)
+      .single();
+    const timezone = (hotel as { timezone?: string | null } | null)?.timezone ?? null;
+
+    if (definition.skipWhenStarted && isBookingStarted(booking.booking_date, booking.booking_time, timezone)) {
+      console.log("[notify] Skipped: booking already started", {
+        bookingId,
+        date: booking.booking_date,
+        time: booking.booking_time,
+        timezone,
+      });
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: "booking_started" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

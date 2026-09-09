@@ -18,6 +18,7 @@ export const EVENTS: Record<NotifyEvent, EventDefinition> = {
     audiences: ["therapists", "client"],
     channels: ["email", "sms", "push", "in_app"],
     skipStatuses: ["cancelled", "draft", "completed", "no_show", "noshow"],
+    skipWhenStarted: true,
   },
 };
 
