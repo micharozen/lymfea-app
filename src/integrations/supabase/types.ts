@@ -467,6 +467,7 @@ export type Database = {
           payment_at: string | null
           payment_error_message: string | null
           payment_last_reminder_at: string | null
+          payment_link_cancelled_at: string | null
           payment_link_expires_at: string | null
           payment_link_stripe_id: string | null
           payment_reminder_count: number | null
@@ -494,6 +495,7 @@ export type Database = {
           payment_at?: string | null
           payment_error_message?: string | null
           payment_last_reminder_at?: string | null
+          payment_link_cancelled_at?: string | null
           payment_link_expires_at?: string | null
           payment_link_stripe_id?: string | null
           payment_reminder_count?: number | null
@@ -521,6 +523,7 @@ export type Database = {
           payment_at?: string | null
           payment_error_message?: string | null
           payment_last_reminder_at?: string | null
+          payment_link_cancelled_at?: string | null
           payment_link_expires_at?: string | null
           payment_link_stripe_id?: string | null
           payment_reminder_count?: number | null

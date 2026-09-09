@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS "public"."booking_payment_infos" (
     "updated_at" timestamp with time zone DEFAULT "now"(),
     "payment_link_stripe_id" "text",
     "payment_link_expires_at" timestamp with time zone,
+    "payment_link_cancelled_at" timestamp with time zone,
     "payment_reminder_count" integer DEFAULT 0,
     "payment_last_reminder_at" timestamp with time zone,
     "cancellation_reason" "text",
