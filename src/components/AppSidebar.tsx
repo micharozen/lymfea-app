@@ -124,6 +124,7 @@ export function AppSidebar() {
     isAdmin,
     organizationId,
     organizationName,
+    organizationLogoUrl,
     activeOrganizationId,
     setActiveOrganization,
   } = useUser();
@@ -140,6 +141,11 @@ export function AppSidebar() {
     setMoreOpen(open);
     try { localStorage.setItem(STORAGE_KEY, String(open)); } catch { /* storage unavailable */ }
   };
+
+  // Titre de l'onglet : l'organisation courante, faute de quoi la plateforme.
+  useEffect(() => {
+    document.title = organizationName ? `${organizationName} by ${PLATFORM_NAME}` : PLATFORM_NAME;
+  }, [organizationName]);
 
   useEffect(() => {
     const fetchAdminInfo = async () => {
@@ -335,11 +341,11 @@ export function AppSidebar() {
       <SidebarContent className="flex flex-col h-full overflow-hidden">
         {/* Logo (fixed) */}
         <div className="flex-shrink-0 px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
-          {/* Le logo reste toujours celui de la plateforme ; seul le nom suit l'organisation. */}
+          {/* Logo de l'organisation, avec repli sur celui de la plateforme. */}
           <div className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden">
             <img
-              src={PLATFORM_LOGO}
-              alt={PLATFORM_NAME}
+              src={organizationLogoUrl || PLATFORM_LOGO}
+              alt={organizationName ?? PLATFORM_NAME}
               className="h-7 w-7 rounded-md object-cover flex-shrink-0"
             />
             <div className="flex flex-col min-w-0 leading-tight">
@@ -354,8 +360,8 @@ export function AppSidebar() {
             </div>
           </div>
           <img
-            src={PLATFORM_LOGO}
-            alt={PLATFORM_NAME}
+            src={organizationLogoUrl || PLATFORM_LOGO}
+            alt={organizationName ?? PLATFORM_NAME}
             className="h-7 w-7 rounded-md object-cover hidden group-data-[collapsible=icon]:block mx-auto"
           />
         </div>
