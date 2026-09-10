@@ -19,7 +19,12 @@ import {
   keyGap,
   keyRow,
 } from "./templates/booking-confirmed.ts";
-import { ICON_INFO } from "./templates/email-layout.ts";
+import {
+  CLAY as CLAY_ACCENT,
+  ICON_CALENDAR,
+  ICON_INFO,
+  keyRowChanged,
+} from "./templates/email-layout.ts";
 
 export type Lang = 'fr' | 'en';
 
@@ -202,6 +207,9 @@ export interface BookingEmailContext {
   contactEmail?: string | null;
   /** Which "confirmed" template consumes these vars (drives copy nuances). */
   variant?: 'client' | 'admin';
+  /** Statut de la réservation — le mail de modification n'annonce pas un
+   *  créneau acquis tant qu'aucun praticien n'a accepté ('pending'). */
+  bookingStatus?: string | null;
 }
 
 function greetingFor(ctx: BookingEmailContext) {
@@ -601,5 +609,82 @@ export function buildPaymentLinkVars(
     expiry_date: extras.expiryDate,
     intro_text: extras.introText,
     logo_url: venueLogoUrl(ctx.venue),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// "Booking modified" template family
+// ---------------------------------------------------------------------------
+
+/** Créneau d'avant la modification, quand l'appelant le connaît. */
+export interface PreviousSlot {
+  date?: string | null;
+  time?: string | null;
+}
+
+/**
+ * Variables du mail « réservation modifiée ».
+ *
+ * Le récapitulatif est celui de la confirmation — mêmes soins, même total,
+ * même adresse : le client doit retrouver sa réservation, pas déchiffrer un
+ * message d'un autre genre. Seuls changent l'accroche et la ligne « Quand »,
+ * qui porte l'ancien créneau barré quand il a bougé.
+ */
+export function buildModifiedVars(
+  ctx: BookingEmailContext,
+  previous?: PreviousSlot | null,
+): Record<string, string> {
+  const base = buildConfirmedVars(ctx);
+  const isPending = ctx.bookingStatus === 'pending';
+
+  const previousDate = previous?.date
+    ? formatBookingDate(previous.date, ctx.lang)
+    : '';
+  const previousTime = formatBookingTime(previous?.time);
+  const slotMoved =
+    !!previous?.date &&
+    (previous.date !== ctx.booking.booking_date ||
+      previousTime !== base.booking_time);
+
+  // « jeudi 11 septembre 2026 — 11:00 » barré, quand le créneau a bougé.
+  const previousLabel = slotMoved
+    ? [previousDate, previousTime].filter(Boolean).join(' — ')
+    : '';
+
+  const whenRow = keyRowChanged(
+    ICON_CALENDAR,
+    ctx.lang === 'en' ? 'When' : 'Quand',
+    previousLabel,
+    base.booking_date,
+    `${base.booking_time}${base.total_duration_sep}`,
+    `#${base.booking_number}`,
+  );
+
+  const copy = ctx.lang === 'en'
+    ? {
+      pill: isPending ? 'Request updated' : 'Booking updated',
+      heading: isPending
+        ? 'Your request has been <em style="font-style:italic;color:' + CLAY_ACCENT + '">updated</em>.'
+        : 'Your booking has been <em style="font-style:italic;color:' + CLAY_ACCENT + '">updated</em>.',
+      intro: isPending
+        ? 'Here are the new details. We will confirm as soon as a therapist is assigned.'
+        : 'Here are the new details of your booking.',
+      preheader: `Booking #${base.booking_number} has been updated.`,
+    }
+    : {
+      pill: isPending ? 'Demande modifiée' : 'Réservation modifiée',
+      heading: isPending
+        ? 'Votre demande a été <em style="font-style:italic;color:' + CLAY_ACCENT + '">modifiée</em>.'
+        : 'Votre réservation a été <em style="font-style:italic;color:' + CLAY_ACCENT + '">modifiée</em>.',
+      intro: isPending
+        ? 'Voici les nouvelles informations. La confirmation vous sera envoyée dès qu’un praticien sera assigné.'
+        : 'Voici les nouvelles informations de votre réservation.',
+      preheader: `La réservation #${base.booking_number} a été modifiée.`,
+    };
+
+  return {
+    ...base,
+    ...copy,
+    when_row_html: whenRow,
   };
 }
