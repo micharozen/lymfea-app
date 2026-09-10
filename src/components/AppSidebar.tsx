@@ -4,7 +4,7 @@ import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { brand, brandLogos } from "@/config/brand";
+import { BRAND_NAME as PLATFORM_NAME, BRAND_LOGO as PLATFORM_LOGO } from "@/components/landing/constants";
 import { GlobalSearch } from "@/components/admin/GlobalSearch";
 import { OrganizationPickerDialog } from "@/components/admin/OrganizationPickerDialog";
 import { useUser } from "@/contexts/UserContext";
@@ -124,7 +124,6 @@ export function AppSidebar() {
     isAdmin,
     organizationId,
     organizationName,
-    organizationLogoUrl,
     activeOrganizationId,
     setActiveOrganization,
   } = useUser();
@@ -336,30 +335,28 @@ export function AppSidebar() {
       <SidebarContent className="flex flex-col h-full overflow-hidden">
         {/* Logo (fixed) */}
         <div className="flex-shrink-0 px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
-          {organizationName ? (
-            <div className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden">
-              {organizationLogoUrl && (
-                <img
-                  src={organizationLogoUrl}
-                  alt={organizationName}
-                  className="h-7 w-7 rounded-md object-cover flex-shrink-0"
-                />
-              )}
-              <span className="text-sm font-medium text-sidebar-foreground truncate">
-                {organizationName}
-              </span>
-            </div>
-          ) : (
+          {/* Le logo reste toujours celui de la plateforme ; seul le nom suit l'organisation. */}
+          <div className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden">
             <img
-              src={brandLogos.primary}
-              alt={brand.name}
-              className="h-7 w-auto group-data-[collapsible=icon]:hidden"
+              src={PLATFORM_LOGO}
+              alt={PLATFORM_NAME}
+              className="h-7 w-7 rounded-md object-cover flex-shrink-0"
             />
-          )}
+            <div className="flex flex-col min-w-0 leading-tight">
+              <span className="text-sm font-medium text-sidebar-foreground truncate">
+                {organizationName ?? PLATFORM_NAME}
+              </span>
+              {organizationName && (
+                <span className="text-[10px] text-sidebar-foreground/50 truncate">
+                  by {PLATFORM_NAME}
+                </span>
+              )}
+            </div>
+          </div>
           <img
-            src={brandLogos.monogram}
-            alt={brand.name}
-            className="h-7 w-auto hidden group-data-[collapsible=icon]:block mx-auto"
+            src={PLATFORM_LOGO}
+            alt={PLATFORM_NAME}
+            className="h-7 w-7 rounded-md object-cover hidden group-data-[collapsible=icon]:block mx-auto"
           />
         </div>
 
