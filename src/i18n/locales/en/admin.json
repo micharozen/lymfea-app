@@ -3076,6 +3076,7 @@
       "new_booking_notifications": "New booking email sent",
       "payment_reminder": "Payment reminder email sent",
       "booking_cancelled": "Cancellation email sent",
+      "booking_modified": "Booking update email sent to the client",
       "payment_link_expired": "Payment link expiry email sent"
     },
     "actions": {
