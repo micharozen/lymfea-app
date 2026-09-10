@@ -3076,6 +3076,7 @@
       "new_booking_notifications": "Email de nouvelle réservation envoyé",
       "payment_reminder": "Email de rappel de paiement envoyé",
       "booking_cancelled": "Email d'annulation envoyé",
+      "booking_modified": "Email de modification envoyé au client",
       "payment_link_expired": "Email d'expiration du lien de paiement envoyé"
     },
     "actions": {
@@ -3989,8 +3990,7 @@
       "noShow": "Client pas venu"
     },
     "conciergeNotice": {
-      "editable": "En tant que membre de l'équipe lieu, vous pouvez modifier uniquement le créneau et les prestations.",
-      "slotLocked": "Le créneau n'est plus modifiable (réservation confirmée par le thérapeute). Seules les prestations peuvent être ajustées."
+      "bookingClosed": "Cette réservation est annulée : elle n'est plus modifiable."
     },
     "cart": {
       "title": "Panier",

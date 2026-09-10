@@ -3076,6 +3076,7 @@
       "new_booking_notifications": "New booking email sent",
       "payment_reminder": "Payment reminder email sent",
       "booking_cancelled": "Cancellation email sent",
+      "booking_modified": "Booking update email sent to the client",
       "payment_link_expired": "Payment link expiry email sent"
     },
     "actions": {
@@ -3989,8 +3990,7 @@
       "noShow": "Client didn't show"
     },
     "conciergeNotice": {
-      "editable": "As a venue team member, you can only change the slot and the treatments.",
-      "slotLocked": "The slot can no longer be changed (booking confirmed by the therapist). Only the treatments can be adjusted."
+      "bookingClosed": "This booking is cancelled: it can no longer be edited."
     },
     "cart": {
       "title": "Basket",
