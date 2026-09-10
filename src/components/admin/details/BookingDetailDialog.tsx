@@ -65,8 +65,10 @@ export function BookingDetailDialog({
     canCancelBookingByStatus(booking?.status) &&
     (userRole === 'admin' || userRole === 'concierge');
 
+  // 'completed' inclus : un soin passé est auto-complété par le cron avant que
+  // l'équipe n'ait pu signaler l'absence du client.
   const canMarkNoShow =
-    (booking?.status === "confirmed" || booking?.status === "ongoing") &&
+    ["confirmed", "ongoing", "completed"].includes(booking?.status || "") &&
     (userRole === "admin" || userRole === "concierge");
 
   const handleNoShow = async () => {

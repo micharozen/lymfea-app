@@ -283,6 +283,8 @@ CREATE POLICY "Concierges can view concierges from their hotels" ON "public"."co
 
 CREATE POLICY "Concierges can view customer bundles" ON "public"."customer_treatment_bundles" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));
 
+CREATE POLICY "Concierges can update customers" ON "public"."customers" FOR UPDATE USING ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));
+
 CREATE POLICY "Concierges can view customers" ON "public"."customers" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));
 
 CREATE POLICY "Concierges can view hairdresser hotels from their hotels" ON "public"."therapist_venues" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"

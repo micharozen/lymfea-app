@@ -95,6 +95,11 @@ verify_jwt = false
 [functions.notify-booking-confirmed]
 verify_jwt = false
 
+# Point d'entrée unique des notifications : appelé par l'app authentifiée,
+# jamais par un webhook ni un parcours public.
+[functions.notify]
+verify_jwt = true
+
 [functions.send-rating-email]
 verify_jwt = false
 
