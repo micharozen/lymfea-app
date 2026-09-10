@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { brand, brandLogos } from "@/config/brand";
+import { BRAND_NAME as PLATFORM_NAME } from "@/components/landing/constants";
 import { GlobalSearch } from "@/components/admin/GlobalSearch";
 import { OrganizationPickerDialog } from "@/components/admin/OrganizationPickerDialog";
 import { useUser } from "@/contexts/UserContext";
@@ -345,9 +346,14 @@ export function AppSidebar() {
                   className="h-7 w-7 rounded-md object-cover flex-shrink-0"
                 />
               )}
-              <span className="text-sm font-medium text-sidebar-foreground truncate">
-                {organizationName}
-              </span>
+              <div className="flex flex-col min-w-0 leading-tight">
+                <span className="text-sm font-medium text-sidebar-foreground truncate">
+                  {organizationName}
+                </span>
+                <span className="text-[10px] text-sidebar-foreground/50 truncate">
+                  by {PLATFORM_NAME}
+                </span>
+              </div>
             </div>
           ) : (
             <img
