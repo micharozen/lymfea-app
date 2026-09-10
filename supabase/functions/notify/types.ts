@@ -42,6 +42,11 @@ export interface NotifyBooking {
   therapist_id: string | null;
   language: string | null;
   customer_id: string | null;
+  room_number: string | number | null;
+  total_price: number | null;
+  /** Majoration hors horaires, déjà comprise dans `total_price`. */
+  surcharge_amount: number | null;
+  is_out_of_hours: boolean | null;
 }
 
 /** Tout ce qu'un envoi doit connaître, résolu une seule fois par appel. */

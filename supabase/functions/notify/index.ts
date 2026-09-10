@@ -74,7 +74,8 @@ serve(async (req: Request) => {
       .select(
         `id, booking_id, status, booking_date, booking_time, hotel_id, hotel_name,
          client_first_name, client_last_name, client_email, phone, therapist_id,
-         language, customer_id`,
+         language, customer_id, room_number, total_price, surcharge_amount,
+         is_out_of_hours`,
       )
       .eq("id", bookingId)
       .single<NotifyBooking>();

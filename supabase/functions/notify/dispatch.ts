@@ -1,5 +1,6 @@
 import { clientNotificationType, therapistMessage } from "./events.ts";
 import { resolveClientChannels, resolveTherapists } from "./recipients.ts";
+import { sendModifiedEmail } from "./clientEmail.ts";
 import type { Channel, DeliveryResult, NotifyContext, NotifyEvent } from "./types.ts";
 
 /**
@@ -83,9 +84,9 @@ export async function notifyTherapists(
 /**
  * Client : e-mail et SMS.
  *
- * Délégué à `send-booking-notification`, qui porte les gabarits, la mise en
- * forme des prix et les garde-fous de paiement. `notify` reste responsable du
- * QUI et du QUAND ; le rendu migrera ici quand les gabarits seront factorisés.
+ * L'e-mail est rendu ici, avec le gabarit partagé de la marque. Le SMS reste
+ * délégué à `send-booking-notification`, qui porte la composition des messages
+ * courts et les liens de gestion — il migrera à son tour.
  */
 export async function notifyClient(
   event: NotifyEvent,
@@ -93,47 +94,57 @@ export async function notifyClient(
   channels: Channel[],
 ): Promise<DeliveryResult[]> {
   const available = resolveClientChannels(ctx);
-  const requested: ("email" | "sms")[] = [];
-  if (channels.includes("email") && available.email) requested.push("email");
-  if (channels.includes("sms") && available.sms) requested.push("sms");
+  const wantsEmail = channels.includes("email") && available.email;
+  const wantsSms = channels.includes("sms") && available.sms;
 
-  if (requested.length === 0) {
+  if (!wantsEmail && !wantsSms) {
     console.log("[notify] No client contact details for requested channels");
     return [];
   }
 
-  const { data, error } = await ctx.supabase.functions.invoke("send-booking-notification", {
-    body: {
-      bookingId: ctx.booking.id,
-      language: ctx.language,
-      channels: requested,
-      type: clientNotificationType(event),
-    },
-    headers: { Authorization: `Bearer ${ctx.serviceKey}` },
-  });
+  const results: DeliveryResult[] = [];
 
-  if (error) {
-    console.error("[notify] Client notification error:", error);
-    return requested.map((channel) => ({
-      audience: "client" as const,
-      channel,
-      sent: 0,
-      error: error.message ?? "Client notification failed",
-    }));
+  if (wantsEmail) {
+    try {
+      const { sent, error } = await sendModifiedEmail(ctx, ctx.booking.client_email!);
+      results.push({ audience: "client", channel: "email", sent: sent ? 1 : 0, error });
+      if (error) console.error("[notify] Client email error:", error);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Client email failed";
+      console.error("[notify] Client email exception:", e);
+      results.push({ audience: "client", channel: "email", sent: 0, error: message });
+    }
   }
 
-  const sentByChannel: Record<string, boolean> = {
-    email: data?.emailSent === true,
-    sms: data?.smsSent === true,
-  };
-  const remoteErrors: string[] = data?.errors ?? [];
+  if (wantsSms) {
+    const { data, error } = await ctx.supabase.functions.invoke("send-booking-notification", {
+      body: {
+        bookingId: ctx.booking.id,
+        language: ctx.language,
+        channels: ["sms"],
+        type: clientNotificationType(event),
+      },
+      headers: { Authorization: `Bearer ${ctx.serviceKey}` },
+    });
 
-  return requested.map((channel) => ({
-    audience: "client" as const,
-    channel,
-    sent: sentByChannel[channel] ? 1 : 0,
-    error: sentByChannel[channel]
-      ? undefined
-      : remoteErrors.find((e) => e.toLowerCase().startsWith(channel)) ?? remoteErrors[0],
-  }));
+    if (error) {
+      console.error("[notify] Client SMS error:", error);
+      results.push({
+        audience: "client",
+        channel: "sms",
+        sent: 0,
+        error: error.message ?? "Client SMS failed",
+      });
+    } else {
+      const remoteErrors: string[] = data?.errors ?? [];
+      results.push({
+        audience: "client",
+        channel: "sms",
+        sent: data?.smsSent === true ? 1 : 0,
+        error: data?.smsSent === true ? undefined : remoteErrors[0],
+      });
+    }
+  }
+
+  return results;
 }
