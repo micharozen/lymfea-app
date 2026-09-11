@@ -16,6 +16,7 @@ import { CustomerNotesTab } from "@/components/admin/customer/CustomerNotesTab";
 import { CustomerBookingsTab } from "@/components/admin/customer/CustomerBookingsTab";
 import { CustomerCuresSection } from "@/components/admin/customer/CustomerCuresSection";
 import { CustomerTasksTab } from "@/components/admin/tasks/CustomerTasksTab";
+import { useOrgScope } from "@/hooks/useOrgScope";
 
 const createFormSchema = (t: TFunction) =>
   z.object({
@@ -48,6 +49,12 @@ export default function CustomerDetail() {
   const [preferredTherapistId, setPreferredTherapistId] = useState<string | null>(null);
   const [preferredTreatmentType, setPreferredTreatmentType] = useState("");
   const [healthNotes, setHealthNotes] = useState("");
+
+  const orgScope = useOrgScope();
+  // Null pour un super-admin en vue multi-organisations : il n'y a alors pas
+  // d'organisation cible pour créer une fiche client.
+  const scopedOrganizationId =
+    orgScope && "organizationId" in orgScope ? orgScope.organizationId : null;
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(formSchema),
@@ -125,9 +132,19 @@ export default function CustomerDetail() {
       };
 
       if (isNewMode && !savedCustomerId) {
+        if (!scopedOrganizationId) {
+          throw new Error(
+            t(
+              "admin:customers.selectOrganization",
+              "Sélectionnez une organisation avant de créer un client",
+            ),
+          );
+        }
         const { data: inserted, error } = await supabase
           .from("customers")
-          .insert(customerPayload)
+          // Une fiche client appartient à une organisation : celle du
+          // périmètre courant, jamais déduite implicitement.
+          .insert({ ...customerPayload, organization_id: scopedOrganizationId })
           .select("id")
           .single();
 

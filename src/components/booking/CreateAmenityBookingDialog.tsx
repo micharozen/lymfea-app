@@ -378,6 +378,8 @@ export function CreateAmenityBookingDialog({
           _last_name: values.last_name || null,
           _email: values.email || null,
           _language: language,
+          // Une fiche client appartient a l'organisation du lieu.
+          _hotel_id: values.hotel_id,
         }
       );
       if (customerError) throw customerError;

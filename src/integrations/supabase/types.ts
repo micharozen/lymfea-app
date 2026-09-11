@@ -1468,6 +1468,7 @@ export type Database = {
           id: string
           language: string | null
           last_name: string | null
+          organization_id: string
           phone: string | null
           preferred_therapist_id: string | null
           preferred_treatment_type: string | null
@@ -1485,6 +1486,7 @@ export type Database = {
           id?: string
           language?: string | null
           last_name?: string | null
+          organization_id: string
           phone?: string | null
           preferred_therapist_id?: string | null
           preferred_treatment_type?: string | null
@@ -1502,6 +1504,7 @@ export type Database = {
           id?: string
           language?: string | null
           last_name?: string | null
+          organization_id?: string
           phone?: string | null
           preferred_therapist_id?: string | null
           preferred_treatment_type?: string | null
@@ -1510,6 +1513,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customers_preferred_therapist_id_fkey"
             columns: ["preferred_therapist_id"]
@@ -1729,6 +1739,7 @@ export type Database = {
           livemode: boolean | null
           oauth_connected_at: string | null
           oauth_expires_at: string | null
+          oauth_refresh_claimed_at: string | null
           provider: string
           stripe_account_id: string | null
           stripe_publishable_key: string | null
@@ -1750,6 +1761,7 @@ export type Database = {
           livemode?: boolean | null
           oauth_connected_at?: string | null
           oauth_expires_at?: string | null
+          oauth_refresh_claimed_at?: string | null
           provider?: string
           stripe_account_id?: string | null
           stripe_publishable_key?: string | null
@@ -1771,6 +1783,7 @@ export type Database = {
           livemode?: boolean | null
           oauth_connected_at?: string | null
           oauth_expires_at?: string | null
+          oauth_refresh_claimed_at?: string | null
           provider?: string
           stripe_account_id?: string | null
           stripe_publishable_key?: string | null
@@ -1879,8 +1892,8 @@ export type Database = {
           cancellation_tiers: Json | null
           city: string | null
           client_cancellation_cutoff_hours: number | null
-          client_reschedule_cutoff_hours: number
           client_payment_mode: string
+          client_reschedule_cutoff_hours: number
           closing_time: string | null
           company_offered: boolean | null
           contact_email: string | null
@@ -1940,8 +1953,8 @@ export type Database = {
           cancellation_tiers?: Json | null
           city?: string | null
           client_cancellation_cutoff_hours?: number | null
-          client_reschedule_cutoff_hours?: number
           client_payment_mode?: string
+          client_reschedule_cutoff_hours?: number
           closing_time?: string | null
           company_offered?: boolean | null
           contact_email?: string | null
@@ -2001,8 +2014,8 @@ export type Database = {
           cancellation_tiers?: Json | null
           city?: string | null
           client_cancellation_cutoff_hours?: number | null
-          client_reschedule_cutoff_hours?: number
           client_payment_mode?: string
+          client_reschedule_cutoff_hours?: number
           closing_time?: string | null
           company_offered?: boolean | null
           contact_email?: string | null
@@ -4155,6 +4168,7 @@ export type Database = {
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
           quote_token: string | null
+          reconfirm_until: string | null
           room_id: string | null
           room_number: string | null
           secondary_room_id: string | null
@@ -4237,6 +4251,7 @@ export type Database = {
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
           quote_token: string | null
+          reconfirm_until: string | null
           room_id: string | null
           room_number: string | null
           secondary_room_id: string | null
@@ -4262,6 +4277,7 @@ export type Database = {
         }
       }
       booking_has_open_leg: { Args: { _booking_id: string }; Returns: boolean }
+      can_access_customer: { Args: { _customer_id: string }; Returns: boolean }
       can_assign_therapist_to_booking: {
         Args: { _booking_id: string; _target_therapist_id: string }
         Returns: boolean
@@ -4288,6 +4304,10 @@ export type Database = {
           hotel_id: string
           user_id: string
         }[]
+      }
+      claim_stripe_oauth_refresh: {
+        Args: { p_account_id: string; p_ttl_seconds?: number }
+        Returns: boolean
       }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       concierge_can_view_therapist: {
@@ -4405,11 +4425,20 @@ export type Database = {
         }[]
       }
       expire_overdue_bundles: { Args: never; Returns: number }
+      find_auth_customer_in_hotel_org: {
+        Args: { _hotel_id: string }
+        Returns: string
+      }
+      find_customer_in_hotel_org: {
+        Args: { _hotel_id: string; _phone: string }
+        Returns: string
+      }
       find_or_create_customer: {
         Args: {
           _civility?: string
           _email?: string
           _first_name: string
+          _hotel_id?: string
           _language?: string
           _last_name?: string
           _phone: string
@@ -4566,7 +4595,17 @@ export type Database = {
           hotel_id: string
         }[]
       }
-      get_customer_portal_data: { Args: never; Returns: Json }
+      get_customer_portal_data: { Args: { _hotel_id?: string }; Returns: Json }
+      get_dashboard_monthly_outlook: {
+        Args: { _from_month: string; _hotel_ids: string[]; _to_month: string }
+        Returns: {
+          booking_count: number
+          bucket: string
+          hotel_id: string
+          month_key: string
+          revenue: number
+        }[]
+      }
       get_enterprise_session_data: {
         Args: { _hotel_id: string; _session_date?: string }
         Returns: Json
@@ -4582,6 +4621,7 @@ export type Database = {
           total_sessions: number
         }[]
       }
+      get_hotel_org_id: { Args: { _hotel_id: string }; Returns: string }
       get_incomplete_schedule_therapist_ids: {
         Args: { p_dedup_days?: number; p_reminder_type?: string }
         Returns: string[]
@@ -4604,12 +4644,12 @@ export type Database = {
           client_email: string
           client_first_name: string
           client_last_name: string
+          customer_language: string
           estimated_price: number
           hotel_id: string
           hotel_name: string
           id: string
           language: string
-          customer_language: string
           payment_method: string
           payment_status: string
           phone: string
@@ -4642,7 +4682,6 @@ export type Database = {
           cancellation_tiers: Json
           city: string
           client_cancellation_cutoff_hours: number
-          external_vouchers_enabled: boolean
           client_payment_mode: string
           closing_time: string
           company_offered: boolean
@@ -4654,6 +4693,7 @@ export type Database = {
           days_of_week: number[]
           description: string
           description_en: string
+          external_vouchers_enabled: boolean
           font_body_family: string
           font_body_url: string
           font_title_family: string
@@ -4698,7 +4738,6 @@ export type Database = {
           cancellation_tiers: Json
           city: string
           client_cancellation_cutoff_hours: number
-          external_vouchers_enabled: boolean
           client_payment_mode: string
           closing_time: string
           company_offered: boolean
@@ -4710,6 +4749,7 @@ export type Database = {
           days_of_week: number[]
           description: string
           description_en: string
+          external_vouchers_enabled: boolean
           font_body_family: string
           font_body_url: string
           font_title_family: string
@@ -4832,6 +4872,7 @@ export type Database = {
         }[]
       }
       get_therapist_id: { Args: { _user_id: string }; Returns: string }
+      get_user_org_id: { Args: { _user_id: string }; Returns: string }
       get_user_organization_id: { Args: { _user_id: string }; Returns: string }
       get_user_timezone: { Args: { _user_id: string }; Returns: string }
       get_venue_available_dates: {

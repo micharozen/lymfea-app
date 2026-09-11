@@ -122,16 +122,27 @@ export async function handleCreateBundlePayment(
     stripeCustomerId = newCustomer.id;
   }
 
-  await supabase.from("customers").upsert(
-    {
-      phone: clientData.phone,
-      email: clientData.email,
-      first_name: clientData.firstName,
-      last_name: clientData.lastName,
-      stripe_customer_id: stripeCustomerId,
-    },
-    { onConflict: "phone" },
-  );
+  // La fiche client appartient à l'organisation du lieu : la déduplication par
+  // téléphone ne vaut qu'à l'intérieur de ce périmètre.
+  const { data: customerHotel } = await supabase
+    .from("hotels")
+    .select("organization_id")
+    .eq("id", hotelId)
+    .maybeSingle();
+
+  if (customerHotel?.organization_id) {
+    await supabase.from("customers").upsert(
+      {
+        organization_id: customerHotel.organization_id,
+        phone: clientData.phone,
+        email: clientData.email,
+        first_name: clientData.firstName,
+        last_name: clientData.lastName,
+        stripe_customer_id: stripeCustomerId,
+      },
+      { onConflict: "organization_id,phone" },
+    );
+  }
 
   const origin = req.headers.get("origin") || "http://localhost:5173";
 

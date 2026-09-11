@@ -650,6 +650,8 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess, onAmen
           _email: clientEmail,
           _language: language,
           _civility: d.civility ?? null,
+          // Une fiche client appartient a l'organisation du lieu.
+          _hotel_id: d.hotelId,
         });
         customerId = data ?? null;
       }

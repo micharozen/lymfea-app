@@ -42,8 +42,19 @@ async function resolveCustomer(
   firstName: string,
   lastName: string,
   phone: string,
+  hotelId: string,
 ): Promise<string | null> {
   const basePayload = { phone, email: clientEmail, first_name: firstName, last_name: lastName };
+
+  // Une fiche client appartient à l'organisation du lieu réservé : recherche et
+  // déduplication restent à l'intérieur de ce périmètre.
+  const { data: hotel } = await supabase
+    .from("hotels")
+    .select("organization_id")
+    .eq("id", hotelId)
+    .maybeSingle();
+  const organizationId = hotel?.organization_id ?? null;
+  if (!organizationId) return null;
 
   // Lookup by stripe_customer_id first — avoids a collision on the second UNIQUE
   // constraint when the customer's phone has changed since their first booking.
@@ -51,6 +62,7 @@ async function resolveCustomer(
     const { data: byStripe } = await supabase
       .from("customers")
       .select("id")
+      .eq("organization_id", organizationId)
       .eq("stripe_customer_id", stripeCustomerId)
       .maybeSingle();
     if (byStripe) {
@@ -63,8 +75,8 @@ async function resolveCustomer(
   const { data: customer } = await supabase
     .from("customers")
     .upsert(
-      { ...basePayload, stripe_customer_id: stripeCustomerId },
-      { onConflict: "phone" },
+      { ...basePayload, organization_id: organizationId, stripe_customer_id: stripeCustomerId },
+      { onConflict: "organization_id,phone" },
     )
     .select("id")
     .single();
@@ -394,6 +406,7 @@ export async function handleConfirmSetupIntent(
       meta.firstName,
       meta.lastName,
       meta.phone,
+      meta.hotelId,
     );
 
     // ── Multi-no-hold: hold was disabled — no draft bookings exist.
@@ -687,6 +700,7 @@ export async function handleConfirmSetupIntent(
     meta.firstName,
     meta.lastName,
     meta.phone,
+    meta.hotelId,
   );
 
   let bookingId: string;
