@@ -2,13 +2,12 @@
   "dimensions": {
     "pmsHotel": "Hotel PMS integration (Opera Cloud, Mews)",
     "emailToBookingAi": "AI-powered email-to-booking",
-    "advancedCustomization": "Advanced per-venue branding & customization",
     "apiAccess": "Data access via API",
     "staycationIntegration": "Staycation integration",
     "therapistApp": "Therapist mobile app & payouts",
     "clientBooking": "Online client booking (QR, no account)",
     "unifiedAgenda": "Unified multi-venue & room agenda",
-    "payments": "Integrated payments (Stripe Connect)",
+    "payments": "Integrated checkout (card hold, deposit, on-site)",
     "giftCards": "Gift cards & vouchers",
     "autoInvoicing": "Automatic invoicing (hotel & therapist)",
     "notifications": "Automated reminders & follow-ups",
@@ -65,5 +64,6 @@
     "home": "Home",
     "compare": "Comparisons"
   },
+  "sourcesHeading": "Sources:",
   "disclaimer": "Comparison based on publicly available information (updated {{date}}). Trademarks cited belong to their respective owners and are not affiliated with Saoma. Other tools' features change over time; verify details with each vendor."
 }

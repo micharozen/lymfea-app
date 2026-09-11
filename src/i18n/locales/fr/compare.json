@@ -2,13 +2,12 @@
   "dimensions": {
     "pmsHotel": "Intégration PMS hôtelier (Opera Cloud, Mews)",
     "emailToBookingAi": "Email-to-booking automatisé par IA",
-    "advancedCustomization": "Personnalisation avancée par établissement (identité visuelle complète)",
     "apiAccess": "Exposition des données via API",
     "staycationIntegration": "Intégration Staycation",
     "therapistApp": "App mobile thérapeute & reversements",
     "clientBooking": "Réservation client en ligne (QR, sans compte)",
     "unifiedAgenda": "Agenda unifié multi-lieux & salles",
-    "payments": "Paiements intégrés (Stripe Connect)",
+    "payments": "Encaissement intégré (empreinte, acompte, sur place)",
     "giftCards": "Cartes cadeaux & bons",
     "autoInvoicing": "Facturation automatique (hôtel & thérapeute)",
     "notifications": "Rappels & relances automatisés",
@@ -65,5 +64,6 @@
     "home": "Accueil",
     "compare": "Comparatifs"
   },
+  "sourcesHeading": "Sources :",
   "disclaimer": "Comparatif établi à partir d'informations publiquement disponibles (mis à jour {{date}}). Les marques citées appartiennent à leurs propriétaires respectifs et ne sont pas affiliées à Saoma. Les fonctionnalités des autres outils évoluent ; vérifiez les détails auprès de chaque éditeur."
 }
