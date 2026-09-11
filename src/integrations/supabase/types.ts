@@ -4425,6 +4425,14 @@ export type Database = {
         }[]
       }
       expire_overdue_bundles: { Args: never; Returns: number }
+      find_auth_customer_in_hotel_org: {
+        Args: { _hotel_id: string }
+        Returns: string
+      }
+      find_customer_in_hotel_org: {
+        Args: { _hotel_id: string; _phone: string }
+        Returns: string
+      }
       find_or_create_customer: {
         Args: {
           _civility?: string
@@ -4587,7 +4595,7 @@ export type Database = {
           hotel_id: string
         }[]
       }
-      get_customer_portal_data: { Args: never; Returns: Json }
+      get_customer_portal_data: { Args: { _hotel_id?: string }; Returns: Json }
       get_dashboard_monthly_outlook: {
         Args: { _from_month: string; _hotel_ids: string[]; _to_month: string }
         Returns: {
