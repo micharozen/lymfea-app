@@ -216,6 +216,8 @@ export async function handlePurchaseBundle(
       _first_name: firstName,
       _last_name: lastName,
       _email: clientEmail,
+      // Une fiche client appartient a l'organisation du lieu.
+      _hotel_id: hotelId,
     },
   );
 
