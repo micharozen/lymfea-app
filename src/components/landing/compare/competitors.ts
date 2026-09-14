@@ -360,10 +360,12 @@ export const COMPETITORS: Competitor[] = [
       summary:
         "Booker (anciennement SpaBooker) est une solution de réservation spa et salon historique, aujourd'hui rattachée à Mindbody. Elle dispose d'une offre dédiée au spa hôtelier et se connecte à des PMS comme Mews ou StayNTouch. C'est un outil mature, centré sur le marché nord-américain. Saoma se distingue par sa spécialisation européenne, son IA de traitement des demandes et son tarif public.",
       saomaAdvantages: [
-        "Interface, emails et support en FR/EN, avec un hébergement européen conforme au RGPD.",
-        "Demandes de réservation reçues par email lues et qualifiées automatiquement par IA — un point sur lequel Booker ne communique pas.",
-        "Tarif public sans commission sur les réservations.",
-        "App thérapeute mobile et facturation automatique hôtel/thérapeute pensées pour le modèle d'exploitation européen.",
+        "Des liens et pages de réservation à l'image du lieu : logo, palette et typographie de l'établissement, pour que le client reste dans l'univers de la marque du premier clic à la confirmation.",
+        "L'automatisation des tâches chronophages : demandes reçues par email lues et qualifiées par IA, confirmations, rappels client et thérapeute, relances, facturation hôtel/thérapeute et récapitulatif de fin de journée partent seuls, sans ressaisie.",
+        "Une visibilité renforcée : un lien ou un QR code partageable partout — site de l'hôtel, chambre, conciergerie, réseaux sociaux — qui transforme les demandes en réservations.",
+        "Une application thérapeute mobile avec demande de disponibilité diffusée aux praticiens du lieu : le premier qui accepte prend le soin, sans passer un coup de fil.",
+        "Le multi-site nativement : plusieurs établissements, cabines et équipes dans un même agenda, avec des réglages et une facturation propres à chaque lieu.",
+        "Interface, emails et support en FR/EN, hébergement européen conforme au RGPD et tarif public sans commission sur les réservations.",
       ],
       competitorStrengths: [
         "Solution établie avec de nombreuses années d'expérience sur le marché spa et salon.",
@@ -392,10 +394,12 @@ export const COMPETITORS: Competitor[] = [
       summary:
         "Booker (formerly SpaBooker) is a long-standing spa and salon booking solution, now part of Mindbody. It has a dedicated hotel spa offering and connects to PMS platforms such as Mews and StayNTouch. It is a mature tool, focused on North America. Saoma stands apart through its European specialization, its AI request handling and its public pricing.",
       saomaAdvantages: [
-        "Interface, emails and support in FR/EN, with GDPR-compliant European hosting.",
-        "Inbound email requests read and qualified automatically by AI — something Booker does not advertise.",
-        "Public pricing with no commission on bookings.",
-        "Therapist mobile app and automatic hotel/therapist invoicing built for the European operating model.",
+        "Booking links and pages in the venue's own look and feel: its logo, palette and typography, so guests stay inside the brand from the first click to the confirmation.",
+        "Automation of the time-consuming work: inbound email requests read and qualified by AI, confirmations, guest and therapist reminders, follow-ups, hotel/therapist invoicing and the end-of-day recap all go out on their own, with no re-keying.",
+        "Better visibility: one link or QR code you can share anywhere — the hotel website, the guest room, the concierge desk, social media — that turns enquiries into bookings.",
+        "A therapist mobile app with availability requests broadcast to the venue's practitioners: the first to accept takes the treatment, with no phone calls.",
+        "Multi-site by design: several venues, treatment rooms and teams in a single agenda, each with its own settings and invoicing.",
+        "Interface, emails and support in FR/EN, GDPR-compliant European hosting and public pricing with no commission on bookings.",
       ],
       competitorStrengths: [
         "Established solution with many years of experience in the spa and salon market.",
