@@ -835,6 +835,8 @@ export default function EditBookingDialog({
             _first_name: bookingData.client_first_name,
             _last_name: bookingData.client_last_name,
             _civility: bookingData.civility ?? null,
+            // Une fiche client appartient a l'organisation du lieu.
+            _hotel_id: bookingData.hotel_id,
           },
         );
         if (rpcError) {

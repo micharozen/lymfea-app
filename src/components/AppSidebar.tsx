@@ -75,6 +75,7 @@ interface MenuItem {
   icon: LucideIcon;
   badge?: boolean;
   isNew?: boolean;
+  isBeta?: boolean;
   soon?: boolean;
 }
 
@@ -86,9 +87,9 @@ const adminPrimaryItems: MenuItem[] = [
   { title: "Thérapeutes", titleKey: "sidebar.therapists", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", titleKey: "sidebar.treatments", url: "/admin/treatments", icon: BookOpen },
   { title: "Clients", titleKey: "sidebar.customers", url: "/admin/customers", icon: Contact },
-  { title: "Paniers abandonnés", titleKey: "sidebar.checkoutIntents", url: "/admin/checkout-intents", icon: ShoppingCart, isNew: true },
-  { title: "Tâches", titleKey: "sidebar.tasks", url: "/admin/tasks", icon: ListTodo, isNew: true },
-  { title: "Inbox", url: "/admin/inbox", icon: Inbox },
+  { title: "Paniers abandonnés", titleKey: "sidebar.checkoutIntents", url: "/admin/checkout-intents", icon: ShoppingCart },
+  { title: "Tâches", titleKey: "sidebar.tasks", url: "/admin/tasks", icon: ListTodo },
+  { title: "Inbox", url: "/admin/inbox", icon: Inbox, isBeta: true },
   { title: "Alertes", titleKey: "sidebar.alerts", url: "/admin/schedule-alerts", icon: Bell, badge: true },
 ];
 
@@ -328,6 +329,11 @@ export function AppSidebar() {
             {item.isNew && (
               <span className="ml-auto inline-flex h-4 items-center rounded-full border border-emerald-500/20 bg-gradient-to-b from-emerald-50 to-emerald-100 px-1.5 text-[8px] font-bold uppercase leading-none tracking-[0.12em] text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] group-data-[collapsible=icon]:hidden dark:border-emerald-400/20 dark:from-emerald-400/15 dark:to-emerald-500/10 dark:text-emerald-300">
                 New
+              </span>
+            )}
+            {item.isBeta && (
+              <span className="ml-auto inline-flex h-4 items-center rounded-full border border-amber-500/20 bg-gradient-to-b from-amber-50 to-amber-100 px-1.5 text-[8px] font-bold uppercase leading-none tracking-[0.12em] text-amber-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] group-data-[collapsible=icon]:hidden dark:border-amber-400/20 dark:from-amber-400/15 dark:to-amber-500/10 dark:text-amber-300">
+                Beta
               </span>
             )}
           </NavLink>

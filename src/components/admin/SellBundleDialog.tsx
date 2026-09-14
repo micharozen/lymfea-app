@@ -61,6 +61,9 @@ export function SellBundleDialog({
   const [notes, setNotes] = useState("");
 
   const scope = useOrgScope();
+  // Null pour un super-admin en vue multi-organisations : il n'y a alors pas
+  // d'organisation cible pour créer une fiche client.
+  const organizationId = scope && "organizationId" in scope ? scope.organizationId : null;
 
   const { data: bundles } = useQuery({
     queryKey: bundleKeys.list(scope, "active"),
@@ -102,9 +105,15 @@ export function SellBundleDialog({
         if (!newFirstName || !newPhone) {
           throw new Error(t("sellBundleDialog.errors.firstNameAndPhoneRequired"));
         }
+        if (!organizationId) {
+          throw new Error(t("sellBundleDialog.errors.selectOrganization", "Sélectionnez une organisation avant de créer un client"));
+        }
         const { data: newCustomer, error: customerError } = await supabase
           .from("customers")
           .insert({
+            // Une fiche client appartient à une organisation : celle du
+            // périmètre courant, jamais déduite implicitement.
+            organization_id: organizationId,
             first_name: newFirstName,
             last_name: newLastName || null,
             phone: newPhone,

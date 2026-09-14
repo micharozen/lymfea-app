@@ -215,6 +215,23 @@ const CompareDetail = () => {
           <p className="mx-auto max-w-3xl text-center text-xs leading-relaxed text-muted-foreground/70">
             {t("disclaimer", { date: DATA_AS_OF })}
           </p>
+          <div className="mx-auto mt-4 max-w-3xl text-center text-xs text-muted-foreground/70">
+            <span className="font-medium">{t("sourcesHeading")} </span>
+            {competitor.sources.map((source, i) => (
+              <span key={source.url}>
+                {i > 0 && <span aria-hidden> · </span>}
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  {source.label}
+                </a>
+                <span className="text-muted-foreground/50"> ({source.checkedAt})</span>
+              </span>
+            ))}
+          </div>
         </div>
       </main>
       <Footer />

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import {
@@ -17,7 +18,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { User } from "lucide-react";
+import { PhoneNumberField } from "@/components/PhoneNumberField";
+import { countries, splitPhoneNumber } from "@/lib/phone";
 import type { CustomerFormValues } from "@/pages/admin/CustomerDetail";
+
+// Astérisque rouge marquant un champ obligatoire.
+function Req() {
+  return <span className="ml-0.5 text-red-500">*</span>;
+}
 
 interface CustomerGeneralTabProps {
   form: UseFormReturn<CustomerFormValues>;
@@ -26,6 +34,9 @@ interface CustomerGeneralTabProps {
 
 export function CustomerGeneralTab({ form, disabled }: CustomerGeneralTabProps) {
   const { t } = useTranslation(["admin", "common"]);
+  // Indicatif retenu quand le champ est vide : le numéro stocké ne peut alors
+  // pas le porter.
+  const [pickedCountryCode, setPickedCountryCode] = useState("+33");
 
   return (
     <div className="space-y-6">
@@ -46,7 +57,10 @@ export function CustomerGeneralTab({ form, disabled }: CustomerGeneralTabProps) 
               name="first_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("customers.firstName")}</FormLabel>
+                  <FormLabel>
+                    {t("customers.firstName")}
+                    <Req />
+                  </FormLabel>
                   <FormControl>
                     <Input {...field} disabled={disabled} />
                   </FormControl>
@@ -73,15 +87,41 @@ export function CustomerGeneralTab({ form, disabled }: CustomerGeneralTabProps) 
             <FormField
               control={form.control}
               name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("customers.phone")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} disabled={disabled} placeholder="+33 6 12 34 56 78" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const raw = field.value ?? "";
+                const { countryCode: parsedCode, phone: localPhone } = splitPhoneNumber(raw);
+                // Le numéro stocké porte son indicatif dès qu'il commence par « + » ;
+                // tant qu'il est vide, on garde le dernier indicatif choisi.
+                const countryCode = raw.trim().startsWith("+")
+                  ? parsedCode
+                  : pickedCountryCode;
+
+                return (
+                  <FormItem>
+                    <FormLabel>
+                      {t("customers.phone")}
+                      <Req />
+                    </FormLabel>
+                    <FormControl>
+                      <PhoneNumberField
+                        value={localPhone}
+                        onChange={(value) =>
+                          field.onChange(value ? `${countryCode} ${value}` : "")
+                        }
+                        countryCode={countryCode}
+                        setCountryCode={(code) => {
+                          setPickedCountryCode(code);
+                          field.onChange(localPhone ? `${code} ${localPhone}` : "");
+                        }}
+                        countries={countries}
+                        disabled={disabled}
+                        placeholder="6 12 34 56 78"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
             <FormField
               control={form.control}
@@ -112,7 +152,7 @@ export function CustomerGeneralTab({ form, disabled }: CustomerGeneralTabProps) 
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder={t("booking.civility.label")} />
+                        <SelectValue placeholder={t("customers.selectPlaceholder")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -141,8 +181,18 @@ export function CustomerGeneralTab({ form, disabled }: CustomerGeneralTabProps) 
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="fr">{t("common:language.fr")}</SelectItem>
-                      <SelectItem value="en">{t("common:language.en")}</SelectItem>
+                      <SelectItem value="fr">
+                        <span className="flex items-center gap-2">
+                          <span className="text-base leading-none">🇫🇷</span>
+                          {t("common:language.fr")}
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="en">
+                        <span className="flex items-center gap-2">
+                          <span className="text-base leading-none">🇬🇧</span>
+                          {t("common:language.en")}
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

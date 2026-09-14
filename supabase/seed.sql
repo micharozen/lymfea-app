@@ -446,21 +446,21 @@ INSERT INTO public.booking_treatments (id, booking_id, treatment_id, variant_id)
 -- bookings.customer_id below so the Partner API (/v1/venues/:slug/customers)
 -- has data to return. UUIDs in the 300-series for readability.
 INSERT INTO public.customers (
-  id, first_name, last_name, email, phone, language, profile_completed
+  id, organization_id, first_name, last_name, email, phone, language, profile_completed
 ) VALUES
-  ('00000000-0000-0000-0000-000000000501', 'Sophie',    'Martin',    'sophie.martin@example.com',    '+33612345678', 'fr', true),
-  ('00000000-0000-0000-0000-000000000502', 'Pierre',    'Dubois',    'pierre.dubois@example.com',    '+33623456789', 'fr', true),
-  ('00000000-0000-0000-0000-000000000503', 'Emma',      'Laurent',   'emma.laurent@example.com',     '+33634567890', 'fr', true),
-  ('00000000-0000-0000-0000-000000000504', 'Lucas',     'Bernard',   'lucas.bernard@example.com',    '+33645678901', 'fr', true),
-  ('00000000-0000-0000-0000-000000000505', 'Camille',   'Petit',     'camille.petit@example.com',    '+33656789012', 'fr', true),
-  ('00000000-0000-0000-0000-000000000506', 'Julie',     'Moreau',    'julie.moreau@example.com',     '+33667890123', 'fr', true),
-  ('00000000-0000-0000-0000-000000000507', 'Thomas',    'Roux',      'thomas.roux@example.com',      '+33678901234', 'fr', true),
-  ('00000000-0000-0000-0000-000000000508', 'Marie',     'Lefebvre',  'marie.lefebvre@example.com',   '+33689012345', 'en', true),
-  ('00000000-0000-0000-0000-000000000509', 'Antoine',   'Garcia',    'antoine.garcia@example.com',   '+33690123456', 'fr', true),
-  ('00000000-0000-0000-0000-000000000510', 'Léa',       'Rousseau',  'lea.rousseau@example.com',     '+33601234567', 'fr', false),
-  ('00000000-0000-0000-0000-000000000511', 'Nicolas',   'Vincent',   'nicolas.vincent@example.com',  '+33612340987', 'fr', true),
-  ('00000000-0000-0000-0000-000000000512', 'Charlotte', 'Fournier',  'charlotte.fournier@example.com', '+33623450987', 'fr', true),
-  ('00000000-0000-0000-0000-000000000513', 'Maxime',    'Girard',    'maxime.girard@example.com',    '+33634560987', 'en', true);
+  ('00000000-0000-0000-0000-000000000501', 'a0000000-0000-0000-0000-000000000001', 'Sophie',    'Martin',    'sophie.martin@example.com',    '+33612345678', 'fr', true),
+  ('00000000-0000-0000-0000-000000000502', 'a0000000-0000-0000-0000-000000000001', 'Pierre',    'Dubois',    'pierre.dubois@example.com',    '+33623456789', 'fr', true),
+  ('00000000-0000-0000-0000-000000000503', 'a0000000-0000-0000-0000-000000000001', 'Emma',      'Laurent',   'emma.laurent@example.com',     '+33634567890', 'fr', true),
+  ('00000000-0000-0000-0000-000000000504', 'a0000000-0000-0000-0000-000000000001', 'Lucas',     'Bernard',   'lucas.bernard@example.com',    '+33645678901', 'fr', true),
+  ('00000000-0000-0000-0000-000000000505', 'a0000000-0000-0000-0000-000000000001', 'Camille',   'Petit',     'camille.petit@example.com',    '+33656789012', 'fr', true),
+  ('00000000-0000-0000-0000-000000000506', 'a0000000-0000-0000-0000-000000000001', 'Julie',     'Moreau',    'julie.moreau@example.com',     '+33667890123', 'fr', true),
+  ('00000000-0000-0000-0000-000000000507', 'a0000000-0000-0000-0000-000000000001', 'Thomas',    'Roux',      'thomas.roux@example.com',      '+33678901234', 'fr', true),
+  ('00000000-0000-0000-0000-000000000508', 'a0000000-0000-0000-0000-000000000001', 'Marie',     'Lefebvre',  'marie.lefebvre@example.com',   '+33689012345', 'en', true),
+  ('00000000-0000-0000-0000-000000000509', 'a0000000-0000-0000-0000-000000000001', 'Antoine',   'Garcia',    'antoine.garcia@example.com',   '+33690123456', 'fr', true),
+  ('00000000-0000-0000-0000-000000000510', 'a0000000-0000-0000-0000-000000000001', 'Léa',       'Rousseau',  'lea.rousseau@example.com',     '+33601234567', 'fr', false),
+  ('00000000-0000-0000-0000-000000000511', 'a0000000-0000-0000-0000-000000000001', 'Nicolas',   'Vincent',   'nicolas.vincent@example.com',  '+33612340987', 'fr', true),
+  ('00000000-0000-0000-0000-000000000512', 'a0000000-0000-0000-0000-000000000001', 'Charlotte', 'Fournier',  'charlotte.fournier@example.com', '+33623450987', 'fr', true),
+  ('00000000-0000-0000-0000-000000000513', 'a0000000-0000-0000-0000-000000000001', 'Maxime',    'Girard',    'maxime.girard@example.com',    '+33634560987', 'en', true);
 
 -- 17) Backfill bookings.customer_id (booking 2NN -> customer 5NN).
 --     Kept as UPDATEs (rather than inlined in section 13) to minimise diff.

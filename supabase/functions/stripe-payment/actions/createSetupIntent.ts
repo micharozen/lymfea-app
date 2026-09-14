@@ -169,7 +169,7 @@ export async function handleCreateSetupIntent(
   const { data: hotel, error: hotelError } = await supabase
     .from("hotels")
     .select(
-      "slug, currency, name, offert, pms_guest_lookup_enabled, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent, client_payment_mode",
+      "slug, currency, name, offert, pms_guest_lookup_enabled, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent, client_payment_mode, organization_id",
     )
     .eq("id", hotelId)
     .maybeSingle();
@@ -243,6 +243,9 @@ export async function handleCreateSetupIntent(
     stripeCustomerId = newCustomer.id;
   }
 
+  // Une fiche client appartient à une organisation : celle du lieu réservé.
+  // Toute recherche ou déduplication se fait à l'intérieur de ce périmètre.
+  const organizationId = hotel.organization_id as string;
   const customerPayload = {
     phone: clientData.phone,
     email: clientData.email,
@@ -252,6 +255,7 @@ export async function handleCreateSetupIntent(
   const { data: existingByStripe } = await supabase
     .from("customers")
     .select("id")
+    .eq("organization_id", organizationId)
     .eq("stripe_customer_id", stripeCustomerId)
     .maybeSingle();
   if (existingByStripe) {
@@ -261,9 +265,14 @@ export async function handleCreateSetupIntent(
       .eq("id", existingByStripe.id);
     if (error) console.error("[CREATE-SETUP-INTENT] Erreur Update Customer:", error);
   } else {
-    const { error } = await supabase
-      .from("customers")
-      .upsert({ ...customerPayload, stripe_customer_id: stripeCustomerId }, { onConflict: "phone" });
+    const { error } = await supabase.from("customers").upsert(
+      {
+        ...customerPayload,
+        organization_id: organizationId,
+        stripe_customer_id: stripeCustomerId,
+      },
+      { onConflict: "organization_id,phone" },
+    );
     if (error) console.error("[CREATE-SETUP-INTENT] Erreur Upsert Customer:", error);
   }
 

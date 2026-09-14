@@ -47,7 +47,9 @@ export function useAuthCustomerPrefill({
       if (!roleData) return;
 
       const [portalRes, bundlesRes] = await Promise.all([
-        supabase.rpc('get_customer_portal_data'),
+        // Le lieu consulté désigne l'organisation : un compte peut porter une
+        // fiche par organisation.
+        supabase.rpc('get_customer_portal_data', { _hotel_id: hotelId }),
         supabase.rpc('detect_bundles_for_auth_customer', {
           _hotel_id: hotelId,
           _treatment_ids: treatmentIds,

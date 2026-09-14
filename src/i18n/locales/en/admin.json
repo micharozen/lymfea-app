@@ -999,6 +999,7 @@
   "customers": {
     "title": "Customers",
     "description": "Manage your customers and their information",
+    "selectPlaceholder": "Select",
     "add": "Add a Customer",
     "new": "New Customer",
     "back": "Back",

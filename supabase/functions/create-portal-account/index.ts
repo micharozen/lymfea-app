@@ -32,10 +32,24 @@ async function resolveCustomerId(opts: {
   email: string;
   phone: string;
   firstName: string | null;
+  hotelId: string;
 }): Promise<string> {
+  // Une fiche client appartient à l'organisation du lieu de la carte cadeau.
+  // Un même compte portail peut porter une fiche par organisation : la
+  // recherche par auth_user_id doit donc rester dans ce périmètre.
+  const { data: hotel } = await supabaseAdmin
+    .from('hotels')
+    .select('organization_id')
+    .eq('id', opts.hotelId)
+    .maybeSingle();
+
+  const organizationId = hotel?.organization_id ?? null;
+  if (!organizationId) throw new Error("Venue organization not found");
+
   const { data: linked } = await supabaseAdmin
     .from('customers')
     .select('id')
+    .eq('organization_id', organizationId)
     .eq('auth_user_id', opts.authUserId)
     .maybeSingle();
 
@@ -54,6 +68,7 @@ async function resolveCustomerId(opts: {
       _first_name: opts.firstName,
       _last_name: null,
       _email: opts.email,
+      _hotel_id: opts.hotelId,
     },
   );
 
@@ -192,6 +207,7 @@ serve(async (req) => {
       email: cleanEmail,
       phone: cleanPhone,
       firstName: cleanFirstName,
+      hotelId: bundle.hotel_id,
     });
 
     // 5. Claim the bundle
