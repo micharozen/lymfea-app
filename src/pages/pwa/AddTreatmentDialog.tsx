@@ -53,9 +53,10 @@ export const AddTreatmentDialog = ({
   const fetchTreatments = async () => {
     setLoading(true);
     try {
-      // Fetch treatments for this hotel using the same RPC as client side
+      // Même RPC que le flow client, mais surface interne : les soins non
+      // réservables en ligne restent proposables par le thérapeute.
       const { data, error } = await supabase
-        .rpc('get_public_treatments', { _hotel_id: hotelId });
+        .rpc('get_public_treatments', { _hotel_id: hotelId, _include_internal: true });
 
       if (error) throw error;
 

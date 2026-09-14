@@ -83,7 +83,7 @@ const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center">
         <div className="text-lg">{t('common:loading')}</div>
       </div>
     );

@@ -3,6 +3,11 @@
 // re-export kept at the historical @/lib path so existing imports stay stable.
 export {
   computeTherapistEarnings,
+  computeLegEarnings,
+  computeLegEarningsDetailed,
   hasCompleteRates,
   type TherapistRates,
+  type TreatmentRateMap,
+  type EarningLine,
+  type LegEarningsInput,
 } from "@shared/therapistEarnings";

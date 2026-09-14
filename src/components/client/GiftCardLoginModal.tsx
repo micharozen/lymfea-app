@@ -90,6 +90,12 @@ export function GiftCardLoginModal({
     setIsLoading(true);
     setError(null);
 
+    // Un client venu de son espace (/portal) a déjà une session ouverte : on ne
+    // doit pas la fermer en sortant de la modale, sinon il se retrouve
+    // déconnecté du portail en revenant.
+    const { data: existingSession } = await supabase.auth.getSession();
+    const hadSession = !!existingSession.session;
+
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
@@ -116,7 +122,9 @@ export function GiftCardLoginModal({
 
       // Fetch customer info + bundles in parallel
       const [portalRes, bundlesRes] = await Promise.all([
-        supabase.rpc('get_customer_portal_data'),
+        // Le lieu consulté désigne l'organisation : un compte peut porter une
+        // fiche par organisation.
+        supabase.rpc('get_customer_portal_data', { _hotel_id: hotelId }),
         supabase.rpc('detect_bundles_for_auth_customer', {
           _hotel_id: hotelId,
           _treatment_ids: treatmentIds,
@@ -142,8 +150,9 @@ export function GiftCardLoginModal({
     } catch {
       setError(t('giftCardLogin.loginError'));
     } finally {
-      // Always sign out to keep client flow anonymous
-      await supabase.auth.signOut();
+      // Sign out to keep the client flow anonymous — sauf si une session
+      // existait déjà avant (client connecté à son espace).
+      if (!hadSession) await supabase.auth.signOut();
       setIsLoading(false);
     }
   };

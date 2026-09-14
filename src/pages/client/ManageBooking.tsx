@@ -4,19 +4,18 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, differenceInMinutes, addDays, startOfDay } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, enUS } from "date-fns/locale";
 import {
-  Calendar as CalendarIcon,
   MapPin,
   Phone,
+  DoorOpen,
+  ChevronRight,
   AlertTriangle,
-  CheckCircle,
+  Info,
   Loader2,
   Pencil,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Drawer,
@@ -36,11 +35,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import TimePeriodSelector from "@/components/client/TimePeriodSelector";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { brand, brandLogos } from "@/config/brand";
+import ambienceImage from "@/assets/welcome-bg-couple.jpg";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { hoursUntilBooking } from "@/lib/cancellationTiers";
+import { resolveClientLanguage, type ClientLanguage } from "@/lib/clientLanguage";
 
 interface HotelInfo {
   id: string;
@@ -54,12 +55,19 @@ interface HotelInfo {
   slot_interval: number | null;
   timezone: string | null;
   client_cancellation_cutoff_hours: number | null;
+  cover_image: string | null;
 }
 
 interface BookingTreatmentRow {
   id: string;
   treatment_id: string;
-  treatment: { id: string; name: string | null; duration: number | null; price: number | null } | null;
+  treatment: {
+    id: string;
+    name: string | null;
+    name_en: string | null;
+    duration: number | null;
+    price: number | null;
+  } | null;
 }
 
 interface BookingRow {
@@ -82,23 +90,39 @@ interface BookingRow {
   card_last4: string | null;
   estimated_price: number | null;
   language: "fr" | "en" | null;
+  /** Langue de la fiche client — prioritaire sur `language` (cf. resolveClientLanguage). */
+  customer_language: string | null;
+  /** Délai minimum avant le soin en deçà duquel le déplacement en ligne est fermé. */
+  reschedule_cutoff_hours: number | null;
   booking_treatments: BookingTreatmentRow[] | null;
   hotels: HotelInfo | null;
 }
 
+/** Verdicts renvoyés par reschedule_booking_public. */
+interface RescheduleResult {
+  success: boolean;
+  error?: string;
+  cutoff_hours?: number;
+  was_confirmed?: boolean;
+  reconfirm_therapists?: number;
+}
+
 const ManageBooking = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
-  const { t } = useTranslation("client");
-  const { toast } = useToast();
+  const { t, i18n } = useTranslation("client");
   const queryClient = useQueryClient();
 
   const [showConfirmCancelDialog, setShowConfirmCancelDialog] = useState(false);
   const [showLateWarningDialog, setShowLateWarningDialog] = useState(false);
+  const [lateAction, setLateAction] = useState<"cancel" | "reschedule">("cancel");
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  // Incrémenté pour reprendre les disponibilités quand un créneau est parti sous
+  // nos pieds : la date sélectionnée ne change pas, l'effet doit rejouer quand même.
+  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
 
   const { data: booking, isLoading, error } = useQuery<BookingRow | null>({
     queryKey: ["client-booking", bookingId],
@@ -132,6 +156,7 @@ const ManageBooking = () => {
             slot_interval: h.slot_interval ?? null,
             timezone: h.timezone ?? null,
             client_cancellation_cutoff_hours: Number(h.client_cancellation_cutoff_hours ?? 2),
+            cover_image: h.cover_image ?? null,
           };
         }
       }
@@ -141,11 +166,16 @@ const ManageBooking = () => {
     enabled: !!bookingId,
   });
 
+  // Annuler et déplacer n'obéissent pas au même délai : le lieu peut laisser
+  // annuler tard (client_cancellation_cutoff_hours, 2h par défaut) tout en fermant
+  // le déplacement bien plus tôt (client_reschedule_cutoff_hours, 24h par défaut),
+  // parce qu'un créneau déplacé doit être re-staffé.
   const timeInfo = useMemo(() => {
     if (!booking) return null;
     const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
     const minutesUntilAppointment = differenceInMinutes(bookingDateTime, new Date());
-    const cutoffHours = Number(booking.hotels?.client_cancellation_cutoff_hours ?? 2);
+    const cancelCutoffHours = Number(booking.hotels?.client_cancellation_cutoff_hours ?? 2);
+    const rescheduleCutoffHours = Number(booking.reschedule_cutoff_hours ?? 24);
     const hoursUntil = hoursUntilBooking(
       booking.booking_date,
       booking.booking_time,
@@ -153,14 +183,37 @@ const ManageBooking = () => {
     );
     return {
       bookingDateTime,
-      canActFreely: hoursUntil != null && hoursUntil > cutoffHours,
+      canCancel: hoursUntil != null && hoursUntil > cancelCutoffHours,
+      canReschedule: hoursUntil != null && hoursUntil > rescheduleCutoffHours,
       isPast: minutesUntilAppointment < 0,
-      cutoffHours,
+      cancelCutoffHours,
+      rescheduleCutoffHours,
     };
   }, [booking]);
 
-  const language: "fr" | "en" = (booking?.language ?? "fr") === "en" ? "en" : "fr";
+  // customers.language fait foi : c'est la préférence durable du client, partagée
+  // par toutes ses réservations. bookings.language n'est qu'une dérivation par
+  // réservation (indicatif au moment de la création) qu'un chemin de création peut
+  // laisser à son défaut — d'où le simple rôle de repli. Même règle que
+  // supabase/functions/_shared/client-language.ts.
+  const language: ClientLanguage = resolveClientLanguage(
+    booking?.customer_language,
+    booking?.language,
+  );
+  const dateLocale = language === "en" ? enUS : fr;
   const hotel = booking?.hotels ?? null;
+
+  // name_en n'est pas toujours renseigné : le libellé FR reste le repli.
+  const treatmentName = (treatment: BookingTreatmentRow["treatment"]) =>
+    (language === "en" ? treatment?.name_en : null) || treatment?.name || "—";
+
+  // La page est ouverte depuis un SMS ou un e-mail envoyé dans cette langue-là :
+  // elle doit s'afficher dans la même, sans dépendre de la langue de session.
+  useEffect(() => {
+    if (i18n.resolvedLanguage?.split("-")[0] !== language) {
+      i18n.changeLanguage(language);
+    }
+  }, [language, i18n]);
 
   const addressLine = useMemo(() => {
     if (!hotel) return "";
@@ -172,6 +225,17 @@ const ManageBooking = () => {
     const q = [hotel.name, hotel.address, hotel.city].filter(Boolean).join(", ");
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
   }, [hotel]);
+
+  // Aperçu cartographique via l'Embed API (iframe) plutôt que le SDK JS : pas de
+  // chargement de bundle Maps pour une carte statique non interactive. On cible
+  // l'adresse seule — un nom de spa absent de Google renverrait « no results ».
+  const mapsEmbedSrc = useMemo(() => {
+    const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+    if (!key || !addressLine) return "";
+    return `https://www.google.com/maps/embed/v1/place?key=${key}&q=${encodeURIComponent(
+      addressLine,
+    )}&zoom=15&language=${language}`;
+  }, [addressLine, language]);
 
   const timeSlotOptions = useMemo(() => {
     if (!hotel) return [];
@@ -236,18 +300,34 @@ const ManageBooking = () => {
     return () => {
       cancelled = true;
     };
-  }, [rescheduleOpen, selectedDate, booking]);
+  }, [rescheduleOpen, selectedDate, booking, slotsRefreshKey]);
 
-  const rescheduleMutation = useMutation({
+  const rescheduleMutation = useMutation<RescheduleResult, Error>({
     mutationFn: async () => {
       if (!booking || !selectedDate || !selectedTime) throw new Error("Missing date/time");
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .rpc("reschedule_booking_public", {
           p_token: bookingId!,
           p_new_date: selectedDate,
           p_new_time: selectedTime,
         });
       if (updateError) throw updateError;
+
+      // Le serveur revérifie tout (délai, créneau passé, salle libre) et refuse
+      // sans lever d'erreur SQL : un refus arrive ici en data.success === false.
+      const result = (data ?? { success: false }) as unknown as RescheduleResult;
+      if (!result.success) throw new Error(result.error ?? "unknown");
+
+      // Un déplacement rouvre le staffing. La réservation qui était confirmée
+      // interroge d'abord ses praticiens ; les autres repartent au broadcast.
+      await invokeEdgeFunction("trigger-new-booking-notifications", {
+        skipAuth: true,
+        // rescheduled : le client reçoit l'e-mail « Demande de réservation »,
+        // sa réservation étant repassée en attente d'acceptation.
+        body: (result.reconfirm_therapists ?? 0) > 0
+          ? { bookingId: booking.id, reconfirmOnly: true, rescheduled: true }
+          : { bookingId: booking.id, notifyAll: true, therapistsOnly: true, rescheduled: true },
+      });
 
       await invokeEdgeFunction("send-booking-notification", {
         skipAuth: true,
@@ -259,28 +339,46 @@ const ManageBooking = () => {
           clientPhone: booking.phone ?? undefined,
         },
       });
+
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
-      toast({
-        title: "Réservation modifiée",
-        description: "Un SMS de confirmation vient d'être envoyé.",
+      toast.success(t("manageBooking.rescheduleSuccessTitle"), {
+        description: result.was_confirmed
+          ? t("manageBooking.rescheduleSuccessReconfirm")
+          : t("manageBooking.rescheduleSuccessPending"),
       });
       setRescheduleOpen(false);
       setSelectedTime("");
     },
-    onError: () => {
-      toast({
-        title: "Erreur",
-        description: "Impossible de modifier la réservation. Veuillez réessayer.",
-        variant: "destructive",
+    onError: (error) => {
+      // NO_ROOM_AVAILABLE : le créneau proposé vient d'être pris. Les
+      // disponibilités affichées sont périmées, on les recharge.
+      if (error.message === "NO_ROOM_AVAILABLE" || error.message === "past_slot") {
+        setSelectedTime("");
+        queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
+        setSlotsRefreshKey((key) => key + 1);
+        toast.error(t("manageBooking.slotTakenTitle"), {
+          description: t("manageBooking.slotTakenDescription"),
+        });
+        return;
+      }
+      if (error.message === "too_late") {
+        setRescheduleOpen(false);
+        setShowLateWarningDialog(true);
+        return;
+      }
+      toast.error(t("manageBooking.errorTitle"), {
+        description: t("manageBooking.rescheduleError"),
       });
     },
   });
 
   const openReschedule = () => {
     if (!timeInfo) return;
-    if (!timeInfo.canActFreely) {
+    if (!timeInfo.canReschedule) {
+      setLateAction("reschedule");
       setShowLateWarningDialog(true);
       return;
     }
@@ -291,190 +389,297 @@ const ManageBooking = () => {
 
   const handleCancelClick = () => {
     if (!timeInfo) return;
-    if (timeInfo.canActFreely) {
+    if (timeInfo.canCancel) {
       setShowConfirmCancelDialog(true);
     } else {
+      setLateAction("cancel");
       setShowLateWarningDialog(true);
     }
   };
 
   if (isLoading) {
     return (
-      <div className="lymfea-client min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="app-refonte min-h-screen flex items-center justify-center">
+        <Loader2 className="h-7 w-7 animate-spin" style={{ color: "var(--accent)" }} />
       </div>
     );
   }
 
   if (error || !booking) {
     return (
-      <div className="lymfea-client min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-        <img src={brandLogos.primary} alt={brand.name} className="h-12 mb-6" />
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Réservation introuvable</h2>
-            <p className="text-muted-foreground">
-              Cette réservation n'existe pas ou le lien est invalide.
+      <div className="app-refonte min-h-screen flex flex-col items-center justify-center p-6">
+        <img src={brandLogos.primary} alt={brand.name} className="h-10 mb-8" />
+        <div className="card w-full max-w-md" style={{ margin: 0 }}>
+          <div className="px-6 py-8 text-center">
+            <AlertTriangle className="h-10 w-10 mx-auto mb-4" style={{ color: "var(--clay)" }} />
+            <h2 style={{ fontFamily: "var(--serif)", fontSize: 22, marginBottom: 6 }}>
+              {t("manageBooking.notFoundTitle")}
+            </h2>
+            <p style={{ fontSize: 14, color: "var(--ink-mute)" }}>
+              {t("manageBooking.notFoundDescription")}
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
 
+  const lateCutoffHours = lateAction === "reschedule"
+    ? (timeInfo?.rescheduleCutoffHours ?? 24)
+    : (timeInfo?.cancelCutoffHours ?? 2);
   const isCancelled = booking.status === "cancelled";
   const isCompleted = booking.status === "completed";
   const hotelName = hotel?.name ?? booking.hotel_name ?? "";
   const totalPrice = Number(booking.total_price ?? 0);
-  const clientFullName = `${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim();
+  // Les clients extérieurs n'ont pas de chambre : le flux stocke "TBD" en
+  // remplissage, qu'il ne faut jamais afficher tel quel.
+  const roomNumber =
+    booking.room_number && booking.room_number !== "TBD" ? booking.room_number : null;
+  const treatments = booking.booking_treatments ?? [];
+  const coverImage = hotel?.cover_image ?? null;
+  const canAct = !isCancelled && !isCompleted && timeInfo != null && !timeInfo.isPast;
+
+  // Sur desktop la photo passe dans le panneau latéral : le héro plein cadre
+  // ferait doublon, on lui substitue l'en-tête sable.
+  const plainHeader = (
+    <>
+      <div className="hdr">
+        <img src={brandLogos.primary} alt={brand.name} className="h-6" />
+      </div>
+      <div className="fiche-head">
+        <div className="venue">{hotelName}</div>
+      </div>
+    </>
+  );
 
   return (
-    <div className="lymfea-client min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200">
-        <div className="max-w-md mx-auto h-16 sm:h-18 md:h-20 flex items-center justify-center px-4">
-          <img
-            src={brandLogos.primary}
-            alt={brand.name}
-            className="h-7"
-          />
-        </div>
-      </header>
-
-      <div className="bg-white px-4 pt-6 pb-4 text-center space-y-2">
-        <h1 className="font-serif text-2xl sm:text-3xl text-gold-600 tracking-wide leading-tight">
-          {hotelName}
-        </h1>
-        {hotel?.address && (
-          <a
-            href={mapsHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 justify-center"
-          >
-            <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-            <span className="text-xs text-gray-500 underline decoration-gray-300">
-              {addressLine}
-            </span>
-          </a>
+    <div className="app-refonte min-h-screen flex">
+      {/* La mise en page est pensée pour le mobile : sur desktop on la recentre
+          en colonne plutôt que de l'étirer, et on remplit le reste avec le
+          visuel du lieu. */}
+      <div className="flex-1 flex flex-col items-center">
+      <div className="w-full max-w-[480px] flex-1 flex flex-col">
+        {/* Héro : photo du lieu si le venue en a une, sinon en-tête sable sobre. */}
+        {coverImage ? (
+          <div className="relative lg:hidden">
+            <img
+              src={coverImage}
+              alt={hotelName}
+              className="w-full h-[230px] sm:h-[280px] object-cover"
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(42,36,25,.82) 0%, rgba(42,36,25,.28) 45%, rgba(42,36,25,.18) 100%)",
+              }}
+            />
+            <img
+              src={brandLogos.monogramWhiteClient}
+              alt={brand.name}
+              className="absolute top-5 left-5 h-6 opacity-90"
+              style={{ paddingTop: "env(safe-area-inset-top)" }}
+            />
+            <div className="absolute bottom-0 left-0 right-0 px-5 pb-5">
+              <div
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontSize: 27,
+                  lineHeight: 1.1,
+                  letterSpacing: "-.01em",
+                  color: "var(--sand-50)",
+                }}
+              >
+                {hotelName}
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {coverImage ? (
+          <div className="hidden lg:block">{plainHeader}</div>
+        ) : (
+          plainHeader
         )}
-        {hotel?.contact_phone && (
-          <div className="flex items-center gap-1.5 justify-center">
-            <Phone className="w-3 h-3 text-gray-400 shrink-0" />
-            <a
-              href={`tel:${hotel.contact_phone.replace(/\s/g, "")}`}
-              className="text-xs text-gray-500 underline decoration-gray-300"
+
+        <div className="flex-1 pb-6" style={{ paddingTop: 16 }}>
+          {(isCancelled || isCompleted || booking.status === "confirmed") && (
+            <div className="fiche-head" style={{ paddingTop: 0, paddingBottom: 12 }}>
+              <div className="statusline" style={{ marginTop: 0 }}>
+                {isCancelled && (
+                  <span className="status warn">{t("manageBooking.statusCancelled")}</span>
+                )}
+                {isCompleted && (
+                  <span className="status ok">{t("manageBooking.statusCompleted")}</span>
+                )}
+                {!isCancelled && !isCompleted && booking.status === "confirmed" && (
+                  <span className="status ok">{t("manageBooking.statusConfirmed")}</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Date / Heure / Prestations */}
+          <div className="fiche-when">
+            <div className="cell">
+              <div className="v">
+                {format(parseISO(booking.booking_date), "EEE d MMM", { locale: dateLocale })}
+              </div>
+              <div className="l">{t("manageBooking.dateLabel")}</div>
+            </div>
+            <div className="cell">
+              <div className="v">{booking.booking_time.slice(0, 5)}</div>
+              <div className="l">{t("manageBooking.timeLabel")}</div>
+            </div>
+            <div className="cell">
+              <div className="v">{treatments.length}</div>
+              <div className="l">
+                {t("manageBooking.treatmentsLabel", { count: treatments.length })}
+              </div>
+            </div>
+          </div>
+
+          {/* Soins réservés */}
+          {treatments.length > 0 && (
+            <div className="card">
+              {treatments.map((bt) => (
+                <div key={bt.id} className="soin-row">
+                  <span className="nm">{treatmentName(bt.treatment)}</span>
+                  {bt.treatment?.duration != null && (
+                    <span className="dur">{bt.treatment.duration} min</span>
+                  )}
+                  {bt.treatment?.price != null && <span className="pr">{bt.treatment.price}€</span>}
+                </div>
+              ))}
+              {totalPrice > 0 && (
+                <div className="soin-row total">
+                  <span className="nm">{t("manageBooking.total")}</span>
+                  <span className="pr">{totalPrice}€</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Contact du lieu */}
+          <div className="info-list" style={{ marginTop: 12 }}>
+            {roomNumber && (
+              <div className="info-row">
+                <span className="ic">
+                  <DoorOpen size={18} />
+                </span>
+                <span className="lab">{t("manageBooking.roomLabel")}</span>
+                <span className="val">{roomNumber}</span>
+              </div>
+            )}
+            {hotel?.contact_phone && (
+              <a className="info-row" href={`tel:${hotel.contact_phone.replace(/\s/g, "")}`}>
+                <span className="ic">
+                  <Phone size={18} />
+                </span>
+                <span className="lab">{t("manageBooking.venuePhoneLabel")}</span>
+                <span className="val" style={{ color: "var(--accent)" }}>
+                  {hotel.contact_phone}
+                </span>
+                <ChevronRight size={16} style={{ color: "var(--ink-mute)", flexShrink: 0 }} />
+              </a>
+            )}
+            {addressLine && (
+              <a className="info-row" href={mapsHref} target="_blank" rel="noopener noreferrer">
+                <span className="ic">
+                  <MapPin size={18} />
+                </span>
+                <span className="lab">{t("manageBooking.addressLabel")}</span>
+                <span className="val" style={{ color: "var(--accent)" }}>
+                  {addressLine}
+                  <small style={{ color: "var(--accent)" }}>
+                    {t("manageBooking.openDirections")}
+                  </small>
+                </span>
+                <ChevronRight size={16} style={{ color: "var(--ink-mute)", flexShrink: 0 }} />
+              </a>
+            )}
+          </div>
+
+          {/* Carte interactive : zoom et déplacement dans la page (à deux doigts sur
+              mobile, pour ne pas capturer le scroll). L'itinéraire reste accessible
+              par la ligne Adresse au-dessus. */}
+          {mapsEmbedSrc && (
+            <div
+              style={{
+                margin: "12px 16px 0",
+                borderRadius: 16,
+                overflow: "hidden",
+                border: "1px solid var(--line-soft)",
+              }}
             >
-              {hotel.contact_phone}
-            </a>
+              <iframe
+                src={mapsEmbedSrc}
+                title={t("manageBooking.mapTitle", { venue: hotelName })}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                style={{ display: "block", width: "100%", height: 200, border: 0 }}
+              />
+            </div>
+          )}
+
+          {timeInfo?.isPast && !isCancelled && !isCompleted && (
+            <p
+              className="text-center"
+              style={{ fontSize: 13, color: "var(--ink-mute)", margin: "20px 24px 0" }}
+            >
+              {t("manageBooking.pastBooking")}
+            </p>
+          )}
+        </div>
+
+        {canAct && (
+          <div className="fiche-foot sticky bottom-0">
+            <button className="btn-primary-lg" onClick={openReschedule}>
+              <Pencil size={16} style={{ display: "inline", marginRight: 8, verticalAlign: -2 }} />
+              {t("manageBooking.rescheduleCta")}
+            </button>
+            <button className="btn-ghost" onClick={handleCancelClick}>
+              {t("manageBooking.cancelCta")}
+            </button>
           </div>
         )}
       </div>
+      </div>
 
-      <main className="max-w-md mx-auto p-4 space-y-4">
-        {isCancelled && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-            <span className="text-sm font-medium text-destructive">Annulée</span>
-          </div>
-        )}
-
-        {isCompleted && (
-          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span className="text-sm font-medium text-green-600">Terminée</span>
-          </div>
-        )}
-
-        <Card className="bg-white border-gray-100 shadow-sm">
-          <CardContent className="p-5 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gold-600">
-                <CalendarIcon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-base font-medium text-gray-900">
-                  {format(parseISO(booking.booking_date), "EEEE d MMMM", { locale: fr })}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {booking.booking_time.slice(0, 5)}
-                  {booking.room_number ? ` · Ch. ${booking.room_number}` : ""}
-                </p>
-              </div>
-            </div>
-
-            <div className="border-t border-gray-100 pt-4 space-y-2">
-              {(booking.booking_treatments ?? []).map((bt) => (
-                <div key={bt.id} className="flex justify-between text-sm">
-                  <span className="text-gray-700 font-light">{bt.treatment?.name ?? "—"}</span>
-                  {bt.treatment?.price != null && (
-                    <span className="text-gray-900 font-medium">{bt.treatment.price}€</span>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {totalPrice > 0 && (
-              <div className="border-t border-gray-100 pt-4 flex justify-between items-center">
-                <span className="text-gray-900 font-medium">Total</span>
-                <span className="text-lg font-semibold text-gray-900">{totalPrice}€</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {clientFullName && (
-          <div className="text-xs text-gray-500 text-center">
-            {clientFullName}
-            {booking.phone && (
-              <>
-                <span className="mx-2">·</span>
-                <span>{booking.phone}</span>
-              </>
-            )}
-          </div>
-        )}
-
-        {!isCancelled && !isCompleted && timeInfo && !timeInfo.isPast && (
-          <div className="grid grid-cols-2 gap-2 pt-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-9 text-gray-400 hover:text-destructive hover:bg-transparent"
-              onClick={handleCancelClick}
-            >
-              Annuler
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 border-gold-400 text-gray-900 hover:bg-gold-50"
-              onClick={openReschedule}
-            >
-              <Pencil className="w-3.5 h-3.5 mr-1.5" />
-              Modifier
-            </Button>
-          </div>
-        )}
-
-        {timeInfo?.isPast && !isCancelled && !isCompleted && (
-          <p className="text-xs text-center text-gray-500">
-            Rendez-vous passé, aucune action possible.
-          </p>
-        )}
-      </main>
+      {/* Visuel latéral, desktop seulement : la photo du lieu, à défaut l'image
+          d'ambiance du flux de réservation. */}
+      <aside className="hidden lg:block w-1/3 max-w-[560px] shrink-0">
+        <img
+          src={coverImage ?? ambienceImage}
+          alt=""
+          aria-hidden="true"
+          className="sticky top-0 h-screen w-full object-cover"
+        />
+      </aside>
 
       <Drawer open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
-        <DrawerContent className="max-h-[92vh]">
-          <DrawerHeader>
-            <DrawerTitle className="text-center">Choisir un nouveau créneau</DrawerTitle>
+        <DrawerContent className="app-refonte max-h-[92vh] sm:max-w-[480px] sm:mx-auto">
+          <DrawerHeader className="relative">
+            <DrawerTitle
+              className="text-center"
+              style={{ fontFamily: "var(--serif)", fontWeight: 400, fontSize: 22 }}
+            >
+              {t("manageBooking.drawerTitle")}
+            </DrawerTitle>
+            <button
+              type="button"
+              className="back-btn absolute right-4 top-3"
+              onClick={() => setRescheduleOpen(false)}
+              aria-label={t("manageBooking.close")}
+            >
+              <X size={18} />
+            </button>
           </DrawerHeader>
 
           <div className="px-4 pb-2 overflow-y-auto">
             <div className="flex justify-center">
               <Calendar
                 mode="single"
-                locale={fr}
+                locale={dateLocale}
                 selected={selectedDate ? parseISO(selectedDate) : undefined}
                 onSelect={(date) => {
                   if (!date) return;
@@ -491,16 +696,16 @@ const ManageBooking = () => {
 
             <div className="mt-4">
               {!selectedDate ? (
-                <p className="text-center text-sm text-gray-500 py-6">
-                  Sélectionnez une date pour voir les créneaux disponibles.
+                <p className="text-center py-6" style={{ fontSize: 14, color: "var(--ink-mute)" }}>
+                  {t("manageBooking.pickDate")}
                 </p>
               ) : loadingSlots ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-5 h-5 animate-spin text-gold-500" />
+                  <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--accent)" }} />
                 </div>
               ) : availableSlots.length === 0 ? (
-                <p className="text-center text-sm text-gray-500 py-6">
-                  Aucune disponibilité à cette date. Choisissez-en une autre.
+                <p className="text-center py-6" style={{ fontSize: 14, color: "var(--ink-mute)" }}>
+                  {t("manageBooking.noSlots")}
                 </p>
               ) : (
                 <TimePeriodSelector
@@ -514,17 +719,37 @@ const ManageBooking = () => {
           </div>
 
           <DrawerFooter>
-            <Button
-              className="h-12"
+            {/* reschedule_booking_public repasse toute réservation déplacée en
+                'pending' : une réservation confirmée perd sa confirmation le
+                temps que ses praticiens valident le nouveau créneau. Le dire
+                avant la validation, pas seulement dans le toast qui suit. */}
+            {booking.status === "confirmed" && (
+              <div
+                className="flex items-start gap-2"
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 14,
+                  background: "var(--gold-soft)",
+                  color: "var(--gold-deep)",
+                  fontSize: 12.5,
+                  lineHeight: 1.45,
+                }}
+              >
+                <Info size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>{t("manageBooking.reconfirmNotice")}</span>
+              </div>
+            )}
+            <button
+              className="btn-primary-lg disabled:opacity-40 disabled:shadow-none"
               disabled={!selectedDate || !selectedTime || rescheduleMutation.isPending}
               onClick={() => rescheduleMutation.mutate()}
             >
               {rescheduleMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
               ) : (
-                "Confirmer le nouveau créneau"
+                t("manageBooking.confirmSlotCta")
               )}
-            </Button>
+            </button>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
@@ -562,34 +787,57 @@ const ManageBooking = () => {
       )}
 
       <AlertDialog open={showLateWarningDialog} onOpenChange={setShowLateWarningDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+        <AlertDialogContent
+          className="app-refonte max-w-[340px] rounded-3xl border-0 p-6"
+          // Voile clair + flou, comme les dialogues de l'espace admin ; le
+          // bg-black/80 par défaut d'AlertDialog écrasait la page.
+          overlayClassName="bg-black/40 backdrop-blur-sm"
+          style={{ background: "var(--sand-50)" }}
+        >
+          <AlertDialogHeader className="space-y-3">
+            <div
+              className="mx-auto flex h-12 w-12 items-center justify-center rounded-full"
+              style={{ background: "var(--gold-soft)", color: "var(--gold-deep)" }}
+            >
               <AlertTriangle className="h-5 w-5" />
-              Action impossible en ligne
+            </div>
+            <AlertDialogTitle
+              className="text-center"
+              style={{
+                fontFamily: "var(--serif)",
+                fontWeight: 400,
+                fontSize: 20,
+                lineHeight: 1.2,
+              }}
+            >
+              {lateAction === "reschedule"
+                ? t("manageBooking.tooLateTitleReschedule")
+                : t("manageBooking.tooLateTitleCancel")}
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>
-                Il est trop tard pour modifier ou annuler en ligne (moins de{" "}
-                {timeInfo?.cutoffHours ?? 2} heure
-                {(timeInfo?.cutoffHours ?? 2) > 1 ? "s" : ""} avant le soin).
-              </p>
-              <p>Veuillez contacter directement la conciergerie de l'hôtel.</p>
-              {hotel?.contact_phone && (
-                <div className="bg-muted rounded-lg p-3 flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-primary" />
-                  <a
-                    href={`tel:${hotel.contact_phone.replace(/\s/g, "")}`}
-                    className="font-medium"
-                  >
-                    {hotel.contact_phone}
-                  </a>
-                </div>
-              )}
+            <AlertDialogDescription
+              className="text-center"
+              style={{ fontSize: 13.5, lineHeight: 1.5, color: "var(--ink-soft)" }}
+            >
+              {lateAction === "reschedule"
+                ? t("manageBooking.tooLateBodyReschedule", { hours: lateCutoffHours })
+                : t("manageBooking.tooLateBodyCancel", { hours: lateCutoffHours })}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Fermer</AlertDialogCancel>
+          <AlertDialogFooter className="mt-5 flex-col gap-2 sm:flex-col sm:space-x-0">
+            {/* Appeler est la seule issue : c'est l'action principale quand le
+                lieu a un numéro. Sans numéro, il ne reste qu'à fermer. */}
+            {hotel?.contact_phone && (
+              <a
+                className="btn-primary-lg flex items-center justify-center gap-2"
+                href={`tel:${hotel.contact_phone.replace(/\s/g, "")}`}
+              >
+                <Phone size={16} />
+                {t("manageBooking.callVenue")}
+              </a>
+            )}
+            <AlertDialogCancel className="btn-cancel mt-0">
+              {t("manageBooking.close")}
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

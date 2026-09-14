@@ -1,9 +1,5 @@
 export type CancelLang = "fr" | "en";
 
-export function resolveCancelLang(language?: string | null): CancelLang {
-  return language?.toLowerCase().startsWith("en") ? "en" : "fr";
-}
-
 type Messages = {
   emailSubject: (date: string) => string;
   emailHeader: string;

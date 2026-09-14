@@ -9,6 +9,8 @@
 // (e.g. "payment.declined", "booking.creation_failed"). Free-form context goes
 // in the second arg.
 
+import { APP_RELEASE } from '@/lib/appVersion';
+
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogEntry {
@@ -16,6 +18,7 @@ interface LogEntry {
   level: LogLevel;
   message: string;
   env: string;
+  release: string;
   context: Record<string, unknown>;
   error?: { name: string; message: string; stack?: string };
 }
@@ -77,6 +80,8 @@ function enqueue(
     level,
     message,
     env: ENV,
+    // Rend chaque log attribuable à un déploiement précis.
+    release: APP_RELEASE,
     context: { ...baseContext(), ...(context ?? {}) },
   };
   if (error !== undefined) entry.error = serializeError(error);

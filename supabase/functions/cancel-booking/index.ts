@@ -6,7 +6,8 @@ import {
   assertCallerCanCancelBooking,
   needsStripeSettlement,
 } from "./permissions.ts";
-import { getCancelMessages, resolveCancelLang } from "./i18n.ts";
+import { type CancelLang, getCancelMessages } from "./i18n.ts";
+import { resolveClientLanguage } from "../_shared/client-language.ts";
 import {
   reconcileStripeSettlementAfterError,
   runStripeSettlement,
@@ -130,7 +131,7 @@ function resolveClientTierAmounts(
   booking: Record<string, unknown>,
   hotel: HotelCancelConfig | null,
   depositAmount: number,
-  lang: ReturnType<typeof resolveCancelLang>,
+  lang: CancelLang,
 ): { feeApplied: number; refundAmount: number } | { error: string } {
   const hoursUntil = hoursUntilBooking(
     String(booking.booking_date ?? ""),
@@ -438,7 +439,18 @@ serve(async (req) => {
     const isChargedToRoom = booking.payment_status === "charged_to_room";
     let needsStripe = needsStripeSettlement(booking);
     const skipStripe = isNonStripePaymentMethod(booking.payment_method) || isChargedToRoom;
-    const lang = resolveCancelLang(booking.language);
+    // La fiche customer fait foi sur la langue ; booking.language n'est qu'un
+    // repli (voir _shared/client-language.ts).
+    let customerLanguage: string | null = null;
+    if (booking.customer_id) {
+      const { data: customerRow } = await supabase
+        .from("customers")
+        .select("language")
+        .eq("id", booking.customer_id)
+        .maybeSingle();
+      customerLanguage = (customerRow as { language?: string | null } | null)?.language ?? null;
+    }
+    const lang = resolveClientLanguage(customerLanguage, booking.language as string | null);
 
     if (isPublicTokenRequest && isInsideClientCancellationCutoff(booking, hotel)) {
       return jsonResponse({
@@ -817,6 +829,7 @@ serve(async (req) => {
         isPartnerBilled,
         isChargedToRoom,
         resolvedBookingId: targetBookingId,
+        clientLanguage: lang,
       });
     }
 

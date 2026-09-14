@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { getBookingById } from "@shared/db";
 import type { BookingWithTreatments } from "./useBookingData";
 
 interface UseBookingSelectionOptions {
@@ -22,20 +24,30 @@ export function useBookingSelection({ bookings, onOpenEdit }: UseBookingSelectio
     }
   }, [bookings, selectedBooking]);
 
-  // Open booking from URL parameter (from email link)
+  // Open booking from URL parameter (from email link). La réservation visée
+  // n'est pas forcément dans les lots déjà chargés : on la lit par son id
+  // plutôt que de la chercher dans la liste.
   useEffect(() => {
-    if (hasOpenedFromUrl || !bookings) return;
+    if (hasOpenedFromUrl) return;
 
     const bookingIdFromUrl = searchParams.get('bookingId');
-    if (bookingIdFromUrl) {
-      const booking = bookings.find(b => b.id === bookingIdFromUrl);
-      if (booking) {
-        setSelectedBooking(booking);
-        onOpenEdit?.();
-        setHasOpenedFromUrl(true);
-        setSearchParams({}, { replace: true });
-      }
-    }
+    if (!bookingIdFromUrl) return;
+
+    setHasOpenedFromUrl(true);
+    let cancelled = false;
+    (async () => {
+      const booking =
+        bookings?.find((b) => b.id === bookingIdFromUrl) ??
+        (await getBookingById(supabase, bookingIdFromUrl));
+      if (cancelled || !booking) return;
+      setSelectedBooking(booking);
+      onOpenEdit?.();
+      setSearchParams({}, { replace: true });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [bookings, searchParams, hasOpenedFromUrl, setSearchParams, onOpenEdit]);
 
   const clearSelection = () => {

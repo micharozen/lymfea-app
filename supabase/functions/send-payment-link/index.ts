@@ -379,6 +379,10 @@ serve(async (req: Request) => {
           booking_id: bookingId,
           payment_link_stripe_id: stripePaymentLinkId,
           payment_link_expires_at: expiresAt.toISOString(),
+          // Un nouveau lien remplace un lien éventuellement désactivé à la main :
+          // sans ce reset, la fiche resterait sur « Désactivé le … » et l'équipe
+          // ne pourrait plus couper le nouveau lien.
+          payment_link_cancelled_at: null,
         }, { onConflict: 'booking_id' });
 
       if (paymentInfosError) {
@@ -513,10 +517,13 @@ serve(async (req: Request) => {
    // --- NOUVEAU BLOC : SAUVEGARDE DE L'EXPIRATION ---
     const { error: paymentInfosError } = await supabase
       .from('booking_payment_infos')
-      .upsert({ 
+      .upsert({
         booking_id: bookingId,
         payment_link_stripe_id: stripePaymentLinkId,
         payment_link_expires_at: expiresAt.toISOString(),
+        // Voir le mode 'generate' plus haut : un nouveau lien annule la
+        // désactivation manuelle du précédent.
+        payment_link_cancelled_at: null,
       }, { onConflict: 'booking_id' });
 
     if (paymentInfosError) {

@@ -9,6 +9,8 @@ interface PreviewTreatment {
 }
 
 export interface BookingPreviewData {
+  /** Numéro de réservation affiché sur l'agenda et la fiche (`bookings.booking_id`). */
+  booking_id?: number | null;
   booking_time: string;
   client_first_name?: string;
   client_last_name?: string;
@@ -80,6 +82,11 @@ export function BookingPreviewPopover({ booking, onClose }: BookingPreviewPopove
           <span className="flex items-center gap-1.5 text-sm font-bold text-foreground">
             <Clock className="h-4 w-4 text-muted-foreground" />
             {booking.booking_time?.substring(0, 5)} – {endTime}
+            {booking.booking_id && (
+              <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                #{booking.booking_id}
+              </span>
+            )}
           </span>
           <span className="flex items-center gap-1">
             {(booking.guest_count ?? 1) > 1 && (

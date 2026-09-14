@@ -87,7 +87,7 @@ export default function ClientBasket() {
                   {item.name}
                 </h3>
                 <p className="text-xs text-muted-foreground mb-1">
-                  {item.category} • {item.duration} min
+                  {item.category}{!item.isBundle && ` • ${item.duration} min`}
                 </p>
                 <p className="font-semibold text-foreground">
                   {formatPrice(item.price * item.quantity, item.currency || 'EUR')}

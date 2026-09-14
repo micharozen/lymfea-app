@@ -173,7 +173,7 @@ bookings (n) ←→ (0-1) trunks [salle assignée]
 | `has_role(role, user_id)` | Vérifie si un user a un rôle |
 | `get_public_hotels()` | Liste publique des lieux |
 | `get_public_hotel_by_id(hotel_id)` | Détails lieu avec schedule et venue_type |
-| `get_public_treatments(hotel_id)` | Soins disponibles pour un lieu |
+| `get_public_treatments(hotel_id, include_internal)` | Soins disponibles pour un lieu. `include_internal = true` (surfaces internes authentifiées uniquement) ajoute les soins `bookable_online = false` |
 | `get_public_hairdressers(hotel_id)` | Thérapeutes publics (nom, image, skills) |
 | `accept_booking(booking_id, hairdresser_id, name, price)` | Thérapeute accepte un RDV |
 | `unassign_booking(booking_id, hairdresser_id)` | Thérapeute refuse/désassigné |

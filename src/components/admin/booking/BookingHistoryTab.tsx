@@ -146,6 +146,15 @@ function renderActionLabel(entry: BookingAuditEntry): string | null {
       : i18n.t("admin:bookingHistory.actions.paymentLinkSent");
   }
 
+  if (action === "payment_link_cancelled") {
+    const method = typeof newVals.payment_method === "string" ? newVals.payment_method : null;
+    return method
+      ? i18n.t("admin:bookingHistory.actions.paymentLinkCancelledWithMethod", {
+          method: translateValue("paymentMethodLabels", method),
+        })
+      : i18n.t("admin:bookingHistory.actions.paymentLinkCancelled");
+  }
+
   return action ? i18n.t("admin:bookingHistory.actions.generic", { action }) : null;
 }
 
@@ -208,11 +217,18 @@ export function BookingHistoryTab({ bookingId, enabled }: BookingHistoryTabProps
                     {/* {format(dateObj)} */}
                     {/* {formatDistanceToNow(dateObj, { addSuffix: true, locale: fr })} */}
                   </span>
-                  {entry.changed_by_name && (
+                  {/* Un déplacement depuis le lien public n'a pas d'auteur à
+                      nommer : le client n'est pas un utilisateur. La ligne
+                      d'audit porte alors son origine (source = 'client'). */}
+                  {entry.changed_by_name ? (
                     <span className="text-xs font-medium text-gray-500">
                       {t('bookingHistory.by', { name: entry.changed_by_name })}
                     </span>
-                  )}
+                  ) : entry.source === 'client' ? (
+                    <span className="text-xs font-medium text-gray-500">
+                      {t('bookingHistory.byClient')}
+                    </span>
+                  ) : null}
                 </div>
 
                 {isInsert(entry) ? (

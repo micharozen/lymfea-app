@@ -1,4 +1,4 @@
-import { useEffect, useState, Fragment } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +6,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, Loader2, RefreshCw, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import i18n from "@/i18n";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -15,9 +15,27 @@ import { useIsMounted } from "@/hooks/useIsMounted";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
 import { fetchTherapistUnavailableDates } from "@/hooks/pwa/useScheduleCompleteness";
-import { useTherapistOrganizationName } from "@/hooks/pwa/useTherapistOrganizationName";
+import { useTherapistOrganizationBrand, ORG_LOGO_FALLBACK } from "@/hooks/pwa/useTherapistOrganizationBrand";
 import { useRefetchOnFocus } from "@/hooks/pwa/useRefetchOnFocus";
-import { myLegDuration, bookingSlotDuration, estimateTherapistShare } from "@/lib/therapistLegDuration";
+import {
+  myLegDuration,
+  myLegTreatments,
+  bookingSlotDuration,
+  estimateTherapistShare,
+  displayLegTreatments,
+  scheduleTreatments,
+} from "@/lib/therapistLegDuration";
+import { toScheduledLines } from "@/lib/pwaScheduledLines";
+import { useCurrentTherapist } from "@/hooks/pwa/useCurrentTherapist";
+import { useTherapistVenues } from "@/hooks/pwa/useTherapistVenues";
+import {
+  useMyBookingsWindow,
+  useMyNextBookings,
+  usePendingBookingsWindow,
+  type PwaBooking,
+} from "@/hooks/pwa/usePwaBookings";
+import { pwaBookingKeys } from "@/hooks/pwa/pwaBookingKeys";
+import { dashboardWindow, historyWindow } from "@/lib/pwaBookingWindow";
 
 interface Therapist {
   id: string;
@@ -50,11 +68,14 @@ interface Booking {
   payment_method?: string | null;
   booking_treatments?: Array<{
     therapist_id?: string | null;
+    treatment_id?: string | null;
     is_addon?: boolean | null;
     treatment_menus: {
       name: string;
       price: number;
       duration: number;
+      /** Non nul = commodité : elle ne mobilise aucun praticien. */
+      amenity_id?: string | null;
     } | null;
   }>;
   hotels?: { image: string | null; currency: string | null } | { image: string | null; currency: string | null }[] | null;
@@ -109,17 +130,75 @@ const PaymentStatus = ({ status }: { status: PaymentDesignStatus | null }) =>
     </span>
   ) : null;
 
-const treatmentsLabel = (b: { booking_treatments?: Array<{ treatment_menus: { name: string } | null }> }) =>
-  b.booking_treatments?.map((bt) => bt.treatment_menus?.name).filter(Boolean).join(', ') || '';
+/**
+ * Libellé des soins d'une réservation. Sur un duo, chaque thérapeute a son
+ * propre leg (booking_treatments.therapist_id) : on n'affiche que le sien,
+ * sinon la carte répète le même soin autant de fois qu'il y a de participants.
+ * Sans leg qui m'est assigné (demande ouverte, réservation non répartie), on
+ * retombe sur la liste complète.
+ */
+const treatmentsLabel = (
+  b: {
+    booking_treatments?: Array<{
+      therapist_id?: string | null;
+      treatment_menus: { name: string } | null;
+    }>;
+  },
+  therapistId?: string | null,
+) => {
+  const all = b.booking_treatments ?? [];
+  const mine = therapistId ? all.filter((bt) => bt.therapist_id === therapistId) : [];
+  return (mine.length > 0 ? mine : all)
+    .map((bt) => bt.treatment_menus?.name)
+    .filter(Boolean)
+    .join(', ');
+};
 
 const acceptedCount = (b: { booking_therapists?: { status: string }[] }) =>
   b.booking_therapists?.filter((bt) => bt.status === 'accepted').length || 0;
 
+const EMPTY_PRIORITIES: Record<string, number> = {};
+
+/**
+ * Nombre minimum de réservations que l'onglet « À venir » doit montrer, quitte
+ * à aller chercher au-delà de la fenêtre J+30 du tableau de bord.
+ */
+const MIN_UPCOMING = 3;
+
+/**
+ * Une réservation appartient-elle à l'onglet « À venir » de ce thérapeute ?
+ *
+ * Extrait du filtre de la page pour que le filet « au moins MIN_UPCOMING »
+ * compte exactement ce que l'onglet affiche, et pas une approximation.
+ */
+const isUpcomingForTherapist = (
+  b: Pick<Booking, "booking_date" | "status" | "therapist_id" | "guest_count" | "booking_therapists">,
+  therapistId: string | null | undefined,
+  todayKey: string,
+): boolean => {
+  if (!therapistId) return false;
+
+  const acceptedByMe = !!b.booking_therapists?.some(
+    (bt) => bt.therapist_id === therapistId && bt.status === "accepted",
+  );
+  if (b.therapist_id !== therapistId && !acceptedByMe) return false;
+
+  // Les demandes en attente vivent dans la section « demandes », pas ici.
+  // Exception : une réservation que CE thérapeute a déjà acceptée reste 'pending'
+  // tant que l'équipe n'est pas complète — duo, ou booking simple dont une autre
+  // prestation attend encore un confrère (issue #547). Elle est justement exclue
+  // de la section demandes : sans ça, elle ne serait visible que sur le planning.
+  const acceptedStillPending = b.status === "pending" && acceptedByMe;
+
+  return (
+    (b.status !== "pending" || acceptedStillPending) &&
+    b.status !== "completed" &&
+    b.booking_date >= todayKey
+  );
+};
+
 const PwaDashboard = () => {
   const { t } = useTranslation('pwa');
-  const [therapist, setTherapist] = useState<Therapist | null>(null);
-  const [allBookings, setAllBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -128,15 +207,113 @@ const PwaDashboard = () => {
   const [processing, setProcessing] = useState<{ id: string; action: "accept" | "decline" } | null>(null);
   const processingBookingId = processing?.id ?? null;
   const [unavailableDates, setUnavailableDates] = useState<Set<string>>(new Set());
-  // Mon groupe de priorité sur chaque lieu (therapist_venues.priority). Sert à
-  // masquer les demandes dont la vague de broadcast n'est pas encore arrivée
-  // jusqu'à moi : le push est filtré côté serveur, cette liste doit l'être aussi.
-  const [priorityByHotel, setPriorityByHotel] = useState<Record<string, number>>({});
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const isMountedRef = useIsMounted();
-  const orgName = useTherapistOrganizationName(therapist?.id);
+
+  const { data: me, isPending: identityPending } = useCurrentTherapist();
+  const therapist = me?.therapist ?? null;
+  const { name: orgName, logoUrl: orgLogoUrl } = useTherapistOrganizationBrand(therapist?.id);
+  // Un logo d'organisation cassé ne doit pas laisser un trou dans l'en-tête :
+  // on mémorise l'URL fautive pour retomber sur le logo de la plateforme.
+  const [brokenLogoUrl, setBrokenLogoUrl] = useState<string | null>(null);
+  const headerLogoSrc = orgLogoUrl === brokenLogoUrl ? ORG_LOGO_FALLBACK : orgLogoUrl;
+
+  // Mon groupe de priorité sur chaque lieu (therapist_venues.priority). Sert à
+  // masquer les demandes dont la vague de broadcast n'est pas encore arrivée
+  // jusqu'à moi : le push est filtré côté serveur, cette liste doit l'être aussi.
+  const { data: venues } = useTherapistVenues(therapist?.id);
+  const priorityByHotel = venues?.priorityByHotel ?? EMPTY_PRIORITIES;
+
+  // La fenêtre est mémoïsée sur la date du jour, pas sur `new Date()` : sinon
+  // la clé de requête changerait à chaque rendu. `dayKey` est rafraîchi au
+  // retour au premier plan, sans quoi une app laissée ouverte la nuit garderait
+  // la fenêtre de la veille.
+  const [dayKey, setDayKey] = useState(() => format(new Date(), "yyyy-MM-dd"));
+  const window_ = useMemo(() => dashboardWindow(new Date(`${dayKey}T00:00:00`)), [dayKey]);
+  const historyWindow_ = useMemo(() => historyWindow(new Date(`${dayKey}T00:00:00`)), [dayKey]);
+
+  const mine = useMyBookingsWindow(therapist?.id, window_);
+  const pending = usePendingBookingsWindow(therapist?.id, venues?.hotelIds, window_);
+  // L'onglet Historique a sa propre fenêtre : la fenêtre J-7 du tableau de bord
+  // le tronquerait à une semaine.
+  const history = useMyBookingsWindow(therapist?.id, historyWindow_, {
+    enabled: activeTab === "history",
+  });
+
+  // Combien de rendez-vous à venir la fenêtre J+30 ramène-t-elle réellement ?
+  const upcomingInWindow = useMemo(
+    () =>
+      (mine.data ?? []).filter((b) =>
+        isUpcomingForTherapist(b as unknown as Booking, therapist?.id, dayKey),
+      ).length,
+    [mine.data, therapist?.id, dayKey],
+  );
+
+  // Filet de sécurité : un thérapeute dont le prochain rendez-vous est dans deux
+  // mois tombe hors de la fenêtre J+30 et voyait un onglet « À venir » vide.
+  // La requête ne part que dans ce cas et ne ramène que MIN_UPCOMING lignes.
+  const nextBeyondWindow = useMyNextBookings(therapist?.id, window_.to, MIN_UPCOMING, {
+    enabled: activeTab === "upcoming" && !mine.isPending && upcomingInWindow < MIN_UPCOMING,
+  });
+
+  const loading = identityPending || mine.isPending;
+
+  /**
+   * Vue unifiée consommée par la page. L'enrichissement (image/devise du lieu,
+   * créneaux proposés) se fait ici et n'est jamais réécrit dans le cache : une
+   * seule requête écrit chaque clé, ce qui rend impossible le désaccord de
+   * forme qui faisait afficher au tableau de bord des réservations annulées.
+   */
+  const allBookings: Booking[] = useMemo(() => {
+    const settings = venues?.settingsByHotel;
+    const slots = pending.data?.slotsByBooking;
+
+    const rows: PwaBooking[] = [
+      ...(mine.data ?? []),
+      ...(pending.data?.bookings ?? []),
+      ...(activeTab === "history" ? history.data ?? [] : []),
+      ...(activeTab === "upcoming" ? nextBeyondWindow.data ?? [] : []),
+    ];
+
+    const unique = Array.from(new Map(rows.map((b) => [b.id, b])).values());
+
+    return unique
+      .map((b) => ({
+        ...b,
+        hotels: settings?.get(b.hotel_id) ?? { image: null, currency: null },
+        proposed_slots: slots?.get(b.id) ?? null,
+      }))
+      .sort((a, b) => {
+        const byDate = a.booking_date.localeCompare(b.booking_date);
+        return byDate !== 0 ? byDate : a.booking_time.localeCompare(b.booking_time);
+      }) as unknown as Booking[];
+  }, [mine.data, pending.data, history.data, nextBeyondWindow.data, venues?.settingsByHotel, activeTab]);
+
+  const refreshBookings = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: pwaBookingKeys.all }),
+    [queryClient],
+  );
+
+  // Lu par l'écouteur realtime sans le faire dépendre des données : sinon le
+  // canal serait détruit et recréé à chaque rafraîchissement.
+  const bookingsRef = useRef(allBookings);
+  bookingsRef.current = allBookings;
+
+  useEffect(() => {
+    if (!me) return;
+    if (!me.userId) {
+      navigate("/pwa/login");
+      return;
+    }
+    // Ciblage des notifications push.
+    setOneSignalExternalUserId(me.userId);
+    if (!me.therapist) {
+      toast.error(t('dashboard.profileNotFound'));
+      void supabase.auth.signOut().then(() => navigate("/pwa/login"));
+    }
+  }, [me, navigate, t]);
 
   useEffect(() => {
     if (!therapist) return;
@@ -155,55 +332,24 @@ const PwaDashboard = () => {
     );
   }, [therapist, allBookings]);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
   // Le message de bienvenue disparaît après 30 secondes.
   useEffect(() => {
     const timer = setTimeout(() => setShowGreeting(false), 30000);
     return () => clearTimeout(timer);
   }, []);
 
-  // Single useEffect to handle initial load - use cache first
+  // Retour depuis le détail d'une réservation après une action (accepter,
+  // désassigner...). Les clés étant préfixées, une seule invalidation rafraîchit
+  // aussi le planning — ce que l'ancien removeQueries ne faisait pas.
   useEffect(() => {
-    if (!therapist) return;
+    if (!location.state?.forceRefresh) return;
+    void refreshBookings();
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state?.forceRefresh, location.pathname, navigate, refreshBookings]);
 
-    // Check if we need to force refresh (e.g., after unassigning a booking)
-    const shouldForceRefresh = location.state?.forceRefresh;
-
-    if (shouldForceRefresh) {
-      queryClient.removeQueries({ queryKey: ["myBookings", therapist.id] });
-      queryClient.removeQueries({ queryKey: ["pendingBookings", therapist.id] });
-      // Clear navigation state
-      navigate(location.pathname, { replace: true, state: {} });
-      fetchAllBookings(therapist.id);
-      return;
-    }
-
-    // Check for cached bookings first - show immediately if available
-    const cachedMyBookings = queryClient.getQueryData<any[]>(["myBookings", therapist.id]);
-    const cachedPendingBookings = queryClient.getQueryData<any[]>(["pendingBookings", therapist.id]);
-
-    if (cachedMyBookings || cachedPendingBookings) {
-      const allData = [...(cachedMyBookings || []), ...(cachedPendingBookings || [])];
-      const uniqueData = Array.from(new Map(allData.map((b: any) => [b.id, b])).values());
-      const sortedData = uniqueData.sort((a: any, b: any) => {
-        const dateCompare = a.booking_date.localeCompare(b.booking_date);
-        if (dateCompare !== 0) return dateCompare;
-        return a.booking_time.localeCompare(b.booking_time);
-      });
-      if (isMountedRef.current) {
-        setAllBookings(sortedData);
-        setLoading(false);
-      }
-    }
-
-    // Always fetch fresh data in background
-    fetchAllBookings(therapist.id);
-  }, [therapist, location.state?.forceRefresh]);
-
-  // Realtime listener for bookings
+  // Realtime listener for bookings.
+  // NB : la table `bookings` n'est pas dans la publication supabase_realtime,
+  // ces écouteurs sont donc inertes en production. Conservés pour parité.
   useEffect(() => {
     if (!therapist) return;
 
@@ -213,95 +359,49 @@ const PwaDashboard = () => {
       .channel('bookings-updates')
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'bookings'
-        },
+        { event: 'UPDATE', schema: 'public', table: 'bookings' },
         (payload) => {
           if (cancelled || !isMountedRef.current) return;
 
-          const newData = payload.new as any;
-          const oldData = payload.old as any;
-          
-          setAllBookings(prev => {
-            const idx = prev.findIndex(b => b.id === newData.id);
+          const newData = payload.new as { id: string; booking_id: number; therapist_id: string | null; guest_count?: number };
+          const oldData = payload.old as { therapist_id: string | null };
 
-            // Solo pending taken by another therapist → toast.
-            // Duos (guest_count > 1) stay visible to other therapists, so skip them.
-            if (idx !== -1 &&
-                oldData.therapist_id === null &&
-                newData.therapist_id !== null &&
-                newData.therapist_id !== therapist.id &&
-                !(newData.guest_count > 1)) {
-              const isSecondary = prev[idx].booking_therapists?.some(
-                (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
-              );
-              if (!isSecondary && isMountedRef.current) {
-                toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
-              }
+          // Solo pending taken by another therapist → toast.
+          // Duos (guest_count > 1) stay visible to other therapists, so skip them.
+          if (oldData.therapist_id === null &&
+              newData.therapist_id !== null &&
+              newData.therapist_id !== therapist.id &&
+              !(newData.guest_count && newData.guest_count > 1)) {
+            const known = bookingsRef.current.find((b) => b.id === newData.id);
+            const isSecondary = known?.booking_therapists?.some(
+              (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
+            );
+            if (known && !isSecondary) {
+              toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
             }
-
-            // Booking not in our list → ignore
-            if (idx === -1) return prev;
-
-            // Cancelled/noshow and we're not involved → remove
-            if (newData.status === 'cancelled' || newData.status === 'noshow') {
-              const isInvolved = newData.therapist_id === therapist.id ||
-                prev[idx].booking_therapists?.some(
-                  (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
-                );
-              if (!isInvolved) return prev.filter(b => b.id !== newData.id);
-            }
-
-            // Update in place — getFilteredBookings handles visibility
-            const updated = [...prev];
-            updated[idx] = { ...updated[idx], ...newData };
-            return updated;
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'bookings'
-        },
-        (_payload) => {
-          if (!cancelled && isMountedRef.current) {
-            fetchAllBookings(therapist.id);
           }
+
+          void refreshBookings();
         }
       )
-      // Mise à jour du compteur duo en temps réel :
-      // Quand A accepte, un INSERT dans booking_therapists se produit.
-      // Sans cet écouteur, B voit 0/2 jusqu'au prochain fetch complet
-      // car le realtime bookings UPDATE ne transporte pas les relations.
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'booking_therapists'
-        },
+        { event: 'INSERT', schema: 'public', table: 'bookings' },
+        () => {
+          if (!cancelled && isMountedRef.current) void refreshBookings();
+        }
+      )
+      // Mise à jour du compteur duo en temps réel : quand A accepte, un INSERT
+      // dans booking_therapists se produit. Le realtime bookings UPDATE ne
+      // transporte pas les relations, d'où cet écouteur dédié.
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'booking_therapists' },
         (payload) => {
-          const newBt = payload.new as { booking_id: string; therapist_id: string; status: string };
+          const newBt = payload.new as { status: string };
           if (newBt.status !== 'accepted') return;
           if (cancelled || !isMountedRef.current) return;
-
-          setAllBookings(prev => {
-            const idx = prev.findIndex(b => b.id === newBt.booking_id);
-            if (idx === -1) return prev;
-            const existingBts = prev[idx].booking_therapists || [];
-            if (existingBts.some(bt => bt.therapist_id === newBt.therapist_id)) return prev;
-            const updated = [...prev];
-            updated[idx] = {
-              ...updated[idx],
-              booking_therapists: [...existingBts, { status: newBt.status, therapist_id: newBt.therapist_id }],
-            };
-            return updated;
-          });
+          void refreshBookings();
         }
       )
       .subscribe();
@@ -310,306 +410,21 @@ const PwaDashboard = () => {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [therapist]);
+  }, [therapist, isMountedRef, refreshBookings, t]);
 
   // Re-fetch when the app regains focus/visibility: realtime is disabled in prod,
   // so this is what makes a reassigned booking disappear for the old therapist.
   useRefetchOnFocus(() => {
-    if (therapist) fetchAllBookings(therapist.id);
+    setDayKey(format(new Date(), "yyyy-MM-dd"));
+    void refreshBookings();
   }, !!therapist);
-
-
-  const checkAuth = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        navigate("/pwa/login");
-        return;
-      }
-
-      if (!isMountedRef.current) return;
-
-      // Set OneSignal external user ID for push notification targeting
-      setOneSignalExternalUserId(user.id);
-
-      // Use cached data if available
-      const cachedData = queryClient.getQueryData<any>(["therapist", user.id]);
-
-      if (cachedData) {
-        if (isMountedRef.current) {
-          setTherapist(cachedData);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const { data: therapistData, error } = await supabase
-        .from("therapists")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!isMountedRef.current) return;
-
-      if (error || !therapistData) {
-        if (isMountedRef.current) {
-          toast.error(t('dashboard.profileNotFound'));
-        }
-        await supabase.auth.signOut();
-        navigate("/pwa/login");
-        return;
-      }
-
-      // Cache therapist data
-      queryClient.setQueryData(["therapist", user.id], therapistData);
-      if (isMountedRef.current) {
-        setTherapist(therapistData);
-      }
-    } catch (error) {
-      console.error("Auth error:", error);
-      navigate("/pwa/login");
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
-    }
-  };
-
-  const fetchAllBookings = async (therapistId: string, forceRefresh = false) => {
-    if (!isMountedRef.current) return;
-
-    // Clear cache when force refreshing
-    if (forceRefresh) {
-      queryClient.removeQueries({ queryKey: ["myBookings", therapistId] });
-      queryClient.removeQueries({ queryKey: ["pendingBookings", therapistId] });
-    }
-
-    const { data: affiliatedHotels, error: hotelsError } = await supabase
-      .from("therapist_venues")
-      .select("hotel_id, priority")
-      .eq("therapist_id", therapistId);
-
-    if (!isMountedRef.current) return;
-
-    if (hotelsError || !affiliatedHotels || affiliatedHotels.length === 0) {
-      console.error("❌ Error fetching affiliated hotels:", hotelsError);
-      if (isMountedRef.current) {
-        setAllBookings([]);
-        setLoading(false);
-      }
-      return;
-    }
-
-    const hotelIds = affiliatedHotels.map(h => h.hotel_id);
-    setPriorityByHotel(
-      Object.fromEntries(affiliatedHotels.map(h => [h.hotel_id, h.priority ?? 1]))
-    );
-
-    // Fetch hotel images/currency + commission & surcharge settings separately
-    // (no FK relationship). Commission/surcharge live on the venue, not the booking.
-    const { data: hotelData } = await supabase
-      .from("hotels")
-      .select("id, image, currency, global_therapist_commission, therapist_commission, out_of_hours_surcharge_percent")
-      .in("id", hotelIds);
-
-    if (!isMountedRef.current) return;
-
-    const hotelDataMap = new Map(hotelData?.map(h => [h.id, {
-      image: h.image,
-      currency: h.currency,
-      global_therapist_commission: h.global_therapist_commission === true,
-      therapist_commission: h.therapist_commission,
-      out_of_hours_surcharge_percent: h.out_of_hours_surcharge_percent,
-    }]) || []);
-
-    // 1. Get bookings assigned to this therapist (any status)
-    const { data: myBookings, error: myError } = await supabase
-      .from("bookings")
-      .select(`
-        *,
-        treatment_rooms!bookings_trunk_id_fkey ( name ),
-        booking_therapists ( status, therapist_id, assigned_at ),
-        booking_treatments (
-          therapist_id,
-          is_addon,
-          treatment_menus (
-            name,
-            price,
-            duration
-          )
-        )
-      `)
-      .eq("therapist_id", therapistId)
-      .in("hotel_id", hotelIds)
-      .neq("status", "cancelled");
-
-    if (!isMountedRef.current) return;
-
-    let myBookingsWithImages: Booking[] = [];
-    if (myError) {
-      console.error('Error fetching my bookings:', myError);
-    } else {
-      myBookingsWithImages = (myBookings || []).map(b => ({
-        ...b,
-        room_name: (b as { treatment_rooms?: { name: string | null } | null }).treatment_rooms?.name ?? null,
-        hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
-      }));
-
-      // Fetch duo bookings where this therapist is secondary (in booking_therapists but not primary)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: btData } = await (supabase as any)
-        .from("booking_therapists")
-        .select("booking_id")
-        .eq("therapist_id", therapistId)
-        .eq("status", "accepted");
-
-      if (!isMountedRef.current) return;
-
-      const primaryIds = new Set((myBookings || []).map(b => b.id));
-      const secondaryBookingIds = ((btData as { booking_id: string }[]) || [])
-        .map((bt) => bt.booking_id)
-        .filter((id) => !primaryIds.has(id));
-
-      if (secondaryBookingIds.length > 0) {
-        const { data: secondaryBookings } = await supabase
-          .from("bookings")
-          .select(`
-            *,
-            booking_therapists ( status, therapist_id, assigned_at ),
-            booking_treatments (
-              therapist_id,
-              is_addon,
-              treatment_menus (
-                name,
-                price,
-                duration
-              )
-            )
-          `)
-          .in("id", secondaryBookingIds)
-          .neq("status", "cancelled");
-
-        if (!isMountedRef.current) return;
-
-        const secondaryWithImages = (secondaryBookings || []).map(b => ({
-          ...b,
-          room_name: (b as { treatment_rooms?: { name: string | null } | null }).treatment_rooms?.name ?? null,
-          hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
-        }));
-        myBookingsWithImages = [...myBookingsWithImages, ...secondaryWithImages];
-      }
-
-      queryClient.setQueryData(["myBookings", therapistId], myBookingsWithImages);
-    }
-
-    // 2. Get pending bookings (unassigned solos + duo bookings awaiting more therapists)
-    const pendingQuery = supabase
-      .from("bookings")
-      .select(`
-        *,
-        treatment_rooms!bookings_trunk_id_fkey ( name ),
-        booking_therapists ( status, therapist_id, assigned_at ),
-        booking_treatments (
-          therapist_id,
-          is_addon,
-          treatment_menus (
-            name,
-            price,
-            duration
-          )
-        )
-      `)
-      .in("hotel_id", hotelIds)
-      .eq("status", "pending");
-
-    const { data: pendingBookings, error: pendingError } = await pendingQuery;
-
-    if (!isMountedRef.current) return;
-
-    // Filter pending bookings
-    const filteredPendingBookings = pendingBookings?.filter(b => {
-      // Duo bookings (guest_count > 1) waiting for more therapists: show to all
-      // hotel therapists who haven't accepted yet. A fully staffed duo is
-      // already 'confirmed', so any pending duo here is still open.
-      if (b.guest_count > 1) {
-        const alreadyAccepted = (b.booking_therapists as { status: string; therapist_id?: string }[] | undefined)?.some(
-          bt => bt.therapist_id === therapistId && bt.status === 'accepted'
-        );
-        return !alreadyAccepted;
-      }
-      // Solo pending bookings: must be unassigned (assigned ones come from myBookings).
-      // Visible to all therapists of the venue, regardless of treatment room.
-      return b.therapist_id === null;
-    }) || [];
-
-
-    // Fetch proposed slots for open duo bookings
-    const awaitingBookingIds = filteredPendingBookings
-      .filter(b => b.guest_count > 1)
-      .map(b => b.id);
-
-    let slotsMap = new Map<string, any>();
-    if (awaitingBookingIds.length > 0) {
-      const { data: slotsData } = await supabase
-        .from("booking_proposed_slots")
-        .select("booking_id, slot_1_date, slot_1_time, slot_2_date, slot_2_time, slot_3_date, slot_3_time")
-        .in("booking_id", awaitingBookingIds);
-
-      if (!isMountedRef.current) return;
-
-      if (slotsData) {
-        slotsMap = new Map(slotsData.map(s => [s.booking_id, s]));
-      }
-    }
-
-    // Add hotel images and proposed slots to pending bookings
-    const pendingBookingsWithImages = filteredPendingBookings.map(b => ({
-      ...b,
-      room_name: (b as { treatment_rooms?: { name: string | null } | null }).treatment_rooms?.name ?? null,
-      hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null },
-      proposed_slots: slotsMap.get(b.id) || null,
-    }));
-
-    if (pendingError) {
-      console.error('❌ Error fetching pending bookings:', pendingError);
-    } else {
-      // Cache pending bookings
-      queryClient.setQueryData(["pendingBookings", therapistId], pendingBookingsWithImages);
-    }
-
-
-    // Only return if BOTH queries failed
-    if (myError && pendingError) {
-      console.error('❌ Both queries failed');
-      if (isMountedRef.current) {
-        setAllBookings([]);
-        setLoading(false);
-      }
-      return;
-    }
-
-    // Combine, deduplicate, and sort both sets of bookings
-    const allData = [...myBookingsWithImages, ...pendingBookingsWithImages];
-    const uniqueData = Array.from(new Map(allData.map(b => [b.id, b])).values());
-    const sortedData = uniqueData.sort((a, b) => {
-      const dateCompare = a.booking_date.localeCompare(b.booking_date);
-      if (dateCompare !== 0) return dateCompare;
-      return a.booking_time.localeCompare(b.booking_time);
-    });
-
-    if (isMountedRef.current) {
-      setAllBookings(sortedData);
-      setLoading(false);
-    }
-  };
 
   const handleRefresh = async () => {
     if (!therapist || refreshing) return;
     if (!isMountedRef.current) return;
 
     setRefreshing(true);
-    await fetchAllBookings(therapist.id);
+    await refreshBookings();
     if (isMountedRef.current) {
       setRefreshing(false);
     }
@@ -637,10 +452,10 @@ const PwaDashboard = () => {
 
   const getFilteredBookings = () => {
     return allBookings.filter((booking) => {
-      const bookingDate = parseISO(booking.booking_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
+      if (activeTab === "upcoming") {
+        return isUpcomingForTherapist(booking, therapist?.id, dayKey);
+      }
+
       // Check if booking is assigned to this therapist (primary or secondary on a duo)
       const isAssignedToMe = therapist && (
         booking.therapist_id === therapist.id ||
@@ -648,31 +463,8 @@ const PwaDashboard = () => {
           (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
         )
       );
-      
-      // Active statuses that block a slot (must be visible in "upcoming")
-      const activeStatuses = ["confirmed", "ongoing"];
-      const isActiveStatus = activeStatuses.includes(booking.status);
-      
-      if (activeTab === "upcoming") {
-        // Pending bookings normally live in the pending requests section, not
-        // here. Exception: an open duo (guest_count > 1) that THIS therapist has
-        // already accepted stays 'pending' until the duo is fully staffed, but
-        // it's filtered out of the pending requests section (already accepted).
-        // Surface it here so it doesn't fall through the cracks (visible only in
-        // the planning otherwise).
-        const acceptedDuoPending =
-          booking.status === "pending" &&
-          (booking.guest_count ?? 1) > 1 &&
-          booking.booking_therapists?.some(
-            (bt) => bt.therapist_id === therapist?.id && bt.status === "accepted"
-          );
-        return isAssignedToMe &&
-               (booking.status !== "pending" || acceptedDuoPending) &&
-               booking.status !== "completed" &&
-               bookingDate >= today;
-      } else {
-        return booking.status === "completed" && isAssignedToMe;
-      }
+
+      return booking.status === "completed" && isAssignedToMe;
     });
   };
 
@@ -695,7 +487,11 @@ const PwaDashboard = () => {
 
       if (error) throw error;
 
-      const result = data as { success: boolean; error?: string; data?: { status?: string } } | null;
+      const result = data as {
+        success: boolean;
+        error?: string;
+        data?: { status?: string; open_legs?: number };
+      } | null;
 
       if (result && !result.success) {
         const errCode = result.error;
@@ -705,7 +501,7 @@ const PwaDashboard = () => {
           } else {
             toast.error(t('dashboard.acceptError'));
           }
-          fetchAllBookings(therapist.id);
+          void refreshBookings();
         }
         return;
       }
@@ -719,10 +515,27 @@ const PwaDashboard = () => {
         }
       }
 
+      // Réservation partagée : je viens de prendre les prestations que je réalise,
+      // il en reste. On relance le broadcast pour ces jambes-là — la dédup par
+      // prestation garantit que personne n'est resollicité sur la même. Miroir de
+      // la fiche détail : accepter depuis la carte doit avoir les mêmes effets.
+      if ((result?.data?.open_legs ?? 0) > 0) {
+        invokeEdgeFunction('trigger-new-booking-notifications', {
+          body: { bookingId, notifyAll: true, therapistsOnly: true },
+        }).catch(() => {});
+      }
+
+      // Le staffing vient de changer : si la réservation est déjà payée, les
+      // rémunérations écrites au paiement ne reflètent plus les jambes réelles.
+      const acceptedBooking = allBookings.find(b => b.id === bookingId);
+      if (['paid', 'charged_to_room', 'offert'].includes(acceptedBooking?.payment_status ?? '')) {
+        invokeEdgeFunction('sync-booking-payouts', { body: { bookingId } }).catch(() => {});
+      }
+
       if (!isMountedRef.current) return;
 
       toast.success(t('dashboard.bookingAccepted'));
-      fetchAllBookings(therapist.id, true); // Force refresh to get updated data
+      void refreshBookings();
     } catch (error) {
       console.error("Error accepting booking:", error);
       if (!isMountedRef.current) return;
@@ -730,7 +543,7 @@ const PwaDashboard = () => {
       const msg = error instanceof Error ? error.message : '';
       if (msg.includes('already_taken') || msg.includes('already assigned') || msg.includes('déjà assignée')) {
         toast.error(t('dashboard.bookingAlreadyTaken'));
-        fetchAllBookings(therapist.id);
+        void refreshBookings();
       } else {
         toast.error(t('dashboard.acceptError'));
       }
@@ -765,7 +578,7 @@ const PwaDashboard = () => {
       if (error) throw error;
 
       toast.success(t('dashboard.bookingDeclined'));
-      fetchAllBookings(therapist.id, true); // Force refresh
+      void refreshBookings();
     } catch (error) {
       console.error("Error declining booking:", error);
       if (isMountedRef.current) {
@@ -808,6 +621,69 @@ const PwaDashboard = () => {
     return duration > 0 ? duration : 60; // fallback if all are 0
   };
 
+  /**
+   * Ce qu'une demande représente pour le praticien connecté : les prestations
+   * encore à pourvoir, leur durée, leur prix client et son gain estimé. Sur une
+   * réservation partagée dont un confrère a déjà pris une jambe, la carte ne
+   * doit annoncer que le reste — pas la durée et le prix du panier entier.
+   */
+  const pendingLeg = (b: Booking) => {
+    const all = b.booking_treatments ?? [];
+    const guestCount = b.guest_count ?? 1;
+    // Ce que je prendrais en acceptant. En duo les jambes tournent en parallèle
+    // et je n'en prends qu'une : le premier bloc de l'ordonnancement, jamais la
+    // somme des soins libres.
+    const shown = displayLegTreatments(therapist?.id, toScheduledLines(all));
+    const open =
+      guestCount > 1 ? scheduleTreatments(shown, guestCount)[0]?.lines ?? shown : shown;
+    // Toutes les prestations restent à pourvoir : on garde les totaux de la
+    // réservation, qui honorent bookings.duration / total_price (soins sur devis
+    // et prolongations de séance n'ont pas de ligne dédiée).
+    const isPartial = open.length < all.length;
+
+    const duration = isPartial
+      ? open.reduce((sum, bt) => sum + (bt.treatment_menus?.duration ?? 0), 0)
+      : calculateTotalDuration(b);
+    const price = isPartial
+      ? open.reduce((sum, bt) => sum + (bt.treatment_menus?.price ?? 0), 0)
+      : calculateTotalPrice(b);
+
+    const hotel = (b as { hotels?: { global_therapist_commission?: boolean; therapist_commission?: number | null; out_of_hours_surcharge_percent?: number | null } }).hotels;
+    const surchargePercent = (b as { is_out_of_hours?: boolean | null }).is_out_of_hours
+      ? Number(hotel?.out_of_hours_surcharge_percent) || 0
+      : 0;
+
+    const earnings = Math.round(
+      estimateTherapistShare({
+        globalTherapistCommission: hotel?.global_therapist_commission ?? false,
+        guestCount,
+        legDuration: duration,
+        legLines: open.map((bt) => ({
+          treatment_id: bt.treatment_id ?? null,
+          duration: bt.treatment_menus?.duration ?? null,
+        })),
+        myRates: {
+          rate_60: (therapist as { rate_60?: number | null } | null)?.rate_60 ?? null,
+          rate_75: (therapist as { rate_75?: number | null } | null)?.rate_75 ?? null,
+          rate_90: (therapist as { rate_90?: number | null } | null)?.rate_90 ?? null,
+        },
+        myTreatmentRates: therapist?.treatment_rates_active
+          ? therapist.treatment_rates ?? null
+          : null,
+        grossPrice: calculateTotalPrice(b),
+        // Mode commission : elle porte sur les seules prestations que je prends.
+        legGrossPrice: isPartial ? price : null,
+        therapistCommissionPercent: hotel?.therapist_commission ?? null,
+        surchargePercent,
+      }),
+    );
+
+    const label =
+      open.map((bt) => bt.treatment_menus?.name).filter(Boolean).join(', ') || treatmentsLabel(b);
+
+    return { duration, price, earnings, label };
+  };
+
 
   const getPendingRequests = () => {
     return allBookings.filter(b => {
@@ -842,10 +718,30 @@ const PwaDashboard = () => {
         const genderPref = b.therapist_gender_preference ?? null;
         const iDeclined = (b.declined_by ?? []).includes(myId);
 
+        // Réservation partagée : un confrère a pris une prestation, une autre
+        // attend encore (issue #547). Elle reste une demande ouverte bien que
+        // bookings.therapist_id nomme déjà quelqu'un. Exiger une jambe DÉJÀ
+        // attribuée écarte les réservations historiques, dont aucune ligne ne
+        // porte d'affectation alors que le praticien principal assure tout.
+        const baseLegs = (b.booking_treatments ?? []).filter(
+          bt => !bt.is_addon && !bt.treatment_menus?.amenity_id
+        );
+        const openLegCount = baseLegs.filter(bt => !bt.therapist_id).length;
+        const hasOpenSharedLeg = openLegCount > 0 && openLegCount < baseLegs.length;
+
+        // J'ai déjà accepté : la jambe restante ne m'est plus réclamable
+        // (accept_booking rendrait 'already_accepted'). Ma part vit dans « mes
+        // réservations », où elle reste 'pending' tant que l'équipe est
+        // incomplète — sans ce garde-fou la réservation s'affiche deux fois.
+        const acceptedByMe = b.booking_therapists?.some(
+          bt => bt.therapist_id === myId && bt.status === 'accepted'
+        );
+        if (acceptedByMe) return false;
+
         // Assigned to me specifically
         if (b.therapist_id === myId) return true;
         // Assigned to someone else
-        if (b.therapist_id !== null) return false;
+        if (b.therapist_id !== null) return hasOpenSharedLeg && !alreadyMine;
 
         // Unassigned — I already declined, never show again
         if (iDeclined) return false;
@@ -898,16 +794,29 @@ const PwaDashboard = () => {
     const count = todayBookings.length;
     // My share of a booking: only my own soin(s) in a duo (stable link when
     // present, positional fallback otherwise); the full duration for a solo.
-    const myLeg = (b: Booking): number => {
-      const gc = (b as { guest_count?: number }).guest_count ?? 1;
-      if (gc <= 1) return calculateTotalDuration(b);
-      const orderedIds = ((b.booking_therapists ?? []) as { therapist_id: string; status: string; assigned_at?: string | null }[])
+    const legLineInputs = (b: Booking) =>
+      ((b.booking_treatments ?? []) as { therapist_id?: string | null; treatment_id?: string | null; is_addon?: boolean | null; treatment_menus?: { duration?: number | null } | null }[])
+        .map((t) => ({ therapist_id: t.therapist_id ?? null, treatment_id: t.treatment_id ?? null, duration: t.treatment_menus?.duration ?? null, is_addon: t.is_addon ?? false }));
+    const orderedIdsOf = (b: Booking) =>
+      ((b.booking_therapists ?? []) as { therapist_id: string; status: string; assigned_at?: string | null }[])
         .filter((bt) => bt.status === "accepted")
         .sort((x, y) => (x.assigned_at || "").localeCompare(y.assigned_at || ""))
         .map((bt) => bt.therapist_id);
-      const legTreatments = ((b.booking_treatments ?? []) as { therapist_id?: string | null; is_addon?: boolean | null; treatment_menus?: { duration?: number | null } | null }[])
-        .map((t) => ({ therapist_id: t.therapist_id ?? null, duration: t.treatment_menus?.duration ?? null, is_addon: t.is_addon ?? false }));
-      return myLegDuration(therapist?.id ?? "", legTreatments, orderedIds, gc);
+    // Lignes dont `myLeg` est la somme. Un praticien seul les porte toutes ; sur
+    // une réservation partagée — duo, ou booking simple à deux soins pris par
+    // deux praticiens (issue #547) — chacun ne compte que la sienne.
+    const myLegLines = (b: Booking) => {
+      const gc = (b as { guest_count?: number }).guest_count ?? 1;
+      return myLegTreatments(therapist?.id ?? "", legLineInputs(b), orderedIdsOf(b), gc);
+    };
+    const myLeg = (b: Booking): number => {
+      const gc = (b as { guest_count?: number }).guest_count ?? 1;
+      const lines = legLineInputs(b);
+      const mine = myLegLines(b);
+      // Hors partage, bookings.duration fait foi : elle absorbe les prolongations
+      // de séance, qui n'ajoutent aucune ligne de soin.
+      if (mine.length === lines.length && gc <= 1) return calculateTotalDuration(b);
+      return myLegDuration(therapist?.id ?? "", lines, orderedIdsOf(b), gc);
     };
     const totalMinutes = todayBookings.reduce((sum, b) => sum + myLeg(b), 0);
     const hours = Math.floor(totalMinutes / 60);
@@ -923,11 +832,16 @@ const PwaDashboard = () => {
           globalTherapistCommission: hotel?.global_therapist_commission ?? false,
           guestCount: (b as { guest_count?: number }).guest_count ?? 1,
           legDuration: myLeg(b),
+          legLines: myLegLines(b),
           myRates: {
             rate_60: (therapist as { rate_60?: number | null } | null)?.rate_60 ?? null,
             rate_75: (therapist as { rate_75?: number | null } | null)?.rate_75 ?? null,
             rate_90: (therapist as { rate_90?: number | null } | null)?.rate_90 ?? null,
           },
+          // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+          myTreatmentRates: therapist?.treatment_rates_active
+            ? therapist.treatment_rates ?? null
+            : null,
           grossPrice: calculateTotalPrice(b),
           therapistCommissionPercent: hotel?.therapist_commission ?? null,
           surchargePercent,
@@ -977,7 +891,12 @@ const PwaDashboard = () => {
       onTouchEnd={handleTouchEnd}
     >
       <header className="hdr" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 14px)' }}>
-        <span className="wordmark">{orgName}</span>
+        <img
+          className="brand-logo"
+          src={headerLogoSrc}
+          alt={orgName}
+          onError={() => setBrokenLogoUrl(orgLogoUrl)}
+        />
         <div className="spacer" />
         <button
           type="button"
@@ -1026,7 +945,7 @@ const PwaDashboard = () => {
               <div className="hero-detail">
                 <div className="who">{nextRdv.hotel_name}</div>
                 <div className="what">
-                  {treatmentsLabel(nextRdv)}{treatmentsLabel(nextRdv) ? ' · ' : ''}{calculateTotalDuration(nextRdv)} min
+                  {treatmentsLabel(nextRdv, therapist?.id)}{treatmentsLabel(nextRdv, therapist?.id) ? ' · ' : ''}{calculateTotalDuration(nextRdv)} min
                 </div>
               </div>
               <ChevronRight size={18} />
@@ -1063,6 +982,7 @@ const PwaDashboard = () => {
               ? `${format(new Date(r.proposed_slots.slot_1_date + 'T00:00:00'), 'EEE d MMM', { locale })} · ${r.proposed_slots.slot_1_time.substring(0, 5)}`
               : `${format(new Date(r.booking_date), 'EEE d MMM', { locale })} · ${r.booking_time.substring(0, 5)}`;
             const isProcessing = processing?.id === r.id;
+            const leg = pendingLeg(r);
             return (
               <div
                 className="req-card"
@@ -1071,17 +991,22 @@ const PwaDashboard = () => {
                 role="button"
                 tabIndex={0}
               >
-                <div className="req-when">{when}</div>
+                <div className="req-when">
+                  <span>{when}</span>
+                  <span className="req-num">#{r.booking_id}</span>
+                </div>
                 <div className="req-head">
                   <span className="who">{r.hotel_name}</span>
                   {(r.guest_count || 1) > 1 && (
                     <span className="status info"><span className="dot" />{acceptedCount(r)}/{r.guest_count}</span>
                   )}
-                  <PaymentStatus status={getPaymentDesignStatus(r.payment_status, t)} />
                 </div>
-                <div className="req-body">{treatmentsLabel(r)}</div>
+                <div className="req-body">{leg.label}</div>
                 <div className="req-meta">
-                  {calculateTotalDuration(r)} min &nbsp;·&nbsp; {formatPrice(calculateTotalPrice(r), getHotelCurrency(r))}
+                  <span>{leg.duration} min &nbsp;·&nbsp; {formatPrice(leg.price, getHotelCurrency(r))}</span>
+                  <span className="req-earn">
+                    {t('dashboard.yourEarnings')} {formatPrice(leg.earnings, getHotelCurrency(r))}
+                  </span>
                 </div>
                 <div className="req-actions" onClick={(e) => e.stopPropagation()}>
                   <button
@@ -1117,7 +1042,8 @@ const PwaDashboard = () => {
         </button>
       </div>
 
-      {loading && allBookings.length === 0 ? (
+      {(loading && allBookings.length === 0) ||
+      (filteredBookings.length === 0 && nextBeyondWindow.isFetching) ? (
         <div className="placeholder" style={{ padding: '30px 40px' }}>
           <p>{t('dashboard.loading')}</p>
         </div>
@@ -1139,8 +1065,8 @@ const PwaDashboard = () => {
                       <div className="d">{calculateTotalDuration(b)} min</div>
                     </div>
                     <div className="bk-main">
-                      <div className="who">{b.hotel_name}</div>
-                      <div className="what">{treatmentsLabel(b)}</div>
+                      <div className="who">{b.hotel_name} <span className="num">#{b.booking_id}</span></div>
+                      <div className="what">{treatmentsLabel(b, therapist?.id)}</div>
                       {(b.room_name || toConfirm) && (
                         <div className="meta">
                           {b.room_name || ''}{b.room_name && toConfirm ? ' · ' : ''}{toConfirm ? t('dashboard.toConfirm') : ''}

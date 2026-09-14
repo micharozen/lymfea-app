@@ -296,13 +296,13 @@ export function VenueGeneralInfoStep({
                       <SelectItem value="active">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-green-500" />
-                          {t('status.active')}
+                          {t('common:status.active')}
                         </div>
                       </SelectItem>
                       <SelectItem value="pending">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-orange-500" />
-                          {t('status.pending')}
+                          {t('common:status.pending')}
                         </div>
                       </SelectItem>
                     </SelectContent>

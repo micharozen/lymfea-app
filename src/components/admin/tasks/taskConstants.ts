@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { SignalLow, SignalMedium, SignalHigh, Flame } from "lucide-react";
-import type { TaskStatus, TaskPriority } from "@/hooks/tasks/useTasks";
+import type { TaskStatus, TaskPriority, TaskType } from "@/hooks/tasks/useTasks";
 
 // Visual metadata for statuses & priorities. Human labels live in i18n
 // (namespace `admin`, keys tasks.status.* / tasks.priority.*).
@@ -53,6 +53,42 @@ export const STATUS_META: Record<TaskStatus, { badgeClass: string; dotClass: str
 };
 
 export const PRIORITY_ORDER: TaskPriority[] = ["low", "medium", "high", "urgent"];
+
+export const TASK_TYPE_ORDER: TaskType[] = [
+  "booking_followup",
+  "payment_followup",
+  "gift_followup",
+  "loyalty",
+  "bug",
+  "other",
+];
+
+// Couleurs du type de tâche. Volontairement utilisées dans le seul champ de
+// saisie du formulaire : les cartes du board restent lisibles avec la priorité
+// pour unique code couleur.
+export const TASK_TYPE_META: Record<TaskType, { badgeClass: string }> = {
+  booking_followup: {
+    badgeClass: "bg-sky-100 text-sky-700 border-transparent dark:bg-sky-950 dark:text-sky-300",
+  },
+  payment_followup: {
+    badgeClass:
+      "bg-violet-100 text-violet-700 border-transparent dark:bg-violet-950 dark:text-violet-300",
+  },
+  gift_followup: {
+    badgeClass: "bg-pink-100 text-pink-700 border-transparent dark:bg-pink-950 dark:text-pink-300",
+  },
+  loyalty: {
+    badgeClass:
+      "bg-emerald-100 text-emerald-700 border-transparent dark:bg-emerald-950 dark:text-emerald-300",
+  },
+  bug: {
+    badgeClass: "bg-red-100 text-red-700 border-transparent dark:bg-red-950 dark:text-red-300",
+  },
+  other: {
+    badgeClass:
+      "bg-slate-100 text-slate-600 border-transparent dark:bg-slate-800 dark:text-slate-300",
+  },
+};
 
 // Higher weight = more urgent, used to sort cards within a column.
 export const PRIORITY_WEIGHT: Record<TaskPriority, number> = {

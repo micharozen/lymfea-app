@@ -12,6 +12,11 @@ interface BookingTreatment {
 
 interface Booking {
   id: string;
+  /**
+   * Clé de rendu : une réservation partagée pose un bloc par praticien, donc
+   * plusieurs blocs portent le même `id`. Vaut `id` hors de ce cas.
+   */
+  legKey?: string;
   booking_id: number;
   booking_date: string;
   booking_time: string;
@@ -27,12 +32,24 @@ interface Booking {
   guest_count?: number | null;
   therapistName?: string | null;
   booking_treatments?: BookingTreatment[];
+  /**
+   * Agenda du lieu (thérapeute également concierge) : true sur les rendez-vous
+   * où il intervient. Laissé indéfini quand l'agenda ne montre que les siens.
+   */
+  isMine?: boolean;
 }
 
 interface PwaCalendarViewProps {
   bookings: Booking[];
   onBookingClick: (booking: Booking) => void;
   onSlotClick?: (date: string, time: string) => void;
+  /**
+   * Premier jour affiché, remonté à chaque changement de semaine ou d'index.
+   * La semaine visible est un état local (persisté en sessionStorage) : sans
+   * cette remontée, naviguer dans la vue 3 jours ne déplacerait pas la fenêtre
+   * de chargement du parent.
+   */
+  onVisibleRangeChange?: (firstVisibleDay: Date) => void;
 }
 
 const HOUR_HEIGHT = 48;
@@ -44,7 +61,7 @@ const BLOCK_GAP = 2;
 const WEEK_STORAGE_KEY = "pwa-calendar-3day-week";
 const INDEX_STORAGE_KEY = "pwa-calendar-3day-index";
 
-export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCalendarViewProps) {
+export function PwaCalendarView({ bookings, onBookingClick, onSlotClick, onVisibleRangeChange }: PwaCalendarViewProps) {
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const stored = typeof window !== "undefined" ? sessionStorage.getItem(WEEK_STORAGE_KEY) : null;
     if (stored) {
@@ -99,6 +116,11 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
   const visibleDays = useMemo(() => {
     return weekDays.slice(startDayIndex, startDayIndex + 3);
   }, [weekDays, startDayIndex]);
+
+  const firstVisibleDay = visibleDays[0];
+  useEffect(() => {
+    if (firstVisibleDay) onVisibleRangeChange?.(firstVisibleDay);
+  }, [firstVisibleDay, onVisibleRangeChange]);
 
   const hours = useMemo(() => {
     return Array.from({ length: END_HOUR - START_HOUR }, (_, i) => i + START_HOUR);
@@ -301,12 +323,19 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
 
                     return (
                       <div
-                        key={booking.id}
+                        key={booking.legKey ?? booking.id}
                         className={`absolute left-0.5 right-0.5 rounded text-xs cursor-pointer overflow-hidden z-10 select-none ${flowStage.cardClass}`}
                         style={{
                           top: `${top}px`,
                           height: `${height}px`,
                           minHeight: "24px",
+                          // Marque « c'est mon rendez-vous » dans l'agenda du
+                          // lieu, sans toucher au fond qui porte l'étape du flux.
+                          ...(booking.isMine
+                            ? {
+                                boxShadow: "inset 3px 0 0 var(--accent), 0 0 0 1.5px var(--accent)",
+                              }
+                            : null),
                         }}
                         {...bind(() => setPreview(booking))}
                         onClick={() => {
@@ -317,6 +346,11 @@ export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCa
                         <div className="p-1 h-full flex flex-col">
                           <div className="flex items-center gap-1 font-bold text-[11px] leading-tight">
                             {booking.booking_time?.substring(0, 5)}
+                            {booking.booking_id && (
+                              <span className="text-[9px] font-medium tabular-nums opacity-60 shrink-0">
+                                #{booking.booking_id}
+                              </span>
+                            )}
                             {(booking.guest_count ?? 1) > 1 && (
                               <span className="rounded-full bg-blue-600 px-1 py-px text-[8px] font-bold uppercase leading-none text-white shrink-0">
                                 Duo

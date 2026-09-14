@@ -19,7 +19,12 @@ import {
   keyGap,
   keyRow,
 } from "./templates/booking-confirmed.ts";
-import { ICON_INFO } from "./templates/email-layout.ts";
+import {
+  CLAY as CLAY_ACCENT,
+  ICON_CALENDAR,
+  ICON_INFO,
+  keyRowChanged,
+} from "./templates/email-layout.ts";
 
 export type Lang = 'fr' | 'en';
 
@@ -31,6 +36,9 @@ export interface EmailVenue {
   currency?: string | null;
   contact_email?: string | null;
   address?: string | null;
+  /** Free-text access notes (door code, floor, way in) — never part of `address`. */
+  access_instructions?: string | null;
+  access_instructions_en?: string | null;
   postal_code?: string | null;
   city?: string | null;
   country?: string | null;
@@ -96,6 +104,20 @@ export function formatVenueAddress(venue?: EmailVenue | null): string {
   return [venue?.address, venue?.postal_code, venue?.city, venue?.country]
     .filter(Boolean)
     .join(', ');
+}
+
+/**
+ * Venue access notes (door code, floor, way in) for the given language.
+ * EN falls back to the FR text, so a venue that filled only one field still
+ * gets its access details out to English-speaking clients.
+ */
+export function venueAccessInstructions(
+  venue: EmailVenue | null | undefined,
+  lang: Lang,
+): string {
+  const en = venue?.access_instructions_en?.trim();
+  const fr = venue?.access_instructions?.trim();
+  return (lang === 'en' ? (en || fr) : fr) ?? '';
 }
 
 /** Google Maps directions URL for the venue address ('' when no address). */
@@ -185,6 +207,9 @@ export interface BookingEmailContext {
   contactEmail?: string | null;
   /** Which "confirmed" template consumes these vars (drives copy nuances). */
   variant?: 'client' | 'admin';
+  /** Statut de la réservation — le mail de modification n'annonce pas un
+   *  créneau acquis tant qu'aucun praticien n'a accepté ('pending'). */
+  bookingStatus?: string | null;
 }
 
 function greetingFor(ctx: BookingEmailContext) {
@@ -204,8 +229,8 @@ function greetingFor(ctx: BookingEmailContext) {
 // keeps all optionality in TS (typed, testable) rather than in the HTML blob.
 
 const FRAG_LABELS = {
-  fr: { min: 'min', therapist: 'Praticien', room: 'Chambre', modify: 'Modifier ou annuler', policy: "Politique d'annulation", surcharge: 'Majoration hors horaires' },
-  en: { min: 'min', therapist: 'Therapist', room: 'Room', modify: 'Modify or cancel', policy: 'Cancellation policy', surcharge: 'Out-of-hours surcharge' },
+  fr: { min: 'min', therapist: 'Praticien', room: 'Chambre', modify: 'Modifier ou annuler', policy: "Politique d'annulation", surcharge: 'Majoration hors horaires', access: 'Accès' },
+  en: { min: 'min', therapist: 'Therapist', room: 'Room', modify: 'Modify or cancel', policy: 'Cancellation policy', surcharge: 'Out-of-hours surcharge', access: 'Access' },
 } as const;
 
 // Palette echoed from templates/booking-confirmed.ts (kept in sync).
@@ -269,6 +294,18 @@ function footerWebsiteHtml(url: string | null | undefined): string {
   const href = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   const label = raw.replace(/^https?:\/\//i, '').replace(/\/$/, '');
   return `<p style="margin:8px 0 0;font-family:${FONT_SANS};font-size:12px;line-height:1.6;color:${INK_MUTE}"><a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer nofollow" style="color:${CLAY};text-decoration:underline">${escapeHtml(label)}</a></p>`;
+}
+
+/**
+ * Access paragraph (door code, floor, way in) rendered inside the shared
+ * "practical info" encart, above the arrival note — see arrivalNote() in
+ * email-layout.ts. '' when the venue set no access notes, leaving that encart
+ * exactly as it was before. Line breaks typed by the venue are kept as <br>.
+ */
+function accessBody(text: string, lang: Lang): string {
+  if (!text) return '';
+  const body = escapeHtml(text).replace(/\r?\n/g, '<br>');
+  return `<p style="margin:0 0 12px"><strong style="font-weight:500;color:${INK}">${escapeHtml(FRAG_LABELS[lang].access)}</strong><br>${body}</p>`;
 }
 
 /** Cancellation-policy line + "modify/cancel" link; '' when no policy text. */
@@ -401,6 +438,8 @@ export function buildConfirmedVars(ctx: BookingEmailContext): Record<string, str
       '',
     ),
     room_row_html: keyRowFragment(ICON_ROOM, FRAG_LABELS[ctx.lang].room, roomNumber, ''),
+    // Access notes are for the client only — the admin template never renders it.
+    access_body_html: isAdmin ? '' : accessBody(venueAccessInstructions(ctx.venue, ctx.lang), ctx.lang),
     maps_url: venueMapsUrl(ctx.venue),
   };
 }
@@ -530,6 +569,9 @@ export function buildPendingVars(ctx: BookingEmailContext): Record<string, strin
     treatments_html: treatmentsHtml(ctx.treatments, sym, ctx.lang)
       + surchargeRow(ctx.booking.is_out_of_hours, ctx.booking.surcharge_amount, sym, ctx.lang),
     therapist_row_html: '',
+    // Pas d'infos d'accès ici : le créneau n'est pas encore acquis, le code
+    // porte ne part qu'avec la confirmation.
+    access_body_html: '',
     footer_website_html: footerWebsiteHtml(ctx.venue?.website_url),
     maps_url: venueMapsUrl(ctx.venue),
   };
@@ -567,5 +609,82 @@ export function buildPaymentLinkVars(
     expiry_date: extras.expiryDate,
     intro_text: extras.introText,
     logo_url: venueLogoUrl(ctx.venue),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// "Booking modified" template family
+// ---------------------------------------------------------------------------
+
+/** Créneau d'avant la modification, quand l'appelant le connaît. */
+export interface PreviousSlot {
+  date?: string | null;
+  time?: string | null;
+}
+
+/**
+ * Variables du mail « réservation modifiée ».
+ *
+ * Le récapitulatif est celui de la confirmation — mêmes soins, même total,
+ * même adresse : le client doit retrouver sa réservation, pas déchiffrer un
+ * message d'un autre genre. Seuls changent l'accroche et la ligne « Quand »,
+ * qui porte l'ancien créneau barré quand il a bougé.
+ */
+export function buildModifiedVars(
+  ctx: BookingEmailContext,
+  previous?: PreviousSlot | null,
+): Record<string, string> {
+  const base = buildConfirmedVars(ctx);
+  const isPending = ctx.bookingStatus === 'pending';
+
+  const previousDate = previous?.date
+    ? formatBookingDate(previous.date, ctx.lang)
+    : '';
+  const previousTime = formatBookingTime(previous?.time);
+  const slotMoved =
+    !!previous?.date &&
+    (previous.date !== ctx.booking.booking_date ||
+      previousTime !== base.booking_time);
+
+  // « jeudi 11 septembre 2026 — 11:00 » barré, quand le créneau a bougé.
+  const previousLabel = slotMoved
+    ? [previousDate, previousTime].filter(Boolean).join(' — ')
+    : '';
+
+  const whenRow = keyRowChanged(
+    ICON_CALENDAR,
+    ctx.lang === 'en' ? 'When' : 'Quand',
+    previousLabel,
+    base.booking_date,
+    `${base.booking_time}${base.total_duration_sep}`,
+    `#${base.booking_number}`,
+  );
+
+  const copy = ctx.lang === 'en'
+    ? {
+      pill: isPending ? 'Request updated' : 'Booking updated',
+      heading: isPending
+        ? 'Your request has been <em style="font-style:italic;color:' + CLAY_ACCENT + '">updated</em>.'
+        : 'Your booking has been <em style="font-style:italic;color:' + CLAY_ACCENT + '">updated</em>.',
+      intro: isPending
+        ? 'Here are the new details. We will confirm as soon as a therapist is assigned.'
+        : 'Here are the new details of your booking.',
+      preheader: `Booking #${base.booking_number} has been updated.`,
+    }
+    : {
+      pill: isPending ? 'Demande modifiée' : 'Réservation modifiée',
+      heading: isPending
+        ? 'Votre demande a été <em style="font-style:italic;color:' + CLAY_ACCENT + '">modifiée</em>.'
+        : 'Votre réservation a été <em style="font-style:italic;color:' + CLAY_ACCENT + '">modifiée</em>.',
+      intro: isPending
+        ? 'Voici les nouvelles informations. La confirmation vous sera envoyée dès qu’un praticien sera assigné.'
+        : 'Voici les nouvelles informations de votre réservation.',
+      preheader: `La réservation #${base.booking_number} a été modifiée.`,
+    };
+
+  return {
+    ...base,
+    ...copy,
+    when_row_html: whenRow,
   };
 }

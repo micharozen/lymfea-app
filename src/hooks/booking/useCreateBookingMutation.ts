@@ -4,10 +4,10 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import type { BookingClientType } from "@/lib/clientTypeMeta";
 import { derivePaymentForClientType } from "@/lib/clientTypePayment";
-import { composePhoneNumber, languageFromCountryCode } from "@/lib/phone";
+import { composePhoneNumber, isPlaceholderPhone, languageFromCountryCode } from "@/lib/phone";
 import { normalizeEmail, isValidEmail } from "@/lib/email";
 import { therapistForTreatment } from "@/lib/therapistForTreatment";
-import { amenityClientTypeFromBooking } from "@/lib/amenityTypes";
+import { amenityClientTypeFromBooking, getAmenityLabel } from "@/lib/amenityTypes";
 
 interface Hotel {
   id: string;
@@ -99,6 +99,12 @@ export interface CreateBookingPayload {
    * requis, la réservation est confirmée d'emblée et n'est jamais diffusée.
    */
   amenityOnly?: boolean;
+  /**
+   * Confirmation d'un conflit de commodité déjà signalé (créneau privatisé,
+   * capacité atteinte, remise en état). Réservé aux chemins internes : le site
+   * client ne peut pas le poser, la RPC le refuserait de toute façon.
+   */
+  forceAmenityConflict?: boolean;
   /** admin-combo-duo: N solo treatments booked as one duo booking */
   comboDuo?: boolean;
   /**
@@ -150,6 +156,12 @@ interface UseCreateBookingMutationOptions {
   hotels: Hotel[] | undefined;
   therapists: Therapist[] | undefined;
   onSuccess: (data: any) => void;
+  /**
+   * Créneau de commodité en conflit : à l'appelant de proposer la confirmation
+   * (relancer avec `forceAmenityConflict`). Sans ce handler, le conflit tombe
+   * dans le toast d'erreur générique et la réservation est simplement refusée.
+   */
+  onAmenityConflict?: (conflict: AmenityConflictError) => void;
 }
 
 function isOverlappingSlot(
@@ -316,9 +328,27 @@ async function resolveLinkedAmenityLines(d: CreateBookingPayload): Promise<Linke
 }
 
 /**
- * Garde-fou de capacité, équivalent applicatif du AMENITY_FULL de la RPC. Non
- * atomique (pas d'advisory lock côté client), mais évite le surbooking courant :
- * jusqu'ici le chemin admin ne vérifiait que les salles, qu'un accès amenity n'a pas.
+ * Créneau de commodité indisponible : créneau déjà privatisé, capacité atteinte
+ * ou remise en état en cours. En interne (admin, concierge) le conflit est
+ * signalé mais peut être confirmé — le terrain a des cas que le paramétrage ne
+ * couvre pas. Le site client, lui, reste bloqué par la RPC.
+ */
+export class AmenityConflictError extends Error {
+  constructor(
+    readonly reason: "AMENITY_EXCLUSIVE" | "AMENITY_FULL",
+    readonly amenityName: string,
+  ) {
+    super(reason);
+    this.name = "AmenityConflictError";
+  }
+}
+
+/**
+ * Garde-fou de disponibilité, délégué à `amenity_slot_conflict` pour partager la
+ * règle exacte du site client (exclusivité, capacité, remise en état). Non
+ * atomique côté admin — pas d'advisory lock — mais suffisant pour le surbooking
+ * courant : jusqu'ici seules les salles étaient vérifiées, qu'un accès commodité
+ * n'utilise pas.
  */
 async function assertAmenityCapacity(
   date: string,
@@ -328,26 +358,27 @@ async function assertAmenityCapacity(
   for (const line of lines) {
     const { data: amenity, error } = await supabase
       .from("venue_amenities")
-      .select("name, capacity_per_slot")
+      .select("name, type")
       .eq("id", line.venueAmenityId)
       .single();
     if (error) throw error;
 
-    const { data: occupancy, error: occupancyError } = await supabase.rpc(
-      "get_amenity_slot_occupancy",
+    const { data: conflict, error: conflictError } = await supabase.rpc(
+      "amenity_slot_conflict",
       {
-        p_venue_amenity_id: line.venueAmenityId,
-        p_date: date,
-        p_start_time: time,
-        p_end_time: computeEndTime(time, line.duration),
+        _venue_amenity_id: line.venueAmenityId,
+        _booking_date: date,
+        _start_time: time,
+        _end_time: computeEndTime(time, line.duration),
+        _guests: line.numGuests,
       },
     );
-    if (occupancyError) throw occupancyError;
+    if (conflictError) throw conflictError;
 
-    const remaining = amenity.capacity_per_slot - (occupancy ?? 0);
-    if (line.numGuests > remaining) {
-      throw new Error(
-        `Capacité insuffisante sur ${amenity.name || "la commodité"} : ${remaining} place(s) restante(s) sur ce créneau.`,
+    if (conflict) {
+      throw new AmenityConflictError(
+        conflict as "AMENITY_EXCLUSIVE" | "AMENITY_FULL",
+        amenity.name || getAmenityLabel(amenity.type, "fr"),
       );
     }
   }
@@ -416,7 +447,9 @@ async function insertSingleBooking(
   // Capacité vérifiée avant l'insert : un échec après coup laisserait une
   // réservation orpheline sans son accès commodité.
   const amenityLines = await resolveLinkedAmenityLines(d);
-  await assertAmenityCapacity(d.date, d.time, amenityLines);
+  if (!d.forceAmenityConflict) {
+    await assertAmenityCapacity(d.date, d.time, amenityLines);
+  }
 
   const { data: booking, error } = await supabase.from("bookings").insert({
     hotel_id: d.hotelId,
@@ -424,7 +457,9 @@ async function insertSingleBooking(
     client_first_name: d.clientFirstName,
     client_last_name: d.clientLastName,
     client_email: d.clientEmail || null,
-    phone: d.phone.trim() ? composePhoneNumber(d.countryCode, d.phone).replace(/\s/g, "") : null,
+    phone: d.phone.trim() && !isPlaceholderPhone(d.phone)
+      ? composePhoneNumber(d.countryCode, d.phone).replace(/\s/g, "")
+      : null,
     room_number: d.roomNumber?.trim() ? d.roomNumber.trim() : null,
     client_note: d.clientNote?.trim() ? d.clientNote.trim() : null,
     booking_date: d.date,
@@ -434,7 +469,10 @@ async function insertSingleBooking(
     status,
     assigned_at: finalTherapistId ? new Date().toISOString() : null,
     total_price: d.isOffert ? 0 : d.totalPrice,
-    is_out_of_hours: d.isOffert ? false : d.isOutOfHours,
+    // Une prestation offerte reste hors horaires si le créneau l'est : le client
+    // n'est pas facturé (surcharge_amount 0), mais le thérapeute doit toucher la
+    // majoration — la facture thérapeute lit ce drapeau.
+    is_out_of_hours: d.isOutOfHours,
     surcharge_amount: d.isOffert ? 0 : d.surchargeAmount,
     room_id: roomId,
     // Garde-fou : pas de salle secondaire identique à la principale.
@@ -570,7 +608,7 @@ async function insertSingleBooking(
   return { booking, status, isBroadcast, allTherapistIds, guestCount };
 }
 
-export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseCreateBookingMutationOptions) {
+export function useCreateBookingMutation({ hotels, therapists, onSuccess, onAmenityConflict }: UseCreateBookingMutationOptions) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -595,7 +633,10 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         isOffert,
       });
 
-      const hasPhone = d.phone.trim().length > 0;
+      // Un numéro bouche-trou (000000000…) vaut une absence de numéro : on ne
+      // le stocke pas et on ne dédoublonne pas dessus, sans quoi tous les
+      // clients saisis sans téléphone se retrouvent sur la même fiche.
+      const hasPhone = d.phone.trim().length > 0 && !isPlaceholderPhone(d.phone);
       const normalizedPhone = hasPhone
         ? composePhoneNumber(d.countryCode, d.phone).replace(/\s/g, "")
         : null;
@@ -609,6 +650,8 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           _email: clientEmail,
           _language: language,
           _civility: d.civility ?? null,
+          // Une fiche client appartient a l'organisation du lieu.
+          _hotel_id: d.hotelId,
         });
         customerId = data ?? null;
       }
@@ -884,6 +927,12 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       onSuccess(data);
     },
     onError: (error: any) => {
+      // Le conflit de commodité n'est pas une erreur d'exécution : il attend une
+      // décision de l'opérateur, pas un toast rouge.
+      if (error instanceof AmenityConflictError && onAmenityConflict) {
+        onAmenityConflict(error);
+        return;
+      }
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });

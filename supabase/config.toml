@@ -17,6 +17,10 @@ verify_jwt = false
 [functions.send-payment-link]
 verify_jwt = false
 
+# Désactivation du lien de paiement : action d'équipe, jamais appelée par Stripe.
+[functions.cancel-payment-link]
+verify_jwt = true
+
 [functions.get-therapist-earnings]
 verify_jwt = false
 
@@ -73,6 +77,9 @@ verify_jwt = false
 [functions.send-push-notification]
 verify_jwt = false
 
+[functions.send-notification-test]
+verify_jwt = false
+
 [functions.trigger-new-booking-notifications]
 verify_jwt = false
 
@@ -87,6 +94,11 @@ verify_jwt = false
 
 [functions.notify-booking-confirmed]
 verify_jwt = false
+
+# Point d'entrée unique des notifications : appelé par l'app authentifiée,
+# jamais par un webhook ni un parcours public.
+[functions.notify]
+verify_jwt = true
 
 [functions.send-rating-email]
 verify_jwt = false
@@ -247,3 +259,9 @@ verify_jwt = false
 
 [functions.finalize-payment]
 verify_jwt = false
+
+# Branche persistante staging : sans ce bloc, la CLI avertit à chaque `db push`
+# et l'intégration Supabase ignore les changements de config.toml au merge.
+# Aucune surcharge ici — staging hérite de toute la configuration ci-dessus.
+[remotes.staging]
+project_id = "xfkujlgettlxdgrnqluw"

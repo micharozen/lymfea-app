@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { sendEmail } from "../_shared/send-email.ts";
+import { createTwentyLead } from "../_shared/twenty-crm.ts";
+import { postSlackMessage } from "../_shared/slack.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +15,8 @@ const SUPPORT_INBOX = Deno.env.get("SUPPORT_INBOX_EMAIL") || "contact@saoma.io";
 // Expéditeur : à basculer sur un domaine Saoma une fois vérifié côté Resend.
 // Sans override, sendEmail retombe sur brand.emails.from.default.
 const SUPPORT_FROM = Deno.env.get("SUPPORT_FROM_EMAIL");
+// Webhook entrant Slack qui reçoit les demandes du formulaire public.
+const SLACK_WEBHOOK_LEAD = Deno.env.get("SLACK_WEBHOOK_LEAD");
 
 const CATEGORIES = [
   "integration",
@@ -100,6 +104,35 @@ function buildEmailHtml(input: z.infer<typeof SupportRequestSchema>): string {
 </html>`;
 }
 
+function buildSlackPayload(input: z.infer<typeof SupportRequestSchema>) {
+  return {
+    text: `Nouvelle demande support — ${input.subject}`,
+    blocks: [
+      {
+        type: "header",
+        text: { type: "plain_text", text: "Nouvelle demande support", emoji: true },
+      },
+      {
+        type: "section",
+        fields: [
+          { type: "mrkdwn", text: `*Nom*\n${input.name}` },
+          { type: "mrkdwn", text: `*Email*\n${input.email}` },
+          { type: "mrkdwn", text: `*Établissement*\n${input.company}` },
+          { type: "mrkdwn", text: `*Catégorie*\n${CATEGORY_LABELS[input.category]}` },
+        ],
+      },
+      {
+        type: "section",
+        // Slack rejette un bloc texte de plus de 3000 caractères, le message va jusqu'à 5000.
+        text: {
+          type: "mrkdwn",
+          text: `*${input.subject}*\n${input.message}`.slice(0, 2900),
+        },
+      },
+    ],
+  };
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -125,13 +158,35 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const result = await sendEmail({
-      to: SUPPORT_INBOX,
-      ...(SUPPORT_FROM ? { from: SUPPORT_FROM } : {}),
-      subject: `[Support] ${input.subject}`,
-      html: buildEmailHtml(input),
-      headers: { "Reply-To": input.email },
-    });
+    // CRM et Slack sont best-effort : seul l'échec de l'email fait échouer la requête.
+    const [result, lead, slack] = await Promise.all([
+      sendEmail({
+        to: SUPPORT_INBOX,
+        ...(SUPPORT_FROM ? { from: SUPPORT_FROM } : {}),
+        subject: `[Support] ${input.subject}`,
+        html: buildEmailHtml(input),
+        headers: { "Reply-To": input.email },
+      }),
+      createTwentyLead({
+        name: input.name,
+        companyName: input.company,
+        email: input.email,
+        message: `[${CATEGORY_LABELS[input.category]}] ${input.subject}\n\n${input.message}`,
+        source: "WEBSITE_FORM",
+        submittedAt: new Date().toISOString(),
+      }),
+      SLACK_WEBHOOK_LEAD
+        ? postSlackMessage(SLACK_WEBHOOK_LEAD, buildSlackPayload(input))
+        : Promise.resolve({ ok: false, error: "SLACK_WEBHOOK_LEAD not configured" }),
+    ]);
+
+    if (!lead.ok) {
+      console.error("[support-request] Twenty lead failed:", lead.error);
+    }
+
+    if (!slack.ok) {
+      console.error("[support-request] Slack post failed:", slack.error);
+    }
 
     if (result.error) {
       console.error("[support-request] send failed:", result.error);

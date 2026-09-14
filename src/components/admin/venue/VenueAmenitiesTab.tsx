@@ -174,6 +174,12 @@ export function VenueAmenitiesTab({ hotelId, venueType }: VenueAmenitiesTabProps
                             <span>{t('amenitiesTab.prep', { count: amenity.prep_time })}</span>
                           </>
                         )}
+                        {amenity.is_exclusive && (
+                          <>
+                            <span>·</span>
+                            <span>{t('amenitiesTab.exclusiveBadge')}</span>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -288,6 +294,7 @@ interface AmenityConfigProps {
     slot_duration: number;
     allowed_durations: number[];
     prep_time: number;
+    is_exclusive: boolean;
     price_external: number;
     price_lymfea: number;
     lymfea_access_included: boolean;
@@ -316,6 +323,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
   );
   const [defaultDuration, setDefaultDuration] = useState(amenity.slot_duration);
   const [prepTime, setPrepTime] = useState(String(amenity.prep_time));
+  const [isExclusive, setIsExclusive] = useState(amenity.is_exclusive);
   const [openingTime, setOpeningTime] = useState(amenity.opening_time || "");
   const [closingTime, setClosingTime] = useState(amenity.closing_time || "");
   const [priceExternal, setPriceExternal] = useState(String(amenity.price_external));
@@ -348,6 +356,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
     !sameDurations ||
     defaultDuration !== amenity.slot_duration ||
     (parseInt(prepTime) || 0) !== amenity.prep_time ||
+    isExclusive !== amenity.is_exclusive ||
     (openingTime || null) !== amenity.opening_time ||
     (closingTime || null) !== amenity.closing_time ||
     (parseFloat(priceExternal) || 0) !== amenity.price_external ||
@@ -366,6 +375,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
     if (defaultDuration !== amenity.slot_duration) updates.slot_duration = defaultDuration;
     const prep = parseInt(prepTime) || 0;
     if (prep !== amenity.prep_time) updates.prep_time = prep;
+    if (isExclusive !== amenity.is_exclusive) updates.is_exclusive = isExclusive;
     const open = openingTime || null;
     if (open !== amenity.opening_time) updates.opening_time = open;
     const close = closingTime || null;
@@ -435,7 +445,18 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
             />
             <span className="text-xs text-muted-foreground whitespace-nowrap">min</span>
           </div>
+          <p className="text-xs text-muted-foreground">{t('amenitiesTab.prepTimeHelp')}</p>
         </div>
+      </div>
+
+      {/* Row 2a: Privatisation — la capacité ne plafonne plus que les personnes
+          d'une même réservation. */}
+      <div className="flex items-start justify-between gap-4 rounded-md border px-3 py-2.5">
+        <div className="space-y-0.5">
+          <Label className="text-xs">{t('amenitiesTab.exclusive')}</Label>
+          <p className="text-xs text-muted-foreground">{t('amenitiesTab.exclusiveHelp')}</p>
+        </div>
+        <Switch checked={isExclusive} onCheckedChange={setIsExclusive} />
       </div>
 
       {/* Row 2b: Durées proposées à la réservation (multi-choix + défaut) */}

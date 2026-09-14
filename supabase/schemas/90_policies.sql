@@ -283,6 +283,8 @@ CREATE POLICY "Concierges can view concierges from their hotels" ON "public"."co
 
 CREATE POLICY "Concierges can view customer bundles" ON "public"."customer_treatment_bundles" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));
 
+CREATE POLICY "Concierges can update customers" ON "public"."customers" FOR UPDATE USING ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));
+
 CREATE POLICY "Concierges can view customers" ON "public"."customers" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));
 
 CREATE POLICY "Concierges can view hairdresser hotels from their hotels" ON "public"."therapist_venues" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
@@ -470,7 +472,7 @@ CREATE POLICY "Therapists can view assignments for their bookings" ON "public"."
 CREATE POLICY "Therapists can view booking_therapists for awaiting bookings at" ON "public"."booking_therapists" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM ("public"."bookings" "b"
      JOIN "public"."therapist_venues" "tv" ON (("tv"."hotel_id" = "b"."hotel_id")))
-  WHERE (("b"."id" = "booking_therapists"."booking_id") AND ("b"."status" = 'pending'::"text") AND ("b"."guest_count" > 1) AND ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"())) AND (NOT ("public"."get_therapist_id"("auth"."uid"()) = ANY (COALESCE("b"."declined_by", ARRAY[]::"uuid"[]))))))));
+  WHERE (("b"."id" = "booking_therapists"."booking_id") AND ("b"."status" = 'pending'::"text") AND (("b"."guest_count" > 1) OR "public"."booking_has_open_leg"("b"."id")) AND ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"())) AND (NOT ("public"."get_therapist_id"("auth"."uid"()) = ANY (COALESCE("b"."declined_by", ARRAY[]::"uuid"[]))))))));
 
 CREATE POLICY "Therapists can view bookings they joined as secondary" ON "public"."bookings" FOR SELECT TO "authenticated" USING ("public"."is_booking_participant"("id", "public"."get_therapist_id"("auth"."uid"())));
 
@@ -502,7 +504,7 @@ CREATE POLICY "Therapists can view own invoices" ON "public"."invoices" FOR SELE
    FROM "public"."therapists"
   WHERE ("therapists"."user_id" = "auth"."uid"()))));
 
-CREATE POLICY "Therapists can view pending bookings from their hotels" ON "public"."bookings" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'therapist'::"public"."app_role") AND ("status" = 'pending'::"text") AND (("therapist_id" IS NULL) OR ("guest_count" > 1)) AND ("hotel_id" IN ( SELECT "tv"."hotel_id"
+CREATE POLICY "Therapists can view pending bookings from their hotels" ON "public"."bookings" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'therapist'::"public"."app_role") AND ("status" = 'pending'::"text") AND (("therapist_id" IS NULL) OR ("guest_count" > 1) OR "public"."booking_has_open_leg"("id")) AND ("hotel_id" IN ( SELECT "tv"."hotel_id"
    FROM "public"."therapist_venues" "tv"
   WHERE ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"())))) AND (NOT ("public"."get_therapist_id"("auth"."uid"()) = ANY (COALESCE("declined_by", ARRAY[]::"uuid"[]))))));
 
@@ -518,9 +520,11 @@ CREATE POLICY "Therapists can view treatment menus from their hotels" ON "public
    FROM "public"."therapist_venues" "tv"
   WHERE ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"())))) OR ("hotel_id" IS NULL))));
 
+CREATE POLICY "Therapists can view treatments for bookings they joined" ON "public"."booking_treatments" FOR SELECT TO "authenticated" USING ("public"."is_booking_participant"("booking_id", "public"."get_therapist_id"("auth"."uid"())));
+
 CREATE POLICY "Therapists can view treatments for pending bookings" ON "public"."booking_treatments" FOR SELECT USING (("booking_id" IN ( SELECT "b"."id"
    FROM "public"."bookings" "b"
-  WHERE (("b"."status" = 'pending'::"text") AND (("b"."therapist_id" IS NULL) OR ("b"."guest_count" > 1)) AND ("b"."hotel_id" IN ( SELECT "tv"."hotel_id"
+  WHERE (("b"."status" = 'pending'::"text") AND (("b"."therapist_id" IS NULL) OR ("b"."guest_count" > 1) OR "public"."booking_has_open_leg"("b"."id")) AND ("b"."hotel_id" IN ( SELECT "tv"."hotel_id"
            FROM "public"."therapist_venues" "tv"
           WHERE ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"()))))))));
 
@@ -650,3 +654,17 @@ CREATE POLICY "treatment_addons_admin_write" ON "public"."treatment_addons" USIN
 CREATE POLICY "treatment_addons_public_read" ON "public"."treatment_addons" FOR SELECT USING (true);
 
 CREATE POLICY "users_select_own_tickets" ON "public"."tickets" FOR SELECT USING (("created_by" = "auth"."uid"()));
+
+CREATE POLICY "Block anonymous access to voucher resellers" ON "public"."voucher_resellers" AS RESTRICTIVE TO "anon" USING (false);
+
+CREATE POLICY "Admins can manage voucher resellers" ON "public"."voucher_resellers" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
+
+CREATE POLICY "Concierges can view voucher resellers" ON "public"."voucher_resellers" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));
+
+CREATE POLICY "Concierges can insert voucher resellers" ON "public"."voucher_resellers" FOR INSERT WITH CHECK ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));
+
+CREATE POLICY "Block anonymous access to voucher verifications" ON "public"."voucher_verification_requests" AS RESTRICTIVE TO "anon" USING (false);
+
+CREATE POLICY "Admins can manage voucher verifications" ON "public"."voucher_verification_requests" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role")) WITH CHECK ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
+
+CREATE POLICY "Concierges can view voucher verifications" ON "public"."voucher_verification_requests" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));

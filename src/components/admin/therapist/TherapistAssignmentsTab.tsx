@@ -7,9 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
-import { Building2, Check, Sparkles, Target } from "lucide-react";
+import { Building2, Check, Coins, Sparkles, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TherapistTreatmentsSelector } from "@/components/admin/therapist/TherapistTreatmentsSelector";
+import { TherapistTreatmentRatesEditor } from "@/components/admin/therapist/TherapistTreatmentRatesEditor";
+import type { TreatmentRateMap } from "@/lib/therapistEarnings";
 
 interface TherapistAssignmentsTabProps {
   disabled: boolean;
@@ -19,6 +21,12 @@ interface TherapistAssignmentsTabProps {
   onHotelsChange: (hotels: string[]) => void;
   selectedTreatmentIds: string[];
   onTreatmentsChange: (ids: string[]) => void;
+  treatmentRates: TreatmentRateMap;
+  onTreatmentRatesChange: (value: TreatmentRateMap) => void;
+  treatmentRatesActive: boolean;
+  onTreatmentRatesActiveChange: (value: boolean) => void;
+  /** Barème par défaut du thérapeute, point de départ de chaque barème de soin. */
+  defaultRateScale: Record<string, number>;
   minimumGuarantee: Record<string, number>;
   onMinimumGuaranteeChange: (value: Record<string, number>) => void;
   minimumGuaranteeActive: boolean;
@@ -53,6 +61,11 @@ export function TherapistAssignmentsTab({
   onHotelsChange,
   selectedTreatmentIds,
   onTreatmentsChange,
+  treatmentRates,
+  onTreatmentRatesChange,
+  treatmentRatesActive,
+  onTreatmentRatesActiveChange,
+  defaultRateScale,
   minimumGuarantee,
   onMinimumGuaranteeChange,
   minimumGuaranteeActive,
@@ -207,6 +220,54 @@ export function TherapistAssignmentsTab({
             disabled={disabled}
           />
         </CardContent>
+      </Card>
+
+      {/* Barèmes spécifiques par soin */}
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base font-normal flex items-center gap-2">
+                <Coins className="h-4 w-4 text-muted-foreground" />
+                {t("admin:therapists.treatmentRates.title", {
+                  defaultValue: "Taux spécifiques par soin",
+                })}
+              </CardTitle>
+              <CardDescription>
+                {t("admin:therapists.treatmentRates.description", {
+                  defaultValue:
+                    "Cas rare : une prestation qui ne rapporte pas la même chose que les autres. Sans barème spécifique, tous les soins utilisent le barème par durée de l'onglet Général.",
+                })}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="tr-active" className="text-xs text-muted-foreground">
+                {treatmentRatesActive
+                  ? t("admin:therapists.active", "Actif")
+                  : t("admin:therapists.inactive", "Inactif")}
+              </Label>
+              <Switch
+                id="tr-active"
+                checked={treatmentRatesActive}
+                onCheckedChange={onTreatmentRatesActiveChange}
+                disabled={disabled}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        {treatmentRatesActive && (
+          <CardContent>
+            <TherapistTreatmentRatesEditor
+              value={treatmentRates}
+              onChange={onTreatmentRatesChange}
+              selectedTreatmentIds={selectedTreatmentIds}
+              venueIds={selectedHotels}
+              venueNames={Object.fromEntries(hotels.map((h) => [h.id, h.name]))}
+              defaultScale={defaultRateScale}
+              disabled={disabled}
+            />
+          </CardContent>
+        )}
       </Card>
 
       {/* Minimum Guarantee */}

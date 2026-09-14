@@ -4,7 +4,7 @@ import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { brand, brandLogos } from "@/config/brand";
+import { BRAND_NAME as PLATFORM_NAME, BRAND_LOGO as PLATFORM_LOGO } from "@/components/landing/constants";
 import { GlobalSearch } from "@/components/admin/GlobalSearch";
 import { OrganizationPickerDialog } from "@/components/admin/OrganizationPickerDialog";
 import { useUser } from "@/contexts/UserContext";
@@ -75,6 +75,7 @@ interface MenuItem {
   icon: LucideIcon;
   badge?: boolean;
   isNew?: boolean;
+  isBeta?: boolean;
   soon?: boolean;
 }
 
@@ -86,9 +87,9 @@ const adminPrimaryItems: MenuItem[] = [
   { title: "Thérapeutes", titleKey: "sidebar.therapists", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", titleKey: "sidebar.treatments", url: "/admin/treatments", icon: BookOpen },
   { title: "Clients", titleKey: "sidebar.customers", url: "/admin/customers", icon: Contact },
-  { title: "Paniers abandonnés", titleKey: "sidebar.checkoutIntents", url: "/admin/checkout-intents", icon: ShoppingCart, isNew: true },
-  { title: "Tâches", titleKey: "sidebar.tasks", url: "/admin/tasks", icon: ListTodo, isNew: true },
-  { title: "Inbox", url: "/admin/inbox", icon: Inbox },
+  { title: "Paniers abandonnés", titleKey: "sidebar.checkoutIntents", url: "/admin/checkout-intents", icon: ShoppingCart },
+  { title: "Tâches", titleKey: "sidebar.tasks", url: "/admin/tasks", icon: ListTodo },
+  { title: "Inbox", url: "/admin/inbox", icon: Inbox, isBeta: true },
   { title: "Alertes", titleKey: "sidebar.alerts", url: "/admin/schedule-alerts", icon: Bell, badge: true },
 ];
 
@@ -141,6 +142,11 @@ export function AppSidebar() {
     setMoreOpen(open);
     try { localStorage.setItem(STORAGE_KEY, String(open)); } catch { /* storage unavailable */ }
   };
+
+  // Titre de l'onglet : l'organisation courante, faute de quoi la plateforme.
+  useEffect(() => {
+    document.title = organizationName ? `${organizationName} by ${PLATFORM_NAME}` : PLATFORM_NAME;
+  }, [organizationName]);
 
   useEffect(() => {
     const fetchAdminInfo = async () => {
@@ -325,6 +331,11 @@ export function AppSidebar() {
                 New
               </span>
             )}
+            {item.isBeta && (
+              <span className="ml-auto inline-flex h-4 items-center rounded-full border border-amber-500/20 bg-gradient-to-b from-amber-50 to-amber-100 px-1.5 text-[8px] font-bold uppercase leading-none tracking-[0.12em] text-amber-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] group-data-[collapsible=icon]:hidden dark:border-amber-400/20 dark:from-amber-400/15 dark:to-amber-500/10 dark:text-amber-300">
+                Beta
+              </span>
+            )}
           </NavLink>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -336,30 +347,28 @@ export function AppSidebar() {
       <SidebarContent className="flex flex-col h-full overflow-hidden">
         {/* Logo (fixed) */}
         <div className="flex-shrink-0 px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
-          {organizationName ? (
-            <div className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden">
-              {organizationLogoUrl && (
-                <img
-                  src={organizationLogoUrl}
-                  alt={organizationName}
-                  className="h-7 w-7 rounded-md object-cover flex-shrink-0"
-                />
-              )}
-              <span className="text-sm font-medium text-sidebar-foreground truncate">
-                {organizationName}
-              </span>
-            </div>
-          ) : (
+          {/* Logo de l'organisation, avec repli sur celui de la plateforme. */}
+          <div className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden">
             <img
-              src={brandLogos.primary}
-              alt={brand.name}
-              className="h-7 w-auto group-data-[collapsible=icon]:hidden"
+              src={organizationLogoUrl || PLATFORM_LOGO}
+              alt={organizationName ?? PLATFORM_NAME}
+              className="h-7 w-7 rounded-md object-cover flex-shrink-0"
             />
-          )}
+            <div className="flex flex-col min-w-0 leading-tight">
+              <span className="text-sm font-medium text-sidebar-foreground truncate">
+                {organizationName ?? PLATFORM_NAME}
+              </span>
+              {organizationName && (
+                <span className="text-[10px] text-sidebar-foreground/50 truncate">
+                  by {PLATFORM_NAME}
+                </span>
+              )}
+            </div>
+          </div>
           <img
-            src={brandLogos.monogram}
-            alt={brand.name}
-            className="h-7 w-auto hidden group-data-[collapsible=icon]:block mx-auto"
+            src={organizationLogoUrl || PLATFORM_LOGO}
+            alt={organizationName ?? PLATFORM_NAME}
+            className="h-7 w-7 rounded-md object-cover hidden group-data-[collapsible=icon]:block mx-auto"
           />
         </div>
 

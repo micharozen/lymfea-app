@@ -467,6 +467,7 @@ export type Database = {
           payment_at: string | null
           payment_error_message: string | null
           payment_last_reminder_at: string | null
+          payment_link_cancelled_at: string | null
           payment_link_expires_at: string | null
           payment_link_stripe_id: string | null
           payment_reminder_count: number | null
@@ -494,6 +495,7 @@ export type Database = {
           payment_at?: string | null
           payment_error_message?: string | null
           payment_last_reminder_at?: string | null
+          payment_link_cancelled_at?: string | null
           payment_link_expires_at?: string | null
           payment_link_stripe_id?: string | null
           payment_reminder_count?: number | null
@@ -521,6 +523,7 @@ export type Database = {
           payment_at?: string | null
           payment_error_message?: string | null
           payment_last_reminder_at?: string | null
+          payment_link_cancelled_at?: string | null
           payment_link_expires_at?: string | null
           payment_link_stripe_id?: string | null
           payment_reminder_count?: number | null
@@ -745,6 +748,7 @@ export type Database = {
           email_inquiry_id: string | null
           external_id: string | null
           external_reference: string | null
+          external_voucher_reference: string | null
           gift_amount_applied_cents: number
           guest_count: number
           hold_expires_at: string | null
@@ -770,6 +774,7 @@ export type Database = {
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
           quote_token: string | null
+          reconfirm_until: string | null
           room_id: string | null
           room_number: string | null
           secondary_room_id: string | null
@@ -811,6 +816,7 @@ export type Database = {
           email_inquiry_id?: string | null
           external_id?: string | null
           external_reference?: string | null
+          external_voucher_reference?: string | null
           gift_amount_applied_cents?: number
           guest_count?: number
           hold_expires_at?: string | null
@@ -836,6 +842,7 @@ export type Database = {
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
           quote_token?: string | null
+          reconfirm_until?: string | null
           room_id?: string | null
           room_number?: string | null
           secondary_room_id?: string | null
@@ -877,6 +884,7 @@ export type Database = {
           email_inquiry_id?: string | null
           external_id?: string | null
           external_reference?: string | null
+          external_voucher_reference?: string | null
           gift_amount_applied_cents?: number
           guest_count?: number
           hold_expires_at?: string | null
@@ -902,6 +910,7 @@ export type Database = {
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
           quote_token?: string | null
+          reconfirm_until?: string | null
           room_id?: string | null
           room_number?: string | null
           secondary_room_id?: string | null
@@ -1289,26 +1298,35 @@ export type Database = {
         Row: {
           beneficiary_customer_id: string | null
           booking_id: string | null
-          bundle_id: string
+          bundle_id: string | null
           claimed_at: string | null
           created_at: string
-          customer_id: string
+          created_by: string | null
+          customer_id: string | null
           delivered_at: string | null
           expires_at: string
+          external_code: string | null
+          external_code_normalized: string | null
           gift_delivery_mode: string | null
           gift_message: string | null
           hotel_id: string
           id: string
+          imported_at: string | null
           is_gift: boolean
           notes: string | null
+          origin: string
           payment_reference: string | null
           purchase_date: string
+          raw_payload: Json | null
           recipient_email: string | null
           recipient_name: string | null
           redemption_code: string | null
+          reseller_id: string | null
           sender_email: string | null
           sender_name: string | null
           sold_by: string | null
+          source: string
+          source_message_id: string | null
           status: string
           total_amount_cents: number | null
           total_sessions: number | null
@@ -1319,26 +1337,35 @@ export type Database = {
         Insert: {
           beneficiary_customer_id?: string | null
           booking_id?: string | null
-          bundle_id: string
+          bundle_id?: string | null
           claimed_at?: string | null
           created_at?: string
-          customer_id: string
+          created_by?: string | null
+          customer_id?: string | null
           delivered_at?: string | null
           expires_at: string
+          external_code?: string | null
+          external_code_normalized?: string | null
           gift_delivery_mode?: string | null
           gift_message?: string | null
           hotel_id: string
           id?: string
+          imported_at?: string | null
           is_gift?: boolean
           notes?: string | null
+          origin?: string
           payment_reference?: string | null
           purchase_date?: string
+          raw_payload?: Json | null
           recipient_email?: string | null
           recipient_name?: string | null
           redemption_code?: string | null
+          reseller_id?: string | null
           sender_email?: string | null
           sender_name?: string | null
           sold_by?: string | null
+          source?: string
+          source_message_id?: string | null
           status?: string
           total_amount_cents?: number | null
           total_sessions?: number | null
@@ -1349,26 +1376,35 @@ export type Database = {
         Update: {
           beneficiary_customer_id?: string | null
           booking_id?: string | null
-          bundle_id?: string
+          bundle_id?: string | null
           claimed_at?: string | null
           created_at?: string
-          customer_id?: string
+          created_by?: string | null
+          customer_id?: string | null
           delivered_at?: string | null
           expires_at?: string
+          external_code?: string | null
+          external_code_normalized?: string | null
           gift_delivery_mode?: string | null
           gift_message?: string | null
           hotel_id?: string
           id?: string
+          imported_at?: string | null
           is_gift?: boolean
           notes?: string | null
+          origin?: string
           payment_reference?: string | null
           purchase_date?: string
+          raw_payload?: Json | null
           recipient_email?: string | null
           recipient_name?: string | null
           redemption_code?: string | null
+          reseller_id?: string | null
           sender_email?: string | null
           sender_name?: string | null
           sold_by?: string | null
+          source?: string
+          source_message_id?: string | null
           status?: string
           total_amount_cents?: number | null
           total_sessions?: number | null
@@ -1412,6 +1448,13 @@ export type Database = {
             referencedRelation: "hotels"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "customer_treatment_bundles_reseller_id_fkey"
+            columns: ["reseller_id"]
+            isOneToOne: false
+            referencedRelation: "voucher_resellers"
+            referencedColumns: ["id"]
+          },
         ]
       }
       customers: {
@@ -1425,6 +1468,7 @@ export type Database = {
           id: string
           language: string | null
           last_name: string | null
+          organization_id: string
           phone: string | null
           preferred_therapist_id: string | null
           preferred_treatment_type: string | null
@@ -1442,6 +1486,7 @@ export type Database = {
           id?: string
           language?: string | null
           last_name?: string | null
+          organization_id: string
           phone?: string | null
           preferred_therapist_id?: string | null
           preferred_treatment_type?: string | null
@@ -1459,6 +1504,7 @@ export type Database = {
           id?: string
           language?: string | null
           last_name?: string | null
+          organization_id?: string
           phone?: string | null
           preferred_therapist_id?: string | null
           preferred_treatment_type?: string | null
@@ -1467,6 +1513,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customers_preferred_therapist_id_fkey"
             columns: ["preferred_therapist_id"]
@@ -1686,6 +1739,7 @@ export type Database = {
           livemode: boolean | null
           oauth_connected_at: string | null
           oauth_expires_at: string | null
+          oauth_refresh_claimed_at: string | null
           provider: string
           stripe_account_id: string | null
           stripe_publishable_key: string | null
@@ -1707,6 +1761,7 @@ export type Database = {
           livemode?: boolean | null
           oauth_connected_at?: string | null
           oauth_expires_at?: string | null
+          oauth_refresh_claimed_at?: string | null
           provider?: string
           stripe_account_id?: string | null
           stripe_publishable_key?: string | null
@@ -1728,6 +1783,7 @@ export type Database = {
           livemode?: boolean | null
           oauth_connected_at?: string | null
           oauth_expires_at?: string | null
+          oauth_refresh_claimed_at?: string | null
           provider?: string
           stripe_account_id?: string | null
           stripe_publishable_key?: string | null
@@ -1823,6 +1879,8 @@ export type Database = {
       }
       hotels: {
         Row: {
+          access_instructions: string | null
+          access_instructions_en: string | null
           address: string | null
           allow_out_of_hours_booking: boolean | null
           auto_validate_bookings: boolean | null
@@ -1835,6 +1893,7 @@ export type Database = {
           city: string | null
           client_cancellation_cutoff_hours: number | null
           client_payment_mode: string
+          client_reschedule_cutoff_hours: number
           closing_time: string | null
           company_offered: boolean | null
           contact_email: string | null
@@ -1845,6 +1904,7 @@ export type Database = {
           currency: string | null
           description: string | null
           description_en: string | null
+          external_vouchers_enabled: boolean
           global_therapist_commission: boolean | null
           hotel_commission: number | null
           id: string
@@ -1880,6 +1940,8 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
+          access_instructions?: string | null
+          access_instructions_en?: string | null
           address?: string | null
           allow_out_of_hours_booking?: boolean | null
           auto_validate_bookings?: boolean | null
@@ -1892,6 +1954,7 @@ export type Database = {
           city?: string | null
           client_cancellation_cutoff_hours?: number | null
           client_payment_mode?: string
+          client_reschedule_cutoff_hours?: number
           closing_time?: string | null
           company_offered?: boolean | null
           contact_email?: string | null
@@ -1902,6 +1965,7 @@ export type Database = {
           currency?: string | null
           description?: string | null
           description_en?: string | null
+          external_vouchers_enabled?: boolean
           global_therapist_commission?: boolean | null
           hotel_commission?: number | null
           id?: string
@@ -1937,6 +2001,8 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
+          access_instructions?: string | null
+          access_instructions_en?: string | null
           address?: string | null
           allow_out_of_hours_booking?: boolean | null
           auto_validate_bookings?: boolean | null
@@ -1949,6 +2015,7 @@ export type Database = {
           city?: string | null
           client_cancellation_cutoff_hours?: number | null
           client_payment_mode?: string
+          client_reschedule_cutoff_hours?: number
           closing_time?: string | null
           company_offered?: boolean | null
           contact_email?: string | null
@@ -1959,6 +2026,7 @@ export type Database = {
           currency?: string | null
           description?: string | null
           description_en?: string | null
+          external_vouchers_enabled?: boolean
           global_therapist_commission?: boolean | null
           hotel_commission?: number | null
           id?: string
@@ -2374,23 +2442,34 @@ export type Database = {
       push_notification_logs: {
         Row: {
           booking_id: string
+          booking_treatment_id: string | null
           id: string
           sent_at: string
           user_id: string
         }
         Insert: {
           booking_id: string
+          booking_treatment_id?: string | null
           id?: string
           sent_at?: string
           user_id: string
         }
         Update: {
           booking_id?: string
+          booking_treatment_id?: string | null
           id?: string
           sent_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "push_notification_logs_booking_treatment_id_fkey"
+            columns: ["booking_treatment_id"]
+            isOneToOne: false
+            referencedRelation: "booking_treatments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {
@@ -2565,7 +2644,9 @@ export type Database = {
       tasks: {
         Row: {
           assigned_to_user_id: string | null
+          attachments: string[]
           booking_id: string | null
+          checklist: Json
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -2578,12 +2659,18 @@ export type Database = {
           position: number
           priority: string
           status: string
+          task_type: string
+          task_type_other: string | null
+          therapist_ids: string[]
           title: string
+          treatment_menu_ids: string[]
           updated_at: string
         }
         Insert: {
           assigned_to_user_id?: string | null
+          attachments?: string[]
           booking_id?: string | null
+          checklist?: Json
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -2596,12 +2683,18 @@ export type Database = {
           position?: number
           priority?: string
           status?: string
+          task_type?: string
+          task_type_other?: string | null
+          therapist_ids?: string[]
           title: string
+          treatment_menu_ids?: string[]
           updated_at?: string
         }
         Update: {
           assigned_to_user_id?: string | null
+          attachments?: string[]
           booking_id?: string | null
+          checklist?: Json
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -2614,7 +2707,11 @@ export type Database = {
           position?: number
           priority?: string
           status?: string
+          task_type?: string
+          task_type_other?: string | null
+          therapist_ids?: string[]
           title?: string
+          treatment_menu_ids?: string[]
           updated_at?: string
         }
         Relationships: [
@@ -2958,12 +3055,16 @@ export type Database = {
           last_name: string
           minimum_guarantee: Json | null
           minimum_guarantee_active: boolean | null
+          notification_test_error: string | null
+          notification_test_sent_at: string | null
+          notification_test_status: string | null
           password_set: boolean | null
           phone: string
           profile_image: string | null
           rate_105: number | null
           rate_120: number | null
           rate_150: number | null
+          rate_30: number | null
           rate_45: number | null
           rate_60: number | null
           rate_75: number | null
@@ -2972,6 +3073,8 @@ export type Database = {
           status: string
           stripe_account_id: string | null
           stripe_onboarding_completed: boolean | null
+          treatment_rates: Json | null
+          treatment_rates_active: boolean | null
           updated_at: string
           user_id: string | null
         }
@@ -2986,12 +3089,16 @@ export type Database = {
           last_name: string
           minimum_guarantee?: Json | null
           minimum_guarantee_active?: boolean | null
+          notification_test_error?: string | null
+          notification_test_sent_at?: string | null
+          notification_test_status?: string | null
           password_set?: boolean | null
           phone: string
           profile_image?: string | null
           rate_105?: number | null
           rate_120?: number | null
           rate_150?: number | null
+          rate_30?: number | null
           rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
@@ -3000,6 +3107,8 @@ export type Database = {
           status?: string
           stripe_account_id?: string | null
           stripe_onboarding_completed?: boolean | null
+          treatment_rates?: Json | null
+          treatment_rates_active?: boolean | null
           updated_at?: string
           user_id?: string | null
         }
@@ -3014,12 +3123,16 @@ export type Database = {
           last_name?: string
           minimum_guarantee?: Json | null
           minimum_guarantee_active?: boolean | null
+          notification_test_error?: string | null
+          notification_test_sent_at?: string | null
+          notification_test_status?: string | null
           password_set?: boolean | null
           phone?: string
           profile_image?: string | null
           rate_105?: number | null
           rate_120?: number | null
           rate_150?: number | null
+          rate_30?: number | null
           rate_45?: number | null
           rate_60?: number | null
           rate_75?: number | null
@@ -3028,6 +3141,8 @@ export type Database = {
           status?: string
           stripe_account_id?: string | null
           stripe_onboarding_completed?: boolean | null
+          treatment_rates?: Json | null
+          treatment_rates_active?: boolean | null
           updated_at?: string
           user_id?: string | null
         }
@@ -3278,6 +3393,7 @@ export type Database = {
         Row: {
           amenity_id: string | null
           available_days: number[] | null
+          bookable_online: boolean
           bundle_id: string | null
           category: string
           created_at: string
@@ -3307,6 +3423,7 @@ export type Database = {
         Insert: {
           amenity_id?: string | null
           available_days?: number[] | null
+          bookable_online?: boolean
           bundle_id?: string | null
           category: string
           created_at?: string
@@ -3336,6 +3453,7 @@ export type Database = {
         Update: {
           amenity_id?: string | null
           available_days?: number[] | null
+          bookable_online?: boolean
           bundle_id?: string | null
           category?: string
           created_at?: string
@@ -3533,6 +3651,7 @@ export type Database = {
           hotel_id: string
           id: string
           is_enabled: boolean
+          is_exclusive: boolean
           lymfea_access_duration: number | null
           lymfea_access_included: boolean
           name: string | null
@@ -3554,6 +3673,7 @@ export type Database = {
           hotel_id: string
           id?: string
           is_enabled?: boolean
+          is_exclusive?: boolean
           lymfea_access_duration?: number | null
           lymfea_access_included?: boolean
           name?: string | null
@@ -3575,6 +3695,7 @@ export type Database = {
           hotel_id?: string
           id?: string
           is_enabled?: boolean
+          is_exclusive?: boolean
           lymfea_access_duration?: number | null
           lymfea_access_included?: boolean
           name?: string | null
@@ -3800,6 +3921,139 @@ export type Database = {
           },
         ]
       }
+      voucher_resellers: {
+        Row: {
+          code_pattern: string | null
+          created_at: string
+          default_validity_months: number | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          organization_id: string
+          sender_email_domain: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          code_pattern?: string | null
+          created_at?: string
+          default_validity_months?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          organization_id: string
+          sender_email_domain?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          code_pattern?: string | null
+          created_at?: string
+          default_validity_months?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          sender_email_domain?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voucher_resellers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voucher_verification_requests: {
+        Row: {
+          approved_amount_cents: number | null
+          booking_id: string
+          booking_total_cents: number
+          claimed_reseller_id: string | null
+          created_at: string
+          hotel_id: string
+          id: string
+          rejection_reason: string | null
+          resolved_bundle_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_code: string
+          submitted_code_normalized: string
+          updated_at: string
+        }
+        Insert: {
+          approved_amount_cents?: number | null
+          booking_id: string
+          booking_total_cents: number
+          claimed_reseller_id?: string | null
+          created_at?: string
+          hotel_id: string
+          id?: string
+          rejection_reason?: string | null
+          resolved_bundle_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_code: string
+          submitted_code_normalized: string
+          updated_at?: string
+        }
+        Update: {
+          approved_amount_cents?: number | null
+          booking_id?: string
+          booking_total_cents?: number
+          claimed_reseller_id?: string | null
+          created_at?: string
+          hotel_id?: string
+          id?: string
+          rejection_reason?: string | null
+          resolved_bundle_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_code?: string
+          submitted_code_normalized?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voucher_verification_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voucher_verification_requests_claimed_reseller_id_fkey"
+            columns: ["claimed_reseller_id"]
+            isOneToOne: false
+            referencedRelation: "voucher_resellers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voucher_verification_requests_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voucher_verification_requests_resolved_bundle_id_fkey"
+            columns: ["resolved_bundle_id"]
+            isOneToOne: false
+            referencedRelation: "customer_treatment_bundles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -3835,6 +4089,17 @@ export type Database = {
         Args: { _therapist_id: string }
         Returns: boolean
       }
+      amenity_slot_conflict: {
+        Args: {
+          _booking_date: string
+          _end_time: string
+          _exclude_amenity_booking_id?: string
+          _guests?: number
+          _start_time: string
+          _venue_amenity_id: string
+        }
+        Returns: string
+      }
       apply_schedule_template: {
         Args: {
           _month: number
@@ -3859,6 +4124,8 @@ export type Database = {
           booking_group_id: string | null
           booking_id: number
           booking_time: string
+          broadcast_wave: number | null
+          broadcast_wave_sent_at: string | null
           bundle_usage_id: string | null
           cancellation_reason: string | null
           client_email: string | null
@@ -3875,6 +4142,7 @@ export type Database = {
           email_inquiry_id: string | null
           external_id: string | null
           external_reference: string | null
+          external_voucher_reference: string | null
           gift_amount_applied_cents: number
           guest_count: number
           hold_expires_at: string | null
@@ -3900,6 +4168,7 @@ export type Database = {
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
           quote_token: string | null
+          reconfirm_until: string | null
           room_id: string | null
           room_number: string | null
           secondary_room_id: string | null
@@ -3938,6 +4207,8 @@ export type Database = {
           booking_group_id: string | null
           booking_id: number
           booking_time: string
+          broadcast_wave: number | null
+          broadcast_wave_sent_at: string | null
           bundle_usage_id: string | null
           cancellation_reason: string | null
           client_email: string | null
@@ -3954,6 +4225,7 @@ export type Database = {
           email_inquiry_id: string | null
           external_id: string | null
           external_reference: string | null
+          external_voucher_reference: string | null
           gift_amount_applied_cents: number
           guest_count: number
           hold_expires_at: string | null
@@ -3979,6 +4251,7 @@ export type Database = {
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
           quote_token: string | null
+          reconfirm_until: string | null
           room_id: string | null
           room_number: string | null
           secondary_room_id: string | null
@@ -4003,8 +4276,14 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      booking_has_open_leg: { Args: { _booking_id: string }; Returns: boolean }
+      can_access_customer: { Args: { _customer_id: string }; Returns: boolean }
       can_assign_therapist_to_booking: {
         Args: { _booking_id: string; _target_therapist_id: string }
+        Returns: boolean
+      }
+      can_manage_booking_rooms: {
+        Args: { _booking_id: string; _user_id: string }
         Returns: boolean
       }
       claim_gift_card: {
@@ -4025,6 +4304,10 @@ export type Database = {
           hotel_id: string
           user_id: string
         }[]
+      }
+      claim_stripe_oauth_refresh: {
+        Args: { p_account_id: string; p_ttl_seconds?: number }
+        Returns: boolean
       }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       concierge_can_view_therapist: {
@@ -4142,11 +4425,20 @@ export type Database = {
         }[]
       }
       expire_overdue_bundles: { Args: never; Returns: number }
+      find_auth_customer_in_hotel_org: {
+        Args: { _hotel_id: string }
+        Returns: string
+      }
+      find_customer_in_hotel_org: {
+        Args: { _hotel_id: string; _phone: string }
+        Returns: string
+      }
       find_or_create_customer: {
         Args: {
           _civility?: string
           _email?: string
           _first_name: string
+          _hotel_id?: string
           _language?: string
           _last_name?: string
           _phone: string
@@ -4267,6 +4559,17 @@ export type Database = {
           treatment_name: string
         }[]
       }
+      get_booking_room_options: {
+        Args: { _booking_id: string }
+        Returns: {
+          capacity: number
+          id: string
+          is_occupied: boolean
+          name: string
+          room_number: string
+          turnover_conflict: boolean
+        }[]
+      }
       get_booking_summary: { Args: { _booking_id: string }; Returns: Json }
       get_booking_therapist_names: {
         Args: { _booking_ids: string[] }
@@ -4292,7 +4595,17 @@ export type Database = {
           hotel_id: string
         }[]
       }
-      get_customer_portal_data: { Args: never; Returns: Json }
+      get_customer_portal_data: { Args: { _hotel_id?: string }; Returns: Json }
+      get_dashboard_monthly_outlook: {
+        Args: { _from_month: string; _hotel_ids: string[]; _to_month: string }
+        Returns: {
+          booking_count: number
+          bucket: string
+          hotel_id: string
+          month_key: string
+          revenue: number
+        }[]
+      }
       get_enterprise_session_data: {
         Args: { _hotel_id: string; _session_date?: string }
         Returns: Json
@@ -4308,6 +4621,7 @@ export type Database = {
           total_sessions: number
         }[]
       }
+      get_hotel_org_id: { Args: { _hotel_id: string }; Returns: string }
       get_incomplete_schedule_therapist_ids: {
         Args: { p_dedup_days?: number; p_reminder_type?: string }
         Returns: string[]
@@ -4330,6 +4644,7 @@ export type Database = {
           client_email: string
           client_first_name: string
           client_last_name: string
+          customer_language: string
           estimated_price: number
           hotel_id: string
           hotel_name: string
@@ -4338,6 +4653,7 @@ export type Database = {
           payment_method: string
           payment_status: string
           phone: string
+          reschedule_cutoff_hours: number
           room_number: string
           short_token: string
           status: string
@@ -4377,6 +4693,7 @@ export type Database = {
           days_of_week: number[]
           description: string
           description_en: string
+          external_vouchers_enabled: boolean
           font_body_family: string
           font_body_url: string
           font_title_family: string
@@ -4432,6 +4749,7 @@ export type Database = {
           days_of_week: number[]
           description: string
           description_en: string
+          external_vouchers_enabled: boolean
           font_body_family: string
           font_body_url: string
           font_title_family: string
@@ -4501,11 +4819,12 @@ export type Database = {
         }[]
       }
       get_public_treatments: {
-        Args: { _hotel_id: string }
+        Args: { _hotel_id: string; _include_internal?: boolean }
         Returns: {
           amenity_id: string
           amenity_type: string
           available_days: number[]
+          bookable_online: boolean
           bundle_id: string
           category: string
           currency: string
@@ -4553,6 +4872,7 @@ export type Database = {
         }[]
       }
       get_therapist_id: { Args: { _user_id: string }; Returns: string }
+      get_user_org_id: { Args: { _user_id: string }; Returns: string }
       get_user_organization_id: { Args: { _user_id: string }; Returns: string }
       get_user_timezone: { Args: { _user_id: string }; Returns: string }
       get_venue_available_dates: {
@@ -4579,6 +4899,7 @@ export type Database = {
         Args: { _booking_id: string; _therapist_id: string }
         Returns: boolean
       }
+      is_placeholder_phone: { Args: { _phone: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_venue_available_on_date: {
         Args: { _check_date: string; _hotel_id: string }
@@ -4587,6 +4908,10 @@ export type Database = {
       issue_email_opt_out_token: {
         Args: { _email: string; _source?: string }
         Returns: string
+      }
+      lookup_external_voucher: {
+        Args: { _attempt_key: string; _code: string; _hotel_id: string }
+        Returns: Json
       }
       lookup_gift_card_by_code: {
         Args: { _attempt_key: string; _code: string }
@@ -4602,6 +4927,8 @@ export type Database = {
           hotel_name: string
           is_active: boolean
           is_gift: boolean
+          recipient_email: string
+          recipient_name: string
           sender_name: string
           title: string
           title_en: string
@@ -4632,7 +4959,7 @@ export type Database = {
       }
       reschedule_booking_public: {
         Args: { p_new_date: string; p_new_time: string; p_token: string }
-        Returns: boolean
+        Returns: Json
       }
       reserve_trunk_atomically: {
         Args: {
@@ -4693,6 +5020,17 @@ export type Database = {
           _stripe_refund_id?: string
         }
         Returns: undefined
+      }
+      set_booking_rooms: {
+        Args: {
+          _booking_id: string
+          _room_id: string
+          _secondary_room_id?: string
+        }
+        Returns: {
+          new_room_id: string
+          new_secondary_room_id: string
+        }[]
       }
       slugify: { Args: { _input: string }; Returns: string }
       submit_client_signature:

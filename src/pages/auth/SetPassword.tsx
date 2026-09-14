@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Check, X, Loader2, Lock } from "lucide-react";
-import { brand, brandLogos } from "@/config/brand";
+import { Wordmark } from "@/components/landing/Wordmark";
+import { BRAND_NAME } from "@/components/landing/constants";
 import { z } from "zod";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 
@@ -174,14 +175,14 @@ const SetPassword = () => {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="flex justify-center">
-          <img src={brandLogos.primary} alt={brand.name} className="h-24 w-auto" />
+          <Wordmark className="text-3xl md:text-4xl" />
         </div>
 
         {/* Title */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-semibold text-foreground">Créez votre mot de passe</h1>
           <p className="text-muted-foreground">
-            Bienvenue dans l'équipe {brand.name} ! Choisissez un mot de passe sécurisé pour protéger votre compte.
+            Bienvenue dans l'équipe {BRAND_NAME} ! Choisissez un mot de passe sécurisé pour protéger votre compte.
           </p>
         </div>
 

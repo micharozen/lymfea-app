@@ -197,6 +197,11 @@
       "allDay": "Journée",
       "absent": "Absent",
       "notScheduled": "Non planifié"
+    },
+    "loadError": {
+      "title": "Le planning n'a pas pu être chargé",
+      "body": "La connexion au serveur a échoué. Les réservations affichées peuvent être incomplètes.",
+      "retry": "Réessayer"
     }
   },
   "bookings": {
@@ -284,7 +289,8 @@
         "pending_partner_billing": "Paiement partenaire",
         "card_saved": "Carte enregistrée",
         "offert": "Offert"
-      }
+      },
+      "failed": "L'export a échoué"
     }
   },
   "hotels": {
@@ -351,6 +357,7 @@
       "venue": "Lieu",
       "status": "Statut",
       "amount": "Montant",
+      "earnings": "Gain",
       "allStatuses": "Tous les statuts",
       "pending": "En attente",
       "confirmed": "Confirmé",
@@ -381,6 +388,7 @@
     "phoneRequired": "Le téléphone est requis",
     "finance": "Finance",
     "financeDesc": "Taux par durée de soin, utilisé quand le lieu n'applique pas de commission globale",
+    "rate30Label": "0h30",
     "rate45Label": "0h45",
     "rate60Label": "1h00",
     "rate75Label": "1h15",
@@ -471,7 +479,16 @@
     "therapist": "Thérapeute",
     "rateRequired": "Tarif requis",
     "rateMustBePositive": "Le tarif doit être > 0",
-    "inviteResent": "Invitation renvoyée avec succès"
+    "inviteResent": "Invitation renvoyée avec succès",
+    "treatmentRates": {
+      "title": "Taux spécifiques par soin",
+      "description": "Cas rare : une prestation qui ne rapporte pas la même chose que les autres. Sans barème spécifique, tous les soins utilisent le barème par durée de l'onglet Général.",
+      "addTreatment": "Ajouter un soin…",
+      "removeTreatment": "Retirer ce soin",
+      "noTreatments": "Cochez d'abord des prestations ci-dessus.",
+      "unknownTreatment": "Prestation retirée",
+      "hint": "Le barème d'un soin remplace intégralement le barème par défaut pour ce soin. Les autres prestations continuent d'utiliser le barème par défaut."
+    }
   },
   "treatments": {
     "title": "Menus des Soins",
@@ -644,6 +661,12 @@
         "label": "Durée du hold",
         "description": "Entre 1 et 15 minutes. Le compte à rebours s'affiche côté client et le hold est libéré automatiquement à l'expiration.",
         "suffix": "min"
+      },
+      "externalVouchersSectionTitle": "Bons revendeurs",
+      "externalVouchersSectionDescription": "Les bons achetés chez un revendeur (Wonderbox, Smartbox…) sont enregistrés par le lieu depuis l'onglet Bons cadeaux, puis utilisés par le client comme un avoir.",
+      "externalVouchersEnabled": {
+        "label": "Saisie du bon sur le site de réservation",
+        "description": "Si désactivé, le champ de saisie du code n'apparaît pas à l'étape Paiement et aucun code n'est accepté. À laisser désactivé pour un lieu qui ne travaille avec aucun revendeur."
       }
     },
     "backToList": "Retour aux lieux",
@@ -841,6 +864,12 @@
       "countryPlaceholder": "Sélectionner un pays",
       "countrySearch": "Rechercher un pays...",
       "countryEmpty": "Aucun pays trouvé.",
+      "accessInstructions": "Informations d'accès (FR)",
+      "accessInstructionsPlaceholder": "Code porte : 1234A\nAccès : traverser la cour jusqu'au fond, puis à droite.",
+      "accessInstructionsHelp": "Code porte, étage, chemin depuis l'entrée. Affiché dans l'e-mail de confirmation envoyé au client.",
+      "accessInstructionsEn": "Informations d'accès (EN)",
+      "accessInstructionsEnPlaceholder": "Door code: 1234A\nAccess: cross the courtyard to the end, then turn right.",
+      "accessInstructionsEnHelp": "Traduction anglaise. Si vide, la version française est utilisée.",
       "website": "Site web",
       "timezone": "Fuseau horaire",
       "financeTitle": "Finance",
@@ -856,6 +885,8 @@
       "onlineCancellation": "Annulation client en ligne",
       "onlineCancellationDesc": "Tranches de remboursement selon le délai avant le rendez-vous.",
       "cancellationCutoff": "Délai minimum avant le RDV (heures)",
+      "rescheduleCutoff": "Délai minimum pour déplacer un RDV (heures)",
+      "rescheduleCutoffHelp": "En deçà de ce délai, le client ne peut plus changer son créneau en ligne. Un déplacement renvoie la réservation en attente et redemande sa disponibilité au praticien.",
       "cancellationTextHelp": "Texte affiché dans la modale d'annulation (client et staff). Laissez vide pour un résumé automatique basé sur les tranches.",
       "cancellationPolicyFr": "Politique d'annulation (FR)",
       "cancellationPolicyEn": "Politique d'annulation (EN)",
@@ -953,11 +984,22 @@
     "groupHint": "Le groupe 1 est sollicité en premier lors d'une nouvelle réservation. Le groupe 2 ne l'est qu'après le délai réglé dans l'onglet Configuration, ou dès que tout le groupe 1 a refusé. Tant que tout le monde est en groupe 1, tous sont notifiés en même temps.",
     "priorityUpdated": "Groupe mis à jour",
     "priorityError": "Erreur lors du changement de groupe",
-    "groupOnVenueHint": "Se règle depuis la fiche du lieu, onglet Thérapeutes."
+    "groupOnVenueHint": "Se règle depuis la fiche du lieu, onglet Thérapeutes.",
+    "notificationTest": {
+      "send": "Tester les notifications",
+      "sending": "Envoi…",
+      "result": "{{sent}} envoyée(s), {{undelivered}} non délivrée(s)",
+      "error": "Échec de l'envoi des tests",
+      "pending": "En attente",
+      "ok": "OK",
+      "nok": "NOK",
+      "undelivered": "Non délivré"
+    }
   },
   "customers": {
     "title": "Clients",
     "description": "Gérez vos clients et leurs informations",
+    "selectPlaceholder": "Sélectionner",
     "add": "Ajouter un client",
     "new": "Nouveau client",
     "back": "Retour",
@@ -987,7 +1029,8 @@
     "tabs": {
       "general": "Général",
       "notes": "Notes & Préférences",
-      "bookings": "Historique"
+      "bookings": "Historique",
+      "tasks": "Tâches"
     },
     "preferences": "Préférences",
     "preferencesDesc": "Thérapeute et soin préférés",
@@ -1068,7 +1111,25 @@
       "noCustomer": "Aucun client",
       "searchBooking": "Rechercher (n° ou nom)...",
       "searchCustomer": "Rechercher un client...",
-      "noResults": "Aucun résultat"
+      "noResults": "Aucun résultat",
+      "taskType": "Type de tâche",
+      "taskTypeOther": "Préciser le type",
+      "taskTypeOtherPlaceholder": "Ex. Demande spéciale",
+      "venue": "Lieu",
+      "selectVenue": "Sélectionner un lieu",
+      "selectVenueFirst": "Choisissez d'abord un lieu",
+      "treatments": "Soins concernés",
+      "noTreatment": "Aucun soin",
+      "therapists": "Thérapeutes concernés",
+      "noTherapist": "Aucun thérapeute",
+      "checklist": "Actions à réaliser",
+      "checklistItemPlaceholder": "Ex. Appeler l'hôtel",
+      "addChecklistItem": "Ajouter une action",
+      "attachments": "Captures d'écran",
+      "addAttachment": "Ajouter une image",
+      "attachmentHint": "Vous pouvez aussi coller une capture (Cmd/Ctrl+V).",
+      "attachmentImageOnly": "Le fichier doit être une image",
+      "attachmentTooLarge": "L'image ne doit pas dépasser {{size}} Mo"
     },
     "dueDatePresets": {
       "today": "Aujourd'hui",
@@ -1076,9 +1137,23 @@
       "in3days": "Dans 3 jours",
       "in7days": "Dans 7 jours"
     },
-    "expand": "Plein écran",
-    "collapse": "Réduire",
-    "openLink": "Voir"
+    "openLink": "Voir",
+    "allVenues": "Tous les lieux",
+    "allTypes": "Tous les types",
+    "type": {
+      "booking_followup": "Suivi résa",
+      "payment_followup": "Suivi paiement",
+      "gift_followup": "Relance offert",
+      "loyalty": "Fidélisation / cure",
+      "bug": "Bug",
+      "other": "Autre"
+    },
+    "customerTab": {
+      "label": "Tâches",
+      "count_one": "{{count}} tâche liée à ce client",
+      "count_other": "{{count}} tâches liées à ce client",
+      "empty": "Aucune tâche liée à ce client."
+    }
   },
   "scheduleAlerts": {
     "title": "Alertes Planning",
@@ -1404,7 +1479,8 @@
     "sessionsValue": "{{count}} séances",
     "tabs": {
       "templates": "Modèles",
-      "sales": "Ventes"
+      "sales": "Ventes",
+      "external": "Bons partenaires"
     },
     "type": {
       "amount": "Montant",
@@ -1495,6 +1571,38 @@
       "eligibleTreatmentsRequired": "Sélectionnez au moins un soin éligible",
       "amountRequired": "Montant requis"
     }
+  },
+  "externalVouchers": {
+    "add": "Enregistrer un bon",
+    "empty": "Aucun bon partenaire enregistré",
+    "emptyHint": "Enregistrez ici les bons reçus par mail de vos revendeurs pour que vos clients puissent les utiliser en ligne.",
+    "dialogTitle": "Enregistrer un bon partenaire",
+    "dialogSubtitle": "Saisissez le bon reçu par mail de votre revendeur. Le client pourra ensuite l'utiliser directement lors de sa réservation en ligne.",
+    "unknownReseller": "Non identifié",
+    "venuePlaceholder": "Choisir un lieu",
+    "amount": "Montant (€)",
+    "holderPlaceholder": "Nom figurant sur le bon",
+    "notes": "Note interne",
+    "notesPlaceholder": "Reçu par mail le…",
+    "normalizedAs": "Recherché comme",
+    "codePatternWarning": "Cette référence ne ressemble pas au format habituel de ce revendeur. Vous pouvez tout de même l'enregistrer.",
+    "saved": "Bon enregistré",
+    "columns": {
+      "code": "Référence",
+      "reseller": "Revendeur",
+      "holder": "Bénéficiaire"
+    },
+    "errors": {
+      "venueRequired": "Choisissez un lieu",
+      "codeTooShort": "La référence doit faire au moins 4 caractères",
+      "amountInvalid": "Montant invalide",
+      "expiryRequired": "Renseignez une date d'expiration",
+      "duplicate": "Cette référence existe déjà pour ce lieu"
+    },
+    "customer": "Client",
+    "optional": "(facultatif)",
+    "customerPlaceholder": "Nom ou téléphone",
+    "customerHint": "Laissez vide si vous ne savez pas encore qui utilisera ce bon : il sera rattaché automatiquement à la première réservation."
   },
   "booking": {
     "therapistSections": {
@@ -2146,6 +2254,7 @@
     "endDate": "Au",
     "startTime": "De",
     "endTime": "À",
+    "allDay": "Toute la journée",
     "scope": "Portée",
     "wholeVenue": "Tout le lieu",
     "noRooms": "Aucune salle active sur ce lieu.",
@@ -2312,23 +2421,37 @@
     "billedToPartnerGeneric": "Paiement géré par le partenaire (facturation mensuelle).",
     "method": "Méthode",
     "sendPayment": "Envoyer le paiement",
-    "requestSignature": "Demander la signature"
+    "cancelPaymentLink": {
+      "label": "Lien de paiement",
+      "active": "Actif",
+      "cancelledOn": "Désactivé le {{date}}",
+      "action": "Désactiver le lien de paiement",
+      "openUrl": "Ouvrir le lien de paiement",
+      "copyUrl": "Copier le lien",
+      "urlCopied": "Lien de paiement copié.",
+      "copyFailed": "Impossible de copier le lien.",
+      "autoCancelFailed": "Paiement enregistré, mais le lien de paiement n'a pas pu être désactivé.",
+      "title": "Désactiver le lien de paiement",
+      "description": "Le client ne pourra plus payer via ce lien et ne recevra plus de relance. La réservation et son historique sont conservés.",
+      "newMethod": "Nouveau mode de règlement",
+      "methodUnchanged": "Inchangé",
+      "confirm": "Désactiver",
+      "success": "Lien de paiement désactivé.",
+      "error": "Impossible de désactiver le lien de paiement."
+    },
+    "requestSignature": "Demander la signature",
+    "actions": "Actions"
   },
   "finance": {
     "closure": {
       "loadVenuesError": "Impossible de charger les lieux",
       "loadBookingsError": "Impossible de charger les réservations",
       "reportUnavailable": "Rapport non disponible",
-      "selectionTitle": "Sélection",
-      "selectionDesc": "Choisissez un lieu et une date pour générer la clôture.",
-      "venue": "Lieu",
       "chooseVenue": "Choisir un lieu",
       "refresh": "Rafraîchir",
       "hideCommissions": "Masquer commissions",
       "previewPdf": "Aperçu / PDF",
       "sendByEmail": "Envoyer par email",
-      "totalBookings": "Total réservations",
-      "statuses": "Statuts",
       "venueShare": "Part lieu",
       "therapistShare": "Part thérapeute",
       "platformShare": "Part plateforme",
@@ -2337,7 +2460,6 @@
       "byTherapist": "Par thérapeute",
       "byPaymentMethod": "Par moyen de paiement",
       "detailDesc": "Toutes les réservations du lieu pour la journée.",
-      "show": "Afficher",
       "colNumber": "N°",
       "colClient": "Client",
       "colRoom": "Chambre",
@@ -2349,14 +2471,12 @@
       "colStatus": "Statut",
       "openBooking": "Ouvrir la réservation dans un nouvel onglet",
       "noBooking": "Aucune réservation pour ce lieu à cette date.",
-      "statusChartTitle": "Statuts des réservations",
       "noBookingShort": "Aucune réservation",
       "byClientType": "Par type de client",
       "noCompletedTreatment": "Aucune prestation complétée",
-      "treatmentsCount_one": "{{count}} prestation",
-      "treatmentsCount_other": "{{count}} prestations",
-      "revenue": "Chiffre d'affaires",
-      "activeCount": "{{count}} actives",
+      "unfinalizedNotice_one": "{{count}} réservation n'est pas encore finalisée ({{amount}}).",
+      "unfinalizedNotice_other": "{{count}} réservations ne sont pas encore finalisées ({{amount}}).",
+      "includeUnfinalized": "Les inclure",
       "therapistShareShort": "Part thér.",
       "detailTitle": "Détail des prestations ({{count}})",
       "segments": {
@@ -2367,37 +2487,19 @@
         "noshow": "No show"
       },
       "pdfError": "Impossible de générer le PDF",
-      "downloadPdf": "Télécharger PDF"
+      "downloadPdf": "Télécharger PDF",
+      "revenueBooked": "Chiffre d'affaires réalisé",
+      "countedOf": "{{counted}} prestations comptées sur {{total}} réservations",
+      "averageTicket": "Panier moyen",
+      "completionRate": "Réalisé à date",
+      "splitTitle": "Répartition du chiffre d'affaires",
+      "commissionsHidden": "Commissions masquées.",
+      "dayStatuses": "Statuts de la journée",
+      "completionRateHint": "{{counted}} sur {{total}} réservations"
     },
     "page": {
-      "loadError": "Erreur lors du chargement des données financières",
-      "statusPending": "En attente",
-      "statusBilled": "Facturé",
-      "statusPaid": "Payé",
-      "statusCompleted": "Complété",
-      "statusFailed": "Échoué",
-      "statusProcessing": "En cours",
-      "title": "Finance",
-      "subtitle": "Suivi des revenus, netting hôtels et paiements thérapeutes",
-      "refresh": "Actualiser",
-      "tabClosure": "📋 Clôture quotidienne",
-      "nettingTitle": "Soldes par hôtel",
-      "nettingEmpty": "Aucune entrée en attente",
-      "toReceive": "À recevoir",
-      "toPay": "À payer",
-      "ledgerTitle": "Grand livre",
-      "ledgerDesc": "Historique de toutes les transactions hôtels",
-      "ledgerEmpty": "Aucune entrée dans le ledger",
-      "colVenue": "Hôtel",
-      "colAmount": "Montant",
-      "colStatus": "Statut",
-      "payoutsTitle": "Historique des payouts",
-      "payoutsDesc": "Transferts vers les comptes Stripe des thérapeutes",
-      "payoutsEmpty": "Aucun payout enregistré",
-      "colTherapist": "Thérapeute",
-      "colBooking": "Réservation",
-      "nettingDesc": "Montants en attente de règlement avec chaque hôtel (positif = l'hôtel doit à {{brand}})",
-      "unknownVenue": "Lieu inconnu"
+      "title": "Clôture quotidienne",
+      "subtitle": "Le récapitulatif de fin de journée, lieu par lieu : chiffre d'affaires réalisé, répartition et détail des prestations."
     },
     "closureEmail": {
       "title": "Envoyer la clôture par email",
@@ -2688,6 +2790,8 @@
     "publicLinkPlaceholder": "ex : massage-suedois-60",
     "descriptionPlaceholder": "Description du soin",
     "bestseller": "Bestseller (mis en avant sur la page de réservation)",
+    "bookableOnline": "Réservable en ligne",
+    "bookableOnlineHint": "Décoché : le soin reste réservable en interne (admin et thérapeute) mais n'apparaît pas dans le parcours de réservation client.",
     "venue": "Hôtel *",
     "selectVenue": "Sélectionner un hôtel",
     "status": "Statut",
@@ -2727,7 +2831,11 @@
     "brandClient": "{{brand}} (client soin)",
     "title": "Commodités ({{count}})",
     "persons": "{{count}} pers.",
-    "prep": "+{{count}} min prépa"
+    "prep": "+{{count}} min prépa",
+    "exclusive": "Privatisation",
+    "exclusiveHelp": "Une réservation bloque tout le créneau. La capacité ne limite alors que le nombre de personnes d'une même réservation. À décocher pour un équipement réellement partagé.",
+    "exclusiveBadge": "Privatisée",
+    "prepTimeHelp": "Remise en état réservée après chaque réservation : rien ne peut démarrer avant la fin du nettoyage."
   },
   "profilePage": {
     "loadError": "Erreur lors du chargement du profil",
@@ -2969,6 +3077,7 @@
       "new_booking_notifications": "Email de nouvelle réservation envoyé",
       "payment_reminder": "Email de rappel de paiement envoyé",
       "booking_cancelled": "Email d'annulation envoyé",
+      "booking_modified": "Email de modification envoyé au client",
       "payment_link_expired": "Email d'expiration du lien de paiement envoyé"
     },
     "actions": {
@@ -2980,7 +3089,9 @@
       "refundWithAmount": "Remboursement de {{amount}}",
       "partialSuffix": "{{label}} (partiel)",
       "paymentLinkSent": "Lien de paiement envoyé",
-      "paymentLinkSentVia": "Lien de paiement envoyé par {{channels}}"
+      "paymentLinkSentVia": "Lien de paiement envoyé par {{channels}}",
+      "paymentLinkCancelled": "Lien de paiement désactivé",
+      "paymentLinkCancelledWithMethod": "Lien de paiement désactivé — règlement : {{method}}"
     },
     "channels": {
       "email": "email",
@@ -2988,7 +3099,8 @@
       "sms": "SMS",
       "smsTo": "SMS au {{phone}}",
       "joiner": " et "
-    }
+    },
+    "byClient": "par le client"
   },
   "venueBookingCalendar": {
     "refresh": "Actualiser",
@@ -3054,7 +3166,9 @@
     "incompleteRates": "Tarifs incomplets",
     "reassignTitle": "Réassigner ce soin",
     "chooseTherapist": "Choisir un thérapeute",
-    "amenityAccess": "Accès / commodités"
+    "amenityAccess": "Accès / commodités",
+    "treatmentRateBadge": "Taux spécifique",
+    "treatmentRateTitle": "Ce gain utilise un barème propre au soin, défini sur la fiche du thérapeute."
   },
   "createBookingFromRequest": {
     "missingFields": "Champs obligatoires manquants",
@@ -3488,7 +3602,8 @@
     "planningTitle": "Planning",
     "refresh": "Actualiser",
     "newRequest": "Nouvelle demande",
-    "newBooking": "Nouvelle réservation"
+    "newBooking": "Nouvelle réservation",
+    "newAmenity": "Commodité"
   },
   "organizationPicker": {
     "title": "Choisir une organisation",
@@ -3625,9 +3740,26 @@
     "period": "Période",
     "selectVenue": "Sélectionner un lieu",
     "allVenues": "Tous les lieux",
+    "noOrganization": "Choisissez une organisation pour afficher son tableau de bord.",
+    "loadError": "Certaines données n'ont pas pu être chargées. Actualisez la page pour réessayer.",
     "tabs": {
       "dashboard": "Tableau de bord",
       "overview": "Vue d'ensemble"
+    },
+    "quickActions": {
+      "title": "Que voulez-vous faire ?",
+      "booking": {
+        "label": "Créer une réservation",
+        "hint": "Nouvelle réservation pour un client"
+      },
+      "treatment": {
+        "label": "Créer un soin",
+        "hint": "Ajouter un soin au menu"
+      },
+      "voucher": {
+        "label": "Enregistrer un bon",
+        "hint": "Bon partenaire Wonderbox, Smartbox…"
+      }
     }
   },
   "dashboardAlerts": {
@@ -3652,7 +3784,8 @@
     "refundBooking": "Rembourser une réservation",
     "exportCsv": "Exporter en CSV",
     "newRequest": "Nouvelle demande",
-    "newBooking": "Nouvelle réservation"
+    "newBooking": "Nouvelle réservation",
+    "exporting": "Export en cours…"
   },
   "treatmentRoomDialog": {
     "details": "Détails",
@@ -3858,8 +3991,7 @@
       "noShow": "Client pas venu"
     },
     "conciergeNotice": {
-      "editable": "En tant que membre de l'équipe lieu, vous pouvez modifier uniquement le créneau et les prestations.",
-      "slotLocked": "Le créneau n'est plus modifiable (réservation confirmée par le thérapeute). Seules les prestations peuvent être ajustées."
+      "bookingClosed": "Cette réservation est annulée : elle n'est plus modifiable."
     },
     "cart": {
       "title": "Panier",
@@ -3946,7 +4078,8 @@
       "copied": "Copié",
       "copy": "Copier",
       "open": "Ouvrir"
-    }
+    },
+    "durationOverridden": "Durée saisie manuellement (calcul : {{computed}} min). Modifier une prestation la recalcule."
   },
   "therapistDialog": {
     "addTitle": "Ajouter un thérapeute",
@@ -4185,7 +4318,10 @@
     "ascending": "Croissant",
     "descending": "Décroissant",
     "empty": "Aucune réservation trouvée",
-    "itemName": "réservations"
+    "itemName": "réservations",
+    "loadedCount": "{{loaded}} sur {{total}}",
+    "loadMore": "Charger plus",
+    "loading": "Chargement…"
   },
   "amenityBookingDetail": {
     "room": "Chambre : {{number}}",
@@ -4251,6 +4387,8 @@
     "time": "Heure",
     "guestCount": "Nombre de personnes",
     "capacityBadge": "{{remaining}} / {{total}} dispo",
+    "slotExclusiveWarning": "Ce créneau est déjà réservé (remise en état comprise) sur une commodité privatisable.",
+    "slotFullWarning": "Ce créneau n'a plus assez de places.",
     "duration": "Durée",
     "durationValue": "Durée : {{value}}",
     "prepTime": "+{{minutes}} min de préparation",
@@ -4268,6 +4406,7 @@
       "amenityRequired": "Sélectionnez une commodité",
       "firstNameRequired": "Prénom requis",
       "phoneRequired": "Téléphone requis",
+      "phoneInvalid": "Numéro de téléphone invalide",
       "dateRequired": "Date requise",
       "timeRequired": "Heure requise"
     },
@@ -4291,6 +4430,11 @@
     "discardDescription": "Les informations saisies seront perdues. Êtes-vous sûr de vouloir quitter ?",
     "keepEditing": "Continuer la saisie",
     "discard": "Abandonner",
+    "amenityConflictTitle": "Créneau déjà occupé",
+    "amenityConflictExclusive": "{{amenity}} est déjà réservé sur ce créneau, remise en état comprise. Le site client ne le propose plus. Confirmer quand même ?",
+    "amenityConflictFull": "{{amenity}} n'a plus assez de places sur ce créneau. Confirmer quand même ?",
+    "amenityConflictConfirm": "Réserver quand même",
+    "amenityConflictCancel": "Changer de créneau",
     "toasts": {
       "emailAdjustedTitle": "Email ajusté",
       "emailAdjustedDescription": "L'adresse a été normalisée en {{email}} (accents/majuscules retirés)."

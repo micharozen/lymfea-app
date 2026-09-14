@@ -16,7 +16,10 @@ CREATE TABLE IF NOT EXISTS "public"."therapists" (
     "stripe_onboarding_completed" boolean DEFAULT false,
     "minimum_guarantee" "jsonb" DEFAULT '{}'::"jsonb",
     "minimum_guarantee_active" boolean DEFAULT false,
+    "treatment_rates" "jsonb" DEFAULT '{}'::"jsonb",
+    "treatment_rates_active" boolean DEFAULT false,
     "hourly_rate" numeric(8,2) DEFAULT NULL::numeric,
+    "rate_30" numeric,
     "rate_45" numeric,
     "rate_60" numeric,
     "rate_75" numeric,
@@ -29,6 +32,8 @@ CREATE TABLE IF NOT EXISTS "public"."therapists" (
 );
 
 ALTER TABLE "public"."therapists" OWNER TO "postgres";
+
+COMMENT ON COLUMN "public"."therapists"."rate_30" IS 'Fixed therapist payout for a 30-minute treatment';
 
 COMMENT ON COLUMN "public"."therapists"."rate_45" IS 'Fixed therapist payout for a 45-minute treatment';
 
@@ -43,6 +48,10 @@ COMMENT ON COLUMN "public"."therapists"."rate_105" IS 'Fixed therapist payout fo
 COMMENT ON COLUMN "public"."therapists"."rate_120" IS 'Fixed therapist payout for a 120-minute treatment';
 
 COMMENT ON COLUMN "public"."therapists"."rate_150" IS 'Fixed therapist payout for a 150-minute treatment';
+
+COMMENT ON COLUMN "public"."therapists"."treatment_rates" IS 'Barèmes spécifiques par soin : { "<treatment_menu_id>": { "60": 45, "90": 62 } }. Clé de durée en minutes, valeur en euros. Ignoré tant que treatment_rates_active est false.';
+
+COMMENT ON COLUMN "public"."therapists"."treatment_rates_active" IS 'Active les barèmes de treatment_rates. Décocher les conserve sans les appliquer.';
 
 ALTER TABLE ONLY "public"."therapists"
     ADD CONSTRAINT "hairdressers_phone_country_code_unique" UNIQUE ("phone", "country_code");

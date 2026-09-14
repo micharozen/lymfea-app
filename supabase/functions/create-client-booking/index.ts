@@ -262,6 +262,8 @@ async function handleMultiBookingConfirm(
     _last_name: sanitizedClientData.lastName,
     _email: sanitizedClientData.email,
     _language: clientLanguage,
+    // Une fiche client appartient a l'organisation du lieu reserve.
+    _hotel_id: hotelId,
   });
 
   const isOffert = !!hotel.offert || !!hotel.company_offered;
@@ -710,6 +712,8 @@ try {
       _last_name: sanitizedClientData.lastName,
       _email: sanitizedClientData.email,
       _language: clientLanguage,
+      // Une fiche client appartient a l'organisation du lieu reserve.
+      _hotel_id: hotelId,
     });
 
     if (customerError) {

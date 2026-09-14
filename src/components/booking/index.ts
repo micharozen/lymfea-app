@@ -5,6 +5,7 @@ export { BookingListView } from "./BookingListView";
 export type { BookingSortKey, SortDirection } from "./BookingListView";
 export { InvoicePreviewDialog } from "./InvoicePreviewDialog";
 export { SendPaymentLinkDialog } from "./SendPaymentLinkDialog";
+export { CancelPaymentLinkDialog } from "./CancelPaymentLinkDialog";
 export { PaymentLinkForm } from "./PaymentLinkForm";
 export type { BookingData } from "./PaymentLinkForm";
 export { default as CreateBookingDialog } from "./CreateBookingDialog";

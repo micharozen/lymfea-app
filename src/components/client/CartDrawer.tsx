@@ -57,7 +57,7 @@ export function CartDrawer({ open, onOpenChange, isOffert = false, isCompanyOffe
                           )}
                         </h3>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {item.category} · {item.duration} min
+                          {item.category}{!item.isBundle && ` · ${item.duration} min`}
                         </p>
                       </div>
                       <Button
@@ -95,7 +95,7 @@ export function CartDrawer({ open, onOpenChange, isOffert = false, isCompanyOffe
                       <span className="text-sm font-medium text-gray-700">
                         {isCompanyOffered ? (
                           <span className="text-xs text-gray-400 font-light">
-                            {item.duration} min
+                            {item.isBundle ? '' : `${item.duration} min`}
                           </span>
                         ) : isOffert ? (
                           <span className="inline-flex items-baseline gap-1">

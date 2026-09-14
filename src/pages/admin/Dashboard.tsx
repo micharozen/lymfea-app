@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { format } from "date-fns";
+import { endOfDay, format, startOfDay, subDays } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { useDateLocale } from "@/lib/dateLocale";
 import { PeriodSelector } from "@/components/PeriodSelector";
@@ -26,6 +26,15 @@ import { DashboardKpiRow } from "@/components/admin/dashboard/DashboardKpiRow";
 import { DashboardClientMix } from "@/components/admin/dashboard/DashboardClientMix";
 import { DashboardTodayStats } from "@/components/admin/dashboard/DashboardTodayStats";
 import { MonthlyOutlookChart } from "@/components/admin/dashboard/MonthlyOutlookChart";
+import { DashboardQuickActions } from "@/components/admin/dashboard/DashboardQuickActions";
+import {
+  AlertsSkeleton,
+  CardSkeleton,
+  ClientMixSkeleton,
+  HeatmapSkeleton,
+  KpiRowSkeleton,
+  TrioSkeleton,
+} from "@/components/admin/dashboard/DashboardSkeletons";
 
 export default function Dashboard() {
   const { t } = useTranslation(["admin", "common"]);
@@ -34,10 +43,12 @@ export default function Dashboard() {
   const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const currentVenueId = useCurrentVenueId();
   const welcome = useAdminWelcome();
-  const [startDate, setStartDate] = useState<Date>(
-    new Date(new Date().setDate(new Date().getDate() - 30))
-  );
-  const [endDate, setEndDate] = useState<Date>(new Date());
+  // Bornes normalisées sur la journée entière. Deux raisons : une date
+  // horodatée exclut les réservations du premier jour de la période (le filtre
+  // les compare à minuit), et elle change à chaque montage, ce qui ferait
+  // churner les clés de cache TanStack.
+  const [startDate, setStartDate] = useState<Date>(() => startOfDay(subDays(new Date(), 30)));
+  const [endDate, setEndDate] = useState<Date>(() => endOfDay(new Date()));
   const [selectedHotel, setSelectedHotel] = useState<string>("all");
 
   // For concierges, scope the dashboard to their assigned hotel(s) — no "Tous les lieux".
@@ -63,17 +74,9 @@ export default function Dashboard() {
   }, [data.hotels, isConcierge, hotelIds, currentVenueId]);
 
   const handlePeriodChange = (start: Date, end: Date) => {
-    setStartDate(start);
-    setEndDate(end);
+    setStartDate(startOfDay(start));
+    setEndDate(endOfDay(end));
   };
-
-  if (data.loading) {
-    return (
-      <div className="bo-refonte min-h-screen md:-mr-6 flex items-center justify-center">
-        <p style={{ color: "var(--ink-mute)" }}>{t("common:loading")}</p>
-      </div>
-    );
-  }
 
   const { stats } = data;
   const isSingleVenue = selectedHotel !== "all";
@@ -121,6 +124,21 @@ export default function Dashboard() {
           </div>
         </div>
 
+        <DashboardQuickActions selectedHotel={selectedHotel} />
+
+        {data.hasError && (
+          <div className="card" style={{ marginTop: 22 }}>
+            <div className="card-empty">{t("dashboardPage.loadError")}</div>
+          </div>
+        )}
+
+        {/* Aucune organisation active : état terminal, surtout pas un squelette
+            perpétuel — c'est le cas du super-admin qui n'a pas encore choisi. */}
+        {data.scopeMissing ? (
+          <div className="card" style={{ marginTop: 22 }}>
+            <div className="card-empty">{t("dashboardPage.noOrganization")}</div>
+          </div>
+        ) : (
         <Tabs defaultValue="dashboard">
           {!isConcierge && (
             <TabsList className="mt-4">
@@ -130,62 +148,104 @@ export default function Dashboard() {
           )}
 
           <TabsContent value="dashboard" className="mt-0">
-            <DashboardAlerts alerts={data.alerts} missingRoomNumber={stats.missingRoomNumber} />
-
-            {/* KPI row — le CA et le panier moyen restent réservés aux admins */}
-            <DashboardKpiRow
-              totalSales={stats.totalSales}
-              salesTrend={stats.salesTrend}
-              averageBasket={stats.averageBasket}
-              totalBookings={stats.totalBookings}
-              bookingsTrend={stats.bookingsTrend}
-              cancellationRate={stats.cancellationRate}
-              cancelledCount={stats.cancelledBookings}
-              showRevenue={!isConcierge}
-            />
-
-            {/* Mix clients + canal de réservation — admins only */}
-            {!isConcierge && (
-              <DashboardClientMix clientMix={data.clientMix} bookingChannel={data.bookingChannel} />
+            {data.pending.alerts ? (
+              <AlertsSkeleton />
+            ) : (
+              <DashboardAlerts alerts={data.alerts} missingRoomNumber={stats.missingRoomNumber} />
             )}
 
-            <div className="duo">
-              <SalesChart data={data.salesChartData} />
-              <StatusDonut data={data.statusDistribution} />
-            </div>
+            {/* KPI row — le CA et le panier moyen restent réservés aux admins */}
+            {data.pending.period ? (
+              <KpiRowSkeleton cols={isConcierge ? 2 : 4} />
+            ) : (
+              <DashboardKpiRow
+                totalSales={stats.totalSales}
+                salesTrend={stats.salesTrend}
+                averageBasket={stats.averageBasket}
+                totalBookings={stats.totalBookings}
+                bookingsTrend={stats.bookingsTrend}
+                cancellationRate={stats.cancellationRate}
+                cancelledCount={stats.cancelledBookings}
+                showRevenue={!isConcierge}
+              />
+            )}
+
+            {/* Mix clients + canal de réservation — admins only */}
+            {!isConcierge &&
+              (data.pending.period ? (
+                <ClientMixSkeleton />
+              ) : (
+                <DashboardClientMix
+                  clientMix={data.clientMix}
+                  bookingChannel={data.bookingChannel}
+                />
+              ))}
+
+            {data.pending.period ? (
+              <div className="duo">
+                <CardSkeleton height={260} />
+                <CardSkeleton height={260} />
+              </div>
+            ) : (
+              <div className="duo">
+                <SalesChart data={data.salesChartData} />
+                <StatusDonut data={data.statusDistribution} />
+              </div>
+            )}
 
             {/* Monthly outlook — fenêtre fixe 6 mois passés / 3 futurs, indépendante
                 du filtre de période (respecte le lieu). Admins only (affiche le CA). */}
-            {!isConcierge && (
-              <MonthlyOutlookChart data={data.monthlyOutlook} byVenue={data.monthlyOutlookByVenue} />
+            {!isConcierge &&
+              (data.pending.outlook ? (
+                <div className="full">
+                  <CardSkeleton height={280} />
+                </div>
+              ) : (
+                <MonthlyOutlookChart
+                  data={data.monthlyOutlook}
+                  byVenue={data.monthlyOutlookByVenue}
+                />
+              ))}
+
+            {data.pending.upcoming ? (
+              <HeatmapSkeleton rows={data.roomOccupancy.total} />
+            ) : (
+              <RoomOccupancyHeatmap data={data.roomOccupancyHeatmap} />
             )}
 
-            <RoomOccupancyHeatmap data={data.roomOccupancyHeatmap} />
-
-            <div className="trio">
-              <WeekForecast data={data.weekForecast} />
-              <DashboardTodayStats
-                todayBookings={stats.todayBookings}
-                todayConfirmed={stats.todayConfirmed}
-                leadTime={data.leadTime}
-                activeTherapists={data.activeTherapists}
-              />
-              <DashboardRankings
-                topVenues={data.topVenues}
-                topTherapists={data.topTherapists}
-                topTreatments={data.topTreatments}
-                isSingleVenue={isSingleVenue}
-              />
-            </div>
+            {data.pending.upcoming || data.pending.leadTime ? (
+              <TrioSkeleton />
+            ) : (
+              <div className="trio">
+                <WeekForecast data={data.weekForecast} />
+                <DashboardTodayStats
+                  todayBookings={stats.todayBookings}
+                  todayConfirmed={stats.todayConfirmed}
+                  leadTime={data.leadTime}
+                  activeTherapists={data.activeTherapists}
+                />
+                <DashboardRankings
+                  topVenues={data.topVenues}
+                  topTherapists={data.topTherapists}
+                  topTreatments={data.topTreatments}
+                  isSingleVenue={isSingleVenue}
+                />
+              </div>
+            )}
           </TabsContent>
 
           {/* Overview tab — admins only (comparative view across all venues) */}
           {!isConcierge && (
             <TabsContent value="overview" className="mt-0">
-              <DashboardOverview hotelData={data.hotelData} />
+              {data.pending.period ? (
+                <CardSkeleton height={320} />
+              ) : (
+                <DashboardOverview hotelData={data.hotelData} />
+              )}
             </TabsContent>
           )}
         </Tabs>
+        )}
       </div>
       </TooltipProvider>
 

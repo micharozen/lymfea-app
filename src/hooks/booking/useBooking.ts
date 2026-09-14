@@ -40,6 +40,10 @@ export function useBooking(id: string | undefined) {
     enabled: !!id && !!scope,
     staleTime: 30000,
     initialData: seedFromListCache,
+    // La ligne issue du cache de liste est incomplète (signature et formulaire
+    // de santé n'y sont pas) : on la date de zéro pour qu'elle serve d'affichage
+    // immédiat, tout en déclenchant le vrai chargement en arrière-plan.
+    initialDataUpdatedAt: 0,
     queryFn: () => getBookingById(supabase, id!),
   });
 }

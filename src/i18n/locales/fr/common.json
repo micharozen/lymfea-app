@@ -162,7 +162,6 @@
     }
   },
   "calendarStage": {
-    "awaitingTherapistPayment": "Attente thérapeute + paiement",
     "awaitingTherapist": "Attente thérapeute",
     "quote": "Devis / Proposé"
   },

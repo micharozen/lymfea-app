@@ -32,7 +32,7 @@ import { validateCancellationTiers } from "@/lib/cancellationTiers";
 import { VenueBrandingTab } from "@/components/admin/venue/VenueBrandingTab";
 import { VenueInboundEmailTab } from "@/components/admin/venue/VenueInboundEmailTab";
 import { VenueGeneralTab, type VenueSectionId } from "@/components/admin/venue/VenueGeneralTab";
-import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
+import { VenueSectionNavBar, VenueSectionNavSidebar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
 import { VenueCatalogTab } from "@/components/admin/venue/VenueCatalogTab";
 import { VenueResourcesTab } from "@/components/admin/venue/VenueResourcesTab";
@@ -67,6 +67,8 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
     .or(z.literal("")),
   venue_type: z.enum(['hotel', 'coworking', 'enterprise']).default('hotel'),
   address: z.string().min(1, t('common:errors.validation.addressRequired')),
+  access_instructions: z.string().optional(),
+  access_instructions_en: z.string().optional(),
   postal_code: z.string().optional(),
   city: z.string().min(1, t('common:errors.validation.cityRequired')),
   country: z.string().min(1, t('common:errors.validation.countryRequired')),
@@ -93,6 +95,7 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   min_booking_notice_minutes: z.number().min(0).max(10080).default(0),
   booking_hold_enabled: z.boolean().default(true),
   booking_hold_duration_minutes: z.coerce.number().int().min(1).max(15).default(5),
+  external_vouchers_enabled: z.boolean().default(false),
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
@@ -103,6 +106,7 @@ const createFormSchema = (t: TFunction, options?: VenueFormSchemaOptions) => z.o
   cancellation_policy_text_fr: z.string().optional(),
   cancellation_policy_text_en: z.string().optional(),
   client_cancellation_cutoff_hours: z.coerce.number().min(0).max(168).default(2),
+  client_reschedule_cutoff_hours: z.coerce.number().min(0).max(168).default(24),
   cancellation_tiers: z.array(z.object({
     max_hours: z.coerce.number().min(0),
     min_hours: z.coerce.number().min(0),
@@ -182,6 +186,15 @@ export default function VenueDetail({
   const { isSuperAdmin, organizationId, activeOrganizationId } = useUser();
 
   const isNewMode = !id;
+  const configSections = useMemo(
+    () =>
+      restrictedSections
+        ? VENUE_CONFIG_SECTIONS.filter((s) =>
+            restrictedSections.includes(s.id as VenueSectionId),
+          )
+        : VENUE_CONFIG_SECTIONS,
+    [restrictedSections],
+  );
   const requireOrganizationId = isSuperAdmin && isNewMode;
   const formSchema = useMemo(
     () =>
@@ -295,6 +308,7 @@ export default function VenueDetail({
       min_booking_notice_minutes: 0,
       booking_hold_enabled: true,
       booking_hold_duration_minutes: 5,
+      external_vouchers_enabled: false,
       offert: false,
       company_offered: false,
       landing_subtitle: "",
@@ -307,9 +321,12 @@ export default function VenueDetail({
       font_title_family: "",
       font_body_url: "",
       font_body_family: "",
+      access_instructions: "",
+      access_instructions_en: "",
       cancellation_policy_text_fr: "",
       cancellation_policy_text_en: "",
       client_cancellation_cutoff_hours: 2,
+      client_reschedule_cutoff_hours: 24,
       cancellation_tiers: [],
     },
   });
@@ -356,6 +373,8 @@ export default function VenueDetail({
           slug: (hotel as any).slug || "",
           venue_type: hotel.venue_type || "hotel",
           address: hotel.address || "",
+          access_instructions: hotel.access_instructions || "",
+          access_instructions_en: hotel.access_instructions_en || "",
           postal_code: hotel.postal_code || "",
           city: hotel.city || "",
           country: hotel.country || "",
@@ -381,6 +400,7 @@ export default function VenueDetail({
           min_booking_notice_minutes: (hotel as any).min_booking_notice_minutes ?? 0,
           booking_hold_enabled: (hotel as any).booking_hold_enabled ?? true,
           booking_hold_duration_minutes: (hotel as any).booking_hold_duration_minutes ?? 5,
+          external_vouchers_enabled: (hotel as any).external_vouchers_enabled ?? false,
           offert: hotel.offert || false,
           company_offered: hotel.company_offered || false,
           landing_subtitle: (hotel as any).landing_subtitle || "",
@@ -401,6 +421,9 @@ export default function VenueDetail({
           cancellation_policy_text_en: (hotel as { cancellation_policy_text_en?: string }).cancellation_policy_text_en || "",
           client_cancellation_cutoff_hours: Number(
             (hotel as { client_cancellation_cutoff_hours?: number }).client_cancellation_cutoff_hours ?? 2,
+          ),
+          client_reschedule_cutoff_hours: Number(
+            (hotel as { client_reschedule_cutoff_hours?: number }).client_reschedule_cutoff_hours ?? 24,
           ),
           cancellation_tiers: Array.isArray((hotel as { cancellation_tiers?: unknown }).cancellation_tiers)
             ? ((hotel as { cancellation_tiers: { max_hours: number; min_hours: number; refund_percent: number }[] }).cancellation_tiers)
@@ -630,6 +653,8 @@ export default function VenueDetail({
         ...(values.slug ? { slug: values.slug } : {}),
         venue_type: values.venue_type,
         address: values.address,
+        access_instructions: values.access_instructions?.trim() || null,
+        access_instructions_en: values.access_instructions_en?.trim() || null,
         postal_code: values.postal_code || null,
         city: values.city,
         country: values.country,
@@ -657,6 +682,7 @@ export default function VenueDetail({
         min_booking_notice_minutes: values.min_booking_notice_minutes ?? 0,
         booking_hold_enabled: values.booking_hold_enabled,
         booking_hold_duration_minutes: values.booking_hold_duration_minutes,
+        external_vouchers_enabled: values.external_vouchers_enabled,
         offert: values.offert,
         company_offered: values.company_offered,
         landing_subtitle: values.landing_subtitle || null,
@@ -667,6 +693,7 @@ export default function VenueDetail({
         cancellation_policy_text_fr: values.cancellation_policy_text_fr?.trim() || null,
         cancellation_policy_text_en: values.cancellation_policy_text_en?.trim() || null,
         client_cancellation_cutoff_hours: values.client_cancellation_cutoff_hours ?? 2,
+        client_reschedule_cutoff_hours: values.client_reschedule_cutoff_hours ?? 24,
         cancellation_tiers: values.cancellation_tiers ?? [],
       };
 
@@ -995,19 +1022,20 @@ export default function VenueDetail({
                       items={completenessItems}
                     />
                   )}
-                  {/* Option 2: Horizontal sticky sub-nav */}
-                  <VenueSectionNavBar
-                    topOffset={restricted && !showTherapistTab && !showBillingTab ? 57 : 105}
-                    sections={
-                      restrictedSections
-                        ? VENUE_CONFIG_SECTIONS.filter((s) =>
-                            restrictedSections.includes(s.id as VenueSectionId),
-                          )
-                        : VENUE_CONFIG_SECTIONS
-                    }
-                  />
+                  {/* Sommaire des sections : colonne latérale sur grand écran,
+                      barre horizontale collante en dessous de xl. */}
+                  <div className="xl:hidden">
+                    <VenueSectionNavBar
+                      topOffset={restricted && !showTherapistTab && !showBillingTab ? 57 : 105}
+                      sections={configSections}
+                    />
+                  </div>
 
-                  <VenueGeneralTab
+                  <div className="xl:flex xl:items-start xl:gap-6">
+                    <VenueSectionNavSidebar sections={configSections} />
+
+                    <div className="min-w-0 flex-1">
+                      <VenueGeneralTab
                         restrictedSections={restrictedSections}
                         form={form}
                         mode={isNewMode ? 'add' : 'edit'}
@@ -1018,6 +1046,8 @@ export default function VenueDetail({
                         blockedSlots={blockedSlots}
                         onBlockedSlotsChange={setBlockedSlots}
                       />
+                    </div>
+                  </div>
                 </TabsContent>
               </form>
             </Form>

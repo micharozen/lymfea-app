@@ -16,13 +16,19 @@
  * proportionally so the venue/platform invariant is preserved.
  */
 
-import { computeTherapistEarnings, type TherapistRates } from "./therapistEarnings.ts";
-import { myLegDuration } from "./therapistLegDuration.ts";
+import {
+  computeLegEarnings,
+  type TherapistRates,
+  type TreatmentRateMap,
+} from "./therapistEarnings.ts";
+import { myLegDuration, myLegTreatments } from "./therapistLegDuration.ts";
 
 export interface PayoutTherapist {
   therapist_id: string;
   assigned_at: string | null;
   rates: TherapistRates;
+  /** Barèmes spécifiques par soin, ou null quand le thérapeute les a désactivés. */
+  treatmentRates: TreatmentRateMap | null;
   stripe_account_id: string | null;
 }
 
@@ -40,8 +46,14 @@ export interface BuildPayoutLegsParams {
    * Treatments with their duration, whether they are add-ons, and when available
    * the stable soin↔therapist link (booking_treatments.therapist_id). Add-ons are
    * excluded from the guest-soin count and paid to whoever carries them.
+   * `treatment_id` porte le barème spécifique éventuel du soin.
    */
-  treatments: { duration: number | null; therapist_id?: string | null; is_addon?: boolean | null }[];
+  treatments: {
+    duration: number | null;
+    therapist_id?: string | null;
+    is_addon?: boolean | null;
+    treatment_id?: string | null;
+  }[];
   guestCount: number;
   isOutOfHours: boolean;
   /** Venue out_of_hours_surcharge_percent (only applied when isOutOfHours). */
@@ -95,11 +107,14 @@ export async function fetchPayoutTherapists(
 
   const { data: rows } = await supabase
     .from("therapists")
-    .select("id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, stripe_account_id")
+    .select(
+      "id, rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active, stripe_account_id",
+    )
     .in("id", ids);
 
   type TherapistRateRow = {
     id: string;
+    rate_30: number | null;
     rate_45: number | null;
     rate_60: number | null;
     rate_75: number | null;
@@ -107,6 +122,8 @@ export async function fetchPayoutTherapists(
     rate_105: number | null;
     rate_120: number | null;
     rate_150: number | null;
+    treatment_rates: TreatmentRateMap | null;
+    treatment_rates_active: boolean | null;
     stripe_account_id: string | null;
   };
 
@@ -123,6 +140,7 @@ export async function fetchPayoutTherapists(
         therapist_id: id,
         assigned_at: assignedAt.get(id) ?? null,
         rates: {
+          rate_30: r.rate_30,
           rate_45: r.rate_45,
           rate_60: r.rate_60,
           rate_75: r.rate_75,
@@ -131,6 +149,8 @@ export async function fetchPayoutTherapists(
           rate_120: r.rate_120,
           rate_150: r.rate_150,
         },
+        // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+        treatmentRates: r.treatment_rates_active ? r.treatment_rates ?? null : null,
         stripe_account_id: r.stripe_account_id,
       } as PayoutTherapist;
     })
@@ -167,13 +187,25 @@ export function buildTherapistPayoutLegs(
   // Duration per therapist — same ladder the PWA displays (myLegDuration): stable
   // soin↔therapist link first, positional mapping for legacy/broadcast rows, and
   // in every case the add-ons this therapist carries on top of their soin.
-  // A lone therapist is paid on everything, whatever guest_count claims.
+  //
+  // `guest_count` est passé tel quel : il ne sert plus qu'aux replis legacy. La
+  // question « cette réservation est-elle partagée ? » se lit sur le lien
+  // booking_treatments.therapist_id (issue #547) — un booking simple enchaînant
+  // deux soins peut être partagé entre deux praticiens, et chacun ne doit être
+  // payé que sur sa jambe. Le rabotage historique (ordered.length > 1 ? … : 1)
+  // rendait TOUTES les prestations à CHAQUE praticien dans ce cas : les deux
+  // étaient payés sur la durée totale, puis ramenés sous le plafond agrégé.
   const orderedIds = ordered.map((t) => t.therapist_id);
-  const effectiveGuestCount = ordered.length > 1 ? guestCount : 1;
 
   const raw = ordered.map((t) => {
-    const duration = myLegDuration(t.therapist_id, treatments, orderedIds, effectiveGuestCount);
-    const earned = computeTherapistEarnings(t.rates, duration, { surchargePercent: pct }) ?? 0;
+    const duration = myLegDuration(t.therapist_id, treatments, orderedIds, guestCount);
+    // Les mêmes lignes que celles dont `myLegDuration` est la somme : elles portent
+    // le treatment_id, donc le barème spécifique éventuel de chaque soin.
+    const lines = myLegTreatments(t.therapist_id, treatments, orderedIds, guestCount);
+    const earned =
+      computeLegEarnings(t.rates, t.treatmentRates, { totalDuration: duration, lines }, {
+        surchargePercent: pct,
+      }) ?? 0;
     return {
       therapistId: t.therapist_id,
       stripeAccountId: t.stripe_account_id,

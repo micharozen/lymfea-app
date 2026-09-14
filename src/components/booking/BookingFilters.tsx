@@ -1,14 +1,7 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from "date-fns";
@@ -24,8 +17,6 @@ import {
   paymentMethodFilterOptions,
   paymentStatusFilterOptions,
 } from "@/lib/paymentMethod";
-
-const CUSTOM_PERIOD = "custom";
 
 /** Planning layout: days side by side, or one column per therapist for one day. */
 export type PlanningMode = "day" | "therapists";
@@ -111,12 +102,9 @@ interface BookingFiltersProps {
    */
   planningMode?: PlanningMode;
   onPlanningModeChange?: (mode: PlanningMode) => void;
-  /** Period filter in days (window: [today - N days, future]). Omit to hide the selector. */
-  periodDays?: number;
-  onPeriodDaysChange?: (days: number) => void;
   /**
-   * Explicit date window (ISO YYYY-MM-DD), which overrides periodDays when set.
-   * Provide the handler to expose the "custom period" option.
+   * Explicit date window (ISO YYYY-MM-DD) restricting the list. Provide the
+   * handler to expose the date-range button.
    */
   customRange?: { from: string; to: string } | null;
   onCustomRangeChange?: (range: { from: string; to: string } | null) => void;
@@ -164,8 +152,6 @@ export function BookingFilters({
   onShowAvailabilityChange,
   planningMode = "day",
   onPlanningModeChange,
-  periodDays,
-  onPeriodDaysChange,
   customRange = null,
   onCustomRangeChange,
   filterVisibilityStorageKey,
@@ -176,7 +162,6 @@ export function BookingFilters({
   const { t } = useTranslation(["admin", "common"]);
   const dateLocale = useDateLocale();
   const [customPeriodOpen, setCustomPeriodOpen] = useState(false);
-  const customPeriodRequested = useRef(false);
   const [draftRange, setDraftRange] = useState<DateRange | undefined>(() =>
     customRange
       ? { from: parseISO(customRange.from), to: parseISO(customRange.to) }
@@ -337,74 +322,36 @@ export function BookingFilters({
         />
       )}
 
-      {isVisible("period") && periodDays !== undefined && onPeriodDaysChange && (
-        <Select
-          value={customRange ? CUSTOM_PERIOD : String(periodDays)}
-          onValueChange={(v) => {
-            if (v === CUSTOM_PERIOD) {
-              customPeriodRequested.current = true;
-              return;
-            }
-            onCustomRangeChange?.(null);
-            onPeriodDaysChange(Number(v));
-          }}
-          onOpenChange={(open) => {
-            if (open || !customPeriodRequested.current) return;
-            customPeriodRequested.current = false;
-            // Le Select rend le focus à son trigger pendant sa fermeture : ouvrir
-            // le popover tout de suite le ferait aussitôt (focus/clic extérieur).
-            // On attend donc la fin de cette séquence.
-            requestAnimationFrame(() => {
-              setDraftRange(
-                customRange
-                  ? { from: parseISO(customRange.from), to: parseISO(customRange.to) }
-                  : undefined
-              );
-              setCustomPeriodOpen(true);
-            });
-          }}
-        >
-          <SelectTrigger className="w-[170px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="10">{t("bookingFilters.lastDays", { count: 10 })}</SelectItem>
-            <SelectItem value="30">{t("bookingFilters.lastDays", { count: 30 })}</SelectItem>
-            <SelectItem value="60">{t("bookingFilters.lastDays", { count: 60 })}</SelectItem>
-            <SelectItem value="90">{t("bookingFilters.lastDays", { count: 90 })}</SelectItem>
-            {onCustomRangeChange && (
-              <SelectItem
-                value={CUSTOM_PERIOD}
-                // Re-choisir la période déjà active ne déclenche pas
-                // onValueChange : on marque l'intention depuis l'item lui-même
-                // pour pouvoir rouvrir le calendrier et modifier les dates.
-                onPointerUp={() => {
-                  customPeriodRequested.current = true;
-                }}
+      {onCustomRangeChange && (
+        <Popover open={customPeriodOpen} onOpenChange={setCustomPeriodOpen}>
+          <PopoverTrigger asChild>
+            {isVisible("period") ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs font-normal"
+                onClick={() =>
+                  setDraftRange(
+                    customRange
+                      ? { from: parseISO(customRange.from), to: parseISO(customRange.to) }
+                      : undefined
+                  )
+                }
               >
+                <CalendarIcon className="h-3.5 w-3.5" />
                 {customRange
                   ? `${formatIsoShort(customRange.from)} → ${formatIsoShort(customRange.to)}`
                   : t("bookingFilters.customPeriod")}
-              </SelectItem>
+              </Button>
+            ) : (
+              // Filtre masqué : le popover garde une ancre de positionnement.
+              <span className="block h-8 w-0" aria-hidden />
             )}
-          </SelectContent>
-        </Select>
-      )}
-
-      {onCustomRangeChange && (
-        <Popover open={customPeriodOpen} onOpenChange={setCustomPeriodOpen}>
-          {/* Ancre de positionnement : le popover est ouvert par l'option
-              "Période personnalisée" du Select ci-dessus, pas par un clic ici. */}
-          <PopoverTrigger asChild>
-            <span className="block h-8 w-0" aria-hidden />
           </PopoverTrigger>
           <PopoverContent
             className="w-auto p-3 space-y-3"
             align="start"
-            // Le Select rend le focus à son trigger une fraction de seconde après
-            // sa fermeture, donc alors que ce popover vient de s'ouvrir : sans
-            // ça, ce focus extérieur le refermerait aussitôt. Le clic extérieur
-            // et Échap continuent de fermer normalement.
+            // Le clic extérieur et Échap continuent de fermer normalement.
             onFocusOutside={(e) => e.preventDefault()}
           >
             <p className="text-xs font-medium text-muted-foreground">

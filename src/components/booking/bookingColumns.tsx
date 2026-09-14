@@ -10,6 +10,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { paymentMethodLabel } from "@/lib/paymentMethod";
 import { effectivePaymentStatus } from "@/lib/clientTypePayment";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
+import type { BookingSortKey } from "@shared/db";
 
 const PAYMENT_TEXT_LABEL_KEYS: Record<string, string> = {
   pending: "admin:bookingColumns.paymentText.pending",
@@ -27,19 +28,13 @@ export function getPaymentTextLabel(status: string | null | undefined): string {
   return key ? i18n.t(key) : status;
 }
 
-/** Colonnes triables : la logique de tri vit dans BookingsList (getValue). */
-export type BookingSortKey =
-  | "reservation"
-  | "date"
-  | "time"
-  | "duration"
-  | "status"
-  | "payment"
-  | "client"
-  | "treatments"
-  | "total"
-  | "location"
-  | "therapist";
+/**
+ * Colonnes triables. Le tri est exécuté par Postgres : la liste des clés vient
+ * donc de la couche données, pas l'inverse. Les prestations n'y figurent pas —
+ * leur libellé vient d'une table jointe, sur laquelle PostgREST ne sait pas
+ * trier la table parente.
+ */
+export type { BookingSortKey };
 
 export type SortDirection = "asc" | "desc";
 
@@ -101,7 +96,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
     sortKey: "reservation",
     defaultVisible: true,
     cell: (booking) => (
-      <span className="leading-none flex items-center gap-1 font-medium text-primary">
+      <span className="leading-none flex items-center gap-1 font-medium text-primary tabular-nums">
         #{booking.booking_id}
         {booking.bundle_usage_id && (
           <Package className="h-3 w-3 text-amber-600 shrink-0" title={i18n.t("admin:bookingColumns.badges.bundleSession")} />
@@ -116,8 +111,8 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
     sortKey: "date",
     defaultVisible: true,
     cell: (booking) => (
-      <span className="block leading-none">
-        {format(new Date(booking.booking_date), "dd-MM-yyyy")}
+      <span className="block leading-none tabular-nums">
+        {format(new Date(booking.booking_date), "dd/MM/yy")}
       </span>
     ),
   },
@@ -128,7 +123,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
     sortKey: "time",
     defaultVisible: true,
     cell: (booking) => (
-      <span className="block leading-none">{booking.booking_time.substring(0, 5)}</span>
+      <span className="block leading-none tabular-nums">{booking.booking_time.substring(0, 5)}</span>
     ),
   },
   {
@@ -138,7 +133,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
     sortKey: "duration",
     defaultVisible: true,
     cell: (booking) => (
-      <span className="block leading-none">
+      <span className="block leading-none tabular-nums">
         {booking.totalDuration ? `${booking.totalDuration} min` : "-"}
       </span>
     ),
@@ -234,7 +229,6 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
     key: "treatments",
     get label() { return i18n.t("admin:bookingColumns.labels.treatments"); },
     width: 12,
-    sortKey: "treatments",
     defaultVisible: true,
     cell: (booking) => (
       <span className="block leading-snug truncate">
@@ -249,7 +243,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
     sortKey: "total",
     defaultVisible: true,
     cell: (booking, { getHotelInfo, t }) => (
-      <span className="leading-none flex items-center gap-1">
+      <span className="leading-none flex items-center gap-1 tabular-nums">
         {booking.payment_status === "offert"
           ? t("admin:bookings.offert.tag")
           : formatPrice(booking.total_price, getHotelInfo(booking.hotel_id)?.currency || "EUR")}
@@ -347,7 +341,7 @@ export const BOOKING_COLUMNS: BookingColumnDef[] = [
     width: 9,
     defaultVisible: false,
     cell: (booking) =>
-      text(booking.created_at ? format(parseISO(booking.created_at), "dd-MM-yyyy HH:mm") : null),
+      text(booking.created_at ? format(parseISO(booking.created_at), "dd/MM/yy HH:mm") : null),
   },
   {
     key: "clientNote",

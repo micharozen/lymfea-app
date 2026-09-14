@@ -48,7 +48,7 @@ import {
 } from "lucide-react";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  room: "Note de chambre",
+  room: "Facturé en chambre",
   card: "Carte — paiement en ligne",
   card_on_site: "Carte — sur place",
   cash: "Espèces",

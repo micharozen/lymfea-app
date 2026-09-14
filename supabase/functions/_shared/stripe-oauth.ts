@@ -119,6 +119,31 @@ export function buildAuthorizeUrl(state: string): string {
   return `${authorizeUrl}?${params.toString()}`;
 }
 
+/**
+ * `/v1/oauth/token` répond avec deux formes d'erreur selon le cas :
+ *   - OAuth historique : { error: "invalid_grant", error_description: "…" }
+ *   - erreur API standard : { error: { type, code, message } }
+ * La seconde produisait `[object Object]` comme message, ce qui masquait la
+ * cause réelle aussi bien dans les logs que dans la modale admin.
+ */
+function oauthErrorParts(
+  payload: Record<string, unknown>,
+  status: number,
+): [string, string | undefined] {
+  const raw = payload?.error;
+
+  if (raw !== null && typeof raw === "object") {
+    const apiError = raw as Record<string, unknown>;
+    const code = apiError.code ?? apiError.type ?? `http_${status}`;
+    return [String(code), apiError.message as string | undefined];
+  }
+
+  return [
+    raw ? String(raw) : `http_${status}`,
+    payload?.error_description as string | undefined,
+  ];
+}
+
 async function requestTokens(
   params: Record<string, string>,
 ): Promise<StripeOAuthTokens> {
@@ -134,10 +159,7 @@ async function requestTokens(
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new StripeOAuthError(
-      payload?.error ?? `http_${response.status}`,
-      payload?.error_description,
-    );
+    throw new StripeOAuthError(...oauthErrorParts(payload, response.status));
   }
 
   if (!payload.access_token || !payload.refresh_token) {
@@ -154,7 +176,8 @@ async function requestTokens(
   return {
     accessToken: payload.access_token,
     refreshToken: payload.refresh_token,
-    accountId: payload.stripe_user_id ?? "",
+    // The code exchange answers `stripe_user_id`, a refresh answers `account_id`.
+    accountId: payload.stripe_user_id ?? payload.account_id ?? "",
     publishableKey: payload.stripe_publishable_key ?? null,
     livemode: payload.livemode === true,
     expiresAt: new Date(Date.now() + ttl * 1000).toISOString(),
@@ -182,7 +205,45 @@ export function refreshAccessToken(
 }
 
 /**
- * Write tokens to Vault + refresh the non-sensitive metadata on the row.
+ * Every venue that shares the connected Stripe account, `hotelId` included.
+ *
+ * An installation belongs to the ACCOUNT, not to the venue: Stripe issues one
+ * token pair per (app × account), and re-authorizing revokes the previous pair.
+ * Two venues on the same account therefore have to share one pair, or each new
+ * connection silently kills its sibling.
+ */
+async function installationHotelIds(
+  supabase: SupabaseClient,
+  hotelId: string,
+  accountId: string,
+): Promise<string[]> {
+  let account = accountId;
+
+  if (!account) {
+    const { data } = await supabase
+      .from("hotel_payment_configs")
+      .select("stripe_account_id")
+      .eq("hotel_id", hotelId)
+      .maybeSingle();
+    account = data?.stripe_account_id ?? "";
+  }
+
+  if (!account) return [hotelId];
+
+  const { data: siblings } = await supabase
+    .from("hotel_payment_configs")
+    .select("hotel_id")
+    .eq("stripe_account_id", account)
+    .eq("auth_method", "oauth");
+
+  return [
+    ...new Set([hotelId, ...(siblings ?? []).map((row) => row.hotel_id as string)]),
+  ];
+}
+
+/**
+ * Write tokens to Vault + refresh the non-sensitive metadata on the row, for
+ * every venue sharing the connected Stripe account.
  *
  * Reuses the existing `payment_stripe_<hotel_id>` Vault secret so BYOK and
  * OAuth share one storage path. The legacy `stripe_secret_key` is dropped on
@@ -198,6 +259,25 @@ export async function persistTokens(
   hotelId: string,
   tokens: StripeOAuthTokens,
   options: { markConnected?: boolean } = {},
+): Promise<void> {
+  const targets = await installationHotelIds(supabase, hotelId, tokens.accountId);
+
+  for (const target of targets) {
+    await persistTokensForHotel(supabase, target, tokens, options);
+  }
+
+  if (targets.length > 1) {
+    console.log(
+      `[stripe-oauth] tokens shared across ${targets.length} venues on the same Stripe account`,
+    );
+  }
+}
+
+async function persistTokensForHotel(
+  supabase: SupabaseClient,
+  hotelId: string,
+  tokens: StripeOAuthTokens,
+  options: { markConnected?: boolean },
 ): Promise<void> {
   const { data: existingRow } = await supabase
     .from("hotel_payment_configs")

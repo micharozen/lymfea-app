@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useAdminWelcome } from "@/hooks/useAdminWelcome";
 import { WelcomeDialog } from "@/components/admin/WelcomeDialog";
+// Composant partagé : même ligne de version (et même panneau de debug) que le profil PWA.
+import VersionLine from "@/components/pwa/VersionLine";
 
 export default function Profile() {
   const { t } = useTranslation(['admin', 'pwa', 'common']);
@@ -22,6 +24,7 @@ export default function Profile() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [adminId, setAdminId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,6 +32,7 @@ export default function Profile() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          setUserId(user.id);
           // Try admins table first
           const { data: admin } = await supabase
             .from('admins')
@@ -355,6 +359,8 @@ export default function Profile() {
             </Button>
           </CardContent>
         </Card>
+
+        <VersionLine userId={userId} />
       </div>
       <WelcomeDialog open={welcome.shouldShow} onClose={welcome.dismiss} />
     </div>

@@ -164,8 +164,10 @@ const PwaNewBooking = () => {
     }
     const fetchTreatments = async () => {
       setTreatmentsLoading(true);
+      // Surface interne : les soins non réservables en ligne restent proposables.
       const { data, error } = await supabase.rpc("get_public_treatments", {
         _hotel_id: selectedHotelId,
+        _include_internal: true,
       });
       console.log("[NewBooking] treatments for hotel", selectedHotelId, ":", data, "error:", error);
       if (!error && data) {
@@ -409,7 +411,8 @@ const PwaNewBooking = () => {
       isAdmin: true,
       isOffert,
       clientType,
-      isOutOfHours: isOffert ? false : surcharge.isOutOfHours,
+      // Offert ne fait pas disparaître le hors-horaires : le gain thérapeute en dépend.
+      isOutOfHours: surcharge.isOutOfHours,
       surchargeAmount: isOffert ? 0 : surcharge.surchargeAmount,
     }, {
       // Le onError du hook passe par le toast shadcn (non monté sur la PWA) :

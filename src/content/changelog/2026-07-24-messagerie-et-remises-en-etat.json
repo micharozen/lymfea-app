@@ -1,0 +1,74 @@
+{
+  "date": "2026-07-24",
+  "slug": "messagerie-et-remises-en-etat",
+  "title": {
+    "fr": "Réponses e-mail fiabilisées et gestion plus fine des salles de soin",
+    "en": "Reliable email replies and smarter treatment room availability"
+  },
+  "summary": {
+    "fr": "Cette mise à jour corrige un bug qui empêchait certaines réponses aux clients d'arriver à destination et améliore le ton des brouillons générés automatiquement. Elle apporte aussi plus de clarté sur la disponibilité des salles de soin et corrige deux irritants côté planning thérapeute et remboursements.",
+    "en": "This update fixes a bug that kept some client replies from ever reaching them, and improves the tone of auto-generated draft replies. It also brings more clarity to treatment room availability and fixes two friction points in the therapist schedule and refund flow."
+  },
+  "items": [
+    {
+      "type": "fixed",
+      "audience": "admin",
+      "title": {
+        "fr": "Les réponses aux demandes clients arrivent maintenant au bon destinataire",
+        "en": "Replies to client inquiries now reach the right recipient"
+      },
+      "body": {
+        "fr": "Lorsqu'une demande client était transférée manuellement vers la messagerie d'un lieu, la réponse repartait parfois vers le lieu lui-même au lieu du client. L'adresse du destinataire est désormais vérifiée et affichée avant l'envoi, pour être certain que la réponse arrive bien à la bonne personne.",
+        "en": "When a client inquiry was manually forwarded to a venue's inbox, the reply could end up going back to the venue instead of the client. The recipient address is now checked and shown before sending, so you can be sure the reply reaches the right person."
+      }
+    },
+    {
+      "type": "improved",
+      "audience": "admin",
+      "title": {
+        "fr": "Un ton plus soigné pour les brouillons de réponse générés automatiquement",
+        "en": "A more polished tone for auto-generated draft replies"
+      },
+      "body": {
+        "fr": "Les brouillons de réponse proposés automatiquement adoptent désormais un registre plus soutenu, adapté à une clientèle hôtelière haut de gamme : civilité uniquement lorsqu'elle est certaine, formule de politesse nommant le lieu, vouvoiement systématique.",
+        "en": "Automatically suggested reply drafts now use a more refined, formal tone suited to upscale hotel clientele: a title is only used when it's certain, closings mention the venue by name, and the register stays consistently courteous."
+      }
+    },
+    {
+      "type": "improved",
+      "audience": "admin",
+      "title": {
+        "fr": "Distinction entre salles indisponibles et salles en remise en état",
+        "en": "Treatment rooms in turnover are now distinguished from truly unavailable rooms"
+      },
+      "body": {
+        "fr": "Lors de l'assignation manuelle d'une salle de soin, une salle simplement en cours de remise en état (ménage) reste désormais sélectionnable, avec un avertissement, au lieu d'être bloquée comme si elle était réellement occupée. Seul un vrai chevauchement de réservation empêche encore le choix de la salle.",
+        "en": "When manually assigning a treatment room, a room that's only in its cleaning/turnover window can now still be selected, with a warning, instead of being blocked as if it were truly occupied. Only a genuine booking overlap still prevents choosing the room."
+      }
+    },
+    {
+      "type": "fixed",
+      "audience": "therapist",
+      "title": {
+        "fr": "Les rendez-vous annulés n'apparaissent plus dans le planning du jour",
+        "en": "Cancelled appointments no longer show up in the day schedule"
+      },
+      "body": {
+        "fr": "Dans l'application mobile, un rendez-vous annulé pouvait encore s'afficher sur le planning en vue « Tout le lieu » et masquer un autre rendez-vous au même horaire. Les vues Jour et 3 jours n'affichent plus que les rendez-vous actifs, et deux rendez-vous au même créneau s'affichent désormais côte à côte.",
+        "en": "In the mobile app, a cancelled appointment could still show up on the schedule under the \"Whole venue\" view and hide another appointment at the same time. The Day and 3-day views now only show active appointments, and two overlapping appointments now display side by side."
+      }
+    },
+    {
+      "type": "fixed",
+      "audience": "admin",
+      "title": {
+        "fr": "La recherche de réservation fonctionne de nouveau pour les remboursements",
+        "en": "Booking search works again for refunds"
+      },
+      "body": {
+        "fr": "Il était devenu impossible de taper du texte dans le champ de recherche pour sélectionner une réservation ou un client à rembourser ou à assigner à une tâche. La saisie fonctionne à nouveau normalement dans ces fenêtres.",
+        "en": "It had become impossible to type in the search field used to pick a booking or client for a refund or task assignment. Typing now works normally again in these windows."
+      }
+    }
+  ]
+}

@@ -4,6 +4,8 @@ import {
   buildComboDuoBookingParams,
   computeStaffingCount,
   defaultLegAssignments,
+  getBaseSessionCount,
+  isComboDuoEligible,
   isValidPartition,
   type AdminBookingSession,
 } from "./index";
@@ -93,6 +95,23 @@ describe("buildComboDuoBookingParams", () => {
     const params = buildComboDuoBookingParams(sessions);
     expect(params.guestCount).toBe(2);
     expect(params.duration).toBe(45);
+  });
+
+  // Regression #1278: a base carrying a duo variant makes isComboDuoEligible false,
+  // which used to send the edit dialog down the "sum the legs" path (60 + 60 = 120)
+  // for two soins actually run in parallel. Leg building itself never depended on
+  // the variant's guest count, so the max stands whatever the variant says.
+  it("keeps the max when a base carries a duo variant", () => {
+    const sessions = [base("A", 60, 160), { ...base("B", 60, 180), guestCount: 2 }];
+    expect(isComboDuoEligible(sessions)).toBe(false);
+    expect(getBaseSessionCount(sessions)).toBe(2);
+    expect(buildComboDuoBookingParams(sessions).duration).toBe(60);
+  });
+
+  it("an add-on extends its leg instead of stacking on the slot", () => {
+    const sessions = [base("A", 60, 160), base("B", 60, 180), addon("X", 30, 40)];
+    // add-on lands on leg 0 → legs [90, 60], slot = 90 (not the 150 sum).
+    expect(buildComboDuoBookingParams(sessions).duration).toBe(90);
   });
 });
 

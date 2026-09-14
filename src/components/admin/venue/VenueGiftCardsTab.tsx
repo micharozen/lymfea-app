@@ -58,6 +58,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { VenueExternalVouchersPanel } from "@/components/admin/venue/VenueExternalVouchersPanel";
 import { Textarea } from "@/components/ui/textarea";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { CategorySelectField } from "@/components/admin/category/CategorySelectField";
@@ -197,7 +198,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
 
   const isStandalone = !hotelId;
   const [hotelFilter, setHotelFilter] = useState<string>("all");
-  const [activeSubTab, setActiveSubTab] = useState<"templates" | "sales">("templates");
+  const [activeSubTab, setActiveSubTab] = useState<"templates" | "sales" | "external">("templates");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogHotelId, setDialogHotelId] = useState<string | undefined>(undefined);
   const [editingTemplate, setEditingTemplate] = useState<GiftCardTemplate | null>(null);
@@ -560,10 +561,16 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
         </div>
       )}
 
-      <Tabs value={activeSubTab} onValueChange={(v) => setActiveSubTab(v as "templates" | "sales")}>
+      <Tabs
+        value={activeSubTab}
+        onValueChange={(v) => setActiveSubTab(v as "templates" | "sales" | "external")}
+      >
         <TabsList>
           <TabsTrigger value="templates">{t("giftCards.tabs.templates", "Modèles")}</TabsTrigger>
           <TabsTrigger value="sales">{t("giftCards.tabs.sales", "Ventes")}</TabsTrigger>
+          <TabsTrigger value="external">
+            {t("giftCards.tabs.external", "Bons partenaires")}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="templates" className="mt-4">
@@ -765,6 +772,14 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
               </Table>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="external" className="mt-4">
+          <VenueExternalVouchersPanel
+            hotelId={hotelId}
+            hotelFilter={hotelFilter}
+            hotels={hotels ?? undefined}
+          />
         </TabsContent>
       </Tabs>
 

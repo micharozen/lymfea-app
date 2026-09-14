@@ -7,6 +7,13 @@ import { listTasksForOrg, taskKeys, type TaskWithLinks } from "@shared/db";
 export type Task = TaskWithLinks;
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
+export type TaskType =
+  | "booking_followup"
+  | "payment_followup"
+  | "gift_followup"
+  | "loyalty"
+  | "bug"
+  | "other";
 
 export const TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "done"];
 export const TASK_PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];

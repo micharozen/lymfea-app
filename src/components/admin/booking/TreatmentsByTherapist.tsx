@@ -10,8 +10,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/formatPrice";
-import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
+import {
+  computeLegEarningsDetailed,
+  type TherapistRates,
+  type TreatmentRateMap,
+} from "@/lib/therapistEarnings";
 import { getAmenityType } from "@/lib/amenityTypes";
 import { useReassignTreatmentTherapists, type LineAssignment } from "@/hooks/booking/useReassignTreatmentTherapists";
 import type { BookingTreatment } from "@/hooks/booking/useBookingData";
@@ -20,6 +25,8 @@ interface RosterTherapist {
   id: string;
   first_name: string;
   last_name: string;
+  /** Photo de profil, quand le praticien en a déposé une. */
+  profile_image?: string | null;
 }
 
 interface TreatmentsByTherapistProps {
@@ -35,6 +42,8 @@ interface TreatmentsByTherapistProps {
   secondaryRoomName: string | null;
   currency: string;
   therapistRatesMap?: Record<string, TherapistRates>;
+  /** Barèmes par soin, par thérapeute. Une entrée nulle = aucun barème applicable. */
+  therapistTreatmentRatesMap?: Record<string, TreatmentRateMap | null>;
   /** true = commission % mode, false = fixed-rate mode, undefined = hide earnings. */
   globalTherapistCommission?: boolean;
   therapistCommission?: number;
@@ -42,15 +51,15 @@ interface TreatmentsByTherapistProps {
   onReassigned: () => void;
 }
 
-// Accent par thérapeute (indexé sur l'ordre des groupes) : anneau d'avatar +
-// bordure gauche des lignes — lecture instantanée de « qui fait quoi » en duo.
+// Accent par thérapeute (indexé sur l'ordre des groupes) : anneau d'avatar,
+// lecture instantanée de « qui fait quoi » en duo.
 const GROUP_ACCENTS = [
-  { avatar: "bg-violet-50 text-violet-700 ring-violet-200", border: "border-l-violet-300" },
-  { avatar: "bg-sky-50 text-sky-700 ring-sky-200", border: "border-l-sky-300" },
-  { avatar: "bg-rose-50 text-rose-700 ring-rose-200", border: "border-l-rose-300" },
-  { avatar: "bg-emerald-50 text-emerald-700 ring-emerald-200", border: "border-l-emerald-300" },
+  { avatar: "bg-violet-50 text-violet-700 ring-violet-200" },
+  { avatar: "bg-sky-50 text-sky-700 ring-sky-200" },
+  { avatar: "bg-rose-50 text-rose-700 ring-rose-200" },
+  { avatar: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
 ] as const;
-const UNASSIGNED_ACCENT = { avatar: "bg-stone-100 text-stone-500 ring-stone-200", border: "border-l-stone-300" } as const;
+const UNASSIGNED_ACCENT = { avatar: "bg-stone-100 text-stone-500 ring-stone-200" } as const;
 
 interface TherapistGroup {
   /** Effective therapist id for the group. null = unassigned soins. */
@@ -59,6 +68,7 @@ interface TherapistGroup {
   room: string | null;
   lines: Array<{
     bookingTreatmentId: string;
+    treatmentId: string | null;
     name: string;
     duration: number | null;
     price: number | null;
@@ -66,6 +76,8 @@ interface TherapistGroup {
   totalDuration: number;
   totalAmount: number;
   earnings: number | null | undefined;
+  /** true quand un barème spécifique par soin est entré dans le calcul du gain. */
+  usedTreatmentRate: boolean;
 }
 
 /**
@@ -84,6 +96,7 @@ export function TreatmentsByTherapist({
   secondaryRoomName,
   currency,
   therapistRatesMap,
+  therapistTreatmentRatesMap,
   globalTherapistCommission,
   therapistCommission,
   surchargePercent = 0,
@@ -112,7 +125,7 @@ export function TreatmentsByTherapist({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("therapist_venues")
-        .select("therapists(id, first_name, last_name, status)")
+        .select("therapists(id, first_name, last_name, status, profile_image)")
         .eq("hotel_id", hotelId!);
       if (error) throw error;
       type VenueRow = { therapists: (RosterTherapist & { status: string | null }) | (RosterTherapist & { status: string | null })[] | null };
@@ -134,6 +147,15 @@ export function TreatmentsByTherapist({
     return map;
   }, [assignable, acceptedTherapists]);
 
+  // Photo de profil quand elle existe : l'avatar retombe sur l'initiale sinon.
+  const photoById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of [...assignable, ...acceptedTherapists]) {
+      if (t.profile_image) map.set(t.id, t.profile_image);
+    }
+    return map;
+  }, [assignable, acceptedTherapists]);
+
   const rosterIds = useMemo(() => acceptedTherapists.map((t) => t.id), [acceptedTherapists]);
 
   // Effective therapist per line. The explicit soin↔therapist link
@@ -144,8 +166,14 @@ export function TreatmentsByTherapist({
   // shown "Non assigné" until the second therapist accepts.
   const lineTherapistIds = useMemo<(string | null)[]>(() => {
     if (guestCount <= 1) {
-      // Solo: explicit link per line, else the single primary therapist.
-      const solo = primaryTherapistId ?? null;
+      // Solo : le lien explicite fait foi. Le repli sur `bookings.therapist_id`
+      // ne vaut que si AUCUNE ligne n'est liée — réservations antérieures au
+      // partage, dont le praticien unique assure pourtant tout. Dès qu'une ligne
+      // porte un lien, une ligne restée NULL signifie « pas encore pourvue »
+      // (issue #547) : l'attribuer au premier praticien arrivé lui prêterait un
+      // soin qu'il n'a pas accepté, et gonflerait son gain d'autant.
+      const anyLinked = serviceTreatments.some((t) => t.therapist_id);
+      const solo = anyLinked ? null : primaryTherapistId ?? null;
       return serviceTreatments.map((t) => t.therapist_id ?? solo);
     }
 
@@ -201,11 +229,13 @@ export function TreatmentsByTherapist({
           totalDuration: 0,
           totalAmount: 0,
           earnings: undefined,
+          usedTreatmentRate: false,
         });
       }
       const g = byId.get(therapistId)!;
       g.lines.push({
         bookingTreatmentId: t.bookingTreatmentId ?? "",
+        treatmentId: t.treatment_id ?? null,
         name: t.name,
         duration: t.duration,
         price: t.price,
@@ -223,15 +253,21 @@ export function TreatmentsByTherapist({
       } else if (globalTherapistCommission) {
         g.earnings = Math.round(g.totalAmount * ((therapistCommission ?? 70) / 100) * 100) / 100;
       } else {
-        g.earnings = computeTherapistEarnings(
+        const detailed = computeLegEarningsDetailed(
           therapistRatesMap?.[id] ?? null,
-          g.totalDuration,
+          therapistTreatmentRatesMap?.[id] ?? null,
+          {
+            totalDuration: g.totalDuration,
+            lines: g.lines.map((l) => ({ treatment_id: l.treatmentId, duration: l.duration })),
+          },
           { surchargePercent },
         );
+        g.earnings = detailed.amount;
+        g.usedTreatmentRate = detailed.usedTreatmentRate;
       }
       return g;
     });
-  }, [serviceTreatments, lineTherapistIds, nameById, roomName, secondaryRoomName, showEarnings, globalTherapistCommission, therapistCommission, therapistRatesMap, surchargePercent, translate]);
+  }, [serviceTreatments, lineTherapistIds, nameById, roomName, secondaryRoomName, showEarnings, globalTherapistCommission, therapistCommission, therapistRatesMap, therapistTreatmentRatesMap, surchargePercent, translate]);
 
   const startEdit = (lineId: string, currentTherapistId: string | null) => {
     setEditingLineId(lineId);
@@ -303,14 +339,19 @@ export function TreatmentsByTherapist({
           return (
             <div
               key={group.therapistId ?? "unassigned"}
-              className={`rounded-lg border border-gray-100 border-l-2 ${accent.border} bg-gray-50/60 overflow-hidden`}
+              className="rounded-lg border border-gray-100 bg-gray-50/60 overflow-hidden"
             >
               {/* En-tête thérapeute */}
               <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/40 border-b border-gray-100">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`h-9 w-9 rounded-full ring-2 ${accent.avatar} flex items-center justify-center font-medium shrink-0`}>
-                    {group.therapistName?.charAt(0) || "?"}
-                  </div>
+                  <Avatar className={`h-9 w-9 ring-2 ${accent.avatar} shrink-0`}>
+                    {group.therapistId && photoById.get(group.therapistId) && (
+                      <AvatarImage src={photoById.get(group.therapistId)} alt="" />
+                    )}
+                    <AvatarFallback className={`text-sm font-medium ${accent.avatar}`}>
+                      {group.therapistName?.charAt(0) || "?"}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{group.therapistName}</p>
                     {group.room && (
@@ -321,12 +362,27 @@ export function TreatmentsByTherapist({
                   </div>
                 </div>
 
-                {showEarnings && (
+                {/* Un groupe encore à pourvoir n'a pas de gain à montrer : sans
+                    praticien, « Tarifs incomplets » désignerait un problème de
+                    barème là où il n'y a qu'une prestation en attente. */}
+                {showEarnings && group.therapistId && (
                   <div className="text-right shrink-0">
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{translate("treatmentsByTherapist.earnings")}</p>
                     {group.earnings != null ? (
-                      <p className="text-sm font-medium text-amber-700 tabular-nums">{formatPrice(group.earnings, currency)}</p>
-                    ) : group.therapistId ? (
+                      <>
+                        <p className="text-sm font-medium text-amber-700 tabular-nums">{formatPrice(group.earnings, currency)}</p>
+                        {/* Sans ce repère, un montant qui s'écarte du barème habituel
+                            du thérapeute est inexplicable sans ouvrir sa fiche. */}
+                        {group.usedTreatmentRate && (
+                          <p
+                            className="text-[10px] text-muted-foreground"
+                            title={translate("treatmentsByTherapist.treatmentRateTitle")}
+                          >
+                            {translate("treatmentsByTherapist.treatmentRateBadge")}
+                          </p>
+                        )}
+                      </>
+                    ) : (
                       <button
                         type="button"
                         className="text-[11px] text-amber-600 underline underline-offset-2 hover:text-amber-700"
@@ -335,8 +391,6 @@ export function TreatmentsByTherapist({
                       >
                         {translate("treatmentsByTherapist.completeRates")}
                       </button>
-                    ) : (
-                      <p className="text-[11px] text-amber-600">{translate("treatmentsByTherapist.incompleteRates")}</p>
                     )}
                   </div>
                 )}
@@ -419,7 +473,7 @@ export function TreatmentsByTherapist({
         {/* Accès / commodités : lignes amenity (piscine, sauna…), sans praticien
             ni cabine ni réassignation — la disponibilité dépend de la commodité. */}
         {amenityTreatments.length > 0 && (
-          <div className="rounded-lg border border-gray-100 border-l-2 border-l-cyan-300 bg-gray-50/60 overflow-hidden">
+          <div className="rounded-lg border border-gray-100 bg-gray-50/60 overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3 bg-muted/40 border-b border-gray-100">
               <div className="h-9 w-9 rounded-full ring-2 bg-cyan-50 text-cyan-700 ring-cyan-200 flex items-center justify-center shrink-0">
                 <Waves className="h-4 w-4" />

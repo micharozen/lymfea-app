@@ -7,18 +7,26 @@ import {
   updateTask as updateTaskDb,
   deleteTask as deleteTaskDb,
   taskKeys,
+  type TaskChecklistItem,
 } from "@shared/db";
-import type { Database } from "@/integrations/supabase/types";
-import type { TaskStatus, TaskPriority } from "./useTasks";
+import type { Database, Json } from "@/integrations/supabase/types";
+import type { TaskStatus, TaskPriority, TaskType } from "./useTasks";
 
 type TaskInsert = Database["public"]["Tables"]["tasks"]["Insert"];
 type TaskUpdate = Database["public"]["Tables"]["tasks"]["Update"];
 
-export interface CreateTaskInput {
+/** Champs communs à la création et à la mise à jour d'une tâche. */
+interface TaskFields {
   title: string;
   description?: string | null;
   priority: TaskPriority;
   status: TaskStatus;
+  task_type: TaskType;
+  task_type_other?: string | null;
+  treatment_menu_ids?: string[];
+  therapist_ids?: string[];
+  checklist?: TaskChecklistItem[];
+  attachments?: string[];
   due_date?: string | null;
   hotel_id?: string | null;
   booking_id?: string | null;
@@ -26,17 +34,10 @@ export interface CreateTaskInput {
   assigned_to_user_id?: string | null;
 }
 
-export interface UpdateTaskInput {
+export type CreateTaskInput = TaskFields;
+
+export interface UpdateTaskInput extends TaskFields {
   id: string;
-  title: string;
-  description?: string | null;
-  priority: TaskPriority;
-  status: TaskStatus;
-  due_date?: string | null;
-  hotel_id?: string | null;
-  booking_id?: string | null;
-  customer_id?: string | null;
-  assigned_to_user_id?: string | null;
   previousAssignee?: string | null;
 }
 
@@ -62,6 +63,29 @@ async function notifyAssignee(params: {
   if (error) console.error("Failed to create task notification", error);
 }
 
+// Colonnes écrites à l'identique par la création et la mise à jour. `checklist`
+// part telle quelle dans la colonne jsonb : aucune écriture secondaire.
+function taskColumns(input: TaskFields) {
+  return {
+    title: input.title,
+    description: input.description ?? null,
+    priority: input.priority,
+    status: input.status,
+    task_type: input.task_type,
+    task_type_other: input.task_type_other ?? null,
+    treatment_menu_ids: input.treatment_menu_ids ?? [],
+    therapist_ids: input.therapist_ids ?? [],
+    checklist: (input.checklist ?? []) as unknown as Json,
+    attachments: input.attachments ?? [],
+    due_date: input.due_date ?? null,
+    hotel_id: input.hotel_id ?? null,
+    booking_id: input.booking_id ?? null,
+    customer_id: input.customer_id ?? null,
+    assigned_to_user_id: input.assigned_to_user_id ?? null,
+    completed_at: input.status === "done" ? new Date().toISOString() : null,
+  };
+}
+
 export function useTaskMutations() {
   const scope = useOrgScope();
   const { userId } = useUser();
@@ -80,16 +104,7 @@ export function useTaskMutations() {
       const payload: TaskInsert = {
         organization_id: organizationId,
         created_by: userId,
-        title: input.title,
-        description: input.description ?? null,
-        priority: input.priority,
-        status: input.status,
-        due_date: input.due_date ?? null,
-        hotel_id: input.hotel_id ?? null,
-        booking_id: input.booking_id ?? null,
-        customer_id: input.customer_id ?? null,
-        assigned_to_user_id: input.assigned_to_user_id ?? null,
-        completed_at: input.status === "done" ? new Date().toISOString() : null,
+        ...taskColumns(input),
       };
       const task = await createTaskDb(supabase, payload);
       await notifyAssignee({
@@ -105,18 +120,7 @@ export function useTaskMutations() {
 
   const update = useMutation({
     mutationFn: async (input: UpdateTaskInput) => {
-      const patch: TaskUpdate = {
-        title: input.title,
-        description: input.description ?? null,
-        priority: input.priority,
-        status: input.status,
-        due_date: input.due_date ?? null,
-        hotel_id: input.hotel_id ?? null,
-        booking_id: input.booking_id ?? null,
-        customer_id: input.customer_id ?? null,
-        assigned_to_user_id: input.assigned_to_user_id ?? null,
-        completed_at: input.status === "done" ? new Date().toISOString() : null,
-      };
+      const patch: TaskUpdate = taskColumns(input);
       const task = await updateTaskDb(supabase, input.id, patch);
       const reassigned =
         !!input.assigned_to_user_id &&

@@ -197,6 +197,11 @@
       "allDay": "All day",
       "absent": "Away",
       "notScheduled": "Not scheduled"
+    },
+    "loadError": {
+      "title": "The planning could not be loaded",
+      "body": "The connection to the server failed. The bookings shown may be incomplete.",
+      "retry": "Retry"
     }
   },
   "bookings": {
@@ -284,7 +289,8 @@
         "pending_partner_billing": "Partner billing",
         "card_saved": "Card saved",
         "offert": "Complimentary"
-      }
+      },
+      "failed": "Export failed"
     }
   },
   "hotels": {
@@ -351,6 +357,7 @@
       "venue": "Venue",
       "status": "Status",
       "amount": "Amount",
+      "earnings": "Earnings",
       "allStatuses": "All statuses",
       "pending": "Pending",
       "confirmed": "Confirmed",
@@ -381,6 +388,7 @@
     "phoneRequired": "Phone is required",
     "finance": "Finance",
     "financeDesc": "Rate per treatment duration, used when the venue does not apply a global commission",
+    "rate30Label": "0h30",
     "rate45Label": "0h45",
     "rate60Label": "1h00",
     "rate75Label": "1h15",
@@ -471,7 +479,16 @@
     "therapist": "Therapist",
     "rateRequired": "Rate required",
     "rateMustBePositive": "The rate must be greater than 0",
-    "inviteResent": "Invitation resent successfully"
+    "inviteResent": "Invitation resent successfully",
+    "treatmentRates": {
+      "title": "Treatment-specific rates",
+      "description": "Rare case: a treatment that does not pay the same as the others. Without a specific scale, every treatment uses the duration-based scale from the General tab.",
+      "addTreatment": "Add a treatment…",
+      "removeTreatment": "Remove this treatment",
+      "noTreatments": "Select some treatments above first.",
+      "unknownTreatment": "Removed treatment",
+      "hint": "A treatment's scale fully replaces the default scale for that treatment. Every other treatment keeps using the default scale."
+    }
   },
   "treatments": {
     "title": "Treatment Menus",
@@ -644,6 +661,12 @@
         "label": "Hold duration",
         "description": "Between 1 and 15 minutes. The countdown is shown client-side and the hold is released automatically on expiry.",
         "suffix": "min"
+      },
+      "externalVouchersSectionTitle": "Partner vouchers",
+      "externalVouchersSectionDescription": "Vouchers bought from a reseller (Wonderbox, Smartbox…) are registered by the venue from the Gift cards tab, then used by the client as store credit.",
+      "externalVouchersEnabled": {
+        "label": "Voucher entry on the booking site",
+        "description": "When off, the code field does not appear at the Payment step and no code is accepted. Leave it off for a venue that works with no reseller."
       }
     },
     "backToList": "Back to venues",
@@ -841,6 +864,12 @@
       "countryPlaceholder": "Select a country",
       "countrySearch": "Search for a country...",
       "countryEmpty": "No country found.",
+      "accessInstructions": "Access information (FR)",
+      "accessInstructionsPlaceholder": "Code porte : 1234A\nAccès : traverser la cour jusqu'au fond, puis à droite.",
+      "accessInstructionsHelp": "Door code, floor, directions from the entrance. Shown in the confirmation email sent to the client.",
+      "accessInstructionsEn": "Access information (EN)",
+      "accessInstructionsEnPlaceholder": "Door code: 1234A\nAccess: cross the courtyard to the end, then turn right.",
+      "accessInstructionsEnHelp": "English translation. When empty, the French version is used.",
       "website": "Website",
       "timezone": "Time zone",
       "financeTitle": "Finance",
@@ -856,6 +885,8 @@
       "onlineCancellation": "Online client cancellation",
       "onlineCancellationDesc": "Refund tiers based on how long before the appointment the cancellation occurs.",
       "cancellationCutoff": "Minimum notice before the appointment (hours)",
+      "rescheduleCutoff": "Minimum notice to reschedule (hours)",
+      "rescheduleCutoffHelp": "Below this notice, the client can no longer change their slot online. Rescheduling sends the booking back to pending and asks the therapist to confirm their availability.",
       "cancellationTextHelp": "Text displayed in the cancellation modal (client and staff). Leave empty for an automatic summary based on the tiers.",
       "cancellationPolicyFr": "Cancellation policy (FR)",
       "cancellationPolicyEn": "Cancellation policy (EN)",
@@ -953,11 +984,22 @@
     "groupHint": "Group 1 is contacted first when a booking comes in. Group 2 only follows after the delay set in the Configuration tab, or as soon as every therapist in group 1 has declined. While everyone sits in group 1, all therapists are notified at once.",
     "priorityUpdated": "Group updated",
     "priorityError": "Could not change the group",
-    "groupOnVenueHint": "Set from the venue page, Therapists tab."
+    "groupOnVenueHint": "Set from the venue page, Therapists tab.",
+    "notificationTest": {
+      "send": "Test notifications",
+      "sending": "Sending…",
+      "result": "{{sent}} sent, {{undelivered}} not delivered",
+      "error": "Failed to send tests",
+      "pending": "Pending",
+      "ok": "OK",
+      "nok": "NOK",
+      "undelivered": "Not delivered"
+    }
   },
   "customers": {
     "title": "Customers",
     "description": "Manage your customers and their information",
+    "selectPlaceholder": "Select",
     "add": "Add a Customer",
     "new": "New Customer",
     "back": "Back",
@@ -987,7 +1029,8 @@
     "tabs": {
       "general": "General",
       "notes": "Notes & Preferences",
-      "bookings": "History"
+      "bookings": "History",
+      "tasks": "Tasks"
     },
     "preferences": "Preferences",
     "preferencesDesc": "Preferred therapist and treatment",
@@ -1068,7 +1111,25 @@
       "noCustomer": "No customer",
       "searchBooking": "Search (number or name)...",
       "searchCustomer": "Search a customer...",
-      "noResults": "No results"
+      "noResults": "No results",
+      "taskType": "Task type",
+      "taskTypeOther": "Specify the type",
+      "taskTypeOtherPlaceholder": "e.g. Special request",
+      "venue": "Venue",
+      "selectVenue": "Select a venue",
+      "selectVenueFirst": "Pick a venue first",
+      "treatments": "Related treatments",
+      "noTreatment": "No treatment",
+      "therapists": "Related therapists",
+      "noTherapist": "No therapist",
+      "checklist": "Actions to complete",
+      "checklistItemPlaceholder": "e.g. Call the hotel",
+      "addChecklistItem": "Add an action",
+      "attachments": "Screenshots",
+      "addAttachment": "Add an image",
+      "attachmentHint": "You can also paste a screenshot (Cmd/Ctrl+V).",
+      "attachmentImageOnly": "The file must be an image",
+      "attachmentTooLarge": "The image must not exceed {{size}} MB"
     },
     "dueDatePresets": {
       "today": "Today",
@@ -1076,9 +1137,23 @@
       "in3days": "In 3 days",
       "in7days": "In 7 days"
     },
-    "expand": "Fullscreen",
-    "collapse": "Collapse",
-    "openLink": "View"
+    "openLink": "View",
+    "allVenues": "All venues",
+    "allTypes": "All types",
+    "type": {
+      "booking_followup": "Booking follow-up",
+      "payment_followup": "Payment follow-up",
+      "gift_followup": "Gift follow-up",
+      "loyalty": "Loyalty / package",
+      "bug": "Bug",
+      "other": "Other"
+    },
+    "customerTab": {
+      "label": "Tasks",
+      "count_one": "{{count}} task linked to this customer",
+      "count_other": "{{count}} tasks linked to this customer",
+      "empty": "No task linked to this customer."
+    }
   },
   "scheduleAlerts": {
     "title": "Schedule Alerts",
@@ -1404,7 +1479,8 @@
     "sessionsValue": "{{count}} sessions",
     "tabs": {
       "templates": "Templates",
-      "sales": "Sales"
+      "sales": "Sales",
+      "external": "Partner vouchers"
     },
     "type": {
       "amount": "Amount",
@@ -1495,6 +1571,38 @@
       "eligibleTreatmentsRequired": "Select at least one eligible treatment",
       "amountRequired": "Amount is required"
     }
+  },
+  "externalVouchers": {
+    "add": "Record a voucher",
+    "empty": "No partner voucher recorded",
+    "emptyHint": "Record the vouchers you receive by email from your resellers so guests can redeem them online.",
+    "dialogTitle": "Record a partner voucher",
+    "dialogSubtitle": "Enter the voucher you received from your reseller. Guests will then be able to redeem it directly when booking online.",
+    "unknownReseller": "Unidentified",
+    "venuePlaceholder": "Select a venue",
+    "amount": "Amount (€)",
+    "holderPlaceholder": "Name shown on the voucher",
+    "notes": "Internal note",
+    "notesPlaceholder": "Received by email on…",
+    "normalizedAs": "Searched as",
+    "codePatternWarning": "This reference does not match this reseller's usual format. You can still record it.",
+    "saved": "Voucher recorded",
+    "columns": {
+      "code": "Reference",
+      "reseller": "Reseller",
+      "holder": "Holder"
+    },
+    "errors": {
+      "venueRequired": "Select a venue",
+      "codeTooShort": "The reference must be at least 4 characters long",
+      "amountInvalid": "Invalid amount",
+      "expiryRequired": "Enter an expiry date",
+      "duplicate": "This reference already exists for this venue"
+    },
+    "customer": "Customer",
+    "optional": "(optional)",
+    "customerPlaceholder": "Name or phone",
+    "customerHint": "Leave empty if you don't know yet who will use this voucher: it will be linked automatically on the first booking."
   },
   "booking": {
     "therapistSections": {
@@ -2146,6 +2254,7 @@
     "endDate": "To",
     "startTime": "Start",
     "endTime": "End",
+    "allDay": "All day",
     "scope": "Scope",
     "wholeVenue": "Whole venue",
     "noRooms": "No active treatment room in this venue.",
@@ -2312,23 +2421,37 @@
     "billedToPartnerGeneric": "Payment handled by the partner (monthly billing).",
     "method": "Method",
     "sendPayment": "Send payment",
-    "requestSignature": "Request signature"
+    "cancelPaymentLink": {
+      "label": "Payment link",
+      "active": "Active",
+      "cancelledOn": "Deactivated on {{date}}",
+      "action": "Deactivate the payment link",
+      "openUrl": "Open the payment link",
+      "copyUrl": "Copy the link",
+      "urlCopied": "Payment link copied.",
+      "copyFailed": "Could not copy the link.",
+      "autoCancelFailed": "Payment saved, but the payment link could not be deactivated.",
+      "title": "Deactivate the payment link",
+      "description": "The client will no longer be able to pay through this link and will stop receiving reminders. The booking and its history are kept.",
+      "newMethod": "New payment method",
+      "methodUnchanged": "Unchanged",
+      "confirm": "Deactivate",
+      "success": "Payment link deactivated.",
+      "error": "Could not deactivate the payment link."
+    },
+    "requestSignature": "Request signature",
+    "actions": "Actions"
   },
   "finance": {
     "closure": {
       "loadVenuesError": "Could not load the venues",
       "loadBookingsError": "Could not load the bookings",
       "reportUnavailable": "Report unavailable",
-      "selectionTitle": "Selection",
-      "selectionDesc": "Pick a venue and a date to generate the closure.",
-      "venue": "Venue",
       "chooseVenue": "Choose a venue",
       "refresh": "Refresh",
       "hideCommissions": "Hide commissions",
       "previewPdf": "Preview / PDF",
       "sendByEmail": "Send by email",
-      "totalBookings": "Total bookings",
-      "statuses": "Statuses",
       "venueShare": "Venue share",
       "therapistShare": "Therapist share",
       "platformShare": "Platform share",
@@ -2337,7 +2460,6 @@
       "byTherapist": "By therapist",
       "byPaymentMethod": "By payment method",
       "detailDesc": "All bookings for the venue on that day.",
-      "show": "Show",
       "colNumber": "No.",
       "colClient": "Client",
       "colRoom": "Room",
@@ -2349,14 +2471,12 @@
       "colStatus": "Status",
       "openBooking": "Open the booking in a new tab",
       "noBooking": "No booking for this venue on this date.",
-      "statusChartTitle": "Booking statuses",
       "noBookingShort": "No booking",
       "byClientType": "By client type",
       "noCompletedTreatment": "No completed treatment",
-      "treatmentsCount_one": "{{count}} treatment",
-      "treatmentsCount_other": "{{count}} treatments",
-      "revenue": "Revenue",
-      "activeCount": "{{count}} active",
+      "unfinalizedNotice_one": "{{count}} booking is not finalised yet ({{amount}}).",
+      "unfinalizedNotice_other": "{{count}} bookings are not finalised yet ({{amount}}).",
+      "includeUnfinalized": "Include them",
       "therapistShareShort": "Ther. share",
       "detailTitle": "Treatment details ({{count}})",
       "segments": {
@@ -2367,37 +2487,19 @@
         "noshow": "No show"
       },
       "pdfError": "Unable to generate the PDF",
-      "downloadPdf": "Download PDF"
+      "downloadPdf": "Download PDF",
+      "revenueBooked": "Revenue booked",
+      "countedOf": "{{counted}} treatments counted out of {{total}} bookings",
+      "averageTicket": "Average ticket",
+      "completionRate": "Completed so far",
+      "splitTitle": "Revenue split",
+      "commissionsHidden": "Commissions hidden.",
+      "dayStatuses": "Statuses for the day",
+      "completionRateHint": "{{counted}} of {{total}} bookings"
     },
     "page": {
-      "loadError": "Could not load the financial data",
-      "statusPending": "Pending",
-      "statusBilled": "Billed",
-      "statusPaid": "Paid",
-      "statusCompleted": "Completed",
-      "statusFailed": "Failed",
-      "statusProcessing": "Processing",
-      "title": "Finance",
-      "subtitle": "Revenue tracking, venue netting and therapist payouts",
-      "refresh": "Refresh",
-      "tabClosure": "📋 Daily closure",
-      "nettingTitle": "Balances by venue",
-      "nettingEmpty": "No pending entry",
-      "toReceive": "To receive",
-      "toPay": "To pay",
-      "ledgerTitle": "General ledger",
-      "ledgerDesc": "History of all venue transactions",
-      "ledgerEmpty": "No entry in the ledger",
-      "colVenue": "Venue",
-      "colAmount": "Amount",
-      "colStatus": "Status",
-      "payoutsTitle": "Payout history",
-      "payoutsDesc": "Transfers to the therapists' Stripe accounts",
-      "payoutsEmpty": "No payout recorded",
-      "colTherapist": "Therapist",
-      "colBooking": "Booking",
-      "nettingDesc": "Amounts pending settlement with each venue (positive = the venue owes {{brand}})",
-      "unknownVenue": "Unknown venue"
+      "title": "Daily closure",
+      "subtitle": "The end-of-day recap, venue by venue: revenue booked, split and treatment detail."
     },
     "closureEmail": {
       "title": "Email the closure report",
@@ -2688,6 +2790,8 @@
     "publicLinkPlaceholder": "e.g. swedish-massage-60",
     "descriptionPlaceholder": "Treatment description",
     "bestseller": "Bestseller (highlighted on the booking page)",
+    "bookableOnline": "Bookable online",
+    "bookableOnlineHint": "Unchecked: the treatment stays bookable internally (admin and therapist) but never shows up in the client booking flow.",
     "venue": "Venue *",
     "selectVenue": "Select a venue",
     "status": "Status",
@@ -2727,7 +2831,11 @@
     "brandClient": "{{brand}} (treatment client)",
     "title": "Amenities ({{count}})",
     "persons": "{{count}} people",
-    "prep": "+{{count}} min prep"
+    "prep": "+{{count}} min prep",
+    "exclusive": "Exclusive use",
+    "exclusiveHelp": "One booking takes the whole slot. Capacity then only caps how many people a single booking may have. Uncheck it for a genuinely shared facility.",
+    "exclusiveBadge": "Exclusive",
+    "prepTimeHelp": "Turnaround time held after every booking: nothing can start before the cleaning is over."
   },
   "profilePage": {
     "loadError": "Could not load the profile",
@@ -2969,6 +3077,7 @@
       "new_booking_notifications": "New booking email sent",
       "payment_reminder": "Payment reminder email sent",
       "booking_cancelled": "Cancellation email sent",
+      "booking_modified": "Booking update email sent to the client",
       "payment_link_expired": "Payment link expiry email sent"
     },
     "actions": {
@@ -2980,7 +3089,9 @@
       "refundWithAmount": "Refund of {{amount}}",
       "partialSuffix": "{{label}} (partial)",
       "paymentLinkSent": "Payment link sent",
-      "paymentLinkSentVia": "Payment link sent by {{channels}}"
+      "paymentLinkSentVia": "Payment link sent by {{channels}}",
+      "paymentLinkCancelled": "Payment link deactivated",
+      "paymentLinkCancelledWithMethod": "Payment link deactivated — payment: {{method}}"
     },
     "channels": {
       "email": "email",
@@ -2988,7 +3099,8 @@
       "sms": "SMS",
       "smsTo": "SMS to {{phone}}",
       "joiner": " and "
-    }
+    },
+    "byClient": "by the client"
   },
   "venueBookingCalendar": {
     "refresh": "Refresh",
@@ -3054,7 +3166,9 @@
     "incompleteRates": "Incomplete rates",
     "reassignTitle": "Reassign this treatment",
     "chooseTherapist": "Choose a therapist",
-    "amenityAccess": "Access / amenities"
+    "amenityAccess": "Access / amenities",
+    "treatmentRateBadge": "Specific rate",
+    "treatmentRateTitle": "This amount uses a treatment-specific scale set on the therapist's profile."
   },
   "createBookingFromRequest": {
     "missingFields": "Missing required fields",
@@ -3488,7 +3602,8 @@
     "planningTitle": "Planning",
     "refresh": "Refresh",
     "newRequest": "New request",
-    "newBooking": "New booking"
+    "newBooking": "New booking",
+    "newAmenity": "Amenity"
   },
   "organizationPicker": {
     "title": "Choose an organisation",
@@ -3625,9 +3740,26 @@
     "period": "Period",
     "selectVenue": "Select a venue",
     "allVenues": "All venues",
+    "noOrganization": "Pick an organization to see its dashboard.",
+    "loadError": "Some data could not be loaded. Refresh the page to try again.",
     "tabs": {
       "dashboard": "Dashboard",
       "overview": "Overview"
+    },
+    "quickActions": {
+      "title": "What would you like to do?",
+      "booking": {
+        "label": "Create a booking",
+        "hint": "New booking for a client"
+      },
+      "treatment": {
+        "label": "Create a treatment",
+        "hint": "Add a treatment to the menu"
+      },
+      "voucher": {
+        "label": "Register a voucher",
+        "hint": "Partner voucher — Wonderbox, Smartbox…"
+      }
     }
   },
   "dashboardAlerts": {
@@ -3652,7 +3784,8 @@
     "refundBooking": "Refund a booking",
     "exportCsv": "Export to CSV",
     "newRequest": "New request",
-    "newBooking": "New booking"
+    "newBooking": "New booking",
+    "exporting": "Exporting…"
   },
   "treatmentRoomDialog": {
     "details": "Details",
@@ -3858,8 +3991,7 @@
       "noShow": "Client didn't show"
     },
     "conciergeNotice": {
-      "editable": "As a venue team member, you can only change the slot and the treatments.",
-      "slotLocked": "The slot can no longer be changed (booking confirmed by the therapist). Only the treatments can be adjusted."
+      "bookingClosed": "This booking is cancelled: it can no longer be edited."
     },
     "cart": {
       "title": "Basket",
@@ -3946,7 +4078,8 @@
       "copied": "Copied",
       "copy": "Copy",
       "open": "Open"
-    }
+    },
+    "durationOverridden": "Manually set duration (computed: {{computed}} min). Changing a treatment recalculates it."
   },
   "therapistDialog": {
     "addTitle": "Add a therapist",
@@ -4185,7 +4318,10 @@
     "ascending": "Ascending",
     "descending": "Descending",
     "empty": "No bookings found",
-    "itemName": "bookings"
+    "itemName": "bookings",
+    "loadedCount": "{{loaded}} of {{total}}",
+    "loadMore": "Load more",
+    "loading": "Loading…"
   },
   "amenityBookingDetail": {
     "room": "Room: {{number}}",
@@ -4251,6 +4387,8 @@
     "time": "Time",
     "guestCount": "Number of guests",
     "capacityBadge": "{{remaining}} / {{total}} free",
+    "slotExclusiveWarning": "This slot is already booked (turnaround time included) on an exclusive-use amenity.",
+    "slotFullWarning": "This slot does not have enough room left.",
     "duration": "Duration",
     "durationValue": "Duration: {{value}}",
     "prepTime": "+{{minutes}} min preparation",
@@ -4268,6 +4406,7 @@
       "amenityRequired": "Select an amenity",
       "firstNameRequired": "First name required",
       "phoneRequired": "Phone required",
+      "phoneInvalid": "Invalid phone number",
       "dateRequired": "Date required",
       "timeRequired": "Time required"
     },
@@ -4291,6 +4430,11 @@
     "discardDescription": "Everything you have entered will be lost. Are you sure you want to leave?",
     "keepEditing": "Keep editing",
     "discard": "Discard",
+    "amenityConflictTitle": "Slot already taken",
+    "amenityConflictExclusive": "{{amenity}} is already booked on this slot, turnaround time included. The client site no longer offers it. Book anyway?",
+    "amenityConflictFull": "{{amenity}} does not have enough room left on this slot. Book anyway?",
+    "amenityConflictConfirm": "Book anyway",
+    "amenityConflictCancel": "Pick another slot",
     "toasts": {
       "emailAdjustedTitle": "Email adjusted",
       "emailAdjustedDescription": "The address was normalised to {{email}} (accents and capitals removed)."

@@ -11,10 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, User, Users, Banknote, Gift, Ticket, Smartphone,
-  Calendar, Clock, Building2, MoreHorizontal, ChevronDown,
+  Calendar, Clock, Building2, ChevronDown,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare,
-  FileText, CreditCard, ListTodo, Undo2, Radio, MailCheck, AlertTriangle
+  FileText, CreditCard, ListTodo, Undo2, Radio, MailCheck, AlertTriangle, Ban,
+  Copy, Check, Eye
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingTasksTab } from "@/components/admin/tasks/BookingTasksTab";
@@ -39,6 +40,7 @@ import {
 import { formatPrice } from "@/lib/formatPrice";
 import { getBookingStatusConfig, getBookingPaymentDisplay } from "@/utils/statusStyles";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { CancelPaymentLinkDialog } from "@/components/booking/CancelPaymentLinkDialog";
 import { SendConfirmationDialog } from "@/components/booking/SendConfirmationDialog";
 import { useConfirmationEmailSent } from "@/hooks/booking/useConfirmationEmailSent";
 import { InvoicePreviewDialog } from "@/components/booking/InvoicePreviewDialog";
@@ -49,7 +51,7 @@ import { useActiveTherapists } from "@/hooks/booking/useActiveTherapists";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
-import { type TherapistRates } from "@/lib/therapistEarnings";
+import { type TherapistRates, type TreatmentRateMap } from "@/lib/therapistEarnings";
 import {
   CLIENT_TYPE_META, PARTNER_BILLED_CLIENT_TYPES, isPartnerBilledClientType,
   normalizeBookingClientType, type BookingClientType,
@@ -100,6 +102,7 @@ function StatusDot({ hexColor, label, pulse, muted }: { hexColor: string; label:
 function useBookingDetailDialogs() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
+  const [isCancelPaymentLinkOpen, setIsCancelPaymentLinkOpen] = useState(false);
   const [isMarkPaidOpen, setIsMarkPaidOpen] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
@@ -109,6 +112,7 @@ function useBookingDetailDialogs() {
     isSendConfirmationOpen, setIsSendConfirmationOpen,
     isEditOpen, setIsEditOpen,
     isPaymentLinkOpen, setIsPaymentLinkOpen,
+    isCancelPaymentLinkOpen, setIsCancelPaymentLinkOpen,
     isMarkPaidOpen, setIsMarkPaidOpen,
     isSignatureOpen, setIsSignatureOpen,
     isInvoicePreviewOpen, setIsInvoicePreviewOpen,
@@ -146,6 +150,7 @@ export default function BookingDetail() {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
   const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
+  const [paymentLinkCopied, setPaymentLinkCopied] = useState(false);
   const [therapistRefreshKey, setTherapistRefreshKey] = useState(0);
 
   const { data: booking, isLoading, isFetched, refetch } = useBooking(id);
@@ -194,13 +199,13 @@ export default function BookingDetail() {
   // Payment metadata from booking_payment_infos: when it was paid (payment_at) and,
   // for cancellations, the time + who cancelled (cancelled_by = staff user id;
   // NULL means the client cancelled via the public flow).
-  const { data: paymentMeta } = useQuery({
+  const { data: paymentMeta, refetch: refetchPaymentMeta } = useQuery({
     queryKey: ["booking-payment-meta", booking?.id],
     enabled: !!booking?.id,
     queryFn: async () => {
       const { data } = await supabase
         .from("booking_payment_infos")
-        .select("payment_at, cancelled_at, cancelled_by, refund_amount, stripe_refund_id")
+        .select("payment_at, cancelled_at, cancelled_by, refund_amount, stripe_refund_id, payment_link_cancelled_at")
         .eq("booking_id", booking!.id)
         .maybeSingle();
       return data ?? null;
@@ -222,7 +227,7 @@ export default function BookingDetail() {
       if (!btData || btData.length === 0) return [];
       const { data: tData } = await supabase
         .from("therapists")
-        .select("id, first_name, last_name")
+        .select("id, first_name, last_name, profile_image")
         .in("id", btData.map((bt) => bt.therapist_id));
       // Preserve acceptance order (assigned_at) — the .in() result order is not guaranteed
       // and the positional treatment↔therapist mapping depends on a stable order.
@@ -241,13 +246,14 @@ export default function BookingDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from("hotels")
-        .select("therapist_commission, global_therapist_commission")
+        .select("therapist_commission, global_therapist_commission, out_of_hours_surcharge_percent")
         .eq("id", booking!.hotel_id)
         .single();
       if (!data) return null;
       return {
         therapist_commission: (data as any).therapist_commission ?? 70,
         global_therapist_commission: (data as any).global_therapist_commission !== false,
+        out_of_hours_surcharge_percent: Number(data.out_of_hours_surcharge_percent) || 0,
       };
     },
   });
@@ -258,22 +264,30 @@ export default function BookingDetail() {
     return booking?.therapist_id ? [booking.therapist_id] : [];
   }, [bookingGuestCount, acceptedTherapists, booking?.therapist_id]);
 
-  const { data: therapistRatesMap = {} } = useQuery({
+  const { data: therapistRateData } = useQuery({
     queryKey: ["booking-therapist-rates", [...rateTherapistIds].sort()],
     enabled: rateTherapistIds.length > 0,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase
         .from("therapists")
-        .select("id, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
+        .select(
+          "id, rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+        )
         .in("id", rateTherapistIds);
       const map: Record<string, TherapistRates> = {};
+      const treatmentMap: Record<string, TreatmentRateMap | null> = {};
       (data || []).forEach((t: any) => {
-        map[t.id] = { rate_45: t.rate_45, rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90, rate_105: t.rate_105, rate_120: t.rate_120, rate_150: t.rate_150 };
+        map[t.id] = { rate_30: t.rate_30, rate_45: t.rate_45, rate_60: t.rate_60, rate_75: t.rate_75, rate_90: t.rate_90, rate_105: t.rate_105, rate_120: t.rate_120, rate_150: t.rate_150 };
+        // Le flag est honoré ici : le moteur ne reçoit jamais une map inactive.
+        treatmentMap[t.id] = t.treatment_rates_active ? t.treatment_rates ?? null : null;
       });
-      return map;
+      return { map, treatmentMap };
     },
   });
+
+  const therapistRatesMap = therapistRateData?.map ?? {};
+  const therapistTreatmentRatesMap = therapistRateData?.treatmentMap ?? {};
 
   // Spinner while loading OR while the query is still disabled (org scope not
   // resolved yet on a hard refresh) — only show "introuvable" once the fetch has
@@ -310,13 +324,19 @@ export default function BookingDetail() {
       : booking.treatmentsTotalPrice);
 
   // Out-of-hours surcharge percent (derived from the stored amount, matches the
-  // client breakdown). Applied as an uplift on the therapist earning below.
+  // client breakdown).
   const surchargeAmount = booking.is_out_of_hours ? (booking.surcharge_amount ?? 0) : 0;
   const offertOriginalPrice = isOffert ? (booking.treatmentsTotalPrice || 0) : 0;
   const subtotal = isOffert
     ? offertOriginalPrice
     : Math.max(displayPrice - surchargeAmount, 0);
   const surchargePercent = subtotal > 0 ? Math.round((surchargeAmount / subtotal) * 100) : 0;
+  // Majoration du gain thérapeute : elle suit le taux du lieu, pas le montant
+  // facturé au client — une prestation offerte hors horaires ne facture rien mais
+  // reste majorée pour le thérapeute (même règle que la facture thérapeute).
+  const therapistSurchargePercent = booking.is_out_of_hours
+    ? (hotelCommission?.out_of_hours_surcharge_percent ?? 0)
+    : 0;
   const hasSurcharge = surchargeAmount > 0;
 
   const totalDuration = booking.totalDuration || booking.treatmentsTotalDuration || 0;
@@ -388,6 +408,12 @@ export default function BookingDetail() {
   const bookingStatusConfig = getBookingStatusConfig(booking.status);
 
   const canSendPaymentLink = !isConcierge && !isPartnerBilled && !cardSavedToCharge && !isPaid && !isOffert;
+
+  // Lien de paiement encore vivant : envoyé, non réglé et non désactivé par une
+  // équipe. Tant qu'il vit, le client peut payer dessus et reçoit des relances.
+  const paymentLinkCancelledAt = paymentMeta?.payment_link_cancelled_at ?? null;
+  const canCancelPaymentLink =
+    !isConcierge && !!booking.payment_link_url && !paymentLinkCancelledAt && !isPaid;
   const showInvoice = booking.status === "completed";
   const invoiceLabel = booking.stripe_invoice_url
     ? "Facture"
@@ -399,6 +425,18 @@ export default function BookingDetail() {
     : canSendPaymentLink
       ? "payment"
       : "edit";
+
+  const handleCopyPaymentLink = async () => {
+    if (!booking.payment_link_url) return;
+    try {
+      await navigator.clipboard.writeText(booking.payment_link_url);
+      setPaymentLinkCopied(true);
+      toast.success(t('bookingDetail.cancelPaymentLink.urlCopied'));
+      setTimeout(() => setPaymentLinkCopied(false), 2000);
+    } catch {
+      toast.error(t('bookingDetail.cancelPaymentLink.copyFailed'));
+    }
+  };
 
   const openPaymentMethodDialog = (mode: "pay" | "method") => {
     setMarkPaidMode(mode);
@@ -426,6 +464,20 @@ export default function BookingDetail() {
     }
     setMarkPaidLoading(true);
     try {
+      // Encaisser sans couper le lien laisserait le client payer une seconde
+      // fois sur Stripe. On le désactive AVANT d'écrire le paiement (la fonction
+      // refuse d'agir sur une réservation déjà réglée). Une correction de
+      // méthode seule ne change rien au dû : le lien reste vivant.
+      if (!isMethodOnly && booking.payment_link_url && !paymentLinkCancelledAt) {
+        const { error: cancelLinkError } = await invokeEdgeFunction("cancel-payment-link", {
+          body: { bookingId: booking.id },
+          logContext: { flow: "mark-as-paid", bookingId: booking.id },
+        });
+        if (cancelLinkError) {
+          toast.warning(t('bookingDetail.cancelPaymentLink.autoCancelFailed'));
+        }
+      }
+
       let update: Record<string, string | null>;
       if (isPartner) {
         const derived = derivePaymentForClientType(markPaidPartner as BookingClientType);
@@ -481,6 +533,7 @@ export default function BookingDetail() {
       );
       dialogs.setIsMarkPaidOpen(false);
       refetch();
+      refetchPaymentMeta();
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Erreur lors de l'enregistrement du paiement.");
@@ -613,15 +666,23 @@ export default function BookingDetail() {
             >
               {t('common:buttons.edit')} <Pencil />
             </Button>
-            {(canConvertToDuo || canSendConfirmation || (showInvoice && primaryAction !== "invoice") || (!isSigned && !isConcierge)) && (
+            {(canConvertToDuo || canSendConfirmation || (showInvoice && primaryAction !== "invoice") || (canSendPaymentLink && primaryAction !== "payment") || (!isSigned && !isConcierge)) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="px-2">
-                    <MoreHorizontal className="h-4 w-4" />
-                    <span className="sr-only">{t('bookingDetail.moreActions')}</span>
+                  <Button variant="outline" size="sm" className="px-2.5">
+                    {t('bookingDetail.actions')} <ChevronDown className="h-4 w-4 ml-1" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {/* Le paiement n'était proposé QUE comme action primaire : une résa
+                      terminée mais impayée bascule en « facture » et n'offrait alors
+                      plus aucun moyen d'envoyer le lien. Même règle que la facture
+                      ci-dessous — dans le menu dès qu'il n'est pas le bouton primaire. */}
+                  {canSendPaymentLink && primaryAction !== "payment" && (
+                    <DropdownMenuItem onClick={() => dialogs.setIsPaymentLinkOpen(true)}>
+                      <Send className="h-4 w-4 mr-2" /> {t('bookingDetail.sendPayment')}
+                    </DropdownMenuItem>
+                  )}
                   {canConvertToDuo && (
                     <DropdownMenuItem onClick={() => dialogs.setIsConvertToDuoOpen(true)}>
                       <Users className="h-4 w-4 mr-2" /> {t("booking.convertToDuo.button")}
@@ -702,9 +763,10 @@ export default function BookingDetail() {
               secondaryRoomName={booking.secondary_room_name}
               currency={currency}
               therapistRatesMap={therapistRatesMap}
+              therapistTreatmentRatesMap={therapistTreatmentRatesMap}
               globalTherapistCommission={hotelCommission?.global_therapist_commission}
               therapistCommission={hotelCommission?.therapist_commission}
-              surchargePercent={surchargePercent}
+              surchargePercent={therapistSurchargePercent}
               onReassigned={() => { refetch(); setTherapistRefreshKey((k) => k + 1); }}
             />
 
@@ -935,6 +997,54 @@ export default function BookingDetail() {
                 </CollapsibleContent>
               </Collapsible>
 
+              {booking.payment_link_url && !isPaid && (
+                <div className="mt-4 border-t border-stone-100 pt-3">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    {/* Le libellé ouvre le lien tel que le client le reçoit —
+                        l'URL Stripe elle-même n'a pas à encombrer la carte. */}
+                    <a
+                      href={booking.payment_link_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={t('bookingDetail.cancelPaymentLink.openUrl')}
+                      className="flex min-w-0 items-center gap-2 text-gray-500 hover:text-primary"
+                    >
+                      <Send className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{t('bookingDetail.cancelPaymentLink.label')}</span>
+                      <Eye className="h-3.5 w-3.5 shrink-0" />
+                    </a>
+                    <div className="flex items-center gap-1">
+                      <span className={paymentLinkCancelledAt ? "text-gray-400" : "text-amber-600"}>
+                        {paymentLinkCancelledAt
+                          ? t('bookingDetail.cancelPaymentLink.cancelledOn', {
+                              date: format(new Date(paymentLinkCancelledAt), t('bookingDetail.dateTimeFormat'), { locale: dateLocale }),
+                            })
+                          : t('bookingDetail.cancelPaymentLink.active')}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 text-gray-400 hover:text-gray-900"
+                        title={t('bookingDetail.cancelPaymentLink.copyUrl')}
+                        onClick={handleCopyPaymentLink}
+                      >
+                        {paymentLinkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+                  {canCancelPaymentLink && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2 w-full text-red-600 hover:bg-red-50 hover:text-red-700"
+                      onClick={() => dialogs.setIsCancelPaymentLinkOpen(true)}
+                    >
+                      <Ban className="h-4 w-4 mr-2" /> {t('bookingDetail.cancelPaymentLink.action')}
+                    </Button>
+                  )}
+                </div>
+              )}
+
               {!isPaid && (
                 <Button
                   variant="outline"
@@ -1006,6 +1116,13 @@ export default function BookingDetail() {
         open={dialogs.isPaymentLinkOpen}
         onOpenChange={dialogs.setIsPaymentLinkOpen}
         booking={booking}
+      />
+
+      <CancelPaymentLinkDialog
+        open={dialogs.isCancelPaymentLinkOpen}
+        onOpenChange={dialogs.setIsCancelPaymentLinkOpen}
+        booking={booking}
+        onSuccess={() => { refetch(); refetchPaymentMeta(); }}
       />
 
       <SendConfirmationDialog

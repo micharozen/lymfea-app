@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
+import { APP_COMMIT_SHA } from '@/lib/appVersion';
 
-// Build timestamp injected at build time via Vite
-const CURRENT_BUILD_TIME = import.meta.env.VITE_BUILD_TIME || Date.now();
 const VERSION_CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
 const VERSION_META_NAME = 'app-version';
+const VERSION_META_RE = new RegExp(
+  `<meta\\s+name=["']${VERSION_META_NAME}["']\\s+content=["']([^"']+)["']`,
+  'i',
+);
 
 /**
- * Checks if a new version of the app is available by comparing build timestamps.
- * Returns true if a newer version is detected on the server.
+ * Checks if a new version of the app is available by comparing the build SHA
+ * compiled into this bundle with the one served in index.html.
+ *
+ * The previous implementation diffed the `ETag` header, but scripts/serve-prod.mjs
+ * never sets one (Node's http server doesn't add it either), so the header was
+ * always null and the check silently never fired.
  */
 export function useVersionCheck() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -32,23 +39,20 @@ export function useVersionCheck() {
         
         // Fetch index.html with cache-busting
         const response = await fetch(`/index.html?_t=${Date.now()}`, {
-          method: 'HEAD',
           cache: 'no-cache',
         });
 
         if (response.ok) {
-          // Check if ETag has changed (indicates new deployment)
-          const etag = response.headers.get('ETag');
-          const lastEtag = sessionStorage.getItem('app_etag');
-          
-          if (lastEtag && etag && lastEtag !== etag) {
-            console.info('[VersionCheck] New version detected via ETag change');
+          const servedSha = VERSION_META_RE.exec(await response.text())?.[1];
+
+          if (servedSha && servedSha !== APP_COMMIT_SHA) {
+            console.info('[VersionCheck] New version detected', {
+              running: APP_COMMIT_SHA,
+              served: servedSha,
+            });
             if (isMounted) {
               setUpdateAvailable(true);
             }
-          } else if (etag) {
-            // Store initial ETag
-            sessionStorage.setItem('app_etag', etag);
           }
         }
       } catch (error) {

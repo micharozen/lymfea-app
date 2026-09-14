@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { VENUE_ROLES } from "@/lib/venueRoles";
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -327,13 +328,13 @@ export function VenueGeneralTab({
                         <SelectItem value="active">
                           <div className="flex items-center gap-1.5">
                             <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                            {t('status.active')}
+                            {t('common:status.active')}
                           </div>
                         </SelectItem>
                         <SelectItem value="pending">
                           <div className="flex items-center gap-1.5">
                             <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                            {t('status.pending')}
+                            {t('common:status.pending')}
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -657,6 +658,54 @@ export function VenueGeneralTab({
             />
           </div>
 
+          <FormField
+            control={form.control}
+            name={"access_instructions" as keyof VenueWizardFormValues}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t('venue.general.accessInstructions')}
+                </FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    value={String(field.value ?? "")}
+                    rows={3}
+                    placeholder={t('venue.general.accessInstructionsPlaceholder')}
+                    disabled={disabled}
+                  />
+                </FormControl>
+                <FormDescription>{t('venue.general.accessInstructionsHelp')}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name={"access_instructions_en" as keyof VenueWizardFormValues}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t('venue.general.accessInstructionsEn')}
+                </FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    value={String(field.value ?? "")}
+                    rows={3}
+                    placeholder={t('venue.general.accessInstructionsEnPlaceholder')}
+                    disabled={disabled}
+                  />
+                </FormControl>
+                <FormDescription>{t('venue.general.accessInstructionsEnHelp')}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
@@ -896,6 +945,28 @@ export function VenueGeneralTab({
                       disabled={disabled}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={"client_reschedule_cutoff_hours" as keyof VenueWizardFormValues}
+              render={({ field }) => (
+                <FormItem className="mb-4 max-w-xs">
+                  <FormLabel>{t('venue.general.rescheduleCutoff')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      {...field}
+                      value={String(field.value ?? 24)}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      disabled={disabled}
+                    />
+                  </FormControl>
+                  <FormDescription>{t('venue.general.rescheduleCutoffHelp')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

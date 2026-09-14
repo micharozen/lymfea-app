@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS "public"."treatment_menus" (
     "slug" "text" NOT NULL,
     "available_days" integer[],
     "amenity_id" "uuid",
+    "bookable_online" boolean DEFAULT true NOT NULL,
     CONSTRAINT "treatment_menus_slug_pattern_check" CHECK ((("slug" ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'::"text") AND (("length"("slug") >= 2) AND ("length"("slug") <= 60))))
 );
 
@@ -42,6 +43,8 @@ COMMENT ON COLUMN "public"."treatment_menus"."bundle_id" IS 'Reference to the bu
 COMMENT ON COLUMN "public"."treatment_menus"."available_days" IS 'Jours autorisés : 0=Dim, 1=Lun, ..., 6=Sam. NULL = disponible tous les jours.';
 
 COMMENT ON COLUMN "public"."treatment_menus"."amenity_id" IS 'Si renseigné, ce treatment est un accès à un équipement (piscine, sauna...). Disponibilité = capacité du venue_amenity ; sa réservation crée un amenity_booking lié.';
+
+COMMENT ON COLUMN "public"."treatment_menus"."bookable_online" IS 'False = soin réservable uniquement en interne (admin / PWA thérapeute) : masqué du flow client public et de l''API partenaire.';
 
 ALTER TABLE ONLY "public"."treatment_menus"
     ADD CONSTRAINT "treatment_menus_hotel_slug_key" UNIQUE ("hotel_id", "slug");

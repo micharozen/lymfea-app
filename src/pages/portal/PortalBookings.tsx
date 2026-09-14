@@ -1,105 +1,66 @@
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, Clock } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { usePortalData, portalBookableVenues, type PortalBooking } from '@/hooks/portal/usePortalData';
+import { BookTreatmentCta } from '@/components/portal/BookTreatmentCta';
 
-interface Booking {
-  id: string;
-  booking_date: string;
-  booking_time: string | null;
-  status: string;
-  total_price: number | null;
-  duration: number | null;
-  hotel_name: string | null;
-  treatments: { name: string; name_en: string | null }[] | null;
-}
-
-interface PortalData {
-  customer: { id: string };
-  gift_cards: unknown[];
-  upcoming_bookings: Booking[];
-  past_bookings: Booking[];
-}
+const statusKind = (status: string) => {
+  if (status === 'confirmed') return 'ok';
+  if (status === 'pending') return 'due';
+  if (status === 'cancelled' || status === 'no_show') return 'warn';
+  return 'info';
+};
 
 export default function PortalBookings() {
   const { t, i18n } = useTranslation('client');
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
-
-  const { data, isLoading } = useQuery<PortalData>({
-    queryKey: ['portal-data'],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_customer_portal_data');
-      if (error) throw error;
-      return data as unknown as PortalData;
-    },
-  });
+  const { data, isLoading } = usePortalData();
 
   if (isLoading) {
     return (
-      <div className="space-y-4 animate-pulse py-2">
-        <div className="h-8 bg-gray-200 rounded-lg w-40" />
-        <div className="h-24 bg-gray-200 rounded-xl" />
-        <div className="h-24 bg-gray-200 rounded-xl" />
+      <div className="flex flex-col gap-3 px-4 pt-2">
+        <div className="sk h-8 w-40" />
+        <div className="sk h-24" />
+        <div className="sk h-24" />
       </div>
     );
   }
 
   const upcoming = data?.upcoming_bookings ?? [];
   const past = data?.past_bookings ?? [];
+  const venues = portalBookableVenues(data);
 
-  const renderBooking = (booking: Booking) => {
-    const treatmentName = booking.treatments?.[0]
-      ? (i18n.language === 'en' && booking.treatments[0].name_en
-        ? booking.treatments[0].name_en
-        : booking.treatments[0].name)
-      : null;
+  const renderBooking = (booking: PortalBooking) => {
+    const first = booking.treatments?.[0];
+    const name = first
+      ? (i18n.language === 'en' && first.name_en ? first.name_en : first.name)
+      : t('portal.treatment');
+    const extra = (booking.treatments?.length ?? 0) - 1;
 
     return (
-      <div
-        key={booking.id}
-        className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm"
-      >
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-gray-900">
-              {treatmentName || t('portal.treatment')}
-              {booking.treatments && booking.treatments.length > 1 && (
-                <span className="text-gray-400"> +{booking.treatments.length - 1}</span>
-              )}
-            </p>
-            <div className="flex items-center gap-3 text-xs text-gray-500">
-              <div className="flex items-center gap-1">
-                <CalendarDays className="w-3 h-3" />
-                <span>{format(new Date(booking.booking_date), 'EEEE d MMMM yyyy', { locale: dateLocale })}</span>
-              </div>
-              {booking.booking_time && (
-                <div className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  <span>{booking.booking_time.slice(0, 5)}</span>
-                </div>
-              )}
-            </div>
-            {booking.hotel_name && (
-              <p className="text-xs text-gray-400">{booking.hotel_name}</p>
-            )}
+      <div className="bk-row" key={booking.id}>
+        <div className="bk-time">
+          <div className="h">{booking.booking_time?.slice(0, 5) ?? '—'}</div>
+          <div className="d">{format(new Date(booking.booking_date), 'd MMM', { locale: dateLocale })}</div>
+        </div>
+        <div className="bk-main">
+          <div className="who">
+            {name}
+            {extra > 0 && <span className="num"> +{extra}</span>}
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <span className={cn(
-              "text-[10px] font-medium px-2 py-0.5 rounded-full",
-              booking.status === 'confirmed' ? "bg-green-50 text-green-700" :
-              booking.status === 'pending' ? "bg-amber-50 text-amber-700" :
-              booking.status === 'completed' ? "bg-blue-50 text-blue-600" :
-              booking.status === 'cancelled' ? "bg-red-50 text-red-500" :
-              "bg-gray-100 text-gray-500"
-            )}>
+          {booking.hotel_name && <div className="what">{booking.hotel_name}</div>}
+          <div className="meta">
+            {format(new Date(booking.booking_date), 'EEEE d MMMM yyyy', { locale: dateLocale })}
+          </div>
+        </div>
+        <div className="bk-right">
+          {booking.total_price != null && <div className="price">{booking.total_price} €</div>}
+          <div className="bk-status">
+            <span className={`status ${statusKind(booking.status)}`}>
+              <span className="dot" />
               {t(`portal.status.${booking.status}`, booking.status)}
             </span>
-            {booking.total_price != null && (
-              <span className="text-xs text-gray-400">{booking.total_price} €</span>
-            )}
           </div>
         </div>
       </div>
@@ -107,28 +68,34 @@ export default function PortalBookings() {
   };
 
   return (
-    <div className="space-y-6 py-2">
-      <h1 className="text-xl font-serif text-gray-900">{t('portal.bookingsTitle')}</h1>
+    <div className="pb-6">
+      <div className="greeting">
+        <h1>{t('portal.bookingsTitle')}</h1>
+      </div>
 
       {upcoming.length === 0 && past.length === 0 && (
-        <div className="text-center py-12">
-          <CalendarDays className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-400">{t('portal.noBookings')}</p>
+        <div className="placeholder">
+          <CalendarDays size={28} />
+          <p>{t('portal.noBookings')}</p>
         </div>
       )}
 
+      <BookTreatmentCta venues={venues} />
+
       {upcoming.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-sm font-medium text-gray-700">{t('portal.upcomingBookings')}</h2>
+        <>
+          <div className="sec-label">
+            {t('portal.upcomingBookings')} <span className="count">{upcoming.length}</span>
+          </div>
           {upcoming.map(renderBooking)}
-        </div>
+        </>
       )}
 
       {past.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-sm font-medium text-gray-400">{t('portal.pastBookings')}</h2>
+        <>
+          <div className="sec-label">{t('portal.pastBookings')}</div>
           {past.map(renderBooking)}
-        </div>
+        </>
       )}
     </div>
   );

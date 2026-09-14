@@ -15,6 +15,7 @@ import { getBookingConfirmedHtml } from "../_shared/templates/booking-confirmed.
 import { getBookingPendingHtml } from "../_shared/templates/booking-pending.ts";
 import { buildBookingIcs } from "../_shared/ics.ts";
 import type { EmailAttachment } from "../_shared/send-email.ts";
+import { resolveClientLanguage } from "../_shared/client-language.ts";
 
 /** UTF-8-safe base64 (btoa alone breaks on accented chars in the .ics). */
 function toBase64Utf8(str: string): string {
@@ -27,6 +28,57 @@ function toBase64Utf8(str: string): string {
 // Resend template still used only for the EXTERNAL client payment-link flow.
 const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
 const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_EN = "6ba59c67-04e3-412e-9a84-246aaa7dc570";
+
+/** Ligne `booking_treatments` telle que sélectionnée pour le broadcast. */
+interface LegRow {
+  id: string;
+  treatment_id: string;
+  therapist_id: string | null;
+  treatment_menus: { name?: string | null; duration?: number | null } | null;
+  treatment_variants: { label?: string | null; duration?: number | null } | null;
+}
+
+/** Une prestation de la réservation, telle qu'annoncée à un praticien. */
+interface AnnouncedLeg {
+  /** booking_treatments.id — clé de dédup du push. */
+  id: string;
+  treatmentId: string;
+  therapistId: string | null;
+  label: string;
+  duration: number;
+  /** Heure de début déduite de l'enchaînement, « HH:MM ». */
+  startTime: string;
+}
+
+/**
+ * Décrit les prestations d'une réservation dans l'ordre d'exécution.
+ *
+ * Il n'existe pas d'heure par prestation : `bookings.booking_time` porte le
+ * début de la réservation entière. Sur un enchaînement, l'heure de chaque soin
+ * est donc déduite en cumulant la durée de ceux qui le précèdent — même ordre
+ * (created_at, id) que le claim de accept_booking. Les add-ons, ajoutés en cours
+ * de prestation, ne décalent pas ce calcul.
+ */
+function describeLegs(rows: LegRow[], bookingTime: string): AnnouncedLeg[] {
+  const [h, m] = (bookingTime ?? "00:00").split(":");
+  let offset = (Number(h) || 0) * 60 + (Number(m) || 0);
+
+  return rows.map((row) => {
+    const menu = row.treatment_menus;
+    const variant = row.treatment_variants;
+    const duration = Number(variant?.duration ?? menu?.duration) || 0;
+    const startTime = `${String(Math.floor(offset / 60) % 24).padStart(2, "0")}:${String(offset % 60).padStart(2, "0")}`;
+    offset += duration;
+    return {
+      id: row.id as string,
+      treatmentId: row.treatment_id as string,
+      therapistId: (row.therapist_id ?? null) as string | null,
+      label: (menu?.name || "") + (variant?.label ? ` · ${variant.label}` : ""),
+      duration,
+      startTime,
+    };
+  });
+}
 
 function calculateExpirationDate(bookingDate: Date, now: Date): Date {
   const diffInHours = (bookingDate.getTime() - now.getTime()) / (1000 * 60 * 60);
@@ -65,7 +117,20 @@ serve(async (req) => {
     // therapistsOnly : re-sollicitation interne au lieu. Seul le push praticien part ;
     // ni email/SMS client, ni Slack. Une escalade de vague n'est pas une nouvelle
     // réservation — sans ce drapeau, chaque vague renverrait un « new_booking » Slack.
-    const { bookingId, notifyAll, sendPaymentLink, notifyClient, wave, therapistsOnly } =
+    //
+    // reconfirmOnly : la réservation vient d'être déplacée par le client. Seuls
+    // les praticiens qui l'avaient acceptée (booking_therapists = 'reconfirm_pending')
+    // sont sollicités, et sur le nouveau créneau uniquement. Tant qu'ils n'ont pas
+    // répondu, le reste du vivier n'est pas dérangé : accepter les maintient sur la
+    // réservation. L'ouverture à tous vient du refus (decline_booking) ou de
+    // l'expiration de bookings.reconfirm_until (escalate-booking-broadcast).
+    //
+    // rescheduled : déplacement client. Le staffing se comporte comme une
+    // re-sollicitation interne (therapistsOnly / reconfirmOnly), mais le client
+    // doit tout de même recevoir l'e-mail « Demande de réservation » : sa
+    // réservation est repassée en 'pending' et attend une acceptation. Slack
+    // reste muet — ce n'est pas une nouvelle réservation.
+    const { bookingId, notifyAll, sendPaymentLink, notifyClient, wave, therapistsOnly, reconfirmOnly, rescheduled } =
       await req.json();
 
     if (!bookingId) {
@@ -108,7 +173,7 @@ serve(async (req) => {
         status,
         payment_status,
         short_token,
-        hotels(name, currency, image, contact_email, address, postal_code, city, country, timezone, website_url, cancellation_policy_text_en, cancellation_policy_text_fr, therapist_escalation_delay_minutes, organizations(name))
+        hotels(name, currency, image, contact_email, address, access_instructions, access_instructions_en, postal_code, city, country, timezone, website_url, cancellation_policy_text_en, cancellation_policy_text_fr, therapist_escalation_delay_minutes, organizations(name))
       `)
       .eq("id", bookingId)
       .single();
@@ -141,6 +206,8 @@ serve(async (req) => {
       image?: string | null;
       contact_email?: string | null;
       address?: string | null;
+      access_instructions?: string | null;
+      access_instructions_en?: string | null;
       postal_code?: string | null;
       city?: string | null;
       country?: string | null;
@@ -218,23 +285,56 @@ serve(async (req) => {
              !(booking.declined_by || []).includes(t.id);
     });
 
-    // Broadcast : n'alerter que les praticiens qui peuvent réaliser le booking.
-    // Sans ce filtre, un non-qualifié serait notifié puis se verrait refuser
-    // l'acceptation par accept_booking. Même prédicat que reserve_trunk_atomically :
-    // add-ons et amenities exclus, aucune association = polyvalent.
+    // Panier 100% amenity (privatisation bassin, piscine…) : aucune prestation ne
+    // requiert de praticien. Le test doit précéder la branche notifyAll : sans lui,
+    // une privatisation créée hors broadcast n'a aucun praticien assigné, la garde
+    // `!notifyAll && assignedTherapistIds.length > 0` plus bas est donc fausse et
+    // le `else` diffusait à TOUTE l'équipe du lieu (issue Buci : ~20 push par
+    // privatisation, sur une réservation que personne ne peut ni ne doit accepter).
+    const isAmenityOnly = treatments.length > 0 && treatments.every(t => t.is_amenity);
+    if (isAmenityOnly) {
+      eligibleTherapists = [];
+      console.log("Amenity-only booking: no therapist notification (notifyAll:", !!notifyAll, ")");
+    }
+
+    // Broadcast : n'alerter que les praticiens qui peuvent réaliser AU MOINS UNE
+    // des prestations encore à pourvoir. Exiger la couverture de TOUTES les
+    // prestations laissait sans praticien un booking corps + visage qu'aucun ne
+    // réalise en entier, alors que deux praticiens s'en partagent très bien la
+    // charge (issue #547). Même prédicat que accept_booking : add-ons et amenities
+    // exclus, aucune association = polyvalent.
     // Inutile quand notifyAll = false : la cible est déjà restreinte aux assignés.
+    const legsByTherapist = new Map<string, AnnouncedLeg[]>();
+    let bookingSoinLegCount = 0;
     if (notifyAll && eligibleTherapists.length > 0) {
-      const { data: requiredRows } = await supabaseClient
+      const { data: legRows } = await supabaseClient
         .from("booking_treatments")
-        .select("treatment_id, treatment_menus!inner(amenity_id)")
+        .select(
+          "id, treatment_id, therapist_id, created_at, treatment_menus!inner(name, duration, amenity_id), treatment_variants(label, duration)",
+        )
         .eq("booking_id", bookingId)
         .eq("is_addon", false)
-        .is("treatment_menus.amenity_id", null);
-      const requiredTreatmentIds = [
-        ...new Set((requiredRows ?? []).map((r: { treatment_id: string }) => r.treatment_id)),
-      ];
+        .is("treatment_menus.amenity_id", null)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
 
-      if (requiredTreatmentIds.length > 0) {
+      const soinLegs = describeLegs((legRows ?? []) as unknown as LegRow[], booking.booking_time);
+      const openLegs = soinLegs.filter(leg => leg.therapistId == null);
+      bookingSoinLegCount = soinLegs.length;
+
+      if (soinLegs.length === 0) {
+        // Panier 100% amenity (privatisation espace, piscine…) : aucune prestation
+        // soin ne requiert de praticien. Ne solliciter personne, même en notifyAll.
+        eligibleTherapists = [];
+        console.log("Amenity-only booking: no therapist broadcast");
+      } else {
+        // Duo partagé : le soin unique est exécuté en parallèle par deux
+        // praticiens. Plus aucune jambe n'est libre après le premier claim, mais
+        // une place invité reste à pourvoir — on qualifie alors sur les soins de
+        // la réservation, et aucune jambe n'est annoncée nominativement.
+        const targetLegs = openLegs.length > 0 ? openLegs : soinLegs;
+        const announceLegs = openLegs.length > 0;
+
         const therapistIds = eligibleTherapists.map(th => (th.therapists as any).id);
         const { data: ownedRows } = await supabaseClient
           .from("therapist_treatments")
@@ -249,16 +349,18 @@ serve(async (req) => {
         });
 
         eligibleTherapists = eligibleTherapists.filter(th => {
-          const owned = ownedByTherapist.get((th.therapists as any).id);
-          if (!owned || owned.size === 0) return true; // polyvalent
-          return requiredTreatmentIds.every(id => owned.has(id));
+          const therapistId = (th.therapists as any).id;
+          const owned = ownedByTherapist.get(therapistId);
+          const mine = !owned || owned.size === 0
+            ? targetLegs // polyvalent
+            : targetLegs.filter(leg => owned.has(leg.treatmentId));
+          if (mine.length === 0) return false;
+          legsByTherapist.set(therapistId, announceLegs ? mine : []);
+          return true;
         });
-        console.log(`Qualified therapists after treatment filter: ${eligibleTherapists.length}`);
-      } else {
-        // Panier 100% amenity (privatisation espace, piscine…) : aucune prestation
-        // soin ne requiert de praticien. Ne solliciter personne, même en notifyAll.
-        eligibleTherapists = [];
-        console.log("Amenity-only booking: no therapist broadcast");
+        console.log(
+          `Qualified therapists after leg filter: ${eligibleTherapists.length} (${openLegs.length}/${soinLegs.length} jambe(s) à pourvoir)`,
+        );
       }
     }
 
@@ -266,15 +368,31 @@ serve(async (req) => {
     // non-broadcast : on notifie TOUS les praticiens assignés, pas seulement le principal.
     let assignedTherapistIds: string[] = [];
     if (!notifyAll) {
-      const { data: assignedRows } = await supabaseClient
+      const assignedQuery = supabaseClient
         .from("booking_therapists")
         .select("therapist_id")
         .eq("booking_id", bookingId);
+      // Re-confirmation : la cible n'est pas « les assignés » mais précisément ceux
+      // dont on attend une réponse sur le nouveau créneau.
+      const { data: assignedRows } = reconfirmOnly
+        ? await assignedQuery.eq("status", "reconfirm_pending")
+        : await assignedQuery;
       assignedTherapistIds = (assignedRows ?? []).map((r: { therapist_id: string }) => r.therapist_id);
       // Fallback legacy : pas de lignes junction → retomber sur le principal.
-      if (assignedTherapistIds.length === 0 && booking.therapist_id) {
+      // Hors re-confirmation : là, une liste vide veut dire « plus personne à
+      // relancer », et retomber sur bookings.therapist_id (vidé par le
+      // déplacement) n'aurait aucun sens.
+      if (!reconfirmOnly && assignedTherapistIds.length === 0 && booking.therapist_id) {
         assignedTherapistIds = [booking.therapist_id];
       }
+    }
+
+    if (reconfirmOnly && assignedTherapistIds.length === 0) {
+      console.log("[RECONFIRM] Aucun praticien en attente de re-confirmation:", bookingId);
+      return new Response(
+        JSON.stringify({ success: true, notificationsSent: 0, reconfirmOnly: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // notifyAll = true (concierge/broadcast flow): notify ALL therapists at this hotel
@@ -371,6 +489,8 @@ serve(async (req) => {
       if (proposedSlots.slot_3_date) {
         notificationBody += `\nCréneau 3: ${formatDate(proposedSlots.slot_3_date)} à ${formatTime(proposedSlots.slot_3_time)}`;
       }
+    } else if (reconfirmOnly) {
+      notificationBody = `Réservation #${booking.booking_id} à ${booking.hotel_name} déplacée au ${formatDate(booking.booking_date)} à ${formatTime(booking.booking_time)}.\nÊtes-vous disponible ?`;
     } else {
       notificationBody = `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${formatDate(booking.booking_date)} à ${formatTime(booking.booking_time)}`;
     }
@@ -385,44 +505,90 @@ serve(async (req) => {
 
     const allUserIds = eligibleWithUserId.map(({ h }) => h.user_id);
 
-    // Batch dedup check: one query for all therapists instead of one per therapist
+    // Dédup par jambe : un praticien informé du soin corps doit encore pouvoir
+    // être sollicité pour le soin visage resté à pourvoir. La clé est donc
+    // (booking, user, prestation) et non plus (booking, user) — sans quoi une
+    // réservation partagée n'atteindrait jamais son second praticien.
+    // `null` couvre les notifications qui ne portent sur aucune jambe précise
+    // (flux assigné, choix de créneau) : dédup par réservation, comme avant.
+    const legKey = (userId: string, legId: string | null) => `${userId}::${legId ?? ""}`;
     let alreadyNotifiedSet = new Set<string>();
     if (allUserIds.length > 0) {
       const { data: existingLogs } = await supabaseClient
         .from("push_notification_logs")
-        .select("user_id")
+        .select("user_id, booking_treatment_id")
         .eq("booking_id", bookingId)
         .in("user_id", allUserIds);
-      alreadyNotifiedSet = new Set((existingLogs || []).map((l: any) => l.user_id));
+      alreadyNotifiedSet = new Set(
+        (existingLogs || []).map((l: { user_id: string; booking_treatment_id: string | null }) =>
+          legKey(l.user_id, l.booking_treatment_id)
+        ),
+      );
     }
 
-    const toNotify = eligibleWithUserId.filter(({ h }) => !alreadyNotifiedSet.has(h.user_id));
+    // Les jambes annoncées à ce praticien dont il n'a pas encore été informé.
+    // Aucune jambe (flux assigné, duo partagé) → une seule entrée `null`.
+    const freshLegs = (userId: string, therapistId: string): (AnnouncedLeg | null)[] => {
+      const legs = legsByTherapist.get(therapistId) ?? [];
+      if (legs.length === 0) {
+        return alreadyNotifiedSet.has(legKey(userId, null)) ? [] : [null];
+      }
+      return legs.filter(leg => !alreadyNotifiedSet.has(legKey(userId, leg.id)));
+    };
+
+    const toNotify = eligibleWithUserId
+      .map(({ th, h }) => ({ th, h, legs: freshLegs(h.user_id, h.id) }))
+      .filter(({ legs }) => legs.length > 0);
     skippedDuplicates = eligibleWithUserId.length - toNotify.length;
     if (skippedDuplicates > 0) {
       console.log(`[DEDUP] Skipping ${skippedDuplicates} already-notified therapist(s)`);
     }
 
-    // Bulk insert logs before sending (unique constraint handles any remaining race conditions)
+    // Bulk insert logs before sending (unique constraint handles any remaining race conditions).
+    // Une ligne par jambe annoncée : le praticien polyvalent reçoit UN push mais
+    // laisse une trace pour chaque prestation, donc aucune relance en double.
     if (toNotify.length > 0) {
       await supabaseClient
         .from("push_notification_logs")
         .upsert(
-          toNotify.map(({ h }) => ({ booking_id: bookingId, user_id: h.user_id })),
-          { onConflict: "booking_id,user_id", ignoreDuplicates: true }
+          toNotify.flatMap(({ h, legs }) =>
+            legs.map(leg => ({
+              booking_id: bookingId,
+              user_id: h.user_id,
+              booking_treatment_id: leg?.id ?? null,
+            }))
+          ),
+          { onConflict: "booking_id,user_id,booking_treatment_id", ignoreDuplicates: true }
         );
     }
 
+    // Prestations sollicitées, précisées seulement quand le praticien ne prend pas
+    // toute la réservation : le polyvalent garde le message d'origine, celui qui
+    // n'assure qu'un soin sait lequel, à quelle heure et pour quelle durée.
+    const legSuffix = (legs: (AnnouncedLeg | null)[]): string => {
+      const named = legs.filter((leg): leg is AnnouncedLeg => leg != null);
+      if (named.length === 0 || named.length === bookingSoinLegCount) return "";
+      const detail = named
+        .map(leg => `${leg.label} (${leg.startTime}, ${leg.duration} min)`)
+        .join(" + ");
+      return `\nÀ pourvoir : ${detail}`;
+    };
+
     // Send push notifications in parallel
     const pushResults = await Promise.all(
-      toNotify.map(async ({ h }) => {
+      toNotify.map(async ({ h, legs }) => {
         try {
           const { error: pushError } = await supabaseClient.functions.invoke(
             "send-push-notification",
             {
               body: {
                 userId: h.user_id,
-                title: hasMultipleSlots ? "📋 Nouveau booking - Choisissez un créneau" : "🎉 Nouvelle réservation !",
-                body: notificationBody,
+                title: reconfirmOnly
+                  ? "🔄 Créneau modifié - Confirmez votre disponibilité"
+                  : hasMultipleSlots
+                    ? "📋 Nouveau booking - Choisissez un créneau"
+                    : "🎉 Nouvelle réservation !",
+                body: notificationBody + legSuffix(legs),
                 data: {
                   bookingId: booking.id,
                   url: `/pwa/booking/${booking.id}`,
@@ -468,7 +634,7 @@ serve(async (req) => {
     // Re-sollicitation interne : on s'arrête au push praticien. Tout ce qui suit
     // (email/SMS client, Slack) annonce une NOUVELLE réservation et n'a aucun sens
     // sur une vague d'escalade ou un re-broadcast après refus.
-    if (therapistsOnly) {
+    if ((therapistsOnly || reconfirmOnly) && !rescheduled) {
       console.log(`[THERAPISTS-ONLY] Push praticien seul : ni email/SMS client, ni Slack`);
       return new Response(
         JSON.stringify({
@@ -477,6 +643,7 @@ serve(async (req) => {
           skippedDuplicates,
           totalEligible: eligibleTherapists.length,
           therapistsOnly: true,
+          ...(reconfirmOnly ? { reconfirmOnly: true } : {}),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -495,15 +662,13 @@ serve(async (req) => {
         customer = customerRow ?? null;
       }
 
-      // Resolve the client communication language. The booking-level value is
-      // the operator's explicit per-booking choice (set at creation from the
-      // phone country code, but editable) and takes precedence over the
-      // customer's stored default.
+      // Resolve the client communication language: the customer record wins,
+      // the booking column is only a fallback (see _shared/client-language.ts).
       const bookingLanguage = (booking as any).language;
-      const resolvedLanguage: 'fr' | 'en' =
-        bookingLanguage === 'en' || bookingLanguage === 'fr'
-          ? bookingLanguage
-          : ((customer as any)?.language === 'en' ? 'en' : 'fr');
+      const resolvedLanguage = resolveClientLanguage(
+        (customer as any)?.language,
+        bookingLanguage,
+      );
       console.log('[trigger-new-booking-notifications] language resolution', {
         bookingId,
         booking_language: bookingLanguage ?? null,
@@ -751,6 +916,8 @@ serve(async (req) => {
                 booking_id: bookingId,
                 payment_link_stripe_id: paymentLink.id,
                 payment_link_expires_at: expiresAt.toISOString(),
+                // Un nouveau lien annule la désactivation manuelle du précédent.
+                payment_link_cancelled_at: null,
               }, { onConflict: 'booking_id' });
           }
         } else {
@@ -790,7 +957,10 @@ serve(async (req) => {
             .eq('new_values->>action', 'email_sent')
             .in('new_values->>email_type', dedupEmailTypes)
             .limit(1);
-          const alreadySentByEmail = !!(sentRows && sentRows.length > 0);
+          // Un déplacement rouvre légitimement l'envoi : le client doit être
+          // averti que sa réservation est repassée en attente, même s'il avait
+          // déjà reçu ce template à la création.
+          const alreadySentByEmail = !rescheduled && !!(sentRows && sentRows.length > 0);
 
           if (!isPending && !isPaidEnough) {
             console.log('[trigger-new-booking-notifications] Confirmed booking not paid yet → skipping client email:', bookingId);
@@ -876,6 +1046,22 @@ serve(async (req) => {
       }
     } catch (emailError) {
       console.error('[trigger-new-booking-notifications] Error sending client email:', emailError);
+    }
+
+    // Un déplacement s'arrête ici : l'e-mail client est parti, mais Slack
+    // annoncerait une nouvelle réservation qui n'en est pas une.
+    if (rescheduled) {
+      console.log('[RESCHEDULED] E-mail client envoyé, pas de notification Slack');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          notificationsSent,
+          skippedDuplicates,
+          totalEligible: eligibleTherapists.length,
+          rescheduled: true,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Send Slack notification for new booking

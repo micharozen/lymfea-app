@@ -151,7 +151,9 @@ serve(async (req) => {
       .eq("id", bookingId)
       .single();
     if (bookingError || !booking) return jsonResponse({ error: "Booking not found" }, 404);
-    if (["cancelled", "completed", "noshow"].includes(String(booking.status))) {
+    // 'completed' reste marquable : un soin passé est auto-complété par le cron
+    // avant que l'équipe n'ait signalé l'absence du client.
+    if (["cancelled", "noshow"].includes(String(booking.status))) {
       return jsonResponse({ error: "Booking cannot be marked as no-show in its current status" }, 400);
     }
 

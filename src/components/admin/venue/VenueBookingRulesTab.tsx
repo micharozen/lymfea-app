@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Timer, Clock } from "lucide-react";
+import { Timer, Clock, Ticket } from "lucide-react";
 import type { VenueWizardFormValues } from "../VenueWizardDialog";
 
 interface VenueBookingRulesTabProps {
@@ -101,6 +101,49 @@ export function VenueBookingRulesTab({ form, disabled }: VenueBookingRulesTabPro
               )}
             />
           )}
+        </CardContent>
+      </Card>
+
+      <Card id="external-vouchers" className="scroll-mt-32">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            <Ticket className="h-4 w-4 text-indigo-500" />
+            {t('venue.bookingRules.externalVouchersSectionTitle', 'Bons revendeurs')}
+          </CardTitle>
+          <CardDescription>
+            {t(
+              'venue.bookingRules.externalVouchersSectionDescription',
+              "Les bons achetés chez un revendeur (Wonderbox, Smartbox…) sont enregistrés par le lieu depuis l'onglet Bons cadeaux, puis utilisés par le client comme un avoir."
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FormField
+            control={form.control}
+            name="external_vouchers_enabled"
+            render={({ field }) => (
+              <FormItem className="flex items-center justify-between">
+                <div className="space-y-0.5 pr-4">
+                  <FormLabel className="text-sm font-medium">
+                    {t('venue.bookingRules.externalVouchersEnabled.label', 'Saisie du bon sur le site de réservation')}
+                  </FormLabel>
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      'venue.bookingRules.externalVouchersEnabled.description',
+                      "Si désactivé, le champ de saisie du code n'apparaît pas à l'étape Paiement et aucun code n'est accepté. À laisser désactivé pour un lieu qui ne travaille avec aucun revendeur."
+                    )}
+                  </p>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={disabled}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
         </CardContent>
       </Card>
     </div>

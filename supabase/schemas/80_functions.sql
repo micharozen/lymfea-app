@@ -1,20 +1,29 @@
 SET check_function_bodies = false;
 
-CREATE OR REPLACE FUNCTION "public"."accept_booking"("_booking_id" "uuid", "_hairdresser_id" "uuid", "_hairdresser_name" "text", "_total_price" numeric) RETURNS "jsonb"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
+CREATE OR REPLACE FUNCTION public.accept_booking(
+  _booking_id uuid,
+  _hairdresser_id uuid,
+  _hairdresser_name text,
+  _total_price numeric
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
 DECLARE
   _result jsonb;
   _current_therapist_id uuid;
   _booking_guest_count integer;
   _accepted_count integer;
   _new_status text;
-  _claimed_treatment_id uuid;
-  _required_count integer;
-  _covered_count integer;
+  _has_associations boolean;
+  _open_legs integer;
+  _my_open_legs integer;
+  _claimed_legs integer;
+  _qualified boolean;
+  _existing_status text;
 BEGIN
-  -- SECURITY: Verify caller owns the therapist record
   IF NOT EXISTS (
     SELECT 1 FROM therapists
     WHERE id = _hairdresser_id AND user_id = auth.uid()
@@ -22,7 +31,6 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'unauthorized');
   END IF;
 
-  -- Lock the booking row
   SELECT therapist_id, guest_count
   INTO _current_therapist_id, _booking_guest_count
   FROM bookings
@@ -31,118 +39,160 @@ BEGIN
 
   _booking_guest_count := COALESCE(_booking_guest_count, 1);
 
-  -- For single-guest bookings: check if already taken (backward compat)
-  IF _booking_guest_count = 1 THEN
-    IF _current_therapist_id IS NOT NULL AND _current_therapist_id != _hairdresser_id THEN
-      RETURN jsonb_build_object('success', false, 'error', 'already_taken');
-    END IF;
+  _has_associations := EXISTS (
+    SELECT 1 FROM therapist_treatments WHERE therapist_id = _hairdresser_id
+  );
+
+  -- Jambes à pourvoir, jambes déjà attribuées, et parmi les libres celles que CE
+  -- praticien peut exécuter. Un praticien sans aucune association reste
+  -- polyvalent (héritage de skills).
+  SELECT COUNT(*) FILTER (WHERE bt.therapist_id IS NULL),
+         COUNT(*) FILTER (
+           WHERE bt.therapist_id IS NULL
+             AND (
+               NOT _has_associations
+               OR EXISTS (
+                    SELECT 1 FROM therapist_treatments tt
+                    WHERE tt.therapist_id = _hairdresser_id
+                      AND tt.treatment_menu_id = bt.treatment_id
+                  )
+             )
+         ),
+         COUNT(*) FILTER (WHERE bt.therapist_id IS NOT NULL)
+  INTO _open_legs, _my_open_legs, _claimed_legs
+  FROM booking_treatments bt
+  JOIN treatment_menus tm ON tm.id = bt.treatment_id
+  WHERE bt.booking_id = _booking_id
+    AND bt.is_addon = false
+    AND tm.amenity_id IS NULL;
+
+  -- L'état de la réservation prime sur la qualification : un praticien arrivé
+  -- sur une résa déjà complète doit lire 'already_taken' / 'fully_staffed', pas
+  -- un motif de refus trompeur (enquête #1439).
+  --
+  -- Sur un booking simple déjà pris par un confrère, un second praticien n'est
+  -- admis que si la réservation est réellement partagée : une jambe libre ET une
+  -- jambe déjà attribuée. Exiger `_claimed_legs > 0` protège les réservations
+  -- historiques, dont les lignes ne portent aucun therapist_id alors que le
+  -- praticien principal assure tout : sans ce garde-fou, elles passeraient pour
+  -- « entièrement à pourvoir » et un tiers pourrait s'y inviter.
+  IF _booking_guest_count = 1
+     AND _current_therapist_id IS NOT NULL AND _current_therapist_id != _hairdresser_id
+     AND (_open_legs = 0 OR _claimed_legs = 0) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'already_taken');
   END IF;
 
-  -- Check if this therapist already accepted this booking
-  IF EXISTS (
-    SELECT 1 FROM booking_therapists
-    WHERE booking_id = _booking_id AND therapist_id = _hairdresser_id
-  ) THEN
+  -- Seule une acceptation ferme fait doublon. 'reconfirm_pending' est au
+  -- contraire l'état d'un praticien à qui l'on demande de se prononcer sur un
+  -- créneau déplacé : sa réponse doit être reçue.
+  SELECT status INTO _existing_status
+  FROM booking_therapists
+  WHERE booking_id = _booking_id AND therapist_id = _hairdresser_id;
+
+  IF _existing_status = 'accepted' THEN
     RETURN jsonb_build_object('success', false, 'error', 'already_accepted');
   END IF;
 
-  -- Check if booking already has enough therapists
   SELECT COUNT(*) INTO _accepted_count
   FROM booking_therapists
   WHERE booking_id = _booking_id AND status = 'accepted';
 
-  IF _accepted_count >= _booking_guest_count THEN
+  IF _accepted_count >= _booking_guest_count AND _open_legs = 0 THEN
     RETURN jsonb_build_object('success', false, 'error', 'fully_staffed');
   END IF;
 
-  -- Qualification : un praticien sans aucune association reste polyvalent
-  -- (comportement hérité de skills). Dès qu'il en a au moins une, la règle
-  -- dépend du format : solo = couvrir toutes les prestations, duo = couvrir au
-  -- moins une des prestations encore libres (chacun n'exécute qu'une jambe).
-  IF EXISTS (SELECT 1 FROM therapist_treatments WHERE therapist_id = _hairdresser_id) THEN
-    IF _booking_guest_count > 1 THEN
-      SELECT COUNT(*),
-             COUNT(*) FILTER (
-               WHERE EXISTS (
-                 SELECT 1 FROM therapist_treatments tt
-                 WHERE tt.therapist_id = _hairdresser_id
-                   AND tt.treatment_menu_id = bt.treatment_id
-               )
-             )
-      INTO _required_count, _covered_count
+  -- Qualification. Cas courant : couvrir au moins une jambe libre. Cas du duo
+  -- partagé (un soin unique exécuté en parallèle : plus aucune jambe libre mais
+  -- une place invité à pourvoir), la qualification se lit sur les soins de base
+  -- de la réservation.
+  IF _open_legs = 0 THEN
+    _qualified := NOT _has_associations OR EXISTS (
+      SELECT 1
       FROM booking_treatments bt
+      JOIN treatment_menus tm ON tm.id = bt.treatment_id
+      JOIN therapist_treatments tt
+        ON tt.treatment_menu_id = bt.treatment_id
+       AND tt.therapist_id = _hairdresser_id
+      WHERE bt.booking_id = _booking_id
+        AND bt.is_addon = false
+        AND tm.amenity_id IS NULL
+    );
+  ELSE
+    _qualified := _my_open_legs > 0;
+  END IF;
+
+  IF NOT _qualified THEN
+    RETURN jsonb_build_object('success', false, 'error', 'not_qualified');
+  END IF;
+
+  INSERT INTO booking_therapists (booking_id, therapist_id, status, assigned_at)
+  VALUES (_booking_id, _hairdresser_id, 'accepted', now())
+  ON CONFLICT (booking_id, therapist_id)
+  DO UPDATE SET status = 'accepted', assigned_at = now();
+
+  _accepted_count := _accepted_count + 1;
+
+  IF _booking_guest_count = 1 THEN
+    -- Booking simple : le praticien prend toutes les jambes qu'il réalise. Le cas
+    -- courant (un seul praticien pour les deux soins) reste donc complet en une
+    -- acceptation ; seules restent libres les jambes qu'il ne sait pas faire.
+    UPDATE booking_treatments bt
+    SET therapist_id = _hairdresser_id
+    WHERE bt.booking_id = _booking_id
+      AND bt.is_addon = false
+      AND bt.therapist_id IS NULL
+      AND EXISTS (
+        SELECT 1 FROM treatment_menus tm
+        WHERE tm.id = bt.treatment_id AND tm.amenity_id IS NULL
+      )
+      AND (
+        NOT _has_associations
+        OR EXISTS (
+          SELECT 1 FROM therapist_treatments tt
+          WHERE tt.therapist_id = _hairdresser_id
+            AND tt.treatment_menu_id = bt.treatment_id
+        )
+      );
+  ELSE
+    -- Duo : une jambe par praticien. À égalité d'ancienneté, une prestation que
+    -- le praticien réalise passe devant — sans quoi un praticien qualifié pour
+    -- une seule jambe pouvait se voir attribuer l'autre. Sans association
+    -- (polyvalent), l'EXISTS est faux partout et l'ordre historique s'applique.
+    UPDATE booking_treatments
+    SET therapist_id = _hairdresser_id
+    WHERE id = (
+      SELECT bt.id FROM booking_treatments bt
       JOIN treatment_menus tm ON tm.id = bt.treatment_id
       WHERE bt.booking_id = _booking_id
         AND bt.is_addon = false
         AND tm.amenity_id IS NULL
-        AND bt.therapist_id IS NULL;
-
-      IF _required_count > 0 AND _covered_count = 0 THEN
-        RETURN jsonb_build_object('success', false, 'error', 'not_qualified');
-      END IF;
-    ELSE
-      SELECT COUNT(DISTINCT bt.treatment_id),
-             COUNT(DISTINCT bt.treatment_id) FILTER (
-               WHERE EXISTS (
-                 SELECT 1 FROM therapist_treatments tt
-                 WHERE tt.therapist_id = _hairdresser_id
-                   AND tt.treatment_menu_id = bt.treatment_id
-               )
-             )
-      INTO _required_count, _covered_count
-      FROM booking_treatments bt
-      JOIN treatment_menus tm ON tm.id = bt.treatment_id
-      WHERE bt.booking_id = _booking_id
-        AND bt.is_addon = false
-        AND tm.amenity_id IS NULL;
-
-      IF _required_count > 0 AND _covered_count < _required_count THEN
-        RETURN jsonb_build_object('success', false, 'error', 'not_qualified');
-      END IF;
-    END IF;
+        AND bt.therapist_id IS NULL
+      ORDER BY (
+        EXISTS (
+          SELECT 1 FROM therapist_treatments tt
+          WHERE tt.therapist_id = _hairdresser_id
+            AND tt.treatment_menu_id = bt.treatment_id
+        )
+      ) DESC, bt.created_at, bt.id
+      LIMIT 1
+      FOR UPDATE
+    );
   END IF;
 
-  -- Insert into bridge table
-  INSERT INTO booking_therapists (booking_id, therapist_id, status, assigned_at)
-  VALUES (_booking_id, _hairdresser_id, 'accepted', now())
-  ON CONFLICT (booking_id, therapist_id) DO NOTHING;
-
-  IF NOT FOUND THEN
-    RETURN jsonb_build_object('success', false, 'error', 'already_accepted');
-  END IF;
-
-  _accepted_count := _accepted_count + 1;
-
-  -- Claim d'une jambe : à égalité d'ancienneté, une prestation que le praticien
-  -- réalise passe devant. Sans association (polyvalent), l'EXISTS est faux
-  -- partout et l'ordre historique (created_at, id) s'applique tel quel.
-  UPDATE booking_treatments
+  -- Les add-ons suivent le soin auquel ils sont rattachés.
+  UPDATE booking_treatments a
   SET therapist_id = _hairdresser_id
-  WHERE id = (
-    SELECT bt.id FROM booking_treatments bt
-    WHERE bt.booking_id = _booking_id
-      AND bt.is_addon = false
-      AND bt.therapist_id IS NULL
-    ORDER BY (
-      EXISTS (
-        SELECT 1 FROM therapist_treatments tt
-        WHERE tt.therapist_id = _hairdresser_id
-          AND tt.treatment_menu_id = bt.treatment_id
-      )
-    ) DESC, bt.created_at, bt.id
-    LIMIT 1
-    FOR UPDATE
-  )
-  RETURNING id INTO _claimed_treatment_id;
+  WHERE a.booking_id = _booking_id
+    AND a.is_addon = true
+    AND a.therapist_id IS NULL
+    AND EXISTS (
+      SELECT 1 FROM booking_treatments p
+      WHERE p.id = a.parent_booking_treatment_id
+        AND p.therapist_id = _hairdresser_id
+    );
 
-  IF _claimed_treatment_id IS NOT NULL THEN
-    UPDATE booking_treatments
-    SET therapist_id = _hairdresser_id
-    WHERE booking_id = _booking_id
-      AND is_addon = true
-      AND parent_booking_treatment_id = _claimed_treatment_id;
-  END IF;
-
+  -- Add-ons sans parent (ajoutés avant que le lien stable n'existe) : au premier
+  -- praticien arrivé.
   IF _accepted_count = 1 THEN
     UPDATE booking_treatments
     SET therapist_id = _hairdresser_id
@@ -152,15 +202,21 @@ BEGIN
       AND therapist_id IS NULL;
   END IF;
 
-  -- Determine new status
-  IF _accepted_count >= _booking_guest_count THEN
+  -- Complétude : assez de praticiens ET plus aucune jambe à pourvoir.
+  SELECT COUNT(*) INTO _open_legs
+  FROM booking_treatments bt
+  JOIN treatment_menus tm ON tm.id = bt.treatment_id
+  WHERE bt.booking_id = _booking_id
+    AND bt.is_addon = false
+    AND tm.amenity_id IS NULL
+    AND bt.therapist_id IS NULL;
+
+  IF _accepted_count >= _booking_guest_count AND _open_legs = 0 THEN
     _new_status := 'confirmed';
   ELSE
-    -- Duo still needing therapists stays 'pending' (pending + guest_count > 1).
     _new_status := 'pending';
   END IF;
 
-  -- Update booking: set first therapist as primary (backward compat), update status
   UPDATE bookings
   SET
     therapist_id = COALESCE(therapist_id, _hairdresser_id),
@@ -168,6 +224,15 @@ BEGIN
     status = _new_status,
     assigned_at = CASE WHEN _new_status = 'confirmed' THEN now() ELSE assigned_at END,
     total_price = _total_price,
+    -- Plus personne à relancer : la fenêtre d'exclusivité n'a plus d'objet et la
+    -- réservation redevient une demande ordinaire pour le cron d'escalade.
+    reconfirm_until = CASE
+      WHEN EXISTS (
+        SELECT 1 FROM booking_therapists
+        WHERE booking_id = _booking_id AND status = 'reconfirm_pending'
+      ) THEN reconfirm_until
+      ELSE NULL
+    END,
     updated_at = now()
   WHERE id = _booking_id
   RETURNING jsonb_build_object(
@@ -176,12 +241,13 @@ BEGIN
     'therapist_id', therapist_id,
     'status', status,
     'guest_count', guest_count,
-    'accepted_therapists', _accepted_count
+    'accepted_therapists', _accepted_count,
+    'open_legs', _open_legs
   ) INTO _result;
 
   RETURN jsonb_build_object('success', true, 'data', _result);
 END;
-$$;
+$function$;
 
 ALTER FUNCTION "public"."accept_booking"("_booking_id" "uuid", "_hairdresser_id" "uuid", "_hairdresser_name" "text", "_total_price" numeric) OWNER TO "postgres";
 
@@ -745,10 +811,12 @@ $$;
 
 ALTER FUNCTION "public"."create_treatment_request"("_client_first_name" "text", "_client_phone" "text", "_hotel_id" "text", "_client_last_name" "text", "_client_email" "text", "_room_number" "text", "_description" "text", "_treatment_id" "uuid", "_preferred_date" "date", "_preferred_time" time without time zone) OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."decline_booking"("_booking_id" "uuid") RETURNS "void"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
+CREATE OR REPLACE FUNCTION public.decline_booking(_booking_id UUID)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   _therapist_id UUID;
   _booking_hotel_id TEXT;
@@ -794,6 +862,22 @@ BEGIN
   WHERE id = _booking_id
     AND NOT (COALESCE(declined_by, ARRAY[]::uuid[]) @> ARRAY[_therapist_id]);
 
+  -- 5. Rendre la place : la ligne de jonction et les prestations attribuées à ce
+  --    praticien repartent au pot commun. Sans effet sur le flux d'origine (un
+  --    praticien qui refuse une demande n'a jamais rien de tout ça), décisif sur
+  --    une réservation déplacée.
+  DELETE FROM public.booking_therapists
+  WHERE booking_id = _booking_id AND therapist_id = _therapist_id;
+
+  UPDATE public.booking_treatments
+  SET therapist_id = NULL
+  WHERE booking_id = _booking_id AND therapist_id = _therapist_id;
+
+  -- 6. Un refus pendant la re-confirmation vaut ouverture immédiate : inutile
+  --    d'attendre la fin de la fenêtre pour solliciter le reste du vivier.
+  UPDATE public.bookings
+  SET reconfirm_until = NULL
+  WHERE id = _booking_id AND reconfirm_until IS NOT NULL;
 END;
 $$;
 
@@ -1196,6 +1280,68 @@ END;
 $$;
 
 ALTER FUNCTION "public"."generate_unique_treatment_slug"("_hotel_id" "text", "_base" "text", "_exclude_id" "uuid") OWNER TO "postgres";
+
+CREATE OR REPLACE FUNCTION "public"."amenity_slot_conflict"("_venue_amenity_id" "uuid", "_booking_date" "date", "_start_time" time without time zone, "_end_time" time without time zone, "_guests" integer DEFAULT 1, "_exclude_amenity_booking_id" "uuid" DEFAULT NULL::"uuid") RETURNS "text"
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  _capacity  integer;
+  _prep      integer;
+  _exclusive boolean;
+  _occupied  integer;
+  _start_min integer;
+  _end_min   integer;
+BEGIN
+  SELECT capacity_per_slot, COALESCE(prep_time, 0), is_exclusive
+  INTO _capacity, _prep, _exclusive
+  FROM venue_amenities
+  WHERE id = _venue_amenity_id;
+
+  IF NOT FOUND THEN RETURN 'AMENITY_FULL'; END IF;
+
+  -- Une réservation ne peut jamais dépasser la capacité de l'équipement.
+  IF _guests > _capacity THEN RETURN 'AMENITY_FULL'; END IF;
+
+  -- Comparaison en minutes depuis minuit : ajouter la remise en état à un `time`
+  -- le ferait repasser par 00:00 en soirée, et le conflit ne serait pas vu.
+  _start_min := EXTRACT(HOUR FROM _start_time) * 60 + EXTRACT(MINUTE FROM _start_time);
+  _end_min   := EXTRACT(HOUR FROM _end_time) * 60 + EXTRACT(MINUTE FROM _end_time);
+
+  -- Chaque réservation immobilise son créneau + sa remise en état. Les deux
+  -- fenêtres sont donc étendues en aval avant d'être comparées.
+  IF _exclusive THEN
+    IF EXISTS (
+      SELECT 1 FROM amenity_bookings ab
+      WHERE ab.venue_amenity_id = _venue_amenity_id
+        AND ab.booking_date = _booking_date
+        AND ab.status <> 'cancelled'
+        AND (_exclude_amenity_booking_id IS NULL OR ab.id <> _exclude_amenity_booking_id)
+        AND _start_min < (EXTRACT(HOUR FROM ab.end_time) * 60 + EXTRACT(MINUTE FROM ab.end_time)) + _prep
+        AND _end_min + _prep > (EXTRACT(HOUR FROM ab.booking_time) * 60 + EXTRACT(MINUTE FROM ab.booking_time))
+    ) THEN
+      RETURN 'AMENITY_EXCLUSIVE';
+    END IF;
+    RETURN NULL;
+  END IF;
+
+  SELECT COALESCE(SUM(ab.num_guests), 0)::integer INTO _occupied
+  FROM amenity_bookings ab
+  WHERE ab.venue_amenity_id = _venue_amenity_id
+    AND ab.booking_date = _booking_date
+    AND ab.status <> 'cancelled'
+    AND (_exclude_amenity_booking_id IS NULL OR ab.id <> _exclude_amenity_booking_id)
+    AND _start_min < (EXTRACT(HOUR FROM ab.end_time) * 60 + EXTRACT(MINUTE FROM ab.end_time)) + _prep
+    AND _end_min + _prep > (EXTRACT(HOUR FROM ab.booking_time) * 60 + EXTRACT(MINUTE FROM ab.booking_time));
+
+  IF _occupied + _guests > _capacity THEN RETURN 'AMENITY_FULL'; END IF;
+  RETURN NULL;
+END;
+$$;
+
+ALTER FUNCTION "public"."amenity_slot_conflict"("_venue_amenity_id" "uuid", "_booking_date" "date", "_start_time" time without time zone, "_end_time" time without time zone, "_guests" integer, "_exclude_amenity_booking_id" "uuid") OWNER TO "postgres";
+
+COMMENT ON FUNCTION "public"."amenity_slot_conflict"("_venue_amenity_id" "uuid", "_booking_date" "date", "_start_time" time without time zone, "_end_time" time without time zone, "_guests" integer, "_exclude_amenity_booking_id" "uuid") IS 'Règle unique de conflit sur une commodité : exclusivité, capacité et remise en état. NULL = réservable, sinon AMENITY_EXCLUSIVE ou AMENITY_FULL.';
 
 CREATE OR REPLACE FUNCTION "public"."get_amenity_slot_occupancy"("p_venue_amenity_id" "uuid", "p_date" "date", "p_start_time" time without time zone, "p_end_time" time without time zone) RETURNS integer
     LANGUAGE "sql" STABLE SECURITY DEFINER
@@ -1829,7 +1975,7 @@ $$;
 
 ALTER FUNCTION "public"."get_public_treatment_addons"("_parent_id" "uuid") OWNER TO "postgres";
 
-CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") RETURNS TABLE("id" "uuid", "slug" "text", "name" "text", "name_en" "text", "description" "text", "description_en" "text", "category" "text", "service_for" "text", "duration" integer, "price" numeric, "price_on_request" boolean, "lead_time" integer, "image" "text", "sort_order" integer, "currency" "text", "is_bestseller" boolean, "is_addon" boolean, "is_bundle" boolean, "bundle_id" "uuid", "available_days" integer[], "amenity_id" "uuid", "amenity_type" "text", "variants" "jsonb")
+CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text", "_include_internal" boolean DEFAULT false) RETURNS TABLE("id" "uuid", "slug" "text", "name" "text", "name_en" "text", "description" "text", "description_en" "text", "category" "text", "service_for" "text", "duration" integer, "price" numeric, "price_on_request" boolean, "lead_time" integer, "image" "text", "sort_order" integer, "currency" "text", "is_bestseller" boolean, "is_addon" boolean, "is_bundle" boolean, "bundle_id" "uuid", "available_days" integer[], "amenity_id" "uuid", "amenity_type" "text", "bookable_online" boolean, "variants" "jsonb")
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
@@ -1846,6 +1992,7 @@ CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") 
     t.available_days,
     t.amenity_id,
     va.type AS amenity_type,
+    t.bookable_online,
     COALESCE(
       (SELECT jsonb_agg(
         jsonb_build_object(
@@ -1867,10 +2014,14 @@ CREATE OR REPLACE FUNCTION "public"."get_public_treatments"("_hotel_id" "text") 
   LEFT JOIN public.venue_amenities va
     ON va.id = t.amenity_id
   WHERE t.status = 'active' AND t.hotel_id = _hotel_id
+    -- Les soins internes ne sortent que pour un appelant authentifié (admin, PWA
+    -- thérapeute) : le flow client, session invité sans JWT Supabase, ne peut pas
+    -- les obtenir même en passant `_include_internal => true`.
+    AND (t.bookable_online OR (_include_internal AND auth.uid() IS NOT NULL))
   ORDER BY t.sort_order, t.name;
 $$;
 
-ALTER FUNCTION "public"."get_public_treatments"("_hotel_id" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."get_public_treatments"("_hotel_id" "text", "_include_internal" boolean) OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."get_room_next_booking_gap"("_room_id" "uuid", "_booking_date" "date", "_booking_end_time" time without time zone, "_current_booking_id" "uuid") RETURNS TABLE("next_booking_time" time without time zone, "gap_minutes" integer)
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -2037,6 +2188,25 @@ $$;
 
 ALTER FUNCTION "public"."hotels_autofill_slug"() OWNER TO "postgres";
 
+-- Réservation partagée : au moins une jambe libre ET une jambe déjà attribuée.
+-- Lit les jambes comme `accept_booking` les réclame — soins de base, hors
+-- add-ons et hors commodités. SECURITY DEFINER pour que les policies de lecture
+-- n'aient pas à traverser la RLS de booking_treatments.
+CREATE OR REPLACE FUNCTION "public"."booking_has_open_leg"("_booking_id" "uuid") RETURNS boolean
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+  SELECT COUNT(*) FILTER (WHERE bt.therapist_id IS NULL) > 0
+     AND COUNT(*) FILTER (WHERE bt.therapist_id IS NOT NULL) > 0
+  FROM booking_treatments bt
+  JOIN treatment_menus tm ON tm.id = bt.treatment_id
+  WHERE bt.booking_id = _booking_id
+    AND bt.is_addon = false
+    AND tm.amenity_id IS NULL;
+$$;
+
+ALTER FUNCTION "public"."booking_has_open_leg"("_booking_id" "uuid") OWNER TO "postgres";
+
 CREATE OR REPLACE FUNCTION "public"."is_booking_participant"("_booking_id" "uuid", "_therapist_id" "uuid") RETURNS boolean
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -2135,6 +2305,9 @@ DECLARE
   _old JSONB := '{}'::jsonb;
   _new JSONB := '{}'::jsonb;
   _changed BOOLEAN := false;
+  -- Posé par les fonctions publiques appelées sans session authentifiée
+  -- (déplacement/annulation client). Absent → 'admin', la valeur historique.
+  _source TEXT := COALESCE(NULLIF(current_setting('app.audit_source', true), ''), 'admin');
 BEGIN
   -- On INSERT: log the initial creation
   IF TG_OP = 'INSERT' THEN
@@ -2155,7 +2328,7 @@ BEGIN
         'booking_time', NEW.booking_time,
         'total_price', NEW.total_price
       ),
-      'admin',
+      _source,
       jsonb_build_object(
         'booking_id', NEW.booking_id,
         'therapist_id', COALESCE(NEW.therapist_id::text, '')
@@ -2234,7 +2407,7 @@ BEGIN
     'update',
     _old,
     _new,
-    'admin',
+    _source,
     jsonb_build_object(
       'booking_id', NEW.booking_id,
       'therapist_id', COALESCE(NEW.therapist_id::text, '')
@@ -2820,7 +2993,7 @@ DECLARE
   _free                  INTEGER;
   _has_soin              BOOLEAN;
   _am                    RECORD;
-  _am_occ                INTEGER;
+  _am_conflict           TEXT;
   _am_start              TIME;
   _am_end                TIME;
   _soin_duration         INTEGER := 0;
@@ -2898,7 +3071,7 @@ BEGIN
 
   -- ----- Capacité amenity : verrou + contrôle atomique (avant tout insert) -----
   FOR _am IN
-    SELECT tm.amenity_id, tm.duration AS am_duration, tm.price AS am_price, va.capacity_per_slot
+    SELECT tm.amenity_id, tm.duration AS am_duration, tm.price AS am_price
     FROM treatment_menus tm
     JOIN venue_amenities va ON va.id = tm.amenity_id
     WHERE tm.id::text = ANY(_treatment_ids) AND tm.amenity_id IS NOT NULL
@@ -2913,15 +3086,14 @@ BEGIN
       ELSE _booking_time
     END;
     _am_end := (_am_start + make_interval(mins => COALESCE(_am.am_duration, _duration, 60)))::time;
-    SELECT COALESCE(SUM(num_guests), 0)::INTEGER INTO _am_occ
-    FROM amenity_bookings
-    WHERE venue_amenity_id = _am.amenity_id
-      AND booking_date = _booking_date
-      AND status NOT IN ('cancelled')
-      AND booking_time < _am_end
-      AND end_time > _am_start;
-    IF _am_occ + _guests > _am.capacity_per_slot THEN
-      RAISE EXCEPTION 'AMENITY_FULL';
+
+    -- Exclusivité, capacité et remise en état : règle commune au site client et
+    -- à l'admin (amenity_slot_conflict).
+    _am_conflict := amenity_slot_conflict(
+      _am.amenity_id, _booking_date, _am_start, _am_end, _guests
+    );
+    IF _am_conflict IS NOT NULL THEN
+      RAISE EXCEPTION '%', _am_conflict;
     END IF;
   END LOOP;
 
@@ -3794,11 +3966,11 @@ GRANT ALL ON FUNCTION "public"."get_public_treatment_addons"("_parent_id" "uuid"
 
 GRANT ALL ON FUNCTION "public"."get_public_treatment_addons"("_parent_id" "uuid") TO "service_role";
 
-GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text", "_include_internal" boolean) TO "anon";
 
-GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text", "_include_internal" boolean) TO "authenticated";
 
-GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_public_treatments"("_hotel_id" "text", "_include_internal" boolean) TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."get_room_next_booking_gap"("_room_id" "uuid", "_booking_date" "date", "_booking_end_time" time without time zone, "_current_booking_id" "uuid") TO "anon";
 

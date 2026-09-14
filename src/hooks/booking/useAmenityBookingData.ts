@@ -34,13 +34,16 @@ export interface AmenityBookingForCalendar {
 interface UseAmenityBookingDataOptions {
   hotelFilter?: string;
   venueAmenities?: VenueAmenity[];
+  /** Fenêtre affichée (yyyy-MM-dd). Sans elle, tout l'historique est chargé. */
+  fromDate?: string;
+  toDate?: string;
 }
 
-export function useAmenityBookingData({ hotelFilter, venueAmenities = [] }: UseAmenityBookingDataOptions) {
+export function useAmenityBookingData({ hotelFilter, venueAmenities = [], fromDate, toDate }: UseAmenityBookingDataOptions) {
   const queryClient = useQueryClient();
 
   const { data: amenityBookings = [], isLoading } = useQuery({
-    queryKey: ["amenity-bookings", hotelFilter],
+    queryKey: ["amenity-bookings", hotelFilter, fromDate, toDate],
     queryFn: async () => {
       let query = supabase
         .from("amenity_bookings")
@@ -56,6 +59,10 @@ export function useAmenityBookingData({ hotelFilter, venueAmenities = [] }: UseA
       if (hotelFilter && hotelFilter !== "all") {
         query = query.eq("hotel_id", hotelFilter);
       }
+      // PostgREST plafonne à 1000 lignes : sans borne, le tri par date ascendante
+      // rendrait les plus anciennes et couperait les réservations à venir.
+      if (fromDate) query = query.gte("booking_date", fromDate);
+      if (toDate) query = query.lte("booking_date", toDate);
 
       const { data, error } = await query;
       if (error) throw error;

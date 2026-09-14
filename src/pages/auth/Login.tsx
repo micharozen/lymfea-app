@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { brand, brandLogos } from "@/config/brand";
-import eiaLogo from "@/assets/eia-logo-transparent.png";
+import { Wordmark } from "@/components/landing/Wordmark";
+import { BRAND_NAME } from "@/components/landing/constants";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 import { DevLoginPanel } from "@/components/DevLoginPanel";
 
@@ -81,6 +81,10 @@ const Auth = () => {
 
     checkAuthStatus();
   }, [navigate]);
+
+  useEffect(() => {
+    document.title = `Connexion · ${BRAND_NAME}`;
+  }, []);
 
   const handleNext = async () => {
     if (!emailOrPhone.trim()) {
@@ -363,7 +367,7 @@ const Auth = () => {
         <div className="w-full max-w-md mx-auto">
           {/* Logo */}
           <div className="mb-12">
-            <img src={eiaLogo} alt={brand.name} className="h-10 w-auto" />
+            <Wordmark />
           </div>
 
           {/* Title */}
@@ -558,7 +562,7 @@ const Auth = () => {
 
           {/* Footer */}
           <p className="mt-12 text-xs text-muted-foreground text-center">
-            &copy; {new Date().getFullYear()} Eïa SAS. Tous droits reserves.
+            &copy; {new Date().getFullYear()} {BRAND_NAME}. Tous droits réservés.
           </p>
         </div>
       </div>
@@ -596,15 +600,16 @@ const Auth = () => {
         {/* Brand content */}
         <div className="relative z-10 flex flex-col justify-center items-start px-16 py-20">
           <img
-            src={brandLogos.monogramWhite}
+            src="/images/saoma.png"
             alt=""
-            className="w-16 h-16 mb-8 opacity-80"
+            aria-hidden
+            className="w-16 h-16 mb-8 rounded-2xl object-cover"
           />
           <h2 className="text-primary-foreground text-4xl font-grotesk font-medium leading-tight mb-4 max-w-sm">
-            L'excellence du bien-etre, simplifiee
+            L'excellence du bien-être, simplifiée
           </h2>
           <p className="text-primary-foreground/75 text-lg max-w-sm leading-relaxed">
-            Gerez vos reservations, vos equipes et votre activite en toute serenite.
+            Gérez vos réservations, vos équipes et votre activité en toute sérénité.
           </p>
         </div>
       </div>

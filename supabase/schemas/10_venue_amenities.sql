@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS "public"."venue_amenities" (
     "slot_duration" integer DEFAULT 60 NOT NULL,
     "allowed_durations" integer[] DEFAULT '{}'::integer[] NOT NULL,
     "prep_time" integer DEFAULT 0 NOT NULL,
+    "is_exclusive" boolean DEFAULT true NOT NULL,
     "price_external" numeric(10,2) DEFAULT 0,
     "price_lymfea" numeric(10,2) DEFAULT 0,
     "lymfea_access_included" boolean DEFAULT true NOT NULL,
@@ -30,7 +31,11 @@ COMMENT ON COLUMN "public"."venue_amenities"."allowed_durations" IS 'Durations (
 
 COMMENT ON COLUMN "public"."venue_amenities"."slot_duration" IS 'Default booking duration in minutes; must be one of allowed_durations.';
 
-COMMENT ON COLUMN "public"."venue_amenities"."prep_time" IS 'Cleaning/prep time in minutes between bookings for privatized amenities';
+COMMENT ON COLUMN "public"."venue_amenities"."prep_time" IS 'Remise en état en minutes, réservée après chaque réservation : aucune autre ne peut démarrer avant la fin du nettoyage.';
+
+COMMENT ON COLUMN "public"."venue_amenities"."is_exclusive" IS 'Une réservation privatise le créneau : aucune autre réservation ne peut le partager. capacity_per_slot ne plafonne alors que le nombre de personnes d''une même réservation. Vrai par défaut : à décocher pour un équipement réellement partagé.';
+
+COMMENT ON COLUMN "public"."venue_amenities"."capacity_per_slot" IS 'Nombre maximum de personnes. Sur une commodité exclusive : par réservation. Sinon : cumulé sur le créneau, toutes réservations confondues.';
 
 COMMENT ON COLUMN "public"."venue_amenities"."lymfea_access_included" IS 'Whether spa treatment clients get free amenity access';
 

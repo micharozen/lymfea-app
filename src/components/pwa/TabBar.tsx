@@ -19,7 +19,7 @@ const TabBar = ({ unreadCount = 0, scheduleIncomplete = false }: TabBarProps) =>
   };
 
   return (
-    <nav className="app-refonte tabbar fixed bottom-0 left-0 right-0 z-50">
+    <nav className="app-refonte tabbar shrink-0">
       <button
         className={"tab" + (isActive("/pwa/dashboard") ? " active" : "")}
         onClick={() => go("/pwa/dashboard")}

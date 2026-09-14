@@ -67,6 +67,9 @@ export function PhoneNumberField({
             )}
             aria-expanded={open}
           >
+            <span className="text-base leading-none">
+              {countries.find((c) => c.code === countryCode)?.flag ?? "🌍"}
+            </span>
             <span className="tabular-nums">{countryCode}</span>
             <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
           </Button>

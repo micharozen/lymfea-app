@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { brand } from "../_shared/brand.ts";
-import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
+import { computeLegEarnings, type TreatmentRateMap } from "../_shared/therapistEarnings.ts";
 import { myLegTreatments } from "../_shared/therapistLegDuration.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 import { getBaseEmailTemplate, getEmailHeader } from "../_shared/email-template.ts";
@@ -370,7 +370,6 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     white-space: nowrap;
   }
   table.items thead th:first-child { text-align: left; }
-  table.items thead th:nth-child(2),
   table.items thead th:nth-child(3) { text-align: left; }
   table.items td.client {
     text-align: left;
@@ -393,6 +392,13 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
     white-space: nowrap;
   }
   table.items tbody td:first-child { text-align: left; white-space: normal; word-break: break-word; }
+  table.items thead th:nth-child(2) { text-align: left; }
+  table.items tbody td.desc {
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 
   .summary { display: flex; gap: 40px; margin-top: 24px; }
   .tva-details { flex: 1; }
@@ -520,7 +526,7 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
       <tr class="items-total">
         <td></td>
         <td></td>
-        <td>Total prestations (${data.bookingsCount})</td>
+        <td class="desc">Total prestations (${data.bookingsCount})</td>
         <td></td>
         <td>${formatAmount(amountHt)}</td>
       </tr>
@@ -603,7 +609,7 @@ const generateForTherapistHotel = async (
   const endStr = periodEnd.toISOString().slice(0, 10);
 
   const bookingSelect =
-    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, guest_count, therapist_id, client_first_name, client_last_name, customers(first_name, last_name), booking_treatments(therapist_id, is_addon, treatment_menus(name, duration), treatment_variants(label, duration))";
+    "id, total_price, duration, status, payment_status, booking_date, is_out_of_hours, guest_count, therapist_id, client_first_name, client_last_name, customers(first_name, last_name), booking_treatments(therapist_id, treatment_id, is_addon, treatment_menus(name, duration), treatment_variants(label, duration))";
   // Un no-show est facturé 100 % au client : le thérapeute s'est déplacé, il est
   // rémunéré comme pour un soin réalisé. Les deux orthographes du statut
   // coexistent en base (legacy `no_show`).
@@ -683,12 +689,15 @@ const generateForTherapistHotel = async (
   // Load therapist rates for fallback computation when no payout exists
   const { data: therapistRow } = await supabaseAdmin
     .from("therapists")
-    .select("rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150")
+    .select(
+      "rate_30, rate_45, rate_60, rate_75, rate_90, rate_105, rate_120, rate_150, treatment_rates, treatment_rates_active",
+    )
     .eq("id", therapist.id)
     .maybeSingle();
 
   const rates = therapistRow
     ? {
+        rate_30: therapistRow.rate_30 ?? null,
         rate_45: therapistRow.rate_45 ?? null,
         rate_60: therapistRow.rate_60 ?? null,
         rate_75: therapistRow.rate_75 ?? null,
@@ -697,6 +706,12 @@ const generateForTherapistHotel = async (
         rate_120: therapistRow.rate_120 ?? null,
         rate_150: therapistRow.rate_150 ?? null,
       }
+    : null;
+
+  // Barèmes spécifiques par soin — le flag est honoré ici, le moteur ne reçoit
+  // jamais une map inactive.
+  const treatmentRates = therapistRow?.treatment_rates_active
+    ? ((therapistRow.treatment_rates ?? null) as TreatmentRateMap | null)
     : null;
 
   // Out-of-hours uplift for the rate fallback, mirroring the venue setting
@@ -713,6 +728,7 @@ const generateForTherapistHotel = async (
   for (const b of eligibleBookings) {
     const treatments = ((b as any).booking_treatments || []) as Array<{
       therapist_id?: string | null;
+      treatment_id?: string | null;
       is_addon?: boolean | null;
       treatment_menus?: { name?: string | null; duration?: number | null } | null;
       treatment_variants?: { label?: string | null; duration?: number | null } | null;
@@ -722,14 +738,6 @@ const generateForTherapistHotel = async (
     // retombe sur la durée du soin.
     const lineDuration = (bt: (typeof treatments)[number]): number =>
       bt.treatment_variants?.duration ?? bt.treatment_menus?.duration ?? 0;
-    // When the stable soin↔therapist link is present, this therapist is paid on
-    // the sum of THEIR soins; otherwise fall back to the booking duration (or the
-    // total treatment duration). Only used when no payout row exists (see below).
-    const linkedDuration = treatments.some((bt) => bt.therapist_id != null)
-      ? treatments
-          .filter((bt) => bt.therapist_id === therapist.id)
-          .reduce((sum, bt) => sum + lineDuration(bt), 0)
-      : 0;
     const treatmentsDuration = treatments.reduce((sum, bt) => sum + lineDuration(bt), 0);
     // bookings.duration peut rester sur la durée du menu alors que la variante
     // réservée est plus longue (résa #627 : 2 × variante 90 min, duration = 60),
@@ -741,28 +749,32 @@ const generateForTherapistHotel = async (
       .reduce((max, bt) => Math.max(max, lineDuration(bt)), 0);
     const bookingDuration = Math.max(Number((b as any).duration) || 0, longestBaseTreatment);
 
-    // Sur un duo, le thérapeute n'est facturé QUE sur son leg (son soin de base +
-    // les add-ons qu'il porte), jamais sur l'intégralité des prestations du
-    // booking — même échelle d'attribution que les payouts (myLegTreatments).
-    // Un thérapeute seul est payé sur tout, quoi qu'annonce guest_count.
+    // Le thérapeute n'est facturé QUE sur sa jambe (ses soins de base + les
+    // add-ons qu'il porte), jamais sur l'intégralité des prestations du booking —
+    // même échelle d'attribution que les payouts (myLegTreatments). Vaut pour le
+    // duo comme pour un booking simple enchaînant deux soins partagés entre deux
+    // praticiens (issue #547) : c'est le lien booking_treatments.therapist_id qui
+    // tranche, pas guest_count. Sans lien exploitable, un praticien seul est payé
+    // sur tout, et le libellé de la ligne liste bien les mêmes prestations.
     const orderedTherapistIds = therapistIdsByBooking.get(b.id) ??
       ((b as any).therapist_id ? [(b as any).therapist_id as string] : []);
-    const effectiveGuestCount = orderedTherapistIds.length > 1
-      ? Number((b as any).guest_count) || 1
-      : 1;
     const legTreatments = myLegTreatments(
       therapist.id,
       treatments.map((bt) => ({ ...bt, duration: lineDuration(bt) })),
       orderedTherapistIds,
-      effectiveGuestCount,
+      Number((b as any).guest_count) || 1,
     );
     const legDuration = legTreatments.reduce((sum, bt) => sum + bt.duration, 0);
 
-    const isDuo = effectiveGuestCount > 1;
-    const dur = isDuo && legDuration > 0
+    // Réservation partagée : duo, ou booking simple dont ce praticien ne porte
+    // qu'une partie des prestations. Sinon on garde le repli historique sur
+    // bookings.duration, qui absorbe les extensions de séance (durée prolongée
+    // sans ligne de soin supplémentaire) et le cas variante plus longue que le
+    // menu (résa #627).
+    const isSharedBooking =
+      legTreatments.length < treatments.length || (Number((b as any).guest_count) || 1) > 1;
+    const dur = isSharedBooking && legDuration > 0
       ? legDuration
-      : !isDuo && linkedDuration > 0
-      ? linkedDuration
       : bookingDuration > 0
       ? bookingDuration
       : treatmentsDuration;
@@ -805,9 +817,10 @@ const generateForTherapistHotel = async (
     if (fromPayout !== undefined) {
       amount = fromPayout;
     } else {
-      const earned = computeTherapistEarnings(
+      const earned = computeLegEarnings(
         rates,
-        dur,
+        treatmentRates,
+        { totalDuration: dur, lines: legTreatments },
         (b as any).is_out_of_hours ? { surchargePercent } : undefined,
       );
       if (earned === null) {

@@ -12,23 +12,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { listHotelsForOrgDropdown, hotelKeys } from "@shared/db";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { useTasks, type Task } from "@/hooks/tasks/useTasks";
 import { useOrgAdmins } from "@/hooks/tasks/useOrgAdmins";
 import { useTaskMutations } from "@/hooks/tasks/useTaskMutations";
 import { TaskBoard } from "@/components/admin/tasks/TaskBoard";
 import { TaskDialog } from "@/components/admin/tasks/TaskDialog";
-import { PRIORITY_ORDER } from "@/components/admin/tasks/taskConstants";
+import { PRIORITY_ORDER, TASK_TYPE_ORDER } from "@/components/admin/tasks/taskConstants";
 
 export default function Tasks() {
   const { t } = useTranslation("admin");
   const { data: tasks = [], isLoading } = useTasks();
   const { data: admins = [] } = useOrgAdmins();
   const { move } = useTaskMutations();
+  const scope = useOrgScope();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const { data: hotels = [] } = useQuery({
+    queryKey: hotelKeys.dropdown(scope),
+    enabled: !!scope,
+    queryFn: () => listHotelsForOrgDropdown(supabase, scope!),
+  });
 
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [venueFilter, setVenueFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -49,13 +62,15 @@ export default function Tasks() {
     return tasks.filter((task) => {
       if (priorityFilter !== "all" && task.priority !== priorityFilter) return false;
       if (assigneeFilter !== "all" && task.assigned_to_user_id !== assigneeFilter) return false;
+      if (venueFilter !== "all" && task.hotel_id !== venueFilter) return false;
+      if (typeFilter !== "all" && task.task_type !== typeFilter) return false;
       if (q) {
         const haystack = `${task.title} ${task.description ?? ""}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [tasks, search, priorityFilter, assigneeFilter]);
+  }, [tasks, search, priorityFilter, assigneeFilter, venueFilter, typeFilter]);
 
   // Deep-link from a notification: ?task=<id> opens that task once loaded.
   useEffect(() => {
@@ -129,6 +144,32 @@ export default function Tasks() {
               {admins.map((a) => (
                 <SelectItem key={a.user_id} value={a.user_id}>
                   {a.first_name} {a.last_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={venueFilter} onValueChange={setVenueFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("tasks.allVenues")}</SelectItem>
+              {hotels.map((hotel) => (
+                <SelectItem key={hotel.id} value={hotel.id}>
+                  {hotel.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("tasks.allTypes")}</SelectItem>
+              {TASK_TYPE_ORDER.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {t(`tasks.type.${type}`)}
                 </SelectItem>
               ))}
             </SelectContent>

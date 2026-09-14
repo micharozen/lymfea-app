@@ -127,14 +127,49 @@ export function keyRow(
   return `<tr>${iconTile(svg)}<td style="vertical-align:top"><p style="margin:0;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:${INK_MUTE}">${label}</p><p class="eia-value" style="margin:4px 0 0;font-family:${FONT_SERIF};font-size:17px;line-height:1.3;color:${INK}">${value}</p>${subHtml}</td>${refHtml}</tr>`;
 }
 
+/**
+ * Key-info row whose value has just changed: the previous value is struck
+ * through above the new one, so the reader sees the move rather than only the
+ * result. Used by the "booking modified" email.
+ *
+ * The old value stays smaller and muted — struck-through text at full size
+ * competes with the value that actually matters. Falls back to a plain
+ * `keyRow` when no previous value is known, rather than printing an empty
+ * strike-through.
+ */
+export function keyRowChanged(
+  svg: string,
+  label: string,
+  previousValue: string,
+  value: string,
+  sub: string,
+  ref: string,
+): string {
+  if (!previousValue) return keyRow(svg, label, value, sub, ref);
+  const subHtml = sub
+    ? `<p style="margin:4px 0 0;font-family:${FONT_SANS};font-size:12px;line-height:1.5;color:${INK_MUTE}">${sub}</p>`
+    : "";
+  const refHtml = ref
+    ? `<td align="right" style="vertical-align:top;padding-left:10px"><span class="eia-ref" style="font-family:${FONT_MONO};font-size:11px;color:${INK_MUTE};white-space:nowrap">${ref}</span></td>`
+    : "";
+  const previousHtml =
+    `<p style="margin:4px 0 0;font-family:${FONT_SERIF};font-size:14px;line-height:1.3;color:${INK_MUTE};text-decoration:line-through">${previousValue}</p>`;
+  return `<tr>${iconTile(svg)}<td style="vertical-align:top"><p style="margin:0;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:${INK_MUTE}">${label}</p>${previousHtml}<p class="eia-value" style="margin:2px 0 0;font-family:${FONT_SERIF};font-size:17px;line-height:1.3;color:${CLAY}">${value}</p>${subHtml}</td>${refHtml}</tr>`;
+}
+
 /** Spacer row between key-info rows inside the framed box. */
 export function keyGap(): string {
   return `<tr><td colspan="3" style="height:18px;line-height:18px;font-size:0">&nbsp;</td></tr>`;
 }
 
 /** Framed "key info" card: When / Where / therapist row. */
-export function detailsBox(copy: EmailCopy, therapistRow: string): string {
-  const whenRow = keyRow(
+export function detailsBox(
+  copy: EmailCopy,
+  therapistRow: string,
+  /** Remplace la ligne « Quand » — la variante barrée du mail de modification. */
+  whenRowOverride?: string,
+): string {
+  const whenRow = whenRowOverride ?? keyRow(
     ICON_CALENDAR,
     copy.labelWhen,
     "{{{booking_date}}}",
@@ -158,7 +193,10 @@ export function treatmentsSection(copy: EmailCopy): string {
 
 /** Arrival note: framed sand-100 encart with a gold info icon. */
 export function arrivalNote(copy: EmailCopy): string {
-  return `<tr><td class="eia-sect" style="padding:24px 40px 0"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:${SAND_100};border:1px solid ${LINE_SOFT};border-radius:12px"><tbody><tr><td width="40" style="width:40px;vertical-align:top;padding:16px 0 16px 18px">${ICON_INFO}</td><td style="padding:16px 18px 16px 12px;font-family:${FONT_SANS};font-size:13px;line-height:1.6;color:${INK_SOFT}">${copy.arriveNote}</td></tr></tbody></table></td></tr>`;
+  // Single "practical info" encart: the venue's access notes (door code, way in
+  // — injected as `access_body_html`, empty when the venue set none) sit above
+  // the arrival note rather than in a second box of their own.
+  return `<tr><td class="eia-sect" style="padding:24px 40px 0"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:${SAND_100};border:1px solid ${LINE_SOFT};border-radius:12px"><tbody><tr><td width="40" style="width:40px;vertical-align:top;padding:16px 0 16px 18px">${ICON_INFO}</td><td style="padding:16px 18px 16px 12px;font-family:${FONT_SANS};font-size:13px;line-height:1.6;color:${INK_SOFT}">{{{access_body_html}}}${copy.arriveNote}</td></tr></tbody></table></td></tr>`;
 }
 
 /** Footer (centered): top border, mono address, contact line, website. */

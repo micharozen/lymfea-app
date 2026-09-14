@@ -15,6 +15,8 @@ import { CustomerGeneralTab } from "@/components/admin/customer/CustomerGeneralT
 import { CustomerNotesTab } from "@/components/admin/customer/CustomerNotesTab";
 import { CustomerBookingsTab } from "@/components/admin/customer/CustomerBookingsTab";
 import { CustomerCuresSection } from "@/components/admin/customer/CustomerCuresSection";
+import { CustomerTasksTab } from "@/components/admin/tasks/CustomerTasksTab";
+import { useOrgScope } from "@/hooks/useOrgScope";
 
 const createFormSchema = (t: TFunction) =>
   z.object({
@@ -47,6 +49,12 @@ export default function CustomerDetail() {
   const [preferredTherapistId, setPreferredTherapistId] = useState<string | null>(null);
   const [preferredTreatmentType, setPreferredTreatmentType] = useState("");
   const [healthNotes, setHealthNotes] = useState("");
+
+  const orgScope = useOrgScope();
+  // Null pour un super-admin en vue multi-organisations : il n'y a alors pas
+  // d'organisation cible pour créer une fiche client.
+  const scopedOrganizationId =
+    orgScope && "organizationId" in orgScope ? orgScope.organizationId : null;
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(formSchema),
@@ -124,9 +132,19 @@ export default function CustomerDetail() {
       };
 
       if (isNewMode && !savedCustomerId) {
+        if (!scopedOrganizationId) {
+          throw new Error(
+            t(
+              "admin:customers.selectOrganization",
+              "Sélectionnez une organisation avant de créer un client",
+            ),
+          );
+        }
         const { data: inserted, error } = await supabase
           .from("customers")
-          .insert(customerPayload)
+          // Une fiche client appartient à une organisation : celle du
+          // périmètre courant, jamais déduite implicitement.
+          .insert({ ...customerPayload, organization_id: scopedOrganizationId })
           .select("id")
           .single();
 
@@ -180,6 +198,22 @@ export default function CustomerDetail() {
     watchedFirstName || watchedLastName
       ? `${watchedFirstName} ${watchedLastName}`.trim()
       : "";
+
+  // Identité passée à l'onglet Tâches, pour pré-remplir le client lié d'une
+  // nouvelle tâche. Stable tant que les champs du formulaire ne changent pas.
+  const linkedCustomer = useMemo(
+    () =>
+      effectiveCustomerId
+        ? {
+            id: effectiveCustomerId,
+            first_name: watchedFirstName,
+            last_name: watchedLastName,
+            email: form.getValues("email"),
+            phone: form.getValues("phone"),
+          }
+        : null,
+    [effectiveCustomerId, watchedFirstName, watchedLastName, form],
+  );
 
   return (
     <div className="bg-background">
@@ -281,6 +315,13 @@ export default function CustomerDetail() {
               >
                 {t("admin:customers.tabs.bookings", "Historique")}
               </TabsTrigger>
+              <TabsTrigger
+                value="tasks"
+                disabled={!canAccessTabs}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
+              >
+                {t("admin:customers.tabs.tasks", "Tâches")}
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -318,6 +359,10 @@ export default function CustomerDetail() {
                       customerName={customerName}
                     />
                   </div>
+                </TabsContent>
+
+                <TabsContent value="tasks" className="mt-0">
+                  <CustomerTasksTab customer={linkedCustomer!} />
                 </TabsContent>
               </>
             )}

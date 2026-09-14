@@ -156,6 +156,19 @@
 .bo-refonte .alert .n{font-family:var(--mono);font-size:12px;}
 .bo-refonte .alert svg{flex:none;}
 
+/* —— Raccourcis de création (« Que voulez-vous faire ? ») —— */
+/* La graisse étant neutralisée plus haut, la hiérarchie tient à la taille et
+   à la couleur : intitulé en --ink, sous-titre en --ink-mute. */
+.bo-refonte .qa{margin-top:20px;}
+.bo-refonte .qa-title{font-size:14px;line-height:1.3;color:var(--ink-soft);margin:0 0 10px;}
+.bo-refonte .qa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
+.bo-refonte .qa-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;width:100%;padding:14px 16px;background:var(--bo-surface);border:1px solid var(--line);border-radius:var(--r-m);transition:box-shadow .13s,border-color .13s;}
+.bo-refonte .qa-card:hover{box-shadow:var(--shadow-1);border-color:var(--ink-soft);}
+.bo-refonte .qa-card:focus-visible{outline:2px solid var(--clay);outline-offset:2px;}
+.bo-refonte .qa-icon{width:18px;height:18px;color:var(--clay);margin-bottom:8px;flex:none;}
+.bo-refonte .qa-label{font-size:13.5px;color:var(--ink);}
+.bo-refonte .qa-hint{font-size:11.5px;color:var(--ink-mute);}
+
 /* —— Grilles —— */
 .bo-refonte .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px;}
 .bo-refonte .kpis.cols-2{grid-template-columns:repeat(2,1fr);}
@@ -334,7 +347,10 @@
 /* —— Variantes de boutons (génériques, réutilisables hors Inbox) —— */
 .bo-refonte .bo-btn.primary{background:var(--clay);color:#FBF6EC;}
 .bo-refonte .bo-btn.primary:hover:not(:disabled){background:var(--clay-deep);}
-.bo-refonte .bo-btn.outline{background:var(--bo-surface);color:var(--ink);border-color:var(--line);}
+/* `outline` est aussi un utilitaire Tailwind (outline-style:solid) : sans ce
+   reset, le bouton porte un contour épais à la couleur du texte en plus de sa
+   bordure. Le focus clavier reste marqué par le box-shadow plus bas. */
+.bo-refonte .bo-btn.outline{background:var(--bo-surface);color:var(--ink);border-color:var(--line);outline:none;}
 .bo-refonte .bo-btn.outline:hover:not(:disabled){border-color:var(--ink-soft);background:var(--bo-surface-2);}
 /* Ignorer : destructif mais réversible — discret au repos, rouge au survol. */
 .bo-refonte .bo-btn.ghost.danger:hover:not(:disabled){background:var(--bad-bg);color:var(--bad);}
@@ -451,6 +467,128 @@
   .bo-refonte .compose-dock{padding-left:16px;padding-right:16px;}
   .bo-refonte .inbox-actions{padding:10px 16px;}
 }
+
+/* ────────────────────────────────────────────────────────────
+   Modales — Radix Dialog rendu en portail. Comme le tooltip
+   .metric-help-tip, le contenu porte .bo-refonte pour les tokens
+   (il est hors du layout admin) : d'où le sélecteur .bo-refonte.bo-modal
+   qui doit aussi battre les utilitaires Tailwind de <DialogContent>.
+   ──────────────────────────────────────────────────────────── */
+.bo-refonte.bo-modal{
+  display:flex;flex-direction:column;gap:0;padding:0;
+  background:var(--bo-surface);border:1px solid var(--line);
+  border-radius:var(--r-l);box-shadow:var(--shadow-2);
+  max-height:88vh;overflow:hidden;
+}
+/* Bandeau 56px : le titre est centré dans la largeur, la croix est un
+   bouton-hit de la même hauteur à droite — plus de `top` en pixels. */
+.bo-refonte.bo-modal .bo-modal-head{
+  flex:none;display:flex;flex-direction:row;align-items:center;justify-content:center;
+  height:56px;padding:0 48px;margin:0;
+  border-bottom:1px solid var(--line);
+  background:var(--bo-surface);text-align:center;
+}
+.bo-refonte.bo-modal .bo-modal-head h2{
+  font-size:17px;letter-spacing:-.01em;line-height:1.25;font-weight:500;
+  color:var(--ink);margin:0;padding:0;width:100%;text-align:center;
+}
+/* Le corps porte le défilement : l'en-tête et le pied restent visibles. */
+.bo-modal .bo-modal-body{flex:1;min-height:0;overflow-y:auto;padding:16px 22px 18px;}
+.bo-modal .bo-modal-foot{
+  flex:none;display:flex;align-items:center;justify-content:flex-end;gap:8px;
+  padding:11px 22px;border-top:1px solid var(--line);background:var(--bo-surface);
+}
+.bo-modal .bo-modal-foot .note{margin-right:auto;font-size:11.5px;color:var(--ink-mute);}
+/* Focus clavier des boutons : même trait clay que les champs, plutôt que
+   l'anneau par défaut du navigateur. */
+.bo-refonte.bo-modal .bo-btn:focus-visible,
+.bo-refonte.bo-modal > button[type="button"]:last-child:focus-visible{
+  outline:none;border-color:var(--clay);box-shadow:0 0 0 2px var(--clay-soft);
+}
+/* Croix : même hauteur que l'en-tête, icône centrée — alignée avec le titre. */
+.bo-refonte.bo-modal > button[type="button"]:last-child{
+  top:0;right:8px;width:40px;height:56px;padding:0;margin:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  opacity:1;color:var(--ink-mute);border-radius:var(--r-s);
+  transition:color .12s,background .12s;
+}
+.bo-refonte.bo-modal > button[type="button"]:last-child:hover{color:var(--ink);background:var(--bo-surface-2);}
+
+/* —— Champs de formulaire —— */
+.bo-modal .bo-fields{display:flex;flex-direction:column;gap:13px;}
+.bo-modal .bo-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:560px){.bo-modal .bo-row{grid-template-columns:1fr;}}
+.bo-modal label{
+  display:flex;align-items:center;gap:5px;
+  font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-mute);
+}
+.bo-modal label svg{width:12px;height:12px;}
+.bo-refonte.bo-modal input,
+.bo-refonte.bo-modal textarea,
+.bo-refonte.bo-modal [role="combobox"]{
+  width:100%;font-family:var(--sans);font-size:13.5px;line-height:1.45;color:var(--ink);
+  background:var(--bo-surface-2);border:1px solid var(--line);border-radius:var(--r-m);
+  height:36px;padding:0 11px;box-shadow:none;
+  transition:border-color .13s;
+}
+.bo-refonte.bo-modal textarea{height:auto;min-height:62px;padding:9px 11px;resize:vertical;}
+.bo-refonte.bo-modal [role="combobox"]{display:flex;align-items:center;justify-content:space-between;text-align:left;}
+.bo-refonte.bo-modal [role="combobox"] > svg{opacity:.5;}
+.bo-refonte.bo-modal input:focus,
+.bo-refonte.bo-modal input:focus-visible,
+.bo-refonte.bo-modal textarea:focus,
+.bo-refonte.bo-modal textarea:focus-visible,
+.bo-refonte.bo-modal [role="combobox"]:focus,
+.bo-refonte.bo-modal [role="combobox"]:focus-visible{
+  outline:none;box-shadow:none;border-color:var(--clay);
+}
+.bo-refonte.bo-modal input:disabled,
+.bo-refonte.bo-modal textarea:disabled,
+.bo-refonte.bo-modal [role="combobox"]:disabled{
+  opacity:.5;cursor:default;background:var(--bo-surface);
+}
+.bo-refonte.bo-modal input::placeholder,
+.bo-refonte.bo-modal textarea::placeholder{color:var(--ink-mute);}
+/* Message de validation sous le champ. */
+.bo-modal .bo-err,
+.bo-refonte.bo-modal [role="alert"]{font-size:11.5px;color:var(--bad);margin-top:4px;}
+.bo-modal .bo-hint{font-size:11.5px;color:var(--ink-mute);margin-top:4px;}
+
+/* Menus déroulants (portail) : même surface que la modale. */
+.bo-refonte.bo-menu{
+  background:var(--bo-surface);border:1px solid var(--line);border-radius:var(--r-m);
+  box-shadow:var(--shadow-2);color:var(--ink);padding:4px;
+}
+.bo-refonte.bo-menu [role="option"]{font-size:13px;border-radius:var(--r-s);padding:6px 8px 6px 28px;}
+.bo-refonte.bo-menu [role="option"][data-highlighted]{background:var(--bo-surface-2);color:var(--ink);}
+
+/* Résultats de recherche client, ancrés sous le champ. */
+.bo-modal .bo-suggest{
+  position:absolute;z-index:20;left:0;right:0;margin-top:4px;padding:4px;
+  background:var(--bo-surface);border:1px solid var(--line);border-radius:var(--r-m);
+  box-shadow:var(--shadow-2);
+}
+.bo-modal .bo-suggest .state{display:flex;align-items:center;gap:7px;padding:7px 9px;font-size:12.5px;color:var(--ink-mute);}
+.bo-modal .bo-suggest button{
+  display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;
+  padding:6px 9px;border-radius:var(--r-s);text-align:left;background:transparent;border:none;
+}
+.bo-modal .bo-suggest button:hover{background:var(--bo-surface-2);}
+.bo-modal .bo-suggest .nm{font-size:13px;color:var(--ink);}
+.bo-modal .bo-suggest .meta{font-size:11.5px;color:var(--ink-mute);}
+
+/* Ligne récapitulative : capacité restante + prix, au même niveau de lecture. */
+.bo-modal .bo-summary{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 12px;border-radius:var(--r-m);
+  background:var(--bo-surface-2);border:1px solid var(--line-soft);
+}
+.bo-modal .bo-summary .k{font-size:11.5px;color:var(--ink-mute);}
+.bo-modal .bo-summary .amount{margin-left:auto;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;}
+.bo-modal .bo-summary .amount .k{font-style:normal;margin-right:7px;}
+.bo-modal .bo-chip.ok{background:var(--ok-bg);border-color:transparent;color:var(--ok);}
+.bo-modal .bo-chip.bad{background:var(--bad-bg);border-color:transparent;color:var(--bad);}
+.bo-modal .bo-warn{display:flex;align-items:flex-start;gap:7px;font-size:12px;line-height:1.4;color:var(--bad);}
 
 /* ────────────────────────────────────────────────────────────
    Dark mode — variante sombre cohérente (le design d'origine est
