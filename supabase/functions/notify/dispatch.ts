@@ -45,7 +45,7 @@ export async function notifyTherapists(
     const sentFlags = await Promise.all(
       therapists.map(async (t) => {
         try {
-          const { error } = await ctx.supabase.functions.invoke("send-push-notification", {
+          const { data, error } = await ctx.supabase.functions.invoke("send-push-notification", {
             body: {
               userId: t.user_id,
               title: message.title,
@@ -60,6 +60,12 @@ export async function notifyTherapists(
           });
           if (error) {
             console.error(`[notify] Push error for ${t.first_name}:`, error);
+            return false;
+          }
+          // OneSignal répond 200 même sans destinataire joignable : c'est
+          // `delivered` qui dit si la notification est réellement partie.
+          if (data?.delivered !== true) {
+            console.error(`[notify] Push not delivered to ${t.first_name}`);
             return false;
           }
           return true;

@@ -101,7 +101,7 @@ serve(async (req) => {
 
       // Send push notification
       try {
-        const { error: pushError } = await supabaseClient.functions.invoke("send-push-notification", {
+        const { data: pushData, error: pushError } = await supabaseClient.functions.invoke("send-push-notification", {
           body: {
             userId: admin.user_id,
             title: "⚠️ Client absent",
@@ -113,11 +113,13 @@ serve(async (req) => {
           },
         });
 
-        if (!pushError) {
+          // OneSignal répond 200 même sans abonnement joignable : c'est
+        // `delivered` qui dit si la notification est réellement partie.
+        if (!pushError && pushData?.delivered === true) {
           pushSent++;
           console.log(`✅ Push sent to admin: ${admin.first_name}`);
         } else {
-          console.error(`Push error for admin ${admin.first_name}:`, pushError);
+          console.error(`Push not delivered to admin ${admin.first_name}:`, pushError ?? "no reachable subscription");
         }
       } catch (e) {
         console.error(`Push exception for admin ${admin.first_name}:`, e);

@@ -146,17 +146,12 @@ serve(async (req: Request): Promise<Response> => {
         },
       );
 
-      // A non-empty `id` is the only reliable proof of delivery. OneSignal returns
-      // 200 in every case, and `errors` can be present on a notification that was
-      // actually delivered (e.g. `invalid_aliases` when one alias among several
-      // failed to resolve). When nothing is delivered, `id` comes back empty:
-      //   delivered     -> { id: "09a6…", errors: { invalid_aliases: … } }
-      //   not delivered -> { id: "", errors: ["All included players are not subscribed"] }
-      //   not delivered -> { id: "", errors: { invalid_aliases: … } }
-      // `recipients` is not usable either: it is absent when targeting by alias.
-      // No pre-check is possible: no subscription state is persisted server-side.
-      const result = (pushData as { result?: Record<string, unknown> } | null)?.result;
-      const delivered = !pushError && Boolean(result?.id);
+      // `send-push-notification` porte désormais la détection de délivrance (un `id`
+      // OneSignal non vide) et la journalise dans `push_delivery_logs` : on lit son
+      // verdict plutôt que de le recalculer ici.
+      const push = pushData as { delivered?: boolean; result?: Record<string, unknown> } | null;
+      const result = push?.result;
+      const delivered = !pushError && push?.delivered === true;
 
       if (delivered) {
         sent += 1;
