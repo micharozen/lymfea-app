@@ -578,7 +578,7 @@ serve(async (req) => {
     const pushResults = await Promise.all(
       toNotify.map(async ({ h, legs }) => {
         try {
-          const { error: pushError } = await supabaseClient.functions.invoke(
+          const { data: pushData, error: pushError } = await supabaseClient.functions.invoke(
             "send-push-notification",
             {
               body: {
@@ -601,6 +601,12 @@ serve(async (req) => {
           );
           if (pushError) {
             console.error(`Error sending push to ${h.first_name}:`, pushError);
+            return false;
+          }
+          // OneSignal répond 200 même sans abonnement joignable : c'est
+          // `delivered` qui dit si la notification est réellement partie.
+          if (pushData?.delivered !== true) {
+            console.error(`Push not delivered to ${h.first_name} ${h.last_name} (no reachable subscription)`);
             return false;
           }
           console.log(`✅ Push sent to ${h.first_name} ${h.last_name}`);

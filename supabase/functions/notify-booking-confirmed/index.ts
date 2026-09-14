@@ -553,7 +553,7 @@ serve(async (req) => {
           .filter((t: any) => t.user_id)
           .map(async (therapist: any) => {
             try {
-              const { error: pushError } = await supabase.functions.invoke(
+              const { data: pushData, error: pushError } = await supabase.functions.invoke(
                 'send-push-notification',
                 {
                   body: {
@@ -570,7 +570,9 @@ serve(async (req) => {
                   },
                 }
               );
-              if (pushError) {
+              // OneSignal répond 200 même sans abonnement joignable : c'est
+              // `delivered` qui dit si la notification est réellement partie.
+              if (pushError || pushData?.delivered !== true) {
                 errors.push(`push:${therapist.first_name}`);
               } else {
                 emailsSent.push(`push:${therapist.first_name}`);

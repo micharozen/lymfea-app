@@ -1,10 +1,40 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { brand } from "../_shared/brand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+interface DeliveryLog {
+  user_id: string;
+  booking_id: string | null;
+  notification_type: string | null;
+  status: string;
+  onesignal_notification_id: string | null;
+  error: string | null;
+}
+
+/**
+ * Journalise le statut réel de l'envoi. Best-effort : un échec d'écriture ne doit
+ * jamais faire échouer une notification qui, elle, est bien partie.
+ */
+async function logDelivery(entry: DeliveryLog): Promise<void> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) return;
+
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error } = await admin.from("push_delivery_logs").insert(entry);
+    if (error) console.error("[OneSignal] Delivery log insert failed:", error.message);
+  } catch (e) {
+    console.error("[OneSignal] Delivery log exception:", e);
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -111,16 +141,42 @@ serve(async (req) => {
     console.log("[OneSignal] Response status:", response.status);
     console.log("[OneSignal] Response:", JSON.stringify(result, null, 2));
 
+    // Un `id` non vide est la seule preuve fiable de délivrance. OneSignal répond
+    // 200 dans tous les cas, et `errors` peut être présent sur une notification
+    // pourtant délivrée (`invalid_aliases` quand un alias parmi plusieurs échoue) :
+    //   délivrée     -> { id: "09a6…", errors: { invalid_aliases: … } }
+    //   non délivrée -> { id: "", errors: ["All included players are not subscribed"] }
+    //   non délivrée -> { id: "", errors: { invalid_aliases: … } }
+    // `recipients` n'est pas exploitable non plus : absent quand on cible par alias.
+    const notificationId = typeof result?.id === "string" ? result.id : "";
+    const delivered = response.ok && notificationId.length > 0;
+    const status = !response.ok ? "error" : delivered ? "delivered" : "undelivered";
+
+    if (!delivered) {
+      console.error(`[OneSignal] Not delivered to ${userId} (${status}):`, JSON.stringify(result?.errors ?? result));
+    }
+
+    await logDelivery({
+      user_id: userId,
+      booking_id: data?.bookingId ?? null,
+      notification_type: data?.type ?? null,
+      status,
+      onesignal_notification_id: delivered ? notificationId : null,
+      error: delivered ? null : JSON.stringify(result?.errors ?? result).slice(0, 500),
+    });
+
     if (!response.ok) {
-      console.error("[OneSignal] Error:", result);
       return new Response(
-        JSON.stringify({ success: false, error: result }),
+        JSON.stringify({ success: false, delivered: false, error: result }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Statut HTTP 200 même sans délivrance : l'appel a bien abouti, et plusieurs
+    // appelants réessaient ou remontent une erreur sur un échec réseau. C'est
+    // `delivered` qui porte l'information, à lire par qui compte les envois.
     return new Response(
-      JSON.stringify({ success: true, result }),
+      JSON.stringify({ success: delivered, delivered, notificationId, result }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

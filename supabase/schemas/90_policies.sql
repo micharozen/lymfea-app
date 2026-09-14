@@ -148,6 +148,8 @@ CREATE POLICY "Admins can view hairdresser hotels" ON "public"."therapist_venues
 
 CREATE POLICY "Admins can view hairdressers" ON "public"."therapists" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
 
+CREATE POLICY "Admins can view push delivery logs" ON "public"."push_delivery_logs" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
+
 CREATE POLICY "Admins can view push notification logs" ON "public"."push_notification_logs" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
 
 CREATE POLICY "Admins can view their own notifications" ON "public"."notifications" FOR SELECT TO "authenticated" USING ((("user_id" = "auth"."uid"()) AND (EXISTS ( SELECT 1
