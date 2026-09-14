@@ -64,6 +64,9 @@ ALTER TABLE ONLY "public"."booking_treatments"
 ALTER TABLE ONLY "public"."push_notification_logs"
     ADD CONSTRAINT "push_notification_logs_booking_treatment_id_fkey" FOREIGN KEY ("booking_treatment_id") REFERENCES "public"."booking_treatments"("id") ON DELETE CASCADE;
 
+ALTER TABLE ONLY "public"."push_delivery_logs"
+    ADD CONSTRAINT "push_delivery_logs_booking_id_fkey" FOREIGN KEY ("booking_id") REFERENCES "public"."bookings"("id") ON DELETE SET NULL;
+
 ALTER TABLE ONLY "public"."bookings"
     ADD CONSTRAINT "bookings_bundle_usage_id_fkey" FOREIGN KEY ("bundle_usage_id") REFERENCES "public"."bundle_session_usages"("id") ON DELETE SET NULL;
 
