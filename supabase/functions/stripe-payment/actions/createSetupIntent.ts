@@ -154,7 +154,10 @@ export async function handleCreateSetupIntent(
   // Promo code: re-resolved from its id, so the discount is computed from the
   // catalog and the code's own rules — never from anything the client sent.
   // Only the lines the code targets form its base.
-  const promo = await fetchPromoCodeById(supabase, promoCodeId, hotelId);
+  const promo = await fetchPromoCodeById(supabase, promoCodeId, hotelId, {
+    phone: clientData.phone,
+    email: clientData.email,
+  });
   const promoLines = safeTreatmentsPayload
     .map((tPayload: any) => {
       const unit = unitOf(tPayload);

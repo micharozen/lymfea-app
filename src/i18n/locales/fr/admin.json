@@ -2970,7 +2970,10 @@
     "colDiscount": "Remise",
     "noRedemption": "Ce code n'a pas encore été utilisé",
     "pickVenue": "Choisir un lieu…",
-    "pickVenueHint": "En vue « toutes les organisations », le lieu détermine l'organisation du code."
+    "pickVenueHint": "En vue « toutes les organisations », le lieu détermine l'organisation du code.",
+    "fieldMaxPerCustomer": "Utilisations maximum par client",
+    "fieldMaxPerCustomerHint": "Laisser vide pour ne pas limiter. Le client est reconnu à son téléphone ou son email.",
+    "perCustomer": "{{count}}/client"
   },
   "organizationDetail": {
     "notFound": "Organisation introuvable",

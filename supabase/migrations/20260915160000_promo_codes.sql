@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS public.promo_codes (
   valid_from timestamptz,
   valid_until timestamptz,
   max_redemptions integer,
+  max_per_customer integer,
   redemption_count integer DEFAULT 0 NOT NULL,
   is_active boolean DEFAULT true NOT NULL,
   description text,
@@ -46,6 +47,8 @@ CREATE TABLE IF NOT EXISTS public.promo_codes (
     CHECK (discount_value > 0 AND (discount_type <> 'percentage' OR discount_value <= 100)),
   CONSTRAINT chk_promo_max_redemptions
     CHECK (max_redemptions IS NULL OR max_redemptions > 0),
+  CONSTRAINT chk_promo_max_per_customer
+    CHECK (max_per_customer IS NULL OR max_per_customer > 0),
   CONSTRAINT chk_promo_validity_window
     CHECK (valid_from IS NULL OR valid_until IS NULL OR valid_until >= valid_from)
 );
@@ -58,6 +61,8 @@ COMMENT ON COLUMN public.promo_codes.code_normalized IS
   'upper(code) sans séparateurs — un code saisi « ETE-20 » doit être retrouvé en « ete20 ». Même normalisation que normalizeVoucherCode côté TypeScript.';
 COMMENT ON COLUMN public.promo_codes.discount_value IS
   'Pourcentage (1-100) si discount_type = percentage, sinon montant en unités de devise.';
+COMMENT ON COLUMN public.promo_codes.max_per_customer IS
+  'Utilisations autorisées par client (NULL = illimité). Le client du tunnel public n''ayant pas de compte, il est reconnu par son téléphone ou son email via la table customers.';
 COMMENT ON COLUMN public.promo_codes.redemption_count IS
   'Compteur dénormalisé, incrémenté atomiquement par redeem_promo_code. Source de vérité du plafond max_redemptions.';
 
@@ -111,6 +116,9 @@ COMMENT ON TABLE public.promo_code_redemptions IS
 
 CREATE INDEX IF NOT EXISTS idx_promo_redemptions_code
   ON public.promo_code_redemptions (promo_code_id, redeemed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_promo_redemptions_customer
+  ON public.promo_code_redemptions (promo_code_id, customer_id)
+  WHERE customer_id IS NOT NULL;
 
 -- -------------------------------------------------------------------------
 -- 4. bookings — remise appliquée
@@ -195,7 +203,46 @@ CREATE POLICY "Concierges can view promo code redemptions" ON public.promo_code_
 GRANT ALL ON TABLE public.promo_code_redemptions TO anon, authenticated, service_role;
 
 -- -------------------------------------------------------------------------
--- 6. lookup_promo_code — validation publique du code saisi par le client
+-- 6. promo_customer_usage_count — utilisations déjà faites par un client
+-- -------------------------------------------------------------------------
+-- Le tunnel client est public : il n'y a pas de compte sur lequel s'appuyer.
+-- Un client est donc reconnu par son téléphone OU son email, les deux clés que
+-- porte `customers`. Le téléphone est unique par organisation ; l'email ne
+-- l'est pas, d'où le rattachement à plusieurs fiches possibles — on les compte
+-- toutes, ce qui est le comportement voulu (le plus strict).
+
+CREATE OR REPLACE FUNCTION public.promo_customer_usage_count(
+  _promo_code_id uuid,
+  _org_id uuid,
+  _phone text,
+  _email text
+)
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT count(*)::integer
+  FROM promo_code_redemptions r
+  WHERE r.promo_code_id = _promo_code_id
+    AND r.customer_id IN (
+      SELECT c.id FROM customers c
+      WHERE c.organization_id = _org_id
+        AND (
+          (nullif(_phone, '') IS NOT NULL AND c.phone = _phone)
+          OR (nullif(_email, '') IS NOT NULL AND lower(c.email) = lower(_email))
+        )
+    );
+$$;
+
+COMMENT ON FUNCTION public.promo_customer_usage_count(uuid, uuid, text, text) IS
+  'Nombre de fois qu''un client (reconnu par téléphone ou email) a déjà consommé un code promo. Sert au plafond max_per_customer.';
+
+GRANT EXECUTE ON FUNCTION public.promo_customer_usage_count(uuid, uuid, text, text) TO anon, authenticated, service_role;
+
+-- -------------------------------------------------------------------------
+-- 7. lookup_promo_code — validation publique du code saisi par le client
 -- -------------------------------------------------------------------------
 -- Ouverte à `anon` : même garde-fou anti-énumération que
 -- lookup_external_voucher, et la même file d'audit gift_code_attempts.
@@ -205,7 +252,9 @@ GRANT ALL ON TABLE public.promo_code_redemptions TO anon, authenticated, service
 CREATE OR REPLACE FUNCTION public.lookup_promo_code(
   _hotel_id text,
   _code text,
-  _attempt_key text
+  _attempt_key text,
+  _phone text DEFAULT NULL,
+  _email text DEFAULT NULL
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -284,6 +333,16 @@ BEGIN
     RETURN json_build_object('found', false, 'reason', 'exhausted');
   END IF;
 
+  -- Plafond par client : refusé dès la saisie, pour ne pas afficher une remise
+  -- que le serveur retirera au moment d'encaisser. Le contrôle est refait à la
+  -- consommation, qui seule fait foi.
+  IF _promo.max_per_customer IS NOT NULL
+     AND (nullif(_phone, '') IS NOT NULL OR nullif(_email, '') IS NOT NULL)
+     AND public.promo_customer_usage_count(_promo.id, _org_id, _phone, _email)
+         >= _promo.max_per_customer THEN
+    RETURN json_build_object('found', false, 'reason', 'customer_limit_reached');
+  END IF;
+
   -- Tableau vide = aucune restriction, tout le panier est éligible. Exposer ces
   -- ids à `anon` est sans risque : le catalogue est déjà public via
   -- get_public_treatments.
@@ -302,13 +361,13 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.lookup_promo_code(text, text, text) IS
+COMMENT ON FUNCTION public.lookup_promo_code(text, text, text, text, text) IS
   'Valide un code promo saisi dans le tunnel client. Rate-limitée (10 essais / 5 min par clé), ne divulgue ni les compteurs ni la description.';
 
-GRANT EXECUTE ON FUNCTION public.lookup_promo_code(text, text, text) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.lookup_promo_code(text, text, text, text, text) TO anon, authenticated, service_role;
 
 -- -------------------------------------------------------------------------
--- 7. redeem_promo_code — consommation, appelée par les edge functions
+-- 8. redeem_promo_code — consommation, appelée par les edge functions
 -- -------------------------------------------------------------------------
 -- Revalide intégralement : le client ne peut pas faire consommer un code
 -- expiré, épuisé ou d'un autre lieu en rejouant une requête. Idempotente par
@@ -329,6 +388,8 @@ AS $$
 DECLARE
   _org_id uuid;
   _inserted_rows integer := 0;
+  _max_per_customer integer;
+  _customer_uses integer;
 BEGIN
   IF _discount_cents IS NULL OR _discount_cents <= 0 THEN
     RETURN json_build_object('applied', false, 'reason', 'no_discount');
@@ -350,6 +411,21 @@ BEGIN
 
   IF NOT FOUND THEN
     RETURN json_build_object('applied', false, 'reason', 'invalid');
+  END IF;
+
+  -- Plafond par client, revérifié sous le verrou : deux réservations
+  -- simultanées du même client ne peuvent pas le dépasser ensemble.
+  IF _customer_id IS NOT NULL THEN
+    SELECT max_per_customer INTO _max_per_customer FROM promo_codes WHERE id = _promo_code_id;
+    IF _max_per_customer IS NOT NULL THEN
+      SELECT count(*) INTO _customer_uses
+      FROM promo_code_redemptions
+      WHERE promo_code_id = _promo_code_id AND customer_id = _customer_id;
+
+      IF _customer_uses >= _max_per_customer THEN
+        RETURN json_build_object('applied', false, 'reason', 'customer_limit_reached');
+      END IF;
+    END IF;
   END IF;
 
   INSERT INTO promo_code_redemptions (
@@ -394,7 +470,7 @@ COMMENT ON FUNCTION public.redeem_promo_code(uuid, uuid, text, uuid, integer) IS
 GRANT EXECUTE ON FUNCTION public.redeem_promo_code(uuid, uuid, text, uuid, integer) TO service_role;
 
 -- -------------------------------------------------------------------------
--- 8. get_promo_code_stats — métriques du backoffice
+-- 9. get_promo_code_stats — métriques du backoffice
 -- -------------------------------------------------------------------------
 -- Agrégat côté serveur : lire les usages ligne à ligne pour les additionner
 -- côté client buterait sur le plafond de 1000 lignes de PostgREST dès qu'un

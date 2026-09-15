@@ -252,7 +252,8 @@
     "errorExhausted": "This promo code has reached its usage limit.",
     "errorNoEligibleTreatment": "This code does not apply to any treatment in your cart.",
     "errorTooMany": "Too many attempts. Please try again in a few minutes.",
-    "errorGeneric": "Could not verify the code. Please try again."
+    "errorGeneric": "Could not verify the code. Please try again.",
+    "errorCustomerLimit": "You have already used this promo code."
   },
   "confirmation": {
     "title": "Booking Confirmed",

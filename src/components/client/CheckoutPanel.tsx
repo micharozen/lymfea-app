@@ -632,6 +632,8 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
       {!isOffert && !isBundleOnlyPurchase && !hasPriceOnRequest && (
         <PromoCodeField
           hotelId={hotelId}
+          customerPhone={clientInfo ? `${clientInfo.countryCode}${clientInfo.phone}` : null}
+          customerEmail={clientInfo?.email ?? null}
           items={items}
           appliedPromo={appliedPromo}
           discount={promoDiscount}

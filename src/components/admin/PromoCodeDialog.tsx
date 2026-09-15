@@ -47,6 +47,7 @@ const createFormSchema = (t: TFunction) =>
     validFrom: z.string(),
     validUntil: z.string(),
     maxRedemptions: z.string(),
+    maxPerCustomer: z.string(),
     isActive: z.boolean(),
     description: z.string(),
   }).refine(
@@ -95,6 +96,7 @@ export function PromoCodeDialog({
       validFrom: "",
       validUntil: "",
       maxRedemptions: "",
+      maxPerCustomer: "",
       isActive: true,
       description: "",
     },
@@ -112,6 +114,7 @@ export function PromoCodeDialog({
       validFrom: promoCode.valid_from ? promoCode.valid_from.slice(0, 10) : "",
       validUntil: promoCode.valid_until ? promoCode.valid_until.slice(0, 10) : "",
       maxRedemptions: promoCode.max_redemptions ? String(promoCode.max_redemptions) : "",
+      maxPerCustomer: promoCode.max_per_customer ? String(promoCode.max_per_customer) : "",
       isActive: promoCode.is_active,
       description: promoCode.description ?? "",
     } : {
@@ -123,6 +126,7 @@ export function PromoCodeDialog({
       validFrom: "",
       validUntil: "",
       maxRedemptions: "",
+      maxPerCustomer: "",
       isActive: true,
       description: "",
     });
@@ -164,6 +168,7 @@ export function PromoCodeDialog({
           ? new Date(`${values.validUntil}T23:59:59`).toISOString()
           : null,
         max_redemptions: values.maxRedemptions ? Number(values.maxRedemptions) : null,
+        max_per_customer: values.maxPerCustomer ? Number(values.maxPerCustomer) : null,
         is_active: values.isActive,
         description: values.description || null,
       };
@@ -375,6 +380,21 @@ export function PromoCodeDialog({
                     <Input {...field} type="number" min={1} placeholder={t('promoCodesPage.unlimited')} />
                   </FormControl>
                   <FormDescription>{t('promoCodesPage.fieldMaxRedemptionsHint')}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="maxPerCustomer"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('promoCodesPage.fieldMaxPerCustomer')}</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="number" min={1} placeholder={t('promoCodesPage.unlimited')} />
+                  </FormControl>
+                  <FormDescription>{t('promoCodesPage.fieldMaxPerCustomerHint')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

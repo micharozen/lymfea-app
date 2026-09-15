@@ -252,7 +252,8 @@
     "errorExhausted": "Ce code promo a atteint sa limite d'utilisation.",
     "errorNoEligibleTreatment": "Ce code ne s'applique à aucun soin de votre panier.",
     "errorTooMany": "Trop de tentatives. Réessayez dans quelques minutes.",
-    "errorGeneric": "La vérification du code a échoué. Réessayez."
+    "errorGeneric": "La vérification du code a échoué. Réessayez.",
+    "errorCustomerLimit": "Vous avez déjà utilisé ce code promo."
   },
   "confirmation": {
     "title": "Réservation confirmée",

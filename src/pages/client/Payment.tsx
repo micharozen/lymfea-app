@@ -532,6 +532,8 @@ export default function Payment() {
         {!isOffert && !isBundleOnlyPurchase && !hasPriceOnRequest && (
           <PromoCodeField
             hotelId={hotelId}
+            customerPhone={clientInfo ? `${clientInfo.countryCode}${clientInfo.phone}` : null}
+            customerEmail={clientInfo?.email ?? null}
             items={items}
             appliedPromo={appliedPromo}
             discount={promoDiscount}

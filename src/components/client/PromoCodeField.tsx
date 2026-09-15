@@ -21,6 +21,10 @@ import type { BasketItem } from '@/pages/client/context/CartContext';
 
 interface PromoCodeFieldProps {
   hotelId: string;
+  /** Identité du client, déjà saisie à l'étape précédente. Sert au plafond par
+   *  client : sans elle, le refus n'arriverait qu'au moment de payer. */
+  customerPhone?: string | null;
+  customerEmail?: string | null;
   items: BasketItem[];
   appliedPromo: AppliedPromo | null;
   discount: number;
@@ -32,7 +36,8 @@ interface PromoCodeFieldProps {
 
 interface PromoLookupResult {
   found: boolean;
-  reason?: 'not_found' | 'inactive' | 'expired' | 'not_yet_valid' | 'exhausted';
+  reason?: 'not_found' | 'inactive' | 'expired' | 'not_yet_valid' | 'exhausted'
+    | 'customer_limit_reached';
   id?: string;
   code?: string;
   discount_type?: 'percentage' | 'fixed_amount';
@@ -59,6 +64,8 @@ function getAttemptKey(): string {
 
 export function PromoCodeField({
   hotelId,
+  customerPhone,
+  customerEmail,
   items,
   appliedPromo,
   discount,
@@ -87,6 +94,8 @@ export function PromoCodeField({
         _hotel_id: hotelId,
         _code: normalizeVoucherCode(code),
         _attempt_key: getAttemptKey(),
+        _phone: customerPhone || null,
+        _email: customerEmail || null,
       });
 
       if (rpcError) {
@@ -105,6 +114,8 @@ export function PromoCodeField({
           setError(t('promoCode.errorExpired'));
         } else if (result?.reason === 'exhausted') {
           setError(t('promoCode.errorExhausted'));
+        } else if (result?.reason === 'customer_limit_reached') {
+          setError(t('promoCode.errorCustomerLimit'));
         } else {
           setError(t('promoCode.errorNotFound'));
         }

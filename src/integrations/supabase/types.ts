@@ -2546,6 +2546,7 @@ export type Database = {
           hotel_id: string | null
           id: string
           is_active: boolean
+          max_per_customer: number | null
           max_redemptions: number | null
           organization_id: string
           redemption_count: number
@@ -2564,6 +2565,7 @@ export type Database = {
           hotel_id?: string | null
           id?: string
           is_active?: boolean
+          max_per_customer?: number | null
           max_redemptions?: number | null
           organization_id: string
           redemption_count?: number
@@ -2582,6 +2584,7 @@ export type Database = {
           hotel_id?: string | null
           id?: string
           is_active?: boolean
+          max_per_customer?: number | null
           max_redemptions?: number | null
           organization_id?: string
           redemption_count?: number
@@ -5184,7 +5187,13 @@ export type Database = {
         }[]
       }
       lookup_promo_code: {
-        Args: { _attempt_key: string; _code: string; _hotel_id: string }
+        Args: {
+          _attempt_key: string
+          _code: string
+          _email?: string
+          _hotel_id: string
+          _phone?: string
+        }
         Returns: Json
       }
       mark_checkout_intent_converted: {
@@ -5203,6 +5212,15 @@ export type Database = {
       organization_has_active_billing: {
         Args: { _org: string }
         Returns: boolean
+      }
+      promo_customer_usage_count: {
+        Args: {
+          _email: string
+          _org_id: string
+          _phone: string
+          _promo_code_id: string
+        }
+        Returns: number
       }
       reactivate_prereservation: {
         Args: { _booking_id: string }

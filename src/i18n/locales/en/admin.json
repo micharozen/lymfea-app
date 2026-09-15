@@ -2970,7 +2970,10 @@
     "colDiscount": "Discount",
     "noRedemption": "This code has not been used yet",
     "pickVenue": "Pick a venue…",
-    "pickVenueHint": "In the all-organisations view, the venue determines the code's organisation."
+    "pickVenueHint": "In the all-organisations view, the venue determines the code's organisation.",
+    "fieldMaxPerCustomer": "Maximum uses per guest",
+    "fieldMaxPerCustomerHint": "Leave empty for no limit. A guest is recognised by phone or email.",
+    "perCustomer": "{{count}}/guest"
   },
   "organizationDetail": {
     "notFound": "Organisation not found",

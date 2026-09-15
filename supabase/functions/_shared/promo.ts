@@ -80,13 +80,16 @@ export async function fetchPromoCodeById(
   supabase: SupabaseClient,
   promoCodeId: string | null | undefined,
   hotelId: string,
+  /** Identité du client, pour le plafond par client. Le tunnel étant public,
+   *  un client est reconnu par son téléphone ou son email. */
+  customer?: { phone?: string | null; email?: string | null },
 ): Promise<PromoCode | null> {
   if (!promoCodeId) return null;
 
   const { data: promo, error } = await supabase
     .from("promo_codes")
     .select(
-      "id, code, discount_type, discount_value, hotel_id, organization_id, is_active, valid_from, valid_until, max_redemptions, redemption_count",
+      "id, code, discount_type, discount_value, hotel_id, organization_id, is_active, valid_from, valid_until, max_redemptions, max_per_customer, redemption_count",
     )
     .eq("id", promoCodeId)
     .maybeSingle();
@@ -108,6 +111,18 @@ export async function fetchPromoCodeById(
   if (promo.valid_until && now > new Date(promo.valid_until).getTime()) return null;
   if (promo.max_redemptions !== null && promo.redemption_count >= promo.max_redemptions) {
     return null;
+  }
+
+  // Plafond par client. Sans identité transmise, on laisse passer ici :
+  // redeem_promo_code revérifie avec le customer_id réel avant de consommer.
+  if (promo.max_per_customer !== null && (customer?.phone || customer?.email)) {
+    const { data: used } = await supabase.rpc("promo_customer_usage_count", {
+      _promo_code_id: promo.id,
+      _org_id: promo.organization_id,
+      _phone: customer.phone ?? null,
+      _email: customer.email ?? null,
+    });
+    if ((Number(used) || 0) >= promo.max_per_customer) return null;
   }
 
   const { data: rows } = await supabase

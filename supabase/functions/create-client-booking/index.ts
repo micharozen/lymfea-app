@@ -706,7 +706,10 @@ try {
     let promoDiscount = 0;
     let promoCode = null;
     if (promoCodeId && basePrice > 0) {
-      promoCode = await fetchPromoCodeById(supabase, promoCodeId, hotelId);
+      promoCode = await fetchPromoCodeById(supabase, promoCodeId, hotelId, {
+        phone: clientData.phone,
+        email: clientData.email,
+      });
       if (promoCode) {
         const catalogLines = await resolveCatalogLines(supabase, treatments);
         promoDiscount = computePromoDiscount(catalogLines, promoCode).discount;

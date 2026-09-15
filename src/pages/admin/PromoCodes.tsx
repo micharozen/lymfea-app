@@ -331,6 +331,11 @@ export default function PromoCodes() {
                           {promo.max_redemptions !== null && (
                             <span className="text-muted-foreground"> / {promo.max_redemptions}</span>
                           )}
+                          {promo.max_per_customer !== null && (
+                            <span className="text-muted-foreground text-xs ml-1.5">
+                              ({t('promoCodesPage.perCustomer', { count: promo.max_per_customer })})
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="py-0 px-2 h-10 max-h-10 whitespace-nowrap font-medium">
                           {formatPrice(promo.total_discount_cents / 100, "EUR")}
