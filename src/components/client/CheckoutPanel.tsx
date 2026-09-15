@@ -628,24 +628,6 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
         </div>
       )}
 
-      {/* Code promo — même emplacement que l'avoir, avant le récapitulatif */}
-      {!isOffert && !isBundleOnlyPurchase && !hasPriceOnRequest && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <PromoCodeField
-          hotelId={hotelId}
-          customerPhone={clientInfo ? `${clientInfo.countryCode}${clientInfo.phone}` : null}
-          customerEmail={clientInfo?.email ?? null}
-          items={items}
-          appliedPromo={appliedPromo}
-          discount={promoDiscount}
-          currencySymbol={(items[0]?.currency || 'EUR') === 'EUR' ? '€' : (items[0]?.currency || 'EUR')}
-          onApply={setAppliedPromo}
-          onRemove={() => setAppliedPromo(null)}
-          disabled={isProcessing}
-        />
-        </div>
-      )}
-
       {/* Gift card / cure selector (bundles loaded from GuestInfo login) */}
       {!selectedBundle && !isBundleOnlyPurchase && !isOffert && authBundles && (
         <GiftCardSelector
@@ -828,8 +810,19 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
             <span className="text-gray-500">
               {t('promoCode.summaryLine', { code: appliedPromo.code })}
             </span>
-            <span className="font-medium text-emerald-600">
-              −{formatPrice(promoDiscount, items[0]?.currency || 'EUR')}
+            <span className="flex items-center gap-1.5">
+              <span className="font-medium text-emerald-600">
+                −{formatPrice(promoDiscount, items[0]?.currency || 'EUR')}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAppliedPromo(null)}
+                disabled={isProcessing}
+                aria-label={t('promoCode.remove')}
+                className="text-gray-300 hover:text-gray-900 transition-colors disabled:opacity-50"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </span>
           </div>
         )}
@@ -869,6 +862,23 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
             <span className="text-gold-600 text-lg font-serif">{formatPrice(applyPromo(totalWithSurcharge), items[0]?.currency || 'EUR')}</span>
           )}
         </div>
+
+        {/* Code promo — sous le total, discret : on voit d'abord le prix, puis
+            de quoi le réduire. Le composant s'efface une fois le code appliqué. */}
+        {!isOffert && !isBundleOnlyPurchase && !hasPriceOnRequest && (
+          <PromoCodeField
+            hotelId={hotelId}
+            customerPhone={clientInfo ? `${clientInfo.countryCode}${clientInfo.phone}` : null}
+            customerEmail={clientInfo?.email ?? null}
+            items={items}
+            appliedPromo={appliedPromo}
+            discount={promoDiscount}
+            currencySymbol={(items[0]?.currency || 'EUR') === 'EUR' ? '€' : (items[0]?.currency || 'EUR')}
+            onApply={setAppliedPromo}
+            onRemove={() => setAppliedPromo(null)}
+            disabled={isProcessing}
+          />
+        )}
       </div>
 
       {/* Payment Method Selection */}
