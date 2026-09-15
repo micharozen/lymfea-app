@@ -124,7 +124,7 @@ CREATE POLICY "Admins can view all admins" ON "public"."admins" FOR SELECT TO "a
 
 CREATE POLICY "Admins can view all booking treatments" ON "public"."booking_treatments" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
 
-CREATE POLICY "Admins can view all bookings" ON "public"."bookings" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
+CREATE POLICY "Admins can view all bookings" ON "public"."bookings" FOR SELECT USING ("public"."has_role"(( SELECT "auth"."uid"() AS "uid"), 'admin'::"public"."app_role"));
 
 CREATE POLICY "Admins can view all concierge hotels" ON "public"."concierge_hotels" FOR SELECT TO "authenticated" USING ("public"."has_role"("auth"."uid"(), 'admin'::"public"."app_role"));
 
@@ -271,8 +271,8 @@ CREATE POLICY "Concierges can view booking_therapists for their hotels" ON "publ
      JOIN "public"."concierge_hotels" "ch" ON (("ch"."hotel_id" = "b"."hotel_id")))
   WHERE (("b"."id" = "booking_therapists"."booking_id") AND ("ch"."concierge_id" = "auth"."uid"()))))));
 
-CREATE POLICY "Concierges can view bookings from their hotels" ON "public"."bookings" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
-   FROM "public"."get_concierge_hotels"("auth"."uid"()) "get_concierge_hotels"("hotel_id")))));
+CREATE POLICY "Concierges can view bookings from their hotels" ON "public"."bookings" FOR SELECT USING (("public"."has_role"(( SELECT "auth"."uid"() AS "uid"), 'concierge'::"public"."app_role") AND ("hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
+   FROM "public"."get_concierge_hotels"(( SELECT "auth"."uid"() AS "uid")) "get_concierge_hotels"("hotel_id")))));
 
 CREATE POLICY "Concierges can view bundle usages" ON "public"."bundle_session_usages" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role"));
 
@@ -333,9 +333,8 @@ CREATE POLICY "Concierges can view treatment rooms from their hotels (read-onl" 
 CREATE POLICY "Concierges can view venue amenities for their hotels" ON "public"."venue_amenities" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'concierge'::"public"."app_role") AND ("hotel_id" IN ( SELECT "get_concierge_hotels"."hotel_id"
    FROM "public"."get_concierge_hotels"("auth"."uid"()) "get_concierge_hotels"("hotel_id")))));
 
-CREATE POLICY "Customer can read own bookings" ON "public"."bookings" FOR SELECT TO "authenticated" USING (("customer_id" IN ( SELECT "customers"."id"
-   FROM "public"."customers"
-  WHERE ("customers"."auth_user_id" = "auth"."uid"()))));
+CREATE POLICY "Customer can read own bookings" ON "public"."bookings" FOR SELECT TO "authenticated" USING (("customer_id" IN ( SELECT "get_customer_ids_for_user"."customer_id"
+   FROM "public"."get_customer_ids_for_user"(( SELECT "auth"."uid"() AS "uid")) "get_customer_ids_for_user"("customer_id"))));
 
 CREATE POLICY "Customer can read own bundles" ON "public"."customer_treatment_bundles" FOR SELECT TO "authenticated" USING (("beneficiary_customer_id" IN ( SELECT "customers"."id"
    FROM "public"."customers"
@@ -392,9 +391,7 @@ CREATE POLICY "Hairdressers can view proposed slots" ON "public"."booking_propos
      JOIN "public"."therapists" "h" ON (("hh"."therapist_id" = "h"."id")))
   WHERE ("h"."user_id" = "auth"."uid"()))));
 
-CREATE POLICY "Hairdressers can view their own bookings" ON "public"."bookings" FOR SELECT TO "authenticated" USING (("therapist_id" IN ( SELECT "therapists"."id"
-   FROM "public"."therapists"
-  WHERE ("therapists"."user_id" = "auth"."uid"()))));
+CREATE POLICY "Hairdressers can view their own bookings" ON "public"."bookings" FOR SELECT TO "authenticated" USING (("therapist_id" = "public"."get_therapist_id"(( SELECT "auth"."uid"() AS "uid"))));
 
 CREATE POLICY "Hairdressers can view their own notifications" ON "public"."notifications" FOR SELECT USING (("user_id" IN ( SELECT "therapists"."user_id"
    FROM "public"."therapists"
@@ -476,7 +473,7 @@ CREATE POLICY "Therapists can view booking_therapists for awaiting bookings at" 
      JOIN "public"."therapist_venues" "tv" ON (("tv"."hotel_id" = "b"."hotel_id")))
   WHERE (("b"."id" = "booking_therapists"."booking_id") AND ("b"."status" = 'pending'::"text") AND (("b"."guest_count" > 1) OR "public"."booking_has_open_leg"("b"."id")) AND ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"())) AND (NOT ("public"."get_therapist_id"("auth"."uid"()) = ANY (COALESCE("b"."declined_by", ARRAY[]::"uuid"[]))))))));
 
-CREATE POLICY "Therapists can view bookings they joined as secondary" ON "public"."bookings" FOR SELECT TO "authenticated" USING ("public"."is_booking_participant"("id", "public"."get_therapist_id"("auth"."uid"())));
+CREATE POLICY "Therapists can view bookings they joined as secondary" ON "public"."bookings" FOR SELECT TO "authenticated" USING (("public"."has_role"(( SELECT "auth"."uid"() AS "uid"), 'therapist'::"public"."app_role") AND "public"."is_booking_participant"("id", "public"."get_therapist_id"(( SELECT "auth"."uid"() AS "uid")))));
 
 CREATE POLICY "Therapists can view bundle usages" ON "public"."bundle_session_usages" FOR SELECT USING ("public"."has_role"("auth"."uid"(), 'therapist'::"public"."app_role"));
 
@@ -506,9 +503,9 @@ CREATE POLICY "Therapists can view own invoices" ON "public"."invoices" FOR SELE
    FROM "public"."therapists"
   WHERE ("therapists"."user_id" = "auth"."uid"()))));
 
-CREATE POLICY "Therapists can view pending bookings from their hotels" ON "public"."bookings" FOR SELECT USING (("public"."has_role"("auth"."uid"(), 'therapist'::"public"."app_role") AND ("status" = 'pending'::"text") AND (("therapist_id" IS NULL) OR ("guest_count" > 1) OR "public"."booking_has_open_leg"("id")) AND ("hotel_id" IN ( SELECT "tv"."hotel_id"
+CREATE POLICY "Therapists can view pending bookings from their hotels" ON "public"."bookings" FOR SELECT USING (("public"."has_role"(( SELECT "auth"."uid"() AS "uid"), 'therapist'::"public"."app_role") AND ("status" = 'pending'::"text") AND (("therapist_id" IS NULL) OR ("guest_count" > 1) OR "public"."booking_has_open_leg"("id")) AND ("hotel_id" IN ( SELECT "tv"."hotel_id"
    FROM "public"."therapist_venues" "tv"
-  WHERE ("tv"."therapist_id" = "public"."get_therapist_id"("auth"."uid"())))) AND (NOT ("public"."get_therapist_id"("auth"."uid"()) = ANY (COALESCE("declined_by", ARRAY[]::"uuid"[]))))));
+  WHERE ("tv"."therapist_id" = "public"."get_therapist_id"(( SELECT "auth"."uid"() AS "uid"))))) AND (NOT ("public"."get_therapist_id"(( SELECT "auth"."uid"() AS "uid")) = ANY (COALESCE("declined_by", ARRAY[]::"uuid"[]))))));
 
 CREATE POLICY "Therapists can view their own hotel associations" ON "public"."therapist_venues" FOR SELECT TO "authenticated" USING (("therapist_id" = "public"."get_therapist_id"("auth"."uid"())));
 
