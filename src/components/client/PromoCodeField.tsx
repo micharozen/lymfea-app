@@ -162,9 +162,9 @@ export function PromoCodeField({
   if (appliedPromo) {
     return (
       <div className="space-y-2">
-        <p className="text-xs uppercase tracking-widest text-gray-500 font-medium">
+        <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
           {t('promoCode.title')}
-        </p>
+        </h4>
         <div className="flex items-center gap-3 h-12 px-3 rounded-lg border border-gray-200 bg-gray-50">
           <BadgePercent className="w-4 h-4 text-gray-400 flex-shrink-0" />
           <div className="flex-1 min-w-0 flex items-baseline gap-2">
@@ -203,9 +203,11 @@ export function PromoCodeField({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs uppercase tracking-widest text-gray-500 font-medium">
+      {/* h4 et non p : dans .lymfea-client, les titres portent la police de
+          titre du lieu — un p prendrait la police de corps. */}
+      <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
         {t('promoCode.title')}
-      </p>
+      </h4>
 
       <div className="flex gap-2">
         <Input
