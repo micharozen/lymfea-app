@@ -1,5 +1,6 @@
 import { isInBlockedSlot } from "../../_shared/blocked-slots.ts";
 import { computeOutOfHoursSurcharge } from "../../_shared/surcharge.ts";
+import { computePromoDiscount, fetchPromoCodeById, promoLabelSuffix } from "../../_shared/promo.ts";
 import { resolveVerifiedPmsGuest } from "../../_shared/pms-verify.ts";
 import { computeSlotDuration, fetchAddonTreatmentIds } from "../../_shared/bookingTreatmentLines.ts";
 import { deriveClientFlowClientType } from "../../_shared/client-type.ts";
@@ -18,6 +19,8 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+type TreatmentPayloadLine = { treatmentId?: string; id?: string; variantId?: string | null; quantity?: number | string | null };
+
 export async function handleCreateSetupIntent(
   ctx: ActionContext,
 ): Promise<Response> {
@@ -32,6 +35,7 @@ export async function handleCreateSetupIntent(
     therapistGender,
     draftBookingId,
     giftAmountUsage,
+    promoCodeId,
     guestCount,
     amenityTiming,
     isMulti,
@@ -149,6 +153,25 @@ export async function handleCreateSetupIntent(
     rawTotalPrice += unit.price * Math.max(1, Number(tPayload.quantity) || 1);
   }
 
+  // Promo code: re-resolved from its id, so the discount is computed from the
+  // catalog and the code's own rules — never from anything the client sent.
+  // Only the lines the code targets form its base.
+  const promo = await fetchPromoCodeById(supabase, promoCodeId, hotelId, {
+    phone: clientData.phone,
+    email: clientData.email,
+  });
+  const promoLines = safeTreatmentsPayload
+    .map((tPayload: TreatmentPayloadLine) => {
+      const unit = unitOf(tPayload);
+      if (!unit) return null;
+      return {
+        treatmentId: tPayload.treatmentId || tPayload.id,
+        lineTotal: unit.price * Math.max(1, Number(tPayload.quantity) || 1),
+      };
+    })
+    .filter(Boolean) as { treatmentId: string; lineTotal: number }[];
+  const { discount: promoDiscount } = computePromoDiscount(promoLines, promo);
+
   const durationLines = safeTreatmentsPayload.filter((t: any) => unitOf(t) !== null);
   const totalDuration = computeSlotDuration(
     durationLines,
@@ -160,7 +183,14 @@ export async function handleCreateSetupIntent(
   const giftDeductionEuros = giftAmountUsage?.amountCents
     ? Math.round(giftAmountUsage.amountCents / 100)
     : 0;
-  const verifiedTotalPrice = Math.max(rawTotalPrice - giftDeductionEuros, 0);
+  const verifiedTotalPrice = Math.max(rawTotalPrice - promoDiscount - giftDeductionEuros, 0);
+
+  // A promo may not zero out a card payment: a 0 € Checkout Session is a path
+  // we do not support. Fully comped treatments go through the venue's `offert`
+  // mode instead.
+  if (verifiedTotalPrice <= 0 && promoDiscount > 0 && !giftAmountUsage) {
+    return jsonResponse({ error: "PROMO_COVERS_FULL_AMOUNT" }, 400);
+  }
 
   if (verifiedTotalPrice <= 0 && !giftAmountUsage) {
     throw new Error(`Invalid total price calculated (Total was ${rawTotalPrice}€).`);
@@ -289,7 +319,10 @@ export async function handleCreateSetupIntent(
           {
             price_data: {
               currency,
-              product_data: { name: hotel.name ? `Réservation soin — ${hotel.name}` : "Réservation soin" },
+              product_data: {
+                name: (hotel.name ? `Réservation soin — ${hotel.name}` : "Réservation soin") +
+                  promoLabelSuffix(promo, promoDiscount, currency),
+              },
               unit_amount: Math.round(finalTotalPrice * 100),
             },
             quantity: 1,
@@ -335,6 +368,9 @@ export async function handleCreateSetupIntent(
             giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
             giftAmountCents: String(giftAmountUsage.amountCents),
           }
+        : {}),
+      ...(promo && promoDiscount > 0
+        ? { promoCodeId: promo.id, promoDiscountCents: String(Math.round(promoDiscount * 100)) }
         : {}),
       isOutOfHours: surcharge.isOutOfHours ? "1" : "0",
       surchargeAmount: String(surcharge.surchargeAmount),

@@ -773,6 +773,8 @@ export type Database = {
           pms_error_message: string | null
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
+          promo_code_id: string | null
+          promo_discount_cents: number
           quote_token: string | null
           reconfirm_until: string | null
           room_id: string | null
@@ -841,6 +843,8 @@ export type Database = {
           pms_error_message?: string | null
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
+          promo_code_id?: string | null
+          promo_discount_cents?: number
           quote_token?: string | null
           reconfirm_until?: string | null
           room_id?: string | null
@@ -909,6 +913,8 @@ export type Database = {
           pms_error_message?: string | null
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
+          promo_code_id?: string | null
+          promo_discount_cents?: number
           quote_token?: string | null
           reconfirm_until?: string | null
           room_id?: string | null
@@ -955,6 +961,13 @@ export type Database = {
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
             referencedColumns: ["id"]
           },
           {
@@ -2438,6 +2451,204 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      promo_code_redemptions: {
+        Row: {
+          booking_id: string
+          customer_id: string | null
+          discount_amount_cents: number
+          hotel_id: string | null
+          id: string
+          promo_code_id: string
+          redeemed_at: string
+        }
+        Insert: {
+          booking_id: string
+          customer_id?: string | null
+          discount_amount_cents: number
+          hotel_id?: string | null
+          id?: string
+          promo_code_id: string
+          redeemed_at?: string
+        }
+        Update: {
+          booking_id?: string
+          customer_id?: string | null
+          discount_amount_cents?: number
+          hotel_id?: string | null
+          id?: string
+          promo_code_id?: string
+          redeemed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_code_redemptions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_code_redemptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_code_redemptions_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_code_treatments: {
+        Row: {
+          promo_code_id: string
+          treatment_id: string
+        }
+        Insert: {
+          promo_code_id: string
+          treatment_id: string
+        }
+        Update: {
+          promo_code_id?: string
+          treatment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_code_treatments_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_code_treatments_treatment_id_fkey"
+            columns: ["treatment_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_codes: {
+        Row: {
+          code: string
+          code_normalized: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_type: string
+          discount_value: number
+          hotel_id: string | null
+          id: string
+          is_active: boolean
+          max_per_customer: number | null
+          max_redemptions: number | null
+          organization_id: string
+          redemption_count: number
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          code_normalized: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          hotel_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_per_customer?: number | null
+          max_redemptions?: number | null
+          organization_id: string
+          redemption_count?: number
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          code_normalized?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          hotel_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_per_customer?: number | null
+          max_redemptions?: number | null
+          organization_id?: string
+          redemption_count?: number
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_codes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_delivery_logs: {
+        Row: {
+          booking_id: string | null
+          error: string | null
+          id: string
+          notification_type: string | null
+          onesignal_notification_id: string | null
+          sent_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          error?: string | null
+          id?: string
+          notification_type?: string | null
+          onesignal_notification_id?: string | null
+          sent_at?: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          error?: string | null
+          id?: string
+          notification_type?: string | null
+          onesignal_notification_id?: string | null
+          sent_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_delivery_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_notification_logs: {
         Row: {
@@ -4167,6 +4378,8 @@ export type Database = {
           pms_error_message: string | null
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
+          promo_code_id: string | null
+          promo_discount_cents: number
           quote_token: string | null
           reconfirm_until: string | null
           room_id: string | null
@@ -4250,6 +4463,8 @@ export type Database = {
           pms_error_message: string | null
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
+          promo_code_id: string | null
+          promo_discount_cents: number
           quote_token: string | null
           reconfirm_until: string | null
           room_id: string | null
@@ -4278,6 +4493,14 @@ export type Database = {
       }
       booking_has_open_leg: { Args: { _booking_id: string }; Returns: boolean }
       can_access_customer: { Args: { _customer_id: string }; Returns: boolean }
+      can_access_customer_row: {
+        Args: {
+          _auth_user_id: string
+          _customer_id: string
+          _organization_id: string
+        }
+        Returns: boolean
+      }
       can_assign_therapist_to_booking: {
         Args: { _booking_id: string; _target_therapist_id: string }
         Returns: boolean
@@ -4589,10 +4812,22 @@ export type Database = {
           unique_sessions: number
         }[]
       }
+      get_concierge_customer_ids: {
+        Args: { _user_id: string }
+        Returns: {
+          customer_id: string
+        }[]
+      }
       get_concierge_hotels: {
         Args: { _user_id: string }
         Returns: {
           hotel_id: string
+        }[]
+      }
+      get_customer_ids_for_user: {
+        Args: { _user_id: string }
+        Returns: {
+          customer_id: string
         }[]
       }
       get_customer_portal_data: { Args: { _hotel_id?: string }; Returns: Json }
@@ -4631,6 +4866,15 @@ export type Database = {
       get_payment_stripe_secrets: {
         Args: { p_hotel_id: string }
         Returns: Json
+      }
+      get_promo_code_stats: {
+        Args: { _promo_code_ids: string[] }
+        Returns: {
+          last_redeemed_at: string
+          promo_code_id: string
+          redemptions: number
+          total_discount_cents: number
+        }[]
       }
       get_public_booking: {
         Args: { p_token: string }
@@ -4871,6 +5115,12 @@ export type Database = {
           session_count: number
         }[]
       }
+      get_therapist_customer_ids: {
+        Args: { _user_id: string }
+        Returns: {
+          customer_id: string
+        }[]
+      }
       get_therapist_id: { Args: { _user_id: string }; Returns: string }
       get_user_org_id: { Args: { _user_id: string }; Returns: string }
       get_user_organization_id: { Args: { _user_id: string }; Returns: string }
@@ -4936,6 +5186,16 @@ export type Database = {
           total_sessions: number
         }[]
       }
+      lookup_promo_code: {
+        Args: {
+          _attempt_key: string
+          _code: string
+          _email?: string
+          _hotel_id: string
+          _phone?: string
+        }
+        Returns: Json
+      }
       mark_checkout_intent_converted: {
         Args: { _booking_id: string; _intent_id: string }
         Returns: undefined
@@ -4953,9 +5213,28 @@ export type Database = {
         Args: { _org: string }
         Returns: boolean
       }
+      promo_customer_usage_count: {
+        Args: {
+          _email: string
+          _org_id: string
+          _phone: string
+          _promo_code_id: string
+        }
+        Returns: number
+      }
       reactivate_prereservation: {
         Args: { _booking_id: string }
         Returns: boolean
+      }
+      redeem_promo_code: {
+        Args: {
+          _booking_id: string
+          _customer_id: string
+          _discount_cents: number
+          _hotel_id: string
+          _promo_code_id: string
+        }
+        Returns: Json
       }
       reschedule_booking_public: {
         Args: { p_new_date: string; p_new_time: string; p_token: string }

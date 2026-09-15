@@ -21,6 +21,8 @@ import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { HoldBanner } from '@/components/client/HoldBanner';
+import { PromoCodeField } from '@/components/client/PromoCodeField';
+import { useCartPromoDiscount } from '@/hooks/useCartPromoDiscount';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
 import { redirectToCheckout } from '@/lib/stripeCheckoutUrl';
 import { buildMultiBookingItems, totalTreatmentCount } from '@/lib/multiTimeBooking';
@@ -32,7 +34,7 @@ export default function Payment() {
   const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
-  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles, giftInfo, scheduleMode, perItemSchedule, amenityTiming, groupId, bookingIds, checkoutIntentId } = useClientFlow();
+  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, appliedPromo, setAppliedPromo, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles, giftInfo, scheduleMode, perItemSchedule, amenityTiming, groupId, bookingIds, checkoutIntentId } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
 
   useEffect(() => {
@@ -139,6 +141,11 @@ export default function Payment() {
   const totalWithSurcharge = total + surcharge.surchargeAmount;
   const uncoveredTotalWithSurcharge = uncoveredTotal + surchargeUncovered.surchargeAmount;
   const fixedTotalWithSurcharge = fixedTotal + computeOutOfHoursSurcharge(bookingDateTime?.time, fixedTotal, hotel).surchargeAmount;
+
+  // Remise du code promo, dérivée du panier à chaque rendu (affichage — le
+  // serveur recalcule et fait foi).
+  const promoDiscount = useCartPromoDiscount(items, appliedPromo);
+  const applyPromo = (amount: number) => Math.max(0, amount - promoDiscount);
 
   const handlePayment = async () => {
     if (!clientInfo) {
@@ -371,6 +378,7 @@ export default function Payment() {
           treatmentIds: items.map(item => item.id),
           treatments: buildTreatmentsPayload(items),
           totalPrice: total,
+          ...(appliedPromo ? { promoCodeId: appliedPromo.id } : {}),
           language: languageFromCountryCode(clientInfo.countryCode),
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
@@ -421,6 +429,7 @@ export default function Payment() {
               groupId,
               paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
               totalPrice: fixedTotal,
+              ...(appliedPromo ? { promoCodeId: appliedPromo.id } : {}),
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
             }
@@ -431,6 +440,7 @@ export default function Payment() {
               treatments: buildTreatmentsPayload(items),
               paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
               totalPrice: fixedTotal,
+              ...(appliedPromo ? { promoCodeId: appliedPromo.id } : {}),
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
@@ -670,6 +680,28 @@ export default function Payment() {
             )}
           </div>
 
+          {promoDiscount > 0 && appliedPromo && (
+            <div className="flex justify-between items-center text-sm px-0">
+              <span className="text-gray-500">
+                {t('promoCode.summaryLine', { code: appliedPromo.code })}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="font-medium text-emerald-600">
+                  −{formatPrice(promoDiscount, items[0]?.currency || 'EUR')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAppliedPromo(null)}
+                  disabled={isProcessing}
+                  aria-label={t('promoCode.remove')}
+                  className="text-gray-300 hover:text-gray-900 transition-colors disabled:opacity-50"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            </div>
+          )}
+
           <div className="h-px w-full bg-gray-100" />
 
           <div className="flex justify-between items-end">
@@ -693,15 +725,32 @@ export default function Payment() {
               )}
               <span className="text-xl font-serif font-semibold text-gray-900">
                 {selectedBundle
-                  ? formatPrice(uncoveredTotalWithSurcharge, items[0]?.currency || 'EUR')
+                  ? formatPrice(applyPromo(uncoveredTotalWithSurcharge), items[0]?.currency || 'EUR')
                   : isOffert
                     ? formatPrice(0, items[0]?.currency || 'EUR')
-                    : formatPrice(hasPriceOnRequest ? fixedTotalWithSurcharge : totalWithSurcharge, items[0]?.currency || 'EUR')
+                    : formatPrice(applyPromo(hasPriceOnRequest ? fixedTotalWithSurcharge : totalWithSurcharge), items[0]?.currency || 'EUR')
                 }
                 {hasPriceOnRequest && !selectedBundle && <span className="text-xs text-amber-500 ml-1">+ Devis</span>}
               </span>
             </div>
           </div>
+
+          {/* Code promo — sous le total, discret : on voit d'abord le prix, puis
+              de quoi le réduire. Le composant s'efface une fois le code appliqué. */}
+          {!isOffert && !isBundleOnlyPurchase && !hasPriceOnRequest && (
+            <PromoCodeField
+              hotelId={hotelId}
+              customerPhone={clientInfo ? `${clientInfo.countryCode}${clientInfo.phone}` : null}
+              customerEmail={clientInfo?.email ?? null}
+              items={items}
+              appliedPromo={appliedPromo}
+              discount={promoDiscount}
+              currencySymbol={(items[0]?.currency || 'EUR') === 'EUR' ? '€' : (items[0]?.currency || 'EUR')}
+              onApply={setAppliedPromo}
+              onRemove={() => setAppliedPromo(null)}
+              disabled={isProcessing}
+            />
+          )}
         </div>
 
         {/* Message de réassurance (Bouclier) */}

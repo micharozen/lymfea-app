@@ -281,6 +281,8 @@ const BOOKING_LIST_COLUMNS = [
   "payment_reference",
   "payment_status",
   "phone",
+  "promo_code_id",
+  "promo_discount_cents",
   "pms_charge_id",
   "pms_charge_status",
   "pms_error_message",

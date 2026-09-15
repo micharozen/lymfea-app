@@ -154,3 +154,84 @@ export function computePricing(
     verifiedTotalPrice,
   };
 }
+
+// deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseClient = any;
+
+/** Une ligne de panier avec son prix catalogue résolu, quantité comprise. */
+export interface PricedCatalogLine {
+  treatmentId: string;
+  variantId: string | null;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+/**
+ * Résout le prix de chaque ligne du panier depuis la base, jamais depuis ce que
+ * le client a envoyé.
+ *
+ * `computePricing` ci-dessus suppose que l'appelant a déjà chargé les soins et
+ * les variantes (cas des actions Stripe). `create-client-booking` ne les charge
+ * pas — il ne reçoit qu'un total — d'où cette variante qui fait elle-même les
+ * lectures, et qui porte la quantité ligne à ligne dont a besoin l'assiette
+ * d'un code promo.
+ *
+ * Les lignes dont le soin est absent du catalogue sont ignorées : on calcule
+ * une assiette de remise, pas une validation de panier (voir
+ * `validateTreatments` pour cela).
+ */
+export async function resolveCatalogLines(
+  supabase: SupabaseClient,
+  lines: ReadonlyArray<TreatmentPayloadItem & { quantity?: number | string | null }>,
+): Promise<PricedCatalogLine[]> {
+  const treatmentIds = [
+    ...new Set((lines || []).map((l) => l.treatmentId || l.id).filter(Boolean)),
+  ] as string[];
+  if (treatmentIds.length === 0) return [];
+
+  const { data: treatments } = await supabase
+    .from("treatment_menus")
+    .select("id, price")
+    .in("id", treatmentIds);
+
+  const priceById = new Map<string, number>(
+    (treatments || []).map((t: { id: string; price: number | null }) => [t.id, t.price ?? 0]),
+  );
+
+  const variantIds = [
+    ...new Set((lines || []).map((l) => l.variantId).filter(Boolean)),
+  ] as string[];
+
+  const variantPriceById = new Map<string, number | null>();
+  if (variantIds.length > 0) {
+    const { data: variants } = await supabase
+      .from("treatment_variants")
+      .select("id, price")
+      .in("id", variantIds);
+    for (const v of (variants || []) as VariantRow[]) {
+      variantPriceById.set(v.id, v.price);
+    }
+  }
+
+  const priced: PricedCatalogLine[] = [];
+  for (const line of lines || []) {
+    const treatmentId = line.treatmentId || line.id;
+    if (!treatmentId || !priceById.has(treatmentId)) continue;
+
+    const quantity = Math.max(1, Number(line.quantity) || 1);
+    // La variante prime sur le soin, même règle que confirm-setup-intent.
+    const unitPrice = (line.variantId ? variantPriceById.get(line.variantId) : null) ??
+      priceById.get(treatmentId) ?? 0;
+
+    priced.push({
+      treatmentId,
+      variantId: line.variantId ?? null,
+      quantity,
+      unitPrice,
+      lineTotal: unitPrice * quantity,
+    });
+  }
+  return priced;
+}
