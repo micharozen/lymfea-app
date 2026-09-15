@@ -1468,6 +1468,20 @@ $$;
 
 ALTER FUNCTION "public"."get_concierge_hotels"("_user_id" "uuid") OWNER TO "postgres";
 
+CREATE OR REPLACE FUNCTION "public"."get_customer_ids_for_user"("_user_id" "uuid") RETURNS TABLE("customer_id" "uuid")
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+  SELECT c.id
+  FROM public.customers c
+  WHERE c.auth_user_id = _user_id
+    AND _user_id IS NOT NULL;
+$$;
+
+ALTER FUNCTION "public"."get_customer_ids_for_user"("_user_id" "uuid") OWNER TO "postgres";
+
+COMMENT ON FUNCTION "public"."get_customer_ids_for_user"("_user_id" "uuid") IS 'Fiches clients rattachées à un compte de connexion, toutes organisations confondues. SECURITY DEFINER : appelée depuis les policies, elle évite une RLS imbriquée sur `customers` (Seq Scan de toute la table à chaque requête).';
+
 CREATE OR REPLACE FUNCTION "public"."get_customer_portal_data"() RETURNS json
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -3918,6 +3932,11 @@ GRANT ALL ON FUNCTION "public"."get_concierge_hotels"("_user_id" "uuid") TO "aut
 
 GRANT ALL ON FUNCTION "public"."get_concierge_hotels"("_user_id" "uuid") TO "service_role";
 
+GRANT ALL ON FUNCTION "public"."get_customer_ids_for_user"("_user_id" "uuid") TO "anon";
+
+GRANT ALL ON FUNCTION "public"."get_customer_ids_for_user"("_user_id" "uuid") TO "authenticated";
+
+GRANT ALL ON FUNCTION "public"."get_customer_ids_for_user"("_user_id" "uuid") TO "service_role";
 GRANT ALL ON FUNCTION "public"."get_customer_portal_data"() TO "anon";
 
 GRANT ALL ON FUNCTION "public"."get_customer_portal_data"() TO "authenticated";
