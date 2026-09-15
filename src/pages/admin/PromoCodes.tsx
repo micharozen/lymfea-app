@@ -239,7 +239,9 @@ export default function PromoCodes() {
               <Table className="text-sm w-full table-fixed min-w-[900px]">
                 <TableHeader>
                   <TableRow className="bg-muted/20 h-8">
-                    <SortableTableHead column="code" sortDirection={getSortDirection("code")} onSort={toggleSort}>
+                    {/* Le code et son statut tiennent sur une ligne : sans largeur
+                        explicite, table-fixed rogne l'un ou l'autre. */}
+                    <SortableTableHead column="code" sortDirection={getSortDirection("code")} onSort={toggleSort} className="w-[220px]">
                       {t('promoCodesPage.colCode')}
                     </SortableTableHead>
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
@@ -291,9 +293,9 @@ export default function PromoCodes() {
                       >
                         <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                           <div className="flex items-center gap-2 whitespace-nowrap">
-                            <span className="font-mono font-medium">{promo.code}</span>
+                            <span className="font-mono font-medium truncate">{promo.code}</span>
                             {!promo.is_active ? (
-                              <StatusBadge status="inactive" type="entity" className="text-[10px] px-2 py-0.5" />
+                              <StatusBadge status="inactive" type="entity" className="text-[10px] px-2 py-0.5 shrink-0" />
                             ) : isExpired(promo) || isExhausted(promo) ? (
                               // 'expired' n'existe pas dans EntityStatus : on garde le style
                               // 'inactive' et on force un libellé traduit.
@@ -303,10 +305,10 @@ export default function PromoCodes() {
                                 customLabel={isExhausted(promo)
                                   ? t('promoCodesPage.exhausted')
                                   : t('promoCodesPage.expired')}
-                                className="text-[10px] px-2 py-0.5"
+                                className="text-[10px] px-2 py-0.5 shrink-0"
                               />
                             ) : (
-                              <StatusBadge status="active" type="entity" className="text-[10px] px-2 py-0.5" />
+                              <StatusBadge status="active" type="entity" className="text-[10px] px-2 py-0.5 shrink-0" />
                             )}
                           </div>
                         </TableCell>
