@@ -19,6 +19,8 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+type TreatmentPayloadLine = { treatmentId?: string; id?: string; variantId?: string | null; quantity?: number | string | null };
+
 export async function handleCreateSetupIntent(
   ctx: ActionContext,
 ): Promise<Response> {
@@ -159,7 +161,7 @@ export async function handleCreateSetupIntent(
     email: clientData.email,
   });
   const promoLines = safeTreatmentsPayload
-    .map((tPayload: any) => {
+    .map((tPayload: TreatmentPayloadLine) => {
       const unit = unitOf(tPayload);
       if (!unit) return null;
       return {

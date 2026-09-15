@@ -698,7 +698,7 @@ try {
     // Recalcul serveur de la majoration hors horaires (source de vérité — ignore le totalPrice client)
     const basePrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
     const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);
-    const effectiveTotalPrice = basePrice + surcharge.surchargeAmount;
+    let effectiveTotalPrice = basePrice + surcharge.surchargeAmount;
 
     // Code promo. Les prix catalogue ne servent qu'à déterminer l'assiette
     // éligible : le prix de base reste celui transmis par le client, comme
@@ -715,6 +715,10 @@ try {
         promoDiscount = computePromoDiscount(catalogLines, promoCode).discount;
         // La remise ne peut pas dépasser ce qui est réellement facturé.
         promoDiscount = Math.min(promoDiscount, basePrice);
+        // Le code promo baisse le prix de vente : total_price porte le montant
+        // réellement dû (CA, factures, note de chambre). promo_discount_cents
+        // garde la trace de la remise — le brut reste total + remise.
+        effectiveTotalPrice = Math.max(0, effectiveTotalPrice - promoDiscount);
       }
     }
     const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
@@ -946,7 +950,7 @@ try {
         .insert({
           booking_id: bookingId,
           customer_id: customerId || null,
-          estimated_price: Math.max(0, effectiveTotalPrice - promoDiscount),
+          estimated_price: effectiveTotalPrice,
           payment_status: 'charged',
         });
       if (roomPaymentInfoError) {

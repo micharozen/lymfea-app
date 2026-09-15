@@ -2441,7 +2441,9 @@
       "error": "Impossible de désactiver le lien de paiement."
     },
     "requestSignature": "Demander la signature",
-    "actions": "Actions"
+    "actions": "Actions",
+    "promoLine": "Code promo ({{code}})",
+    "promoLineNoCode": "Code promo"
   },
   "finance": {
     "closure": {

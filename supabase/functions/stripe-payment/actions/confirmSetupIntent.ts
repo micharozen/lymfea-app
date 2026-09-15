@@ -462,6 +462,8 @@ export async function handleConfirmSetupIntent(
       const slotQuantities = JSON.parse(meta.quantities_per_slot || "[]") as number[];
       const slotGuestCounts = JSON.parse(meta.guest_counts_per_slot || "[]") as number[];
       const multiGroupId = meta.groupId || crypto.randomUUID();
+      const multiPromoDiscountEuros =
+        (meta.promoDiscountCents ? parseInt(meta.promoDiscountCents, 10) : 0) / 100;
 
       const { data: venueData } = await supabase
         .from("hotels")
@@ -510,7 +512,11 @@ export async function handleConfirmSetupIntent(
           _room_number: meta.roomNumber || null,
           _status: "pending",
           _therapist_gender: meta.therapistGender || null,
-          _total_price: slotSurcharge.totalWithSurcharge,
+          // Groupe multi-créneaux : la remise a été appliquée une seule fois au
+        // total encaissé, elle est donc portée par le premier créneau.
+        _total_price: i === 0
+          ? Math.max(0, slotSurcharge.totalWithSurcharge - multiPromoDiscountEuros)
+          : slotSurcharge.totalWithSurcharge,
           _treatment_ids: [slotTreatmentIds[i]].filter(Boolean),
           // Formules Semaine / Week-end : la variante porte ses propres jours autorisés.
           _variant_ids: slotVariantId ? [slotVariantId] : [],
@@ -738,7 +744,11 @@ export async function handleConfirmSetupIntent(
     basePrice,
     hotel || {},
   );
-  const verifiedPrice = surcharge.totalWithSurcharge;
+  // Le code promo baisse le prix de vente : total_price porte donc le montant
+  // réellement dû, celui qui alimente le CA, les factures et la note de chambre.
+  // promo_discount_cents garde la trace de la remise (brut = total + remise).
+  const promoDiscountEuros = (meta.promoDiscountCents ? parseInt(meta.promoDiscountCents, 10) : 0) / 100;
+  const verifiedPrice = Math.max(0, surcharge.totalWithSurcharge - promoDiscountEuros);
 
   const customerId = await resolveCustomer(
     supabase,
@@ -879,19 +889,14 @@ export async function handleConfirmSetupIntent(
     }
   }
 
-  // Promo discount: taken from the Checkout metadata, which our own server
-  // wrote — not recomputed. Stripe has already charged the discounted amount,
-  // so the booking must record that discount even if the code was exhausted by
-  // a concurrent booking in the meantime.
-  const promoDiscountCents = meta.promoDiscountCents ? parseInt(meta.promoDiscountCents, 10) : 0;
-  const promoCodeId = meta.promoCodeId || null;
-
+  // La remise est déjà déduite de verifiedPrice ci-dessus ; il reste à la
+  // journaliser et à incrémenter le compteur du code.
   await redeemPromoFromMetadata(supabase, meta, bookingId, customerId);
 
   // Apply gift card deduction if present in metadata
   const giftAmountCents = meta.giftAmountCents ? parseInt(meta.giftAmountCents, 10) : 0;
   const giftCustomerBundleId = meta.giftAmountCustomerBundleId || null;
-  let netPrice = Math.max(0, verifiedPrice - promoDiscountCents / 100);
+  let netPrice = verifiedPrice;
 
   if (giftAmountCents > 0 && giftCustomerBundleId) {
     const { error: giftError } = await supabase.rpc("use_gift_amount", {
@@ -902,7 +907,7 @@ export async function handleConfirmSetupIntent(
     if (giftError) {
       console.error("[CONFIRM-SETUP] use_gift_amount failed (non-blocking):", giftError.message);
     } else {
-      netPrice = Math.max(0, verifiedPrice - promoDiscountCents / 100 - giftAmountCents / 100);
+      netPrice = Math.max(0, verifiedPrice - giftAmountCents / 100);
       console.log("[CONFIRM-SETUP] Gift applied:", giftAmountCents, "cents. Net price:", netPrice);
     }
   }

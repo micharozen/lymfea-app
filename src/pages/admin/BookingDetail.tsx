@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  BadgePercent,
   Loader2, ArrowLeft, User, Users, Banknote, Gift, Ticket, Smartphone,
   Calendar, Clock, Building2, ChevronDown,
   CheckCircle2, AlertCircle, Send, Pencil,
@@ -293,6 +294,21 @@ export default function BookingDetail() {
   // Spinner while loading OR while the query is still disabled (org scope not
   // resolved yet on a hard refresh) — only show "introuvable" once the fetch has
   // actually run and returned nothing.
+  // Libellé du code appliqué, pour que la ligne de remise soit parlante.
+  const { data: promoCode } = useQuery({
+    queryKey: ["promo-code-label", booking?.promo_code_id],
+    enabled: !!booking?.promo_code_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("promo_codes")
+        .select("code")
+        .eq("id", booking!.promo_code_id!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   if (!booking && !isFetched) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!booking) return <div className="p-10 text-center text-muted-foreground">{t('bookingDetail.notFound')}</div>;
@@ -328,9 +344,12 @@ export default function BookingDetail() {
   // client breakdown).
   const surchargeAmount = booking.is_out_of_hours ? (booking.surcharge_amount ?? 0) : 0;
   const offertOriginalPrice = isOffert ? (booking.treatmentsTotalPrice || 0) : 0;
+  // total_price porte le montant remisé : le sous-total se reconstitue en
+  // rajoutant la remise, pour que la ventilation reste lisible (brut → remise → dû).
+  const promoDiscount = (booking.promo_discount_cents ?? 0) / 100;
   const subtotal = isOffert
     ? offertOriginalPrice
-    : Math.max(displayPrice - surchargeAmount, 0);
+    : Math.max(displayPrice + promoDiscount - surchargeAmount, 0);
   const surchargePercent = subtotal > 0 ? Math.round((surchargeAmount / subtotal) * 100) : 0;
   // Majoration du gain thérapeute : elle suit le taux du lieu, pas le montant
   // facturé au client — une prestation offerte hors horaires ne facture rien mais
@@ -987,6 +1006,17 @@ export default function BookingDetail() {
                         {t('bookingDetail.surchargeLine', { percent: surchargePercent })}
                       </span>
                       <span className="whitespace-nowrap tabular-nums">+{formatPrice(surchargeAmount, currency)}</span>
+                    </div>
+                  )}
+                  {promoDiscount > 0 && (
+                    <div className="flex justify-between items-center text-sm font-medium text-emerald-600">
+                      <span className="flex items-center gap-2">
+                        <BadgePercent className="h-4 w-4 shrink-0" />
+                        {promoCode?.code
+                          ? t('bookingDetail.promoLine', { code: promoCode.code })
+                          : t('bookingDetail.promoLineNoCode')}
+                      </span>
+                      <span className="whitespace-nowrap tabular-nums">−{formatPrice(promoDiscount, currency)}</span>
                     </div>
                   )}
                   {isOffert && (

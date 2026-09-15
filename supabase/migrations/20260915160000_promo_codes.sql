@@ -10,9 +10,11 @@
 -- de calcul réutilisable. Les deux se cumulent — la remise s'applique d'abord,
 -- l'avoir couvre ensuite le reste.
 --
--- Invariant de prix, identique à celui des avoirs : `bookings.total_price`
--- reste le prix brut catalogue + majoration hors horaires. La remise est
--- portée à part par `promo_discount_cents` et déduite du montant encaissé.
+-- Invariant de prix : une remise baisse le prix de vente, à la différence d'un
+-- avoir qui est un paiement partiel. `bookings.total_price` porte donc le
+-- montant réellement dû — celui qui alimente le chiffre d'affaires, les
+-- factures et la note de chambre — et `promo_discount_cents` garde la trace de
+-- la remise, le brut restant calculable par addition.
 --
 -- NOTE : migration écrite à la main, comme 20260904100000 et 20260907170000.
 -- `supabase db diff` n'est pas utilisable ici (`supabase/schemas/` est resté
@@ -135,7 +137,7 @@ ALTER TABLE public.bookings
 ALTER TABLE public.bookings VALIDATE CONSTRAINT chk_bookings_promo_discount;
 
 COMMENT ON COLUMN public.bookings.promo_discount_cents IS
-  'Remise accordée par le code promo, en centimes. total_price reste le prix brut catalogue + majoration : la remise est déduite du montant encaissé, jamais du total stocké (même convention que gift_amount_applied_cents).';
+  'Remise accordée par le code promo, en centimes. Contrairement à gift_amount_applied_cents (un avoir est un paiement partiel, le lieu encaisse le plein tarif), une remise baisse le prix de vente : total_price porte donc le montant réellement dû, et le brut se recalcule par total_price + promo_discount_cents/100.';
 
 CREATE INDEX IF NOT EXISTS idx_bookings_promo_code
   ON public.bookings (promo_code_id) WHERE promo_code_id IS NOT NULL;

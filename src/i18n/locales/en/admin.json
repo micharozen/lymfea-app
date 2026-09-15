@@ -2441,7 +2441,9 @@
       "error": "Could not deactivate the payment link."
     },
     "requestSignature": "Request signature",
-    "actions": "Actions"
+    "actions": "Actions",
+    "promoLine": "Promo code ({{code}})",
+    "promoLineNoCode": "Promo code"
   },
   "finance": {
     "closure": {
