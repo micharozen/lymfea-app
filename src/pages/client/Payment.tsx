@@ -530,6 +530,7 @@ export default function Payment() {
 
         {/* Code promo — même emplacement que l'avoir, avant le récapitulatif */}
         {!isOffert && !isBundleOnlyPurchase && !hasPriceOnRequest && (
+          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5">
           <PromoCodeField
             hotelId={hotelId}
             customerPhone={clientInfo ? `${clientInfo.countryCode}${clientInfo.phone}` : null}
@@ -542,6 +543,7 @@ export default function Payment() {
             onRemove={() => setAppliedPromo(null)}
             disabled={isProcessing}
           />
+          </div>
         )}
 
         {/* Gift card / cure selector (bundles loaded from GuestInfo login) */}

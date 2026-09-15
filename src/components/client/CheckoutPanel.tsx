@@ -630,6 +630,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
 
       {/* Code promo — même emplacement que l'avoir, avant le récapitulatif */}
       {!isOffert && !isBundleOnlyPurchase && !hasPriceOnRequest && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
         <PromoCodeField
           hotelId={hotelId}
           customerPhone={clientInfo ? `${clientInfo.countryCode}${clientInfo.phone}` : null}
@@ -642,6 +643,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
           onRemove={() => setAppliedPromo(null)}
           disabled={isProcessing}
         />
+        </div>
       )}
 
       {/* Gift card / cure selector (bundles loaded from GuestInfo login) */}
