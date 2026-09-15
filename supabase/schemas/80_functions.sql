@@ -1468,6 +1468,46 @@ $$;
 
 ALTER FUNCTION "public"."get_concierge_hotels"("_user_id" "uuid") OWNER TO "postgres";
 
+CREATE OR REPLACE FUNCTION "public"."get_concierge_customer_ids"("_user_id" "uuid") RETURNS TABLE("customer_id" "uuid")
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+  SELECT b.customer_id
+  FROM public.bookings b
+  WHERE b.customer_id IS NOT NULL
+    AND b.hotel_id IN (SELECT hotel_id FROM public.get_concierge_hotels(_user_id))
+  UNION
+  SELECT a.customer_id
+  FROM public.amenity_bookings a
+  WHERE a.customer_id IS NOT NULL
+    AND a.hotel_id IN (SELECT hotel_id FROM public.get_concierge_hotels(_user_id));
+$$;
+
+ALTER FUNCTION "public"."get_concierge_customer_ids"("_user_id" "uuid") OWNER TO "postgres";
+
+CREATE OR REPLACE FUNCTION "public"."get_therapist_customer_ids"("_user_id" "uuid") RETURNS TABLE("customer_id" "uuid")
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+  SELECT DISTINCT b.customer_id
+  FROM public.bookings b
+  JOIN public.therapists t ON t.user_id = _user_id
+  WHERE b.customer_id IS NOT NULL
+    AND (
+      b.therapist_id = t.id
+      OR EXISTS (
+        SELECT 1 FROM public.booking_treatments bt
+        WHERE bt.booking_id = b.id AND bt.therapist_id = t.id
+      )
+      OR EXISTS (
+        SELECT 1 FROM public.booking_therapists bth
+        WHERE bth.booking_id = b.id AND bth.therapist_id = t.id
+      )
+    );
+$$;
+
+ALTER FUNCTION "public"."get_therapist_customer_ids"("_user_id" "uuid") OWNER TO "postgres";
+
 CREATE OR REPLACE FUNCTION "public"."get_customer_ids_for_user"("_user_id" "uuid") RETURNS TABLE("customer_id" "uuid")
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -3931,6 +3971,18 @@ GRANT ALL ON FUNCTION "public"."get_concierge_hotels"("_user_id" "uuid") TO "ano
 GRANT ALL ON FUNCTION "public"."get_concierge_hotels"("_user_id" "uuid") TO "authenticated";
 
 GRANT ALL ON FUNCTION "public"."get_concierge_hotels"("_user_id" "uuid") TO "service_role";
+
+GRANT ALL ON FUNCTION "public"."get_concierge_customer_ids"("_user_id" "uuid") TO "anon";
+
+GRANT ALL ON FUNCTION "public"."get_concierge_customer_ids"("_user_id" "uuid") TO "authenticated";
+
+GRANT ALL ON FUNCTION "public"."get_concierge_customer_ids"("_user_id" "uuid") TO "service_role";
+
+GRANT ALL ON FUNCTION "public"."get_therapist_customer_ids"("_user_id" "uuid") TO "anon";
+
+GRANT ALL ON FUNCTION "public"."get_therapist_customer_ids"("_user_id" "uuid") TO "authenticated";
+
+GRANT ALL ON FUNCTION "public"."get_therapist_customer_ids"("_user_id" "uuid") TO "service_role";
 
 GRANT ALL ON FUNCTION "public"."get_customer_ids_for_user"("_user_id" "uuid") TO "anon";
 
