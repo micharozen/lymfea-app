@@ -238,6 +238,22 @@
     "giftTreatmentsStep3": "Le bénéficiaire réserve ses séances en ligne avec son code, sans repayer",
     "confirmBundleSession": "Confirmer (séance cure)"
   },
+  "promoCode": {
+    "cta": "J'ai un code promo",
+    "title": "Code promo",
+    "subtitle": "Saisissez votre code pour bénéficier de la remise",
+    "placeholder": "Ex. ETE20",
+    "apply": "Appliquer",
+    "remove": "Retirer le code promo",
+    "applied": "Code {{code}} appliqué",
+    "summaryLine": "Remise ({{code}})",
+    "errorNotFound": "Ce code promo n'est pas valide.",
+    "errorExpired": "Ce code promo n'est plus valable.",
+    "errorExhausted": "Ce code promo a atteint sa limite d'utilisation.",
+    "errorNoEligibleTreatment": "Ce code ne s'applique à aucun soin de votre panier.",
+    "errorTooMany": "Trop de tentatives. Réessayez dans quelques minutes.",
+    "errorGeneric": "La vérification du code a échoué. Réessayez."
+  },
   "confirmation": {
     "title": "Réservation confirmée",
     "message": "Vous recevrez un email de confirmation avec tous les détails de votre réservation",

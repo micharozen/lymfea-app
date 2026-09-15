@@ -5,6 +5,7 @@ export * from "./hotels.ts";
 export * from "./therapists.ts";
 export * from "./concierges.ts";
 export * from "./treatments.ts";
+export * from "./promo-codes.ts";
 export * from "./treatment-rooms.ts";
 export * from "./customers.ts";
 export * from "./checkout-intents.ts";

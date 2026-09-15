@@ -48,6 +48,7 @@ const TherapistDetail = lazy(() => import("./pages/admin/TherapistDetail"));
 const AdminTreatments = lazy(() => import("./pages/admin/Treatments"));
 const TreatmentDetail = lazy(() => import("./pages/admin/TreatmentDetail"));
 const TreatmentRooms = lazy(() => import("./pages/admin/TreatmentRooms"));
+const PromoCodes = lazy(() => import("./pages/admin/PromoCodes"));
 const TreatmentRoomDetail = lazy(() => import("./pages/admin/TreatmentRoomDetail"));
 const Concierges = lazy(() => import("./pages/admin/Concierges"));
 const Customers = lazy(() => import("./pages/admin/Customers"));
@@ -509,6 +510,7 @@ const App = () => {
                               <Route path="/treatments/new" element={<TreatmentDetail />} />
                               <Route path="/treatments/:id" element={<TreatmentDetail />} />
                               <Route path="/treatment-rooms" element={<TreatmentRooms />} />
+              <Route path="/promo-codes" element={<PromoCodes />} />
                               <Route path="/treatment-rooms/new" element={<TreatmentRoomDetail />} />
                               <Route path="/treatment-rooms/:id" element={<TreatmentRoomDetail />} />
                               <Route path="/concierges" element={<Concierges />} />

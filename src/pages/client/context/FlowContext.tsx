@@ -56,6 +56,17 @@ export interface SelectedBundle {
   amountToUseCents?: number;
 }
 
+/** Code promo validé par lookup_promo_code. Le montant n'est jamais stocké :
+ *  il est dérivé du panier au rendu, et recalculé par le serveur. */
+export interface AppliedPromo {
+  id: string;
+  code: string;
+  discountType: 'percentage' | 'fixed_amount';
+  discountValue: number;
+  /** Vide = tout le panier est éligible. */
+  eligibleTreatmentIds: string[];
+}
+
 export interface GiftInfo {
   isGift: boolean;
   deliveryMode: 'email' | 'print';
@@ -72,6 +83,7 @@ interface ClientFlowState {
   pendingCheckoutSession: string | null;
   therapistGenderPreference: TherapistGender;
   selectedBundle: SelectedBundle | null;
+  appliedPromo: AppliedPromo | null;
   isBundleOnlyPurchase: boolean;
   draftBookingId: string | null;
   holdExpiresAt: number | null;
@@ -92,6 +104,7 @@ interface ClientFlowContextType extends ClientFlowState {
   setPendingCheckoutSession: (sessionId: string) => void;
   setTherapistGenderPreference: (gender: TherapistGender) => void;
   setSelectedBundle: (bundle: SelectedBundle | null) => void;
+  setAppliedPromo: (promo: AppliedPromo | null) => void;
   setIsBundleOnlyPurchase: (value: boolean) => void;
   setDraftBookingId: (id: string | null) => void;
   setHoldExpiresAt: (time: number | null) => void;
@@ -136,6 +149,7 @@ export function ClientFlowProvider({ children, hotelId }: { children: React.Reac
   const [pendingCheckoutSession, setPendingCheckoutSessionState] = useState<string | null>(restored.pendingCheckoutSession ?? null);
   const [therapistGenderPreference, setTherapistGenderPreferenceState] = useState<TherapistGender>(restored.therapistGenderPreference ?? null);
   const [selectedBundle, setSelectedBundleState] = useState<SelectedBundle | null>(restored.selectedBundle ?? null);
+  const [appliedPromo, setAppliedPromoState] = useState<AppliedPromo | null>(restored.appliedPromo ?? null);
   const [isBundleOnlyPurchase, setIsBundleOnlyPurchaseState] = useState(restored.isBundleOnlyPurchase ?? false);
   const [draftBookingId, setDraftBookingIdState] = useState<string | null>(restored.draftBookingId ?? null);
   const [holdExpiresAt, setHoldExpiresAtState] = useState<number | null>(restored.holdExpiresAt ?? null);
@@ -153,6 +167,7 @@ export function ClientFlowProvider({ children, hotelId }: { children: React.Reac
   const setPendingCheckoutSession = useCallback((sessionId: string) => setPendingCheckoutSessionState(sessionId), []);
   const setTherapistGenderPreference = useCallback((gender: TherapistGender) => setTherapistGenderPreferenceState(gender), []);
   const setSelectedBundle = useCallback((bundle: SelectedBundle | null) => setSelectedBundleState(bundle), []);
+  const setAppliedPromo = useCallback((promo: AppliedPromo | null) => setAppliedPromoState(promo), []);
   const setIsBundleOnlyPurchase = useCallback((value: boolean) => setIsBundleOnlyPurchaseState(value), []);
   const setDraftBookingId = useCallback((id: string | null) => setDraftBookingIdState(id), []);
   const setHoldExpiresAt = useCallback((time: number | null) => setHoldExpiresAtState(time), []);
@@ -199,7 +214,7 @@ export function ClientFlowProvider({ children, hotelId }: { children: React.Reac
   useEffect(() => {
     const snapshot: ClientFlowState = {
       bookingDateTime, clientInfo, pendingCheckoutSession,
-      therapistGenderPreference, selectedBundle, isBundleOnlyPurchase,
+      therapistGenderPreference, selectedBundle, appliedPromo, isBundleOnlyPurchase,
       draftBookingId, holdExpiresAt, giftInfo, authBundles,
       scheduleMode, perItemSchedule, amenityTiming,
       groupId, bookingIds, checkoutIntentId,
@@ -213,7 +228,7 @@ export function ClientFlowProvider({ children, hotelId }: { children: React.Reac
   }, [
     storageKey,
     bookingDateTime, clientInfo, pendingCheckoutSession,
-    therapistGenderPreference, selectedBundle, isBundleOnlyPurchase,
+    therapistGenderPreference, selectedBundle, appliedPromo, isBundleOnlyPurchase,
     draftBookingId, holdExpiresAt, giftInfo, authBundles,
     scheduleMode, perItemSchedule, amenityTiming,
     groupId, bookingIds, checkoutIntentId,
@@ -225,6 +240,7 @@ export function ClientFlowProvider({ children, hotelId }: { children: React.Reac
     setPendingCheckoutSessionState(null);
     setTherapistGenderPreferenceState(null);
     setSelectedBundleState(null);
+    setAppliedPromoState(null);
     setIsBundleOnlyPurchaseState(false);
     setDraftBookingIdState(null);
     setHoldExpiresAtState(null);
@@ -274,13 +290,13 @@ const cancelHold = useCallback(async () => {
   const value = useMemo(
     () => ({
       bookingDateTime, clientInfo, pendingCheckoutSession,
-      therapistGenderPreference, selectedBundle, isBundleOnlyPurchase,
+      therapistGenderPreference, selectedBundle, appliedPromo, isBundleOnlyPurchase,
       draftBookingId, holdExpiresAt,
       giftInfo, authBundles,
       scheduleMode, perItemSchedule, amenityTiming,
       groupId, bookingIds, checkoutIntentId,
       setBookingDateTime, setClientInfo, setPendingCheckoutSession,
-      setTherapistGenderPreference, setSelectedBundle, setIsBundleOnlyPurchase,
+      setTherapistGenderPreference, setSelectedBundle, setAppliedPromo, setIsBundleOnlyPurchase,
       setDraftBookingId, setHoldExpiresAt,
       setGiftInfo, setAuthBundles,
       setScheduleMode, setItemSchedule, resetPerItemSchedule, setAmenityTiming,
@@ -290,13 +306,13 @@ const cancelHold = useCallback(async () => {
     }),
     [
       bookingDateTime, clientInfo, pendingCheckoutSession,
-      therapistGenderPreference, selectedBundle, isBundleOnlyPurchase,
+      therapistGenderPreference, selectedBundle, appliedPromo, isBundleOnlyPurchase,
       draftBookingId, holdExpiresAt,
       giftInfo, authBundles,
       scheduleMode, perItemSchedule, amenityTiming,
       groupId, bookingIds, checkoutIntentId,
       setBookingDateTime, setClientInfo, setPendingCheckoutSession,
-      setTherapistGenderPreference, setSelectedBundle, setIsBundleOnlyPurchase,
+      setTherapistGenderPreference, setSelectedBundle, setAppliedPromo, setIsBundleOnlyPurchase,
       setDraftBookingId, setHoldExpiresAt,
       setGiftInfo, setAuthBundles,
       setScheduleMode, setItemSchedule, resetPerItemSchedule, setAmenityTiming,

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { useDateLocale } from "@/lib/dateLocale";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -478,7 +479,7 @@ export default function BookingDetail() {
         }
       }
 
-      let update: Record<string, string | null>;
+      let update: TablesUpdate<"bookings">;
       if (isPartner) {
         const derived = derivePaymentForClientType(markPaidPartner as BookingClientType);
         update = {

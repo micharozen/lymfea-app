@@ -229,6 +229,48 @@ async function refundChargeAfterFailure(
   }
 }
 
+/**
+ * Consume the promo code recorded in the Checkout metadata.
+ *
+ * The amount comes from the metadata our own server wrote, not from a fresh
+ * computation: Stripe has already charged the discounted total, so the booking
+ * must record that discount even if a concurrent booking exhausted the code in
+ * between. A failed redemption is therefore logged, never fatal — the booking
+ * is still stamped so the data matches what was actually charged.
+ */
+async function redeemPromoFromMetadata(
+  // deno-lint-ignore no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  meta: Record<string, string>,
+  bookingId: string,
+  customerId: string | null,
+): Promise<number> {
+  const discountCents = meta.promoDiscountCents ? parseInt(meta.promoDiscountCents, 10) : 0;
+  const promoCodeId = meta.promoCodeId || null;
+  if (!promoCodeId || discountCents <= 0) return 0;
+
+  const { data: redeemed, error } = await supabase.rpc("redeem_promo_code", {
+    _promo_code_id: promoCodeId,
+    _booking_id: bookingId,
+    _hotel_id: meta.hotelId,
+    _customer_id: customerId,
+    _discount_cents: discountCents,
+  });
+
+  if (error || !redeemed?.applied) {
+    console.error(
+      "[CONFIRM-SETUP] redeem_promo_code failed (non-blocking):",
+      error?.message || redeemed?.reason,
+    );
+    await supabase
+      .from("bookings")
+      .update({ promo_code_id: promoCodeId, promo_discount_cents: discountCents })
+      .eq("id", bookingId);
+  }
+  return discountCents;
+}
+
 async function triggerBookingNotifications(
   supabase: ActionContext["supabase"],
   bookingIds: string[],
@@ -587,6 +629,11 @@ export async function handleConfirmSetupIntent(
       });
     }
 
+    // A promo code is consumed once for the whole group, carried by the first
+    // booking — the discount was applied once to the Checkout total, not once
+    // per slot.
+    await redeemPromoFromMetadata(supabase, meta, multiBookingIds[0], customerId);
+
     await triggerBookingNotifications(supabase, multiBookingIds);
 
     await tryMarkCheckoutIntentConverted(supabase, meta.checkoutIntentId, multiBookingIds[0], "[CONFIRM-SETUP]");
@@ -832,10 +879,19 @@ export async function handleConfirmSetupIntent(
     }
   }
 
+  // Promo discount: taken from the Checkout metadata, which our own server
+  // wrote — not recomputed. Stripe has already charged the discounted amount,
+  // so the booking must record that discount even if the code was exhausted by
+  // a concurrent booking in the meantime.
+  const promoDiscountCents = meta.promoDiscountCents ? parseInt(meta.promoDiscountCents, 10) : 0;
+  const promoCodeId = meta.promoCodeId || null;
+
+  await redeemPromoFromMetadata(supabase, meta, bookingId, customerId);
+
   // Apply gift card deduction if present in metadata
   const giftAmountCents = meta.giftAmountCents ? parseInt(meta.giftAmountCents, 10) : 0;
   const giftCustomerBundleId = meta.giftAmountCustomerBundleId || null;
-  let netPrice = verifiedPrice;
+  let netPrice = Math.max(0, verifiedPrice - promoDiscountCents / 100);
 
   if (giftAmountCents > 0 && giftCustomerBundleId) {
     const { error: giftError } = await supabase.rpc("use_gift_amount", {
@@ -846,7 +902,7 @@ export async function handleConfirmSetupIntent(
     if (giftError) {
       console.error("[CONFIRM-SETUP] use_gift_amount failed (non-blocking):", giftError.message);
     } else {
-      netPrice = Math.max(0, verifiedPrice - giftAmountCents / 100);
+      netPrice = Math.max(0, verifiedPrice - promoDiscountCents / 100 - giftAmountCents / 100);
       console.log("[CONFIRM-SETUP] Gift applied:", giftAmountCents, "cents. Net price:", netPrice);
     }
   }

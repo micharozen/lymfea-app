@@ -21,6 +21,8 @@ import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
+import { PromoCodeField } from '@/components/client/PromoCodeField';
+import { useCartPromoDiscount } from '@/hooks/useCartPromoDiscount';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
 import { redirectToCheckout } from '@/lib/stripeCheckoutUrl';
 import { buildMultiBookingItems, totalTreatmentCount } from '@/lib/multiTimeBooking';
@@ -49,7 +51,7 @@ export function CheckoutPanel({
   const {
     bookingDateTime, clientInfo, therapistGenderPreference,
     setPendingCheckoutSession, clearFlow, isBundleOnlyPurchase,
-    selectedBundle, setSelectedBundle, giftInfo, authBundles, draftBookingId, setHoldExpiresAt,
+    selectedBundle, setSelectedBundle, appliedPromo, setAppliedPromo, giftInfo, authBundles, draftBookingId, setHoldExpiresAt,
     scheduleMode, perItemSchedule, amenityTiming, groupId, bookingIds, checkoutIntentId,
   } = useClientFlow();
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
@@ -158,6 +160,11 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
   const totalWithSurcharge = total + surcharge.surchargeAmount;
   const uncoveredTotalWithSurcharge = uncoveredTotal + surchargeUncovered.surchargeAmount;
   const fixedTotalWithSurcharge = fixedTotal + surchargeFixed.surchargeAmount;
+
+  // Remise du code promo, dérivée du panier à chaque rendu (affichage — le
+  // serveur recalcule et fait foi).
+  const promoDiscount = useCartPromoDiscount(items, appliedPromo);
+  const applyPromo = (amount: number) => Math.max(0, amount - promoDiscount);
 
   const handlePayment = async () => {
     if (!clientInfo) {
@@ -382,6 +389,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
           treatmentIds: items.map(item => item.id),
           treatments: buildTreatmentsPayload(items),
           totalPrice: total,
+          ...(appliedPromo ? { promoCodeId: appliedPromo.id } : {}),
           language: languageFromCountryCode(clientInfo.countryCode),
           ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           ...(draftBookingId ? { draftBookingId } : {}),
@@ -431,6 +439,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
               groupId,
               paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
               totalPrice: fixedTotal,
+              ...(appliedPromo ? { promoCodeId: appliedPromo.id } : {}),
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
             }
@@ -441,6 +450,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
               treatments: buildTreatmentsPayload(items),
               paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
               totalPrice: fixedTotal,
+              ...(appliedPromo ? { promoCodeId: appliedPromo.id } : {}),
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(checkoutIntentFields(checkoutIntentId)),
@@ -616,6 +626,20 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
             <X className="w-4 h-4" />
           </button>
         </div>
+      )}
+
+      {/* Code promo — même emplacement que l'avoir, avant le récapitulatif */}
+      {!isOffert && !isBundleOnlyPurchase && !hasPriceOnRequest && (
+        <PromoCodeField
+          hotelId={hotelId}
+          items={items}
+          appliedPromo={appliedPromo}
+          discount={promoDiscount}
+          currencySymbol={(items[0]?.currency || 'EUR') === 'EUR' ? '€' : (items[0]?.currency || 'EUR')}
+          onApply={setAppliedPromo}
+          onRemove={() => setAppliedPromo(null)}
+          disabled={isProcessing}
+        />
       )}
 
       {/* Gift card / cure selector (bundles loaded from GuestInfo login) */}
@@ -795,6 +819,17 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
           </div>
         )}
 
+        {promoDiscount > 0 && appliedPromo && (
+          <div className="flex justify-between items-center text-sm pt-2">
+            <span className="text-gray-500">
+              {t('promoCode.summaryLine', { code: appliedPromo.code })}
+            </span>
+            <span className="font-medium text-emerald-600">
+              −{formatPrice(promoDiscount, items[0]?.currency || 'EUR')}
+            </span>
+          </div>
+        )}
+
         {/* Total */}
         <div className="flex justify-between items-center pt-3 border-t border-gray-200">
           <div className="flex flex-col">
@@ -814,7 +849,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
                   {formatPrice(totalWithSurcharge, items[0]?.currency || 'EUR')}
                 </span>
               )}
-              <span className="text-gold-600 text-lg font-serif">{formatPrice(uncoveredTotalWithSurcharge, items[0]?.currency || 'EUR')}</span>
+              <span className="text-gold-600 text-lg font-serif">{formatPrice(applyPromo(uncoveredTotalWithSurcharge), items[0]?.currency || 'EUR')}</span>
             </div>
           ) : isOffert ? (
             <span className="inline-flex items-baseline gap-1.5">
@@ -823,11 +858,11 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
             </span>
           ) : hasPriceOnRequest ? (
             <div className="text-right">
-              <span className="text-gray-900 text-base font-light">{formatPrice(fixedTotalWithSurcharge, items[0]?.currency || 'EUR')}</span>
+              <span className="text-gray-900 text-base font-light">{formatPrice(applyPromo(fixedTotalWithSurcharge), items[0]?.currency || 'EUR')}</span>
               <span className="text-amber-400 text-sm ml-2">{t('payment.plusQuote')}</span>
             </div>
           ) : (
-            <span className="text-gold-600 text-lg font-serif">{formatPrice(totalWithSurcharge, items[0]?.currency || 'EUR')}</span>
+            <span className="text-gold-600 text-lg font-serif">{formatPrice(applyPromo(totalWithSurcharge), items[0]?.currency || 'EUR')}</span>
           )}
         </div>
       </div>
