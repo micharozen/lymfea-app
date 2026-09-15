@@ -161,27 +161,28 @@ export function PromoCodeField({
 
   if (appliedPromo) {
     return (
-      <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/60 p-3 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-          <BadgePercent className="w-4 h-4 text-emerald-600" />
+      <div className="space-y-2">
+        <p className="text-xs uppercase tracking-widest text-gray-500 font-medium">
+          {t('promoCode.title')}
+        </p>
+        <div className="flex items-center gap-3 h-12 px-3 rounded-lg border border-gray-200 bg-gray-50">
+          <BadgePercent className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0 flex items-baseline gap-2">
+            <span className="font-mono text-sm text-gray-900 truncate">{appliedPromo.code}</span>
+            <span className="text-sm text-gray-500 flex-shrink-0">
+              −{discount} {currencySymbol}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={disabled}
+            aria-label={t('promoCode.remove')}
+            className="p-1 -mr-1 rounded-full text-gray-400 hover:text-gray-900 transition-colors disabled:opacity-50 flex-shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-emerald-900 truncate">
-            {t('promoCode.applied', { code: appliedPromo.code })}
-          </p>
-          <p className="text-xs text-emerald-700">
-            −{discount} {currencySymbol}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={disabled}
-          aria-label={t('promoCode.remove')}
-          className="p-1.5 rounded-full text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
     );
   }
@@ -192,25 +193,19 @@ export function PromoCodeField({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(true)}
-        className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-2 py-3 text-xs uppercase tracking-widest font-medium text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-50"
       >
-        <BadgePercent className="w-4 h-4" />
+        <BadgePercent className="w-3.5 h-3.5" />
         {t('promoCode.cta')}
       </button>
     );
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
-      <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
-          <BadgePercent className="w-4 h-4 text-emerald-600" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900">{t('promoCode.title')}</p>
-          <p className="text-xs text-gray-500 mt-0.5">{t('promoCode.subtitle')}</p>
-        </div>
-      </div>
+    <div className="space-y-2">
+      <p className="text-xs uppercase tracking-widest text-gray-500 font-medium">
+        {t('promoCode.title')}
+      </p>
 
       <div className="flex gap-2">
         <Input
@@ -228,17 +223,25 @@ export function PromoCodeField({
           placeholder={t('promoCode.placeholder')}
           autoComplete="off"
           autoCapitalize="characters"
-          className="flex-1 font-mono"
+          autoFocus
+          className="flex-1 min-w-0 h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg font-mono uppercase focus:border-gold-500 focus:ring-gold-500/20"
           disabled={isChecking}
         />
-        <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
+        {/* Couleurs du lieu quand il en a, sinon le noir du tunnel — même
+            traitement que tous les boutons d'action du flow client. */}
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          className="h-12 px-5 shrink-0 rounded-lg bg-[var(--venue-button-bg,theme(colors.gray.900))] text-[var(--venue-button-text,#fff)] hover:bg-[var(--venue-button-bg,theme(colors.gray.900))] hover:opacity-90 font-medium tracking-wider text-sm transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
+        >
           {isChecking
             ? <Loader2 className="w-4 h-4 animate-spin" />
             : t('promoCode.apply')}
         </Button>
       </div>
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }
