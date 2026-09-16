@@ -11,26 +11,33 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import type { Task, TaskStatus } from "@/hooks/tasks/useTasks";
-import { TASK_STATUS_ORDER } from "./taskConstants";
-import { groupByStatus, resolveTaskDrop } from "./taskDnd";
+import type { Task } from "@/hooks/tasks/useTasks";
+import {
+  GROUP_BY_CONFIG,
+  groupTasks,
+  resolveTaskDrop,
+  type TaskDropResult,
+  type TaskGroupBy,
+} from "./taskDnd";
 import { TaskColumn } from "./TaskColumn";
 import { TaskCardVisual } from "./TaskCard";
 
 interface TaskBoardProps {
   tasks: Task[];
+  /** Dimension découpant le board en colonnes. */
+  groupBy: TaskGroupBy;
   assigneeOf: (userId: string | null) => { name: string | null; image: string | null };
   onOpenTask: (task: Task) => void;
-  onMove: (input: { id: string; status: TaskStatus; position: number }) => void;
+  onMove: (input: TaskDropResult) => void;
 }
 
-export function TaskBoard({ tasks, assigneeOf, onOpenTask, onMove }: TaskBoardProps) {
+export function TaskBoard({ tasks, groupBy, assigneeOf, onOpenTask, onMove }: TaskBoardProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const columns = useMemo(() => groupByStatus(tasks), [tasks]);
+  const columns = useMemo(() => groupTasks(tasks, groupBy), [tasks, groupBy]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeTask = activeId ? tasks.find((task) => task.id === activeId) ?? null : null;
@@ -47,6 +54,7 @@ export function TaskBoard({ tasks, assigneeOf, onOpenTask, onMove }: TaskBoardPr
       tasks,
       activeId: String(active.id),
       overId: String(over.id),
+      groupBy,
     });
     if (result) onMove(result);
   };
@@ -60,11 +68,12 @@ export function TaskBoard({ tasks, assigneeOf, onOpenTask, onMove }: TaskBoardPr
       onDragCancel={() => setActiveId(null)}
     >
       <div className="flex gap-4 overflow-x-auto pb-2">
-        {TASK_STATUS_ORDER.map((status) => (
+        {GROUP_BY_CONFIG[groupBy].columns.map((columnId) => (
           <TaskColumn
-            key={status}
-            status={status}
-            tasks={columns[status]}
+            key={columnId}
+            columnId={columnId}
+            groupBy={groupBy}
+            tasks={columns[columnId] ?? []}
             assigneeOf={assigneeOf}
             onOpenTask={onOpenTask}
           />

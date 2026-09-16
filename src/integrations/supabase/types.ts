@@ -734,6 +734,7 @@ export type Database = {
           broadcast_wave_sent_at: string | null
           bundle_usage_id: string | null
           cancellation_reason: string | null
+          channel_message_id: string | null
           client_email: string | null
           client_first_name: string
           client_form_data: Json | null
@@ -745,7 +746,6 @@ export type Database = {
           customer_id: string | null
           declined_by: string[] | null
           duration: number | null
-          email_inquiry_id: string | null
           external_id: string | null
           external_reference: string | null
           external_voucher_reference: string | null
@@ -804,6 +804,7 @@ export type Database = {
           broadcast_wave_sent_at?: string | null
           bundle_usage_id?: string | null
           cancellation_reason?: string | null
+          channel_message_id?: string | null
           client_email?: string | null
           client_first_name: string
           client_form_data?: Json | null
@@ -815,7 +816,6 @@ export type Database = {
           customer_id?: string | null
           declined_by?: string[] | null
           duration?: number | null
-          email_inquiry_id?: string | null
           external_id?: string | null
           external_reference?: string | null
           external_voucher_reference?: string | null
@@ -874,6 +874,7 @@ export type Database = {
           broadcast_wave_sent_at?: string | null
           bundle_usage_id?: string | null
           cancellation_reason?: string | null
+          channel_message_id?: string | null
           client_email?: string | null
           client_first_name?: string
           client_form_data?: Json | null
@@ -885,7 +886,6 @@ export type Database = {
           customer_id?: string | null
           declined_by?: string[] | null
           duration?: number | null
-          email_inquiry_id?: string | null
           external_id?: string | null
           external_reference?: string | null
           external_voucher_reference?: string | null
@@ -1067,6 +1067,120 @@ export type Database = {
             columns: ["treatment_id"]
             isOneToOne: false
             referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_messages: {
+        Row: {
+          booking_id: string | null
+          channel: string
+          confidence_score: number | null
+          created_at: string
+          customer_id: string | null
+          direction: string
+          error_message: string | null
+          external_message_id: string | null
+          from_identifier: string
+          hotel_id: string | null
+          id: string
+          last_reply_at: string | null
+          parent_message_id: string | null
+          parsed_data: Json | null
+          raw_body_html: string | null
+          raw_body_text: string | null
+          raw_payload: Json | null
+          sent_by: string | null
+          status: string
+          subject: string | null
+          task_id: string | null
+          to_identifier: string
+          updated_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          channel?: string
+          confidence_score?: number | null
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          error_message?: string | null
+          external_message_id?: string | null
+          from_identifier: string
+          hotel_id?: string | null
+          id?: string
+          last_reply_at?: string | null
+          parent_message_id?: string | null
+          parsed_data?: Json | null
+          raw_body_html?: string | null
+          raw_body_text?: string | null
+          raw_payload?: Json | null
+          sent_by?: string | null
+          status?: string
+          subject?: string | null
+          task_id?: string | null
+          to_identifier: string
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          channel?: string
+          confidence_score?: number | null
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          error_message?: string | null
+          external_message_id?: string | null
+          from_identifier?: string
+          hotel_id?: string | null
+          id?: string
+          last_reply_at?: string | null
+          parent_message_id?: string | null
+          parsed_data?: Json | null
+          raw_body_html?: string | null
+          raw_body_text?: string | null
+          raw_payload?: Json | null
+          sent_by?: string | null
+          status?: string
+          subject?: string | null
+          task_id?: string | null
+          to_identifier?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_messages_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_messages_parent_inquiry_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "channel_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_messages_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -1538,97 +1652,6 @@ export type Database = {
             columns: ["preferred_therapist_id"]
             isOneToOne: false
             referencedRelation: "therapists"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      email_inquiries: {
-        Row: {
-          booking_id: string | null
-          confidence_score: number | null
-          created_at: string
-          direction: string
-          error_message: string | null
-          from_address: string
-          hotel_id: string | null
-          id: string
-          last_reply_at: string | null
-          message_id: string | null
-          parent_inquiry_id: string | null
-          parsed_data: Json | null
-          raw_body_html: string | null
-          raw_body_text: string | null
-          raw_payload: Json | null
-          sent_by: string | null
-          status: string
-          subject: string | null
-          to_address: string
-          updated_at: string
-        }
-        Insert: {
-          booking_id?: string | null
-          confidence_score?: number | null
-          created_at?: string
-          direction?: string
-          error_message?: string | null
-          from_address: string
-          hotel_id?: string | null
-          id?: string
-          last_reply_at?: string | null
-          message_id?: string | null
-          parent_inquiry_id?: string | null
-          parsed_data?: Json | null
-          raw_body_html?: string | null
-          raw_body_text?: string | null
-          raw_payload?: Json | null
-          sent_by?: string | null
-          status?: string
-          subject?: string | null
-          to_address: string
-          updated_at?: string
-        }
-        Update: {
-          booking_id?: string | null
-          confidence_score?: number | null
-          created_at?: string
-          direction?: string
-          error_message?: string | null
-          from_address?: string
-          hotel_id?: string | null
-          id?: string
-          last_reply_at?: string | null
-          message_id?: string | null
-          parent_inquiry_id?: string | null
-          parsed_data?: Json | null
-          raw_body_html?: string | null
-          raw_body_text?: string | null
-          raw_payload?: Json | null
-          sent_by?: string | null
-          status?: string
-          subject?: string | null
-          to_address?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "email_inquiries_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "email_inquiries_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "hotels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "email_inquiries_parent_inquiry_id_fkey"
-            columns: ["parent_inquiry_id"]
-            isOneToOne: false
-            referencedRelation: "email_inquiries"
             referencedColumns: ["id"]
           },
         ]
@@ -2857,23 +2880,32 @@ export type Database = {
           assigned_to_user_id: string | null
           attachments: string[]
           booking_id: string | null
+          channel: string | null
           checklist: Json
+          client_type: string | null
           completed_at: string | null
+          converted_booking_id: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
           description: string | null
           due_date: string | null
+          feedback_type: string | null
           hotel_id: string | null
           id: string
           organization_id: string
           position: number
           priority: string
+          prospect_email: string | null
+          prospect_first_name: string | null
+          prospect_last_name: string | null
+          prospect_phone: string | null
           status: string
           task_type: string
           task_type_other: string | null
           therapist_ids: string[]
           title: string
+          treatment_date: string | null
           treatment_menu_ids: string[]
           updated_at: string
         }
@@ -2881,23 +2913,32 @@ export type Database = {
           assigned_to_user_id?: string | null
           attachments?: string[]
           booking_id?: string | null
+          channel?: string | null
           checklist?: Json
+          client_type?: string | null
           completed_at?: string | null
+          converted_booking_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
           description?: string | null
           due_date?: string | null
+          feedback_type?: string | null
           hotel_id?: string | null
           id?: string
           organization_id: string
           position?: number
           priority?: string
+          prospect_email?: string | null
+          prospect_first_name?: string | null
+          prospect_last_name?: string | null
+          prospect_phone?: string | null
           status?: string
           task_type?: string
           task_type_other?: string | null
           therapist_ids?: string[]
           title: string
+          treatment_date?: string | null
           treatment_menu_ids?: string[]
           updated_at?: string
         }
@@ -2905,23 +2946,32 @@ export type Database = {
           assigned_to_user_id?: string | null
           attachments?: string[]
           booking_id?: string | null
+          channel?: string | null
           checklist?: Json
+          client_type?: string | null
           completed_at?: string | null
+          converted_booking_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
           description?: string | null
           due_date?: string | null
+          feedback_type?: string | null
           hotel_id?: string | null
           id?: string
           organization_id?: string
           position?: number
           priority?: string
+          prospect_email?: string | null
+          prospect_first_name?: string | null
+          prospect_last_name?: string | null
+          prospect_phone?: string | null
           status?: string
           task_type?: string
           task_type_other?: string | null
           therapist_ids?: string[]
           title?: string
+          treatment_date?: string | null
           treatment_menu_ids?: string[]
           updated_at?: string
         }
@@ -2929,6 +2979,13 @@ export type Database = {
           {
             foreignKeyName: "tasks_booking_id_fkey"
             columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_converted_booking_id_fkey"
+            columns: ["converted_booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
@@ -4339,6 +4396,7 @@ export type Database = {
           broadcast_wave_sent_at: string | null
           bundle_usage_id: string | null
           cancellation_reason: string | null
+          channel_message_id: string | null
           client_email: string | null
           client_first_name: string
           client_form_data: Json | null
@@ -4350,7 +4408,6 @@ export type Database = {
           customer_id: string | null
           declined_by: string[] | null
           duration: number | null
-          email_inquiry_id: string | null
           external_id: string | null
           external_reference: string | null
           external_voucher_reference: string | null
@@ -4424,6 +4481,7 @@ export type Database = {
           broadcast_wave_sent_at: string | null
           bundle_usage_id: string | null
           cancellation_reason: string | null
+          channel_message_id: string | null
           client_email: string | null
           client_first_name: string
           client_form_data: Json | null
@@ -4435,7 +4493,6 @@ export type Database = {
           customer_id: string | null
           declined_by: string[] | null
           duration: number | null
-          email_inquiry_id: string | null
           external_id: string | null
           external_reference: string | null
           external_voucher_reference: string | null
@@ -4503,10 +4560,6 @@ export type Database = {
       }
       can_assign_therapist_to_booking: {
         Args: { _booking_id: string; _target_therapist_id: string }
-        Returns: boolean
-      }
-      can_manage_booking_rooms: {
-        Args: { _booking_id: string; _user_id: string }
         Returns: boolean
       }
       claim_gift_card: {

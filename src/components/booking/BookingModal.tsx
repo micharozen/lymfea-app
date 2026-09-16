@@ -49,7 +49,7 @@ import {
   listHotelsForOrg,
   listActiveTreatmentsForHotel,
 } from "@shared/db";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useUser } from "@/contexts/UserContext";
 import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useBookingCart } from "@/hooks/booking/useBookingCart";
@@ -115,7 +115,7 @@ interface BookingModalProps {
   onOpenChange: (open: boolean) => void;
   initialValues?: BookingModalInitialValues;
   source?: string;
-  emailInquiryId?: string;
+  channelMessageId?: string;
   onCreated?: (booking: CreatedBookingInfo) => void;
 }
 
@@ -156,7 +156,7 @@ export default function BookingModal({
   onOpenChange,
   initialValues,
   source,
-  emailInquiryId,
+  channelMessageId,
   onCreated,
 }: BookingModalProps) {
   const { t } = useTranslation(["admin", "common"]);
@@ -400,26 +400,17 @@ export default function BookingModal({
 
   const validateTherapistAssignment = (): boolean => {
     if (!therapistChoiceMade) {
-      toast({
-        title: t("phoneBooking.errors.selectTherapist"),
-        variant: "destructive",
-      });
+      toast.error(t("phoneBooking.errors.selectTherapist"));
       return false;
     }
     if (staffingCount > 1 && !isBroadcastBooking) {
       const assigned = [therapistId, ...additionalTherapistIds].filter(Boolean);
       if (assigned.length < staffingCount) {
-        toast({
-          title: t("phoneBooking.errors.selectAllTherapists"),
-          variant: "destructive",
-        });
+        toast.error(t("phoneBooking.errors.selectAllTherapists"));
         return false;
       }
     } else if (staffingCount <= 1 && !isBroadcastBooking && !therapistId) {
-      toast({
-        title: t("phoneBooking.errors.selectTherapist"),
-        variant: "destructive",
-      });
+      toast.error(t("phoneBooking.errors.selectTherapist"));
       return false;
     }
     return true;
@@ -429,10 +420,7 @@ export default function BookingModal({
     if (!canSubmit || !date) return;
     if (!validateTherapistAssignment()) return;
     if (comboDuoEnabled && !isValidPartition(resolvedLegAssignments, effectivePractitionerCount)) {
-      toast({
-        title: t("booking.comboDuo.emptyLegError", { defaultValue: "Chaque praticien doit avoir au moins un soin" }),
-        variant: "destructive",
-      });
+      toast.error(t("booking.comboDuo.emptyLegError", { defaultValue: "Chaque praticien doit avoir au moins un soin" }));
       return;
     }
     const allTherapistIds = [
@@ -485,7 +473,7 @@ export default function BookingModal({
         comboDuo: true,
         comboLegs,
         source,
-        emailInquiryId,
+        channelMessageId,
       });
       return;
     }
@@ -528,7 +516,7 @@ export default function BookingModal({
       guestCount: comboDuoEnabled ? comboParams!.guestCount : requiredGuestCount,
       comboDuo: comboDuoEnabled,
       source,
-      emailInquiryId,
+      channelMessageId,
     });
   };
 
@@ -778,26 +766,17 @@ export default function BookingModal({
                   onClick={() => {
                     if (step === "venue") {
                       if (!hotelId) {
-                        toast({
-                          title: t("phoneBooking.errors.selectVenue"),
-                          variant: "destructive",
-                        });
+                        toast.error(t("phoneBooking.errors.selectVenue"));
                         return;
                       }
                       if (cart.length === 0) {
-                        toast({
-                          title: t("phoneBooking.errors.selectTreatment"),
-                          variant: "destructive",
-                        });
+                        toast.error(t("phoneBooking.errors.selectTreatment"));
                         return;
                       }
                       setStep("slot");
                     } else if (step === "slot") {
                       if (!date || !time) {
-                        toast({
-                          title: t("phoneBooking.errors.selectSlot"),
-                          variant: "destructive",
-                        });
+                        toast.error(t("phoneBooking.errors.selectSlot"));
                         return;
                       }
                       setStep("therapist");
@@ -810,17 +789,11 @@ export default function BookingModal({
                         !clientLastName.trim() ||
                         !phone.trim()
                       ) {
-                        toast({
-                          title: t("phoneBooking.errors.fillClient"),
-                          variant: "destructive",
-                        });
+                        toast.error(t("phoneBooking.errors.fillClient"));
                         return;
                       }
                       if (clientType === "hotel" && !roomNumberLater && !roomNumber.trim()) {
-                        toast({
-                          title: t("phoneBooking.errors.roomRequired"),
-                          variant: "destructive",
-                        });
+                        toast.error(t("phoneBooking.errors.roomRequired"));
                         return;
                       }
                       setStep("confirm");

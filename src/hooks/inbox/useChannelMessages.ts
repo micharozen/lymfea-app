@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgScope, orgScopeKey } from "@/hooks/useOrgScope";
 
-export type EmailInquiryStatus =
+export type ChannelMessageStatus =
   | "received"
   | "parsed"
   | "converted"
@@ -11,56 +11,59 @@ export type EmailInquiryStatus =
   | "replied"
   | "sent";
 
-export type EmailInquiryDirection = "inbound" | "outbound";
+export type ChannelMessageDirection = "inbound" | "outbound";
 
-export interface EmailInquiryParsedTreatmentMatch {
+export interface ChannelMessageParsedTreatmentMatch {
   id: string | null;
   confidence: number;
 }
 
-export interface EmailInquiryParsedTreatmentCandidate {
+export interface ChannelMessageParsedTreatmentCandidate {
   id: string | null;
   confidence: number;
   reason?: string | null;
 }
 
-export interface EmailInquiryParsedVariantMatch {
+export interface ChannelMessageParsedVariantMatch {
   id: string | null;
   confidence: number;
 }
 
-export interface EmailInquiryParsedData {
+export interface ChannelMessageParsedData {
   client_first_name?: string | null;
   client_last_name?: string | null;
   email?: string | null;
   phone?: string | null;
   requested_date?: string | null;
   requested_time?: string | null;
-  treatment_match?: EmailInquiryParsedTreatmentMatch | null;
-  treatment_candidates?: EmailInquiryParsedTreatmentCandidate[] | null;
-  variant_match?: EmailInquiryParsedVariantMatch | null;
+  treatment_match?: ChannelMessageParsedTreatmentMatch | null;
+  treatment_candidates?: ChannelMessageParsedTreatmentCandidate[] | null;
+  variant_match?: ChannelMessageParsedVariantMatch | null;
   guest_count?: number | null;
   notes?: string | null;
   intent_confidence?: number;
   detected_language?: string | null;
 }
 
-export interface EmailInquiry {
+export interface ChannelMessage {
   id: string;
   hotel_id: string | null;
-  from_address: string;
-  to_address: string;
+  from_identifier: string;
+  to_identifier: string;
   subject: string | null;
   raw_body_text: string | null;
   raw_body_html: string | null;
-  parsed_data: EmailInquiryParsedData | null;
+  parsed_data: ChannelMessageParsedData | null;
   confidence_score: number | null;
-  status: EmailInquiryStatus;
+  status: ChannelMessageStatus;
   booking_id: string | null;
   error_message: string | null;
-  message_id: string | null;
-  direction: EmailInquiryDirection;
-  parent_inquiry_id: string | null;
+  external_message_id: string | null;
+  direction: ChannelMessageDirection;
+  parent_message_id: string | null;
+  /** Tâche qui traite ce fil — le suivi du travail vit sur tasks. */
+  task_id: string | null;
+  channel: string;
   sent_by: string | null;
   last_reply_at: string | null;
   created_at: string;
@@ -69,26 +72,26 @@ export interface EmailInquiry {
   hotel?: { id: string; name: string | null } | null;
 }
 
-export interface UseEmailInquiriesOptions {
-  status?: EmailInquiryStatus | "all";
+export interface UseChannelMessagesOptions {
+  status?: ChannelMessageStatus | "all";
   hotelId?: string | "all";
   limit?: number;
 }
 
 const inboxKeys = {
   all: ["email-inquiries"] as const,
-  list: (orgKey: string, opts: UseEmailInquiriesOptions) =>
+  list: (orgKey: string, opts: UseChannelMessagesOptions) =>
     [...inboxKeys.all, "org", orgKey, opts] as const,
 };
 
-export function useEmailInquiries(opts: UseEmailInquiriesOptions = {}) {
+export function useChannelMessages(opts: UseChannelMessagesOptions = {}) {
   const scope = useOrgScope();
   const scopeKey = orgScopeKey(scope);
 
   return useQuery({
     queryKey: inboxKeys.list(scopeKey, opts),
     enabled: scope !== null,
-    queryFn: async (): Promise<EmailInquiry[]> => {
+    queryFn: async (): Promise<ChannelMessage[]> => {
       let hotelIds: string[] | null = null;
       if (scope && "organizationId" in scope && scope.organizationId) {
         const { data: hotels, error: hotelsErr } = await supabase
@@ -100,12 +103,12 @@ export function useEmailInquiries(opts: UseEmailInquiriesOptions = {}) {
       }
 
       let q = supabase
-        .from("email_inquiries" as never)
+        .from("channel_messages" as never)
         .select(`
           id,
           hotel_id,
-          from_address,
-          to_address,
+          from_identifier,
+          to_identifier,
           subject,
           raw_body_text,
           raw_body_html,
@@ -114,9 +117,11 @@ export function useEmailInquiries(opts: UseEmailInquiriesOptions = {}) {
           status,
           booking_id,
           error_message,
-          message_id,
+          external_message_id,
           direction,
-          parent_inquiry_id,
+          parent_message_id,
+          task_id,
+          channel,
           sent_by,
           last_reply_at,
           created_at,
@@ -124,7 +129,7 @@ export function useEmailInquiries(opts: UseEmailInquiriesOptions = {}) {
           hotel:hotels(id, name)
         `)
         .eq("direction", "inbound")
-        .is("parent_inquiry_id", null)
+        .is("parent_message_id", null)
         .order("created_at", { ascending: false })
         .limit(opts.limit ?? 100);
 
@@ -141,7 +146,7 @@ export function useEmailInquiries(opts: UseEmailInquiriesOptions = {}) {
 
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as unknown as EmailInquiry[];
+      return (data ?? []) as unknown as ChannelMessage[];
     },
     staleTime: 30 * 1000,
   });

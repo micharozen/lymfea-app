@@ -18,18 +18,25 @@ export type TaskWithLinks = Omit<TaskRow, "checklist"> & {
     | {
         id: string;
         booking_id: number | null;
+        booking_date: string | null;
         client_first_name: string | null;
         client_last_name: string | null;
       }
     | null;
   customer: { id: string; first_name: string | null; last_name: string | null } | null;
+  /** Nombre de messages du fil rattaché, tous canaux confondus (0 pour un appel ou un walk-in). */
+  message_count: number;
 };
 
 const TASK_SELECT =
   "id, organization_id, hotel_id, booking_id, customer_id, assigned_to_user_id, created_by, title, description, status, priority, task_type, task_type_other, treatment_menu_ids, therapist_ids, checklist, attachments, due_date, position, completed_at, created_at, updated_at, " +
+  "channel, feedback_type, client_type, treatment_date, prospect_first_name, prospect_last_name, prospect_email, prospect_phone, converted_booking_id, " +
   "hotel:hotels(id, name), " +
-  "booking:bookings(id, booking_id, client_first_name, client_last_name), " +
-  "customer:customers(id, first_name, last_name)";
+  // `converted_booking_id` ajoute une seconde FK vers bookings : sans nommer la
+  // contrainte, PostgREST refuse l'embed comme ambigu (PGRST201).
+  "booking:bookings!tasks_booking_id_fkey(id, booking_id, booking_date, client_first_name, client_last_name), " +
+  "customer:customers(id, first_name, last_name), " +
+  "channel_messages(count)";
 
 // Tasks carry organization_id directly, so scoping is a single equality filter
 // (or none for the super-admin "View All" flow).
@@ -49,7 +56,18 @@ export async function listTasksForOrg(
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as unknown as TaskWithLinks[];
+
+  // L'embed `channel_messages(count)` remonte sous forme de tableau agrégé ;
+  // on l'aplatit pour que l'UI lise un simple nombre.
+  // Le type inféré par PostgREST sur un embed agrégé n'est pas un objet pour
+  // TypeScript : on repasse par `unknown` avant de déstructurer.
+  const rows = (data ?? []) as unknown as Array<
+    Record<string, unknown> & { channel_messages?: { count: number }[] }
+  >;
+  return rows.map(({ channel_messages, ...rest }) => ({
+    ...rest,
+    message_count: channel_messages?.[0]?.count ?? 0,
+  })) as unknown as TaskWithLinks[];
 }
 
 export async function createTask(

@@ -4,15 +4,15 @@ import { fr } from "date-fns/locale";
 import { Mail, MailCheck } from "lucide-react";
 
 import { useInquiryThread } from "@/hooks/inbox/useInquiryThread";
-import type { EmailInquiry } from "@/hooks/inbox/useEmailInquiries";
+import type { ChannelMessage } from "@/hooks/inbox/useChannelMessages";
 import { cn } from "@/lib/utils";
 
 interface Props {
   rootInquiryId: string;
-  rootFallback?: EmailInquiry | null;
+  rootFallback?: ChannelMessage | null;
 }
 
-function plainBody(msg: EmailInquiry): string {
+function plainBody(msg: ChannelMessage): string {
   if (msg.raw_body_text?.trim()) return msg.raw_body_text.trim();
   if (msg.raw_body_html) return msg.raw_body_html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   return "";
@@ -22,7 +22,7 @@ export function InquiryThreadView({ rootInquiryId, rootFallback }: Props) {
   const { t } = useTranslation("admin");
   const { data: thread, isLoading } = useInquiryThread(rootInquiryId);
 
-  const messages: EmailInquiry[] = (thread && thread.length > 0)
+  const messages: ChannelMessage[] = (thread && thread.length > 0)
     ? thread
     : rootFallback
       ? [rootFallback]
@@ -52,7 +52,7 @@ export function InquiryThreadView({ rootInquiryId, rootFallback }: Props) {
                 <span>
                   {isOutbound
                     ? t("inbox.detail.replyFromVenue", { defaultValue: "Réponse envoyée" })
-                    : msg.from_address}
+                    : msg.from_identifier}
                 </span>
                 <span>· {when}</span>
               </div>

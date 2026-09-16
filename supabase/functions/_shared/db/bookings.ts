@@ -261,7 +261,7 @@ const BOOKING_LIST_COLUMNS = [
   "customer_id",
   "declined_by",
   "duration",
-  "email_inquiry_id",
+  "channel_message_id",
   "external_id",
   "external_reference",
   "gift_amount_applied_cents",
