@@ -34,6 +34,7 @@ import {
 import { InlineDate, InlineSelect, InlineText } from "./InlineField";
 import { TaskChecklist } from "./TaskChecklist";
 import { TaskAttachments } from "./TaskAttachments";
+import { TaskComments } from "./TaskComments";
 import { GlobalSearch } from "@/components/admin/GlobalSearch";
 import { fetchBookingById, formatBookingLabel } from "@/lib/bookingSearch";
 import { bookingContextPatch, type BookingContextPatch } from "./bookingContext";
@@ -280,6 +281,13 @@ export function TaskDetailView({ task, onClose, onDelete }: Props) {
               value={task.attachments ?? []}
               onChange={(attachments) => save({ attachments })}
             />
+          </section>
+
+          <section>
+            <h3 className="text-muted-foreground mb-1 text-[11px] font-medium tracking-wide uppercase">
+              {t("tasks.comments.title")}
+            </h3>
+            <TaskComments taskId={task.id} taskTitle={task.title} />
           </section>
 
           {rootMessage && (

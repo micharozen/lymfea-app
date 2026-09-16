@@ -26,6 +26,8 @@ export type TaskWithLinks = Omit<TaskRow, "checklist"> & {
   customer: { id: string; first_name: string | null; last_name: string | null } | null;
   /** Nombre de messages du fil rattaché, tous canaux confondus (0 pour un appel ou un walk-in). */
   message_count: number;
+  /** Nombre de commentaires internes, réponses comprises. */
+  comment_count: number;
 };
 
 const TASK_SELECT =
@@ -36,7 +38,8 @@ const TASK_SELECT =
   // contrainte, PostgREST refuse l'embed comme ambigu (PGRST201).
   "booking:bookings!tasks_booking_id_fkey(id, booking_id, booking_date, client_first_name, client_last_name), " +
   "customer:customers(id, first_name, last_name), " +
-  "channel_messages(count)";
+  "channel_messages(count), " +
+  "task_comments(count)";
 
 // Tasks carry organization_id directly, so scoping is a single equality filter
 // (or none for the super-admin "View All" flow).
@@ -57,16 +60,21 @@ export async function listTasksForOrg(
   const { data, error } = await query;
   if (error) throw error;
 
-  // L'embed `channel_messages(count)` remonte sous forme de tableau agrégé ;
-  // on l'aplatit pour que l'UI lise un simple nombre.
+  // Les embeds `channel_messages(count)` et `task_comments(count)` remontent
+  // sous forme de tableaux agrégés ; on les aplatit pour que l'UI lise de
+  // simples nombres.
   // Le type inféré par PostgREST sur un embed agrégé n'est pas un objet pour
   // TypeScript : on repasse par `unknown` avant de déstructurer.
   const rows = (data ?? []) as unknown as Array<
-    Record<string, unknown> & { channel_messages?: { count: number }[] }
+    Record<string, unknown> & {
+      channel_messages?: { count: number }[];
+      task_comments?: { count: number }[];
+    }
   >;
-  return rows.map(({ channel_messages, ...rest }) => ({
+  return rows.map(({ channel_messages, task_comments, ...rest }) => ({
     ...rest,
     message_count: channel_messages?.[0]?.count ?? 0,
+    comment_count: task_comments?.[0]?.count ?? 0,
   })) as unknown as TaskWithLinks[];
 }
 

@@ -81,6 +81,13 @@ export const taskKeys = {
     [...taskKeys.forOrg(scope), "detail", id] as const,
 };
 
+// Le fil d'une tâche n'est jamais listé hors de son détail : la clé porte
+// l'id de la tâche, sans scope d'organisation (la RLS cloisonne déjà).
+export const taskCommentKeys = {
+  all: ["task-comments"] as const,
+  forTask: (taskId: string) => [...taskCommentKeys.all, taskId] as const,
+};
+
 export const adminKeys = {
   all: ["admins"] as const,
   forOrg: (scope: ScopeLike) => [...adminKeys.all, "org", orgKey(scope)] as const,

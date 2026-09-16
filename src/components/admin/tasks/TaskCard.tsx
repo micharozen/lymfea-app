@@ -2,7 +2,7 @@ import { forwardRef, type CSSProperties, type HTMLAttributes } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useTranslation } from "react-i18next";
-import { CalendarClock, CalendarCheck2, MessagesSquare, User } from "lucide-react";
+import { CalendarClock, CalendarCheck2, MessageSquare, MessagesSquare, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -151,7 +151,8 @@ export const TaskCardVisual = forwardRef<HTMLDivElement, TaskCardVisualProps>(
           <p className="mb-2 line-clamp-2 text-xs text-muted-foreground">{task.description}</p>
         )}
 
-        {(customerLabel || task.task_type || task.channel || task.feedback_type || task.message_count > 0) && (
+        {(customerLabel || task.task_type || task.channel || task.feedback_type || task.message_count > 0 ||
+          task.comment_count > 0) && (
           <div className="mb-2 flex flex-wrap gap-1">
             {/* Le type porte la couleur du badge : c'est lui qui dit de quelle
                 nature est la demande, avant même son canal. */}
@@ -201,6 +202,15 @@ export const TaskCardVisual = forwardRef<HTMLDivElement, TaskCardVisualProps>(
               <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                 <MessagesSquare className="h-2.5 w-2.5" />
                 {task.message_count}
+              </span>
+            )}
+            {task.comment_count > 0 && (
+              <span
+                className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                title={t("tasks.comments.count", { count: task.comment_count })}
+              >
+                <MessageSquare className="h-2.5 w-2.5" />
+                {task.comment_count}
               </span>
             )}
           </div>
