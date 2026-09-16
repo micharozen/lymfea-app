@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand } from "../_shared/brand.ts";
 import {
@@ -7,6 +6,7 @@ import {
   fetchPayoutTherapists,
 } from "../_shared/therapistPayouts.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { getStripeForVenue } from "../_shared/stripe-resolver.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -102,11 +102,6 @@ serve(async (req) => {
       throw new Error("Final amount must be positive");
     }
 
-    // Initialiser Stripe
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2025-08-27.basil",
-    });
-
     // Initialiser Supabase avec service role pour les opérations admin
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -190,6 +185,12 @@ serve(async (req) => {
 
     // Get currency for Stripe operations (lowercase)
     const currency = (hotel.currency || 'EUR').toLowerCase();
+
+    // Le compte Stripe est celui du lieu, résolu depuis la config de paiement —
+    // comme partout ailleurs (`stripe-payment`, `stripe-webhook`). La clé globale
+    // `STRIPE_SECRET_KEY` n'est pas renseignée : l'instancier ici faisait échouer
+    // la fonction dès son entrée, y compris pour un paiement sur chambre.
+    const { client: stripe } = await getStripeForVenue(supabase, booking.hotel_id);
 
     // 4. Calculer les commissions
     const vatRate = hotel.vat || 20;
