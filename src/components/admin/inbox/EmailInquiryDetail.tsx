@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateBookingMutation, type CreateBookingPayload } from "@/hooks/booking/useCreateBookingMutation";
 
-import type { EmailInquiry, EmailInquiryParsedData, EmailInquiryStatus } from "@/hooks/inbox/useEmailInquiries";
+import type { ChannelMessage, ChannelMessageParsedData, ChannelMessageStatus } from "@/hooks/inbox/useChannelMessages";
 import {
   type AutoConvertHotel,
   type AutoConvertTreatment,
@@ -35,7 +35,7 @@ import { ReplyDraftComposer } from "./ReplyDraftComposer";
 const BookingModal = lazy(() => import("@/components/booking/BookingModal"));
 
 interface Props {
-  inquiry: EmailInquiry | null;
+  inquiry: ChannelMessage | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onChanged?: () => void;
@@ -48,7 +48,7 @@ function confidenceTone(score: number): "ok" | "wait" | "bad" {
   return "bad";
 }
 
-const STATUS_TONE: Record<EmailInquiryStatus, "ok" | "wait" | "info" | "bad" | "mute"> = {
+const STATUS_TONE: Record<ChannelMessageStatus, "ok" | "wait" | "info" | "bad" | "mute"> = {
   received: "mute",
   parsed: "info",
   replied: "wait",
@@ -196,7 +196,7 @@ function ConvertedSection({
  * Fiche de la demande : une phrase de synthèse, ce qui manque à
  * l'auto-conversion, puis le détail en lignes clé/valeur.
  */
-function InquiryFacts({ parsed, t }: { parsed: EmailInquiryParsedData; t: (k: string, o?: Record<string, unknown>) => string }) {
+function InquiryFacts({ parsed, t }: { parsed: ChannelMessageParsedData; t: (k: string, o?: Record<string, unknown>) => string }) {
   const fullName = [parsed.client_first_name, parsed.client_last_name].filter(Boolean).join(" ");
   const tm = parsed.treatment_match;
   const vm = parsed.variant_match;
@@ -291,7 +291,7 @@ export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: P
 
   // Auto-convert: capture the inquiry+hotel context for the mutation closure.
   const [autoCtx, setAutoCtx] = useState<{
-    inquiry: EmailInquiry;
+    inquiry: ChannelMessage;
     hotel: AutoConvertHotel;
   } | null>(null);
   const pendingPayloadRef = useRef<CreateBookingPayload | null>(null);
@@ -303,7 +303,7 @@ export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: P
       if (!data || !autoCtx) return;
       try {
         const { error } = await supabase
-          .from("email_inquiries" as never)
+          .from("channel_messages" as never)
           .update({ status: "converted", booking_id: data.id })
           .eq("id", autoCtx.inquiry.id);
         if (error) throw error;
@@ -339,7 +339,7 @@ export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: P
     setBusy(true);
     try {
       const { error } = await supabase
-        .from("email_inquiries" as never)
+        .from("channel_messages" as never)
         .update({ status: "dismissed" })
         .eq("id", inquiry.id);
       if (error) throw error;
@@ -402,7 +402,7 @@ export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: P
         hotelId: hotel.id,
         clientFirstName: (p.client_first_name ?? "Client").trim(),
         clientLastName: (p.client_last_name ?? "").trim(),
-        clientEmail: p.email ?? inquiry.from_address ?? undefined,
+        clientEmail: p.email ?? inquiry.from_identifier ?? undefined,
         phone,
         countryCode,
         roomNumber: "",
@@ -424,7 +424,7 @@ export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: P
         surchargeAmount: 0,
         guestCount,
         source: "email",
-        emailInquiryId: inquiry.id,
+        channelMessageId: inquiry.id,
       };
 
       pendingPayloadRef.current = payload;
@@ -466,7 +466,7 @@ export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: P
                     {t(`inbox.status.${inquiry.status}`)}
                   </span>
                   {clientName && <span>{clientName} ·</span>}
-                  <span className="addr">{inquiry.from_address}</span>
+                  <span className="addr">{inquiry.from_identifier}</span>
                   <span className="addr">· {format(new Date(inquiry.created_at), "dd/MM/yyyy HH:mm")}</span>
                 </div>
               </SheetDescription>
@@ -487,8 +487,8 @@ export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: P
                   {composerOpen ? (
                     <ReplyDraftComposer
                       inquiryId={inquiry.id}
-                      defaultRecipient={inquiry.parsed_data?.email ?? inquiry.from_address}
-                      smtpSender={inquiry.from_address}
+                      defaultRecipient={inquiry.parsed_data?.email ?? inquiry.from_identifier}
+                      smtpSender={inquiry.from_identifier}
                       onClose={() => setComposerOpen(false)}
                       onSent={() => {
                         setComposerOpen(false);
@@ -607,11 +607,11 @@ export function EmailInquiryDetail({ inquiry, open, onOpenChange, onChanged }: P
               onOpenChange={setReviewOpen}
               initialValues={buildInitialValues(inquiry)}
               source="email"
-              emailInquiryId={inquiry.id}
+              channelMessageId={inquiry.id}
               onCreated={async (booking) => {
                 try {
                   await supabase
-                    .from("email_inquiries" as never)
+                    .from("channel_messages" as never)
                     .update({ status: "converted", booking_id: booking.id })
                     .eq("id", inquiry.id);
                   onChanged?.();

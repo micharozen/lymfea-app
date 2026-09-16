@@ -1,5 +1,18 @@
-import { TASK_STATUS_ORDER } from "./taskConstants";
+import { PRIORITY_ORDER, TASK_STATUS_ORDER, TASK_TYPE_ORDER } from "./taskConstants";
 import type { TaskStatus } from "@/hooks/tasks/useTasks";
+
+/** Dimension selon laquelle le board est découpé en colonnes. */
+export type TaskGroupBy = "status" | "priority" | "task_type";
+
+/** Colonnes et valeur de repli de chaque dimension de regroupement. */
+export const GROUP_BY_CONFIG: Record<
+  TaskGroupBy,
+  { columns: readonly string[]; fallback: string }
+> = {
+  status: { columns: TASK_STATUS_ORDER, fallback: "todo" },
+  priority: { columns: PRIORITY_ORDER, fallback: "medium" },
+  task_type: { columns: TASK_TYPE_ORDER, fallback: "other" },
+};
 
 // Pure, framework-agnostic Kanban logic — no React/@dnd-kit imports so it can
 // be unit-tested in isolation.
@@ -7,14 +20,21 @@ import type { TaskStatus } from "@/hooks/tasks/useTasks";
 export interface DnDTask {
   id: string;
   status: string;
+  priority?: string;
+  task_type?: string;
   position: number;
   created_at: string;
 }
 
 export interface TaskDropResult {
   id: string;
-  status: TaskStatus;
+  /** Dimension déplacée, et sa nouvelle valeur : déplacer une carte dans un
+   *  board groupé par priorité change la priorité, pas le statut. */
+  groupBy: TaskGroupBy;
+  value: string;
   position: number;
+  /** Conservé pour les appelants groupés par statut. */
+  status: TaskStatus;
 }
 
 // Within a column: by position asc, then most recent first (matches the
@@ -26,19 +46,28 @@ export function sortColumn<T extends DnDTask>(tasks: T[]): T[] {
   });
 }
 
+/** Valeur de regroupement d'une tâche, repliée sur la colonne par défaut quand
+ *  le champ est vide ou hors domaine. */
+export function groupValueOf(task: DnDTask, groupBy: TaskGroupBy): string {
+  const { columns, fallback } = GROUP_BY_CONFIG[groupBy];
+  const raw = groupBy === "status" ? task.status : groupBy === "priority" ? task.priority : task.task_type;
+  return raw && columns.includes(raw) ? raw : fallback;
+}
+
+/** Répartit les tâches en colonnes selon la dimension demandée. */
+export function groupTasks<T extends DnDTask>(
+  tasks: T[],
+  groupBy: TaskGroupBy,
+): Record<string, T[]> {
+  const grouped: Record<string, T[]> = {};
+  for (const column of GROUP_BY_CONFIG[groupBy].columns) grouped[column] = [];
+  for (const task of tasks) grouped[groupValueOf(task, groupBy)].push(task);
+  for (const column of Object.keys(grouped)) grouped[column] = sortColumn(grouped[column]);
+  return grouped;
+}
+
 export function groupByStatus<T extends DnDTask>(tasks: T[]): Record<TaskStatus, T[]> {
-  const grouped: Record<TaskStatus, T[]> = { todo: [], in_progress: [], done: [] };
-  for (const task of tasks) {
-    const status = ((TASK_STATUS_ORDER as string[]).includes(task.status)
-      ? task.status
-      : "todo") as TaskStatus;
-    grouped[status].push(task);
-  }
-  return {
-    todo: sortColumn(grouped.todo),
-    in_progress: sortColumn(grouped.in_progress),
-    done: sortColumn(grouped.done),
-  };
+  return groupTasks(tasks, "status") as Record<TaskStatus, T[]>;
 }
 
 // Given the dragged card (activeId) and the drop target (overId — either a
@@ -48,21 +77,26 @@ export function resolveTaskDrop<T extends DnDTask>(params: {
   tasks: T[];
   activeId: string;
   overId: string;
+  /** Dimension du board ; "status" par défaut (comportement historique). */
+  groupBy?: TaskGroupBy;
 }): TaskDropResult | null {
-  const { tasks, activeId, overId } = params;
+  const { tasks, activeId, overId, groupBy = "status" } = params;
 
   const activeTask = tasks.find((task) => task.id === activeId);
   if (!activeTask) return null;
 
-  const columns = groupByStatus(tasks);
+  const columns = groupTasks(tasks, groupBy);
+  const activeValue = groupValueOf(activeTask, groupBy);
 
-  const overIsColumn = (TASK_STATUS_ORDER as string[]).includes(overId);
-  const targetStatus: TaskStatus = overIsColumn
-    ? (overId as TaskStatus)
-    : ((tasks.find((task) => task.id === overId)?.status as TaskStatus) ??
-      (activeTask.status as TaskStatus));
+  const overIsColumn = GROUP_BY_CONFIG[groupBy].columns.includes(overId);
+  const overTask = tasks.find((task) => task.id === overId);
+  const targetValue = overIsColumn
+    ? overId
+    : overTask
+      ? groupValueOf(overTask, groupBy)
+      : activeValue;
 
-  const columnTasks = columns[targetStatus].filter((task) => task.id !== activeId);
+  const columnTasks = columns[targetValue].filter((task) => task.id !== activeId);
 
   let index = columnTasks.length;
   if (!overIsColumn) {
@@ -78,9 +112,16 @@ export function resolveTaskDrop<T extends DnDTask>(params: {
   else if (next) position = next.position - 1;
   else position = 0;
 
-  if (targetStatus === activeTask.status && position === activeTask.position) {
+  if (targetValue === activeValue && position === activeTask.position) {
     return null;
   }
 
-  return { id: activeId, status: targetStatus, position };
+  return {
+    id: activeId,
+    groupBy,
+    value: targetValue,
+    position,
+    // Groupé autrement que par statut, le statut ne change pas.
+    status: (groupBy === "status" ? targetValue : activeTask.status) as TaskStatus,
+  };
 }

@@ -571,7 +571,8 @@
     "actions": "Actions",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer ?",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "close": "Fermer"
   },
   "venue": {
     "completeness": {
@@ -1130,7 +1131,34 @@
       "addAttachment": "Ajouter une image",
       "attachmentHint": "Vous pouvez aussi coller une capture (Cmd/Ctrl+V).",
       "attachmentImageOnly": "Le fichier doit être une image",
-      "attachmentTooLarge": "L'image ne doit pas dépasser {{size}} Mo"
+      "attachmentTooLarge": "L'image ne doit pas dépasser {{size}} Mo",
+      "channel": "Canal",
+      "noChannel": "Non précisé",
+      "feedbackType": "Type de retour attendu",
+      "noFeedbackType": "Non précisé",
+      "clientType": "Type de client",
+      "noClientType": "Non précisé",
+      "treatmentDate": "Date du soin",
+      "prospect": "Coordonnées du prospect",
+      "prospectHint": "À renseigner quand le client n'a pas encore de fiche. La fiche sera créée lors de la conversion en réservation.",
+      "prospectFirstName": "Prénom",
+      "prospectLastName": "Nom",
+      "prospectEmail": "E-mail",
+      "prospectPhone": "Téléphone",
+      "analyze": "Analyser",
+      "bookingRequiredHint": "La réservation renseigne automatiquement le lieu, les soins, les thérapeutes et le client.",
+      "clearValue": "— Effacer —",
+      "noAssignee": "Non assigné",
+      "noDueDate": "Pas d'échéance",
+      "noDescription": "Ajouter une description…",
+      "noTreatmentDate": "Pas de date de soin",
+      "context": "Contexte",
+      "details": "Détails",
+      "edit": "Modifier",
+      "backToRead": "Terminer",
+      "descriptionOrPastePlaceholder": "Décrivez la tâche, ou collez ici la demande reçue puis cliquez sur Analyser",
+      "linkBooking": "Lier une réservation",
+      "linkCustomer": "Lier un client"
     },
     "dueDatePresets": {
       "today": "Aujourd'hui",
@@ -1147,13 +1175,79 @@
       "gift_followup": "Relance offert",
       "loyalty": "Fidélisation / cure",
       "bug": "Bug",
-      "other": "Autre"
+      "other": "Autre",
+      "inbound_request": "Demande entrante"
     },
     "customerTab": {
       "label": "Tâches",
       "count_one": "{{count}} tâche liée à ce client",
       "count_other": "{{count}} tâches liées à ce client",
       "empty": "Aucune tâche liée à ce client."
+    },
+    "channel": {
+      "website": "Site web",
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "walk_in": "Sur place",
+      "partner": "Partenaire",
+      "other": "Autre"
+    },
+    "feedbackType": {
+      "validation_received": "Validation reçue",
+      "issue_reported": "Problème signalé",
+      "change_requested": "Modification demandée",
+      "awaiting_client": "En attente retour client",
+      "awaiting_partner": "En attente retour partenaire",
+      "need_more_info": "Besoin complément d'info",
+      "internal_feedback": "Feedback interne équipe",
+      "awaiting_payment": "Attente paiement"
+    },
+    "convertToBooking": "Convertir en réservation",
+    "alreadyConverted": "Voir la réservation",
+    "convertSuccess": "Réservation #{{number}} créée et tâche clôturée",
+    "convertLinkError": "Réservation #{{number}} créée, mais la tâche n'a pas pu être mise à jour",
+    "comments": {
+      "title": "Commentaires",
+      "empty": "Aucun commentaire pour l'instant.",
+      "placeholder": "Écrire un commentaire… tapez @ pour mentionner quelqu'un",
+      "replyPlaceholder": "Écrire une réponse…",
+      "hint": "@ pour mentionner · ⌘/Ctrl + Entrée pour envoyer",
+      "submit": "Commenter",
+      "reply": "Répondre",
+      "edit": "Modifier",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "edited": "modifié",
+      "unknownAuthor": "Utilisateur supprimé",
+      "count": "{{count}} commentaire",
+      "count_other": "{{count}} commentaires",
+      "deleteTitle": "Supprimer ce commentaire ?",
+      "deleteConfirm": "Cette action est irréversible.",
+      "deleteRootConfirm": "Les réponses à ce commentaire seront supprimées elles aussi. Cette action est irréversible.",
+      "addError": "Impossible d'ajouter le commentaire",
+      "updateError": "Impossible de modifier le commentaire",
+      "deleteError": "Impossible de supprimer le commentaire"
+    },
+    "messages": {
+      "title": "Conversation",
+      "confidence": "Confiance : {{value}}",
+      "analyzeSuccess": "Champs pré-remplis à partir du texte",
+      "analyzeFailed": "Impossible d'analyser ce texte",
+      "analyzeHint": "Les champs extraits sont proposés, pas imposés : vérifiez-les avant d'enregistrer.",
+      "dateFallback": "Analysé — {{rejected}} complet, créneau retenu le {{kept}}",
+      "dateNoneAvailable": "Analysé — aucune disponibilité aux dates proposées ({{rejected}})"
+    },
+    "addFilter": "Filtrer",
+    "removeFilter": "Retirer le filtre {{filter}}",
+    "filterAll": "Tous",
+    "groupByLabel": "Vue",
+    "groupBy": {
+      "status": "Vue par statut",
+      "priority": "Vue par priorité",
+      "task_type": "Vue par type"
     }
   },
   "scheduleAlerts": {
@@ -2168,7 +2262,8 @@
     "tabs": {
       "active": "Actifs",
       "archived": "Archivés"
-    }
+    },
+    "openTask": "Voir la tâche"
   },
   "checkoutIntents": {
     "title": "Paniers abandonnés",

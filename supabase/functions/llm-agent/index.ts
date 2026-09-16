@@ -15,6 +15,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 
 import { parseEmailWithLlm, type ParseEmailInput } from "./actions/parseEmail.ts";
+import { loadTreatmentRefs } from "../_shared/treatmentRefs.ts";
+import { resolveRequestedDate } from "../_shared/requestedDate.ts";
 import { generateInquiryReply } from "./actions/generateInquiryReply.ts";
 
 const corsHeaders = {
@@ -60,6 +62,48 @@ serve(async (req) => {
           venueName: input.venueName ?? null,
           treatments: input.treatments ?? [],
         });
+        return jsonResponse(result);
+      }
+
+      // Analyse d'un texte collé dans une tâche (mail transféré, message
+      // WhatsApp…). Même extracteur que le webhook entrant : on résout le
+      // catalogue du lieu côté serveur, le front n'a qu'un texte à fournir.
+      case "parse-inquiry-text": {
+        const hotelId = typeof body.hotelId === "string" ? body.hotelId : null;
+        const text = typeof body.text === "string" ? body.text.trim() : "";
+        if (!hotelId) return jsonResponse({ error: "Missing `hotelId`" }, 400);
+        if (!text) return jsonResponse({ error: "Missing `text`" }, 400);
+
+        const { data: venue } = await supabaseAdmin
+          .from("hotels")
+          .select("name")
+          .eq("id", hotelId)
+          .maybeSingle();
+
+        const result = await parseEmailWithLlm({
+          subject: null,
+          bodyText: text,
+          bodyHtml: null,
+          // Le texte est collé à la main : il n'a pas d'expéditeur propre.
+          fromAddress: "",
+          venueName: (venue?.name as string | null) ?? null,
+          treatments: await loadTreatmentRefs(supabaseAdmin, hotelId),
+        });
+
+        // « Lundi ou mardi » : on retient la première date réellement ouvrable
+        // plutôt que de laisser l'opérateur vérifier l'agenda à la main.
+        if (result.parsed && result.parsed.requested_dates.length > 1) {
+          const resolution = await resolveRequestedDate(supabaseAdmin, {
+            hotelId,
+            dates: result.parsed.requested_dates,
+            treatmentIds: result.parsed.treatment_match?.id
+              ? [result.parsed.treatment_match.id]
+              : [],
+            guestCount: result.parsed.guest_count,
+          });
+          result.parsed.requested_date = resolution.date ?? result.parsed.requested_date;
+          return jsonResponse({ ...result, dateResolution: resolution });
+        }
         return jsonResponse(result);
       }
 

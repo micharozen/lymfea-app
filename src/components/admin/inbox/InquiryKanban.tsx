@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 
 import { cn } from "@/lib/utils";
-import type { EmailInquiry, EmailInquiryStatus } from "@/hooks/inbox/useEmailInquiries";
+import type { ChannelMessage, ChannelMessageStatus } from "@/hooks/inbox/useChannelMessages";
 import {
   KANBAN_COLUMNS,
   STATUS_DISPLAY,
@@ -12,9 +12,9 @@ import {
 } from "./inquiryStatus";
 
 interface Props {
-  inquiries: EmailInquiry[];
+  inquiries: ChannelMessage[];
   isLoading: boolean;
-  onSelect: (inquiry: EmailInquiry) => void;
+  onSelect: (inquiry: ChannelMessage) => void;
 }
 
 /**
@@ -27,7 +27,7 @@ export function InquiryKanban({ inquiries, isLoading, onSelect }: Props) {
   const { t } = useTranslation("admin");
 
   const byStatus = useMemo(() => {
-    const map = new Map<EmailInquiryStatus, EmailInquiry[]>(
+    const map = new Map<ChannelMessageStatus, ChannelMessage[]>(
       KANBAN_COLUMNS.map(status => [status, []]),
     );
     for (const inquiry of inquiries) {
@@ -89,7 +89,7 @@ export function InquiryKanban({ inquiries, isLoading, onSelect }: Props) {
                         )}
                       </p>
 
-                      <p className="text-xs text-muted-foreground truncate">{inquiry.from_address}</p>
+                      <p className="text-xs text-muted-foreground truncate">{inquiry.from_identifier}</p>
 
                       <p className="text-xs text-muted-foreground truncate">
                         {inquiry.hotel?.name ?? (

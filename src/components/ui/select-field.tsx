@@ -37,6 +37,8 @@ export interface SelectFieldProps {
   className?: string;
   /** Classes du panneau déroulant — par défaut il épouse la largeur du déclencheur. */
   contentClassName?: string;
+  /** Ouvre la liste dès le montage — pour un champ qu'on vient d'activer en édition inline. */
+  defaultOpen?: boolean;
   "aria-label"?: string;
 }
 
@@ -60,9 +62,10 @@ export function SelectField({
   disabled,
   className,
   contentClassName,
+  defaultOpen = false,
   "aria-label": ariaLabel,
 }: SelectFieldProps) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(defaultOpen);
   const selected = options.find((option) => option.value === value);
 
   // `modal` est indispensable : le panneau est portalisé hors d'une éventuelle modale

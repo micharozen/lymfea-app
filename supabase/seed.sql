@@ -401,7 +401,7 @@ INSERT INTO public.bookings (
    95.00, 60, 'card', 'paid', '00000000-0000-0000-0000-000000000031', NULL);
 
 -- 14) Treatment variants (durée / nombre de personnes)
--- Variant IDs reference (used by email_inquiries below):
+-- Variant IDs reference (used by channel_messages below):
 --   Massage relaxant (21):    300 = 60 min solo (default), 301 = 90 min solo, 302 = 60 min duo
 --   Deep tissue (24):         310 = 75 min solo (default)
 --   Soin éclat visage (25):   320 = 45 min solo (default)
@@ -478,7 +478,7 @@ UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000511' 
 UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000512' WHERE id = '00000000-0000-0000-0000-000000000212';
 UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000513' WHERE id = '00000000-0000-0000-0000-000000000213';
 
--- 18) Fake email_inquiries (inbox)
+-- 18) Fake channel_messages (inbox)
 -- Couvre les états de l'UI inbox :
 --   - received       : webhook reçu, pas encore parsé
 --   - parsed (auto)  : tous les critères auto-convert OK (conf >= 0.8, treatment + variant + date + heure)
@@ -486,9 +486,9 @@ UPDATE public.bookings SET customer_id = '00000000-0000-0000-0000-000000000513' 
 --   - failed         : LLM/lookup en échec, message d'erreur
 --   - converted      : déjà convertie en booking (référence un booking existant)
 --   - orphan         : reçue sur un alias inconnu, hotel_id NULL
-INSERT INTO public.email_inquiries (
-  id, hotel_id, from_address, to_address, subject, raw_body_text, raw_body_html,
-  parsed_data, confidence_score, status, booking_id, error_message, message_id, created_at
+INSERT INTO public.channel_messages (
+  id, hotel_id, from_identifier, to_identifier, subject, raw_body_text, raw_body_html,
+  parsed_data, confidence_score, status, booking_id, error_message, external_message_id, created_at
 ) VALUES
   -- A) Auto-convert ready — Hôtel Hana, Massage relaxant 60 min solo
   ('00000000-0000-0000-0000-000000000400',
@@ -639,3 +639,127 @@ INSERT INTO public.email_inquiries (
    E'Hi, is this address active?',
    NULL,
    NULL, NULL, 'failed', NULL, 'Unknown venue alias or unconfigured domain', '<seed-inq-407@example.com>', NOW() - INTERVAL '4 days');
+
+-- 19) Tâches de démonstration
+-- Couvre ce que la carte et le board doivent savoir afficher :
+--   - une demande entrante sans fiche client (prospect seul)
+--   - une demande rattachée à une réservation (ligne « #N · Nom · date »)
+--   - un fil de messages rattaché (compteur de messages)
+--   - les trois colonnes, les quatre priorités, une échéance en retard
+--   - une demande déjà convertie en réservation
+INSERT INTO public.tasks (
+  id, organization_id, hotel_id, booking_id, customer_id, assigned_to_user_id, created_by,
+  title, description, status, priority, task_type, task_type_other,
+  channel, feedback_type, client_type, treatment_date,
+  prospect_first_name, prospect_last_name, prospect_email, prospect_phone,
+  converted_booking_id, treatment_menu_ids, checklist, due_date, position, completed_at
+) VALUES
+  -- A) Demande entrante WhatsApp, prospect sans fiche client, en retard
+  ('00000000-0000-0000-0000-000000000600',
+   'a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000010',
+   NULL, NULL, '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001',
+   'Duo massage samedi après-midi',
+   E'Bonjour, nous souhaitons réserver deux massages relaxants samedi vers 15h. Possible ?',
+   'todo', 'urgent', 'inbound_request', NULL,
+   'whatsapp', 'awaiting_client', 'external', CURRENT_DATE + INTERVAL '3 days',
+   'Claire', 'Fontaine', 'claire.fontaine@example.com', '+33611223344',
+   NULL, ARRAY['00000000-0000-0000-0000-000000000021']::uuid[], '[]'::jsonb,
+   CURRENT_DATE - INTERVAL '1 day', 0, NULL),
+
+  -- B) Demande entrante par téléphone, sans échéance ni assigné (comme celles créées par le webhook)
+  ('00000000-0000-0000-0000-000000000601',
+   'a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000011',
+   NULL, NULL, NULL, NULL,
+   'Demande tarifs soin visage',
+   E'Appel reçu ce matin : cliente extérieure, souhaite le tarif du soin éclat visage.',
+   'todo', 'medium', 'inbound_request', NULL,
+   'phone', 'need_more_info', 'external', NULL,
+   'Marc', 'Durand', NULL, '+33699887766',
+   NULL, '{}'::uuid[], '[]'::jsonb,
+   NULL, 1, NULL),
+
+  -- C) Demande entrante par e-mail, rattachée au fil de messages 400 (compteur)
+  ('00000000-0000-0000-0000-000000000602',
+   'a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000010',
+   NULL, NULL, '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001',
+   'Réservation massage relaxant — Sophie Bernard',
+   E'Demande reçue par e-mail, créneau souhaité demain 15h00.',
+   'in_progress', 'high', 'inbound_request', NULL,
+   'email', 'awaiting_partner', 'hotel', CURRENT_DATE + INTERVAL '1 day',
+   'Sophie', 'Bernard', 'sophie.bernard@example.com', '+33611223344',
+   NULL, ARRAY['00000000-0000-0000-0000-000000000021']::uuid[],
+   '[{"id":"c1","label":"Vérifier la disponibilité de la cabine","done":true},
+     {"id":"c2","label":"Confirmer le créneau au client","done":false}]'::jsonb,
+   CURRENT_DATE, 2, NULL),
+
+  -- D) Suivi de réservation : ligne d'identification « #1 · Sophie Martin · date »
+  ('00000000-0000-0000-0000-000000000603',
+   'a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000010',
+   '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000501',
+   '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001',
+   'Rappeler pour confirmer le créneau',
+   E'La cliente a demandé un décalage d''une heure.',
+   'todo', 'high', 'booking_followup', NULL,
+   'phone', 'change_requested', 'hotel', NULL,
+   NULL, NULL, NULL, NULL,
+   NULL, '{}'::uuid[], '[]'::jsonb,
+   CURRENT_DATE + INTERVAL '1 day', 3, NULL),
+
+  -- E) Suivi de paiement sur une autre réservation
+  ('00000000-0000-0000-0000-000000000604',
+   'a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000010',
+   '00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000502',
+   '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001',
+   'Relancer le paiement du solde',
+   NULL,
+   'in_progress', 'medium', 'payment_followup', NULL,
+   'email', 'awaiting_payment', 'hotel', NULL,
+   NULL, NULL, NULL, NULL,
+   NULL, '{}'::uuid[], '[]'::jsonb,
+   CURRENT_DATE + INTERVAL '2 days', 4, NULL),
+
+  -- F) Demande Instagram convertie : le bouton laisse place au lien vers la résa
+  ('00000000-0000-0000-0000-000000000605',
+   'a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000011',
+   '00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000503',
+   '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001',
+   'Demande reçue en DM Instagram',
+   E'Convertie en réservation après échange.',
+   'done', 'low', 'inbound_request', NULL,
+   'instagram', 'validation_received', 'external', CURRENT_DATE - INTERVAL '2 days',
+   NULL, NULL, NULL, NULL,
+   '00000000-0000-0000-0000-000000000203', '{}'::uuid[], '[]'::jsonb,
+   CURRENT_DATE - INTERVAL '2 days', 5, NOW() - INTERVAL '2 days'),
+
+  -- G) Walk-in sans canal numérique + type libre
+  ('00000000-0000-0000-0000-000000000606',
+   'a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000010',
+   NULL, NULL, NULL, '00000000-0000-0000-0000-000000000001',
+   'Cliente passée à l''accueil — souhaite une carte cadeau',
+   NULL,
+   'todo', 'low', 'other', 'Carte cadeau',
+   'walk_in', 'internal_feedback', 'external', NULL,
+   'Nadia', 'Bensaïd', NULL, NULL,
+   NULL, '{}'::uuid[], '[]'::jsonb,
+   CURRENT_DATE + INTERVAL '5 days', 6, NULL),
+
+  -- H) Bug interne : ni canal, ni prospect, ni réservation
+  ('00000000-0000-0000-0000-000000000607',
+   'a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000010',
+   NULL, NULL, '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001',
+   'Le PDF de facture coupe la dernière ligne',
+   E'Reproductible sur les factures à plus de 8 lignes.',
+   'done', 'medium', 'bug', NULL,
+   NULL, 'issue_reported', NULL, NULL,
+   NULL, NULL, NULL, NULL,
+   NULL, '{}'::uuid[], '[]'::jsonb,
+   CURRENT_DATE - INTERVAL '3 days', 7, NOW() - INTERVAL '1 day');
+
+-- Rattache le fil e-mail existant (racine 400 + sa réponse) à la tâche C :
+-- le suivi vit sur la tâche, le message reste la couche transport.
+UPDATE public.channel_messages
+SET task_id = '00000000-0000-0000-0000-000000000602'
+WHERE id IN (
+  '00000000-0000-0000-0000-000000000400',
+  '00000000-0000-0000-0000-000000000401'
+);

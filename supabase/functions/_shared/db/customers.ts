@@ -27,7 +27,7 @@ export type CustomerListPage = {
 };
 
 // Strip characters that would break the PostgREST or() filter syntax.
-function sanitizeSearchTerm(term: string): string {
+export function sanitizeSearchTerm(term: string): string {
   return term.replace(/[%_,()\\]/g, " ").trim();
 }
 
@@ -92,18 +92,59 @@ export type CustomerSearchResult = Pick<
   "id" | "first_name" | "last_name" | "phone" | "email"
 >;
 
+/**
+ * Construit le filtre PostgREST d'une recherche de personne sur deux colonnes
+ * de nom.
+ *
+ * Un `ilike` ne compare qu'une colonne à la fois : « Jean Dupont » ne pouvait
+ * donc matcher ni first_name ni last_name, et la recherche ne remontait rien
+ * dès qu'on tapait le nom complet. Sur deux mots ou plus, on teste les deux
+ * ordres (« Jean Dupont » et « Dupont Jean ») via des `and()` imbriqués, que
+ * PostgREST accepte à l'intérieur d'un `or()`.
+ *
+ * `extraColumns` reçoit les colonnes cherchées sur la saisie entière
+ * (téléphone, email…), qu'on ne veut pas découper en mots.
+ */
+export function buildPersonSearchFilter(
+  rawQuery: string,
+  firstNameColumn: string,
+  lastNameColumn: string,
+  extraColumns: string[] = [],
+): string | null {
+  const sanitized = sanitizeSearchTerm(rawQuery);
+  if (sanitized.length < 2) return null;
+
+  const clauses = [
+    `${firstNameColumn}.ilike.%${sanitized}%`,
+    `${lastNameColumn}.ilike.%${sanitized}%`,
+    ...extraColumns.map((column) => `${column}.ilike.%${sanitized}%`),
+  ];
+
+  const tokens = sanitized.split(/\s+/).filter((token) => token.length > 0);
+  if (tokens.length >= 2) {
+    const [first, ...rest] = tokens;
+    const last = rest.join(" ");
+    clauses.push(
+      `and(${firstNameColumn}.ilike.%${first}%,${lastNameColumn}.ilike.%${last}%)`,
+      `and(${firstNameColumn}.ilike.%${last}%,${lastNameColumn}.ilike.%${first}%)`,
+    );
+  }
+
+  return clauses.join(",");
+}
+
 export async function searchCustomers(
   client: TClient,
   query: string,
 ): Promise<CustomerSearchResult[]> {
-  const trimmed = query.trim();
-  if (trimmed.length < 2) return [];
+  const filter = buildPersonSearchFilter(query, "first_name", "last_name", ["phone", "email"]);
+  if (filter === null) return [];
   const { data, error } = await client
     .from("customers")
     .select("id, first_name, last_name, phone, email")
-    .or(
-      `first_name.ilike.%${trimmed}%,last_name.ilike.%${trimmed}%,phone.ilike.%${trimmed}%,email.ilike.%${trimmed}%`,
-    )
+    .or(filter)
+    .order("last_name", { ascending: true })
+    .order("first_name", { ascending: true })
     .limit(20);
   if (error) throw error;
   return (data ?? []) as CustomerSearchResult[];

@@ -91,7 +91,7 @@ export function TaskAttachments({ value, onChange }: TaskAttachmentsProps) {
 
   return (
     <div
-      className="space-y-2 rounded-md focus-within:ring-1 focus-within:ring-ring"
+      className="space-y-1.5 rounded-md focus-within:ring-1 focus-within:ring-ring"
       onPaste={handlePaste}
       tabIndex={-1}
     >
@@ -103,7 +103,7 @@ export function TaskAttachments({ value, onChange }: TaskAttachmentsProps) {
                 <img
                   src={previews[path]}
                   alt=""
-                  className="h-20 w-28 rounded border object-cover"
+                  className="h-14 w-20 rounded border object-cover"
                 />
               </a>
               <Button
@@ -130,9 +130,9 @@ export function TaskAttachments({ value, onChange }: TaskAttachmentsProps) {
       />
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="sm"
-        className="h-8"
+        className="text-muted-foreground h-7 px-2"
         disabled={uploading}
         onClick={() => fileInputRef.current?.click()}
       >
@@ -143,7 +143,7 @@ export function TaskAttachments({ value, onChange }: TaskAttachmentsProps) {
         )}
         {t("tasks.fields.addAttachment")}
       </Button>
-      <p className="text-muted-foreground text-xs">{t("tasks.fields.attachmentHint")}</p>
+      <p className="text-muted-foreground text-[11px]">{t("tasks.fields.attachmentHint")}</p>
     </div>
   );
 }

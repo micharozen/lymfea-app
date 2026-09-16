@@ -1,11 +1,24 @@
 import { describe, it, expect } from "vitest";
-import { sortColumn, groupByStatus, resolveTaskDrop, type DnDTask } from "./taskDnd";
+import {
+  sortColumn,
+  groupByStatus,
+  groupTasks,
+  resolveTaskDrop,
+  type DnDTask,
+} from "./taskDnd";
 
-const task = (id: string, status: string, position: number, created_at = "2026-01-01"): DnDTask => ({
+const task = (
+  id: string,
+  status: string,
+  position: number,
+  created_at = "2026-01-01",
+  extra: Partial<DnDTask> = {},
+): DnDTask => ({
   id,
   status,
   position,
   created_at,
+  ...extra,
 });
 
 describe("sortColumn", () => {
@@ -68,13 +81,13 @@ describe("resolveTaskDrop", () => {
       activeId: "a",
       overId: "done",
     });
-    expect(result).toEqual({ id: "a", status: "done", position: 0 });
+    expect(result).toMatchObject({ id: "a", groupBy: "status", value: "done", status: "done", position: 0 });
   });
 
   it("appends to the end when dropped on a non-empty column", () => {
     const tasks = [task("a", "todo", 0), task("c", "in_progress", 5)];
     const result = resolveTaskDrop({ tasks, activeId: "a", overId: "in_progress" });
-    expect(result).toEqual({ id: "a", status: "in_progress", position: 6 });
+    expect(result).toMatchObject({ id: "a", status: "in_progress", position: 6 });
   });
 
   it("adopts the target card's status when dropped over another card", () => {
@@ -93,13 +106,70 @@ describe("resolveTaskDrop", () => {
     ];
     // drop e over d => between c(0) and d(2) => 1
     const result = resolveTaskDrop({ tasks, activeId: "e", overId: "d" });
-    expect(result).toEqual({ id: "e", status: "in_progress", position: 1 });
+    expect(result).toMatchObject({ id: "e", status: "in_progress", position: 1 });
   });
 
   it("reorders within the same column", () => {
     const tasks = [task("a", "todo", 0), task("b", "todo", 1)];
     // drop b over a => before a(0) => -1
     const result = resolveTaskDrop({ tasks, activeId: "b", overId: "a" });
-    expect(result).toEqual({ id: "b", status: "todo", position: -1 });
+    expect(result).toMatchObject({ id: "b", status: "todo", position: -1 });
+  });
+});
+
+describe("groupTasks — autres dimensions que le statut", () => {
+  it("répartit par priorité", () => {
+    const grouped = groupTasks(
+      [
+        task("a", "todo", 0, "2026-01-01", { priority: "urgent" }),
+        task("b", "done", 0, "2026-01-01", { priority: "low" }),
+      ],
+      "priority",
+    );
+    expect(grouped.urgent.map((t) => t.id)).toEqual(["a"]);
+    expect(grouped.low.map((t) => t.id)).toEqual(["b"]);
+  });
+
+  it("répartit par type et replie un type inconnu sur « other »", () => {
+    const grouped = groupTasks(
+      [
+        task("a", "todo", 0, "2026-01-01", { task_type: "inbound_request" }),
+        task("b", "todo", 0, "2026-01-01", { task_type: "inconnu" }),
+        task("c", "todo", 0, "2026-01-01", {}),
+      ],
+      "task_type",
+    );
+    expect(grouped.inbound_request.map((t) => t.id)).toEqual(["a"]);
+    expect(grouped.other.map((t) => t.id).sort()).toEqual(["b", "c"]);
+  });
+});
+
+describe("resolveTaskDrop — groupé autrement que par statut", () => {
+  it("change la priorité, jamais le statut", () => {
+    const tasks = [
+      task("a", "todo", 0, "2026-01-01", { priority: "low" }),
+      task("b", "in_progress", 3, "2026-01-01", { priority: "urgent" }),
+    ];
+    const result = resolveTaskDrop({ tasks, activeId: "a", overId: "urgent", groupBy: "priority" });
+    expect(result).toMatchObject({ id: "a", groupBy: "priority", value: "urgent", position: 4 });
+    // Le statut de la carte déplacée reste celui qu'elle avait.
+    expect(result?.status).toBe("todo");
+  });
+
+  it("change le type de tâche sans toucher au statut", () => {
+    const tasks = [
+      task("a", "done", 0, "2026-01-01", { task_type: "bug" }),
+      task("b", "todo", 0, "2026-01-01", { task_type: "inbound_request" }),
+    ];
+    const result = resolveTaskDrop({ tasks, activeId: "a", overId: "b", groupBy: "task_type" });
+    expect(result).toMatchObject({ groupBy: "task_type", value: "inbound_request" });
+    expect(result?.status).toBe("done");
+  });
+
+  it("reste un no-op dans la même colonne à la même position", () => {
+    const tasks = [task("a", "todo", 0, "2026-01-01", { priority: "medium" })];
+    expect(
+      resolveTaskDrop({ tasks, activeId: "a", overId: "medium", groupBy: "priority" }),
+    ).toBeNull();
   });
 });

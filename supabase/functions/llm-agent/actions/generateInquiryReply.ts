@@ -16,8 +16,8 @@ import { fetchPublicTreatments, type PublicTreatment } from "../../_shared/publi
 interface InquiryRow {
   id: string;
   hotel_id: string | null;
-  from_address: string;
-  to_address: string | null;
+  from_identifier: string;
+  to_identifier: string | null;
   subject: string | null;
   raw_body_text: string | null;
   raw_body_html: string | null;
@@ -205,8 +205,8 @@ export async function generateInquiryReply(
 ): Promise<{ result: GenerateInquiryReplyResult | null; error: string | null }> {
   // 1. Load inquiry (root only)
   const { data: inquiryData, error: inquiryErr } = await supabase
-    .from("email_inquiries")
-    .select("id, hotel_id, from_address, to_address, subject, raw_body_text, raw_body_html, parsed_data, direction")
+    .from("channel_messages")
+    .select("id, hotel_id, from_identifier, to_identifier, subject, raw_body_text, raw_body_html, parsed_data, direction")
     .eq("id", inquiryId)
     .maybeSingle();
 
@@ -335,7 +335,7 @@ export async function generateInquiryReply(
     inquiryId,
     hotelId: inquiry.hotel_id,
     hotelSlug: hotel?.slug ?? null,
-    inquiryToAddress: inquiry.to_address,
+    inquiryToAddress: inquiry.to_identifier,
     publicIdentifier,
     linkLanguage,
     siteUrl: publicBaseUrl(),
@@ -417,7 +417,7 @@ export async function generateInquiryReply(
 // inquiries were forwarded by the venue's own concierge mailbox. The address the
 // parser found in the body is therefore the one to look up.
 async function loadCustomer(supabase: SupabaseClient, inquiry: InquiryRow): Promise<CustomerRow | null> {
-  const email = (inquiry.parsed_data?.email ?? inquiry.from_address ?? "").trim().toLowerCase();
+  const email = (inquiry.parsed_data?.email ?? inquiry.from_identifier ?? "").trim().toLowerCase();
   if (!email) return null;
 
   const { data, error } = await supabase
@@ -463,9 +463,9 @@ function normalizeCivility(value: string | null | undefined): "madame" | "monsie
 
 async function loadThreadHistory(supabase: SupabaseClient, rootId: string): Promise<ThreadMessage[]> {
   const { data, error } = await supabase
-    .from("email_inquiries")
+    .from("channel_messages")
     .select("direction, created_at, subject, raw_body_text, raw_body_html")
-    .eq("parent_inquiry_id", rootId)
+    .eq("parent_message_id", rootId)
     .order("created_at", { ascending: true })
     .limit(6);
 
@@ -512,7 +512,7 @@ function publicBaseUrl(): string {
 }
 
 function publicVenueIdentifier(hotel: HotelRow | null, inquiry: InquiryRow): string | null {
-  return hotel?.slug ?? inboundAlias(inquiry.to_address) ?? inquiry.hotel_id;
+  return hotel?.slug ?? inboundAlias(inquiry.to_identifier) ?? inquiry.hotel_id;
 }
 
 function inboundAlias(toAddress: string | null): string | null {
@@ -539,7 +539,7 @@ function buildPublicCatalogUrl(
       hotelId: hotel?.id ?? null,
       hotelName: hotel?.name ?? null,
       inquiryHotelId: inquiry.hotel_id,
-      inquiryToAddress: inquiry.to_address,
+      inquiryToAddress: inquiry.to_identifier,
     });
     return null;
   }
@@ -547,7 +547,7 @@ function buildPublicCatalogUrl(
   console.log("[generateInquiryReply] built public catalog URL", {
     hotelId: hotel?.id ?? inquiry.hotel_id,
     hotelSlug: hotel?.slug ?? null,
-    inquiryToAddress: inquiry.to_address,
+    inquiryToAddress: inquiry.to_identifier,
     identifier,
     language,
     url,
@@ -780,7 +780,7 @@ function buildUserMessage(args: {
   return [
     `Venue: ${hotel?.name ?? "(unknown)"}`,
     `Venue opening hours: ${hotel?.opening_time ?? "?"} – ${hotel?.closing_time ?? "?"}`,
-    `Original sender: ${inquiry.from_address}`,
+    `Original sender: ${inquiry.from_identifier}`,
     `Original subject: ${inquiry.subject ?? "(no subject)"}`,
     ``,
     buildClientIdentityBlock(identity, p, inquiry),
@@ -851,12 +851,12 @@ function buildClientIdentityBlock(
   }
 
   const clientEmail = parsed.email?.trim() ?? null;
-  if (clientEmail && clientEmail.toLowerCase() !== inquiry.from_address.toLowerCase()) {
+  if (clientEmail && clientEmail.toLowerCase() !== inquiry.from_identifier.toLowerCase()) {
     lines.push(
-      `  Reply recipient: ${clientEmail} — this email was forwarded by ${inquiry.from_address}. Write to the client, not to the person who forwarded it.`,
+      `  Reply recipient: ${clientEmail} — this email was forwarded by ${inquiry.from_identifier}. Write to the client, not to the person who forwarded it.`,
     );
   } else {
-    lines.push(`  Reply recipient: ${clientEmail ?? inquiry.from_address}`);
+    lines.push(`  Reply recipient: ${clientEmail ?? inquiry.from_identifier}`);
   }
   return lines.join("\n");
 }

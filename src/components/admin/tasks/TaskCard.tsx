@@ -2,13 +2,13 @@ import { forwardRef, type CSSProperties, type HTMLAttributes } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useTranslation } from "react-i18next";
-import { CalendarClock, CalendarCheck2, User } from "lucide-react";
+import { CalendarClock, CalendarCheck2, MessageSquare, MessagesSquare, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import type { Task, TaskPriority, TaskStatus } from "@/hooks/tasks/useTasks";
-import { PRIORITY_META, STATUS_META } from "./taskConstants";
+import type { Task, TaskChannel, TaskPriority, TaskStatus } from "@/hooks/tasks/useTasks";
+import { PRIORITY_META, STATUS_META, TASK_CHANNEL_META, TASK_TYPE_META } from "./taskConstants";
 
 interface TaskCardProps {
   task: Task;
@@ -48,6 +48,18 @@ function useTaskCardData(task: Task) {
     new Date(task.due_date).setHours(23, 59, 59, 999) < Date.now();
 
   const bookingLabel = task.booking != null ? `#${task.booking.booking_id ?? "?"}` : null;
+
+  // Ligne d'identification affichée AVANT le titre : « #123 · Nom · 12/07 ».
+  // Le numéro seul laissait planer l'ambiguïté quand plusieurs demandes
+  // portaient le même titre. Sans réservation, on retombe sur le prospect —
+  // souvent le seul nom connu d'une demande entrante.
+  const bookingDate = task.booking?.booking_date
+    ? new Date(`${task.booking.booking_date}T00:00:00`).toLocaleDateString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+      })
+    : null;
+  const prospectName = `${task.prospect_first_name ?? ""} ${task.prospect_last_name ?? ""}`.trim();
   const customerLabel =
     task.customer != null
       ? `${task.customer.first_name ?? ""} ${task.customer.last_name ?? ""}`.trim()
@@ -57,7 +69,23 @@ function useTaskCardData(task: Task) {
       ? `${task.booking.client_first_name ?? ""} ${task.booking.client_last_name ?? ""}`.trim()
       : null;
 
-  return { t, priority, status, dueDate, dueDateLong, isOverdue, bookingLabel, customerLabel, bookingClient };
+  const headline =
+    task.booking != null
+      ? [bookingLabel, bookingClient || null, bookingDate].filter(Boolean).join(" · ")
+      : prospectName || null;
+
+  return {
+    t,
+    priority,
+    status,
+    dueDate,
+    dueDateLong,
+    isOverdue,
+    bookingLabel,
+    customerLabel,
+    bookingClient,
+    headline,
+  };
 }
 
 interface TaskCardVisualProps extends HTMLAttributes<HTMLDivElement> {
@@ -75,7 +103,7 @@ interface TaskCardVisualProps extends HTMLAttributes<HTMLDivElement> {
  */
 export const TaskCardVisual = forwardRef<HTMLDivElement, TaskCardVisualProps>(
   function TaskCardVisual({ task, assigneeName, assigneeImage, dragging, className, ...rest }, ref) {
-    const { t, priority, dueDate, isOverdue, bookingLabel, customerLabel } = useTaskCardData(task);
+    const { t, priority, dueDate, isOverdue, customerLabel, headline } = useTaskCardData(task);
     const PriorityIcon = priority.icon;
 
     return (
@@ -88,6 +116,29 @@ export const TaskCardVisual = forwardRef<HTMLDivElement, TaskCardVisualProps>(
         )}
         {...rest}
       >
+        {headline && (
+          <div className="mb-1 flex items-center gap-1.5">
+            {task.booking ? (
+              <a
+                href={`/admin/bookings/${task.booking.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                // Le clic ouvrirait la tâche et amorcerait un drag : on isole le
+                // lien des deux gestes du parent.
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+                className="truncate text-[11px] font-medium text-primary hover:underline"
+              >
+                {headline}
+              </a>
+            ) : (
+              <span className="truncate text-[11px] font-medium text-muted-foreground">
+                {headline}
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="mb-2 flex items-start justify-between gap-2">
           <p className="text-sm font-medium leading-snug text-foreground">{task.title}</p>
           <Badge className={cn("shrink-0 gap-1 text-[10px] font-medium", priority.badgeClass)}>
@@ -100,17 +151,66 @@ export const TaskCardVisual = forwardRef<HTMLDivElement, TaskCardVisualProps>(
           <p className="mb-2 line-clamp-2 text-xs text-muted-foreground">{task.description}</p>
         )}
 
-        {(bookingLabel || customerLabel) && (
+        {(customerLabel || task.task_type || task.channel || task.feedback_type || task.message_count > 0 ||
+          task.comment_count > 0) && (
           <div className="mb-2 flex flex-wrap gap-1">
-            {bookingLabel && (
-              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                {t("tasks.card.booking")} {bookingLabel}
+            {/* Le type porte la couleur du badge : c'est lui qui dit de quelle
+                nature est la demande, avant même son canal. */}
+            {task.task_type && (
+              <span
+                className={cn(
+                  "rounded px-1.5 py-0.5 text-[10px]",
+                  TASK_TYPE_META[task.task_type as keyof typeof TASK_TYPE_META]?.badgeClass ??
+                    "bg-muted text-muted-foreground",
+                )}
+              >
+                {task.task_type === "other" && task.task_type_other
+                  ? task.task_type_other
+                  : t(`tasks.type.${task.task_type}`, { defaultValue: task.task_type })}
               </span>
             )}
             {customerLabel && (
-              <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              <a
+                href={task.customer ? `/admin/customers/${task.customer.id}` : undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+                className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground hover:underline"
+              >
                 <User className="h-2.5 w-2.5" />
                 {customerLabel}
+              </a>
+            )}
+            {task.channel && (
+              <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                {(() => {
+                  const meta = TASK_CHANNEL_META[task.channel as TaskChannel];
+                  if (!meta) return null;
+                  const Icon = meta.icon;
+                  return <Icon className="h-2.5 w-2.5" />;
+                })()}
+                {t(`tasks.channel.${task.channel}`, { defaultValue: task.channel })}
+              </span>
+            )}
+            {task.feedback_type && (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                {t(`tasks.feedbackType.${task.feedback_type}`, { defaultValue: task.feedback_type })}
+              </span>
+            )}
+            {task.message_count > 0 && (
+              <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                <MessagesSquare className="h-2.5 w-2.5" />
+                {task.message_count}
+              </span>
+            )}
+            {task.comment_count > 0 && (
+              <span
+                className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                title={t("tasks.comments.count", { count: task.comment_count })}
+              >
+                <MessageSquare className="h-2.5 w-2.5" />
+                {task.comment_count}
               </span>
             )}
           </div>

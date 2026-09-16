@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { BookingSearchResult } from "@/lib/bookingSearch";
 import { Plus, ListTodo, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTasks, type Task } from "@/hooks/tasks/useTasks";
@@ -49,12 +50,19 @@ export function BookingTasksTab({ booking }: BookingTasksTabProps) {
   }, [admins]);
 
   // Stable object so the dialog's seed effect doesn't re-run on every render.
-  const defaultBooking = useMemo(
+  // La fiche réservation ne porte que l'identité de la résa : le reste du
+  // contexte (lieu, soins, thérapeutes) reste vide, la tâche est déjà rattachée.
+  const defaultBooking = useMemo<BookingSearchResult>(
     () => ({
       id: booking.id,
       booking_id: booking.booking_id,
+      booking_date: null,
+      hotel_id: null,
+      client_type: null,
       client_first_name: booking.client_first_name,
       client_last_name: booking.client_last_name,
+      booking_treatments: null,
+      booking_therapists: null,
       customer: null,
     }),
     [booking.id, booking.booking_id, booking.client_first_name, booking.client_last_name],

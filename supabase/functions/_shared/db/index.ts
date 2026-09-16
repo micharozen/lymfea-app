@@ -10,6 +10,7 @@ export * from "./treatment-rooms.ts";
 export * from "./customers.ts";
 export * from "./checkout-intents.ts";
 export * from "./tasks.ts";
+export * from "./task-comments.ts";
 export * from "./bundles.ts";
 export * from "./ledger.ts";
 export * from "./dashboard.ts";

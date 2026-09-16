@@ -92,7 +92,7 @@ export interface CreateBookingPayload {
   /** Réservation offerte (gratuite) : prix forcé à 0, payment "offert". */
   isOffert?: boolean;
   source?: string;
-  emailInquiryId?: string;
+  channelMessageId?: string;
   isBroadcast?: boolean;
   /**
    * Panier composé uniquement d'accès « amenity » (piscine, sauna…) : aucun praticien
@@ -485,7 +485,7 @@ async function insertSingleBooking(
     payment_status: paymentStatus,
     payment_reference: d.voucherReference || null,
     source: d.source ?? "admin",
-    email_inquiry_id: d.emailInquiryId ?? null,
+    channel_message_id: d.channelMessageId ?? null,
     language,
     booking_group_id: bookingGroupId,
   } as any).select("id, booking_id, hotel_name, status").single();

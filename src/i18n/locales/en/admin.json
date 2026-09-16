@@ -571,7 +571,8 @@
     "actions": "Actions",
     "confirmDelete": "Are you sure you want to delete?",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "close": "Close"
   },
   "venue": {
     "completeness": {
@@ -1130,7 +1131,34 @@
       "addAttachment": "Add an image",
       "attachmentHint": "You can also paste a screenshot (Cmd/Ctrl+V).",
       "attachmentImageOnly": "The file must be an image",
-      "attachmentTooLarge": "The image must not exceed {{size}} MB"
+      "attachmentTooLarge": "The image must not exceed {{size}} MB",
+      "channel": "Channel",
+      "noChannel": "Not specified",
+      "feedbackType": "Expected feedback",
+      "noFeedbackType": "Not specified",
+      "clientType": "Client type",
+      "noClientType": "Not specified",
+      "treatmentDate": "Treatment date",
+      "prospect": "Prospect details",
+      "prospectHint": "Fill this in when the client has no record yet. The record is created when the task is converted into a booking.",
+      "prospectFirstName": "First name",
+      "prospectLastName": "Last name",
+      "prospectEmail": "Email",
+      "prospectPhone": "Phone",
+      "analyze": "Analyse",
+      "bookingRequiredHint": "The booking automatically fills in the venue, treatments, therapists and client.",
+      "clearValue": "— Clear —",
+      "noAssignee": "Unassigned",
+      "noDueDate": "No due date",
+      "noDescription": "Add a description…",
+      "noTreatmentDate": "No treatment date",
+      "context": "Context",
+      "details": "Details",
+      "edit": "Edit",
+      "backToRead": "Done",
+      "descriptionOrPastePlaceholder": "Describe the task, or paste the request you received then click Analyse",
+      "linkBooking": "Link a booking",
+      "linkCustomer": "Link a client"
     },
     "dueDatePresets": {
       "today": "Today",
@@ -1147,13 +1175,79 @@
       "gift_followup": "Gift follow-up",
       "loyalty": "Loyalty / package",
       "bug": "Bug",
-      "other": "Other"
+      "other": "Other",
+      "inbound_request": "Inbound request"
     },
     "customerTab": {
       "label": "Tasks",
       "count_one": "{{count}} task linked to this customer",
       "count_other": "{{count}} tasks linked to this customer",
       "empty": "No task linked to this customer."
+    },
+    "channel": {
+      "website": "Website",
+      "email": "Email",
+      "phone": "Phone",
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "walk_in": "Walk-in",
+      "partner": "Partner",
+      "other": "Other"
+    },
+    "feedbackType": {
+      "validation_received": "Validation received",
+      "issue_reported": "Issue reported",
+      "change_requested": "Change requested",
+      "awaiting_client": "Awaiting client reply",
+      "awaiting_partner": "Awaiting partner reply",
+      "need_more_info": "More information needed",
+      "internal_feedback": "Internal team feedback",
+      "awaiting_payment": "Awaiting payment"
+    },
+    "convertToBooking": "Convert to booking",
+    "alreadyConverted": "View booking",
+    "convertSuccess": "Booking #{{number}} created and task closed",
+    "convertLinkError": "Booking #{{number}} created, but the task could not be updated",
+    "comments": {
+      "title": "Comments",
+      "empty": "No comments yet.",
+      "placeholder": "Write a comment… type @ to mention someone",
+      "replyPlaceholder": "Write a reply…",
+      "hint": "@ to mention · ⌘/Ctrl + Enter to send",
+      "submit": "Comment",
+      "reply": "Reply",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edited": "edited",
+      "unknownAuthor": "Deleted user",
+      "count": "{{count}} comment",
+      "count_other": "{{count}} comments",
+      "deleteTitle": "Delete this comment?",
+      "deleteConfirm": "This cannot be undone.",
+      "deleteRootConfirm": "Replies to this comment will be deleted too. This cannot be undone.",
+      "addError": "Could not add the comment",
+      "updateError": "Could not edit the comment",
+      "deleteError": "Could not delete the comment"
+    },
+    "messages": {
+      "title": "Conversation",
+      "confidence": "Confidence: {{value}}",
+      "analyzeSuccess": "Fields pre-filled from the text",
+      "analyzeFailed": "Could not analyse this text",
+      "analyzeHint": "Extracted fields are suggestions, not decisions — review them before saving.",
+      "dateFallback": "Analysed — {{rejected}} fully booked, {{kept}} selected instead",
+      "dateNoneAvailable": "Analysed — no availability on the requested dates ({{rejected}})"
+    },
+    "addFilter": "Filter",
+    "removeFilter": "Remove {{filter}} filter",
+    "filterAll": "All",
+    "groupByLabel": "View",
+    "groupBy": {
+      "status": "By status",
+      "priority": "By priority",
+      "task_type": "By type"
     }
   },
   "scheduleAlerts": {
@@ -2168,7 +2262,8 @@
     "tabs": {
       "active": "Active",
       "archived": "Archived"
-    }
+    },
+    "openTask": "View task"
   },
   "checkoutIntents": {
     "title": "Abandoned carts",
