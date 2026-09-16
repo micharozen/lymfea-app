@@ -23,6 +23,10 @@ interface OutlookBooking {
   hotel_id: string;
 }
 
+// Builders ligne à ligne, conservés pour mémoire : le dashboard passe par les
+// variantes *FromAggregates, alimentées par get_dashboard_monthly_outlook —
+// c'est cette RPC qui porte la règle des no-show facturés (bookingRevenue), le
+// payment_status n'étant pas ramené ici.
 const EXCLUDED_STATUSES = new Set(["cancelled", "noshow"]);
 
 const round2 = (n: number) => Math.round(n * 100) / 100;

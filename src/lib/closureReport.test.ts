@@ -67,7 +67,8 @@ describe("computeClosureStats — status differentiation", () => {
       makeBooking({ id: "b1", status: "completed", total_price: 100 }),
       makeBooking({ id: "b2", status: "pending", total_price: 80 }),
       makeBooking({ id: "b3", status: "cancelled", total_price: 50 }),
-      makeBooking({ id: "b4", status: "no_show", total_price: 60 }),
+      // No-show non facturé : rien n'a été encaissé, il ne pèse pas.
+      makeBooking({ id: "b4", status: "no_show", total_price: 60, payment_status: "pending" }),
     ];
     const stats = computeClosureStats(bookings, venue, rates);
 
@@ -109,13 +110,13 @@ describe("computeClosureStats — includeUnfinalized", () => {
     expect(stats.byTherapist.reduce((sum, b) => sum + b.revenue, 0)).toBe(300);
   });
 
-  it("never counts cancelled, no_show or pending, even when including", () => {
+  it("never counts cancelled, unbilled no_show or pending, even when including", () => {
     const bookings = [
       makeBooking({ id: "b1", status: "completed", total_price: 100 }),
       makeBooking({ id: "b2", status: "confirmed", total_price: 200 }),
       makeBooking({ id: "b3", status: "pending", total_price: 80 }),
       makeBooking({ id: "b4", status: "cancelled", total_price: 50 }),
-      makeBooking({ id: "b5", status: "no_show", total_price: 60 }),
+      makeBooking({ id: "b5", status: "no_show", total_price: 60, payment_status: "pending" }),
     ];
     const stats = computeClosureStats(bookings, venue, rates, { includeUnfinalized: true });
 
@@ -129,6 +130,96 @@ describe("computeClosureStats — includeUnfinalized", () => {
     computeClosureStats(bookings, venue, rates, { includeUnfinalized: true });
 
     expect(bookings.map((b) => b.status)).toEqual(["completed", "confirmed"]);
+  });
+});
+
+describe("computeClosureStats — no-show facturés", () => {
+  it("compte un no-show facturé en chambre dans le CA (cas #1613)", () => {
+    const bookings = [
+      makeBooking({ id: "b1", status: "completed", total_price: 100 }),
+      makeBooking({
+        id: "b2",
+        status: "noshow",
+        total_price: 480,
+        payment_method: "room",
+        payment_status: "charged_to_room",
+      }),
+    ];
+    const stats = computeClosureStats(bookings, venue, rates);
+
+    expect(stats.totalRevenue).toBe(580);
+    expect(stats.countedBookings).toBe(2);
+    expect(stats.noShowBookings).toBe(1);
+    expect(stats.billedNoShowBookings).toBe(1);
+    expect(stats.billedNoShowRevenue).toBe(480);
+    // hotel_commission = 10 % : la commission du lieu porte aussi dessus.
+    expect(stats.totalVenueShare).toBeCloseTo(58, 5);
+  });
+
+  it("laisse hors CA un no-show resté en attente de paiement", () => {
+    const stats = computeClosureStats(
+      [makeBooking({ status: "no_show", total_price: 170, payment_status: "pending" })],
+      venue,
+      rates,
+    );
+
+    expect(stats.totalRevenue).toBe(0);
+    expect(stats.countedBookings).toBe(0);
+    expect(stats.noShowBookings).toBe(1);
+    expect(stats.billedNoShowBookings).toBe(0);
+  });
+
+  it("retient les frais capturés plutôt que le prix quand ils diffèrent", () => {
+    const stats = computeClosureStats(
+      [
+        makeBooking({
+          status: "noshow",
+          total_price: 0,
+          payment_status: "paid",
+          cancellation_fee_amount: 115,
+        }),
+      ],
+      venue,
+      rates,
+    );
+
+    expect(stats.totalRevenue).toBe(115);
+    expect(stats.billedNoShowRevenue).toBe(115);
+  });
+
+  it("compte un no-show dont l'empreinte a été capturée sans statut de paiement engagé", () => {
+    const stats = computeClosureStats(
+      [
+        makeBooking({
+          status: "noshow",
+          total_price: 200,
+          payment_status: "pending",
+          cancellation_fee_amount: 200,
+        }),
+      ],
+      venue,
+      rates,
+    );
+
+    expect(stats.billedNoShowBookings).toBe(1);
+    expect(stats.totalRevenue).toBe(200);
+  });
+
+  it("mentionne les no-show facturés dans le rapport rendu", () => {
+    const bookings = [
+      makeBooking({
+        status: "noshow",
+        total_price: 480,
+        payment_status: "charged_to_room",
+      }),
+    ];
+    const stats = computeClosureStats(bookings, venue, rates);
+    const html = renderClosureReportHtml(
+      { venue, date: "2026-09-04", stats, bookings },
+      { includeDetails: false },
+    );
+
+    expect(html).toContain("dont 1 no show facturé");
   });
 });
 
