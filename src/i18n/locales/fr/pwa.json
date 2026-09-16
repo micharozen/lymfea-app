@@ -89,6 +89,7 @@
     "paymentRoom": "Chambre",
     "paymentPending": "Paiement dû",
     "paymentFailed": "Échoué",
+    "paymentOffert": "Offert",
     "bookingTakenByOther": "Réservation #{{id}} prise par un autre thérapeute",
     "profileNotFound": "Profil introuvable",
     "bookingAlreadyTaken": "Réservation déjà prise par un autre thérapeute",

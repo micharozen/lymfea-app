@@ -134,6 +134,7 @@ const getPaymentKind = (paymentStatus?: string | null): PaymentKind | null => {
   switch (paymentStatus) {
     case 'paid': return { kind: 'ok', label: 'Payé' };
     case 'charged_to_room': return { kind: 'info', label: 'Facturé chambre' };
+    case 'offert': return { kind: 'ok', label: 'Offert' };
     case 'card_saved': return { kind: 'info', label: 'Carte enregistrée' };
     case 'pending': return { kind: 'due', label: 'Paiement requis' };
     case 'pending_partner_billing': return { kind: 'info', label: 'Paiement partenaire' };
@@ -352,8 +353,10 @@ const PwaBookingDetail = () => {
         ? (rawPaymentInfos[0] ?? null)
         : rawPaymentInfos;
 
-      const effectivePaymentStatus = bookingData.payment_status === 'paid'
-        ? 'paid'
+      // 'offert' est terminal au même titre que 'paid' : aucune info de
+      // paiement (carte enregistrée, tentative en attente) ne doit le masquer.
+      const effectivePaymentStatus = ['paid', 'offert'].includes(bookingData.payment_status ?? '')
+        ? bookingData.payment_status
         : (paymentInfo?.payment_status || bookingData.payment_status);
 
       const customer = (bookingData as unknown as { customers: CustomerResult | null }).customers;
@@ -929,7 +932,9 @@ const PwaBookingDetail = () => {
   const acceptedTotal = booking.booking_therapists?.filter((bt) => bt.status === 'accepted').length || 0;
   const isToday = booking.booking_date === format(new Date(), "yyyy-MM-dd");
   const isConfirmed = booking.status === "confirmed";
-  const isPaidLike = ['paid', 'charged_to_room', 'pending_partner_billing'].includes(displayPaymentStatus);
+  // 'offert' : rien à encaisser (total 0). Sans lui, le thérapeute est envoyé
+  // vers le drawer de paiement et finalize-payment rejette final_amount = 0.
+  const isPaidLike = ['paid', 'charged_to_room', 'pending_partner_billing', 'offert'].includes(displayPaymentStatus);
   const canExtend = ['confirmed', 'ongoing'].includes(booking.status) && !!booking.room_id && (!roomGap || roomGap.gapMinutes >= 15);
 
   const goBack = () => {
