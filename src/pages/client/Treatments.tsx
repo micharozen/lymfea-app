@@ -448,7 +448,7 @@ export default function Treatments() {
       }
       if (isOffert) {
         return (
-          <div className="flex items-baseline gap-2">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <span className="text-xs text-gray-400 line-through font-light">
               {formatPrice(getMinVariantPrice(variants), treatment.currency || 'EUR', { decimals: 0 })}
             </span>
@@ -463,8 +463,8 @@ export default function Treatments() {
       }
       const guestRange = getVariantGuestRange(variants);
       return (
-        <div className="flex items-baseline gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-gray-400">{t('menu.fromPrice')}</span>
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="text-[10px] uppercase tracking-wider text-gray-400 whitespace-nowrap">{t('menu.fromPrice')}</span>
           <span className="text-base sm:text-lg font-light text-gray-700 whitespace-nowrap">
             {formatPrice(getMinVariantPrice(variants), treatment.currency || 'EUR', { decimals: 0 })}
           </span>
@@ -489,7 +489,7 @@ export default function Treatments() {
     }
     if (isOffert) {
       return (
-        <div className="flex items-baseline gap-2">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="text-xs text-gray-400 line-through font-light">
             {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
           </span>
@@ -510,7 +510,7 @@ export default function Treatments() {
       );
     }
     return (
-      <div className="flex items-baseline gap-2">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-base sm:text-lg font-light text-gray-700 whitespace-nowrap">
           {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
         </span>
@@ -624,14 +624,14 @@ export default function Treatments() {
           )}
         </div>
 
-        <div className="flex items-end justify-between mt-2">
-          <div className="flex flex-col">
+        <div className="flex items-end justify-between gap-2 mt-2">
+          <div className="flex flex-col min-w-0 flex-1">
             {renderPriceLine(treatment)}
           </div>
 
           {/* Controls — only show when NOT expanded */}
           {!isExpanded && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               {renderControls(treatment)}
             </div>
           )}
