@@ -236,7 +236,7 @@ export default function PromoCodes() {
 
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
             <div className="overflow-x-auto h-full">
-              <Table className="text-sm w-full table-fixed min-w-[900px]">
+              <Table className="text-sm w-full table-fixed min-w-[1050px]">
                 <TableHeader>
                   <TableRow className="bg-muted/20 h-8">
                     {/* Le code et son statut tiennent sur une ligne : sans largeur
@@ -253,7 +253,7 @@ export default function PromoCodes() {
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
                       {t('promoCodesPage.colVenue')}
                     </TableHead>
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[190px]">
                       {t('promoCodesPage.colValidity')}
                     </TableHead>
                     <SortableTableHead column="redemptions" sortDirection={getSortDirection("redemptions")} onSort={toggleSort}>
@@ -292,7 +292,9 @@ export default function PromoCodes() {
                         onClick={() => setViewingRedemptions(promo)}
                       >
                         <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                          <div className="flex items-center gap-2 whitespace-nowrap">
+                          {/* justify-between : le badge se cale à droite de la colonne, donc tous
+    les statuts s'alignent quelle que soit la longueur du code. */}
+                          <div className="flex items-center justify-between gap-2 whitespace-nowrap">
                             <span className="font-mono font-medium truncate">{promo.code}</span>
                             {!promo.is_active ? (
                               <StatusBadge status="inactive" type="entity" className="text-[10px] px-2 py-0.5 shrink-0" />
@@ -312,7 +314,7 @@ export default function PromoCodes() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="py-0 px-2 h-10 max-h-10 whitespace-nowrap">
+                        <TableCell className="py-0 px-2 h-10 max-h-10 whitespace-nowrap truncate">
                           {formatDiscount(promo)}
                         </TableCell>
                         <TableCell className="py-0 px-2 h-10 max-h-10 truncate text-muted-foreground">
@@ -325,10 +327,10 @@ export default function PromoCodes() {
                             ? <HotelCell hotel={getHotel(promo.hotel_id)} />
                             : <span className="text-muted-foreground">{t('promoCodesPage.allVenuesShort')}</span>}
                         </TableCell>
-                        <TableCell className="py-0 px-2 h-10 max-h-10 whitespace-nowrap text-muted-foreground">
+                        <TableCell className="py-0 px-2 h-10 max-h-10 whitespace-nowrap truncate text-muted-foreground">
                           {formatValidity(promo)}
                         </TableCell>
-                        <TableCell className="py-0 px-2 h-10 max-h-10 whitespace-nowrap">
+                        <TableCell className="py-0 px-2 h-10 max-h-10 whitespace-nowrap truncate">
                           {promo.redemptions}
                           {promo.max_redemptions !== null && (
                             <span className="text-muted-foreground"> / {promo.max_redemptions}</span>
@@ -339,7 +341,7 @@ export default function PromoCodes() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="py-0 px-2 h-10 max-h-10 whitespace-nowrap font-medium">
+                        <TableCell className="py-0 px-2 h-10 max-h-10 whitespace-nowrap truncate font-medium">
                           {formatPrice(promo.total_discount_cents / 100, "EUR")}
                         </TableCell>
                         {isAdmin && (
