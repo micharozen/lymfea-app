@@ -591,9 +591,13 @@ BEGIN
   -- Code promo : le compteur du code redescend et la ligne d'audit disparaît,
   -- pour que le client retrouve son droit et que le total remisé ne compte pas
   -- une remise qui n'a pas eu lieu.
+  --
+  -- Sauf si le lieu retient des frais d'annulation : il y a alors eu une
+  -- transaction et un encaissement, le code est donc réputé consommé.
   WITH released AS (
     DELETE FROM public.promo_code_redemptions
     WHERE booking_id = _booking_id
+      AND COALESCE(_cancellation_fee_amount, 0) = 0
     RETURNING promo_code_id
   )
   UPDATE public.promo_codes p
@@ -640,9 +644,16 @@ BEGIN
     cancellation_reason = NULLIF(BTRIM(_reason), ''),
     gift_amount_applied_cents = GREATEST(0, gift_amount_applied_cents - _gift_restored_cents),
     -- total_price reste le montant réellement dû au moment de la réservation ;
-    -- seule la marque du code est retirée, le droit ayant été rendu.
-    promo_code_id = NULL,
-    promo_discount_cents = 0
+    -- seule la marque du code est retirée, et uniquement quand le droit a été
+    -- rendu — avec des frais retenus, la réservation garde la trace du code.
+    promo_code_id = CASE
+      WHEN COALESCE(_cancellation_fee_amount, 0) = 0 THEN NULL
+      ELSE promo_code_id
+    END,
+    promo_discount_cents = CASE
+      WHEN COALESCE(_cancellation_fee_amount, 0) = 0 THEN 0
+      ELSE promo_discount_cents
+    END
   WHERE id = _booking_id
   RETURNING public.bookings.*;
 END;
