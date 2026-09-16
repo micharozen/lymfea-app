@@ -308,26 +308,13 @@ export default function EditBookingDialog({
     };
   }, [open, booking?.id]);
 
-  const { data: userRole } = useQuery({
-    queryKey: ["user-role"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
-      
-      if (error) throw error;
-      return data?.role;
-    },
-  });
-
-  const { isVenueManagerView } = useEffectiveRole();
-  const isAdmin = userRole === "admin" && !isVenueManagerView;
-  const isConcierge = userRole === "concierge" || isVenueManagerView;
+  // Le rôle vient du contexte : un même compte peut porter plusieurs rôles
+  // (therapist + concierge), et une lecture directe de `user_roles` en
+  // `.single()` échoue alors, ce qui faisait tomber `isAdmin` ET `isConcierge`
+  // à faux — le prix spécial, l'annulation et le no-show disparaissaient.
+  const { isAdmin: hasAdminRole, isVenueManagerView, showsConciergeUx } = useEffectiveRole();
+  const isAdmin = hasAdminRole && !isVenueManagerView;
+  const isConcierge = showsConciergeUx;
   const canCancelBooking =
     (isAdmin || isConcierge) && canCancelBookingByStatus(booking?.status);
   const showCancelBookingAction =
