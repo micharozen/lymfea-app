@@ -23,7 +23,6 @@ const ROOM_ERROR_KEYS: Record<string, string> = {
   ROOM_ALREADY_BOOKED: "roomAlreadyBooked",
   ROOM_NOT_IN_VENUE: "roomNotInVenue",
   SECONDARY_ROOM_WITHOUT_PRIMARY: "roomSecondaryWithoutPrimary",
-  FORBIDDEN: "roomForbidden",
 };
 
 export const RoomAssignmentDrawer = ({
