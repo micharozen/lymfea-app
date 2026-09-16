@@ -50,6 +50,11 @@ export function useAxeptio(): void {
     const script = document.createElement('script');
     script.id = 'axeptio-script';
     script.async = true;
+    // Sans cet attribut, toute exception du SDK remonte en « Script error. »
+    // opaque (ni fichier, ni ligne, ni stack) : c'est la règle same-origin.
+    // `static.axept.io` renvoie `access-control-allow-origin: *`, le script
+    // reste donc exécutable et ses erreurs deviennent lisibles.
+    script.crossOrigin = 'anonymous';
     script.src = '//static.axept.io/sdk.js';
     document.head.appendChild(script);
   }, [language]);
