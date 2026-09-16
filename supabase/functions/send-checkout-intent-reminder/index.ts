@@ -325,7 +325,9 @@ async function fetchDurations(
   };
 
   await Promise.all([
-    load("treatments", treatmentIds),
+    // Le catalogue des soins vit dans `treatment_menus` — il n'y a jamais eu de
+    // table `treatments`, et l'erreur PostgREST laissait chaque ligne sans durée.
+    load("treatment_menus", treatmentIds),
     load("treatment_variants", variantIds),
   ]);
 
