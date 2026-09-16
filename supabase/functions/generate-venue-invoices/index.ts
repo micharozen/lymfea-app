@@ -5,6 +5,12 @@ import {
   type BillingProfileLegal,
   type ResolvedIssuer,
 } from "../_shared/issuer-legal.ts";
+import {
+  bookingBilledAmount,
+  noShowFeeFrom,
+  NO_SHOW_STATUSES,
+  type PaymentInfoEmbed,
+} from "../_shared/bookingRevenue.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -329,13 +335,17 @@ const generateForHotel = async (
   const startStr = periodStart.toISOString().slice(0, 10);
   const endStr = periodEnd.toISOString().slice(0, 10);
 
+  // Un no-show facturé au client entre dans l'assiette au même titre qu'une
+  // prestation réalisée — c'est déjà le périmètre de la facture thérapeute.
   const { data: bookings, error: bookingsError } = await supabaseAdmin
     .from("bookings")
-    .select("id, total_price, status, payment_status, booking_date")
+    .select(
+      "id, total_price, status, payment_status, booking_date, booking_payment_infos ( cancellation_fee_amount )",
+    )
     .eq("hotel_id", hotel.id)
     .gte("booking_date", startStr)
     .lte("booking_date", endStr)
-    .in("status", ["completed"])
+    .in("status", ["completed", ...NO_SHOW_STATUSES])
     .in("payment_status", ["paid", "charged_to_room", "offert"]);
 
   if (bookingsError) throw bookingsError;
@@ -347,7 +357,16 @@ const generateForHotel = async (
 
   const bookingIds = eligibleBookings.map((b) => b.id);
   const amountTtcRaw = eligibleBookings.reduce(
-    (sum, b) => sum + Number(b.total_price ?? 0),
+    (sum, b) =>
+      sum +
+      bookingBilledAmount({
+        status: b.status,
+        payment_status: b.payment_status,
+        total_price: b.total_price,
+        cancellation_fee_amount: noShowFeeFrom(
+          (b as { booking_payment_infos?: PaymentInfoEmbed }).booking_payment_infos,
+        ),
+      }),
     0,
   );
   const amountTtc = Math.round(amountTtcRaw * 100) / 100;

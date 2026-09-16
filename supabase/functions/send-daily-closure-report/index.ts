@@ -11,6 +11,13 @@ import {
 import { normalizeClientType, clientTypeLabel, type BookingClientType } from "../_shared/client-type.ts";
 import { splitBookingByTherapist, orderRoster } from "../_shared/closureTherapistSplit.ts";
 import { resolveTreatmentPrice } from "../_shared/treatmentPrice.ts";
+import {
+  bookingBilledAmount,
+  countsAsRevenue,
+  isBilledNoShow,
+  noShowFeeFrom,
+  type PaymentInfoEmbed,
+} from "../_shared/bookingRevenue.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,6 +57,7 @@ interface RawBooking {
   payment_method: string | null;
   payment_status: string | null;
   status: string;
+  booking_payment_infos?: PaymentInfoEmbed;
   booking_treatments?: Array<{
     therapist_id: string | null;
     treatment_id: string | null;
@@ -241,6 +249,7 @@ serve(async (req: Request): Promise<Response> => {
           `id, booking_id, booking_date, booking_time, client_first_name, client_last_name,
            client_type, room_number, therapist_id, therapist_name, duration, guest_count,
            total_price, is_out_of_hours, payment_method, payment_status, status,
+           booking_payment_infos ( cancellation_fee_amount ),
            booking_treatments (
              therapist_id, treatment_id, is_addon, price_override,
              treatment_menus ( name, category, duration, price ),
@@ -325,6 +334,8 @@ serve(async (req: Request): Promise<Response> => {
     let completed = 0;
     let cancelled = 0;
     let noShow = 0;
+    let billedNoShow = 0;
+    let billedNoShowRevenue = 0;
     let counted = 0;
     let unfinalized = 0;
     let unfinalizedRevenue = 0;
@@ -345,18 +356,28 @@ serve(async (req: Request): Promise<Response> => {
       else if (b.status === "cancelled") cancelled += 1;
       else if (b.status === "no_show" || b.status === "noshow") noShow += 1;
 
+      const revenueRow = {
+        status: b.status,
+        payment_status: b.payment_status,
+        total_price: b.total_price,
+        cancellation_fee_amount: noShowFeeFrom(b.booking_payment_infos),
+      };
+      const price = bookingBilledAmount(revenueRow);
       const isUnfinalized = UNFINALIZED_STATUSES.includes(b.status);
       if (isUnfinalized) {
         unfinalized += 1;
-        unfinalizedRevenue += b.total_price ?? 0;
+        unfinalizedRevenue += price;
+      }
+      if (isBilledNoShow(revenueRow)) {
+        billedNoShow += 1;
+        billedNoShowRevenue += price;
       }
 
-      // Même périmètre que l'écran de clôture : les résas non finalisées ne
-      // comptent que si l'expéditeur a explicitement demandé leur inclusion.
-      if (b.status !== "completed" && !(include_unfinalized && isUnfinalized)) continue;
+      // Même périmètre que l'écran de clôture : un no-show facturé compte comme
+      // une prestation due, les résas non finalisées seulement sur demande.
+      if (!countsAsRevenue(revenueRow) && !(include_unfinalized && isUnfinalized)) continue;
 
       counted += 1;
-      const price = b.total_price ?? 0;
       totalRevenue += price;
 
       const surchargePercent = b.is_out_of_hours ? venueSurchargePercent : 0;
@@ -536,6 +557,8 @@ serve(async (req: Request): Promise<Response> => {
       totalBookings: bookings.length,
       cancelledBookings: cancelled,
       noShowBookings: noShow,
+      billedNoShowBookings: billedNoShow,
+      billedNoShowRevenue: money(billedNoShowRevenue),
       completionPercent,
       includedUnfinalized: Boolean(include_unfinalized) && unfinalized > 0,
       unfinalizedCount: unfinalized,

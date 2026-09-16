@@ -55,6 +55,7 @@ import {
 import { orderRoster } from "@/lib/closureTherapistSplit";
 import { resolveTreatmentPrice } from "@/lib/treatmentPrice";
 import { normalizeBookingClientType } from "@/lib/clientTypeMeta";
+import { noShowFeeFrom, type PaymentInfoEmbed } from "@/lib/bookingRevenue";
 
 import { ClosureReportPreviewDialog } from "./ClosureReportPreviewDialog";
 import { ClosureSendEmailDialog } from "./ClosureSendEmailDialog";
@@ -89,6 +90,7 @@ interface RawBookingRow {
   status: string;
   hotel_id: string;
   guest_count: number | null;
+  booking_payment_infos?: PaymentInfoEmbed;
   booking_treatments?: Array<{
     therapist_id: string | null;
     treatment_id: string | null;
@@ -185,6 +187,7 @@ export function DailyClosure() {
             `id, booking_id, booking_date, booking_time, client_first_name, client_last_name,
              client_type, room_number, therapist_id, therapist_name, duration, guest_count,
              total_price, is_out_of_hours, payment_method, payment_status, status, hotel_id,
+             booking_payment_infos ( cancellation_fee_amount ),
              booking_treatments (
                therapist_id, treatment_id, is_addon, price_override,
                treatment_menus ( name, category, duration, price ),
@@ -303,6 +306,7 @@ export function DailyClosure() {
         payment_method: b.payment_method,
         payment_status: b.payment_status,
         status: b.status,
+        cancellation_fee_amount: noShowFeeFrom(b.booking_payment_infos),
         guest_count: b.guest_count,
         therapists: orderRoster(
           (b.booking_therapists ?? []).filter((r) => r.status === "accepted"),

@@ -86,6 +86,10 @@ export interface ClosureEmailData {
   totalBookings: number;
   cancelledBookings: number;
   noShowBookings: number;
+  /** No-show facturés, comptés dans le CA — 0 masque la mention. */
+  billedNoShowBookings: number;
+  /** Part du CA portée par ces no-show, déjà formatée. */
+  billedNoShowRevenue: string;
   completionPercent: string;
   includedUnfinalized: boolean;
   unfinalizedCount: number;
@@ -259,6 +263,13 @@ export function renderClosureEmailHtml(data: ClosureEmailData): string {
                     <p style="margin:8px 0 0;font-size:13px;color:${INK_SOFT};font-family:${FONT};">
                       ${data.countedBookings} ${plural(data.countedBookings, "prestation")} ${plural(data.countedBookings, "comptée")} sur ${data.totalBookings} ${plural(data.totalBookings, "réservation")}, soit ${escapeHtml(data.completionPercent)} ${data.includedUnfinalized ? "réalisé ou à venir" : "réalisé à date"}
                     </p>
+                    ${
+                      data.billedNoShowBookings > 0
+                        ? `<p style="margin:6px 0 0;font-size:13px;color:${INK_SOFT};font-family:${FONT};">
+                      dont ${data.billedNoShowBookings} ${plural(data.billedNoShowBookings, "no show", "no show")} ${plural(data.billedNoShowBookings, "facturé")} (${escapeHtml(data.billedNoShowRevenue)})
+                    </p>`
+                        : ""
+                    }
                   </td>
                   <td align="right" style="vertical-align:bottom;">
                     <table cellpadding="0" cellspacing="0"><tr>
