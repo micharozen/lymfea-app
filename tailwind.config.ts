@@ -119,12 +119,19 @@ export default {
           from: { transform: "scale(1)", opacity: "0.7" },
           to: { transform: "scale(2.2)", opacity: "0" },
         },
+        // Défilement continu du mur de logos : la piste est dupliquée, on la
+        // translate d'exactement une copie pour que la boucle soit invisible.
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-50%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "page-fade-in": "page-fade-in 200ms ease-out",
         "broadcast-ping": "broadcast-ping 1.2s cubic-bezier(0.16, 1, 0.3, 1) 1 both",
+        marquee: "marquee 42s linear infinite",
       },
     },
   },
