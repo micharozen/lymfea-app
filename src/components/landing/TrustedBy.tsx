@@ -2,14 +2,15 @@ import { useTranslation } from "react-i18next";
 import { motion, useReducedMotion } from "framer-motion";
 
 // Logos fournis par les établissements clients, ramenés au noir pour que le mur
-// se lise comme un seul système. Chaque logo renvoie au site de l'établissement.
+// se lise comme un seul système. Les logos ne sont pas cliquables : la section
+// atteste, elle ne renvoie pas le visiteur ailleurs.
 const VENUES = [
-  { key: "hana", src: "/images/logos/hana.svg", className: "h-5 max-w-[150px] md:h-6", href: "https://hotelhana-paris.com" },
-  { key: "george", src: "/images/logos/george.png", className: "h-7 max-w-[150px] md:h-8", href: "https://www.monsieurgeorge.com" },
-  { key: "buci", src: "/images/logos/buci.svg", className: "h-9 max-w-[110px] md:h-10", href: "https://www.buci-hotel.com" },
-  { key: "barbizon", src: "/images/logos/barbizon.png", className: "h-11 max-w-[110px] md:h-12", href: "https://www.lafoliebarbizon.com" },
-  { key: "capAntibes", src: "/images/logos/capantibes.png", className: "h-5 max-w-[190px] md:h-6", href: "https://capdantibes-beachhotel.com" },
-  { key: "sohoHouse", src: "/images/logos/sohohouse.svg", className: "h-3 max-w-[150px] md:h-4", href: "https://www.sohohouse.com" },
+  { key: "hana", src: "/images/logos/hana.svg", className: "h-5 max-w-[150px] md:h-6" },
+  { key: "george", src: "/images/logos/george.png", className: "h-7 max-w-[150px] md:h-8" },
+  { key: "buci", src: "/images/logos/buci.svg", className: "h-9 max-w-[110px] md:h-10" },
+  { key: "barbizon", src: "/images/logos/barbizon.png", className: "h-11 max-w-[110px] md:h-12" },
+  { key: "capAntibes", src: "/images/logos/capantibes.png", className: "h-5 max-w-[190px] md:h-6" },
+  { key: "sohoHouse", src: "/images/logos/sohohouse.svg", className: "h-3 max-w-[150px] md:h-4" },
 ] as const;
 
 const COPIES = [0, 1, 2, 3, 4, 5];
@@ -68,28 +69,19 @@ export const TrustedBy = () => {
 type Venue = (typeof VENUES)[number];
 
 // `duplicate` : copie de remplissage du défilement, retirée du DOM accessible
-// pour ne pas répéter six fois les mêmes liens à un lecteur d'écran.
+// pour ne pas répéter six fois les mêmes noms à un lecteur d'écran.
 const LogoItem = ({ venue, duplicate = false }: { venue: Venue; duplicate?: boolean }) => {
   const { t } = useTranslation("landing");
   const name = t(`trustedBy.venues.${venue.key}.name`);
 
   return (
     <li className="flex shrink-0 items-center justify-center" aria-hidden={duplicate || undefined}>
-      <a
-        href={venue.href}
-        target="_blank"
-        rel="noreferrer noopener"
-        aria-label={name}
-        tabIndex={duplicate ? -1 : undefined}
-        className="group flex items-center justify-center"
-      >
-        <img
-          src={venue.src}
-          alt={name}
-          loading="lazy"
-          className={`w-auto object-contain opacity-55 brightness-0 transition-opacity duration-300 group-hover:opacity-100 ${venue.className}`}
-        />
-      </a>
+      <img
+        src={venue.src}
+        alt={name}
+        loading="lazy"
+        className={`w-auto object-contain opacity-55 brightness-0 ${venue.className}`}
+      />
     </li>
   );
 };

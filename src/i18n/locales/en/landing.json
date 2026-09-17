@@ -64,17 +64,12 @@
     }
   },
   "hero": {
-    "eyebrow": "Spa platform for hotels",
-    "title": "The spa management software for hotels,",
+    "title": "Hotel spa software,",
     "titleHighlight": "finally simple",
-    "subtitle": "Unified schedule, room charge payment, therapist app, frictionless client booking. One platform to elevate your hotel's spa experience.",
+    "subtitle": "Schedule, room charge, therapist app and online booking in one tool, connected to your PMS.",
     "ctaPrimary": "Book a demo",
-    "ctaSecondary": "Explore the platform",
-    "stats": {
-      "booking": "Fluid guest booking",
-      "pms": "PMS integration",
-      "customization": "100% customizable booking page"
-    }
+    "ctaSecondary": "See the product",
+    "agendaAlt": "Saoma planning: a hotel spa's week, treatments by room and therapist"
   },
   "trustedBy": {
     "tagline": "They run their spa with Saoma",

@@ -64,17 +64,12 @@
     }
   },
   "hero": {
-    "eyebrow": "Plateforme spa pour hôtels",
-    "title": "Le logiciel de gestion de spa pour hôtels,",
+    "title": "Logiciel de spa pour hôtels,",
     "titleHighlight": "enfin simple",
-    "subtitle": "Agenda unifié, paiement room charge, app thérapeute, booking client sans friction. Une seule plateforme pour réenchanter l'expérience spa de votre établissement.",
+    "subtitle": "Agenda, room charge, app thérapeute et réservation en ligne dans un seul outil, relié à votre PMS.",
     "ctaPrimary": "Réserver une démo",
-    "ctaSecondary": "Découvrir la plateforme",
-    "stats": {
-      "booking": "Réservation client fluide",
-      "pms": "Intégration PMS",
-      "customization": "Page de réservation 100 % personnalisable"
-    }
+    "ctaSecondary": "Voir le produit",
+    "agendaAlt": "Planning Saoma : la semaine d'un spa d'hôtel, soins par salle et par thérapeute"
   },
   "trustedBy": {
     "tagline": "Ils orchestrent leur spa avec Saoma",

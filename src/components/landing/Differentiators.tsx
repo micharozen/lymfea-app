@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "framer-motion";
 import { ArrowRight, Plus } from "lucide-react";
+import { PhoneFrame } from "./PhoneFrame";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const ROTATION_MS = 4200;
@@ -245,98 +246,89 @@ const VenuePhoneMockup = () => {
   const venue = VENUES[index];
 
   return (
-    <div
-      ref={ref}
-      aria-hidden
-      className="relative w-[208px] rounded-[2.25rem] bg-zinc-900 p-2 shadow-[0_28px_60px_-20px_rgba(0,0,0,0.45)] md:w-[232px] md:rounded-[2.5rem] md:p-2.5"
-    >
-      <div className="relative aspect-[9/19] overflow-hidden rounded-[1.8rem] bg-background md:rounded-[2.1rem]">
-        {/* Îlot dynamique */}
-        <span className="absolute left-1/2 top-2.5 z-20 h-5 w-20 -translate-x-1/2 rounded-full bg-zinc-900" />
+    <PhoneFrame ref={ref} aria-hidden>
+      {/* Couverture du lieu */}
+      <div className="relative h-[58%] overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={venue.key}
+            initial={reduce ? false : { opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={reduce ? undefined : { opacity: 0 }}
+            transition={{ duration: 0.7, ease: EASE }}
+            style={{ backgroundColor: venue.accent }}
+            className="absolute inset-0"
+          >
+            <img src={venue.cover} alt="" loading="lazy" className="h-full w-full object-cover" />
+            <span
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `linear-gradient(to top, ${venue.accent} 2%, ${venue.accent}99 26%, transparent 62%)`,
+              }}
+            />
+          </motion.div>
+        </AnimatePresence>
 
-        {/* Couverture du lieu */}
-        <div className="relative h-[58%] overflow-hidden">
+        <div className="absolute inset-x-0 bottom-0 p-4">
           <AnimatePresence mode="wait">
             <motion.div
               key={venue.key}
-              initial={reduce ? false : { opacity: 0, scale: 1.05 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={reduce ? undefined : { opacity: 0 }}
-              transition={{ duration: 0.7, ease: EASE }}
-              style={{ backgroundColor: venue.accent }}
-              className="absolute inset-0"
+              initial={reduce ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduce ? undefined : { opacity: 0, y: -8 }}
+              transition={{ duration: 0.45, ease: EASE }}
             >
-              <img src={venue.cover} alt="" loading="lazy" className="h-full w-full object-cover" />
-              <span
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: `linear-gradient(to top, ${venue.accent} 2%, ${venue.accent}99 26%, transparent 62%)`,
-                }}
+              <img
+                src={venue.logo}
+                alt=""
+                loading="lazy"
+                className={`w-auto max-w-[150px] object-contain brightness-0 invert ${venue.logoClass}`}
               />
+              <p className={`mt-2 truncate text-white/80 ${venue.nameClass}`}>
+                {t(`trustedBy.venues.${venue.key}.area`)}
+              </p>
             </motion.div>
           </AnimatePresence>
-
-          <div className="absolute inset-x-0 bottom-0 p-4">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={venue.key}
-                initial={reduce ? false : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reduce ? undefined : { opacity: 0, y: -8 }}
-                transition={{ duration: 0.45, ease: EASE }}
-              >
-                <img
-                  src={venue.logo}
-                  alt=""
-                  loading="lazy"
-                  className={`w-auto max-w-[150px] object-contain brightness-0 invert ${venue.logoClass}`}
-                />
-                <p className={`mt-2 truncate text-white/80 ${venue.nameClass}`}>
-                  {t(`trustedBy.venues.${venue.key}.area`)}
-                </p>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Choix du soin et bouton de réservation */}
-        <div className="flex h-[42%] flex-col justify-between px-4 pb-4 pt-4">
-          <div className="space-y-2.5">
-            {(["signature", "duo", "facial"] as const).map((treatment, i) => (
-              <div
-                key={treatment}
-                className={`flex items-center justify-between border-b border-border/60 pb-2.5 ${
-                  i > 0 ? "opacity-55" : ""
-                }`}
-              >
-                <span className="truncate pr-3 text-[11px] text-foreground">
-                  {t(`differentiators.link.treatments.${treatment}.name`)}
-                </span>
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                  {t(`differentiators.link.treatments.${treatment}.price`)}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-3">
-            <span
-              style={{ backgroundColor: venue.accent, color: venue.ctaTextColor }}
-              className="flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-[11px] font-medium transition-colors duration-500"
-            >
-              {t("differentiators.link.cta")}
-              <ArrowRight className="h-3 w-3" />
-            </span>
-
-            {/* Barre d'adresse : le lien change avec le lieu */}
-            <p className="flex min-w-0 items-baseline justify-center rounded-lg bg-muted/60 px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
-              <span className="shrink-0">saoma.io/</span>
-              <AnimatedSlug slug={venue.slug} animate={!reduce} />
-            </p>
-          </div>
         </div>
       </div>
-    </div>
+
+      {/* Choix du soin et bouton de réservation */}
+      <div className="flex h-[42%] flex-col justify-between px-4 pb-4 pt-4">
+        <div className="space-y-2.5">
+          {(["signature", "duo", "facial"] as const).map((treatment, i) => (
+            <div
+              key={treatment}
+              className={`flex items-center justify-between border-b border-border/60 pb-2.5 ${
+                i > 0 ? "opacity-55" : ""
+              }`}
+            >
+              <span className="truncate pr-3 text-[11px] text-foreground">
+                {t(`differentiators.link.treatments.${treatment}.name`)}
+              </span>
+              <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                {t(`differentiators.link.treatments.${treatment}.price`)}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-3">
+          <span
+            style={{ backgroundColor: venue.accent, color: venue.ctaTextColor }}
+            className="flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-[11px] font-medium transition-colors duration-500"
+          >
+            {t("differentiators.link.cta")}
+            <ArrowRight className="h-3 w-3" />
+          </span>
+
+          {/* Barre d'adresse : le lien change avec le lieu */}
+          <p className="flex min-w-0 items-baseline justify-center rounded-lg bg-muted/60 px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
+            <span className="shrink-0">saoma.io/</span>
+            <AnimatedSlug slug={venue.slug} animate={!reduce} />
+          </p>
+        </div>
+      </div>
+    </PhoneFrame>
   );
 };
 
