@@ -126,6 +126,18 @@ async function prerender() {
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 800 });
 
+    // Pin the rendering locale to French. The i18next detector runs
+    // `['localStorage', 'navigator', 'htmlTag']`; headless Chrome has no
+    // localStorage here, so it falls through to `navigator.language` — which is
+    // the build machine's locale. Left alone, the same commit prerenders in
+    // French on a fr-FR laptop and in English on Railway (en-US), and the
+    // published page silently changes language depending on where it was built.
+    await page.setExtraHTTPHeaders({ "Accept-Language": "fr-FR,fr;q=0.9" });
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, "language", { get: () => "fr-FR" });
+      Object.defineProperty(navigator, "languages", { get: () => ["fr-FR", "fr"] });
+    });
+
     // Surface page errors so build failures explain themselves.
     page.on("console", (msg) => {
       const type = msg.type();
@@ -165,6 +177,15 @@ async function prerender() {
       await new Promise((r) => setTimeout(r, 500));
 
       const html = await page.content();
+
+      // Sanity: the locale pinning above must have held. A page rendered in
+      // another language would ship wrong <html lang>, title and meta.
+      const lang = await page.evaluate(() => document.documentElement.lang);
+      if (lang !== "fr") {
+        throw new Error(
+          `[${route.path}] Rendered in "${lang}" instead of "fr" — locale pinning failed.`,
+        );
+      }
 
       // Sanity: bail if the rendered HTML is suspiciously small (React failed).
       if (html.length < 5000) {
