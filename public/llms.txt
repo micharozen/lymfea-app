@@ -1,0 +1,38 @@
+# Saoma
+
+> Logiciel de gestion de spa pour hôtels et day spas : agenda unifié multi-salles
+> et multi-thérapeutes, intégration PMS (Opera Cloud, Mews) avec facturation en
+> chambre, application mobile thérapeute, et réservation client en ligne sans
+> compte.
+
+Saoma est une plateforme SaaS éditée en France. Trois interfaces partagent la même
+base : un back-office pour le spa, une application mobile pour les thérapeutes, et
+un parcours de réservation public pour les clients finaux (lien ou QR code en
+chambre, sans création de compte).
+
+Offres : Starter à partir de 110 € HT/mois (jusqu'à 150 réservations/mois), Pro à
+partir de 159 € HT/mois (réservations illimitées, PMS, auto-facturation),
+Enterprise sur devis. Essai gratuit de 14 jours sur l'offre Pro.
+
+## Pages
+
+- [Accueil](https://saoma.io/) : présentation du produit, fonctionnalités et tarifs.
+- [Comparatifs](https://saoma.io/compare) : Saoma face aux autres logiciels de spa.
+- [Saoma vs Mindbody](https://saoma.io/compare/saoma-vs-mindbody)
+- [Saoma vs Zenoti](https://saoma.io/compare/saoma-vs-zenoti)
+- [Saoma vs Book4Time](https://saoma.io/compare/saoma-vs-book4time)
+- [Saoma vs Booker](https://saoma.io/compare/saoma-vs-booker)
+- [Saoma vs Fresha](https://saoma.io/compare/saoma-vs-fresha)
+- [Saoma vs Treatwell](https://saoma.io/compare/saoma-vs-treatwell)
+- [Changelog](https://saoma.io/changelog) : nouveautés produit.
+- [Support](https://saoma.io/support) : formulaire de contact.
+
+## Optional
+
+- [Conditions générales](https://saoma.io/terms)
+- [Politique de confidentialité](https://saoma.io/privacy)
+
+## Contact
+
+- contact@saoma.io
+- https://www.linkedin.com/company/saoma

@@ -62,7 +62,11 @@
     }
     </script>
 
-    <!-- JSON-LD: SoftwareApplication -->
+    <!-- JSON-LD: SoftwareApplication
+         Les montants `offers` doivent rester alignés sur la table `plans`
+         (monthly_amount_cents) — la section #pricing les lit au runtime.
+         Pas d'`aggregateRating` tant qu'il n'y a pas de vrais avis clients :
+         inventer une note est contraire aux règles Google. -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -77,16 +81,32 @@
         {
           "@type": "Offer",
           "name": "Starter",
+          "price": "110",
           "priceCurrency": "EUR",
           "category": "subscription",
-          "url": "https://saoma.io/#pricing"
+          "url": "https://saoma.io/#pricing",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "110",
+            "priceCurrency": "EUR",
+            "unitCode": "MON",
+            "valueAddedTaxIncluded": false
+          }
         },
         {
           "@type": "Offer",
           "name": "Pro",
+          "price": "159",
           "priceCurrency": "EUR",
           "category": "subscription",
-          "url": "https://saoma.io/#pricing"
+          "url": "https://saoma.io/#pricing",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "159",
+            "priceCurrency": "EUR",
+            "unitCode": "MON",
+            "valueAddedTaxIncluded": false
+          }
         }
       ],
       "publisher": {
