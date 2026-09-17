@@ -89,6 +89,7 @@
     "paymentRoom": "Room",
     "paymentPending": "Payment due",
     "paymentFailed": "Failed",
+    "paymentOffert": "Complimentary",
     "bookingTakenByOther": "Booking #{{id}} taken by another therapist",
     "profileNotFound": "Profile not found",
     "bookingAlreadyTaken": "Booking already taken by another therapist",
