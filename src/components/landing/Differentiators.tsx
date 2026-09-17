@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion, useInView, useReducedMotion } from "framer-motion";
-import { ArrowRight, Check, Mail, Wallet } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const ROTATION_MS = 4200;
@@ -37,12 +37,32 @@ const VENUES = [
   },
 ] as const;
 
-const LINK_BULLETS = ["address", "brand", "emails", "qr"] as const;
-const CART_STEPS = ["left", "first", "second", "paid"] as const;
+/**
+ * Les trois mécaniques, chacune avec son aperçu. `previewClass` fixe la largeur
+ * à laquelle la capture est posée dans le cadre : elle dépasse volontairement
+ * celle du cadre, qui la rogne à droite. L'écran garde ainsi une échelle
+ * lisible au lieu d'être réduit jusqu'à ce qu'on n'y distingue plus rien.
+ */
+const FEATURES = [
+  { key: "link", preview: "phone" },
+  // Les deux captures sont cadrées à 900 px dans l'app : elles occupent la
+  // largeur du cadre et ne débordent que par le bas, donc rien d'essentiel
+  // n'est coupé. `align` reste le bord auquel la capture est accrochée.
+  // Cette capture est déjà compacte : la rogner sur un côté couperait soit le
+  // message reçu, soit l'analyse. Elle occupe la largeur du cadre et déborde
+  // seulement par le bas.
+  { key: "agent", preview: "/images/landing/app-inbox-agent.webp", previewClass: "w-full", align: "left" },
+  { key: "cart", preview: "/images/landing/app-checkout-intents.webp", previewClass: "w-full", align: "left" },
+] as const;
+
+type Feature = (typeof FEATURES)[number];
+type FeatureKey = Feature["key"];
 
 export const Differentiators = () => {
   const { t } = useTranslation("landing");
   const reduce = useReducedMotion();
+  const [activeKey, setActiveKey] = useState<FeatureKey>(FEATURES[0].key);
+  const active = FEATURES.find((f) => f.key === activeKey) ?? FEATURES[0];
 
   return (
     <section id="differentiators" className="py-24 md:py-32">
@@ -64,11 +84,21 @@ export const Differentiators = () => {
           </p>
         </motion.div>
 
-        <div className="mt-14 grid gap-4">
-          <BookingLinkCard />
-          <div className="grid gap-4 md:grid-cols-5">
-            <InboxAgentCard />
-            <AbandonedCartCard />
+        <div className="mt-14 grid items-start gap-8 lg:grid-cols-12 lg:gap-12">
+          <ul className="lg:col-span-5">
+            {FEATURES.map((feature, i) => (
+              <FeatureRow
+                key={feature.key}
+                featureKey={feature.key}
+                index={i}
+                isActive={feature.key === activeKey}
+                onSelect={() => setActiveKey(feature.key)}
+              />
+            ))}
+          </ul>
+
+          <div className="lg:col-span-7">
+            <FeaturePreview feature={active} />
           </div>
         </div>
       </div>
@@ -76,12 +106,131 @@ export const Differentiators = () => {
   );
 };
 
-/* ── 01. Le lien de réservation personnalisé ──────────────────────────────── */
+/* ── La liste, à gauche ───────────────────────────────────────────────────── */
 
-const BookingLinkCard = () => {
+const FeatureRow = ({
+  featureKey,
+  index,
+  isActive,
+  onSelect,
+}: {
+  featureKey: FeatureKey;
+  index: number;
+  isActive: boolean;
+  onSelect: () => void;
+}) => {
   const { t } = useTranslation("landing");
   const reduce = useReducedMotion();
-  const ref = useRef<HTMLElement>(null);
+
+  return (
+    <motion.li
+      initial={reduce ? false : { opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.3 }}
+      transition={{ duration: 0.5, delay: index * 0.07, ease: EASE }}
+      className={`border-t border-border/60 last:border-b ${isActive ? "bg-gold-100/40" : ""}`}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-expanded={isActive}
+        className="flex w-full items-start gap-4 px-4 py-5 text-left transition-colors hover:bg-gold-100/30 md:px-5 md:py-6"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block font-serif text-lg leading-snug text-foreground md:text-xl">
+            {t(`differentiators.${featureKey}.title`)}
+          </span>
+          {/* La description n'apparaît que sur la ligne ouverte : la liste se lit
+              d'un coup d'œil, le détail vient au clic. */}
+          <AnimatePresence initial={false}>
+            {isActive && (
+              <motion.span
+                initial={reduce ? false : { height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={reduce ? undefined : { height: 0, opacity: 0 }}
+                transition={{ duration: 0.35, ease: EASE }}
+                className="block overflow-hidden"
+              >
+                <span className="mt-2 block text-sm leading-relaxed text-muted-foreground">
+                  {t(`differentiators.${featureKey}.desc`)}
+                </span>
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </span>
+
+        <span
+          aria-hidden
+          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
+            isActive
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border/70 text-muted-foreground"
+          }`}
+        >
+          {isActive ? <ArrowRight className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+        </span>
+      </button>
+    </motion.li>
+  );
+};
+
+/* ── L'aperçu, à droite ───────────────────────────────────────────────────── */
+
+const FeaturePreview = ({ feature }: { feature: Feature }) => {
+  const { t } = useTranslation("landing");
+  const reduce = useReducedMotion();
+
+  return (
+    <motion.div
+      initial={reduce ? false : { opacity: 0, y: 14 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.6, ease: EASE }}
+      // Hauteur fixe : les trois aperçus n'ont pas le même format, sans elle la
+      // page sauterait à chaque changement de ligne.
+      className="relative h-[480px] overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-gold-100/70 via-gold-50/40 to-background p-5 md:h-[620px] md:p-6"
+    >
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={feature.key}
+          initial={reduce ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduce ? undefined : { opacity: 0, y: -8 }}
+          transition={{ duration: 0.4, ease: EASE }}
+          className="h-full"
+        >
+          {feature.preview === "phone" ? (
+            <div className="flex h-full items-start justify-center">
+              <VenuePhoneMockup />
+            </div>
+          ) : (
+            <div className="relative h-full">
+              <img
+                src={feature.preview}
+                alt={t(`differentiators.${feature.key}.alt`)}
+                loading="lazy"
+                decoding="async"
+                // La capture garde sa largeur d'écran et déborde du cadre : elle
+                // est rognée sur un bord plutôt que réduite jusqu'à l'illisible.
+                // La largeur baisse sur mobile, sinon il ne resterait qu'un coin.
+                className={`absolute top-0 h-auto max-w-none rounded-xl border border-border/50 shadow-[0_24px_50px_-28px_rgba(80,60,30,0.45)] ${feature.previewClass} ${
+                  feature.align === "right" ? "right-0" : "left-0"
+                }`}
+              />
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+/* ── L'aperçu du lien de réservation : la page telle qu'un client la reçoit ─ */
+
+const VenuePhoneMockup = () => {
+  const { t } = useTranslation("landing");
+  const reduce = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { amount: 0.4 });
   const [index, setIndex] = useState(0);
 
@@ -96,137 +245,98 @@ const BookingLinkCard = () => {
   const venue = VENUES[index];
 
   return (
-    <motion.article
+    <div
       ref={ref}
-      initial={reduce ? false : { opacity: 0, y: 14 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.25 }}
-      transition={{ duration: 0.6, ease: EASE }}
-      className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-6 md:p-10"
+      aria-hidden
+      className="relative w-[208px] rounded-[2.25rem] bg-zinc-900 p-2 shadow-[0_28px_60px_-20px_rgba(0,0,0,0.45)] md:w-[232px] md:rounded-[2.5rem] md:p-2.5"
     >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-gold-100/60 via-transparent to-transparent" />
+      <div className="relative aspect-[9/19] overflow-hidden rounded-[1.8rem] bg-background md:rounded-[2.1rem]">
+        {/* Îlot dynamique */}
+        <span className="absolute left-1/2 top-2.5 z-20 h-5 w-20 -translate-x-1/2 rounded-full bg-zinc-900" />
 
-      <div className="relative grid items-center gap-10 lg:grid-cols-12 lg:gap-12">
-        <div className="lg:col-span-5">
-          <h3 className="font-serif text-2xl leading-tight text-foreground md:text-3xl">
-            {t("differentiators.link.title")}
-          </h3>
-          <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">
-            {t("differentiators.link.desc")}
-          </p>
-          <ul className="mt-6 space-y-2.5">
-            {LINK_BULLETS.map((bullet) => (
-              <li key={bullet} className="flex items-start gap-2.5 text-sm leading-relaxed text-muted-foreground">
-                <span aria-hidden className="mt-[0.55em] h-1 w-1 shrink-0 rounded-full bg-gold-500" />
-                {t(`differentiators.link.bullets.${bullet}`)}
-              </li>
-            ))}
-          </ul>
+        {/* Couverture du lieu */}
+        <div className="relative h-[58%] overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={venue.key}
+              initial={reduce ? false : { opacity: 0, scale: 1.05 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={reduce ? undefined : { opacity: 0 }}
+              transition={{ duration: 0.7, ease: EASE }}
+              style={{ backgroundColor: venue.accent }}
+              className="absolute inset-0"
+            >
+              <img src={venue.cover} alt="" loading="lazy" className="h-full w-full object-cover" />
+              <span
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `linear-gradient(to top, ${venue.accent} 2%, ${venue.accent}99 26%, transparent 62%)`,
+                }}
+              />
+            </motion.div>
+          </AnimatePresence>
+
+          <div className="absolute inset-x-0 bottom-0 p-4">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={venue.key}
+                initial={reduce ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduce ? undefined : { opacity: 0, y: -8 }}
+                transition={{ duration: 0.45, ease: EASE }}
+              >
+                <img
+                  src={venue.logo}
+                  alt=""
+                  loading="lazy"
+                  className={`w-auto max-w-[150px] object-contain brightness-0 invert ${venue.logoClass}`}
+                />
+                <p className={`mt-2 truncate text-white/80 ${venue.nameClass}`}>
+                  {t(`trustedBy.venues.${venue.key}.area`)}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
 
-        {/* Aperçu animé : la page de réservation du lieu, telle qu'un client la reçoit. */}
-        <div aria-hidden className="flex justify-center lg:col-span-7">
-          <div className="relative w-[248px] rounded-[2.75rem] bg-zinc-900 p-2.5 shadow-[0_28px_60px_-20px_rgba(0,0,0,0.45)] md:w-[276px]">
-            <div className="relative aspect-[9/19] overflow-hidden rounded-[2.1rem] bg-background">
-              {/* Îlot dynamique */}
-              <span className="absolute left-1/2 top-2.5 z-20 h-5 w-20 -translate-x-1/2 rounded-full bg-zinc-900" />
-
-              {/* Couverture du lieu */}
-              <div className="relative h-[58%] overflow-hidden">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={venue.key}
-                    initial={reduce ? false : { opacity: 0, scale: 1.05 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={reduce ? undefined : { opacity: 0 }}
-                    transition={{ duration: 0.7, ease: EASE }}
-                    style={{ backgroundColor: venue.accent }}
-                    className="absolute inset-0"
-                  >
-                    {venue.cover ? (
-                      <img src={venue.cover} alt="" loading="lazy" className="h-full w-full object-cover" />
-                    ) : (
-                      <span
-                        className="absolute inset-0"
-                        style={{
-                          backgroundImage:
-                            "radial-gradient(120% 90% at 15% 0%, rgba(255,255,255,0.22), transparent 60%)",
-                        }}
-                      />
-                    )}
-                    <span
-                      className="absolute inset-0"
-                      style={{
-                        backgroundImage: `linear-gradient(to top, ${venue.accent} 2%, ${venue.accent}99 26%, transparent 62%)`,
-                      }}
-                    />
-                  </motion.div>
-                </AnimatePresence>
-
-                <div className="absolute inset-x-0 bottom-0 p-4">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={venue.key}
-                      initial={reduce ? false : { opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={reduce ? undefined : { opacity: 0, y: -8 }}
-                      transition={{ duration: 0.45, ease: EASE }}
-                    >
-                      <img
-                        src={venue.logo}
-                        alt=""
-                        loading="lazy"
-                        className={`w-auto max-w-[150px] object-contain brightness-0 invert ${venue.logoClass}`}
-                      />
-                      <p className={`mt-2 truncate text-white/80 ${venue.nameClass}`}>
-                        {t(`trustedBy.venues.${venue.key}.area`)}
-                      </p>
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
+        {/* Choix du soin et bouton de réservation */}
+        <div className="flex h-[42%] flex-col justify-between px-4 pb-4 pt-4">
+          <div className="space-y-2.5">
+            {(["signature", "duo", "facial"] as const).map((treatment, i) => (
+              <div
+                key={treatment}
+                className={`flex items-center justify-between border-b border-border/60 pb-2.5 ${
+                  i > 0 ? "opacity-55" : ""
+                }`}
+              >
+                <span className="truncate pr-3 text-[11px] text-foreground">
+                  {t(`differentiators.link.treatments.${treatment}.name`)}
+                </span>
+                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                  {t(`differentiators.link.treatments.${treatment}.price`)}
+                </span>
               </div>
+            ))}
+          </div>
 
-              {/* Choix du soin et bouton de réservation */}
-              <div className="flex h-[42%] flex-col justify-between px-4 pb-4 pt-4">
-                <div className="space-y-2.5">
-                  {(["signature", "duo", "facial"] as const).map((treatment, i) => (
-                    <div
-                      key={treatment}
-                      className={`flex items-center justify-between border-b border-border/60 pb-2.5 ${
-                        i > 0 ? "opacity-55" : ""
-                      }`}
-                    >
-                      <span className="truncate pr-3 text-[11px] text-foreground">
-                        {t(`differentiators.link.treatments.${treatment}.name`)}
-                      </span>
-                      <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                        {t(`differentiators.link.treatments.${treatment}.price`)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+          <div className="space-y-3">
+            <span
+              style={{ backgroundColor: venue.accent, color: venue.ctaTextColor }}
+              className="flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-[11px] font-medium transition-colors duration-500"
+            >
+              {t("differentiators.link.cta")}
+              <ArrowRight className="h-3 w-3" />
+            </span>
 
-                <div className="space-y-3">
-                  <span
-                    style={{ backgroundColor: venue.accent, color: venue.ctaTextColor }}
-                    className="flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-[11px] font-medium transition-colors duration-500"
-                  >
-                    {t("differentiators.link.cta")}
-                    <ArrowRight className="h-3 w-3" />
-                  </span>
-
-                  {/* Barre d'adresse : le lien change avec le lieu */}
-                  <p className="flex min-w-0 items-baseline justify-center rounded-lg bg-muted/60 px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
-                    <span className="shrink-0">saoma.io/</span>
-                    <AnimatedSlug slug={venue.slug} animate={!reduce} />
-                  </p>
-                </div>
-              </div>
-            </div>
+            {/* Barre d'adresse : le lien change avec le lieu */}
+            <p className="flex min-w-0 items-baseline justify-center rounded-lg bg-muted/60 px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
+              <span className="shrink-0">saoma.io/</span>
+              <AnimatedSlug slug={venue.slug} animate={!reduce} />
+            </p>
           </div>
         </div>
       </div>
-    </motion.article>
+    </div>
   );
 };
 
@@ -248,140 +358,3 @@ const AnimatedSlug = ({ slug, animate }: { slug: string; animate: boolean }) => 
     </AnimatePresence>
   </span>
 );
-
-/* ── 02. L'agent IA sur les demandes entrantes ────────────────────────────── */
-
-const InboxAgentCard = () => {
-  const { t } = useTranslation("landing");
-  const reduce = useReducedMotion();
-
-  const reveal = (delay: number) => ({
-    initial: reduce ? false : { opacity: 0, y: 8 },
-    whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true, amount: 0.4 },
-    transition: { duration: 0.45, delay, ease: EASE },
-  });
-
-  return (
-    <motion.article
-      initial={reduce ? false : { opacity: 0, y: 14 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.3 }}
-      transition={{ duration: 0.6, ease: EASE }}
-      className="rounded-2xl border border-border/60 bg-card p-6 md:col-span-3 md:p-8"
-    >
-      <h3 className="font-serif text-2xl leading-tight text-foreground md:text-3xl">
-        {t("differentiators.agent.title")}
-      </h3>
-      <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground md:text-base">
-        {t("differentiators.agent.desc")}
-      </p>
-
-      <div aria-hidden className="mt-7 space-y-3">
-        {/* La demande telle qu'elle arrive */}
-        <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Mail className="h-4 w-4 text-gold-600" />
-            <span className="truncate font-mono">{t("differentiators.agent.inbox")}</span>
-          </div>
-          <p className="mt-2.5 text-sm italic leading-relaxed text-foreground/80">
-            “{t("differentiators.agent.quote")}”
-          </p>
-        </div>
-
-        {/* Ce que l'agent en fait, en une ligne */}
-        <motion.p
-          {...reveal(0.15)}
-          className="px-1 text-xs leading-relaxed text-muted-foreground"
-        >
-          {t("differentiators.agent.processing")}
-        </motion.p>
-
-        {/* La finalité : la réservation créée et la réponse partie */}
-        <motion.div
-          {...reveal(0.35)}
-          className="overflow-hidden rounded-xl border border-gold-500/40 bg-gold-100/60"
-        >
-          <p className="border-b border-gold-500/25 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-gold-800">
-            {t("differentiators.agent.created")}
-          </p>
-          <div className="space-y-1.5 px-4 py-3.5">
-            <p className="font-serif text-lg text-foreground">
-              {t("differentiators.agent.booking.treatment")}
-            </p>
-            {(["slot", "guests", "room"] as const).map((line) => (
-              <p key={line} className="text-xs text-muted-foreground">
-                {t(`differentiators.agent.booking.${line}`)}
-              </p>
-            ))}
-          </div>
-          <p className="flex items-start gap-2 border-t border-gold-500/25 px-4 py-3 text-xs leading-snug text-gold-800">
-            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            {t("differentiators.agent.replied")}
-          </p>
-        </motion.div>
-      </div>
-    </motion.article>
-  );
-};
-
-/* ── 03. La relance des paniers abandonnés ────────────────────────────────── */
-
-const AbandonedCartCard = () => {
-  const { t } = useTranslation("landing");
-  const reduce = useReducedMotion();
-
-  return (
-    <motion.article
-      initial={reduce ? false : { opacity: 0, y: 14 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.3 }}
-      transition={{ duration: 0.6, delay: 0.1, ease: EASE }}
-      className="rounded-2xl border border-border/60 bg-gold-100/50 p-6 md:col-span-2 md:p-8"
-    >
-      <h3 className="font-serif text-2xl leading-tight text-foreground md:text-3xl">
-        {t("differentiators.cart.title")}
-      </h3>
-      <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">
-        {t("differentiators.cart.desc")}
-      </p>
-
-      <ol aria-hidden className="relative mt-7 pl-6">
-        <motion.span
-          initial={reduce ? false : { scaleY: 0 }}
-          whileInView={{ scaleY: 1 }}
-          viewport={{ once: true, amount: 0.4 }}
-          transition={{ duration: 1, ease: EASE }}
-          className="absolute left-[3px] top-2 h-[calc(100%-1rem)] w-px origin-top bg-gold-500/50"
-        />
-        {CART_STEPS.map((step, i) => {
-          const isLast = i === CART_STEPS.length - 1;
-          return (
-            <motion.li
-              key={step}
-              initial={reduce ? false : { opacity: 0, y: 8 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.4 }}
-              transition={{ duration: 0.45, delay: 0.2 + i * 0.22, ease: EASE }}
-              className="relative pb-6 last:pb-0"
-            >
-              <span
-                className={`absolute -left-6 top-1.5 h-[7px] w-[7px] rounded-full ${
-                  isLast ? "bg-gold-700" : "bg-gold-500"
-                }`}
-              />
-              <p className={`text-sm leading-snug ${isLast ? "font-medium text-foreground" : "text-muted-foreground"}`}>
-                {t(`differentiators.cart.steps.${step}`)}
-              </p>
-            </motion.li>
-          );
-        })}
-      </ol>
-
-      <p className="mt-6 flex items-center gap-2 border-t border-gold-500/25 pt-5 text-xs text-muted-foreground">
-        <Wallet className="h-4 w-4 shrink-0 text-gold-600" />
-        {t("differentiators.cart.note")}
-      </p>
-    </motion.article>
-  );
-};
