@@ -14,6 +14,9 @@ interface Window {
       };
     };
   };
+  // File d'attente du SDK Axeptio : remplacée par le SDK une fois chargé,
+  // les callbacks poussés sont alors exécutés immédiatement.
+  _axcb?: Array<(sdk: { setCookiesVersion?: (version: string) => void }) => void>;
 }
 
 // Injectés au build par le bloc `define` de vite.config.ts.

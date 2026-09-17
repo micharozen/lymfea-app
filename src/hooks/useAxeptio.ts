@@ -20,17 +20,17 @@ export function useAxeptio(): void {
   useEffect(() => {
     const cookiesVersion = getVersionForLanguage(language);
 
-    const existingScript = document.getElementById('axeptio-script');
-    const currentVersion = window.axeptioSettings?.cookiesVersion;
+    if (window.axeptioSettings?.cookiesVersion === cookiesVersion) return;
 
-    if (existingScript && currentVersion === cookiesVersion) return;
-
-    if (existingScript) {
-      existingScript.remove();
-      document
-        .querySelectorAll('[id^="axeptio_overlay"], #axeptio_main_button, .axeptio_widget')
-        .forEach((el) => el.remove());
-      delete (window as unknown as { _axcb?: unknown })._axcb;
+    // Le SDK ne peut être initialisé qu'une fois par page : retirer sa balise
+    // du DOM ne le décharge pas, et une seconde injection lève
+    // « Axeptio SDK is already loaded ». Après le premier chargement, on change
+    // donc de version via l'API du SDK plutôt qu'en le réinjectant.
+    if (document.getElementById('axeptio-script')) {
+      window.axeptioSettings = { ...window.axeptioSettings!, cookiesVersion };
+      window._axcb = window._axcb ?? [];
+      window._axcb.push((sdk) => sdk.setCookiesVersion?.(cookiesVersion));
+      return;
     }
 
     window.axeptioSettings = {
