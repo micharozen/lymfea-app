@@ -1,7 +1,7 @@
 {
   "nav": {
     "features": "Features",
-    "howItWorks": "How it works",
+    "howItWorks": "Onboarding",
     "pricing": "Pricing",
     "faq": "FAQ",
     "contact": "Contact",
@@ -54,6 +54,11 @@
         "name": "Cap d'Antibes Beach Hotel",
         "kind": "Relais & Châteaux",
         "area": "Antibes"
+      },
+      "sohoHouse": {
+        "name": "Soho House",
+        "kind": "Members' club",
+        "area": "Paris 9th"
       }
     }
   },
@@ -123,52 +128,101 @@
       }
     }
   },
-  "aiSpotlight": {
-    "eyebrow": "Beyond the standard",
-    "title": "Online booking: your email inquiries become appointments",
-    "subtitle": "Where other platforms make you re-type everything, the Saoma AI agent reads, checks availability and schedules. Automatically.",
-    "badge": "Saoma AI Agent",
-    "email": {
-      "label": "Incoming email",
-      "fromLabel": "From:",
-      "fromValue": "sophie.martin@example.com",
-      "subjectLabel": "Subject:",
-      "subjectValue": "Massage booking on Sunday",
-      "body": "Hi, I'd like to book a 60-minute Californian massage for two people on Sunday around 2:30 PM. Is that possible? Thanks!"
+  "differentiators": {
+    "title": "The standards of e-commerce,",
+    "titleHighlight": "applied to the spa",
+    "subtitle": "A booking link that carries your brand, an AI agent on your inbound requests, abandoned carts followed up: mechanics proven online, adapted to how a spa actually runs.",
+    "link": {
+      "title": "A booking link that looks like the venue",
+      "desc": "Typography, photography, button colours, right through to the emails you send: everything is set to keep the spirit of the house. Your guests no longer land on a generic page wearing a software vendor's colours.",
+      "bullets": {
+        "address": "A dedicated address per venue, shareable in one click",
+        "brand": "Typography, cover photography and button colours set venue by venue",
+        "emails": "Confirmations, reminders and follow-ups sent in the same identity",
+        "qr": "In-room and front-desk QR code, ready to print"
+      },
+      "cta": "Book",
+      "treatments": {
+        "signature": {
+          "name": "Signature massage · 60 min",
+          "price": "€120"
+        },
+        "duo": {
+          "name": "Duo ritual · 90 min",
+          "price": "€260"
+        },
+        "facial": {
+          "name": "Glow facial · 50 min",
+          "price": "€95"
+        }
+      }
     },
     "agent": {
-      "label": "Saoma AI Agent",
-      "status": "Analyzing",
-      "step1": "Reading & understanding the email",
-      "step2": "Extracting treatment, slot, client",
-      "step3": "Checking availability"
+      "title": "An AI agent on your inbox",
+      "desc": "The agent reads the request, checks the schedule, creates the booking and replies to the guest with their summary. You start the day on a booking already in place, not on an email to process.",
+      "inbox": "spa@sextant.saoma.io",
+      "quote": "Hi, I'd like to book a 60-minute Californian massage for two people on Sunday around 2:30 PM. Is that possible?",
+      "processing": "Treatment, slot and guest extracted, room and therapist availability checked.",
+      "created": "Booking created in the schedule",
+      "booking": {
+        "treatment": "Californian massage · 60 min",
+        "slot": "Sunday 2:30 PM, Ponant room",
+        "guests": "Sophie Martin, two guests",
+        "room": "Léa and Camille assigned"
+      },
+      "replied": "Reply sent to Sophie with the summary and the payment link."
     },
-    "booking": {
-      "label": "Booking created",
-      "status": "Pending",
-      "title": "Californian massage · 60 min",
-      "client": "Sophie Martin · 2 people",
-      "slot": "Sunday 2:30 PM"
+    "cart": {
+      "title": "Abandoned carts turned into bookings",
+      "desc": "A guest who leaves before paying gets an email to pick up their cart exactly where they left it. Every cart recovered is revenue that would have gone elsewhere.",
+      "steps": {
+        "left": "The guest leaves the booking flow before paying",
+        "first": "One hour later, an email with their cart ready to resume",
+        "second": "A second follow-up, only if the requested slot is coming up",
+        "paid": "They resume the cart and pay, the booking lands in the schedule"
+      },
+      "note": "Conversion rate tracked in your dashboard."
     }
   },
   "howItWorks": {
-    "eyebrow": "How it works",
-    "title": "From PMS integration to your first bookings in 2 weeks",
-    "subtitle": "Guided onboarding, zero friction for your teams.",
-    "step1": {
-      "number": "01",
-      "title": "Connect Opera Cloud or Mews",
-      "desc": "Our team sets up the Opera Cloud or Mews integration. Your rooms and guest data are synced."
+    "title": "Getting on board,",
+    "titleHighlight": "fully guided",
+    "subtitle": "Two weeks from the first call to your first bookings.",
+    "steps": {
+      "scoping": {
+        "when": "Day 1",
+        "title": "Kick-off call"
+      },
+      "migration": {
+        "when": "Week 1",
+        "title": "Your data, migrated"
+      },
+      "training": {
+        "when": "Week 2",
+        "title": "Team training"
+      },
+      "launch": {
+        "when": "Day 15",
+        "title": "Bookings go live"
+      }
     },
-    "step2": {
-      "number": "02",
-      "title": "Train your teams",
-      "desc": "Training sessions for concierges, spa directors and therapists. Guides and unlimited support included."
-    },
-    "step3": {
-      "number": "03",
-      "title": "Launch bookings",
-      "desc": "QR codes in rooms, online booking, therapist app deployed. Your clients book in 2 clicks."
+    "lanes": {
+      "ours": {
+        "title": "We take care of it",
+        "items": {
+          "pms": "Connecting Opera Cloud or Mews",
+          "data": "Migrating your treatments, rates, therapists and client records",
+          "training": "Training every team, on site or by video call",
+          "followup": "Follow-up after go-live, with no setup fee"
+        }
+      },
+      "yours": {
+        "title": "On your side",
+        "items": {
+          "call": "One call with your spa management",
+          "hour": "One hour of training per team"
+        }
+      }
     }
   },
   "pricing": {
@@ -269,7 +323,7 @@
     "legal": "Legal",
     "links": {
       "features": "Features",
-      "howItWorks": "How it works",
+      "howItWorks": "Onboarding",
       "pricing": "Pricing",
       "changelog": "What's new",
       "login": "Sign in",
