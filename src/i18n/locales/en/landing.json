@@ -10,7 +10,7 @@
   },
   "hero": {
     "eyebrow": "Spa platform for hotels",
-    "title": "Modern hotel spa management,",
+    "title": "The spa management software for hotels,",
     "titleHighlight": "finally simple",
     "subtitle": "Unified schedule, room charge payment, therapist app, frictionless client booking. One platform to elevate your hotel's spa experience.",
     "ctaPrimary": "Book a demo",
@@ -58,7 +58,7 @@
     }
   },
   "problem": {
-    "title": "Your spa deserves better than scattered tools.",
+    "title": "Running a hotel spa deserves better than scattered tools.",
     "subtitle": "Manual follow-ups, little visibility on bookings: your teams waste time and you lose guests.",
     "points": {
       "fragmented": {
@@ -76,12 +76,12 @@
     }
   },
   "features": {
-    "title": "Everything, brought together on one",
-    "titleHighlight": "platform",
+    "title": "Schedule, treatment rooms and therapists",
+    "titleHighlight": "on a single platform",
     "subtitle": "Designed with directors of 4 and 5-star hotel spas.",
     "items": {
       "visibility": {
-        "title": "Total visibility",
+        "title": "Unified schedule, multi-room and multi-therapist",
         "bullets": {
           "agenda": "One agenda shared by therapists and venue management",
           "payments": "Track payments received or still pending",
@@ -89,7 +89,7 @@
         }
       },
       "therapist": {
-        "title": "Therapist mobile app",
+        "title": "Mobile app for therapists",
         "bullets": {
           "notifications": "Real-time notifications",
           "availability": "Availability declaration",
@@ -98,7 +98,7 @@
         }
       },
       "booking": {
-        "title": "Booking experience",
+        "title": "Online booking, no account required",
         "bullets": {
           "frictionless": "Frictionless booking, no account required",
           "response": "Requests handled within 2 hours",
@@ -115,7 +115,7 @@
         }
       },
       "reporting": {
-        "title": "Dashboard & reporting",
+        "title": "Dashboard and reporting",
         "bullets": {
           "dashboard": "Revenue dashboard, occupancy rate and 7-day occupancy forecast",
           "reports": "Daily reports, cash closing and monthly invoices generated on their own"
@@ -125,7 +125,7 @@
   },
   "aiSpotlight": {
     "eyebrow": "Beyond the standard",
-    "title": "Email inquiries become bookings",
+    "title": "Online booking: your email inquiries become appointments",
     "subtitle": "Where other platforms make you re-type everything, the Saoma AI agent reads, checks availability and schedules. Automatically.",
     "badge": "Saoma AI Agent",
     "email": {
@@ -153,11 +153,11 @@
   },
   "howItWorks": {
     "eyebrow": "How it works",
-    "title": "From signup to first bookings in 2 weeks",
+    "title": "From PMS integration to your first bookings in 2 weeks",
     "subtitle": "Guided onboarding, zero friction for your teams.",
     "step1": {
       "number": "01",
-      "title": "Connect your PMS",
+      "title": "Connect Opera Cloud or Mews",
       "desc": "Our team sets up the Opera Cloud or Mews integration. Your rooms and guest data are synced."
     },
     "step2": {

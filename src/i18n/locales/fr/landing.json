@@ -10,7 +10,7 @@
   },
   "hero": {
     "eyebrow": "Plateforme spa pour hôtels",
-    "title": "La gestion moderne de votre spa d'hôtel",
+    "title": "Le logiciel de gestion de spa pour hôtels,",
     "titleHighlight": "enfin simple",
     "subtitle": "Agenda unifié, paiement room charge, app thérapeute, booking client sans friction. Une seule plateforme pour réenchanter l'expérience spa de votre établissement.",
     "ctaPrimary": "Réserver une démo",
@@ -58,7 +58,7 @@
     }
   },
   "problem": {
-    "title": "Votre spa mérite mieux que des outils éparpillés.",
+    "title": "Gérer un spa d'hôtel mérite mieux que des outils éparpillés.",
     "subtitle": "Relances à la main, peu de visibilité sur vos réservations : vos équipes perdent du temps et vous laissez passer des clients.",
     "points": {
       "fragmented": {
@@ -76,12 +76,12 @@
     }
   },
   "features": {
-    "title": "Tout, réuni sur une seule",
-    "titleHighlight": "plateforme",
+    "title": "Agenda, salles de soin et thérapeutes",
+    "titleHighlight": "sur une seule plateforme",
     "subtitle": "Conçu avec des directeurs de spa en hôtels 4 et 5 étoiles.",
     "items": {
       "visibility": {
-        "title": "Visibilité totale",
+        "title": "Agenda unifié, multi-salles et multi-thérapeutes",
         "bullets": {
           "agenda": "Agenda partagé entre thérapeutes et gestion du lieu",
           "payments": "Suivi des paiements reçus ou en attente",
@@ -89,7 +89,7 @@
         }
       },
       "therapist": {
-        "title": "App mobile thérapeute",
+        "title": "Application mobile pour thérapeutes",
         "bullets": {
           "notifications": "Notifications en temps réel",
           "availability": "Déclaration des disponibilités",
@@ -98,7 +98,7 @@
         }
       },
       "booking": {
-        "title": "Expérience de réservation",
+        "title": "Réservation en ligne sans création de compte",
         "bullets": {
           "frictionless": "Réservation sans friction, sans création de compte",
           "response": "Prise en charge de la demande sous 2 h",
@@ -115,7 +115,7 @@
         }
       },
       "reporting": {
-        "title": "Dashboard & reporting",
+        "title": "Tableau de bord et reporting",
         "bullets": {
           "dashboard": "Tableau de bord CA, taux d'occupation et prévisionnel de remplissage à 7 jours",
           "reports": "Rapports journaliers, clôture de caisse et factures mensuelles générés seuls"
@@ -125,7 +125,7 @@
   },
   "aiSpotlight": {
     "eyebrow": "Au-delà du standard",
-    "title": "Vos demandes par email deviennent des réservations",
+    "title": "Réservation en ligne : vos demandes par email deviennent des rendez-vous",
     "subtitle": "Là où les autres plateformes vous laissent ressaisir à la main, l'agent IA de Saoma lit, vérifie les disponibilités et planifie. Automatiquement.",
     "badge": "Agent IA Saoma",
     "email": {
@@ -153,11 +153,11 @@
   },
   "howItWorks": {
     "eyebrow": "Comment ça marche",
-    "title": "De la signature à vos premières réservations en 2 semaines",
+    "title": "De l'intégration PMS à vos premières réservations en 2 semaines",
     "subtitle": "Un onboarding accompagné, sans friction pour vos équipes.",
     "step1": {
       "number": "01",
-      "title": "Connectez votre PMS",
+      "title": "Connectez Opera Cloud ou Mews",
       "desc": "Notre équipe configure l'intégration Opera Cloud ou Mews. Vos données chambres et invités sont synchronisées."
     },
     "step2": {
