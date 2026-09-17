@@ -28,10 +28,13 @@ const CompareDetail = () => {
   const lang = i18n.language.startsWith("fr") ? "fr" : "en";
   const content = competitor?.[lang];
   const year = DATA_AS_OF.split("-")[0];
+  // Titled around "alternative", not "Saoma vs X": nobody searches a brand they
+  // don't know yet. The volume is on "alternative à Mindbody" — people looking
+  // to leave their current tool. "Saoma vs X" stays in the H2 and the URL.
   const seoTitle = competitor
     ? lang === "fr"
-      ? `Saoma vs ${competitor.name} : comparatif logiciel spa (${year})`
-      : `Saoma vs ${competitor.name}: spa software comparison (${year})`
+      ? `Alternative à ${competitor.name} : le comparatif pour les spas d'hôtel (${year})`
+      : `${competitor.name} alternative: the comparison for hotel spas (${year})`
     : "Saoma — Comparatifs";
 
   useCompareSeo({

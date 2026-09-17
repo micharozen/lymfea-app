@@ -43,7 +43,7 @@
   },
   "detail": {
     "eyebrow": "Comparatif",
-    "title": "Saoma vs {{name}}",
+    "title": "Alternative à {{name}} pour les spas d'hôtel",
     "subtitlePrefix": "Comment se comparent {{name}} et Saoma pour la gestion d'un spa d'hôtel ?",
     "summaryHeading": "En résumé",
     "tableHeading": "Saoma vs {{name}} : comparatif des fonctionnalités",
