@@ -65,6 +65,12 @@ export type BookingListFilters = {
   /** Modes de paiement ; la sentinelle PAYMENT_METHOD_UNSET vise payment_method IS NULL. */
   paymentMethods?: string[];
   paymentStatuses?: string[];
+  /**
+   * Noms de prestations (treatment_menus.name). Une réservation correspond dès
+   * qu'une de ses lignes porte l'un de ces noms. Filtrer par nom plutôt que par
+   * id évite une entrée par lieu pour un soin proposé dans plusieurs lieux.
+   */
+  treatmentNames?: string[];
   /** Recherche plein texte : nom, prénom, téléphone, et n° de réservation si numérique. */
   search?: string;
 };
@@ -337,6 +343,21 @@ const BOOKING_SELECT = `*,${BOOKING_EMBEDS}`;
 const BOOKING_LIST_SELECT = `${BOOKING_LIST_COLUMNS},${BOOKING_EMBEDS}`;
 
 /**
+ * Jointure ajoutée seulement quand on filtre sur les prestations. C'est un
+ * second embed, aliasé et en !inner : poser le filtre sur `booking_treatments`
+ * lui-même restreindrait aussi les lignes renvoyées, et la réservation
+ * n'afficherait plus que le soin filtré.
+ */
+const TREATMENT_FILTER_EMBED =
+  `filter_treatments:booking_treatments!inner(treatment_menus!inner(name))`;
+
+/** Select de liste, avec le scope d'organisation et la jointure de filtre si besoin. */
+function bookingListSelect(filters: BookingListFilters): string {
+  const base = `${BOOKING_LIST_SELECT},\n      hotels!inner(id, organization_id)`;
+  return filters.treatmentNames?.length ? `${base},\n      ${TREATMENT_FILTER_EMBED}` : base;
+}
+
+/**
  * Fetch a single booking by its primary key, with the same nested shape as
  * listBookings. No org filter: `id` is the PK and RLS already scopes access, so
  * this is the fastest possible lookup (used by the detail page instead of
@@ -383,6 +404,9 @@ function applyBookingFilters(
   if (filters.statuses?.length) q = q.in("status", filters.statuses);
   if (filters.therapistIds?.length) q = q.in("therapist_id", filters.therapistIds);
   if (filters.paymentStatuses?.length) q = q.in("payment_status", filters.paymentStatuses);
+  if (filters.treatmentNames?.length) {
+    q = q.in("filter_treatments.treatment_menus.name", filters.treatmentNames);
+  }
 
   if (filters.paymentMethods?.length) {
     const methods = filters.paymentMethods.filter((m) => m !== PAYMENT_METHOD_UNSET);
@@ -413,9 +437,14 @@ function applyBookingFilters(
   return q;
 }
 
-// Retire la jointure hotels, ajoutée uniquement pour le filtre d'organisation.
+// Retire les jointures techniques : hotels (filtre d'organisation) et
+// filter_treatments (filtre par prestation).
 function toListItem(row: unknown): BookingListItem {
-  const { hotels: _hotels, ...rest } = row as RawBookingRow & { hotels?: unknown };
+  const {
+    hotels: _hotels,
+    filter_treatments: _filterTreatments,
+    ...rest
+  } = row as RawBookingRow & { hotels?: unknown; filter_treatments?: unknown };
   return computeBookingItem(rest as RawBookingRow);
 }
 
@@ -428,7 +457,7 @@ export async function listBookings(
   const q = applyBookingFilters(
     client
       .from("bookings")
-      .select(`${BOOKING_LIST_SELECT},\n      hotels!inner(id, organization_id)`)
+      .select(bookingListSelect(filters))
       .order("booking_date", { ascending: true })
       .order("booking_time", { ascending: true }),
     scope,
@@ -462,9 +491,7 @@ export async function listBookingsPage(
   let q = applyBookingFilters(
     client
       .from("bookings")
-      .select(`${BOOKING_LIST_SELECT},\n      hotels!inner(id, organization_id)`, {
-        count: "exact",
-      }),
+      .select(bookingListSelect(filters), { count: "exact" }),
     scope,
     filters,
   );

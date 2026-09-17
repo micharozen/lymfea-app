@@ -22,8 +22,19 @@ export interface PricedLine {
 export interface PromoDiscountResult {
   /** Sum of the eligible lines the discount applies to. */
   eligibleBase: number;
-  /** Discount in currency units, never above eligibleBase. */
+  /** Discount in currency units, rounded to the cent, never above eligibleBase. */
   discount: number;
+}
+
+/**
+ * Arrondit un montant en unités monétaires au centime le plus proche.
+ *
+ * Une remise en pourcentage produit presque toujours des centimes : sans cet
+ * arrondi, la soustraction en flottant laisse des traînées (132.75000000000003)
+ * dans total_price.
+ */
+export function roundToCents(amount: number): number {
+  return Math.round(amount * 100) / 100;
 }
 
 /**
@@ -45,20 +56,25 @@ export function computePromoDiscount(
   const targetsEverything = !promo.eligible_treatment_ids?.length;
   const eligibleIds = new Set(promo.eligible_treatment_ids || []);
 
-  const eligibleBase = lines.reduce(
+  // Tout le calcul passe par les centimes : un pourcentage tombe rarement juste
+  // (25 % de 177 € = 44,25 €) et arrondir à l'euro déplaçait jusqu'à 50 ct.
+  const eligibleBaseCents = lines.reduce(
     (sum, line) =>
       targetsEverything || eligibleIds.has(line.treatmentId)
-        ? sum + (Number(line.lineTotal) || 0)
+        ? sum + Math.round((Number(line.lineTotal) || 0) * 100)
         : sum,
     0,
   );
 
-  if (eligibleBase <= 0) return { eligibleBase: 0, discount: 0 };
+  if (eligibleBaseCents <= 0) return { eligibleBase: 0, discount: 0 };
 
   const value = Number(promo.discount_value) || 0;
-  const discount = promo.discount_type === "percentage"
-    ? Math.round((eligibleBase * value) / 100)
-    : Math.min(Math.round(value), eligibleBase);
+  const discountCents = promo.discount_type === "percentage"
+    ? Math.round((eligibleBaseCents * value) / 100)
+    : Math.min(Math.round(value * 100), eligibleBaseCents);
 
-  return { eligibleBase, discount: Math.max(0, discount) };
+  return {
+    eligibleBase: eligibleBaseCents / 100,
+    discount: Math.max(0, discountCents) / 100,
+  };
 }

@@ -25,6 +25,7 @@ import {
   useBookingsList,
   useBookingFilters,
   useBookingSelection,
+  useTreatmentNames,
   type BookingWithTreatments,
 } from "@/hooks/booking";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -73,6 +74,8 @@ export default function BookingsList() {
     setPaymentMethodFilter,
     paymentStatusFilter,
     setPaymentStatusFilter,
+    treatmentFilter,
+    setTreatmentFilter,
     resetFilters,
     // La liste est filtrée par Postgres : le hook ne sert plus qu'à porter
     // l'état des filtres (et à le mémoriser d'un écran à l'autre).
@@ -94,6 +97,7 @@ export default function BookingsList() {
       ...(therapistFilter.length ? { therapistIds: therapistFilter } : {}),
       ...(paymentMethodFilter.length ? { paymentMethods: paymentMethodFilter } : {}),
       ...(paymentStatusFilter.length ? { paymentStatuses: paymentStatusFilter } : {}),
+      ...(treatmentFilter.length ? { treatmentNames: treatmentFilter } : {}),
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
     }),
     [
@@ -103,6 +107,7 @@ export default function BookingsList() {
       therapistFilter,
       paymentMethodFilter,
       paymentStatusFilter,
+      treatmentFilter,
       debouncedSearch,
     ],
   );
@@ -125,6 +130,8 @@ export default function BookingsList() {
     loadMore,
     refetch,
   } = useBookingsList({ filters, sort });
+
+  const { data: treatmentNames } = useTreatmentNames();
 
   // Lien externe `?id=` : uuid ou numéro de réservation. La cible n'est pas
   // forcément dans les lots chargés, on la résout donc en base.
@@ -363,6 +370,9 @@ export default function BookingsList() {
           onHotelChange={setHotelFilter}
           therapistFilter={therapistFilter}
           onTherapistChange={setTherapistFilter}
+          treatmentFilter={treatmentFilter}
+          onTreatmentChange={setTreatmentFilter}
+          treatmentOptions={treatmentNames}
           paymentMethodFilter={paymentMethodFilter}
           onPaymentMethodChange={setPaymentMethodFilter}
           paymentStatusFilter={paymentStatusFilter}

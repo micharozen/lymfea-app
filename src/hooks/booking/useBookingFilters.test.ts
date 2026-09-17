@@ -10,6 +10,7 @@ const NO_FILTERS: BookingFilterValues = {
   therapist: [],
   paymentMethod: [],
   paymentStatus: [],
+  treatment: [],
 };
 
 const booking = (overrides: Partial<BookingWithTreatments> = {}) =>
@@ -22,6 +23,7 @@ const booking = (overrides: Partial<BookingWithTreatments> = {}) =>
     therapist_id: "th-1",
     payment_method: "card",
     payment_status: "paid",
+    treatments: [],
     ...overrides,
   }) as BookingWithTreatments;
 
@@ -81,5 +83,24 @@ describe("matchesBookingFilters", () => {
     expect(matchesBookingFilters(booking(), { ...NO_FILTERS, searchQuery: "0612" })).toBe(false);
     expect(matchesBookingFilters(booking(), { ...NO_FILTERS, searchQuery: "612345" })).toBe(true);
     expect(matchesBookingFilters(booking(), { ...NO_FILTERS, searchQuery: "zzz" })).toBe(false);
+  });
+
+  it("matches a booking on the name of one of its treatments", () => {
+    const filters = { ...NO_FILTERS, treatment: ["Massage relaxant"] };
+    const treatments = (...names: string[]) =>
+      names.map((name) => ({ name, duration: 60, price: 100 }));
+    expect(
+      matchesBookingFilters(
+        booking({ treatments: treatments("Deep tissue", "Massage relaxant") }),
+        filters
+      )
+    ).toBe(true);
+    // Variante : le libellé porte un suffixe, le soin reste le même.
+    expect(
+      matchesBookingFilters(booking({ treatments: treatments("Massage relaxant \u00b7 90 min") }), filters)
+    ).toBe(true);
+    expect(matchesBookingFilters(booking({ treatments: treatments("Deep tissue") }), filters)).toBe(
+      false
+    );
   });
 });

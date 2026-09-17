@@ -1571,6 +1571,7 @@
     "create": "Créer une carte cadeau",
     "print": "Impression",
     "selfPurchase": "Pour soi-même",
+    "searchSales": "Rechercher par acheteur, destinataire ou code...",
     "sessionsValue": "{{count}} séances",
     "tabs": {
       "templates": "Modèles",
@@ -1610,7 +1611,8 @@
     "empty": {
       "templates": "Aucune carte cadeau configurée",
       "templatesHint": "Cliquez sur Créer une carte cadeau pour démarrer.",
-      "sales": "Aucune carte cadeau vendue"
+      "sales": "Aucune carte cadeau vendue",
+      "salesSearch": "Aucune carte cadeau ne correspond"
     },
     "dialog": {
       "createTitle": "Nouvelle carte cadeau",
@@ -2273,8 +2275,8 @@
     "noIntentsDescription": "Essayez de modifier vos filtres",
     "neverReminded": "Jamais",
     "itemName": "paniers",
-    "cartSummary": "{{count}} soin",
-    "cartSummary_plural": "{{count}} soins",
+    "cartSummary_one": "{{count}} soin",
+    "cartSummary_other": "{{count}} soins",
     "columns": {
       "client": "Contact",
       "email": "Email",
@@ -2300,11 +2302,11 @@
       "conversionRate": "Taux de conversion",
       "conversionHint": "{{converted}} réservations sur {{total}} paniers",
       "abandonedValue": "Valeur récupérable",
-      "abandonedValueHint": "réparti sur {{count}} panier abandonné",
-      "abandonedValueHint_plural": "réparti sur {{count}} paniers abandonnés",
+      "abandonedValueHint_one": "réparti sur {{count}} panier abandonné",
+      "abandonedValueHint_other": "réparti sur {{count}} paniers abandonnés",
       "reminded": "Relances envoyées",
-      "remindedHint": "{{count}} panier en attente de relance",
-      "remindedHint_plural": "{{count}} paniers en attente de relance"
+      "remindedHint_one": "{{count}} panier en attente de relance",
+      "remindedHint_other": "{{count}} paniers en attente de relance"
     },
     "actions": {
       "previewEmail": "Aperçu de la relance",
@@ -2319,8 +2321,8 @@
       "total": "Total",
       "onRequest": "Sur devis",
       "quantity": "×{{count}}",
-      "guests": "{{count}} personne",
-      "guests_plural": "{{count}} personnes"
+      "guests_one": "{{count}} personne",
+      "guests_other": "{{count}} personnes"
     }
   },
   "therapistTreatments": {
@@ -4426,6 +4428,9 @@
     "allTherapists": "Tous les thérapeutes",
     "searchTherapist": "Rechercher un thérapeute...",
     "noTherapistFound": "Aucun thérapeute trouvé.",
+    "allTreatments": "Toutes les prestations",
+    "searchTreatment": "Rechercher une prestation...",
+    "noTreatmentFound": "Aucune prestation trouvée.",
     "lastDays": "{{count}} derniers jours",
     "customPeriod": "Période personnalisée",
     "selectPeriod": "Sélectionnez une période",
@@ -4439,6 +4444,7 @@
       "hotel": "Lieu",
       "status": "Statut",
       "therapist": "Thérapeute",
+      "treatment": "Prestation",
       "period": "Période",
       "payment": "Mode de paiement",
       "paymentStatus": "Statut du paiement"

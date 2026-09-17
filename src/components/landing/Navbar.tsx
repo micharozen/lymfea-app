@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BRAND_DEMO_CTA, BRAND_NAME } from "./constants";
 import { Wordmark } from "./Wordmark";
+import { ProductMenu } from "./ProductMenu";
+import { ResourcesMenu } from "./ResourcesMenu";
+import { RESOURCES_MENU_ITEMS } from "./resourcesMenuItems";
+import { PRODUCT_MENU_ITEMS } from "./productMenuItems";
 
 export const Navbar = () => {
   const { t, i18n } = useTranslation("landing");
@@ -40,11 +45,10 @@ export const Navbar = () => {
     };
   }, [mobileOpen]);
 
+  // "Produit" est rendu à part : c'est un menu, pas un lien.
   const links = [
-    { href: "#features", label: t("nav.features") },
-    { href: "#how-it-works", label: t("nav.howItWorks") },
-    { href: "#pricing", label: t("nav.pricing") },
-    { href: "#faq", label: t("nav.faq") },
+    { href: "/clients", label: t("nav.customers") },
+    { href: "/tarifs", label: t("nav.pricing") },
   ];
 
   const switchLang = () => {
@@ -66,20 +70,29 @@ export const Navbar = () => {
       )}
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:h-20 md:px-6">
-        <a href="#top" className="flex items-center gap-2" aria-label={BRAND_NAME}>
+        {/* Le logo ramène à l'accueil : en ancre `#top` il ne menait nulle part
+            depuis les autres pages du site. */}
+        <Link
+          to="/"
+          className="flex items-center gap-2"
+          aria-label={BRAND_NAME}
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        >
           <Wordmark />
-        </a>
+        </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-7 md:flex">
+          <ProductMenu label={t("nav.product.label")} />
           {links.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
+              className="text-[15px] font-medium text-foreground/80 transition-colors hover:text-foreground"
             >
               {link.label}
             </a>
           ))}
+          <ResourcesMenu label={t("nav.resources.label")} />
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
@@ -92,7 +105,7 @@ export const Navbar = () => {
           </button>
           <a
             href="/login"
-            className="text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
+            className="text-[15px] font-medium text-foreground/80 transition-colors hover:text-foreground"
           >
             {t("nav.login")}
           </a>
@@ -120,6 +133,30 @@ export const Navbar = () => {
             className="border-t border-border/60 bg-background md:hidden"
           >
             <div className="container mx-auto flex flex-col gap-1 px-4 py-4">
+              {/* Sur mobile, pas de survol : les entrées Produit sont dépliées
+                  sous un intertitre plutôt que cachées derrière un menu. */}
+              <p className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {t("nav.product.label")}
+              </p>
+              {PRODUCT_MENU_ITEMS.map((item) => (
+                <a
+                  key={item.key}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium text-foreground/80 hover:bg-muted"
+                >
+                  <span
+                    aria-hidden
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold-100 text-gold-700"
+                  >
+                    <item.icon className="h-4 w-4" />
+                  </span>
+                  {t(`nav.product.items.${item.key}.title`)}
+                </a>
+              ))}
+
+              <div className="my-2 border-t border-border/60" />
+
               {links.map((link) => (
                 <a
                   key={link.href}
@@ -130,6 +167,29 @@ export const Navbar = () => {
                   {link.label}
                 </a>
               ))}
+              <p className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {t("nav.resources.label")}
+              </p>
+              {RESOURCES_MENU_ITEMS.map((item) => (
+                <a
+                  key={item.key}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  {...(item.external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium text-foreground/80 hover:bg-muted"
+                >
+                  <span
+                    aria-hidden
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold-100 text-gold-700"
+                  >
+                    <item.icon className="h-4 w-4" />
+                  </span>
+                  {t(`nav.resources.items.${item.key}.title`)}
+                </a>
+              ))}
+
+              <div className="my-2 border-t border-border/60" />
+
               <a
                 href="/login"
                 onClick={() => setMobileOpen(false)}

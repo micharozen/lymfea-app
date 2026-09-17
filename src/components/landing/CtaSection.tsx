@@ -4,6 +4,14 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BRAND_DEMO_CTA } from "./constants";
 
+// Trois des maisons du mur de logos : le chiffre du titre reste abstrait, un
+// nom d'établissement se vérifie en un clic.
+const PROOF_LOGOS = [
+  { key: "george", src: "/images/logos/george.png", className: "h-6 max-w-[130px] md:h-7" },
+  { key: "capAntibes", src: "/images/logos/capantibes.png", className: "h-4 max-w-[160px] md:h-5" },
+  { key: "sohoHouse", src: "/images/logos/sohohouse.svg", className: "h-2.5 max-w-[130px] md:h-3" },
+] as const;
+
 export const CtaSection = () => {
   const { t } = useTranslation("landing");
 
@@ -41,6 +49,19 @@ export const CtaSection = () => {
               </Button>
               <p className="text-sm text-muted-foreground">{t("cta.secondary")}</p>
             </div>
+
+            <ul className="mt-12 flex flex-wrap items-center justify-center gap-x-10 gap-y-6 md:gap-x-14">
+              {PROOF_LOGOS.map((logo) => (
+                <li key={logo.key} className="flex shrink-0 items-center justify-center">
+                  <img
+                    src={logo.src}
+                    alt={t(`trustedBy.venues.${logo.key}.name`)}
+                    loading="lazy"
+                    className={`w-auto object-contain opacity-50 brightness-0 ${logo.className}`}
+                  />
+                </li>
+              ))}
+            </ul>
           </div>
         </motion.div>
       </div>

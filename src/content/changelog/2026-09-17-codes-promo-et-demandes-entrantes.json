@@ -1,0 +1,110 @@
+{
+  "date": "2026-09-17",
+  "slug": "codes-promo-et-demandes-entrantes",
+  "title": {
+    "fr": "Codes promo, demandes entrantes unifiées et no-show comptés dans le chiffre d'affaires",
+    "en": "Promo codes, unified inbound requests and no-shows counted in revenue"
+  },
+  "summary": {
+    "fr": "Les codes promo arrivent dans le tunnel de réservation client, avec remise en pourcentage ou en montant, restriction par soin et par lieu. Les demandes entrantes, par e-mail ou par téléphone, se suivent désormais au même endroit et se transforment en réservation en un clic. Côté finance, les no-show facturés entrent dans le chiffre d'affaires.",
+    "en": "Promo codes are now available in the client booking flow, with percentage or fixed discounts, restricted by treatment and by venue. Inbound requests, by email or phone, are now tracked in one place and turn into a booking in one click. On the finance side, billed no-shows now count towards revenue."
+  },
+  "items": [
+    {
+      "type": "new",
+      "audience": "client",
+      "title": {
+        "fr": "Codes promo sur la réservation en ligne",
+        "en": "Promo codes in online booking"
+      },
+      "body": {
+        "fr": "Un code promo peut porter une remise en pourcentage ou un montant fixe, et ne s'appliquer qu'à certains soins ou à certains lieux. Vous fixez une période de validité, un plafond d'utilisations global et un plafond par client. La remise fonctionne sur les trois modes de paiement client : carte, facturation en chambre et devis. Le back-office affiche le nombre d'utilisations, le total remisé et les réservations concernées.",
+        "en": "A promo code can carry a percentage or a fixed discount, and apply only to selected treatments or venues. You set a validity window, an overall redemption cap and a per-guest cap. The discount works across all three client payment paths: card, room charge and quote. The back office shows the number of redemptions, the total discounted and the bookings involved."
+      }
+    },
+    {
+      "type": "new",
+      "audience": "admin",
+      "title": {
+        "fr": "Les demandes entrantes se suivent au même endroit, quel que soit le canal",
+        "en": "Inbound requests are tracked in one place, whatever the channel"
+      },
+      "body": {
+        "fr": "Les demandes reçues par e-mail et celles saisies à la main après un appel suivaient jusqu'ici deux circuits séparés. Elles se traitent désormais au même endroit : une demande regroupe tous les échanges qui la concernent, et se transforme en réservation sans ressaisie. Un prospect peut être suivi avant même qu'une fiche client existe.",
+        "en": "Requests received by email and those logged by hand after a phone call used to follow two separate paths. They are now handled in one place: a request groups every exchange that relates to it, and turns into a booking with no re-entry. A prospect can be tracked before a client record even exists."
+      }
+    },
+    {
+      "type": "improved",
+      "audience": "admin",
+      "title": {
+        "fr": "Les no-show facturés comptent dans le chiffre d'affaires",
+        "en": "Billed no-shows count towards revenue"
+      },
+      "body": {
+        "fr": "Un client absent dont la prestation a été facturée représente un encaissement réel. Ces montants entrent désormais dans le chiffre d'affaires de la clôture quotidienne et des rapports financiers, au lieu d'en être écartés avec les réservations annulées.",
+        "en": "A guest who did not show up but was still billed represents real income. Those amounts now count towards the revenue shown in the daily closing and in financial reports, instead of being dropped alongside cancelled bookings."
+      }
+    },
+    {
+      "type": "fixed",
+      "audience": "therapist",
+      "title": {
+        "fr": "Une prestation offerte se finalise sans passer par le paiement",
+        "en": "A complimentary treatment can be completed without going through payment"
+      },
+      "body": {
+        "fr": "Dans l'application mobile, une réservation offerte restait bloquée à l'étape de paiement, qui n'avait pas lieu d'être. Elle se termine désormais directement, comme n'importe quelle prestation réglée.",
+        "en": "In the mobile app, a complimentary booking got stuck on a payment step that had no reason to exist. It can now be completed directly, like any paid treatment."
+      }
+    },
+    {
+      "type": "fixed",
+      "audience": "admin",
+      "title": {
+        "fr": "Les thérapeutes n'ont plus d'erreur en ouvrant une fiche de réservation",
+        "en": "Therapists no longer hit an error when opening a booking"
+      },
+      "body": {
+        "fr": "Un thérapeute qui ouvrait une réservation encore ouverte à candidature, sans en être encore titulaire, recevait une erreur d'accès et ne voyait pas le nom de la salle. La vérification des droits distinguait mal la lecture d'une fiche de sa modification. La fiche s'ouvre désormais normalement.",
+        "en": "A therapist opening a booking still open for applications, without being assigned to it yet, got an access error and could not see the room name. The permission check did not properly distinguish reading a booking from editing it. The booking now opens normally."
+      }
+    },
+    {
+      "type": "fixed",
+      "audience": "client",
+      "title": {
+        "fr": "Prix, durée et sélecteur de quantité ne se chevauchent plus",
+        "en": "Price, duration and the quantity selector no longer overlap"
+      },
+      "body": {
+        "fr": "Sur la page de réservation, le prix et la durée d'un soin pouvaient se superposer au sélecteur de quantité sur les écrans étroits, rendant les deux difficiles à lire et à utiliser. La mise en page a été reprise.",
+        "en": "On the booking page, a treatment's price and duration could overlap the quantity selector on narrow screens, making both hard to read and to use. The layout has been reworked."
+      }
+    },
+    {
+      "type": "fixed",
+      "audience": "admin",
+      "title": {
+        "fr": "Le prix spécial d'un soin réapparaît pour les gestionnaires de lieu",
+        "en": "A treatment's special price is visible again for venue managers"
+      },
+      "body": {
+        "fr": "Un soin doté d'un prix négocié pour un lieu s'affichait au tarif standard lors d'une réservation créée par un gestionnaire de lieu. Le prix propre au lieu est de nouveau appliqué.",
+        "en": "A treatment with a negotiated price for a venue was showing its standard rate when a venue manager created a booking. The venue's own price is applied again."
+      }
+    },
+    {
+      "type": "fixed",
+      "audience": "client",
+      "title": {
+        "fr": "Un code promo est restitué quand la réservation est annulée",
+        "en": "A promo code is released when the booking is cancelled"
+      },
+      "body": {
+        "fr": "L'annulation d'une réservation payée avec un code promo ne rendait pas l'utilisation au compteur : le client pouvait se voir refuser son propre code lors d'une nouvelle tentative. L'utilisation est désormais restituée.",
+        "en": "Cancelling a booking paid with a promo code did not return the redemption to the counter, so a guest could be refused their own code on a second attempt. The redemption is now released."
+      }
+    }
+  ]
+}

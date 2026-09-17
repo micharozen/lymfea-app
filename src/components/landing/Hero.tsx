@@ -1,33 +1,38 @@
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Calendar, Check } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BRAND_APP_DOMAIN, BRAND_DEMO_CTA } from "./constants";
+import { BRAND_DEMO_CTA } from "./constants";
+import { PhoneFrame } from "./PhoneFrame";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+// Captures de l'app locale (planning admin semaine, dashboard PWA thérapeute),
+// mêmes données de démo que les captures des différenciateurs. Dimensions
+// intrinsèques déclarées pour réserver la place avant le chargement (CLS).
+const AGENDA = { src: "/images/landing/app-agenda-week.webp", width: 1600, height: 1156 };
+const PWA = { src: "/images/landing/app-pwa-home.webp", width: 600, height: 1266 };
 
 export const Hero = () => {
   const { t } = useTranslation("landing");
+  const reduce = useReducedMotion();
+  const enter = (delay: number) => ({
+    initial: reduce ? false : { opacity: 0, y: 16 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.7, ease: EASE, delay },
+  });
 
   return (
     <section id="top" className="relative overflow-hidden pt-28 md:pt-32">
-      {/* Ambient background blobs */}
       <div
         aria-hidden
         className="pointer-events-none absolute -top-40 left-1/2 h-[560px] w-[780px] -translate-x-1/2 rounded-full bg-gold-200/60 blur-[120px]"
       />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute top-40 right-0 h-[360px] w-[360px] rounded-full bg-primary/10 blur-[100px]"
-      />
 
       <div className="container relative mx-auto px-4 pb-20 md:px-6 md:pb-28">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-          {/* Left: text */}
-          <div className="flex flex-col items-start">
-            <p className="flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-gold-700">
-              <span className="h-px w-8 shrink-0 bg-gold-400" aria-hidden />
-              {t("hero.eyebrow")}
-            </p>
-
-            <h1 className="mt-6 font-serif text-4xl leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-[4.2rem]">
+          <motion.div {...enter(0)} className="flex flex-col items-start">
+            <h1 className="pb-1 font-serif text-4xl leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
               {t("hero.title")}{" "}
               <span className="italic text-primary">{t("hero.titleHighlight")}</span>
               <span className="text-primary">.</span>
@@ -54,162 +59,38 @@ export const Hero = () => {
                 size="lg"
                 className="h-12 border-foreground/20 bg-transparent px-6 text-base hover:bg-foreground/5"
               >
-                <a href="#features">{t("hero.ctaSecondary")}</a>
+                <a href="#differentiators">{t("hero.ctaSecondary")}</a>
               </Button>
             </div>
+          </motion.div>
 
-            <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-muted-foreground">
-              {["booking", "pms", "customization"].map((key) => (
-                <div key={key} className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-primary" />
-                  <span>{t(`hero.stats.${key}`)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right: product mockup */}
-          <div className="relative">
-            <DashboardMockup />
-            <div className="absolute -bottom-10 -left-6 hidden w-[220px] rotate-[-6deg] md:block lg:-left-10">
-              <PhoneMockup />
-            </div>
-          </div>
+          <motion.div {...enter(0.1)} className="relative lg:pl-6">
+            <img
+              src={AGENDA.src}
+              width={AGENDA.width}
+              height={AGENDA.height}
+              alt={t("hero.agendaAlt")}
+              fetchPriority="high"
+              decoding="async"
+              className="h-auto w-full rounded-xl border border-border/50 shadow-[0_24px_50px_-28px_rgba(80,60,30,0.45)]"
+            />
+            <PhoneFrame
+              aria-hidden
+              className="absolute -bottom-8 -left-4 hidden w-[150px] rounded-[1.65rem] p-[5px] md:w-[150px] md:rounded-[1.65rem] md:p-[5px] lg:block xl:w-[168px] xl:rounded-[1.8rem]"
+              screenClassName="rounded-[1.35rem] md:rounded-[1.35rem] xl:rounded-[1.5rem]"
+            >
+              <img
+                src={PWA.src}
+                width={PWA.width}
+                height={PWA.height}
+                alt=""
+                decoding="async"
+                className="h-full w-full object-cover"
+              />
+            </PhoneFrame>
+          </motion.div>
         </div>
       </div>
     </section>
   );
 };
-
-const DashboardMockup = () => (
-  <div className="relative rounded-[20px] border border-border/60 bg-card p-2 shadow-[0_30px_80px_-20px_rgba(90,60,30,0.25)] ring-1 ring-foreground/5">
-    {/* Window chrome */}
-    <div className="flex items-center gap-1.5 px-3 py-2">
-      <span className="h-2.5 w-2.5 rounded-full bg-gold-200" />
-      <span className="h-2.5 w-2.5 rounded-full bg-gold-300" />
-      <span className="h-2.5 w-2.5 rounded-full bg-gold-400" />
-      <div className="ml-auto hidden text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:block">
-        {BRAND_APP_DOMAIN}
-      </div>
-    </div>
-
-    {/* App body */}
-    <div className="rounded-2xl bg-background p-4 md:p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <div className="font-serif text-lg text-foreground">Bookings</div>
-          <div className="text-xs text-muted-foreground">Jeudi 18 avril · 24 soins</div>
-        </div>
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
-          <Calendar className="h-3.5 w-3.5" />
-          Semaine
-        </div>
-      </div>
-
-      <div className="grid grid-cols-5 gap-1 text-[10px] text-muted-foreground">
-        {["Lun", "Mar", "Mer", "Jeu", "Ven"].map((d, i) => (
-          <div key={d} className={`rounded-md px-1.5 py-1 text-center ${i === 3 ? "bg-gold-100 font-medium text-gold-800" : ""}`}>
-            {d}
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-3 space-y-2">
-        <TimelineRow time="09:00" name="Sarah M." treatment="Massage suédois · 60 min" status="confirmed" />
-        <TimelineRow time="10:30" name="Julie D." treatment="Soin signature · 90 min" status="inprogress" />
-        <TimelineRow time="12:00" name="Thomas B." treatment="Massage couple · 60 min" status="pending" />
-        <TimelineRow time="14:30" name="Anna K." treatment="Soin visage · 45 min" status="confirmed" />
-      </div>
-
-      <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-        <StatCard label="Revenus" value="2 840 €" />
-        <StatCard label="Taux occupation" value="87%" />
-        <StatCard label="Soins à venir" value="14" />
-      </div>
-    </div>
-  </div>
-);
-
-const TimelineRow = ({
-  time,
-  name,
-  treatment,
-  status,
-}: {
-  time: string;
-  name: string;
-  treatment: string;
-  status: "confirmed" | "pending" | "inprogress";
-}) => {
-  const statusStyles = {
-    confirmed: "bg-primary/10 text-primary",
-    pending: "bg-gold-100 text-gold-800",
-    inprogress: "bg-success/15 text-success",
-  }[status];
-  const statusLabel = {
-    confirmed: "Confirmé",
-    pending: "En attente",
-    inprogress: "En cours",
-  }[status];
-
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-card px-3 py-2">
-      <div className="w-10 text-[10px] font-medium text-muted-foreground">{time}</div>
-      <div className="flex-1">
-        <div className="text-xs font-medium text-foreground">{name}</div>
-        <div className="truncate text-[11px] text-muted-foreground">{treatment}</div>
-      </div>
-      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusStyles}`}>
-        {statusLabel}
-      </span>
-    </div>
-  );
-};
-
-const StatCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2">
-    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-    <div className="mt-0.5 font-serif text-base text-foreground">{value}</div>
-  </div>
-);
-
-const PhoneMockup = () => (
-  <div className="rounded-[32px] border border-border/60 bg-foreground p-2 shadow-[0_30px_60px_-15px_rgba(40,25,10,0.4)]">
-    <div className="rounded-[24px] bg-card p-3">
-      <div className="flex items-center justify-between text-[9px] text-muted-foreground">
-        <span>09:41</span>
-        <span>●●● ▲</span>
-      </div>
-      <div className="mt-3 rounded-2xl bg-primary/10 p-3">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-primary">
-          Nouveau booking
-        </div>
-        <div className="mt-1 font-serif text-sm leading-tight text-foreground">
-          Massage deep tissue · 11h00
-        </div>
-        <div className="mt-0.5 text-[10px] text-muted-foreground">
-          Le Grand Hôtel · Salle Zen
-        </div>
-        <div className="mt-3 flex gap-2">
-          <div className="flex-1 rounded-lg bg-primary py-1.5 text-center text-[10px] font-medium text-primary-foreground">
-            Accepter
-          </div>
-          <div className="flex-1 rounded-lg bg-muted py-1.5 text-center text-[10px] font-medium text-muted-foreground">
-            Refuser
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 space-y-2">
-        <MiniRow label="Cette semaine" value="18 soins" />
-        <MiniRow label="Gains" value="1 240 €" />
-      </div>
-    </div>
-  </div>
-);
-
-const MiniRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1.5">
-    <span className="text-[10px] text-muted-foreground">{label}</span>
-    <span className="text-[10px] font-medium text-foreground">{value}</span>
-  </div>
-);

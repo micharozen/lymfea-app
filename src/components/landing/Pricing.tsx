@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -57,8 +58,13 @@ function formatPrice(cents: number | null | undefined, currency: string): string
 
 export const Pricing = () => {
   const { t } = useTranslation("landing");
+  // Sur /tarifs le comparatif est juste en dessous : le lien devient une ancre
+  // plutôt qu'une navigation vers la page où l'on se trouve déjà.
+  const onPlansPage = useLocation().pathname.startsWith("/tarifs");
   const { userId, organizationId, isAdmin, loading: userLoading } = useUser();
-  const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  // L'annuel ouvre la page : son équivalent mensuel est le prix le plus bas,
+  // et c'est l'engagement que l'on veut mettre en avant.
+  const [cycle, setCycle] = useState<BillingCycle>("yearly");
   const [busyPlan, setBusyPlan] = useState<PlanCode | null>(null);
 
   const plansQuery = useQuery<PublicPlan[]>({
@@ -162,10 +168,7 @@ export const Pricing = () => {
           transition={{ duration: 0.6 }}
           className="mx-auto max-w-2xl text-center"
         >
-          <span className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
-            {t("pricing.eyebrow")}
-          </span>
-          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground md:text-5xl">
+          <h2 className="font-serif text-3xl tracking-tight text-foreground md:text-5xl">
             {t("pricing.title")}
           </h2>
           <p className="mt-4 text-lg text-muted-foreground md:text-xl">
@@ -218,8 +221,7 @@ export const Pricing = () => {
             <p className="mt-2 text-sm text-muted-foreground">{t("pricing.starter.tagline")}</p>
 
             <div className="mt-6">
-              <div className="text-sm text-muted-foreground">{t("pricing.starter.priceFrom")}</div>
-              <div className="mt-1 flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2">
                 <span className="font-serif text-5xl text-foreground md:text-6xl">
                   {formatPrice(starterAmount, starterPlan?.currency ?? "eur")}
                 </span>
@@ -251,9 +253,11 @@ export const Pricing = () => {
               {t("pricing.starter.cta")}
               <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Button>
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              {t("pricing.starter.note")}
-            </p>
+            {t(`pricing.starter.note`) && (
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                {t(`pricing.starter.note`)}
+              </p>
+            )}
           </motion.div>
 
           {/* Pro tier — highlighted */}
@@ -276,8 +280,7 @@ export const Pricing = () => {
             <p className="mt-2 text-sm text-muted-foreground">{t("pricing.pro.tagline")}</p>
 
             <div className="mt-6">
-              <div className="text-sm text-muted-foreground">{t("pricing.pro.priceFrom")}</div>
-              <div className="mt-1 flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2">
                 <span className="font-serif text-5xl text-foreground md:text-6xl">
                   {formatPrice(proAmount, proPlan?.currency ?? "eur")}
                 </span>
@@ -308,21 +311,30 @@ export const Pricing = () => {
               {t("pricing.pro.cta")}
               <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Button>
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              {t("pricing.pro.note")}
-            </p>
+            {t(`pricing.pro.note`) && (
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                {t(`pricing.pro.note`)}
+              </p>
+            )}
           </motion.div>
         </div>
 
-        <motion.p
+        <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-10 text-center text-sm text-muted-foreground"
+          className="mt-10 text-center"
         >
-          {t("pricing.footnote")}
-        </motion.p>
+          <a
+            href={onPlansPage ? "#plan-comparison" : "/tarifs#plan-comparison"}
+            className="group inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            {t("pricing.compareLink")}
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </a>
+          <p className="mt-4 text-sm text-muted-foreground">{t("pricing.footnote")}</p>
+        </motion.div>
       </div>
     </section>
   );

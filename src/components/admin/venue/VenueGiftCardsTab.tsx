@@ -199,6 +199,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
   const isStandalone = !hotelId;
   const [hotelFilter, setHotelFilter] = useState<string>("all");
   const [activeSubTab, setActiveSubTab] = useState<"templates" | "sales" | "external">("templates");
+  const [salesSearch, setSalesSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogHotelId, setDialogHotelId] = useState<string | undefined>(undefined);
   const [editingTemplate, setEditingTemplate] = useState<GiftCardTemplate | null>(null);
@@ -502,6 +503,37 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
     );
   };
 
+  // Acheteur et destinataire tels qu'affichés dans le tableau : la recherche
+  // doit porter sur ce que l'utilisateur lit, pas sur les colonnes brutes.
+  const buyerLabel = (sale: CustomerGiftCard): string =>
+    sale.customers
+      ? `${sale.customers.first_name ?? ""} ${sale.customers.last_name ?? ""}`.trim() ||
+        sale.customers.email ||
+        "\u2014"
+      : sale.sender_name || "\u2014";
+
+  const recipientLabel = (sale: CustomerGiftCard): string =>
+    sale.is_gift
+      ? sale.recipient_name ||
+        sale.recipient_email ||
+        (sale.gift_delivery_mode === "print" ? t("giftCards.print", "Impression") : "\u2014")
+      : t("giftCards.selfPurchase", "Pour soi-m\u00eame");
+
+  // Recherche par acheteur, destinataire ou code de réduction.
+  const filteredSales = useMemo(() => {
+    const term = salesSearch.trim().toLowerCase();
+    if (!term) return sales ?? [];
+    return (sales ?? []).filter((sale) =>
+      [
+        buyerLabel(sale),
+        sale.customers?.email ?? "",
+        recipientLabel(sale),
+        sale.recipient_email ?? "",
+        sale.redemption_code ?? "",
+      ].some((field) => field.toLowerCase().includes(term)),
+    );
+  }, [sales, salesSearch]);
+
   const renderBalance = (sale: CustomerGiftCard): string => {
     const type = sale.treatment_bundles?.bundle_type;
     if (type === "gift_amount") {
@@ -697,17 +729,32 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
           )}
         </TabsContent>
 
-        <TabsContent value="sales" className="mt-4">
+        <TabsContent value="sales" className="mt-4 space-y-4">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-8"
+              value={salesSearch}
+              onChange={(e) => setSalesSearch(e.target.value)}
+              placeholder={t(
+                "giftCards.searchSales",
+                "Rechercher par acheteur, destinataire ou code...",
+              )}
+            />
+          </div>
+
           {salesLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : !sales || sales.length === 0 ? (
+          ) : filteredSales.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <Gift className="h-10 w-10 text-muted-foreground/40 mb-3" />
                 <h3 className="text-sm font-medium">
-                  {t("giftCards.empty.sales", "Aucune carte cadeau vendue")}
+                  {salesSearch
+                    ? t("giftCards.empty.salesSearch", "Aucune carte cadeau ne correspond")
+                    : t("giftCards.empty.sales", "Aucune carte cadeau vendue")}
                 </h3>
               </CardContent>
             </Card>
@@ -733,18 +780,9 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sales.map((sale) => {
-                    const buyer = sale.customers
-                      ? `${sale.customers.first_name ?? ""} ${sale.customers.last_name ?? ""}`.trim() ||
-                        sale.customers.email ||
-                        "—"
-                      : sale.sender_name || "—";
-                    const recipient = sale.is_gift
-                      ? sale.recipient_name || sale.recipient_email ||
-                        (sale.gift_delivery_mode === "print"
-                          ? t("giftCards.print", "Impression")
-                          : "—")
-                      : t("giftCards.selfPurchase", "Pour soi-même");
+                  {filteredSales.map((sale) => {
+                    const buyer = buyerLabel(sale);
+                    const recipient = recipientLabel(sale);
                     return (
                       <TableRow key={sale.id}>
                         <TableCell className="text-sm">

@@ -50,6 +50,7 @@ export const treatmentKeys = {
   forOrg: (scope: ScopeLike) => [...treatmentKeys.all, "org", orgKey(scope)] as const,
   list: (scope: ScopeLike) => [...treatmentKeys.forOrg(scope), "list"] as const,
   forHotel: (hotelId: string) => [...treatmentKeys.all, "hotel", hotelId] as const,
+  names: (scope: ScopeLike) => [...treatmentKeys.forOrg(scope), "names"] as const,
 };
 
 export const promoCodeKeys = {
